@@ -37,3 +37,7 @@ hex = "0.4.3"
 [dev-dependencies]
 # mocking
 wiremock = "0.6.0"
+
+[build-dependencies]
+alloy-primitives = { version = "0.7.0" }
+serde_json = "1"

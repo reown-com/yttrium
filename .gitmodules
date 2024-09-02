@@ -1,3 +1,6 @@
 [submodule "crates/yttrium/src/contracts"]
 	path = crates/yttrium/src/contracts
 	url = https://github.com/eth-infinitism/account-abstraction.git
+[submodule "crates/yttrium/safe-smart-account"]
+	path = crates/yttrium/safe-smart-account
+	url = https://github.com/safe-global/safe-smart-account
