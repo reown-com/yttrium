@@ -4,3 +4,6 @@
 [submodule "crates/yttrium/safe-smart-account"]
 	path = crates/yttrium/safe-smart-account
 	url = https://github.com/safe-global/safe-smart-account
+[submodule "crates/yttrium/safe-modules"]
+	path = crates/yttrium/safe-modules
+	url = https://github.com/safe-global/safe-modules
