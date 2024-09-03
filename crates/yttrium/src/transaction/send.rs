@@ -6,7 +6,6 @@ use core::fmt;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-mod safe_test;
 mod simple_account_test;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]

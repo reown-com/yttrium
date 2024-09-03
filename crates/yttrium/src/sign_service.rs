@@ -1,7 +1,10 @@
 use crate::error::YttriumError;
 use alloy::{
     primitives::Address,
-    signers::local::{coins_bip39::English, MnemonicBuilder},
+    signers::{
+        k256::ecdsa::SigningKey,
+        local::{coins_bip39::English, LocalSigner, MnemonicBuilder},
+    },
 };
 use std::sync::Arc;
 use tokio::sync::Mutex;
