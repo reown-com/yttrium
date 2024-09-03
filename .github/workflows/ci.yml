@@ -18,7 +18,12 @@ jobs:
       - run: rustup update stable && rustup default stable
       - run: rustup toolchain install nightly -c rustfmt
       - run: git submodule update --init --recursive
-      - run: make setup-thirdparty local-infra-forked
+      - run: make setup-thirdparty
+      - run: docker-compose up -d
+        working-directory: test/scripts/forked_state
+      - run: while ! nc -z 127.0.0.1 8545; do sleep 1; done
+      - run: while ! nc -z 127.0.0.1 4337; do sleep 1; done
+      - run: while ! nc -z 127.0.0.1 3000; do sleep 1; done
       - run: cargo test --all-features --lib --bins
       # - run: cargo clippy --workspace --all-features --all-targets -- -D warnings
       # - run: cargo +nightly fmt --all -- --check
