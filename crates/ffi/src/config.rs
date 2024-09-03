@@ -14,6 +14,7 @@ impl Into<yttrium::config::Endpoints> for ffi::FFIEndpoints {
         yttrium::config::Endpoints {
             rpc: self.rpc.into(),
             bundler: self.bundler.into(),
+            paymaster: self.paymaster.into(),
         }
     }
 }

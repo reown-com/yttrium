@@ -6,8 +6,6 @@ use core::fmt;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-mod simple_account_test;
-
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct UserOperationEstimated(UserOperationV07);
 
@@ -40,8 +38,6 @@ impl fmt::Display for SentUserOperationHash {
         write!(f, "{}", self.0)
     }
 }
-
-pub mod send_tests;
 
 pub async fn send_transaction(
     sign_service: Arc<Mutex<SignService>>,
@@ -94,9 +90,10 @@ mod tests {
         let sign_service = sign_service.clone();
         let sign_service = sign_service.lock().await;
 
-        let config = crate::config::Config::pimlico();
+        let config = crate::config::Config::local();
 
         let bundler_base_url = config.endpoints.bundler.base_url;
+        let paymaster_base_url = config.endpoints.paymaster.base_url;
 
         let bundler_client =
             BundlerClient::new(BundlerConfig::new(bundler_base_url.clone()));
@@ -159,7 +156,7 @@ mod tests {
             owner_address, sign_service_owner
         );
 
-        let factory_data_call = SimpleAccountCreate::new_u64(owner_address, 0);
+        let factory_data_call = SimpleAccountCreate::new_u64(owner_address, 2);
 
         let factory_data_value = factory_data_call.encode();
 
@@ -217,8 +214,8 @@ mod tests {
         let user_op = UserOperationV07 {
             sender: sender_address,
             nonce: U256::from(nonce),
-            factory: None,
-            factory_data: None,
+            factory: Some(simple_account_factory_address.to_address()),
+            factory_data: Some(factory_data_value.into()),
             call_data: Bytes::from_str(&call_data_value_hex)?,
             call_gas_limit: U256::from(0),
             verification_gas_limit: U256::from(0),
@@ -237,7 +234,7 @@ mod tests {
         };
 
         let paymaster_client =
-            PaymasterClient::new(BundlerConfig::new(bundler_base_url.clone()));
+            PaymasterClient::new(BundlerConfig::new(paymaster_base_url.clone()));
 
         let sponsor_user_op_result = paymaster_client
             .sponsor_user_operation_v07(
@@ -310,7 +307,6 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore = "TODO: rewrite against local infrastructure"]
     async fn test_send_transaction() -> eyre::Result<()> {
         let transaction = Transaction::mock();
 

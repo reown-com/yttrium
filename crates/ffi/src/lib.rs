@@ -31,6 +31,7 @@ mod ffi {
     pub struct FFIEndpoints {
         pub rpc: FFIEndpoint,
         pub bundler: FFIEndpoint,
+        pub paymaster: FFIEndpoint,
     }
 
     #[derive(Debug, Clone)]
