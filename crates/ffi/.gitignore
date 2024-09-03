@@ -1,0 +1,6 @@
+# swift-bridge
+generated/
+YttriumCore/RustXcframework.xcframework/
+YttriumCore/.swiftpm/
+YttriumCore/Sources/YttriumCore/ffi.swift
+YttriumCore/Sources/YttriumCore/SwiftBridgeCore.swift

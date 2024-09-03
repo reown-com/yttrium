@@ -1,0 +1,39 @@
+[package]
+name = "yttrium"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+# Ethereum
+alloy = { git = "https://github.com/alloy-rs/alloy", rev = "b000e16", features = [
+    "full",
+    "node-bindings",
+    "rpc-types-trace",
+    "signer-mnemonic",
+] }
+# foundry-block-explorers = "0.2.3"
+
+# Error/Result
+eyre.workspace = true
+thiserror.workspace = true
+
+# Async
+tokio.workspace = true
+
+# Serialization
+serde.workspace = true
+serde_json.workspace = true
+
+# Networking
+reqwest.workspace = true
+
+# Env vars
+dotenvy = "0.15.7"
+
+# Other
+hex = "0.4.3"
+
+[dev-dependencies]
+# mocking
+wiremock = "0.6.0"

@@ -1,0 +1,25 @@
+name: Rust CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+env: 
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build_rust_and_test:
+    name: Rust project - latest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: rustup update stable && rustup default stable
+      - run: rustup toolchain install nightly -c rustfmt
+      - run: git submodule update --init --recursive
+      - run: make setup-thirdparty
+      - run: cargo test --all-features --lib --bins
+      # - run: cargo clippy --workspace --all-features --all-targets -- -D warnings
+      # - run: cargo +nightly fmt --all -- --check
+      # - run: cargo +nightly udeps --workspace
