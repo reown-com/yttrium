@@ -22,7 +22,7 @@ jobs:
       - run: rustup toolchain install nightly -c rustfmt
       - run: git submodule update --init --recursive
       - run: make setup-thirdparty
-      - run: docker-compose up -d
+      - run: docker compose up -d
         working-directory: test/scripts/forked_state
       - run: while ! nc -z 127.0.0.1 8545; do sleep 1; done
       - run: while ! nc -z 127.0.0.1 4337; do sleep 1; done
