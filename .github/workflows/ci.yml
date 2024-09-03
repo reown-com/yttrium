@@ -1,4 +1,4 @@
-name: Rust CI
+name: CI
 
 on:
   pull_request:
@@ -6,7 +6,7 @@ on:
     branches:
       - main
 
-env: 
+env:
   CARGO_TERM_COLOR: always
 
 jobs:
@@ -23,3 +23,23 @@ jobs:
       # - run: cargo clippy --workspace --all-features --all-targets -- -D warnings
       # - run: cargo +nightly fmt --all -- --check
       # - run: cargo +nightly udeps --workspace
+
+  build_swift_and_test:
+    name: Swift Package - latest
+    runs-on: macos-14
+    strategy:
+      matrix:
+        config:
+          - debug
+    steps:
+      - uses: actions/checkout@v4
+      - run: rustup update stable && rustup default stable
+      - run: git submodule update --init --recursive
+      - run: make setup-thirdparty
+      - run: make build-ios-bindings
+      - name: Select Xcode 15.4
+        run: sudo xcode-select -s /Applications/Xcode_15.4.app
+      - name: Build ${{ matrix.config }}
+        run: make CONFIG=${{ matrix.config }} build-swift-apple-platforms
+      - name: Run ${{ matrix.config }} tests
+        run: make CONFIG=${{ matrix.config }} test-swift-apple-platforms

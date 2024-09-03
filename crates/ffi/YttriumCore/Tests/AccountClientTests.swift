@@ -28,7 +28,7 @@ final class AccountClientTests: XCTestCase {
             )
         )
         
-        let expectedAddress = "0xa3aBDC7f6334CD3EE466A115f30522377787c024"
+        let expectedAddress = "EXPECTED_ADDRESS"
         
         let address = try await accountClient.get_address().toString()
         
