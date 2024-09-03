@@ -1,12 +1,14 @@
 services:
   anvil:
     image: ghcr.io/foundry-rs/foundry:nightly-f6208d8db68f9acbe4ff8cd76958309efb61ea0b
+    restart: unless-stopped
     ports: ["8545:8545"]
-    entrypoint: [ "anvil", "--fork-url", "https://gateway.tenderly.co/public/sepolia", "--host", "0.0.0.0", "--block-time", "0.1", "--gas-price", "1", "--silent" ]
+    entrypoint: [ "anvil", "--fork-url", "https://gateway.tenderly.co/public/sepolia", "--host", "0.0.0.0", "--block-time", "0.1", "--gas-price", "1" ]
     platform: linux/amd64/v8
  
   mock-paymaster:
     image: ghcr.io/pimlicolabs/mock-verifying-paymaster:main
+    restart: unless-stopped
     ports: ["3000:3000"]
     environment:
       - ALTO_RPC=http://alto:4337
@@ -14,6 +16,7 @@ services:
  
   alto:
     image: ghcr.io/pimlicolabs/mock-alto-bundler:main
+    restart: unless-stopped
     ports: ["4337:4337"]
     environment:
       - ANVIL_RPC=http://anvil:8545
