@@ -12,7 +12,8 @@ env:
 jobs:
   build_rust_and_test:
     name: Rust project - latest
-    runs-on: ubuntu-latest
+    runs-on:
+      group: ubuntu-runners
     steps:
       - uses: actions/checkout@v4
       - run: rustup update stable && rustup default stable
