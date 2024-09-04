@@ -20,6 +20,7 @@ jobs:
           version: 9
       - run: rustup update stable && rustup default stable
       - run: rustup toolchain install nightly -c rustfmt
+      - run: cargo install cargo-udeps
       - run: git submodule update --init --recursive
       - run: make setup-thirdparty
       - run: docker compose up -d
