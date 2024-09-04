@@ -1,28 +1,21 @@
-use crate::{
-    sign_service::SignService, transaction::Transaction,
-    user_operation::UserOperationV07,
-};
+use crate::user_operation::UserOperationV07;
 use core::fmt;
-use std::sync::Arc;
-use tokio::sync::Mutex;
-
-mod simple_account_test;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct UserOperationEstimated(UserOperationV07);
 
-impl Into<UserOperationV07> for UserOperationEstimated {
-    fn into(self) -> UserOperationV07 {
-        self.0
+impl From<UserOperationEstimated> for UserOperationV07 {
+    fn from(val: UserOperationEstimated) -> Self {
+        val.0
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct SignedUserOperation(UserOperationV07);
 
-impl Into<UserOperationV07> for SignedUserOperation {
-    fn into(self) -> UserOperationV07 {
-        self.0
+impl From<SignedUserOperation> for UserOperationV07 {
+    fn from(val: SignedUserOperation) -> Self {
+        val.0
     }
 }
 
@@ -41,19 +34,8 @@ impl fmt::Display for SentUserOperationHash {
     }
 }
 
-pub mod send_tests;
-
-pub async fn send_transaction(
-    sign_service: Arc<Mutex<SignService>>,
-    transaction: Transaction,
-) -> eyre::Result<String> {
-    let _ = sign_service.try_lock()?;
-    todo!("Calling send_transaction with transaction: {transaction:?}")
-}
-
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::{
         bundler::{
             client::BundlerClient,
@@ -72,31 +54,24 @@ mod tests {
                 SimpleAccountAddress, SimpleAccountExecute,
             },
         },
+        transaction::Transaction,
         user_operation::UserOperationV07,
     };
     use alloy::{
         network::EthereumWallet,
         primitives::{Address, Bytes, U256},
         providers::ProviderBuilder,
-        signers::local::{
-            coins_bip39::English, MnemonicBuilder, PrivateKeySigner,
-        },
+        signers::local::LocalSigner,
     };
     use std::str::FromStr;
 
-    const MNEMONIC_PHRASE: &str =
-        "test test test test test test test test test test test junk";
-
     async fn send_transaction(
-        sign_service: Arc<Mutex<SignService>>,
         transaction: Transaction,
     ) -> eyre::Result<String> {
-        let sign_service = sign_service.clone();
-        let sign_service = sign_service.lock().await;
-
-        let config = crate::config::Config::pimlico();
+        let config = crate::config::Config::local();
 
         let bundler_base_url = config.endpoints.bundler.base_url;
+        let paymaster_base_url = config.endpoints.paymaster.base_url;
 
         let bundler_client =
             BundlerClient::new(BundlerConfig::new(bundler_base_url.clone()));
@@ -116,28 +91,8 @@ mod tests {
 
         // Create a provider
 
-        let (ethereum_wallet, alloy_signer) = {
-            let phrase = MNEMONIC_PHRASE.to_string();
-            let index: u32 = 0;
-
-            let local_signer = {
-                let local_signer_result = MnemonicBuilder::<English>::default()
-                    .phrase(phrase.clone())
-                    .index(index)?
-                    .build();
-                let local_signer = match local_signer_result {
-                    Ok(signer) => signer,
-                    Err(e) => {
-                        println!("Error creating signer: {}", e);
-                        let local_signer: PrivateKeySigner = phrase.parse()?;
-                        local_signer
-                    }
-                };
-                local_signer
-            };
-            let ethereum_wallet = EthereumWallet::from(local_signer.clone());
-            (ethereum_wallet, local_signer)
-        };
+        let alloy_signer = LocalSigner::random();
+        let ethereum_wallet = EthereumWallet::new(alloy_signer.clone());
 
         let rpc_url: reqwest::Url = rpc_url.parse()?;
         let provider = ProviderBuilder::new()
@@ -152,14 +107,8 @@ mod tests {
 
         let owner = ethereum_wallet.clone().default_signer();
         let owner_address = owner.address();
-        let sign_service_owner = sign_service.owner();
-        assert_eq!(
-            owner_address, sign_service_owner,
-            "Owner addresses don't match, should be {:?}, is {:?}",
-            owner_address, sign_service_owner
-        );
 
-        let factory_data_call = SimpleAccountCreate::new_u64(owner_address, 0);
+        let factory_data_call = SimpleAccountCreate::new_u64(owner_address, 2);
 
         let factory_data_value = factory_data_call.encode();
 
@@ -177,9 +126,9 @@ mod tests {
 
         let sender_address = get_sender_address_v07(
             &provider,
-            simple_account_factory_address.clone().into(),
+            simple_account_factory_address.into(),
             factory_data_value.clone().into(),
-            entry_point_address.clone(),
+            entry_point_address,
         )
         .await?;
 
@@ -217,8 +166,8 @@ mod tests {
         let user_op = UserOperationV07 {
             sender: sender_address,
             nonce: U256::from(nonce),
-            factory: None,
-            factory_data: None,
+            factory: Some(simple_account_factory_address.to_address()),
+            factory_data: Some(factory_data_value.into()),
             call_data: Bytes::from_str(&call_data_value_hex)?,
             call_gas_limit: U256::from(0),
             verification_gas_limit: U256::from(0),
@@ -236,8 +185,9 @@ mod tests {
             )?,
         };
 
-        let paymaster_client =
-            PaymasterClient::new(BundlerConfig::new(bundler_base_url.clone()));
+        let paymaster_client = PaymasterClient::new(BundlerConfig::new(
+            paymaster_base_url.clone(),
+        ));
 
         let sponsor_user_op_result = paymaster_client
             .sponsor_user_operation_v07(
@@ -310,22 +260,10 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore = "TODO: rewrite against local infrastructure"]
     async fn test_send_transaction() -> eyre::Result<()> {
         let transaction = Transaction::mock();
 
-        let mnemonic = MNEMONIC_PHRASE.to_string();
-
-        let sign_service =
-            crate::sign_service::SignService::mock_with_mnemonic(
-                mnemonic.clone(),
-            )
-            .await;
-
-        let sign_service_arc = Arc::new(Mutex::new(sign_service));
-
-        let transaction_hash =
-            send_transaction(sign_service_arc, transaction).await?;
+        let transaction_hash = send_transaction(transaction).await?;
 
         println!("Transaction sent: {}", transaction_hash);
 

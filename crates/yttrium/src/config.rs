@@ -3,6 +3,7 @@ use std::env;
 
 const LOCAL_RPC_URL: &str = "http://localhost:8545";
 const LOCAL_BUNDLER_URL: &str = "http://localhost:4337";
+const LOCAL_PAYMASTER_URL: &str = "http://localhost:3000";
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Config {
@@ -23,6 +24,7 @@ impl Config {
 pub struct Endpoints {
     pub rpc: Endpoint,
     pub bundler: Endpoint,
+    pub paymaster: Endpoint,
 }
 
 impl Endpoints {
@@ -45,13 +47,14 @@ impl Endpoints {
             Endpoint { api_key, base_url }
         };
 
-        Endpoints { rpc, bundler }
+        Endpoints { rpc, paymaster: bundler.clone(), bundler }
     }
 
     pub fn local() -> Self {
         Endpoints {
             rpc: Endpoint::local_rpc(),
             bundler: Endpoint::local_bundler(),
+            paymaster: Endpoint::local_paymaster(),
         }
     }
 
@@ -73,7 +76,7 @@ impl Endpoints {
             Endpoint { api_key: api_key.clone(), base_url }
         };
 
-        Endpoints { rpc, bundler }
+        Endpoints { rpc, paymaster: bundler.clone(), bundler }
     }
 }
 
@@ -94,6 +97,13 @@ impl Endpoint {
     pub fn local_bundler() -> Self {
         Endpoint {
             base_url: LOCAL_BUNDLER_URL.to_string(),
+            api_key: "".to_string(),
+        }
+    }
+
+    pub fn local_paymaster() -> Self {
+        Endpoint {
+            base_url: LOCAL_PAYMASTER_URL.to_string(),
             api_key: "".to_string(),
         }
     }

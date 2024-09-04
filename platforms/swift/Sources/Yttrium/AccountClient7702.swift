@@ -30,6 +30,10 @@ public final class AccountClient7702 {
                     bundler: .init(
                         api_key: "".intoRustString(),
                         base_url: "https://localhost:4337".intoRustString() // TODO
+                    ),
+                    paymaster: .init(
+                        api_key: "".intoRustString(),
+                        base_url: "https://localhost:4337".intoRustString() // TODO
                     )
                 )
             )
