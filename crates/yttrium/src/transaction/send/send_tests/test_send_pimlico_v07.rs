@@ -242,7 +242,8 @@ mod tests {
 
         println!("Received User Operation hash: {:?}", user_operation_hash);
 
-        // let's also wait for the userOperation to be included, by continually querying for the receipts
+        // let's also wait for the userOperation to be included, by continually
+        // querying for the receipts
 
         // println!("Querying for receipts...");
 
