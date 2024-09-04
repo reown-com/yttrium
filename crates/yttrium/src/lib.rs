@@ -1,4 +1,5 @@
 pub mod account_client;
+#[cfg(not(target_arch = "wasm32"))]
 pub mod bundler;
 pub mod chain;
 pub mod config;

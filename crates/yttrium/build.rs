@@ -77,10 +77,11 @@ fn compile_contracts(contracts_dir: &str) {
 }
 
 // const ERC6492_FILE: &str = "forge/out/Erc6492.sol/ValidateSigOffchain.json";
-// const ERC6492_BYTECODE_FILE: &str = "forge/out/Erc6492.sol/ValidateSigOffchain.bytecode";
+// const ERC6492_BYTECODE_FILE: &str =
+// "forge/out/Erc6492.sol/ValidateSigOffchain.bytecode";
 // const ERC1271_MOCK_FILE: &str = "forge/out/Erc1271Mock.sol/Erc1271Mock.json";
-// const ERC1271_MOCK_BYTECODE_FILE: &str = "forge/out/Erc1271Mock.sol/Erc1271Mock.bytecode";
-// fn extract_bytecodes() {
+// const ERC1271_MOCK_BYTECODE_FILE: &str =
+// "forge/out/Erc1271Mock.sol/Erc1271Mock.bytecode"; fn extract_bytecodes() {
 //     extract_bytecode(
 //         &format_foundry_dir(ERC6492_FILE),
 //         &format_foundry_dir(ERC6492_BYTECODE_FILE),
@@ -92,8 +93,9 @@ fn compile_contracts(contracts_dir: &str) {
 // }
 
 // fn extract_bytecode(input_file: &str, output_file: &str) {
-//     let contents = serde_json::from_slice::<Value>(&std::fs::read(input_file).unwrap()).unwrap();
-//     let bytecode = contents
+//     let contents =
+// serde_json::from_slice::<Value>(&std::fs::read(input_file).unwrap()).
+// unwrap();     let bytecode = contents
 //         .get("bytecode")
 //         .unwrap()
 //         .get("object")
