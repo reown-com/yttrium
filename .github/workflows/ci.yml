@@ -44,7 +44,10 @@ jobs:
       - uses: pnpm/action-setup@v4
         with:
           version: 9
+      - run: rustup update stable && rustup default stable
       - run: rustup toolchain install nightly -c rustfmt
+      - run: git submodule update --init --recursive
+      - run: make setup-thirdparty
       - run: cargo install cargo-udeps
       - run: cargo +nightly udeps --workspace
 
