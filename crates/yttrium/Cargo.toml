@@ -8,6 +8,8 @@ rust-version.workspace = true
 # Ethereum
 alloy = { git = "https://github.com/alloy-rs/alloy", rev = "b000e16", features = [
     "contract",
+    "network",
+    "providers",
     "node-bindings",
     "rpc-types-trace",
     "signer-mnemonic",

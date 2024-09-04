@@ -2,14 +2,16 @@ setup:
   git submodule update --init --recursive
   make setup-thirdparty
 
-devloop: setup clippy test fmt udeps
+# Note: requires running `just setup` first
+# TODO replace `build` with `clippy` when clippy passes
+devloop: build test fmt udeps
 
 test:
   cargo test --all-features --lib --bins
 
 clippy:
   cargo clippy --workspace --all-features --all-targets -- -D warnings
-  cargo clippy --workspace --all-features --all-targets --target wasm32-unknown-unknown --workspace --exclude=ffi -- -D warnings
+  cargo clippy --workspace --all-features --lib --bins --target wasm32-unknown-unknown --exclude=ffi -- -D warnings
 
 fmt:
   cargo +nightly fmt --all
@@ -17,7 +19,7 @@ fmt:
 udeps:
   cargo +nightly udeps --workspace
 
-# TODO remove in-favor of just using clippy
+# TODO remove `build` in-favor of `clippy` when clippy passes
 build:
-  cargo build
-  cargo build --target wasm32-unknown-unknown --workspace --exclude=ffi
+  cargo build --workspace --all-features --all-targets
+  cargo build --workspace --all-features --lib --bins --target wasm32-unknown-unknown --exclude=ffi
