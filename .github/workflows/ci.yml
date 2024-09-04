@@ -22,7 +22,6 @@ jobs:
           version: 9
       - run: rustup update stable && rustup default stable
       - run: rustup toolchain install nightly -c rustfmt
-      - run: cargo install cargo-udeps
       - run: git submodule update --init --recursive
       - run: make setup-thirdparty
       - run: docker compose up -d
@@ -34,6 +33,19 @@ jobs:
       - run: cargo test --all-features --lib --bins
       # - run: cargo clippy --workspace --all-features --all-targets -- -D warnings
       - run: cargo +nightly fmt --all -- --check
+
+  udeps:
+    name: Rust project - latest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run sccache-cache
+        uses: mozilla-actions/sccache-action@v0.0.4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - run: rustup toolchain install nightly -c rustfmt
+      - run: cargo install cargo-udeps
       - run: cargo +nightly udeps --workspace
 
   build_wasm:
