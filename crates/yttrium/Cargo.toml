@@ -7,12 +7,13 @@ rust-version.workspace = true
 [dependencies]
 # Ethereum
 alloy = { git = "https://github.com/alloy-rs/alloy", rev = "b000e16", features = [
-    "full",
+    "contract",
     "node-bindings",
     "rpc-types-trace",
     "signer-mnemonic",
 ] }
 # foundry-block-explorers = "0.2.3"
+getrandom = { version = "0.2", features = ["js"] }
 
 # Error/Result
 eyre.workspace = true
@@ -25,18 +26,23 @@ tokio.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 
-# Networking
-reqwest.workspace = true
-
 # Env vars
 dotenvy = "0.15.7"
 
 # Other
 hex = "0.4.3"
 
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+
+# Networking
+reqwest.workspace = true
+
 [dev-dependencies]
 # mocking
 wiremock = "0.6.0"
+
+# Networking
+reqwest.workspace = true
 
 [build-dependencies]
 alloy-primitives = { version = "0.7.0" }
