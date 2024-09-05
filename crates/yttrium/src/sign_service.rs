@@ -1,7 +1,10 @@
 use crate::error::YttriumError;
 use alloy::{
     primitives::Address,
-    signers::local::{coins_bip39::English, MnemonicBuilder},
+    signers::{
+        local::{coins_bip39::English, MnemonicBuilder, PrivateKeySigner},
+        SignerSync,
+    },
 };
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -42,7 +45,7 @@ impl SignService {
         }
     }
 
-    pub async fn mock_with_mnemonic(mnemonic: String) -> Self {
+    pub fn new_with_mnemonic(mnemonic: String) -> Self {
         let phrase = mnemonic.clone();
         let index: u32 = 0;
 
@@ -53,18 +56,19 @@ impl SignService {
             .build()
             .unwrap();
 
-        let alloy_signer =
-            alloy::signers::local::PrivateKeySigner::from(wallet.clone());
-
-        let signer = crate::signer::Signer::from(alloy_signer.clone());
+        let alloy_signer = PrivateKeySigner::from(wallet.clone());
 
         let owner = alloy_signer.address();
 
         SignService {
             sign_fn: Arc::new(Mutex::new(Box::new(move |msg: String| {
-                let signature = signer.sign_message_string_sync(msg).unwrap();
-
-                Ok(signature)
+                let message_bytes = hex::decode(msg).unwrap();
+                let signature =
+                    alloy_signer.sign_message_sync(&message_bytes)?;
+                let sig_vec: Vec<u8> = signature.into();
+                let sig_vec_hex = hex::encode(sig_vec.clone());
+                println!("sig_vec_hex: {:?}", sig_vec_hex);
+                Ok(sig_vec_hex)
             }))),
             owner,
         }

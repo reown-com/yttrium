@@ -54,14 +54,14 @@ impl PaymasterClient {
             .json(&req_body)
             .send()
             .await?;
-        println!("post: {:?}", post);
+        println!("pm_sponsorUserOperation post: {:?}", post);
         let res = post.text().await?;
-        println!("res: {:?}", res);
+        println!("pm_sponsorUserOperation res: {:?}", res);
         let v = serde_json::from_str::<JSONRPCResponse<SponsorshipResponseV07>>(
             &res,
         )?;
 
-        println!("json: {:?}", v);
+        println!("pm_sponsorUserOperation json: {:?}", v);
 
         let response: Response<SponsorshipResponseV07> = v.into();
 

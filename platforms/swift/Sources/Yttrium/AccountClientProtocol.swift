@@ -1,4 +1,5 @@
 import Foundation
+import YttriumCore
 
 public struct Transaction: Codable, Equatable {
     let to: String
@@ -20,11 +21,11 @@ public typealias OnSign = (String) -> Result<String, SignerError>
 
 public protocol AccountClientProtocol {
     
-    var onSign: OnSign? { get set }
-    
     var chainId: Int { get }
     
-    init(ownerAddress: String, entryPoint: String, chainId: Int, onSign: OnSign?)
+    init(ownerAddress: String, entryPoint: String, chainId: Int, config: Config)
+    
+    func register(privateKey: String)
 
     func sendTransaction(_ transaction: Transaction) async throws -> String
     func sendBatchTransaction(_ batch: [Transaction]) async throws -> String

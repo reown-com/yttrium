@@ -1,6 +1,36 @@
 use crate::chain::ChainId;
 use crate::entry_point::EntryPointVersion;
-use alloy::{primitives::Address, sol};
+use alloy::{
+    contract::private::{Network, Provider, Transport},
+    primitives::Address,
+    sol,
+};
+use std::marker::PhantomData;
+
+pub struct FactoryInstance<T, P, N = alloy::contract::private::Ethereum> {
+    address: Address,
+    provider: P,
+    _network_transport: PhantomData<(N, T)>,
+}
+
+impl<T: Transport + Clone, P: Provider<T, N> + Clone, N: Network>
+    FactoryInstance<T, P, N>
+{
+    pub fn new(address: Address, provider: P) -> Self {
+        Self { address, provider, _network_transport: PhantomData }
+    }
+
+    pub fn local_v07(provider: P) -> Self {
+        let address = FactoryAddress::local_v07().to_address();
+        Self::new(address, provider)
+    }
+
+    pub fn instance(
+        self,
+    ) -> SimpleAccountFactory::SimpleAccountFactoryInstance<T, P, N> {
+        SimpleAccountFactory::new(self.address, self.provider)
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct FactoryAddress(alloy::primitives::Address);

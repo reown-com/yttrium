@@ -86,34 +86,37 @@ where
                 let message = error_resp.message.clone();
                 println!("error_resp_message: {:?}", message);
 
-                let error_resp_data = error_resp.data.clone().unwrap();
+                if let Some(error_resp_data) = error_resp.data.clone() {
+                    println!("error_resp_data: {:?}", error_resp_data.clone());
 
-                println!("error_resp_data: {:?}", error_resp_data.clone());
+                    let hex_value =
+                        error_resp_data.get().split("\"").nth(1).unwrap();
 
-                let hex_value =
-                    error_resp_data.get().split("\"").nth(1).unwrap();
+                    let hex = hex_value.to_string();
 
-                let hex = hex_value.to_string();
+                    let hex = hex.strip_prefix("0x").unwrap();
 
-                let hex = hex.strip_prefix("0x").unwrap();
+                    let error_resp_data_bytes_bytes =
+                        Bytes::from_str(hex).unwrap();
 
-                let error_resp_data_bytes_bytes = Bytes::from_str(hex).unwrap();
+                    println!(
+                        "error_resp_data_bytes_bytes: {:?}",
+                        error_resp_data_bytes_bytes.clone()
+                    );
 
-                println!(
-                    "error_resp_data_bytes_bytes: {:?}",
-                    error_resp_data_bytes_bytes.clone()
-                );
+                    let decoded_data = SenderAddressResult::abi_decode(
+                        &error_resp_data_bytes_bytes,
+                        true,
+                    )?;
 
-                let decoded_data = SenderAddressResult::abi_decode(
-                    &error_resp_data_bytes_bytes,
-                    true,
-                )?;
+                    let addr = decoded_data.sender;
 
-                let addr = decoded_data.sender;
+                    println!("addr: {:?}", addr.clone());
 
-                println!("addr: {:?}", addr.clone());
-
-                return Ok(addr);
+                    return Ok(addr);
+                } else {
+                    return Err(eyre::eyre!("No data in error response"));
+                };
             }
             _ => {
                 println!("error: {:?}", error);

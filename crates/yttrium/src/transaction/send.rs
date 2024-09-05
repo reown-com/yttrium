@@ -1,13 +1,13 @@
+use crate::transaction::send::simple_account_test::send_transaction_with_signer;
 use crate::{
-    sign_service::SignService, transaction::Transaction,
-    user_operation::UserOperationV07,
+    config::Config, transaction::Transaction, user_operation::UserOperationV07,
 };
+use alloy::signers::local::PrivateKeySigner;
 use core::fmt;
-use std::sync::Arc;
-use tokio::sync::Mutex;
 
 mod safe_test;
-mod simple_account_test;
+pub mod send_tests;
+pub mod simple_account_test;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct UserOperationEstimated(UserOperationV07);
@@ -42,14 +42,54 @@ impl fmt::Display for SentUserOperationHash {
     }
 }
 
-pub mod send_tests;
+use crate::account_client::Signer;
 
 pub async fn send_transaction(
-    sign_service: Arc<Mutex<SignService>>,
     transaction: Transaction,
+    owner: String,
+    chain_id: u64,
+    config: Config,
+    signer: Signer,
 ) -> eyre::Result<String> {
-    let _ = sign_service.try_lock()?;
-    todo!("Calling send_transaction with transaction: {transaction:?}")
+    match signer {
+        Signer::PrivateKey(private_key_service) => {
+            let private_key_service = private_key_service.clone();
+            let private_key_service = private_key_service.lock().await;
+            let private_key_signer_key =
+                private_key_service.private_key().unwrap();
+            let private_key_signer: PrivateKeySigner =
+                private_key_signer_key.parse().unwrap();
+            send_transaction_with_private_key_signer(
+                transaction,
+                owner,
+                chain_id,
+                config,
+                private_key_signer,
+            )
+            .await
+        }
+        Signer::Native(sign_service) => {
+            todo!("Implement native signer support")
+        }
+    }
+}
+
+pub async fn send_transaction_with_private_key_signer(
+    transaction: Transaction,
+    owner: String,
+    chain_id: u64,
+    config: Config,
+    private_key_signer: PrivateKeySigner,
+) -> eyre::Result<String> {
+    let signer = private_key_signer;
+
+    let user_operation_hash =
+        send_transaction_with_signer(transaction, config, chain_id, signer)
+            .await?;
+
+    println!("user_operation_hash: {:?}", user_operation_hash);
+
+    Ok(user_operation_hash)
 }
 
 #[cfg(test)]
@@ -65,6 +105,7 @@ mod tests {
             },
         },
         entry_point::get_sender_address::get_sender_address_v07,
+        sign_service::SignService,
         signer::sign_user_operation_v07_with_ecdsa,
         smart_accounts::{
             nonce::get_nonce,
@@ -84,11 +125,13 @@ mod tests {
         },
     };
     use std::str::FromStr;
+    use std::sync::Arc;
+    use tokio::sync::Mutex;
 
     const MNEMONIC_PHRASE: &str =
         "test test test test test test test test test test test junk";
 
-    async fn send_transaction(
+    async fn send_transaction_alt(
         sign_service: Arc<Mutex<SignService>>,
         transaction: Transaction,
     ) -> eyre::Result<String> {
@@ -109,7 +152,7 @@ mod tests {
         let chain = crate::chain::Chain::ETHEREUM_SEPOLIA_V07;
         let entry_point_config = chain.entry_point_config();
 
-        let chain_id = chain.id.eip155_chain_id()?;
+        let chain_id = chain.id.eip155_chain_id();
 
         let entry_point_address = entry_point_config.address();
 
@@ -186,11 +229,9 @@ mod tests {
 
         println!("Calculated sender address: {:?}", sender_address);
 
-        let to: Address = transaction.to.parse()?;
-        let value: alloy::primitives::Uint<256, 4> =
-            transaction.value.parse()?;
-        let data_hex = transaction.data.strip_prefix("0x").unwrap();
-        let data: Bytes = Bytes::from_str(data_hex)?;
+        let to = transaction.to;
+        let value = transaction.value;
+        let data = transaction.data;
 
         let call_data = SimpleAccountExecute::new(to, value, data);
         let call_data_encoded = call_data.encode();
@@ -312,21 +353,19 @@ mod tests {
 
     #[tokio::test]
     #[ignore = "TODO: rewrite against local infrastructure"]
-    async fn test_send_transaction() -> eyre::Result<()> {
+    async fn test_send_transaction_alt() -> eyre::Result<()> {
         let transaction = Transaction::mock();
 
         let mnemonic = MNEMONIC_PHRASE.to_string();
 
-        let sign_service =
-            crate::sign_service::SignService::mock_with_mnemonic(
-                mnemonic.clone(),
-            )
-            .await;
+        let sign_service = crate::sign_service::SignService::new_with_mnemonic(
+            mnemonic.clone(),
+        );
 
         let sign_service_arc = Arc::new(Mutex::new(sign_service));
 
         let transaction_hash =
-            send_transaction(sign_service_arc, transaction).await?;
+            send_transaction_alt(sign_service_arc, transaction).await?;
 
         println!("Transaction sent: {}", transaction_hash);
 

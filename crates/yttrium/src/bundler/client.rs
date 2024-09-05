@@ -97,12 +97,12 @@ impl BundlerClient {
             .json(&req_body)
             .send()
             .await?;
-        println!("post: {:?}", post);
+        println!("eth_estimateUserOperationGas post: {:?}", post);
         let res = post.text().await?;
-        println!("res: {:?}", res);
+        println!("eth_estimateUserOperationGas res: {:?}", res);
         let v = serde_json::from_str::<JSONRPCResponse<EstimateResult>>(&res)?;
 
-        println!("json: {:?}", v);
+        println!("eth_estimateUserOperationGas json: {:?}", v);
 
         let response: Response<EstimateResult> = v.into();
 

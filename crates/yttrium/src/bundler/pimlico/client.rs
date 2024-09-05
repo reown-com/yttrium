@@ -38,12 +38,12 @@ impl BundlerClient {
             .json(&req_body)
             .send()
             .await?;
-        println!("post: {:?}", post);
+        println!("pimlico_getUserOperationGasPrice post: {:?}", post);
         let res = post.text().await?;
-        println!("res: {:?}", res);
+        println!("pimlico_getUserOperationGasPrice res: {:?}", res);
         let v = serde_json::from_str::<JSONRPCResponse<GasPrice>>(&res)?;
 
-        println!("json: {:?}", v);
+        println!("pimlico_getUserOperationGasPrice json: {:?}", v);
 
         let response: Response<GasPrice> = v.into();
 

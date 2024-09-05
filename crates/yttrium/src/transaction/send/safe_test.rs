@@ -90,7 +90,7 @@ mod tests {
         let chain = crate::chain::Chain::ETHEREUM_SEPOLIA_V07;
         let entry_point_config = chain.entry_point_config();
 
-        let chain_id = chain.id.eip155_chain_id()?;
+        let chain_id = chain.id.eip155_chain_id();
 
         let entry_point_address = entry_point_config.address();
 
