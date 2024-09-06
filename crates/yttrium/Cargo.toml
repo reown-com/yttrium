@@ -13,6 +13,7 @@ alloy = { git = "https://github.com/alloy-rs/alloy", rev = "b000e16", features =
     "node-bindings",
     "rpc-types-trace",
     "signer-mnemonic",
+    "eip712",
 ] }
 # foundry-block-explorers = "0.2.3"
 getrandom = { version = "0.2", features = ["js"] }

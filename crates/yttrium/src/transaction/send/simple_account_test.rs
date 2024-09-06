@@ -63,7 +63,7 @@ mod tests {
         providers::ProviderBuilder,
         signers::local::LocalSigner,
     };
-    use std::str::FromStr;
+    use std::{str::FromStr, time::Duration};
 
     async fn send_transaction(
         transaction: Transaction,
@@ -238,23 +238,26 @@ mod tests {
 
         println!("Received User Operation hash: {:?}", user_operation_hash);
 
-        // let receipt = bundler_client
-        //     .get_user_operation_receipt(user_operation_hash.clone())
-        //     .await?;
+        // TODO convert to polling
+        tokio::time::sleep(Duration::from_secs(2)).await;
 
-        // println!("Received User Operation receipt: {:?}", receipt);
+        let receipt = bundler_client
+            .get_user_operation_receipt(user_operation_hash.clone())
+            .await?;
 
-        // println!("Querying for receipts...");
+        println!("Received User Operation receipt: {:?}", receipt);
 
-        // let receipt = bundler_client
-        //     .wait_for_user_operation_receipt(user_operation_hash.clone())
-        //     .await?;
+        println!("Querying for receipts...");
 
-        // let tx_hash = receipt.receipt.transaction_hash;
-        // println!(
-        //     "UserOperation included: https://sepolia.etherscan.io/tx/{}",
-        //     tx_hash
-        // );
+        let receipt = bundler_client
+            .wait_for_user_operation_receipt(user_operation_hash.clone())
+            .await?;
+
+        let tx_hash = receipt.receipt.transaction_hash;
+        println!(
+            "UserOperation included: https://sepolia.etherscan.io/tx/{}",
+            tx_hash
+        );
 
         Ok(user_operation_hash)
     }
