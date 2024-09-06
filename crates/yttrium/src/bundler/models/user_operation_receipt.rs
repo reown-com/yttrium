@@ -15,7 +15,7 @@ pub struct UserOperationReceiptReceipt {
     pub contract_address: Option<String>,
     pub status: String,
     pub logs_bloom: String,
-    pub r#type: String,
+    // pub r#type: String,
     pub effective_gas_price: String,
 }
 
@@ -30,7 +30,7 @@ pub struct UserOperationReceipt {
     pub actual_gas_cost: String,
     pub actual_gas_used: String,
     pub success: bool,
-    pub reason: String,
+    // pub reason: String,
     pub receipt: UserOperationReceiptReceipt,
     // TODO: add `logs` property
 }
@@ -48,7 +48,7 @@ impl UserOperationReceipt {
             actual_gas_cost: "0x11bed797b2d5c8".to_string(),
             actual_gas_used: "0x20725".to_string(),
             success: true,
-            reason: "".to_string(),
+            // reason: "".to_string(),
             receipt: UserOperationReceiptReceipt {
                 transaction_hash: "0x68b5465c1efe05e5a29f8551c3808e5fd3b0a46e7abb007e11c586632cf46c23".to_string(),
                 transaction_index: "0x85".to_string(),
@@ -61,7 +61,7 @@ impl UserOperationReceipt {
                 contract_address: None,
                 status: "0x1".to_string(),
                 logs_bloom: "0x04400000000040002000000000000000000000000000000000000000000000000008000000000000000200010000000000100000000000000000020000000000000000000000000000000008000000000100000000000000000000000000000000000000080000000008000000000000000000000000000000000010000000000000000000040040100088000000000000000000000000000000000000000000000000000000000100400000000008000000000000000000000002000000000000000002000000100001000000000000000000002000000000000040000000000000000000000000200000000000000000000000000000000000000000000010".to_string(),
-                r#type: "0x2".to_string(),
+                // r#type: "0x2".to_string(),
                 effective_gas_price: "0x86cb70a28".to_string(),
             },
         }

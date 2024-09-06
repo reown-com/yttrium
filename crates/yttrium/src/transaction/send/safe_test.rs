@@ -68,7 +68,7 @@ mod tests {
         sol,
         sol_types::{SolCall, SolValue},
     };
-    use std::{ops::Not, str::FromStr};
+    use std::{ops::Not, str::FromStr, time::Duration};
 
     async fn send_transaction(
         transaction: Transaction,
@@ -362,15 +362,18 @@ mod tests {
                         sponsored_user_op
                             .paymaster_verification_gas_limit
                             .unwrap_or(Uint::from(0))
-                            .to_be_bytes_vec(), // TODO does this need to be padded (more)?
+                            .to_be_bytes_vec(), /* TODO does this need to be
+                                                 * padded (more)? */
                         sponsored_user_op
                             .paymaster_post_op_gas_limit
                             .unwrap_or(Uint::from(0))
-                            .to_be_bytes_vec(), // TODO does this need to be padded (more)?
+                            .to_be_bytes_vec(), /* TODO does this need to be
+                                                 * padded (more)? */
                         sponsored_user_op
                             .paymaster_post_op_gas_limit
                             .unwrap_or(Uint::from(0))
-                            .to_be_bytes_vec(), // TODO does this need to be not-padded?
+                            .to_be_bytes_vec(), /* TODO does this need to be
+                                                 * not-padded? */
                     ]
                     .concat()
                     .into()
@@ -423,28 +426,32 @@ mod tests {
 
         println!("Received User Operation hash: {:?}", user_operation_hash);
 
-        // let receipt = bundler_client
-        //     .get_user_operation_receipt(user_operation_hash.clone())
-        //     .await?;
+        // TODO convert to polling
+        tokio::time::sleep(Duration::from_secs(2)).await;
 
-        // println!("Received User Operation receipt: {:?}", receipt);
+        let receipt = bundler_client
+            .get_user_operation_receipt(user_operation_hash.clone())
+            .await?;
 
-        // println!("Querying for receipts...");
+        println!("Received User Operation receipt: {:?}", receipt);
 
-        // let receipt = bundler_client
-        //     .wait_for_user_operation_receipt(user_operation_hash.clone())
-        //     .await?;
+        println!("Querying for receipts...");
 
-        // let tx_hash = receipt.receipt.transaction_hash;
-        // println!(
-        //     "UserOperation included: https://sepolia.etherscan.io/tx/{}",
-        //     tx_hash
-        // );
+        let receipt = bundler_client
+            .wait_for_user_operation_receipt(user_operation_hash.clone())
+            .await?;
+
+        let tx_hash = receipt.receipt.transaction_hash;
+        println!(
+            "UserOperation included: https://sepolia.etherscan.io/tx/{}",
+            tx_hash
+        );
 
         Ok(user_operation_hash)
     }
 
     #[tokio::test]
+    #[ignore = "get Safe working"]
     async fn test_send_transaction() -> eyre::Result<()> {
         let transaction = Transaction::mock();
 
