@@ -187,6 +187,13 @@ mod tests {
         mode.extend_from_slice(&context);
         let mode = FixedBytes::from_slice(&mode);
 
+        // let mode = DynSolValue::Tuple(vec![
+        //     DynSolValue::Uint(Uint::from(call_type.as_byte()), 8),
+        //     DynSolValue::Uint(Uint::from(revert_on_error as u8), 8),
+        //     DynSolValue::Bytes(selector.to_vec().into()),
+        //     DynSolValue::Bytes(context.to_vec().into()),
+        // ]).abi_encode_packed().into();
+
         let call_data = Safe7579::executeCall {
             mode,
             // executionCalldata: execution_calldata.abi_encode().into(),
@@ -332,13 +339,13 @@ mod tests {
                 .not()
                 .then(|| {
                     [
-                        sponsored_user_op.clone().factory_data.unwrap(),
                         sponsored_user_op
                             .clone()
                             .factory
                             .unwrap()
                             .to_vec()
                             .into(),
+                        sponsored_user_op.clone().factory_data.unwrap(),
                     ]
                     .concat()
                     .into()
@@ -370,18 +377,16 @@ mod tests {
                         sponsored_user_op
                             .paymaster_verification_gas_limit
                             .unwrap_or(Uint::from(0))
-                            .to_be_bytes_vec(), /* TODO does this need to be
-                                                 * padded (more)? */
+                            .to_be_bytes_vec(),
                         sponsored_user_op
                             .paymaster_post_op_gas_limit
                             .unwrap_or(Uint::from(0))
-                            .to_be_bytes_vec(), /* TODO does this need to be
-                                                 * padded (more)? */
+                            .to_be_bytes_vec(),
                         sponsored_user_op
-                            .paymaster_post_op_gas_limit
-                            .unwrap_or(Uint::from(0))
-                            .to_be_bytes_vec(), /* TODO does this need to be
-                                                 * not-padded? */
+                            .paymaster_data
+                            .clone()
+                            .unwrap_or(Bytes::new())
+                            .to_vec(),
                     ]
                     .concat()
                     .into()
@@ -408,6 +413,7 @@ mod tests {
                 ..Default::default()
             },
         )?;
+        // TODO sort by (lowercase) owner address not signature data
         let mut signatures =
             [signature].iter().map(|sig| sig.as_bytes()).collect::<Vec<_>>();
         signatures.sort();

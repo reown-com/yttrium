@@ -1,7 +1,8 @@
 use alloy::{
+    dyn_abi::DynSolValue,
     primitives::{address, keccak256, Address, Bytes, Uint, U256},
     sol,
-    sol_types::{SolCall, SolValue},
+    sol_types::SolCall,
 };
 
 sol!(
@@ -115,30 +116,40 @@ pub struct Owners {
     pub threshold: u8,
 }
 
-pub fn factory_data(
-    owners: Owners,
-) -> SafeProxyFactory::createProxyWithNonceCall {
+// permissionless -> getInitializerCode
+fn get_initializer_code(owners: Owners) -> Bytes {
     let init_hash = keccak256(
-        Safe7579Launchpad::InitData {
-            singleton: SEPOLIA_SAFE_ERC_7579_SINGLETON_ADDRESS,
-            owners: owners.owners,
-            threshold: Uint::from(owners.threshold),
-            setupTo: SAFE_ERC_7579_LAUNCHPAD_ADDRESS,
-            setupData: init_data().abi_encode().into(),
-            safe7579: SAFE_4337_MODULE_ADDRESS,
-            validators: vec![],
-            callData: Bytes::new(),
-        }
-        .abi_encode(),
+        DynSolValue::Tuple(vec![
+            DynSolValue::Address(SEPOLIA_SAFE_ERC_7579_SINGLETON_ADDRESS),
+            DynSolValue::Array(
+                owners
+                    .owners
+                    .into_iter()
+                    .map(DynSolValue::Address)
+                    .collect::<Vec<_>>(),
+            ),
+            DynSolValue::Uint(Uint::from(owners.threshold), 256),
+            DynSolValue::Address(SAFE_ERC_7579_LAUNCHPAD_ADDRESS),
+            DynSolValue::Bytes(init_data().abi_encode()),
+            DynSolValue::Address(SAFE_4337_MODULE_ADDRESS),
+            DynSolValue::Array(vec![]),
+        ])
+        .abi_encode_params(),
     );
 
-    let initializer = Safe7579Launchpad::preValidationSetupCall {
+    Safe7579Launchpad::preValidationSetupCall {
         initHash: init_hash,
         to: Address::ZERO,
         preInit: Bytes::new(),
     }
     .abi_encode()
-    .into();
+    .into()
+}
+
+pub fn factory_data(
+    owners: Owners,
+) -> SafeProxyFactory::createProxyWithNonceCall {
+    let initializer = get_initializer_code(owners);
 
     // https://github.com/pimlicolabs/permissionless.js/blob/b8798c121eecba6a71f96f8ddf8e0ad2e98a3236/packages/permissionless/accounts/safe/toSafeSmartAccount.ts#L840
     SafeProxyFactory::createProxyWithNonceCall {
