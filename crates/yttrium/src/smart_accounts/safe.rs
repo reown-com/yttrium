@@ -1,8 +1,7 @@
 use alloy::{
-    dyn_abi::DynSolValue,
-    primitives::{address, Address, Bytes, U256},
+    primitives::{address, keccak256, Address, Bytes, Uint, U256},
     sol,
-    sol_types::SolCall,
+    sol_types::{SolCall, SolValue},
 };
 
 sol!(
@@ -17,26 +16,68 @@ sol!(
 sol!(
     #[allow(clippy::too_many_arguments)]
     #[allow(missing_docs)]
-    #[sol(rpc)]
+    #[sol(rpc, abi)]
     Safe,
     "safe-smart-account/build/artifacts/contracts/Safe.sol/Safe.json"
 );
 
-// https://github.com/WalletConnect/secure-web3modal/blob/c19a1e7b21c6188261728f4d521a17f94da4f055/src/core/SmartAccountSdk/utils.ts#L178
-// https://github.com/WalletConnect/secure-web3modal/blob/c19a1e7b21c6188261728f4d521a17f94da4f055/src/core/SmartAccountSdk/constants.ts#L24
-const SEPOLIA_SAFE_ERC_7579_LAUNCHPAD_ADDRESS: Address =
+sol!(
+    #[allow(clippy::too_many_arguments)]
+    #[allow(missing_docs)]
+    #[sol(rpc)]
+    Safe7579Launchpad,
+    "safe7579/artifacts/Safe7579Launchpad.json"
+);
+
+sol!(
+    #[allow(missing_docs)]
+    #[sol(rpc)]
+    Safe7579,
+    "safe7579/artifacts/Safe7579.json"
+);
+
+// Had to copy from safe7579/artifacts/interfaces/IERC7579Account.json
+// This struct doesn't seem to be in generated ABIs
+sol!(
+    #[allow(missing_docs)]
+    #[sol(rpc, abi)]
+    struct Execution {
+        address target;
+        uint256 value;
+        bytes callData;
+    }
+);
+
+// https://github.com/WalletConnect/secure-web3modal/blob/f1d16f973a313e598d124a0e4751aee12d5de628/src/core/SmartAccountSdk/utils.ts#L180
+pub const SAFE_ERC_7579_LAUNCHPAD_ADDRESS: Address =
     address!("EBe001b3D534B9B6E2500FB78E67a1A137f561CE");
-const SEPOLIA_SAFE_4337_MODULE_ADDRESS: Address =
+// https://github.com/WalletConnect/secure-web3modal/blob/f1d16f973a313e598d124a0e4751aee12d5de628/src/core/SmartAccountSdk/utils.ts#L181
+// https://docs.pimlico.io/permissionless/how-to/accounts/use-erc7579-account
+// https://docs.safe.global/advanced/erc-7579/tutorials/7579-tutorial
+pub const SAFE_4337_MODULE_ADDRESS: Address =
     address!("3Fdb5BC686e861480ef99A6E3FaAe03c0b9F32e2");
 
+// // https://github.com/pimlicolabs/permissionless.js/blob/b8798c121eecba6a71f96f8ddf8e0ad2e98a3236/packages/permissionless/accounts/safe/toSafeSmartAccount.ts#L436
+pub const SEPOLIA_SAFE_ERC_7579_SINGLETON_ADDRESS: Address =
+    address!("41675C099F32341bf84BFc5382aF534df5C7461a");
+
+// https://github.com/safe-global/safe-modules-deployments/blob/d6642d90659de19e54bb4a20d646b30bd0a51885/src/assets/safe-4337-module/v0.3.0/safe-4337-module.json#L7
+// https://github.com/pimlicolabs/permissionless.js/blob/b8798c121eecba6a71f96f8ddf8e0ad2e98a3236/packages/permissionless/accounts/safe/toSafeSmartAccount.ts#L432
+// const SEPOLIA_SAFE_4337_MODULE_ADDRESS: Address =
+//     address!("75cf11467937ce3F2f357CE24ffc3DBF8fD5c226");
+
 // https://github.com/pimlicolabs/permissionless.js/blob/b8798c121eecba6a71f96f8ddf8e0ad2e98a3236/packages/permissionless/accounts/safe/toSafeSmartAccount.ts#L438C36-L438C76
-const SAFE_MULTI_SEND_ADDRESS: Address =
-    address!("38869bf66a61cF6bDB996A6aE40D5853Fd43B526");
+// Only used for non-ERC-7579 accounts
+// const SAFE_MULTI_SEND_ADDRESS: Address =
+//     address!("38869bf66a61cF6bDB996A6aE40D5853Fd43B526");
 
 // https://github.com/safe-global/safe-modules-deployments/blob/d6642d90659de19e54bb4a20d646b30bd0a51885/src/assets/safe-4337-module/v0.3.0/safe-module-setup.json#L7
 // https://github.com/pimlicolabs/permissionless.js/blob/b8798c121eecba6a71f96f8ddf8e0ad2e98a3236/packages/permissionless/accounts/safe/toSafeSmartAccount.ts#L431
-const SAFE_MODULE_SETUP_ADDRESS: Address =
+const _SAFE_MODULE_SETUP_ADDRESS: Address =
     address!("2dd68b007B46fBe91B9A7c3EDa5A7a1063cB5b47");
+
+pub const SAFE_PROXY_FACTORY_ADDRESS: Address =
+    address!("4e1DCf7AD4e460CfD30791CCC4F9c8a4f820ec67");
 
 sol!(
     #[allow(missing_docs)]
@@ -55,60 +96,51 @@ sol!(
 // https://github.com/WalletConnect/secure-web3modal/blob/c19a1e7b21c6188261728f4d521a17f94da4f055/src/core/SmartAccountSdk/constants.ts#L10
 // const APPKIT_SALT: U256 = U256::from_str("zg3ijy0p46");
 
-fn encode_internal_transaction(
-    to: Address,
-    data: Vec<u8>,
-    value: U256,
-    operation: bool,
-) -> Bytes {
-    // https://github.com/pimlicolabs/permissionless.js/blob/b8798c121eecba6a71f96f8ddf8e0ad2e98a3236/packages/permissionless/accounts/safe/toSafeSmartAccount.ts#L486
-    DynSolValue::Tuple(vec![
-        DynSolValue::Uint(U256::from(if operation { 1 } else { 0 }), 8),
-        DynSolValue::Address(to),
-        DynSolValue::Uint(value, 256),
-        DynSolValue::Uint(U256::from(data.len()), 256),
-        DynSolValue::Bytes(data),
-    ])
-    .abi_encode()
-    .into()
+pub fn init_data() -> Safe7579Launchpad::initSafe7579Call {
+    Safe7579Launchpad::initSafe7579Call {
+        safe7579: SAFE_4337_MODULE_ADDRESS,
+        executors: vec![],
+        fallbacks: vec![],
+        hooks: vec![],
+        attesters: vec![],
+        threshold: 0,
+    }
 }
 
-fn init_code_call_data(
-    owner: Address,
+#[derive(Debug, Clone)]
+pub struct Owners {
+    pub owners: Vec<Address>,
+    pub threshold: u8,
+}
+
+pub fn factory_data(
+    owners: Owners,
 ) -> SafeProxyFactory::createProxyWithNonceCall {
-    // https://github.com/pimlicolabs/permissionless.js/blob/b8798c121eecba6a71f96f8ddf8e0ad2e98a3236/packages/permissionless/accounts/safe/toSafeSmartAccount.ts#L714C31-L714C46
-    let enable_modules = SafeModuleSetup::enableModulesCall {
-        modules: vec![SEPOLIA_SAFE_4337_MODULE_ADDRESS],
-    }
-    .abi_encode();
+    let init_hash = keccak256(
+        Safe7579Launchpad::InitData {
+            singleton: SEPOLIA_SAFE_ERC_7579_SINGLETON_ADDRESS,
+            owners: owners.owners,
+            threshold: Uint::from(owners.threshold),
+            setupTo: SAFE_ERC_7579_LAUNCHPAD_ADDRESS,
+            setupData: init_data().abi_encode().into(),
+            safe7579: SAFE_4337_MODULE_ADDRESS,
+            validators: vec![],
+            callData: Bytes::new(),
+        }
+        .abi_encode(),
+    );
 
-    // https://github.com/pimlicolabs/permissionless.js/blob/b8798c121eecba6a71f96f8ddf8e0ad2e98a3236/packages/permissionless/accounts/safe/toSafeSmartAccount.ts#L486
-    let txn = encode_internal_transaction(
-        SAFE_MODULE_SETUP_ADDRESS,
-        enable_modules,
-        U256::ZERO,
-        true,
-    ); // TODO join any setupTransactions
-
-    let multi_send_call_data =
-        MultiSend::multiSendCall { transactions: txn }.abi_encode().into();
-
-    // https://github.com/pimlicolabs/permissionless.js/blob/b8798c121eecba6a71f96f8ddf8e0ad2e98a3236/packages/permissionless/accounts/safe/toSafeSmartAccount.ts#L728
-    let initializer = Safe::setupCall {
-        _owners: vec![owner],
-        _threshold: U256::from(1),
-        to: SAFE_MULTI_SEND_ADDRESS,
-        data: multi_send_call_data,
-        fallbackHandler: SAFE_MODULE_SETUP_ADDRESS,
-        paymentToken: Address::ZERO,
-        payment: U256::ZERO,
-        paymentReceiver: Address::ZERO,
+    let initializer = Safe7579Launchpad::preValidationSetupCall {
+        initHash: init_hash,
+        to: Address::ZERO,
+        preInit: Bytes::new(),
     }
     .abi_encode()
     .into();
+
     // https://github.com/pimlicolabs/permissionless.js/blob/b8798c121eecba6a71f96f8ddf8e0ad2e98a3236/packages/permissionless/accounts/safe/toSafeSmartAccount.ts#L840
     SafeProxyFactory::createProxyWithNonceCall {
-        _singleton: SEPOLIA_SAFE_ERC_7579_LAUNCHPAD_ADDRESS,
+        _singleton: SAFE_ERC_7579_LAUNCHPAD_ADDRESS,
         initializer,
         saltNonce: U256::ZERO,
     }
