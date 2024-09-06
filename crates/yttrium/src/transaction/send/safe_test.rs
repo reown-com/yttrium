@@ -144,14 +144,21 @@ mod tests {
         let data_hex = transaction.data.strip_prefix("0x").unwrap();
         let data: Bytes = Bytes::from_str(data_hex)?;
 
+        // let execution_calldata =
+        //     vec![Execution { target: to, value, callData: data }];
+        // let execution_calldata =
+        //     Execution { target: to, value, callData: data };
         let execution_calldata =
-            vec![Execution { target: to, value, callData: data }];
+            [to.to_vec(), value.to_be_bytes_vec(), data.to_vec()]
+                .concat()
+                .into();
 
-        let call_type = if execution_calldata.len() > 1 {
-            CallType::BatchCall
-        } else {
-            CallType::Call
-        };
+        // let call_type = if execution_calldata.len() > 1 {
+        //     CallType::BatchCall
+        // } else {
+        //     CallType::Call
+        // };
+        let call_type = CallType::Call;
         let revert_on_error = false;
         let selector = [0u8; 4];
         let context = [0u8; 22];
@@ -182,7 +189,8 @@ mod tests {
 
         let call_data = Safe7579::executeCall {
             mode,
-            executionCalldata: execution_calldata.abi_encode().into(),
+            // executionCalldata: execution_calldata.abi_encode().into(),
+            executionCalldata: execution_calldata,
         }
         .abi_encode()
         .into();
@@ -451,7 +459,7 @@ mod tests {
     }
 
     #[tokio::test]
-    // #[ignore = "get Safe working"]
+    #[ignore = "get Safe working"]
     async fn test_send_transaction() -> eyre::Result<()> {
         let transaction = Transaction::mock();
 
