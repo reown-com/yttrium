@@ -93,6 +93,8 @@ sol!(
     "safe-smart-account/build/artifacts/contracts/libraries/MultiSend.sol/MultiSend.json"
 );
 
+pub const DUMMY_SIGNATURE_HEX: &str = "0x000000000000000000000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
+
 // https://github.com/WalletConnect/secure-web3modal/blob/c19a1e7b21c6188261728f4d521a17f94da4f055/src/core/SmartAccountSdk/constants.ts#L10
 // const APPKIT_SALT: U256 = U256::from_str("zg3ijy0p46");
 

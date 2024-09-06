@@ -249,7 +249,7 @@ mod tests {
             paymaster_post_op_gas_limit: None,
             paymaster_data: None,
             signature: Bytes::from_str(
-                crate::smart_accounts::simple_account::DUMMY_SIGNATURE_HEX
+                crate::smart_accounts::safe::DUMMY_SIGNATURE_HEX
                     .strip_prefix("0x")
                     .unwrap(),
             )?,
@@ -451,7 +451,7 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore = "get Safe working"]
+    // #[ignore = "get Safe working"]
     async fn test_send_transaction() -> eyre::Result<()> {
         let transaction = Transaction::mock();
 
