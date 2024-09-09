@@ -63,7 +63,7 @@ mod tests {
         providers::ProviderBuilder,
         signers::local::LocalSigner,
     };
-    use std::{str::FromStr, time::Duration};
+    use std::str::FromStr;
 
     async fn send_transaction(
         transaction: Transaction,

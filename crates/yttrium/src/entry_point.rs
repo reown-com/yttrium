@@ -40,6 +40,20 @@ pub const ENTRYPOINT_ADDRESS_V07: &str =
 pub const ENTRYPOINT_V06_TYPE: &str = "v0.6";
 pub const ENTRYPOINT_V07_TYPE: &str = "v0.7";
 
+sol! (
+    struct PackedUserOperation {
+        address sender;
+        uint256 nonce;
+        bytes initCode;
+        bytes callData;
+        bytes32 accountGasLimits;
+        uint256 preVerificationGas;
+        bytes32 gasFees;
+        bytes paymasterAndData;
+        bytes signature;
+    }
+);
+
 sol!(
     #[allow(missing_docs)]
     #[sol(rpc)]
