@@ -61,10 +61,10 @@ mod tests {
     };
     use alloy::{
         dyn_abi::{DynSolValue, Eip712Domain},
-        network::EthereumWallet,
+        network::Ethereum,
         primitives::{Address, Bytes, FixedBytes, Uint, U128, U256},
-        providers::ProviderBuilder,
-        signers::{local::LocalSigner, SignerSync},
+        providers::{Provider, ReqwestProvider},
+        signers::{k256::ecdsa::SigningKey, local::LocalSigner, SignerSync},
         sol,
         sol_types::{SolCall, SolValue},
     };
@@ -72,6 +72,7 @@ mod tests {
 
     async fn send_transaction(
         transaction: Transaction,
+        owner: LocalSigner<SigningKey>,
     ) -> eyre::Result<String> {
         let config = crate::config::Config::local();
 
@@ -94,39 +95,17 @@ mod tests {
 
         let rpc_url = config.endpoints.rpc.base_url;
 
-        // Create a provider
-
-        let alloy_signer = LocalSigner::random();
-        let ethereum_wallet = EthereumWallet::new(alloy_signer.clone());
-
         let rpc_url: reqwest::Url = rpc_url.parse()?;
-        let provider = ProviderBuilder::new()
-            .with_recommended_fillers()
-            .wallet(ethereum_wallet.clone())
-            .on_http(rpc_url);
+        let provider = ReqwestProvider::<Ethereum>::new_http(rpc_url);
 
         let safe_factory_address_primitives: Address =
             SAFE_PROXY_FACTORY_ADDRESS;
         let safe_factory_address =
             FactoryAddress::new(safe_factory_address_primitives);
 
-        let owner = ethereum_wallet.clone().default_signer();
-        let owner_address = owner.address();
-        let owners = Owners { owners: vec![owner_address], threshold: 1 };
+        let owners = Owners { owners: vec![owner.address()], threshold: 1 };
 
         let factory_data_value = factory_data(owners.clone()).abi_encode();
-
-        let factory_data_value_hex = hex::encode(factory_data_value.clone());
-
-        let factory_data_value_hex_prefixed =
-            format!("0x{}", factory_data_value_hex);
-
-        println!(
-            "Generated factory_data: {:?}",
-            factory_data_value_hex_prefixed.clone()
-        );
-
-        // 5. Calculate the sender address
 
         let sender_address = get_sender_address_v07(
             &provider,
@@ -135,8 +114,6 @@ mod tests {
             entry_point_address,
         )
         .await?;
-
-        println!("Calculated sender address: {:?}", sender_address);
 
         let to: Address = transaction.to.parse()?;
         let value: alloy::primitives::Uint<256, 4> =
@@ -188,7 +165,7 @@ mod tests {
         .abi_encode()
         .into();
 
-        let deployed = false;
+        let deployed = provider.get_code_at(sender_address).await?.len() > 0;
         // permissionless: signerToSafeSmartAccount -> encodeCallData
         let call_data = if deployed {
             call_data
@@ -218,14 +195,10 @@ mod tests {
             .into()
         };
 
-        // Fill out remaining UserOperation values
-
         let gas_price =
             pimlico_client.estimate_user_operation_gas_price().await?;
 
         assert!(gas_price.fast.max_fee_per_gas > U256::from(1));
-
-        println!("Gas price: {:?}", gas_price);
 
         let nonce = get_nonce(
             &provider,
@@ -268,8 +241,6 @@ mod tests {
             )
             .await?;
 
-        println!("sponsor_user_op_result: {:?}", sponsor_user_op_result);
-
         let sponsored_user_op = {
             let s = sponsor_user_op_result.clone();
             let mut op = user_op.clone();
@@ -286,10 +257,6 @@ mod tests {
 
             op
         };
-
-        println!("Received paymaster sponsor result: {:?}", sponsored_user_op);
-
-        // Sign the UserOperation
 
         let valid_after = 0;
         let valid_until = 0;
@@ -395,7 +362,7 @@ mod tests {
         };
 
         // TODO loop per-owner
-        let signature = alloy_signer.sign_typed_data_sync(
+        let signature = owner.sign_typed_data_sync(
             &message,
             &Eip712Domain {
                 chain_id: Some(Uint::from(chain_id)),
@@ -449,7 +416,9 @@ mod tests {
     async fn test_send_transaction() -> eyre::Result<()> {
         let transaction = Transaction::mock();
 
-        let transaction_hash = send_transaction(transaction).await?;
+        let owner = LocalSigner::random();
+
+        let transaction_hash = send_transaction(transaction, owner).await?;
 
         println!("Transaction sent: {}", transaction_hash);
 
