@@ -48,6 +48,7 @@ impl BundlerClient {
         let response: Response<GasPrice> = v.into();
 
         let response_estimate = response?;
+        let response_estimate = response_estimate.unwrap();
 
         Ok(response_estimate)
     }

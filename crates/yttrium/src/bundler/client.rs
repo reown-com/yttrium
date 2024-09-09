@@ -63,7 +63,7 @@ impl BundlerClient {
 
         let user_operation_hash = response?;
 
-        Ok(user_operation_hash)
+        Ok(user_operation_hash.unwrap())
     }
 
     pub async fn estimate_user_operation_gas(
@@ -108,7 +108,7 @@ impl BundlerClient {
 
         let response_estimate = response?;
 
-        Ok(response_estimate)
+        Ok(response_estimate.unwrap())
     }
 
     pub async fn supported_entry_points(
@@ -132,7 +132,7 @@ impl BundlerClient {
     pub async fn get_user_operation_receipt(
         &self,
         hash: String,
-    ) -> eyre::Result<UserOperationReceipt> {
+    ) -> eyre::Result<Option<UserOperationReceipt>> {
         let bundler_url = self.config.url().clone();
 
         let hash_value = serde_json::to_value(&hash)?;
@@ -180,7 +180,7 @@ impl BundlerClient {
 
         loop {
             match self.get_user_operation_receipt(hash.clone()).await {
-                eyre::Result::Ok(receipt) => return Ok(receipt),
+                eyre::Result::Ok(Some(receipt)) => return Ok(receipt),
                 _ => {
                     if let Some(timeout_duration) = timeout {
                         if start_time.elapsed() > timeout_duration {
@@ -351,7 +351,7 @@ mod tests {
             .get_user_operation_receipt(user_operation_hash.clone())
             .await?;
 
-        eyre::ensure!(receipt == response_payload);
+        assert_eq!(receipt, Some(response_payload));
 
         Ok(())
     }
