@@ -440,15 +440,6 @@ mod tests {
 
         println!("Received User Operation hash: {:?}", user_operation_hash);
 
-        // TODO convert to polling
-        tokio::time::sleep(Duration::from_secs(2)).await;
-
-        let receipt = bundler_client
-            .get_user_operation_receipt(user_operation_hash.clone())
-            .await?;
-
-        println!("Received User Operation receipt: {:?}", receipt);
-
         println!("Querying for receipts...");
 
         let receipt = bundler_client

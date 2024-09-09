@@ -66,6 +66,7 @@ impl PaymasterClient {
         let response: Response<SponsorshipResponseV07> = v.into();
 
         let response_estimate = response?;
+        let response_estimate = response_estimate.unwrap();
 
         let result = SponsorshipResultV07 {
             call_gas_limit: response_estimate.call_gas_limit,

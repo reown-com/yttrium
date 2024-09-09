@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 use thiserror::Error;
 
-pub type Response<T> = Result<T, ErrorPayload<T>>;
+pub type Response<T> = Result<Option<T>, ErrorPayload<T>>;
 
 #[derive(Debug, Deserialize, Error)]
 pub struct ErrorPayload<T> {
@@ -28,14 +28,14 @@ pub struct JSONRPCResponse<T> {
 impl<T> Into<Response<T>> for JSONRPCResponse<T> {
     fn into(self) -> Response<T> {
         if let Some(result) = self.result {
-            return Ok(result);
+            return Ok(Some(result));
         }
 
         if let Some(error) = self.error {
             return Err(error);
         }
 
-        panic!("Malformed response");
+        Ok(None)
     }
 }
 
