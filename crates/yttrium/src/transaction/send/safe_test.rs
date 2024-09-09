@@ -309,7 +309,7 @@ mod tests {
         let valid_until = 0;
 
         sol!(
-            struct SafeOpEntrypointV7Message {
+            struct SafeOp {
                 address safe;
                 uint256 nonce;
                 bytes initCode;
@@ -331,7 +331,7 @@ mod tests {
             U128::from(u)
         }
 
-        let message = SafeOpEntrypointV7Message {
+        let message = SafeOp {
             safe: sender_address,
             callData: sponsored_user_op.call_data.clone(),
             nonce: sponsored_user_op.nonce,
@@ -374,14 +374,18 @@ mod tests {
                 .map(|paymaster| {
                     [
                         paymaster.to_vec(),
-                        sponsored_user_op
-                            .paymaster_verification_gas_limit
-                            .unwrap_or(Uint::from(0))
-                            .to_be_bytes_vec(),
-                        sponsored_user_op
-                            .paymaster_post_op_gas_limit
-                            .unwrap_or(Uint::from(0))
-                            .to_be_bytes_vec(),
+                        coerce_u256_to_u128(
+                            sponsored_user_op
+                                .paymaster_verification_gas_limit
+                                .unwrap_or(Uint::from(0)),
+                        )
+                        .to_be_bytes_vec(),
+                        coerce_u256_to_u128(
+                            sponsored_user_op
+                                .paymaster_post_op_gas_limit
+                                .unwrap_or(Uint::from(0)),
+                        )
+                        .to_be_bytes_vec(),
                         sponsored_user_op
                             .paymaster_data
                             .clone()
@@ -456,7 +460,6 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore = "get Safe working"]
     async fn test_send_transaction() -> eyre::Result<()> {
         let transaction = Transaction::mock();
 
