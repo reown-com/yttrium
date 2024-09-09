@@ -45,25 +45,26 @@ mod tests {
                 paymaster::client::PaymasterClient,
             },
         },
-        entry_point::get_sender_address::get_sender_address_v07,
+        config::Config,
         smart_accounts::{
             nonce::get_nonce,
             safe::{
-                factory_data, Execution, Owners, Safe7579, Safe7579Launchpad,
-                SAFE_4337_MODULE_ADDRESS, SAFE_ERC_7579_LAUNCHPAD_ADDRESS,
-                SAFE_PROXY_FACTORY_ADDRESS,
+                factory_data, get_account_address, Execution, Owners, Safe7579,
+                Safe7579Launchpad, SAFE_4337_MODULE_ADDRESS,
+                SAFE_ERC_7579_LAUNCHPAD_ADDRESS, SAFE_PROXY_FACTORY_ADDRESS,
                 SEPOLIA_SAFE_ERC_7579_SINGLETON_ADDRESS,
             },
             simple_account::{factory::FactoryAddress, SimpleAccountAddress},
         },
-        transaction::Transaction,
         user_operation::UserOperationV07,
     };
     use alloy::{
         dyn_abi::{DynSolValue, Eip712Domain},
         network::Ethereum,
         primitives::{Address, Bytes, FixedBytes, Uint, U128, U256},
-        providers::{Provider, ReqwestProvider},
+        providers::{
+            ext::AnvilApi, PendingTransactionConfig, Provider, ReqwestProvider,
+        },
         signers::{k256::ecdsa::SigningKey, local::LocalSigner, SignerSync},
         sol,
         sol_types::{SolCall, SolValue},
@@ -71,7 +72,7 @@ mod tests {
     use std::{ops::Not, str::FromStr};
 
     async fn send_transaction(
-        transaction: Transaction,
+        execution_calldata: Vec<Execution>,
         owner: LocalSigner<SigningKey>,
     ) -> eyre::Result<String> {
         let config = crate::config::Config::local();
@@ -107,22 +108,8 @@ mod tests {
 
         let factory_data_value = factory_data(owners.clone()).abi_encode();
 
-        let sender_address = get_sender_address_v07(
-            &provider,
-            safe_factory_address.into(),
-            factory_data_value.clone().into(),
-            entry_point_address,
-        )
-        .await?;
-
-        let to: Address = transaction.to.parse()?;
-        let value: alloy::primitives::Uint<256, 4> =
-            transaction.value.parse()?;
-        let data_hex = transaction.data.strip_prefix("0x").unwrap();
-        let data: Bytes = Bytes::from_str(data_hex)?;
-
-        let execution_calldata =
-            vec![Execution { target: to, value, callData: data }];
+        let sender_address =
+            get_account_address(provider.clone(), owners.clone()).await;
 
         let call_type = if execution_calldata.len() > 1 {
             CallType::BatchCall
@@ -358,7 +345,7 @@ mod tests {
         let verifying_contract = if erc7579_launchpad_address && !deployed {
             sponsored_user_op.sender
         } else {
-            SAFE_ERC_7579_LAUNCHPAD_ADDRESS
+            SAFE_4337_MODULE_ADDRESS
         };
 
         // TODO loop per-owner
@@ -409,19 +396,74 @@ mod tests {
             tx_hash
         );
 
+        // Some extra calls to wait for/get the actual transaction. But these
+        // aren't required since eth_getUserOperationReceipt already waits
+        // let tx_hash = FixedBytes::from_slice(
+        //     &hex::decode(tx_hash.strip_prefix("0x").unwrap()).unwrap(),
+        // );
+        // let pending_txn = provider
+        //     .watch_pending_transaction(PendingTransactionConfig::new(tx_hash))
+        //     .await?;
+        // pending_txn.await.unwrap();
+        // let transaction = provider.get_transaction_by_hash(tx_hash).await?;
+        // println!("Transaction included: {:?}", transaction);
+        // let transaction_receipt =
+        //     provider.get_transaction_receipt(tx_hash).await?;
+        // println!("Transaction receipt: {:?}", transaction_receipt);
+
         Ok(user_operation_hash)
     }
 
     #[tokio::test]
     async fn test_send_transaction() -> eyre::Result<()> {
-        let transaction = Transaction::mock();
+        let rpc_url = Config::local().endpoints.rpc.base_url;
+        let rpc_url: reqwest::Url = rpc_url.parse()?;
+        let provider = ReqwestProvider::<Ethereum>::new_http(rpc_url);
+
+        let destination = LocalSigner::random();
+        let balance = provider.get_balance(destination.address()).await?;
+        assert_eq!(balance, Uint::from(0));
 
         let owner = LocalSigner::random();
+        let sender_address = get_account_address(
+            provider.clone(),
+            Owners { owners: vec![owner.address()], threshold: 1 },
+        )
+        .await;
+
+        provider.anvil_set_balance(sender_address, U256::from(100)).await?;
+        let transaction = vec![Execution {
+            target: destination.address(),
+            value: Uint::from(1),
+            callData: Bytes::new(),
+        }];
+
+        let transaction_hash =
+            send_transaction(transaction, owner.clone()).await?;
+
+        println!("Transaction sent: {}", transaction_hash);
+
+        let balance = provider.get_balance(destination.address()).await?;
+        assert_eq!(balance, Uint::from(1));
+
+        provider.anvil_set_balance(sender_address, U256::from(100)).await?;
+        let transaction = vec![Execution {
+            target: destination.address(),
+            value: Uint::from(1),
+            callData: Bytes::new(),
+        }];
 
         let transaction_hash = send_transaction(transaction, owner).await?;
 
         println!("Transaction sent: {}", transaction_hash);
 
+        let balance = provider.get_balance(destination.address()).await?;
+        assert_eq!(balance, Uint::from(2));
+
         Ok(())
     }
+
+    // TODO test/fix: if invalid call data (e.g. sending balance that you don't
+    // have), the account will still be deployed but the transfer won't happen.
+    // Why can't we detect this?
 }

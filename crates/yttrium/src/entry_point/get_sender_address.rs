@@ -60,6 +60,10 @@ where
 
     let call_builder = instance.getSenderAddress(init_code);
 
+    // Note: you may need to static call getSenderAddress() not call() as per
+    // the spec. Leaving as-is for now.
+    // let call = call_builder.call_raw().await;
+
     let call: Result<
         crate::entry_point::EntryPoint::getSenderAddressReturn,
         ContractError,

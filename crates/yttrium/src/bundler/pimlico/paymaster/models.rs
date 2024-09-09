@@ -17,7 +17,9 @@ use serde::{Deserialize, Serialize};
 pub struct UserOperationPreSponsorshipV07 {
     pub sender: Address,
     pub nonce: U256,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub factory: Option<Address>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub factory_data: Option<Bytes>,
     pub call_data: Bytes,
     pub call_gas_limit: U256,
