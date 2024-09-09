@@ -1,6 +1,6 @@
 use alloy::{
     dyn_abi::DynSolValue,
-    primitives::{address, keccak256, Address, Bytes, Uint, U160, U256},
+    primitives::{address, keccak256, Address, Bytes, Uint, U256},
     providers::ReqwestProvider,
     sol,
     sol_types::{SolCall, SolValue},
@@ -174,11 +174,9 @@ pub async fn get_account_address(
     let initializer = get_initializer_code(owners.clone());
     let deployment_code = DynSolValue::Tuple(vec![
         DynSolValue::Bytes(creation_code.to_vec()),
-        DynSolValue::Uint(
-            Uint::<256, 4>::from(
-                U160::try_from(SAFE_ERC_7579_LAUNCHPAD_ADDRESS).unwrap(),
-            ),
-            256,
+        DynSolValue::FixedBytes(
+            SAFE_ERC_7579_LAUNCHPAD_ADDRESS.into_word(),
+            32,
         ),
     ])
     .abi_encode_packed();

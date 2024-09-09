@@ -62,9 +62,7 @@ mod tests {
         dyn_abi::{DynSolValue, Eip712Domain},
         network::Ethereum,
         primitives::{Address, Bytes, FixedBytes, Uint, U128, U256},
-        providers::{
-            ext::AnvilApi, PendingTransactionConfig, Provider, ReqwestProvider,
-        },
+        providers::{ext::AnvilApi, Provider, ReqwestProvider},
         signers::{k256::ecdsa::SigningKey, local::LocalSigner, SignerSync},
         sol,
         sol_types::{SolCall, SolValue},
