@@ -1,8 +1,9 @@
 use alloy::{
     dyn_abi::DynSolValue,
     primitives::{address, keccak256, Address, Bytes, Uint, U256},
+    providers::ReqwestProvider,
     sol,
-    sol_types::SolCall,
+    sol_types::{SolCall, SolValue},
 };
 
 sol!(
@@ -157,4 +158,37 @@ pub fn factory_data(
         initializer,
         saltNonce: U256::ZERO,
     }
+}
+
+pub async fn get_account_address(
+    provider: ReqwestProvider,
+    owners: Owners,
+) -> Address {
+    let creation_code =
+        SafeProxyFactory::new(SAFE_PROXY_FACTORY_ADDRESS, provider.clone())
+            .proxyCreationCode()
+            .call()
+            .await
+            .unwrap()
+            ._0;
+    let initializer = get_initializer_code(owners.clone());
+    let deployment_code = DynSolValue::Tuple(vec![
+        DynSolValue::Bytes(creation_code.to_vec()),
+        DynSolValue::FixedBytes(
+            SAFE_ERC_7579_LAUNCHPAD_ADDRESS.into_word(),
+            32,
+        ),
+    ])
+    .abi_encode_packed();
+    let salt = keccak256(
+        DynSolValue::Tuple(vec![
+            DynSolValue::FixedBytes(
+                keccak256(initializer.abi_encode_packed()),
+                32,
+            ),
+            DynSolValue::Uint(Uint::from(0), 256),
+        ])
+        .abi_encode_packed(),
+    );
+    SAFE_PROXY_FACTORY_ADDRESS.create2(salt, keccak256(deployment_code))
 }
