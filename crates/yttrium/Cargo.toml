@@ -6,7 +6,7 @@ rust-version.workspace = true
 
 [dependencies]
 # Ethereum
-alloy = { git = "https://github.com/alloy-rs/alloy", rev = "b000e16", features = [
+alloy = { git = "https://github.com/alloy-rs/alloy", version = "0.3.2", features = [
     "contract",
     "network",
     "providers",
@@ -48,5 +48,4 @@ wiremock = "0.6.0"
 reqwest.workspace = true
 
 [build-dependencies]
-alloy-primitives = { version = "0.7.0" }
 serde_json = "1"

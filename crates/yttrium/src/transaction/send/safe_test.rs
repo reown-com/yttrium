@@ -61,7 +61,9 @@ mod tests {
     use alloy::{
         dyn_abi::{DynSolValue, Eip712Domain},
         network::Ethereum,
-        primitives::{Address, Bytes, FixedBytes, Uint, U128, U256},
+        primitives::{
+            aliases::U48, Address, Bytes, FixedBytes, Uint, U128, U256,
+        },
         providers::{ext::AnvilApi, Provider, ReqwestProvider},
         signers::{k256::ecdsa::SigningKey, local::LocalSigner, SignerSync},
         sol,
@@ -243,8 +245,8 @@ mod tests {
             op
         };
 
-        let valid_after = 0;
-        let valid_until = 0;
+        let valid_after = U48::from(0);
+        let valid_until = U48::from(0);
 
         sol!(
             struct SafeOp {
