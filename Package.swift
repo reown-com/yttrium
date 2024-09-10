@@ -15,19 +15,24 @@ let package = Package(
             targets: ["Yttrium"]),
     ],
     dependencies: [
-        .package(path: "crates/ffi/YttriumCore")
+        .package(path: "crates/ffi/YttriumCore"),
+        .package(url: "https://github.com/thebarndog/swift-dotenv.git", from: "2.0.0")
     ],
     targets: [
         .target(
             name: "Yttrium",
             dependencies: [
-                "YttriumCore"
+                "YttriumCore",
+                .product(name: "SwiftDotenv", package: "swift-dotenv")
             ],
             path: "platforms/swift/Sources/Yttrium")
         ,
         .testTarget(
             name: "YttriumTests",
-            dependencies: ["Yttrium"],
+            dependencies: [
+                "Yttrium" ,
+                .product(name: "SwiftDotenv", package: "swift-dotenv")
+            ],
             path: "platforms/swift/Tests/YttriumTests"),
     ]
 )

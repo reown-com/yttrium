@@ -44,8 +44,9 @@ mod ffi {
     #[swift_bridge(swift_repr = "struct")]
     pub struct FFIAccountClientConfig {
         pub owner_address: String,
-        pub chain_id: i64,
+        pub chain_id: u64,
         pub config: FFIConfig,
+        pub signer_type: String,
     }
 
     enum FFIStringResult {
@@ -63,13 +64,19 @@ mod ffi {
         #[swift_bridge(init)]
         fn new(config: FFIAccountClientConfig) -> FFIAccountClient;
 
-        pub fn chain_id(&self) -> i64;
+        pub fn chain_id(&self) -> u64;
 
         pub async fn get_address(&self) -> Result<String, FFIError>;
 
         pub async fn send_transaction(
             &self,
             _transaction: FFITransaction,
+        ) -> Result<String, FFIError>;
+
+        pub fn sign_message_with_mnemonic(
+            &self,
+            message: String,
+            mnemonic: String,
         ) -> Result<String, FFIError>;
     }
 
@@ -86,11 +93,20 @@ mod ffi {
     }
 
     extern "Swift" {
-        type SignerServiceFFI;
+        type NativeSignerFFI;
 
         #[swift_bridge(init)]
-        fn new(signer_id: String) -> SignerServiceFFI;
+        fn new(signer_id: String) -> NativeSignerFFI;
 
         fn sign(&self, message: String) -> FFIStringResult;
+    }
+
+    extern "Swift" {
+        type PrivateKeySignerFFI;
+
+        #[swift_bridge(init)]
+        fn new(signer_id: String) -> PrivateKeySignerFFI;
+
+        fn private_key(&self) -> FFIStringResult;
     }
 }

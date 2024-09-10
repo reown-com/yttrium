@@ -3,7 +3,7 @@ services:
     image: ghcr.io/foundry-rs/foundry:nightly-f6208d8db68f9acbe4ff8cd76958309efb61ea0b
     restart: unless-stopped
     ports: ["8545:8545"]
-    entrypoint: [ "anvil", "--fork-url", "https://gateway.tenderly.co/public/sepolia", "--host", "0.0.0.0" ]
+    entrypoint: [ "anvil", "--fork-url", "https://gateway.tenderly.co/public/sepolia", "--host", "0.0.0.0", "--block-time", "0.1", "--gas-price", "1", "--silent" ]
     platform: linux/amd64/v8
  
   mock-paymaster:

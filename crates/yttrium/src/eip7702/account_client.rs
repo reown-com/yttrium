@@ -7,7 +7,7 @@ use tokio::sync::Mutex;
 #[allow(dead_code)]
 pub struct AccountClient {
     owner: String,
-    chain_id: i64,
+    chain_id: u64,
     config: Config,
     sign_service: Arc<Mutex<SignService>>,
 }
@@ -15,7 +15,7 @@ pub struct AccountClient {
 impl AccountClient {
     pub fn new(
         owner: String,
-        chain_id: i64,
+        chain_id: u64,
         config: Config,
         sign_service: SignService,
     ) -> Self {

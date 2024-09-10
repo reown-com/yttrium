@@ -26,20 +26,16 @@ public final class Signers {
     }
 }
 
-public enum SignerError: Error {
-    case unknown
-}
-
 public typealias OnSign = (String) -> Result<String, SignerError>
 
-public final class Signer {
+public final class NativeSigner: Identifiable {
     
-    public let signerId: SignerId
+    public let id: SignerId
     
     private let onSign: OnSign
     
-    public init(signerId: SignerId, onSign: @escaping OnSign) {
-        self.signerId = signerId
+    public init(id: SignerId, onSign: @escaping OnSign) {
+        self.id = id
         self.onSign = onSign
     }
     
@@ -51,62 +47,54 @@ public final class Signer {
 public struct SignerId: Hashable, CustomStringConvertible, RawRepresentable {
     
     public var rawValue: String {
-        "\(account)-\(chainId)"
+        "\(signerType)-\(account)-\(chainId)"
     }
     
     public var description: String {
         rawValue
     }
     
+    public let signerType: SignerType
     public let account: String
     public let chainId: Int
     
-    public init(account: String, chainId: Int) {
+    public init(signerType: SignerType, account: String, chainId: Int) {
+        self.signerType = signerType
         self.account = account
         self.chainId = chainId
     }
     
     public init?(rawValue: String) {
         let idComponents = rawValue.split(separator: "-")
-        guard idComponents.count == 2 else {
+        guard idComponents.count == 3 else {
             return nil
         }
-        let account = String(idComponents[0])
-        guard let chainId = Int(idComponents[1]) else {
+        guard let signerType = SignerType(rawValue: String(idComponents[0])) else {
             return nil
         }
+        let account = String(idComponents[1])
+        guard let chainId = Int(idComponents[2]) else {
+            return nil
+        }
+        self.signerType = signerType
         self.account = account
         self.chainId = chainId
     }
 }
 
-public final class SignerServiceFFI {
+public final class NativeSignerFFI {
     
-    public let signer: Signer
+    public let signer: NativeSigner
    
     public init(signer_id: RustString) {
         let idString = signer_id.toString()
         let signerId = SignerId(rawValue: idString)!
-        self.signer = Signers.shared.signer(id: signerId)!
+        self.signer = Signers.shared.signer(id: signerId)!.nativeSigner!
     }
     
     public func sign(message: RustString) -> FFIStringResult {
         signer.sign(message: message.toString())
             .mapError(\.localizedDescription)
             .ffi
-    }
-}
-
-extension String: Error {}
-
-extension Result where Success == String, Failure == String {
-    
-    public var ffi: FFIStringResult {
-        switch self {
-        case .success(let value):
-            return .Ok(value.intoRustString())
-        case .failure(let error):
-            return .Err(error.localizedDescription.intoRustString())
-        }
     }
 }

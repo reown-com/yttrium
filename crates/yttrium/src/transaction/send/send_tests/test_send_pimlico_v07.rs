@@ -19,6 +19,8 @@ mod tests {
         signers::local::{coins_bip39::English, MnemonicBuilder},
     };
     use std::str::FromStr;
+    use std::sync::Arc;
+    use tokio::sync::Mutex;
 
     const SIMPLE_ACCOUNT_FACTORY_ADDRESS: &str =
         "0x91E60e0613810449d098b0b5Ec8b51A0FE8c8985";
@@ -48,11 +50,10 @@ mod tests {
 
         let phrase = MNEMONIC_PHRASE;
         let index: u32 = 0;
-
         let chain = crate::chain::Chain::ETHEREUM_SEPOLIA_V07;
         let entry_point_config = chain.entry_point_config();
 
-        let chain_id = chain.id.eip155_chain_id()?;
+        let chain_id = chain.id.eip155_chain_id();
 
         let wallet = MnemonicBuilder::<English>::default()
             .phrase(phrase)
@@ -63,6 +64,12 @@ mod tests {
             alloy::signers::local::PrivateKeySigner::from(wallet.clone());
 
         let ethereum_wallet = EthereumWallet::from(wallet.clone());
+
+        let mnemonic = phrase.to_string();
+
+        let sign_service = crate::sign_service::SignService::new_with_mnemonic(
+            mnemonic.clone(),
+        );
 
         let rpc_url = config.endpoints.rpc.base_url;
 
@@ -190,7 +197,6 @@ mod tests {
 
         let paymaster_client =
             PaymasterClient::new(BundlerConfig::new(bundler_base_url.clone()));
-
         let sponsor_user_op_result = paymaster_client
             .sponsor_user_operation_v07(
                 &user_op.clone().into(),
@@ -222,12 +228,14 @@ mod tests {
 
         // 9. Sign the UserOperation
 
-        let signed_user_op = crate::signer::sign_user_operation_v07_with_ecdsa(
-            &sponsored_user_op.clone(),
-            &entry_point_address.to_address(),
-            chain_id,
-            alloy_signer,
-        )?;
+        let signed_user_op =
+            crate::signer::sign_user_operation_v07_with_ecdsa_and_sign_service(
+                &sponsored_user_op.clone(),
+                &entry_point_address.to_address(),
+                chain_id,
+                alloy_signer,
+                &Arc::new(Mutex::new(sign_service)),
+            )?;
 
         println!("Generated signature: {:?}", signed_user_op.signature);
 

@@ -7,6 +7,7 @@ pub mod eip7702;
 pub mod entry_point;
 pub mod error;
 pub mod jsonrpc;
+pub mod private_key_service;
 pub mod sign_service;
 pub mod signer;
 pub mod smart_accounts;

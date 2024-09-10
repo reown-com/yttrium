@@ -147,6 +147,59 @@ where
     }
 }
 
+pub fn sign_user_operation_v07_with_ecdsa_and_sign_service(
+    uo: &UserOperationV07,
+    ep: &Address,
+    chain_id: u64,
+    signer: PrivateKeySigner,
+    sign_service: &Arc<Mutex<SignService>>,
+) -> eyre::Result<UserOperationV07> {
+    let hash = uo.hash(&ep, chain_id)?;
+
+    println!("hash: {:?}", hash.clone());
+
+    let message = hash.0;
+
+    println!("message: {:?}", message.clone());
+
+    let message_bytes = message.to_vec();
+
+    println!("message_bytes: {:?}", message_bytes.clone());
+
+    let sign_service = Arc::clone(sign_service);
+    let sign_service = sign_service.try_lock()?;
+
+    let message_hex = hex::encode(message_bytes.clone());
+
+    let signature_native = sign_service.sign(message_hex)?;
+
+    println!("signature_native: {:?}", signature_native);
+
+    let signature_native_bytes = hex::decode(signature_native.clone())?;
+
+    {
+        let signature = signer.sign_message_sync(&message_bytes)?;
+        println!("signature: {:?}", signature);
+        let sig_vec: Vec<u8> = signature.into();
+        let sig_vec_hex = hex::encode(sig_vec.clone());
+        println!("sig_vec_hex: {:?}", sig_vec_hex);
+
+        assert_eq!(
+            sig_vec, signature_native_bytes,
+            "sig_vec != signature_native_bytes"
+        );
+        assert_eq!(
+            sig_vec_hex, signature_native,
+            "sig_vec_hex != signature_native"
+        );
+    }
+    let sig_vec = signature_native_bytes;
+
+    let mut user_operation = uo.clone();
+    user_operation.signature = sig_vec.into();
+    Ok(user_operation)
+}
+
 pub fn sign_user_operation_v07_with_ecdsa(
     uo: &UserOperationV07,
     ep: &Address,

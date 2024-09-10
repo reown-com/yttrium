@@ -10,7 +10,7 @@ use yttrium::transaction::Transaction;
 
 pub struct FFI7702AccountClient {
     pub owner_address: String,
-    pub chain_id: i64,
+    pub chain_id: u64,
     account_client: yttrium::eip7702::account_client::AccountClient,
 }
 
@@ -31,7 +31,7 @@ impl FFI7702AccountClient {
         let signer_id = format!("{}-{}", owner_address, chain_id);
 
         let sign_fn = Box::new(move |message: String| {
-            let signer_service = ffi::SignerServiceFFI::new(signer_id.clone());
+            let signer_service = ffi::NativeSignerFFI::new(signer_id.clone());
             let sign = signer_service.sign(message);
             let result = match sign {
                 ffi::FFIStringResult::Ok(signed_message) => Ok(signed_message),
