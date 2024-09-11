@@ -12,4 +12,4 @@
 	url = https://github.com/rhinestonewtf/safe7579
 [submodule "test/scripts/forked_state/mock-aa-environment"]
 	path = test/scripts/forked_state/mock-aa-environment
-	url = git@github.com:WalletConnect/mock-aa-environment.git
+	url = https://github.com/WalletConnect/mock-aa-environment.git
