@@ -1,13 +1,16 @@
 services:
   anvil:
-    image: ghcr.io/foundry-rs/foundry:nightly-f6208d8db68f9acbe4ff8cd76958309efb61ea0b
+    image: ghcr.io/foundry-rs/foundry:nightly-96105b4d240681c336e063eac0e250cc51a84414
     restart: unless-stopped
     ports: ["8545:8545"]
-    entrypoint: [ "anvil", "--fork-url", "https://gateway.tenderly.co/public/sepolia", "--host", "0.0.0.0", "--block-time", "0.1", "--gas-price", "1", "--silent" ]
+    entrypoint: [ "anvil", "--fork-url", "https://gateway.tenderly.co/public/sepolia", "--host", "0.0.0.0", "--block-time", "0.1", "--gas-price", "1", "--silent", "--hardfork", "prague" ]
     platform: linux/amd64/v8
  
   mock-paymaster:
-    image: ghcr.io/pimlicolabs/mock-verifying-paymaster:main
+    # image: ghcr.io/pimlicolabs/mock-verifying-paymaster:main
+    build:
+      context: ./mock-aa-environment/mock-verifying-paymaster
+      dockerfile: Dockerfile
     restart: unless-stopped
     ports: ["3000:3000"]
     environment:
@@ -15,7 +18,12 @@ services:
       - ANVIL_RPC=http://anvil:8545
  
   alto:
-    image: ghcr.io/pimlicolabs/mock-alto-bundler:main
+    # image: ghcr.io/pimlicolabs/mock-alto-bundler:main
+    # image: mock-alto-bundler
+    build:
+      context: ./mock-aa-environment/mock-alto-bundler
+      dockerfile: Dockerfile
+    platform: linux/arm64
     restart: unless-stopped
     ports: ["4337:4337"]
     environment:

@@ -28,6 +28,27 @@ where
     Deserialize,
 )]
 #[serde(rename_all = "camelCase")]
+pub struct Authorization {
+    pub contract_address: Address,
+    pub chain_id: u64,
+    pub nonce: u64,
+    pub y_parity: u8,
+    pub r: String,
+    pub s: String,
+}
+
+#[derive(
+    Default,
+    Clone,
+    Debug,
+    Ord,
+    PartialOrd,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+)]
+#[serde(rename_all = "camelCase")]
 pub struct UserOperationV07 {
     #[serde(serialize_with = "as_checksum_addr")]
     pub sender: Address,
@@ -44,6 +65,8 @@ pub struct UserOperationV07 {
     pub paymaster_verification_gas_limit: Option<U256>,
     pub paymaster_post_op_gas_limit: Option<U256>,
     pub paymaster_data: Option<Bytes>,
+    // #[serde(skip_serializing_if = "Option::is_none")]
+    // pub authorization_list: Option<Vec<Authorization>>,
     pub signature: Bytes,
 }
 
@@ -101,6 +124,7 @@ impl UserOperationV07 {
             paymaster_verification_gas_limit: paymaster_verification_gas_limit,
             paymaster_post_op_gas_limit: paymaster_post_op_gas_limit,
             paymaster_data: paymaster_data,
+            // authorization_list: None,
             signature: signature,
         };
 

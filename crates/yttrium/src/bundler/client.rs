@@ -298,6 +298,7 @@ mod tests {
                 max_priority_fee_per_gas: max_priority_fee_per_gas.into(),
                 paymaster: paymaster,
                 paymaster_data: paymaster_data,
+                // authorization_list: None,
                 signature: signature,
             }
         };

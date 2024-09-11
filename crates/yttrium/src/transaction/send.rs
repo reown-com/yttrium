@@ -271,6 +271,7 @@ mod tests {
             paymaster_verification_gas_limit: None,
             paymaster_post_op_gas_limit: None,
             paymaster_data: None,
+            // authorization_list: None,
             signature: Bytes::from_str(
                 crate::smart_accounts::simple_account::DUMMY_SIGNATURE_HEX
                     .strip_prefix("0x")

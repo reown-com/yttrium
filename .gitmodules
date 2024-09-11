@@ -10,3 +10,6 @@
 [submodule "crates/yttrium/safe7579"]
 	path = crates/yttrium/safe7579
 	url = https://github.com/rhinestonewtf/safe7579
+[submodule "test/scripts/forked_state/mock-aa-environment"]
+	path = test/scripts/forked_state/mock-aa-environment
+	url = git@github.com:WalletConnect/mock-aa-environment.git
