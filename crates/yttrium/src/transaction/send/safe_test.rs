@@ -42,7 +42,7 @@ mod tests {
             config::BundlerConfig,
             pimlico::{
                 client::BundlerClient as PimlicoBundlerClient,
-                paymaster::{self, client::PaymasterClient},
+                paymaster::client::PaymasterClient,
             },
         },
         chain::ChainId,
@@ -73,7 +73,6 @@ mod tests {
         sol,
         sol_types::{SolCall, SolValue},
     };
-    use reqwest::Request;
     use serde_json::json;
     use std::{ops::Not, str::FromStr};
 
@@ -520,7 +519,7 @@ mod tests {
         let authority = LocalSigner::random();
         provider.anvil_set_balance(authority.address(), U256::MAX).await?;
 
-        let chain_id = ChainId::ETHEREUM_SEPOLIA.eip155_chain_id()?;
+        let chain_id = ChainId::ETHEREUM_SEPOLIA.eip155_chain_id();
         let auth_7702 = alloy::rpc::types::Authorization {
             chain_id: U256::from(chain_id),
             address: contract_address,
@@ -641,7 +640,7 @@ mod tests {
             (*contract.address(), call.calldata().to_owned())
         };
 
-        let chain_id = ChainId::ETHEREUM_SEPOLIA.eip155_chain_id()?;
+        let chain_id = ChainId::ETHEREUM_SEPOLIA.eip155_chain_id();
         let auth_7702 = alloy::rpc::types::Authorization {
             chain_id: U256::from(chain_id),
             address: contract_address,
