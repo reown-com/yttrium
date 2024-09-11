@@ -23,7 +23,6 @@ services:
     build:
       context: ./mock-aa-environment/mock-alto-bundler
       dockerfile: Dockerfile
-    platform: linux/arm64
     restart: unless-stopped
     ports: ["4337:4337"]
     environment:
