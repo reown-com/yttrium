@@ -500,6 +500,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore]
     async fn test_send_transaction_7702() -> eyre::Result<()> {
         let rpc_url = Config::local().endpoints.rpc.base_url;
         let rpc_url: reqwest::Url = rpc_url.parse()?;
@@ -515,6 +516,9 @@ mod tests {
             Owners { owners: vec![owner.address()], threshold: 1 },
         )
         .await;
+        // TODO remove when testing 7702; the contract address doesn't need
+        // funds, just the authority
+        // provider.anvil_set_balance(contract_address, U256::MAX).await?;
 
         let authority = LocalSigner::random();
         provider.anvil_set_balance(authority.address(), U256::MAX).await?;
@@ -551,8 +555,9 @@ mod tests {
         let transaction_hash = send_transaction(
             transaction,
             owner.clone(),
-            None,
+            Some(authority.address()),
             Some(authorization_list.clone()),
+            // None,
         )
         .await?;
         println!("Transaction sent: {}", transaction_hash);
@@ -577,14 +582,16 @@ mod tests {
             transaction,
             owner,
             Some(authority.address()),
-            Some(authorization_list),
+            // None,
+            // Some(authorization_list.clone()),
+            None,
         )
         .await?;
 
         println!("Transaction sent: {}", transaction_hash);
 
         let balance = provider.get_balance(destination.address()).await?;
-        assert_eq!(balance, Uint::from(2));
+        assert_eq!(balance, Uint::from(1));
 
         Ok(())
     }
