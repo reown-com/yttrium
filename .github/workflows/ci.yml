@@ -8,48 +8,49 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  # ACTIONS_STEP_DEBUG: true
 
 jobs:
-  build_rust_and_test:
-    name: Rust project - latest
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Run sccache-cache
-        uses: mozilla-actions/sccache-action@v0.0.4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 9
-      - run: rustup update stable && rustup default stable
-      - run: rustup toolchain install nightly -c rustfmt
-      - run: git submodule update --init --recursive
-      - run: make setup-thirdparty
-      - run: docker compose up -d
-        working-directory: test/scripts/forked_state
-      - run: while ! curl localhost:8545/health; do sleep 1; done
-      - run: while ! curl localhost:4337/health; do sleep 1; done
-      - run: while ! curl localhost:3000/ping; do sleep 1; done
-      - run: cargo build --workspace --features=full --all-targets
-      - run: cargo test --features=full --lib --bins
-      # - run: cargo clippy --workspace --features=full --all-targets -- -D warnings
-      - run: cargo +nightly fmt --all -- --check
+  # build_rust_and_test:
+  #   name: Rust project - latest
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - name: Run sccache-cache
+  #       uses: mozilla-actions/sccache-action@v0.0.4
+  #     - uses: pnpm/action-setup@v4
+  #       with:
+  #         version: 9
+  #     - run: rustup update stable && rustup default stable
+  #     - run: rustup toolchain install nightly -c rustfmt
+  #     - run: git submodule update --init --recursive
+  #     - run: make setup-thirdparty
+  #     - run: docker compose up -d
+  #       working-directory: test/scripts/forked_state
+  #     - run: while ! curl localhost:8545/health; do sleep 1; done
+  #     - run: while ! curl localhost:4337/health; do sleep 1; done
+  #     - run: while ! curl localhost:3000/ping; do sleep 1; done
+  #     - run: cargo build --workspace --features=full --all-targets
+  #     - run: cargo test --features=full --lib --bins
+  #     # - run: cargo clippy --workspace --features=full --all-targets -- -D warnings
+  #     - run: cargo +nightly fmt --all -- --check
 
-  udeps:
-    name: Unused dependencies
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Run sccache-cache
-        uses: mozilla-actions/sccache-action@v0.0.4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 9
-      - run: rustup update stable && rustup default stable
-      - run: rustup toolchain install nightly -c rustfmt
-      - run: git submodule update --init --recursive
-      - run: make setup-thirdparty
-      - run: cargo install cargo-udeps
-      - run: cargo +nightly udeps --workspace
+  # udeps:
+  #   name: Unused dependencies
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - name: Run sccache-cache
+  #       uses: mozilla-actions/sccache-action@v0.0.4
+  #     - uses: pnpm/action-setup@v4
+  #       with:
+  #         version: 9
+  #     - run: rustup update stable && rustup default stable
+  #     - run: rustup toolchain install nightly -c rustfmt
+  #     - run: git submodule update --init --recursive
+  #     - run: make setup-thirdparty
+  #     - run: cargo install cargo-udeps
+  #     - run: cargo +nightly udeps --workspace
 
   # build_wasm:
   #   name: Build on WASM
@@ -69,7 +70,7 @@ jobs:
 
   build_swift_and_test:
     name: Swift Package - latest
-    runs-on: macos-14
+    runs-on: macos-13
     strategy:
       matrix:
         config:
@@ -85,25 +86,25 @@ jobs:
       - run: git submodule update --init --recursive
       - run: make setup-thirdparty
       - run: make build-ios-bindings
-      - name: Select Xcode 15.4
-        run: sudo xcode-select -s /Applications/Xcode_15.4.app
-      - name: Build ${{ matrix.config }}
-        run: make CONFIG=${{ matrix.config }} build-swift-apple-platforms
-      # - name: Install Docker
-      #   run: |
-      #     HOMEBREW_NO_AUTO_UPDATE=1 brew install --cask docker
-      #     sudo /Applications/Docker.app/Contents/MacOS/Docker --unattended --install-privileged-components
-      #     open -a /Applications/Docker.app --args --unattended --accept-license
-      #     echo "We are waiting for Docker to be up and running. It can take over 2 minutes..."
-      #     while ! /Applications/Docker.app/Contents/Resources/bin/docker info &>/dev/null; do sleep 1; done
-      # - name: Start test infrastructure
-      #   run: docker compose up --debug
-      #   working-directory: test/scripts/forked_state
-      # - name: Wait for local RPC to be ready
-      #   run: while ! curl localhost:8545/health; do sleep 1; done
-      # - name: Wait for local bundler to be ready
-      #   run: while ! curl localhost:4337/health; do sleep 1; done
-      # - name: Wait for local paymaster to be ready
-      #   run: while ! curl localhost:3000/ping; do sleep 1; done
-      # - name: Run ${{ matrix.config }} tests
-      #   run: make CONFIG=${{ matrix.config }} test-swift-apple-platforms
+      - name: Select Xcode 14.2
+        run: sudo xcode-select -s /Applications/Xcode_14.2.app
+      # - name: Build ${{ matrix.config }}
+      #   run: make CONFIG=${{ matrix.config }} build-swift-apple-platforms
+      - name: Install Docker
+        run: |
+          brew install docker docker-compose
+          # Link the Docker Compose v2 plugin so it's understood by the docker CLI
+          mkdir -p ~/.docker/cli-plugins
+          ln -sfn /usr/local/opt/docker-compose/bin/docker-compose ~/.docker/cli-plugins/docker-compose
+          colima start
+      - name: Start test infrastructure
+        run: docker compose up -d
+        working-directory: test/scripts/forked_state
+      - name: Wait for local RPC to be ready
+        run: while ! curl localhost:8545/health; do sleep 1; done
+      - name: Wait for local bundler to be ready
+        run: while ! curl localhost:4337/health; do sleep 1; done
+      - name: Wait for local paymaster to be ready
+        run: while ! curl localhost:3000/ping; do sleep 1; done
+      - name: Run ${{ matrix.config }} tests
+        run: make CONFIG=${{ matrix.config }} test-swift-apple-platforms

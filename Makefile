@@ -9,7 +9,6 @@ setup: fetch-thirdparty setup-thirdparty build-debug-mode build-ios-bindings bui
 build-swift-apple-platforms:
 	for platform in "iOS"; do \
 		xcodebuild \
-			-skipMacroValidation \
 			-configuration $(CONFIG) \
 			-workspace .github/package.xcworkspace \
 			-scheme yttrium \
@@ -19,7 +18,6 @@ build-swift-apple-platforms:
 test-swift-apple-platforms:
 	for platform in "$(PLATFORM_IOS)" ; do \
 		xcodebuild test \
-			-skipMacroValidation \
 			-configuration $(CONFIG) \
 			-workspace .github/package.xcworkspace \
 			-scheme yttrium \

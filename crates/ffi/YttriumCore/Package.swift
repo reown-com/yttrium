@@ -1,12 +1,12 @@
-// swift-tools-version:5.9.0
+// swift-tools-version: 5.7
 import PackageDescription
 let package = Package(
 	name: "YttriumCore",
 	platforms: [
-        .macOS(.v14),
+        .macOS(.v13),
         .iOS(.v13),
-        .watchOS(.v10),
-        .tvOS(.v17)
+        .watchOS(.v9),
+        .tvOS(.v16)
     ],
 	products: [
 		.library(

@@ -22,8 +22,6 @@ pub async fn get_sender_address_with_signer(
     chain_id: u64,
     signer: PrivateKeySigner,
 ) -> eyre::Result<Address> {
-    let bundler_base_url = config.clone().endpoints.bundler.base_url;
-    let paymaster_base_url = config.clone().endpoints.paymaster.base_url;
     let rpc_base_url = config.clone().endpoints.rpc.base_url;
 
     let chain_id = ChainId::new_eip155(chain_id.clone());
