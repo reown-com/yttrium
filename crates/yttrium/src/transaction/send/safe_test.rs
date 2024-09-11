@@ -456,13 +456,10 @@ mod tests {
         amount: U256,
         to: Address,
     ) -> eyre::Result<()> {
-        if amount > U256::from(20) {
-            // Basic check (which we can tune) to make sure we don't use
-            // excessive amounts (e.g. 0.1) of test ETH. It is not infinite, so
-            // we should use the minimum amount necessary.
-            panic!("You probably don't need that much");
-        }
-        println!("address: {}", faucet.address());
+        // Basic check (which we can tune) to make sure we don't use excessive
+        // amounts (e.g. 0.1) of test ETH. It is not infinite, so we should use
+        // the minimum amount necessary.
+        assert!(amount < U256::from(20), "You probably don't need that much");
 
         ProviderBuilder::new()
             .with_recommended_fillers()
