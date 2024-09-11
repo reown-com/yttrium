@@ -62,13 +62,15 @@ mod tests {
     use alloy::{
         consensus::{SignableTransaction, TxEip7702},
         dyn_abi::{DynSolValue, Eip712Domain},
-        network::{Ethereum, TxSignerSync},
+        network::{Ethereum, EthereumWallet, TransactionBuilder, TxSignerSync},
         primitives::{
             aliases::U48, Address, Bytes, FixedBytes, Uint, U128, U256, U64,
         },
         providers::{
-            ext::AnvilApi, PendingTransactionConfig, Provider, ReqwestProvider,
+            ext::AnvilApi, PendingTransactionConfig, Provider, ProviderBuilder,
+            ReqwestProvider,
         },
+        rpc::types::TransactionRequest,
         signers::{k256::ecdsa::SigningKey, local::LocalSigner, SignerSync},
         sol,
         sol_types::{SolCall, SolValue},
@@ -81,9 +83,8 @@ mod tests {
         owner: LocalSigner<SigningKey>,
         address: Option<Address>,
         authorization_list: Option<Vec<Authorization>>,
+        config: Config,
     ) -> eyre::Result<String> {
-        let config = crate::config::Config::local();
-
         let bundler_base_url = config.endpoints.bundler.base_url;
         let paymaster_base_url = config.endpoints.paymaster.base_url;
 
@@ -449,11 +450,40 @@ mod tests {
         Ok(user_operation_hash)
     }
 
-    #[tokio::test]
-    async fn test_send_transaction() -> eyre::Result<()> {
-        let rpc_url = Config::local().endpoints.rpc.base_url;
-        let rpc_url: reqwest::Url = rpc_url.parse()?;
-        let provider = ReqwestProvider::<Ethereum>::new_http(rpc_url);
+    async fn use_faucet(
+        provider: ReqwestProvider,
+        faucet: LocalSigner<SigningKey>,
+        amount: U256,
+        to: Address,
+    ) -> eyre::Result<()> {
+        if amount > U256::from(20) {
+            panic!("You probably don't need that much");
+        }
+        println!("address: {}", faucet.address());
+
+        ProviderBuilder::new()
+            .with_recommended_fillers()
+            .wallet(EthereumWallet::new(faucet))
+            .on_provider(provider.clone())
+            .send_transaction(
+                TransactionRequest::default().with_to(to).with_value(amount),
+            )
+            .await?
+            .watch()
+            .await?;
+        let balance = provider.get_balance(to).await?;
+        assert_eq!(balance, amount);
+
+        Ok(())
+    }
+
+    async fn test_send_transaction(
+        config: Config,
+        faucet: LocalSigner<SigningKey>,
+    ) -> eyre::Result<()> {
+        let provider = ReqwestProvider::<Ethereum>::new_http(
+            config.endpoints.rpc.base_url.parse()?,
+        );
 
         let destination = LocalSigner::random();
         let balance = provider.get_balance(destination.address()).await?;
@@ -466,22 +496,34 @@ mod tests {
         )
         .await;
 
-        provider.anvil_set_balance(sender_address, U256::from(100)).await?;
+        use_faucet(
+            provider.clone(),
+            faucet.clone(),
+            U256::from(2),
+            sender_address,
+        )
+        .await?;
+
         let transaction = vec![Execution {
             target: destination.address(),
             value: Uint::from(1),
             callData: Bytes::new(),
         }];
 
-        let transaction_hash =
-            send_transaction(transaction, owner.clone(), None, None).await?;
+        let transaction_hash = send_transaction(
+            transaction,
+            owner.clone(),
+            None,
+            None,
+            config.clone(),
+        )
+        .await?;
 
         println!("Transaction sent: {}", transaction_hash);
 
         let balance = provider.get_balance(destination.address()).await?;
         assert_eq!(balance, Uint::from(1));
 
-        provider.anvil_set_balance(sender_address, U256::from(100)).await?;
         let transaction = vec![Execution {
             target: destination.address(),
             value: Uint::from(1),
@@ -489,7 +531,7 @@ mod tests {
         }];
 
         let transaction_hash =
-            send_transaction(transaction, owner, None, None).await?;
+            send_transaction(transaction, owner, None, None, config).await?;
 
         println!("Transaction sent: {}", transaction_hash);
 
@@ -499,12 +541,43 @@ mod tests {
         Ok(())
     }
 
+    async fn anvil_faucet(config: Config) -> LocalSigner<SigningKey> {
+        let faucet = LocalSigner::random();
+        let provider = ReqwestProvider::<Ethereum>::new_http(
+            config.endpoints.rpc.base_url.parse().unwrap(),
+        );
+        provider.anvil_set_balance(faucet.address(), U256::MAX).await.unwrap();
+        faucet
+    }
+
+    #[tokio::test]
+    async fn test_send_transaction_local() {
+        let config = Config::local();
+        let faucet = anvil_faucet(config.clone()).await;
+        test_send_transaction(config, faucet).await.unwrap();
+    }
+
+    #[tokio::test]
+    #[cfg(feature = "test_pimlico_api")]
+    async fn test_send_transaction_pimlico() {
+        let config = Config::pimlico();
+        let faucet = MnemonicBuilder::<English>::default()
+            .phrase(
+                std::env::var("FAUCET_MNEMONIC")
+                    .expect("You've not set the FAUCET_MNEMONIC"),
+            )
+            .build()
+            .unwrap();
+        test_send_transaction(config, faucet).await.unwrap();
+    }
+
     #[tokio::test]
     #[ignore]
     async fn test_send_transaction_7702() -> eyre::Result<()> {
-        let rpc_url = Config::local().endpoints.rpc.base_url;
-        let rpc_url: reqwest::Url = rpc_url.parse()?;
-        let provider = ReqwestProvider::<Ethereum>::new_http(rpc_url);
+        let config = Config::local();
+        let provider = ReqwestProvider::<Ethereum>::new_http(
+            config.endpoints.rpc.base_url.parse()?,
+        );
 
         let destination = LocalSigner::random();
         let balance = provider.get_balance(destination.address()).await?;
@@ -558,6 +631,7 @@ mod tests {
             Some(authority.address()),
             Some(authorization_list.clone()),
             // None,
+            config.clone(),
         )
         .await?;
         println!("Transaction sent: {}", transaction_hash);
@@ -585,6 +659,7 @@ mod tests {
             // None,
             // Some(authorization_list.clone()),
             None,
+            config,
         )
         .await?;
 
@@ -599,9 +674,10 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn test_send_transaction_7702_vanilla_bundler() -> eyre::Result<()> {
-        let rpc_url = Config::local().endpoints.rpc.base_url;
-        let rpc_url: reqwest::Url = rpc_url.parse()?;
-        let provider = ReqwestProvider::<Ethereum>::new_http(rpc_url);
+        let config = Config::local();
+        let provider = ReqwestProvider::<Ethereum>::new_http(
+            config.endpoints.rpc.base_url.parse()?,
+        );
 
         let destination = LocalSigner::random();
         let balance = provider.get_balance(destination.address()).await?;
@@ -615,8 +691,14 @@ mod tests {
         .await;
 
         let transaction = vec![];
-        let transaction_hash =
-            send_transaction(transaction, owner.clone(), None, None).await?;
+        let transaction_hash = send_transaction(
+            transaction,
+            owner.clone(),
+            None,
+            None,
+            config.clone(),
+        )
+        .await?;
         println!("Transaction sent: {}", transaction_hash);
 
         let authority = LocalSigner::random();
@@ -721,6 +803,7 @@ mod tests {
             owner,
             Some(authority.address()),
             None,
+            config,
         )
         .await?;
 

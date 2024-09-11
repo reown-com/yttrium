@@ -88,3 +88,34 @@ make setup
 ```
 
 This will fetch the third party dependencies and build the project, including the Swift bindings.
+
+### Devloop
+
+During normal development you can use the `just devloop` command to test your code both during development and before comitting/pushing. This is handy as it runs as many checks as possible and fixes any issues (such as formatting) automatically.
+
+This command does not require any configuration.
+
+```bash
+just devloop
+```
+
+TODO: make this setup anvil automatically
+
+### Specific tests
+
+Some tests require some configuration (such as funds on Sepolia). For these, supply `FAUCET_MNEMONIC` and add some funds on the account.
+
+#### Pimlico/Sepolia
+
+```bash
+just test-pimlico-api
+```
+
+Required environment variables:
+
+```text
+FAUCET_MNEMONIC
+PIMLICO_API_KEY
+PIMLICO_BUNDLER_URL
+PIMLICO_RPC_URL
+```
