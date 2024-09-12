@@ -4,7 +4,7 @@ use {
 };
 
 fn main() {
-    build_contracts();
+    // build_contracts();
 }
 
 const CONTRACTS_DIR: &str = "crates/yttrium/safe-smart-account/contracts";

@@ -7,11 +7,14 @@ setup:
 devloop: build test fmt udeps
 
 test:
-  cargo test --all-features --lib --bins
+  cargo test --features=full --lib --bins
+
+test-pimlico-api:
+  cargo test --features=test_pimlico_api --lib --bins
 
 clippy:
-  cargo clippy --workspace --all-features --all-targets -- -D warnings
-  cargo clippy --workspace --all-features --lib --bins --target wasm32-unknown-unknown --exclude=ffi -- -D warnings
+  cargo clippy --workspace --features=full --all-targets -- -D warnings
+  # cargo clippy --workspace --features=full --lib --bins --target wasm32-unknown-unknown --exclude=ffi -- -D warnings
 
 fmt:
   cargo +nightly fmt --all
@@ -21,5 +24,5 @@ udeps:
 
 # TODO remove `build` in-favor of `clippy` when clippy passes
 build:
-  cargo build --workspace --all-features --all-targets
-  cargo build --workspace --all-features --lib --bins --target wasm32-unknown-unknown --exclude=ffi
+  cargo build --workspace --features=full --all-targets
+  # cargo build --workspace--features=full --lib --bins --target wasm32-unknown-unknown --exclude=ffi

@@ -1,3 +1,4 @@
+use crate::smart_accounts::safe::Execution;
 use crate::transaction::send::simple_account_test::send_transaction_with_signer;
 use crate::{
     config::Config, transaction::Transaction, user_operation::UserOperationV07,
@@ -5,7 +6,7 @@ use crate::{
 use alloy::signers::local::PrivateKeySigner;
 use core::fmt;
 
-mod safe_test;
+pub mod safe_test;
 pub mod send_tests;
 pub mod simple_account_test;
 
@@ -50,6 +51,7 @@ pub async fn send_transaction(
     chain_id: u64,
     config: Config,
     signer: Signer,
+    safe: bool,
 ) -> eyre::Result<String> {
     match signer {
         Signer::PrivateKey(private_key_service) => {
@@ -65,6 +67,7 @@ pub async fn send_transaction(
                 chain_id,
                 config,
                 private_key_signer,
+                safe,
             )
             .await
         }
@@ -80,12 +83,27 @@ pub async fn send_transaction_with_private_key_signer(
     chain_id: u64,
     config: Config,
     private_key_signer: PrivateKeySigner,
+    safe: bool,
 ) -> eyre::Result<String> {
     let signer = private_key_signer;
 
-    let user_operation_hash =
+    let user_operation_hash = if safe {
+        safe_test::send_transaction(
+            vec![Execution {
+                target: transaction.to,
+                value: transaction.value,
+                callData: transaction.data,
+            }],
+            signer,
+            None,
+            None,
+            config,
+        )
+        .await?
+    } else {
         send_transaction_with_signer(transaction, config, chain_id, signer)
-            .await?;
+            .await?
+    };
 
     println!("user_operation_hash: {:?}", user_operation_hash);
 
@@ -271,6 +289,7 @@ mod tests {
             paymaster_verification_gas_limit: None,
             paymaster_post_op_gas_limit: None,
             paymaster_data: None,
+            // authorization_list: None,
             signature: Bytes::from_str(
                 crate::smart_accounts::simple_account::DUMMY_SIGNATURE_HEX
                     .strip_prefix("0x")
