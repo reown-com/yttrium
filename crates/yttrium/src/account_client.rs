@@ -1,6 +1,7 @@
 use crate::config::Config;
 use crate::private_key_service::PrivateKeyService;
 use crate::sign_service::SignService;
+use crate::transaction::send::safe_test;
 use crate::transaction::{send::send_transaction, Transaction};
 use alloy::primitives::Address;
 use alloy::signers::local::PrivateKeySigner;
@@ -47,6 +48,7 @@ pub struct AccountClient {
     chain_id: u64,
     config: Config,
     signer: Signer,
+    safe: bool,
 }
 
 impl AccountClient {
@@ -61,6 +63,7 @@ impl AccountClient {
             chain_id,
             config: config.clone(),
             signer: Signer::Native(Arc::new(Mutex::new(sign_service))),
+            safe: false,
         }
     }
 
@@ -69,6 +72,7 @@ impl AccountClient {
         chain_id: u64,
         config: Config,
         private_key_service: PrivateKeyService,
+        safe: bool,
     ) -> Self {
         Self {
             owner,
@@ -77,6 +81,7 @@ impl AccountClient {
             signer: Signer::PrivateKey(Arc::new(Mutex::new(
                 private_key_service,
             ))),
+            safe,
         }
     }
 
@@ -98,6 +103,7 @@ impl AccountClient {
             signer: Signer::PrivateKey(Arc::new(Mutex::new(
                 private_key_service,
             ))),
+            safe: false,
         }
     }
 
@@ -111,6 +117,7 @@ impl AccountClient {
             self.chain_id.clone(),
             self.config.clone(),
             self.signer.clone(),
+            self.safe,
         )
         .await
     }
@@ -136,6 +143,7 @@ impl AccountClient {
             self.chain_id.clone(),
             self.config.clone(),
             self.signer.clone(),
+            self.safe,
         )
         .await
     }
@@ -162,6 +170,7 @@ impl AccountClient {
             chain_id: 0,
             config: Config::local(),
             signer: Signer::Native(Arc::new(Mutex::new(SignService::mock()))),
+            safe: false,
         }
     }
 }
@@ -171,6 +180,7 @@ pub async fn get_address_with_signer(
     chain_id: u64,
     config: Config,
     signer: Signer,
+    safe: bool,
 ) -> eyre::Result<String> {
     match signer {
         Signer::PrivateKey(private_key_service) => {
@@ -185,6 +195,7 @@ pub async fn get_address_with_signer(
                 chain_id,
                 config,
                 private_key_signer,
+                safe,
             )
             .await
         }
@@ -199,11 +210,15 @@ pub async fn get_address_with_private_key_signer(
     chain_id: u64,
     config: Config,
     signer: PrivateKeySigner,
+    safe: bool,
 ) -> eyre::Result<String> {
     use crate::smart_accounts::simple_account::sender_address::get_sender_address_with_signer;
 
-    let sender_address =
-        get_sender_address_with_signer(config, chain_id, signer).await?;
+    let sender_address = if safe {
+        safe_test::get_address(signer, config).await?
+    } else {
+        get_sender_address_with_signer(config, chain_id, signer).await?
+    };
 
     Ok(sender_address.to_string())
 }
@@ -239,6 +254,7 @@ mod tests {
             chain_id,
             config,
             private_key_service,
+            false,
         );
 
         let transaction = Transaction::new_from_strings(
@@ -278,6 +294,7 @@ mod tests {
             chain_id,
             config,
             private_key_service,
+            false,
         );
 
         let sender_address = account_client.get_address().await?;

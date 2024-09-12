@@ -23,7 +23,7 @@ public protocol AccountClientProtocol {
     
     var chainId: Int { get }
     
-    init(ownerAddress: String, entryPoint: String, chainId: Int, config: Config)
+    init(ownerAddress: String, entryPoint: String, chainId: Int, config: Config, safe: Bool)
     
     func register(privateKey: String)
 
