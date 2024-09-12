@@ -47,6 +47,7 @@ mod ffi {
         pub chain_id: u64,
         pub config: FFIConfig,
         pub signer_type: String,
+        pub safe: bool,
     }
 
     enum FFIStringResult {
