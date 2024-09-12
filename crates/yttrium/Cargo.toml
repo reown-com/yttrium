@@ -4,6 +4,10 @@ version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 
+[features]
+full = []
+test_pimlico_api = []
+
 [dependencies]
 # Ethereum
 alloy = { git = "https://github.com/alloy-rs/alloy", version = "0.3.2", features = [
