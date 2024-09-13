@@ -125,6 +125,15 @@ public final class AccountClient: AccountClientProtocol {
         )
         .toString()
     }
+
+    public func waitForUserOperationReceipt(
+        userOperationHash: String
+        ) async throws -> String {
+            try await coreAccountClient.wait_for_user_operation_receipt(
+                userOperationHash.intoRustString()
+            )
+            .toString()
+        }
 }
 
 extension Transaction {

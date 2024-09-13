@@ -478,19 +478,19 @@ mod tests {
             )
             .await?;
 
-        println!("Querying for receipts...");
+        // println!("Querying for receipts...");
 
-        let receipt = bundler_client
-            .wait_for_user_operation_receipt(user_operation_hash.clone())
-            .await?;
+        // let receipt = bundler_client
+        //     .wait_for_user_operation_receipt(user_operation_hash.clone())
+        //     .await?;
 
-        println!("Received User Operation receipt: {:?}", receipt);
+        // println!("Received User Operation receipt: {:?}", receipt);
 
-        let tx_hash = receipt.receipt.transaction_hash;
-        println!(
-            "UserOperation included: https://sepolia.etherscan.io/tx/{}",
-            tx_hash
-        );
+        // let tx_hash = receipt.receipt.transaction_hash;
+        // println!(
+        //     "UserOperation included: https://sepolia.etherscan.io/tx/{}",
+        //     tx_hash
+        // );
 
         Ok(user_operation_hash)
     }

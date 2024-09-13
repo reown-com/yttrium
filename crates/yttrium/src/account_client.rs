@@ -2,10 +2,15 @@ use crate::config::Config;
 use crate::private_key_service::PrivateKeyService;
 use crate::sign_service::SignService;
 use crate::transaction::{send::send_transaction, Transaction};
+use crate::user_operation::user_operation_hash;
 use alloy::primitives::Address;
 use alloy::signers::local::PrivateKeySigner;
 use std::sync::Arc;
 use tokio::sync::Mutex;
+use crate::
+    bundler::{
+        client::BundlerClient, config::BundlerConfig
+};
 
 #[derive(Clone)]
 pub enum SignerType {
@@ -153,7 +158,33 @@ impl AccountClient {
 
         Ok(signature)
     }
+
+    pub async fn wait_for_user_operation_receipt(
+        &self,
+        user_operation_hash: String
+    ) -> eyre::Result<String> {
+
+        println!("Querying for receipts...");
+
+        let bundler_base_url = self.config.clone().endpoints.bundler.base_url;
+
+        let bundler_client =
+            BundlerClient::new(BundlerConfig::new(bundler_base_url.clone()));
+        let receipt = bundler_client
+            .wait_for_user_operation_receipt(user_operation_hash.clone())
+            .await?;
+
+        println!("Received User Operation receipt: {:?}", receipt);
+
+        let tx_hash = receipt.receipt.transaction_hash;
+        println!(
+            "UserOperation included: https://sepolia.etherscan.io/tx/{}",
+            tx_hash
+        );
+        Ok("".to_string())
+    }
 }
+
 
 impl AccountClient {
     pub fn mock() -> Self {

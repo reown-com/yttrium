@@ -78,6 +78,11 @@ mod ffi {
             message: String,
             mnemonic: String,
         ) -> Result<String, FFIError>;
+
+        pub async fn wait_for_user_operation_receipt(
+            &self,
+            user_operation_hash: String
+        ) -> Result<String, FFIError>;
     }
 
     extern "Rust" {
