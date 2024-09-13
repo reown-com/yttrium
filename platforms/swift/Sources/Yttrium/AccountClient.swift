@@ -15,14 +15,16 @@ public final class AccountClient: AccountClientProtocol {
         ownerAddress: String,
         entryPoint: String,
         chainId: Int,
-        config: Config
+        config: Config,
+        safe: Bool
     ) {
         self.init(
             ownerAddress: ownerAddress,
             entryPoint: entryPoint,
             chainId: chainId,
             config: config,
-            signerType: .privateKey
+            signerType: .privateKey,
+            safe: safe
         )
     }
     
@@ -31,13 +33,15 @@ public final class AccountClient: AccountClientProtocol {
         entryPoint: String,
         chainId: Int,
         config: Config,
-        signerType: SignerType
+        signerType: SignerType,
+        safe: Bool
     ) {
         let ffiConfig: FFIAccountClientConfig = FFIAccountClientConfig(
             owner_address: ownerAddress.intoRustString(),
             chain_id: UInt64(chainId),
             config: config.ffi,
-            signer_type: signerType.toRustString()
+            signer_type: signerType.toRustString(),
+            safe: safe
         )
         self.ownerAddress = ownerAddress
         self.chainId = chainId
@@ -50,13 +54,15 @@ public final class AccountClient: AccountClientProtocol {
         entryPoint: String,
         chainId: Int,
         config: Config,
-        signer: Signer
+        signer: Signer,
+        safe: Bool
     ) {
         let ffiConfig: FFIAccountClientConfig = FFIAccountClientConfig(
             owner_address: ownerAddress.intoRustString(),
             chain_id: UInt64(chainId),
             config: config.ffi,
-            signer_type: signer.signerType.toRustString()
+            signer_type: signer.signerType.toRustString(),
+            safe: safe
         )
         self.ownerAddress = ownerAddress
         self.chainId = chainId

@@ -29,9 +29,9 @@ jobs:
       - run: while ! curl localhost:8545/health; do sleep 1; done
       - run: while ! curl localhost:4337/health; do sleep 1; done
       - run: while ! curl localhost:3000/ping; do sleep 1; done
-      - run: cargo build --workspace --all-features --all-targets
-      - run: cargo test --all-features --lib --bins
-      # - run: cargo clippy --workspace --all-features --all-targets -- -D warnings
+      - run: cargo build --workspace --features=full --all-targets
+      - run: cargo test --features=full --lib --bins
+      # - run: cargo clippy --workspace --features=full --all-targets -- -D warnings
       - run: cargo +nightly fmt --all -- --check
 
   udeps:
@@ -65,7 +65,7 @@ jobs:
   #     - run: rustup target add wasm32-unknown-unknown
   #     - run: git submodule update --init --recursive
   #     - run: make setup-thirdparty
-  #     - run: cargo build --workspace --all-features --lib --bins --target wasm32-unknown-unknown --exclude=ffi
+  #     - run: cargo build --workspace --features=full --lib --bins --target wasm32-unknown-unknown --exclude=ffi
 
   build_swift_and_test:
     name: Swift Package - latest

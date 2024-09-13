@@ -1,4 +1,4 @@
-use crate::user_operation::UserOperationV07;
+use crate::user_operation::{Authorization, UserOperationV07};
 use alloy::primitives::{Address, Bytes, U256};
 use serde::{Deserialize, Serialize};
 
@@ -31,6 +31,8 @@ pub struct UserOperationPreSponsorshipV07 {
     pub paymaster_verification_gas_limit: Option<U256>,
     pub paymaster_post_op_gas_limit: Option<U256>,
     pub paymaster_data: Option<Bytes>,
+    // #[serde(skip_serializing_if = "Option::is_none")]
+    // pub authorization_list: Option<Vec<Authorization>>,
     pub signature: Bytes,
 }
 
@@ -52,6 +54,7 @@ impl From<UserOperationV07> for UserOperationPreSponsorshipV07 {
                 .paymaster_verification_gas_limit,
             paymaster_post_op_gas_limit: user_op.paymaster_post_op_gas_limit,
             paymaster_data: user_op.paymaster_data,
+            // authorization_list: user_op.authorization_list,
             signature: user_op.signature,
         }
     }

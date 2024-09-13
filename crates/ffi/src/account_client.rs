@@ -83,6 +83,7 @@ impl FFIAccountClient {
                         config.chain_id.clone(),
                         config.config.into(),
                         service,
+                        config.safe,
                     );
                 account_client
             }
