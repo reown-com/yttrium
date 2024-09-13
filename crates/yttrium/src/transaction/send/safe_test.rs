@@ -406,18 +406,6 @@ pub async fn send_transaction(
 
     println!("Received User Operation hash: {:?}", user_operation_hash);
 
-    println!("Querying for receipts...");
-
-    let receipt = bundler_client
-        .wait_for_user_operation_receipt(user_operation_hash.clone())
-        .await?;
-
-    let tx_hash = receipt.receipt.transaction_hash;
-    println!(
-        "SAFE UserOperation included: https://sepolia.etherscan.io/tx/{}",
-        tx_hash
-    );
-
     // Some extra calls to wait for/get the actual transaction. But these
     // aren't required since eth_getUserOperationReceipt already waits
     // let tx_hash = FixedBytes::from_slice(

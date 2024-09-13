@@ -1,4 +1,5 @@
 use super::ffi;
+use yttrium::bundler::models::user_operation_receipt::UserOperationReceipt;
 use super::ffi::{FFIAccountClientConfig, FFIError};
 use yttrium::{
     account_client::{AccountClient, SignerType},
@@ -135,7 +136,10 @@ impl FFIAccountClient {
         self.account_client
         .wait_for_user_operation_receipt(user_operation_hash)
         .await
-        .map_err(|e| FFIError::Unknown(e.to_string()))
+        .map_err(|e: eyre::Error| FFIError::Unknown(e.to_string()))
+        .iter()
+        .flat_map(|receipt|{serde_json::to_string(&receipt)?.into_iter()})
+        .collect::<String>()
     }
 }
 

@@ -8,6 +8,7 @@ use alloy::primitives::Address;
 use alloy::signers::local::PrivateKeySigner;
 use std::sync::Arc;
 use tokio::sync::Mutex;
+use crate::bundler::models::user_operation_receipt::UserOperationReceipt;
 use crate::
     bundler::{
         client::BundlerClient, config::BundlerConfig
@@ -170,7 +171,7 @@ impl AccountClient {
     pub async fn wait_for_user_operation_receipt(
         &self,
         user_operation_hash: String
-    ) -> eyre::Result<String> {
+    ) -> eyre::Result<UserOperationReceipt> {
 
         println!("Querying for receipts...");
 
@@ -184,12 +185,12 @@ impl AccountClient {
 
         println!("Received User Operation receipt: {:?}", receipt);
 
-        let tx_hash = receipt.receipt.transaction_hash;
+        let tx_hash = receipt.clone().receipt.transaction_hash;
         println!(
             "UserOperation included: https://sepolia.etherscan.io/tx/{}",
             tx_hash
         );
-        Ok("".to_string())
+        Ok(receipt)
     }
 }
 
