@@ -27,7 +27,8 @@ final class AccountClientTests: XCTestCase {
             entryPoint: Self.entryPoint,
             chainId: Self.chainId,
             config: config,
-            signerType: .privateKey
+            signerType: .privateKey,
+            safe: false
         )
         accountClient.register(privateKey: Self.privateKeyHex)
         
@@ -44,7 +45,8 @@ final class AccountClientTests: XCTestCase {
             entryPoint: Self.entryPoint,
             chainId: Self.chainId,
             config: config,
-            signerType: .privateKey
+            signerType: .privateKey,
+            safe: false
         )
         accountClient.register(privateKey: Self.privateKeyHex)
 

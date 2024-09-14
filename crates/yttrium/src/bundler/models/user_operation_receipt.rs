@@ -1,7 +1,7 @@
 use alloy::primitives::Address;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UserOperationReceiptReceipt {
     pub transaction_hash: String,
@@ -19,7 +19,7 @@ pub struct UserOperationReceiptReceipt {
     pub effective_gas_price: String,
 }
 
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UserOperationReceipt {
     pub user_op_hash: String,

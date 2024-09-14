@@ -252,28 +252,6 @@ pub async fn send_transaction_with_signer(
 
     println!("Received User Operation hash: {:?}", user_operation_hash);
 
-    // TODO convert to polling
-    use std::time::Duration;
-    tokio::time::sleep(Duration::from_secs(2)).await;
-
-    let receipt = bundler_client
-        .get_user_operation_receipt(user_operation_hash.clone())
-        .await?;
-
-    println!("Received User Operation receipt: {:?}", receipt);
-
-    println!("Querying for receipts...");
-
-    let receipt = bundler_client
-        .wait_for_user_operation_receipt(user_operation_hash.clone())
-        .await?;
-
-    let tx_hash = receipt.receipt.transaction_hash;
-    println!(
-        "UserOperation included: https://sepolia.etherscan.io/tx/{}",
-        tx_hash
-    );
-
     Ok(user_operation_hash)
 }
 

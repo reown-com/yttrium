@@ -349,24 +349,6 @@ mod tests {
 
         println!("Received User Operation hash: {:?}", user_operation_hash);
 
-        // let receipt = bundler_client
-        //     .get_user_operation_receipt(user_operation_hash.clone())
-        //     .await?;
-
-        // println!("Received User Operation receipt: {:?}", receipt);
-
-        // println!("Querying for receipts...");
-
-        // let receipt = bundler_client
-        //     .wait_for_user_operation_receipt(user_operation_hash.clone())
-        //     .await?;
-
-        // let tx_hash = receipt.receipt.transaction_hash;
-        // println!(
-        //     "UserOperation included: https://sepolia.etherscan.io/tx/{}",
-        //     tx_hash
-        // );
-
         Ok(user_operation_hash)
     }
 

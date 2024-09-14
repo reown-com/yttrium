@@ -127,6 +127,19 @@ impl FFIAccountClient {
             .sign_message_with_mnemonic(message, mnemonic)
             .map_err(|e| FFIError::Unknown(e.to_string()))
     }
+
+    pub async fn wait_for_user_operation_receipt(
+        &self,
+        user_operation_hash: String,
+    ) -> Result<String, FFIError> {
+        self.account_client
+            .wait_for_user_operation_receipt(user_operation_hash)
+            .await
+            .iter()
+            .map(serde_json::to_string)
+            .collect::<Result<String, serde_json::Error>>()
+            .map_err(|e| FFIError::Unknown(e.to_string()))
+    }
 }
 
 impl From<ffi::FFITransaction> for Transaction {
