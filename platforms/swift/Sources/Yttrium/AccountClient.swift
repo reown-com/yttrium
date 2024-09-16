@@ -131,6 +131,22 @@ public final class AccountClient: AccountClientProtocol {
         )
         .toString()
     }
+
+    public func waitForUserOperationReceipt(
+        userOperationHash: String
+    ) async throws -> UserOperationReceipt {
+        let jsonString = try await coreAccountClient
+            .wait_for_user_operation_receipt(
+                userOperationHash.intoRustString()
+            )
+            .toString()
+        let jsonData = Data(jsonString.utf8)
+        let receipt = try JSONDecoder().decode(
+            UserOperationReceipt.self,
+            from: jsonData
+        )
+        return receipt
+    }
 }
 
 extension Transaction {

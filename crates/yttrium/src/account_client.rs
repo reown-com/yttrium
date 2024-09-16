@@ -1,3 +1,7 @@
+use crate::bundler::{
+    client::BundlerClient, config::BundlerConfig,
+    models::user_operation_receipt::UserOperationReceipt,
+};
 use crate::config::Config;
 use crate::private_key_service::PrivateKeyService;
 use crate::sign_service::SignService;
@@ -161,6 +165,30 @@ impl AccountClient {
 
         Ok(signature)
     }
+
+    pub async fn wait_for_user_operation_receipt(
+        &self,
+        user_operation_hash: String,
+    ) -> eyre::Result<UserOperationReceipt> {
+        println!("Querying for receipts...");
+
+        let bundler_base_url = self.config.clone().endpoints.bundler.base_url;
+
+        let bundler_client =
+            BundlerClient::new(BundlerConfig::new(bundler_base_url.clone()));
+        let receipt = bundler_client
+            .wait_for_user_operation_receipt(user_operation_hash.clone())
+            .await?;
+
+        println!("Received User Operation receipt: {:?}", receipt);
+
+        let tx_hash = receipt.clone().receipt.transaction_hash;
+        println!(
+            "UserOperation included: https://sepolia.etherscan.io/tx/{}",
+            tx_hash
+        );
+        Ok(receipt)
+    }
 }
 
 impl AccountClient {
@@ -267,6 +295,12 @@ mod tests {
             account_client.send_transaction(transaction).await?;
 
         println!("user_operation_hash: {:?}", user_operation_hash);
+
+        let receipt = account_client
+            .wait_for_user_operation_receipt(user_operation_hash)
+            .await?;
+
+        println!("receipt: {:?}", receipt);
 
         Ok(())
     }
