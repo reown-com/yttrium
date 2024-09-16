@@ -40,6 +40,9 @@ setup-thirdparty:
 build-ios-bindings:
 	sh crates/ffi/build-rust-ios.sh
 
+build-ios-bindings-release:
+	sh crates/ffi/build-rust-ios-release.sh
+
 test:
 	cargo test --workspace
 
@@ -65,6 +68,21 @@ local-infra-forked:
 
 local-infra-7702:
 	cd test/scripts/7702 && sh local-infra.sh
+
+.PHONY: zip-rust-xcframework
+zip-rust-xcframework:
+	mkdir -p Output
+	cd crates/ffi/YttriumCore/ && zip -r ../../../Output/RustXcframework.xcframework.zip RustXcframework.xcframework
+
+.PHONY: compute-rust-checksum
+compute-rust-checksum:
+	swift package compute-checksum Output/RustXcframework.xcframework.zip > rust_checksum.txt
+	echo "Rust XCFramework checksum: $$(cat rust_checksum.txt)"
+
+.PHONY: generate-package-swift
+generate-package-swift:
+	chmod +x scripts/generate_package_swift.sh
+	./scripts/generate_package_swift.sh
 
 .PHONY: build setup build-ios-bindings build-swift-apple-platforms test-swift-apple-platforms fetch-thirdparty setup-thirdparty test format clean local-infra local-infra-forked local-infra-7702
 

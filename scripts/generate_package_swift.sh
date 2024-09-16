@@ -1,3 +1,16 @@
+#!/bin/bash
+
+set -e
+
+# Variables
+# PACKAGE_VERSION="${GITHUB_VERSION:-0.0.1-alpha}"
+PACKAGE_VERSION="${GITHUB_VERSION:-0.0.1-alpha}-test"
+RUST_CHECKSUM=$(cat rust_checksum.txt)
+RUST_XCFRAMEWORK_ZIP="RustXcframework.xcframework.zip"
+REPO_URL="https://github.com/WalletConnect/yttrium"
+
+# Generate Package.swift
+cat > Package.swift <<EOF
 // swift-tools-version: 5.10
 import PackageDescription
 import Foundation
@@ -6,11 +19,11 @@ let isDevelopment = ProcessInfo.processInfo.environment["YTTRIUM_DEVELOPMENT"] =
 
 let rustBinaryTarget: Target = {
     guard isDevelopment else {
-        return rustBinaryTarget = .binaryTarget(
+        return .binaryTarget(
             name: "RustXcframework",
             url: "$REPO_URL/releases/download/$PACKAGE_VERSION/$RUST_XCFRAMEWORK_ZIP",
             checksum: "$RUST_CHECKSUM"
-        )
+        ),
     }
     return .binaryTarget(
         name: "RustXcframework",
@@ -62,3 +75,6 @@ let package = Package(
         ),
     ]
 )
+EOF
+
+echo "Package.swift generated with Rust XCFramework checksum: $RUST_CHECKSUM"
