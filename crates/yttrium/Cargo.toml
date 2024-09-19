@@ -10,7 +10,7 @@ test_pimlico_api = []
 
 [dependencies]
 # Ethereum
-alloy = { git = "https://github.com/alloy-rs/alloy", version = "0.3.2", features = [
+alloy = { version = "0.3.6", features = [
     "contract",
     "network",
     "providers",

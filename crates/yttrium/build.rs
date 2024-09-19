@@ -4,7 +4,7 @@ use {
 };
 
 fn main() {
-    // build_contracts();
+    build_contracts();
 }
 
 const CONTRACTS_DIR: &str = "crates/yttrium/safe-smart-account/contracts";
@@ -12,7 +12,7 @@ const CONTRACTS_DIR: &str = "crates/yttrium/safe-smart-account/contracts";
 fn build_contracts() {
     println!("cargo::rerun-if-changed={CONTRACTS_DIR}");
     install_foundry();
-    compile_contracts(&format!("{CONTRACTS_DIR}/proxies"));
+    compile_contracts(&format!("{CONTRACTS_DIR}/proxies/SafeProxyFactory.sol"));
     // extract_bytecodes();
 }
 
@@ -55,7 +55,7 @@ fn compile_contracts(contracts_dir: &str) {
     let output = Command::new(format_foundry_dir("bin/forge"))
         .args([
             "build",
-            &format!("--contracts={contracts_dir}"),
+            contracts_dir,
             "--skip=test",
             "--cache-path",
             &format_foundry_dir("forge/cache"),

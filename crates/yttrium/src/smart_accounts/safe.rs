@@ -10,9 +10,7 @@ sol!(
     #[allow(missing_docs)]
     #[sol(rpc)]
     SafeProxyFactory,
-    "safe-smart-account/build/artifacts/contracts/proxies/SafeProxyFactory.sol/SafeProxyFactory.json"
-    // "../../target/.foundry/forge/out/SafeProxyFactory.sol/SafeProxyFactory.json"
-    // concat!(env!("OUT_DIR"), "/../../../../.foundry/forge/out/SafeProxyFactory.sol/SafeProxyFactory.json")
+    "../../target/.foundry/forge/out/SafeProxyFactory.sol/SafeProxyFactory.json"
 );
 
 sol!(
