@@ -21,9 +21,13 @@ use crate::{
     user_operation::{Authorization, UserOperationV07},
 };
 use alloy::{
-    dyn_abi::{DynSolValue, Eip712Domain},
+    dyn_abi::{
+        DynSolCall, DynSolReturns, DynSolType, DynSolValue, Eip712Domain,
+    },
     network::Ethereum,
-    primitives::{aliases::U48, Address, Bytes, FixedBytes, Uint, U128, U256},
+    primitives::{
+        aliases::U48, keccak256, Address, Bytes, FixedBytes, Uint, U128, U256,
+    },
     providers::{Provider, ReqwestProvider},
     signers::{k256::ecdsa::SigningKey, local::LocalSigner, SignerSync},
     sol,
@@ -120,46 +124,63 @@ pub async fn send_transaction(
     let account_address =
         if let Some(address) = address { address } else { contract_address };
 
-    let call_type = if execution_calldata.len() == 1 {
-        CallType::Call
-    } else {
-        CallType::BatchCall
-    };
-    let revert_on_error = false;
-    let selector = [0u8; 4];
-    let context = [0u8; 22];
+    let call_data = {
+        let batch = execution_calldata.len() != 1;
+        let revert_on_error = false;
+        let selector = [0u8; 4];
+        let context = [0u8; 22];
 
-    enum CallType {
-        Call,
-        BatchCall,
-        #[allow(dead_code)]
-        DelegateCall,
-    }
-    impl CallType {
-        fn as_byte(&self) -> u8 {
-            match self {
-                CallType::Call => 0x00,
-                CallType::BatchCall => 0x01,
-                CallType::DelegateCall => 0xff,
-            }
+        let mode =
+            DynSolValue::Tuple(vec![
+                DynSolValue::Uint(
+                    Uint::from(if batch { 0x01 } else { 0x00 }),
+                    8,
+                ), // DelegateCall is 0xFF
+                DynSolValue::Uint(Uint::from(revert_on_error as u8), 8),
+                DynSolValue::Bytes(vec![0u8; 4]),
+                DynSolValue::Bytes(selector.to_vec()),
+                DynSolValue::Bytes(context.to_vec()),
+            ])
+            .abi_encode_packed();
+
+        let execution_calldata = if batch {
+            DynSolCall::new(
+                FixedBytes::from_slice(
+                    &keccak256("executionBatch(tuple[])")[..4],
+                ),
+                vec![DynSolType::Array(Box::new(DynSolType::Tuple(vec![
+                    DynSolType::Address,
+                    DynSolType::Uint(32),
+                    DynSolType::Bytes,
+                ])))],
+                None,
+                DynSolReturns::new(vec![]),
+            )
+            .abi_encode_input(&[DynSolValue::Array(
+                execution_calldata
+                    .iter()
+                    .map(|execution| {
+                        DynSolValue::Tuple(vec![
+                            DynSolValue::Address(execution.target),
+                            DynSolValue::Uint(Uint::from(execution.value), 32),
+                            DynSolValue::Bytes(execution.callData.to_vec()),
+                        ])
+                    })
+                    .collect(),
+            )])?[4..]
+                .to_vec()
+        } else {
+            execution_calldata.abi_encode_packed()
         }
-    }
+        .into();
 
-    let mode = DynSolValue::Tuple(vec![
-        DynSolValue::Uint(Uint::from(call_type.as_byte()), 8),
-        DynSolValue::Uint(Uint::from(revert_on_error as u8), 8),
-        DynSolValue::Bytes(vec![0u8; 4]),
-        DynSolValue::Bytes(selector.to_vec()),
-        DynSolValue::Bytes(context.to_vec()),
-    ])
-    .abi_encode_packed();
-
-    let call_data = Safe7579::executeCall {
-        mode: FixedBytes::from_slice(&mode),
-        executionCalldata: execution_calldata.abi_encode_packed().into(),
-    }
-    .abi_encode()
-    .into();
+        Safe7579::executeCall {
+            mode: FixedBytes::from_slice(&mode),
+            executionCalldata: execution_calldata,
+        }
+        .abi_encode()
+        .into()
+    };
 
     let deployed = provider.get_code_at(account_address).await?.len() > 0;
     println!("Deployed: {}", deployed);
@@ -438,9 +459,8 @@ pub async fn send_transaction(
 
 #[cfg(test)]
 mod tests {
-    use crate::chain::ChainId;
-
     use super::*;
+    use crate::chain::ChainId;
     use alloy::{
         consensus::{SignableTransaction, TxEip7702},
         network::{EthereumWallet, TransactionBuilder, TxSignerSync},
@@ -556,18 +576,134 @@ mod tests {
         test_send_transaction(config, faucet).await.unwrap();
     }
 
-    #[tokio::test]
     #[cfg(feature = "test_pimlico_api")]
-    async fn test_send_transaction_pimlico() {
-        let config = Config::pimlico();
-        let faucet = MnemonicBuilder::<English>::default()
+    fn pimlico_faucet() -> LocalSigner<SigningKey> {
+        use alloy::signers::local::{coins_bip39::English, MnemonicBuilder};
+        MnemonicBuilder::<English>::default()
             .phrase(
                 std::env::var("FAUCET_MNEMONIC")
                     .expect("You've not set the FAUCET_MNEMONIC"),
             )
             .build()
-            .unwrap();
+            .unwrap()
+    }
+
+    #[tokio::test]
+    #[cfg(feature = "test_pimlico_api")]
+    async fn test_send_transaction_pimlico() {
+        let config = Config::pimlico();
+        let faucet = pimlico_faucet();
         test_send_transaction(config, faucet).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_send_transaction_just_deploy() -> eyre::Result<()> {
+        let config = Config::local();
+        let faucet = anvil_faucet(config.clone()).await;
+
+        let provider = ReqwestProvider::<Ethereum>::new_http(
+            config.endpoints.rpc.base_url.parse()?,
+        );
+
+        let owner = LocalSigner::random();
+        let sender_address = get_account_address(
+            provider.clone(),
+            Owners { owners: vec![owner.address()], threshold: 1 },
+        )
+        .await;
+        assert!(provider.get_code_at(sender_address).await.unwrap().is_empty());
+
+        use_faucet(
+            provider.clone(),
+            faucet.clone(),
+            U256::from(3),
+            sender_address,
+        )
+        .await?;
+
+        let transaction = vec![];
+
+        let transaction_hash = send_transaction(
+            transaction,
+            owner.clone(),
+            None,
+            None,
+            config.clone(),
+        )
+        .await?;
+
+        println!("Transaction sent: {}", transaction_hash);
+
+        assert!(!provider
+            .get_code_at(sender_address)
+            .await
+            .unwrap()
+            .is_empty());
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_send_transaction_batch() -> eyre::Result<()> {
+        let config = Config::local();
+        let faucet = anvil_faucet(config.clone()).await;
+
+        let provider = ReqwestProvider::<Ethereum>::new_http(
+            config.endpoints.rpc.base_url.parse()?,
+        );
+
+        let destination1 = LocalSigner::random();
+        let destination2 = LocalSigner::random();
+
+        let owner = LocalSigner::random();
+        let sender_address = get_account_address(
+            provider.clone(),
+            Owners { owners: vec![owner.address()], threshold: 1 },
+        )
+        .await;
+
+        use_faucet(
+            provider.clone(),
+            faucet.clone(),
+            U256::from(3),
+            sender_address,
+        )
+        .await?;
+
+        let transaction = vec![
+            Execution {
+                target: destination1.address(),
+                value: Uint::from(1),
+                callData: Bytes::new(),
+            },
+            Execution {
+                target: destination2.address(),
+                value: Uint::from(2),
+                callData: Bytes::new(),
+            },
+        ];
+
+        let transaction_hash = send_transaction(
+            transaction,
+            owner.clone(),
+            None,
+            None,
+            config.clone(),
+        )
+        .await?;
+
+        println!("Transaction sent: {}", transaction_hash);
+
+        assert_eq!(
+            provider.get_balance(destination1.address()).await?,
+            Uint::from(1)
+        );
+        assert_eq!(
+            provider.get_balance(destination2.address()).await?,
+            Uint::from(2)
+        );
+
+        Ok(())
     }
 
     #[tokio::test]
