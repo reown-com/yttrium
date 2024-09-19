@@ -7,12 +7,48 @@ fn main() {
     build_contracts();
 }
 
-const CONTRACTS_DIR: &str = "crates/yttrium/safe-smart-account/contracts";
-
 fn build_contracts() {
-    println!("cargo::rerun-if-changed={CONTRACTS_DIR}");
     install_foundry();
-    compile_contracts(&format!("{CONTRACTS_DIR}/proxies/SafeProxyFactory.sol"));
+    compile_contracts("crates/yttrium/safe-smart-account/contracts/proxies/SafeProxyFactory.sol", None);
+    compile_contracts(
+        "crates/yttrium/safe-smart-account/contracts/Safe.sol",
+        None,
+    );
+    compile_contracts(
+        "crates/yttrium/safe-smart-account/contracts/libraries/MultiSend.sol",
+        None,
+    );
+    compile_contracts(
+        "safe-modules/modules/4337/contracts/SafeModuleSetup.sol",
+        None,
+    );
+
+    {
+        println!("cargo::rerun-if-changed=safe7579");
+        let output = Command::new("pnpm")
+            .current_dir("safe7579")
+            .args(["install"])
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .unwrap()
+            .wait_with_output()
+            .unwrap();
+        println!("`pnpm install` status: {:?}", output.status);
+        let stdout = String::from_utf8(output.stdout).unwrap();
+        println!("`pnpm install` stdout: {stdout:?}");
+        let stderr = String::from_utf8(output.stderr).unwrap();
+        println!("`pnpm install` stderr: {stderr:?}");
+        assert!(output.status.success());
+    }
+    compile_contracts(
+        "safe7579/src/Safe7579Launchpad.sol",
+        Some("safe7579/foundry.toml"),
+    );
+    compile_contracts(
+        "safe7579/src/Safe7579.sol",
+        Some("safe7579/foundry.toml"),
+    );
     // extract_bytecodes();
 }
 
@@ -51,17 +87,23 @@ fn install_foundry() {
     std::fs::write(bin_finished_flag, "").unwrap();
 }
 
-fn compile_contracts(contracts_dir: &str) {
+fn compile_contracts(contracts_dir: &str, config: Option<&str>) {
+    println!("cargo::rerun-if-changed={contracts_dir}");
+    let mut args = vec![
+        "build".to_owned(),
+        contracts_dir.to_owned(),
+        "--skip=test".to_owned(),
+        "--cache-path".to_owned(),
+        format_foundry_dir("forge/cache"),
+        "--out".to_owned(),
+        format_foundry_dir("forge/out"),
+    ];
+    if let Some(config) = config {
+        args.push("--config-path".to_owned());
+        args.push(config.to_owned());
+    }
     let output = Command::new(format_foundry_dir("bin/forge"))
-        .args([
-            "build",
-            contracts_dir,
-            "--skip=test",
-            "--cache-path",
-            &format_foundry_dir("forge/cache"),
-            "--out",
-            &format_foundry_dir("forge/out"),
-        ])
+        .args(&args)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
