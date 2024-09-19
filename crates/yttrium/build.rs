@@ -9,18 +9,13 @@ fn main() {
 
 fn build_contracts() {
     install_foundry();
-    compile_contracts("crates/yttrium/safe-smart-account/contracts/proxies/SafeProxyFactory.sol", None);
-    compile_contracts(
-        "crates/yttrium/safe-smart-account/contracts/Safe.sol",
-        None,
-    );
+    compile_contracts("crates/yttrium/safe-smart-account/contracts/proxies/SafeProxyFactory.sol", );
+    compile_contracts("crates/yttrium/safe-smart-account/contracts/Safe.sol");
     compile_contracts(
         "crates/yttrium/safe-smart-account/contracts/libraries/MultiSend.sol",
-        None,
     );
     compile_contracts(
         "safe-modules/modules/4337/contracts/SafeModuleSetup.sol",
-        None,
     );
 
     {
@@ -41,13 +36,44 @@ fn build_contracts() {
         println!("`pnpm install` stderr: {stderr:?}");
         assert!(output.status.success());
     }
-    compile_contracts(
+    compile_contracts_with_args(
         "safe7579/src/Safe7579Launchpad.sol",
-        Some("safe7579/foundry.toml"),
+        &["--config-path=safe7579/foundry.toml".to_owned()],
     );
-    compile_contracts(
+    compile_contracts_with_args(
         "safe7579/src/Safe7579.sol",
-        Some("safe7579/foundry.toml"),
+        &["--config-path=safe7579/foundry.toml".to_owned()],
+    );
+
+    {
+        println!("cargo::rerun-if-changed=src/contracts");
+        let output = Command::new("yarn")
+            .current_dir("src/contracts")
+            .args(["install"])
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .unwrap()
+            .wait_with_output()
+            .unwrap();
+        println!("`yarn install` status: {:?}", output.status);
+        let stdout = String::from_utf8(output.stdout).unwrap();
+        println!("`yarn install` stdout: {stdout:?}");
+        let stderr = String::from_utf8(output.stderr).unwrap();
+        println!("`yarn install` stderr: {stderr:?}");
+        assert!(output.status.success());
+    }
+    compile_contracts_with_args(
+        "src/contracts/contracts/samples/SimpleAccountFactory.sol",
+        &["--remappings=@openzeppelin=crates/yttrium/src/contracts/node_modules/@openzeppelin".to_owned()],
+    );
+    compile_contracts_with_args(
+        "src/contracts/contracts/samples/SimpleAccount.sol",
+        &["--remappings=@openzeppelin=crates/yttrium/src/contracts/node_modules/@openzeppelin".to_owned()],
+    );
+    compile_contracts_with_args(
+        "src/contracts/contracts/core/EntryPoint.sol",
+        &["--remappings=@openzeppelin=crates/yttrium/src/contracts/node_modules/@openzeppelin".to_owned()],
     );
     // extract_bytecodes();
 }
@@ -87,9 +113,13 @@ fn install_foundry() {
     std::fs::write(bin_finished_flag, "").unwrap();
 }
 
-fn compile_contracts(contracts_dir: &str, config: Option<&str>) {
+fn compile_contracts(contracts_dir: &str) {
+    compile_contracts_with_args(contracts_dir, &[]);
+}
+
+fn compile_contracts_with_args(contracts_dir: &str, args: &[String]) {
     println!("cargo::rerun-if-changed={contracts_dir}");
-    let mut args = vec![
+    let mut built_args = vec![
         "build".to_owned(),
         contracts_dir.to_owned(),
         "--skip=test".to_owned(),
@@ -98,12 +128,9 @@ fn compile_contracts(contracts_dir: &str, config: Option<&str>) {
         "--out".to_owned(),
         format_foundry_dir("forge/out"),
     ];
-    if let Some(config) = config {
-        args.push("--config-path".to_owned());
-        args.push(config.to_owned());
-    }
+    built_args.extend_from_slice(args);
     let output = Command::new(format_foundry_dir("bin/forge"))
-        .args(&args)
+        .args(&built_args)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()

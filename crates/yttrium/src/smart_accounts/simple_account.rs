@@ -29,7 +29,7 @@ sol!(
     #[allow(missing_docs)]
     #[sol(rpc)]
     SimpleAccount,
-    "src/contracts/artifacts/contracts/samples/SimpleAccount.sol/SimpleAccount.json"
+    ".foundry/forge/out/SimpleAccount.sol/SimpleAccount.json"
 );
 
 pub const DUMMY_SIGNATURE_HEX: &str = "0xfffffffffffffffffffffffffffffff0000000000000000000000000000000007aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1c";
