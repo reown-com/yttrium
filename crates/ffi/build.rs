@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 fn main() {
     let out_dir = PathBuf::from("./generated");
+    println!("cargo:rerun-if-changed={}", out_dir.display());
 
     let bridges = vec!["src/lib.rs"];
     for path in &bridges {

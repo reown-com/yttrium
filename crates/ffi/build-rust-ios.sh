@@ -30,7 +30,7 @@ lipo \
     ./../../target/universal-ios/debug/lib$PACKAGE_NAME.a
 
 function create_package {
-  cargo install -f swift-bridge-cli
+  cargo install swift-bridge-cli
   swift-bridge-cli create-package \
         --bridges-dir ./generated \
         --out-dir $SWIFT_PACKAGE_NAME \
