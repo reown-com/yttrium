@@ -18,8 +18,8 @@ fn build_contracts() {
 
 fn format_foundry_dir(path: &str) -> String {
     format!(
-        "{}/../../../../.foundry/{}",
-        std::env::var("OUT_DIR").unwrap(),
+        "{}/.foundry/{}",
+        std::env::var("CARGO_MANIFEST_DIR").unwrap(),
         path
     )
 }

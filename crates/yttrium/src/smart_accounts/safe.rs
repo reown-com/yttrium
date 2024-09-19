@@ -10,7 +10,7 @@ sol!(
     #[allow(missing_docs)]
     #[sol(rpc)]
     SafeProxyFactory,
-    "../../target/.foundry/forge/out/SafeProxyFactory.sol/SafeProxyFactory.json"
+    ".foundry/forge/out/SafeProxyFactory.sol/SafeProxyFactory.json"
 );
 
 sol!(
