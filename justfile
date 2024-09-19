@@ -2,6 +2,7 @@ clean:
   cargo clean
   rm -rf crates/yttrium/.foundry
   rm -rf .build
+  git submodule deinit --all
 
 setup:
   git submodule update --init --recursive
