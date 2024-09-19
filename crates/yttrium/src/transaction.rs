@@ -1,5 +1,4 @@
 use alloy::primitives::{address, Address, Bytes, U256};
-use std::str::FromStr;
 
 pub mod send;
 

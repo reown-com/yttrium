@@ -1,4 +1,4 @@
-use crate::user_operation::{Authorization, UserOperationV07};
+use crate::user_operation::UserOperationV07;
 use alloy::primitives::{Address, Bytes, U256};
 use serde::{Deserialize, Serialize};
 

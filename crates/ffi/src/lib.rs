@@ -1,6 +1,5 @@
 use self::account_client::FFIAccountClient;
 use self::account_client_eip7702::FFI7702AccountClient;
-use swift_bridge;
 
 pub mod account_client;
 pub mod account_client_eip7702;
