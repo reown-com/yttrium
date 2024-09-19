@@ -18,7 +18,7 @@ impl ChainId {
     pub fn new_caip2(caip2_identifier: &str) -> eyre::Result<Self> {
         let components = caip2_identifier.split(':').collect::<Vec<_>>();
         let prefix = components
-            .get(0)
+            .first()
             .map(ToOwned::to_owned)
             .ok_or_else(|| eyre::eyre!("Invalid CAIP2 chain identifier"))?;
         let chain_id = components

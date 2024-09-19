@@ -91,7 +91,7 @@ impl UserOperationV07 {
         let nonce = U256::from(16);
         let factory: Option<Address> = None;
         let factory_data: Option<Bytes> = None;
-        let call_date = Bytes::from_str("b61d27f6000000000000000000000000d8da6bf26964af9d7eed9e03e53415d37aa9604500000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000060000000000000000000000000000000000000000000000000000000000000000568656c6c6f000000000000000000000000000000000000000000000000000000").unwrap();
+        let call_data = Bytes::from_str("b61d27f6000000000000000000000000d8da6bf26964af9d7eed9e03e53415d37aa9604500000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000060000000000000000000000000000000000000000000000000000000000000000568656c6c6f000000000000000000000000000000000000000000000000000000").unwrap();
 
         let max_fee_per_gas = U256::from(17578054897u64);
         let max_priority_fee_per_gas = U256::from(1138018869u64);
@@ -109,25 +109,23 @@ impl UserOperationV07 {
         let paymaster_post_op_gas_limit = Some(U256::from(1));
         let paymaster_data = Some(Bytes::from_str("00000066cc6b8b000000000000bce787423a07dde9c43cdf50ff33bf35b18babd336cc9739fd9f6dca86e200934505c311454b60c3aa1d206e6bb893f3489e77ace4c58f30d47cebd368a1422a1c").unwrap());
 
-        let user_operation = UserOperationV07 {
-            sender: sender,
-            nonce: nonce,
-            factory: factory,
-            factory_data: factory_data,
-            call_data: call_date,
-            call_gas_limit: call_gas_limit,
-            verification_gas_limit: verification_gas_limit,
-            pre_verification_gas: pre_verification_gas,
-            max_fee_per_gas: max_fee_per_gas,
-            max_priority_fee_per_gas: max_priority_fee_per_gas,
-            paymaster: paymaster,
-            paymaster_verification_gas_limit: paymaster_verification_gas_limit,
-            paymaster_post_op_gas_limit: paymaster_post_op_gas_limit,
-            paymaster_data: paymaster_data,
+        UserOperationV07 {
+            sender,
+            nonce,
+            factory,
+            factory_data,
+            call_data,
+            call_gas_limit,
+            verification_gas_limit,
+            pre_verification_gas,
+            max_fee_per_gas,
+            max_priority_fee_per_gas,
+            paymaster,
+            paymaster_verification_gas_limit,
+            paymaster_post_op_gas_limit,
+            paymaster_data,
             // authorization_list: None,
-            signature: signature,
-        };
-
-        user_operation
+            signature,
+        }
     }
 }

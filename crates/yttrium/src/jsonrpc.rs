@@ -25,13 +25,13 @@ pub struct JSONRPCResponse<T> {
     pub error: Option<ErrorPayload<T>>,
 }
 
-impl<T> Into<Response<T>> for JSONRPCResponse<T> {
-    fn into(self) -> Response<T> {
-        if let Some(result) = self.result {
+impl<T> From<JSONRPCResponse<T>> for Response<T> {
+    fn from(val: JSONRPCResponse<T>) -> Self {
+        if let Some(result) = val.result {
             return Ok(Some(result));
         }
 
-        if let Some(error) = self.error {
+        if let Some(error) = val.error {
             return Err(error);
         }
 

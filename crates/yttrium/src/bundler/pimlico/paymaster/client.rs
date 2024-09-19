@@ -29,7 +29,7 @@ impl PaymasterClient {
         let bundler_url = self.config.url().clone();
 
         let params: Vec<serde_json::Value> = {
-            let user_operation_value = serde_json::to_value(&user_operation)?;
+            let user_operation_value = serde_json::to_value(user_operation)?;
             let mut vec: Vec<serde_json::Value> = vec![
                 user_operation_value,
                 entry_point.to_address().to_string().into(),
@@ -44,7 +44,7 @@ impl PaymasterClient {
             jsonrpc: "2.0".into(),
             id: 1,
             method: "pm_sponsorUserOperation".into(),
-            params: params,
+            params,
         };
         println!("req_body: {:?}", serde_json::to_string(&req_body)?);
 

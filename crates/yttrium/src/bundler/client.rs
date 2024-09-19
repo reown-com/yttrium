@@ -87,7 +87,7 @@ impl BundlerClient {
             jsonrpc: "2.0".into(),
             id: 1,
             method: "eth_estimateUserOperationGas".into(),
-            params: params,
+            params,
         };
         println!("req_body: {:?}", serde_json::to_string(&req_body)?);
 
@@ -284,22 +284,22 @@ mod tests {
             let signature: Bytes = Bytes::new();
 
             UserOperationV07 {
-                sender: sender.into(),
-                nonce: nonce.into(),
+                sender,
+                nonce,
                 factory: factory.into(),
                 factory_data: factory_data.into(),
-                call_data: call_data.into(),
-                call_gas_limit: call_gas_limit.into(),
-                verification_gas_limit: verification_gas_limit.into(),
+                call_data,
+                call_gas_limit,
+                verification_gas_limit,
                 paymaster_post_op_gas_limit: Some(U256::from(100000)),
                 paymaster_verification_gas_limit: Some(U256::from(100000)),
-                pre_verification_gas: pre_verification_gas.into(),
-                max_fee_per_gas: max_fee_per_gas.into(),
-                max_priority_fee_per_gas: max_priority_fee_per_gas.into(),
-                paymaster: paymaster,
-                paymaster_data: paymaster_data,
+                pre_verification_gas,
+                max_fee_per_gas,
+                max_priority_fee_per_gas,
+                paymaster,
+                paymaster_data,
                 // authorization_list: None,
-                signature: signature,
+                signature,
             }
         };
 

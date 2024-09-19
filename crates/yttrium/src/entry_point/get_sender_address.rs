@@ -80,7 +80,7 @@ where
 
                 println!("error_resp: {:?}", error_resp.clone());
 
-                let code = error_resp.code.clone();
+                let code = error_resp.code;
                 println!("error_resp_code: {:?}", code);
 
                 let message = error_resp.message.clone();

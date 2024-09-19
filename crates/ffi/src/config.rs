@@ -1,26 +1,26 @@
 use super::ffi;
 
-impl Into<yttrium::config::Endpoint> for ffi::FFIEndpoint {
-    fn into(self) -> yttrium::config::Endpoint {
+impl From<ffi::FFIEndpoint> for yttrium::config::Endpoint {
+    fn from(val: ffi::FFIEndpoint) -> Self {
         yttrium::config::Endpoint {
-            api_key: self.api_key,
-            base_url: self.base_url,
+            api_key: val.api_key,
+            base_url: val.base_url,
         }
     }
 }
 
-impl Into<yttrium::config::Endpoints> for ffi::FFIEndpoints {
-    fn into(self) -> yttrium::config::Endpoints {
+impl From<ffi::FFIEndpoints> for yttrium::config::Endpoints {
+    fn from(val: ffi::FFIEndpoints) -> Self {
         yttrium::config::Endpoints {
-            rpc: self.rpc.into(),
-            bundler: self.bundler.into(),
-            paymaster: self.paymaster.into(),
+            rpc: val.rpc.into(),
+            bundler: val.bundler.into(),
+            paymaster: val.paymaster.into(),
         }
     }
 }
 
-impl Into<yttrium::config::Config> for ffi::FFIConfig {
-    fn into(self) -> yttrium::config::Config {
-        yttrium::config::Config { endpoints: self.endpoints.into() }
+impl From<ffi::FFIConfig> for yttrium::config::Config {
+    fn from(val: ffi::FFIConfig) -> Self {
+        yttrium::config::Config { endpoints: val.endpoints.into() }
     }
 }

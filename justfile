@@ -1,10 +1,12 @@
+clean:
+  cargo clean
+  rm -rf crates/yttrium/.foundry
+  rm -rf .build
+
 setup:
   git submodule update --init --recursive
-  make setup-thirdparty
 
-# Note: requires running `just setup` first
-# TODO replace `build` with `clippy` when clippy passes
-devloop: build test fmt udeps
+devloop: setup clippy test fmt udeps
 
 test:
   cargo test --features=full --lib --bins
@@ -21,8 +23,3 @@ fmt:
 
 udeps:
   cargo +nightly udeps --workspace
-
-# TODO remove `build` in-favor of `clippy` when clippy passes
-build:
-  cargo build --workspace --features=full --all-targets
-  # cargo build --workspace--features=full --lib --bins --target wasm32-unknown-unknown --exclude=ffi

@@ -6,7 +6,7 @@ pub fn get_hashed_init_code(
 ) -> eyre::Result<B256> {
     let uo = user_operation.clone();
     let value_vec = if let (Some(factory), Some(factory_data)) =
-        (uo.factory.clone(), uo.factory_data.clone())
+        (uo.factory, uo.factory_data.clone())
     {
         let factory_vec: Vec<u8> = factory.to_vec();
         let factory_data_vec: Vec<u8> = factory_data.into();
