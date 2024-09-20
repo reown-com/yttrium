@@ -55,8 +55,8 @@ let package = Package(
         ),
         .binaryTarget(
             name: "RustXcframeworkRelease",
-            url: "$REPO_URL/releases/download/$PACKAGE_VERSION/$RUST_XCFRAMEWORK_ZIP",
-            checksum: "$RUST_CHECKSUM"
+            url: "https://github.com/WalletConnect/yttrium/releases/download/0.0.1-alpha-test/RustXcframework.xcframework.zip",
+            checksum: "360ecd0ec70ec79883e03969cf359528e5de9c021a0177450506729eb523474f"
         ),
         .binaryTarget(
             name: "RustXcframeworkDev",
