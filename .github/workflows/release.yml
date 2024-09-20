@@ -7,7 +7,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  VERSION: ${{ github.event.inputs.version || '0.0.1' }}
+  VERSION: ${{ github.event.inputs.version || '0.0.2' }}
   TARGET_BRANCH: ${{ github.ref_name }}
 
 permissions:
@@ -21,15 +21,19 @@ jobs:
         config:
           - debug
     steps:
-      # 1. Checkout the Repository
-      - uses: actions/checkout@v4
+      # 1. Checkout the Repository with full history
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history so that we can create and push tags
 
       # 2. Setup ccache (Optional: Improve build speeds)
       - name: Run sccache-cache
         uses: mozilla-actions/sccache-action@v0.0.4
 
       # 3. Setup pnpm (JavaScript Package Manager)
-      - uses: pnpm/action-setup@v4
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
         with:
           version: 9
 
@@ -85,7 +89,26 @@ jobs:
             git push origin HEAD:$TARGET_BRANCH
           fi
 
-      # 11. Create a GitHub Release
+      # 11. Create Git Tag
+      - name: Create Git Tag
+        env:
+          VERSION: ${{ env.VERSION }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Ensure we're on the latest commit
+          git fetch origin $TARGET_BRANCH
+          
+          # Get the latest commit hash
+          COMMIT_HASH=$(git rev-parse HEAD)
+          echo "Tagging commit ${COMMIT_HASH} with version ${VERSION}"
+          
+          # Create an annotated tag on the latest commit
+          git tag -a "${VERSION}" -m "Release version ${VERSION}" "${COMMIT_HASH}"
+          
+          # Push the tag to the repository
+          git push origin "${VERSION}"
+
+      # 12. Create a GitHub Release
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1
@@ -97,7 +120,7 @@ jobs:
           draft: false
           prerelease: true
 
-      # 12. Upload Rust XCFramework to the Release
+      # 13. Upload Rust XCFramework to the Release
       - name: Upload Rust XCFramework to Release
         uses: actions/upload-release-asset@v1
         env:
