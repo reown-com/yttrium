@@ -3,7 +3,8 @@
 set -e
 
 # Variables
-PACKAGE_VERSION="${GITHUB_VERSION:-0.0.4}" 
+: "${VERSION:?Error: VERSION environment variable is not set.}"
+PACKAGE_VERSION="$VERSION" 
 RUST_CHECKSUM=$(cat rust_checksum.txt)
 RUST_XCFRAMEWORK_ZIP="RustXcframework.xcframework.zip"
 REPO_URL="https://github.com/reown-com/yttrium"
