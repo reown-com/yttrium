@@ -1,4 +1,4 @@
-// swift-tools-version: 5.10
+// swift-tools-version:5.10
 import PackageDescription
 
 let package = Package(
@@ -19,6 +19,18 @@ let package = Package(
         .package(url: "https://github.com/thebarndog/swift-dotenv.git", from: "2.0.0")
     ],
     targets: [
+        .binaryTarget(
+            name: "RustXcframework",
+            url: "https://github.com/WalletConnect/yttrium/releases/download/0.0.3/RustXcframework.xcframework.zip",
+            checksum: "<CORRECT_CHECKSUM>"
+        ),
+        .target(
+            name: "YttriumCore",
+            dependencies: [
+                "RustXcframework"
+            ],
+            path: "crates/ffi/YttriumCore/Sources/YttriumCore"
+        ),
         .target(
             name: "Yttrium",
             dependencies: [
@@ -26,18 +38,6 @@ let package = Package(
                 .product(name: "SwiftDotenv", package: "swift-dotenv")
             ],
             path: "platforms/swift/Sources/Yttrium"
-        ),
-        .target(
-            name: "YttriumCore",
-            dependencies: [
-                "RustXcframeworkRelease"
-            ],
-            path: "crates/ffi/YttriumCore/Sources/YttriumCore"
-        ),
-        .binaryTarget(
-            name: "RustXcframeworkRelease",
-            url: "https://github.com/WalletConnect/yttrium/releases/download/0.0.1-alpha-test/RustXcframework.xcframework.zip",
-            checksum: "360ecd0ec70ec79883e03969cf359528e5de9c021a0177450506729eb523474f"
         ),
         .testTarget(
             name: "YttriumTests",

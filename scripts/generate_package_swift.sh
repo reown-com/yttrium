@@ -3,7 +3,7 @@
 set -e
 
 # Variables
-PACKAGE_VERSION="${GITHUB_VERSION:-0.0.1}"
+PACKAGE_VERSION="${GITHUB_VERSION:-0.0.4}" 
 RUST_CHECKSUM=$(cat rust_checksum.txt)
 RUST_XCFRAMEWORK_ZIP="RustXcframework.xcframework.zip"
 REPO_URL="https://github.com/reown-com/yttrium"
@@ -31,6 +31,18 @@ let package = Package(
         .package(url: "https://github.com/thebarndog/swift-dotenv.git", from: "2.0.0")
     ],
     targets: [
+        .binaryTarget(
+            name: "RustXcframework",
+            url: "$REPO_URL/releases/download/$PACKAGE_VERSION/$RUST_XCFRAMEWORK_ZIP",
+            checksum: "$RUST_CHECKSUM"
+        ),
+        .target(
+            name: "YttriumCore",
+            dependencies: [
+                "RustXcframework"
+            ],
+            path: "crates/ffi/YttriumCore/Sources/YttriumCore"
+        ),
         .target(
             name: "Yttrium",
             dependencies: [
@@ -38,18 +50,6 @@ let package = Package(
                 .product(name: "SwiftDotenv", package: "swift-dotenv")
             ],
             path: "platforms/swift/Sources/Yttrium"
-        ),
-        .target(
-            name: "YttriumCore",
-            dependencies: [
-                "RustXcframeworkRelease"
-            ],
-            path: "crates/ffi/YttriumCore/Sources/YttriumCore"
-        ),
-        .binaryTarget(
-            name: "RustXcframeworkRelease",
-            url: "$REPO_URL/releases/download/$PACKAGE_VERSION/$RUST_XCFRAMEWORK_ZIP",
-            checksum: "$RUST_CHECKSUM"
         ),
         .testTarget(
             name: "YttriumTests",
