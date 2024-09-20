@@ -14,6 +14,9 @@ env:
   CARGO_TERM_COLOR: always
   SKIP_RELEASE: true
   TARGET_BRANCH: ${{ github.head_ref }} # ${{ github.head_ref || 'main' }}
+  
+permissions:
+  contents: write
 
 jobs:
   release-swift-package:
@@ -49,7 +52,7 @@ jobs:
       - name: Commit and Push Package.swift
         if: ${{ env.SKIP_RELEASE != 'true' }}
         env:
-          GITHUB_TOKEN: ${{ secrets.PAT }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -63,7 +66,7 @@ jobs:
         id: create_release
         uses: actions/create-release@v1
         env:
-          GITHUB_TOKEN: ${{ secrets.PAT }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ github.event.inputs.version }}-test
           release_name: Yttrium ${{ github.event.inputs.version }}-test
@@ -74,7 +77,7 @@ jobs:
         if: ${{ env.SKIP_RELEASE != 'true' }}
         uses: actions/upload-release-asset@v1
         env:
-          GITHUB_TOKEN: ${{ secrets.PAT }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: ./Output/RustXcframework.xcframework.zip
