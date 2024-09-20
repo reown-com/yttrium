@@ -11,7 +11,7 @@ REPO_URL="https://github.com/reown-com/yttrium"
 
 # Generate Package.swift
 cat > Package.swift <<EOF
-// swift-tools-version: 5.10
+// swift-tools-version:5.10
 import PackageDescription
 
 let package = Package(
@@ -38,16 +38,9 @@ let package = Package(
             checksum: "$RUST_CHECKSUM"
         ),
         .target(
-            name: "YttriumCore",
-            dependencies: [
-                "RustXcframework"
-            ],
-            path: "crates/ffi/YttriumCore/Sources/YttriumCore"
-        ),
-        .target(
             name: "Yttrium",
             dependencies: [
-                "YttriumCore",
+                "RustXcframework",
                 .product(name: "SwiftDotenv", package: "swift-dotenv")
             ],
             path: "platforms/swift/Sources/Yttrium"
