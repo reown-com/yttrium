@@ -38,9 +38,16 @@ let package = Package(
             checksum: "$RUST_CHECKSUM"
         ),
         .target(
+            name: "YttriumCore",
+            dependencies: [
+                "RustXcframework"
+            ],
+            path: "crates/ffi/YttriumCore/Sources/YttriumCore"
+        ),
+        .target(
             name: "Yttrium",
             dependencies: [
-                "RustXcframework",
+                "YttriumCore",
                 .product(name: "SwiftDotenv", package: "swift-dotenv")
             ],
             path: "platforms/swift/Sources/Yttrium"
