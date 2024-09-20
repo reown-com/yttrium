@@ -1,19 +1,14 @@
 name: Build and Release Yttrium
 
 on:
-  # workflow_dispatch:
-  #   inputs:
-  #     version:
-  #       description: 'Version number for the release (e.g., 0.1.0)'
-  #       required: true
   push:
     branches:
       - 'xcframework'
 
 env:
   CARGO_TERM_COLOR: always
-  SKIP_RELEASE: true
-  TARGET_BRANCH: ${{ github.head_ref }} # ${{ github.head_ref || 'main' }}
+  VERSION: ${{ github.event.inputs.version || '0.0.1' }}
+  TARGET_BRANCH: ${{ github.ref_name }}
 
 permissions:
   contents: write  # Grant write access to repository contents for this workflow
@@ -26,27 +21,33 @@ jobs:
         config:
           - debug
     steps:
+      # 1. Checkout the Repository
       - uses: actions/checkout@v4
 
+      # 2. Setup ccache (Optional: Improve build speeds)
       - name: Run sccache-cache
         uses: mozilla-actions/sccache-action@v0.0.4
 
+      # 3. Setup pnpm (JavaScript Package Manager)
       - uses: pnpm/action-setup@v4
         with:
           version: 9
 
+      # 4. Setup Rust Environment and Dependencies
       - name: Setup Rust Environment and Dependencies
         env:
-          GITHUB_VERSION: ${{ github.event.inputs.version }}
+          VERSION: ${{ env.VERSION }}
         run: |
           rustup update stable && rustup default stable
           git submodule update --init --recursive
           make setup-thirdparty
 
+      # 5. Select Specific Xcode Version
       - name: Select Xcode 15.4
         run: | 
           sudo xcode-select -s /Applications/Xcode_15.4.app
 
+      # 6. Build and Package Rust XCFramework
       - name: Build and Package Rust XCFramework
         run: |
           make build-ios-bindings-release
@@ -54,50 +55,50 @@ jobs:
           make compute-rust-checksum
           make generate-package-swift
 
-      # Debugging Steps (Optional)
+      # 7. (Optional) Debug Environment Variables
       - name: Debug Environment Variables
         run: |
-          echo "SKIP_RELEASE: $SKIP_RELEASE"
+          echo "VERSION: $VERSION"
           echo "TARGET_BRANCH: $TARGET_BRANCH"
-          echo "GITHUB_VERSION: $GITHUB_VERSION"
 
+      # 8. (Optional) Check Git Status
       - name: Check Git Status
         run: git status
 
+      # 9. (Optional) List Changes in Package.swift
       - name: List Changes in Package.swift
         run: git diff Package.swift
 
-      # Commit and Push Step with Enhanced Logic
+      # 10. Commit and Push Package.swift
       - name: Commit and Push Package.swift
-        if: ${{ env.SKIP_RELEASE != 'true' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Use default token
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git checkout ${{ env.TARGET_BRANCH }}
+          git checkout $TARGET_BRANCH
           git add Package.swift
           if git diff --cached --quiet; then
             echo "No changes to commit."
           else
-            git commit -m "chore: update package.swift for version ${{ github.event.inputs.version }}"
-            git push origin HEAD:${{ env.TARGET_BRANCH }}
+            git commit -m "chore: update Package.swift for version $VERSION"
+            git push origin HEAD:$TARGET_BRANCH
           fi
 
+      # 11. Create a GitHub Release
       - name: Create Release
-        if: ${{ env.SKIP_RELEASE != 'true' }}
         id: create_release
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ github.event.inputs.version }}-test
-          release_name: Yttrium ${{ github.event.inputs.version }}-test
+          tag_name: ${{ env.VERSION }}
+          release_name: Yttrium ${{ env.VERSION }}
           draft: false
           prerelease: true
 
+      # 12. Upload Rust XCFramework to the Release
       - name: Upload Rust XCFramework to Release
-        if: ${{ env.SKIP_RELEASE != 'true' }}
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
