@@ -13,18 +13,18 @@ pub mod simple_account_test;
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct UserOperationEstimated(UserOperationV07);
 
-impl Into<UserOperationV07> for UserOperationEstimated {
-    fn into(self) -> UserOperationV07 {
-        self.0
+impl From<UserOperationEstimated> for UserOperationV07 {
+    fn from(val: UserOperationEstimated) -> Self {
+        val.0
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct SignedUserOperation(UserOperationV07);
 
-impl Into<UserOperationV07> for SignedUserOperation {
-    fn into(self) -> UserOperationV07 {
-        self.0
+impl From<SignedUserOperation> for UserOperationV07 {
+    fn from(val: SignedUserOperation) -> Self {
+        val.0
     }
 }
 
@@ -71,7 +71,7 @@ pub async fn send_transaction(
             )
             .await
         }
-        Signer::Native(sign_service) => {
+        Signer::Native(_sign_service) => {
             todo!("Implement native signer support")
         }
     }
@@ -79,7 +79,7 @@ pub async fn send_transaction(
 
 pub async fn send_transaction_with_private_key_signer(
     transaction: Transaction,
-    owner: String,
+    _owner: String,
     chain_id: u64,
     config: Config,
     private_key_signer: PrivateKeySigner,
@@ -187,15 +187,14 @@ mod tests {
                     .phrase(phrase.clone())
                     .index(index)?
                     .build();
-                let local_signer = match local_signer_result {
+                match local_signer_result {
                     Ok(signer) => signer,
                     Err(e) => {
                         println!("Error creating signer: {}", e);
                         let local_signer: PrivateKeySigner = phrase.parse()?;
                         local_signer
                     }
-                };
-                local_signer
+                }
             };
             let ethereum_wallet = EthereumWallet::from(local_signer.clone());
             (ethereum_wallet, local_signer)
@@ -239,9 +238,9 @@ mod tests {
 
         let sender_address = get_sender_address_v07(
             &provider,
-            simple_account_factory_address.clone().into(),
+            simple_account_factory_address.into(),
             factory_data_value.clone().into(),
-            entry_point_address.clone(),
+            entry_point_address,
         )
         .await?;
 

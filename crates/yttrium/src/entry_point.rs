@@ -14,21 +14,21 @@ impl EntryPointAddress {
     }
 }
 
-impl ToString for EntryPointAddress {
-    fn to_string(&self) -> String {
-        self.0.to_string()
+impl std::fmt::Display for EntryPointAddress {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}", self.0)
     }
 }
 
-impl Into<alloy::primitives::Address> for EntryPointAddress {
-    fn into(self) -> alloy::primitives::Address {
-        self.0
+impl From<EntryPointAddress> for alloy::primitives::Address {
+    fn from(val: EntryPointAddress) -> Self {
+        val.0
     }
 }
 
-impl Into<alloy::primitives::Address> for &EntryPointAddress {
-    fn into(self) -> alloy::primitives::Address {
-        self.0
+impl From<&EntryPointAddress> for alloy::primitives::Address {
+    fn from(val: &EntryPointAddress) -> Self {
+        val.0
     }
 }
 
@@ -58,7 +58,7 @@ sol!(
     #[allow(missing_docs)]
     #[sol(rpc)]
     EntryPoint,
-    "src/contracts/artifacts/contracts/core/EntryPoint.sol/EntryPoint.json"
+    ".foundry/forge/out/EntryPoint.sol/EntryPoint.json"
 );
 
 pub mod get_sender_address;

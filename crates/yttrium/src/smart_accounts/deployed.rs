@@ -72,7 +72,7 @@ mod tests {
 
         let sender_address = get_sender_address_v07(
             &provider,
-            simple_account_factory_address.clone().into(),
+            simple_account_factory_address.into(),
             factory_data_value.into(),
             entry_point_address,
         )

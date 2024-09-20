@@ -7,31 +7,22 @@ fn trim_first_16_bytes_or_default(item: Option<Uint<256, 4>>) -> String {
 
     let item_bytes_vec: Vec<u8> = item.to_be_bytes_vec()[16..].to_vec();
 
-    let item_hex = hex::encode(item_bytes_vec);
-
-    item_hex
+    hex::encode(item_bytes_vec)
 }
 
 fn get_data(user_operation: &UserOperationV07) -> eyre::Result<Bytes> {
     let uo: UserOperationV07 = user_operation.clone();
 
-    let data = if let Some(paymaster) = uo.paymaster.clone() {
+    let data = if let Some(paymaster) = uo.paymaster {
         println!("paymaster: {:?}", paymaster);
 
         let paymaster_hex = format!("{}", paymaster);
 
-        let paymaster_verification_gas_limit_hex = {
-            let verification_limit_hex = trim_first_16_bytes_or_default(
-                uo.paymaster_verification_gas_limit,
-            );
-            verification_limit_hex
-        };
+        let paymaster_verification_gas_limit_hex =
+            trim_first_16_bytes_or_default(uo.paymaster_verification_gas_limit);
 
-        let paymaster_post_op_gas_limit_hex = {
-            let post_limit_hex =
-                trim_first_16_bytes_or_default(uo.paymaster_post_op_gas_limit);
-            post_limit_hex
-        };
+        let paymaster_post_op_gas_limit_hex =
+            trim_first_16_bytes_or_default(uo.paymaster_post_op_gas_limit);
 
         let paymaster_data = {
             let paymaster_data = uo.paymaster_data.clone().unwrap_or_default();

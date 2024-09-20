@@ -1,6 +1,6 @@
+#![allow(dead_code, improper_ctypes, clippy::unnecessary_cast)]
 use self::account_client::FFIAccountClient;
 use self::account_client_eip7702::FFI7702AccountClient;
-use swift_bridge;
 
 pub mod account_client;
 pub mod account_client_eip7702;
@@ -8,6 +8,7 @@ pub mod config;
 pub mod error;
 pub mod log;
 
+#[allow(non_camel_case_types)]
 #[swift_bridge::bridge]
 mod ffi {
 

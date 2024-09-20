@@ -14,12 +14,12 @@ impl SimpleAccountCreate {
         owner: alloy::primitives::Address,
         salt: alloy::primitives::U256,
     ) -> Self {
-        Self(createAccountCall { owner: owner, salt: salt })
+        Self(createAccountCall { owner, salt })
     }
 
     pub fn new_u64(owner: alloy::primitives::Address, salt: u64) -> Self {
         let salt = U256::from(salt);
-        Self(createAccountCall { owner: owner, salt: salt })
+        Self(createAccountCall { owner, salt })
     }
 
     pub fn encode(&self) -> Vec<u8> {

@@ -118,7 +118,7 @@ impl AccountClient {
     pub async fn get_address(&self) -> eyre::Result<String> {
         get_address_with_signer(
             self.owner.clone(),
-            self.chain_id.clone(),
+            self.chain_id,
             self.config.clone(),
             self.signer.clone(),
             self.safe,
@@ -144,7 +144,7 @@ impl AccountClient {
         send_transaction(
             transaction,
             self.owner.clone(),
-            self.chain_id.clone(),
+            self.chain_id,
             self.config.clone(),
             self.signer.clone(),
             self.safe,
@@ -227,14 +227,14 @@ pub async fn get_address_with_signer(
             )
             .await
         }
-        Signer::Native(sign_service) => {
+        Signer::Native(_sign_service) => {
             todo!("Implement native signer support")
         }
     }
 }
 
 pub async fn get_address_with_private_key_signer(
-    owner: String,
+    _owner: String,
     chain_id: u64,
     config: Config,
     signer: PrivateKeySigner,
