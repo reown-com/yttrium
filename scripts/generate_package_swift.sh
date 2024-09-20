@@ -3,10 +3,10 @@
 set -e
 
 # Variables
-PACKAGE_VERSION="${GITHUB_VERSION:-0.0.1-alpha}-test"
+PACKAGE_VERSION="${GITHUB_VERSION:-0.0.1}"
 RUST_CHECKSUM=$(cat rust_checksum.txt)
 RUST_XCFRAMEWORK_ZIP="RustXcframework.xcframework.zip"
-REPO_URL="https://github.com/WalletConnect/yttrium"
+REPO_URL="https://github.com/reown-com/yttrium"
 
 # Generate Package.swift
 cat > Package.swift <<EOF
