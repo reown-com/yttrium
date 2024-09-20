@@ -26,10 +26,6 @@ let package = Package(
             name: "Yttrium",
             targets: ["Yttrium"]
         ),
-        .library(
-            name: "YttriumDev",
-            targets: ["YttriumDev"]
-        ),
     ],
     dependencies: [
         .package(url: "https://github.com/thebarndog/swift-dotenv.git", from: "2.0.0")
@@ -44,24 +40,9 @@ let package = Package(
             path: "platforms/swift/Sources/Yttrium"
         ),
         .target(
-            name: "YttriumDev",
-            dependencies: [
-                "YttriumCoreDev",
-                .product(name: "SwiftDotenv", package: "swift-dotenv")
-            ],
-            path: "platforms/swift/Sources/Yttrium"
-        ),
-        .target(
             name: "YttriumCore",
             dependencies: [
                 "RustXcframeworkRelease"
-            ],
-            path: "crates/ffi/YttriumCore/Sources/YttriumCore"
-        ),
-        .target(
-            name: "YttriumCoreDev",
-            dependencies: [
-                "RustXcframeworkDev"
             ],
             path: "crates/ffi/YttriumCore/Sources/YttriumCore"
         ),
@@ -69,10 +50,6 @@ let package = Package(
             name: "RustXcframeworkRelease",
             url: "$REPO_URL/releases/download/$PACKAGE_VERSION/$RUST_XCFRAMEWORK_ZIP",
             checksum: "$RUST_CHECKSUM"
-        ),
-        .binaryTarget(
-            name: "RustXcframeworkDev",
-            path: "crates/ffi/YttriumCore/RustXcframework.xcframework"
         ),
         .testTarget(
             name: "YttriumTests",
