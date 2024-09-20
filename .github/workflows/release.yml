@@ -1,11 +1,11 @@
 name: Build and Release Yttrium
 
 on:
-#   workflow_dispatch:
-#     inputs:
-#       version:
-#         description: 'Version number for the release (e.g., 0.1.0)'
-#         required: true
+  # workflow_dispatch:
+  #   inputs:
+  #     version:
+  #       description: 'Version number for the release (e.g., 0.1.0)'
+  #       required: true
   push:
     branches:
       - 'xcframework'
@@ -14,9 +14,9 @@ env:
   CARGO_TERM_COLOR: always
   SKIP_RELEASE: true
   TARGET_BRANCH: ${{ github.head_ref }} # ${{ github.head_ref || 'main' }}
-  
+
 permissions:
-  contents: write
+  contents: write  # Grant write access to repository contents for this workflow
 
 jobs:
   release-swift-package:
@@ -27,21 +27,26 @@ jobs:
           - debug
     steps:
       - uses: actions/checkout@v4
+
       - name: Run sccache-cache
         uses: mozilla-actions/sccache-action@v0.0.4
+
       - uses: pnpm/action-setup@v4
         with:
           version: 9
-      - name: Build and Package Rust XCFramework
+
+      - name: Setup Rust Environment and Dependencies
         env:
           GITHUB_VERSION: ${{ github.event.inputs.version }}
         run: |
           rustup update stable && rustup default stable
           git submodule update --init --recursive
           make setup-thirdparty
+
       - name: Select Xcode 15.4
         run: | 
           sudo xcode-select -s /Applications/Xcode_15.4.app
+
       - name: Build and Package Rust XCFramework
         run: |
           make build-ios-bindings-release
@@ -49,17 +54,35 @@ jobs:
           make compute-rust-checksum
           make generate-package-swift
 
+      # Debugging Steps (Optional)
+      - name: Debug Environment Variables
+        run: |
+          echo "SKIP_RELEASE: $SKIP_RELEASE"
+          echo "TARGET_BRANCH: $TARGET_BRANCH"
+          echo "GITHUB_VERSION: $GITHUB_VERSION"
+
+      - name: Check Git Status
+        run: git status
+
+      - name: List Changes in Package.swift
+        run: git diff Package.swift
+
+      # Commit and Push Step with Enhanced Logic
       - name: Commit and Push Package.swift
         if: ${{ env.SKIP_RELEASE != 'true' }}
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Use default token
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git checkout ${{ env.TARGET_BRANCH }}
           git add Package.swift
-          git commit -m "chore: update package.swift for version ${{ github.event.inputs.version }}"
-          git push origin HEAD:${{ env.TARGET_BRANCH }}
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "chore: update package.swift for version ${{ github.event.inputs.version }}"
+            git push origin HEAD:${{ env.TARGET_BRANCH }}
+          fi
 
       - name: Create Release
         if: ${{ env.SKIP_RELEASE != 'true' }}
