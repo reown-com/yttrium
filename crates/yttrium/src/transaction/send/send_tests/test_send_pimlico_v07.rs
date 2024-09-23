@@ -2,9 +2,12 @@
 mod tests {
     use crate::{
         bundler::{
-            client::BundlerClient, config::BundlerConfig,
-            pimlico::client::BundlerClient as PimlicoBundlerClient,
-            pimlico::paymaster::client::PaymasterClient,
+            client::BundlerClient,
+            config::BundlerConfig,
+            pimlico::{
+                client::BundlerClient as PimlicoBundlerClient,
+                paymaster::client::PaymasterClient,
+            },
         },
         entry_point::get_sender_address::get_sender_address_v07,
         smart_accounts::simple_account::{
@@ -158,16 +161,14 @@ mod tests {
 
         let nonce = crate::smart_accounts::nonce::get_nonce(
             &provider,
-            &crate::smart_accounts::simple_account::SimpleAccountAddress::new(
-                sender_address,
-            ),
+            sender_address,
             &entry_point_address,
         )
         .await?;
 
         let user_op = UserOperationV07 {
             sender: sender_address,
-            nonce: U256::from(nonce),
+            nonce,
             factory: None,
             factory_data: None,
             call_data: Bytes::from_str(&call_data_value_hex).unwrap(),

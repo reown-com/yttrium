@@ -1,3 +1,4 @@
+use crate::smart_accounts::account_address::AccountAddress;
 use crate::transaction::Transaction;
 use alloy::{
     dyn_abi::DynSolValue,
@@ -152,7 +153,7 @@ pub fn factory_data(
 pub async fn get_account_address(
     provider: ReqwestProvider,
     owners: Owners,
-) -> Address {
+) -> AccountAddress {
     let creation_code =
         SafeProxyFactory::new(SAFE_PROXY_FACTORY_ADDRESS, provider.clone())
             .proxyCreationCode()
@@ -179,7 +180,7 @@ pub async fn get_account_address(
         ])
         .abi_encode_packed(),
     );
-    SAFE_PROXY_FACTORY_ADDRESS.create2(salt, keccak256(deployment_code))
+    SAFE_PROXY_FACTORY_ADDRESS.create2(salt, keccak256(deployment_code)).into()
 }
 
 pub fn get_call_data(execution_calldata: Vec<Transaction>) -> Bytes {

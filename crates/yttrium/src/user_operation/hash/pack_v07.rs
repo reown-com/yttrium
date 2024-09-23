@@ -1,5 +1,4 @@
 use crate::user_operation::UserOperationV07;
-use alloy::primitives::Address;
 use alloy::sol_types::SolValue;
 
 pub mod combine;
@@ -27,17 +26,8 @@ pub fn pack_user_operation_v07(user_operation: &UserOperationV07) -> Vec<u8> {
     let max_priority_fee_per_gas_and_max_fee_per_gas_item =
         max_priority_fee_per_gas_and_max_fee_per_gas::get_max_priority_fee_per_gas_and_max_fee_per_gas(user_operation);
 
-    let items: (
-        Address,
-        alloy::primitives::Uint<256, 4>,
-        alloy::primitives::FixedBytes<32>,
-        alloy::primitives::FixedBytes<32>,
-        alloy::primitives::FixedBytes<32>,
-        alloy::primitives::Uint<256, 4>,
-        alloy::primitives::FixedBytes<32>,
-        alloy::primitives::FixedBytes<32>,
-    ) = (
-        user_operation.sender as Address,
+    let items = (
+        user_operation.sender.to_address(),
         user_operation.nonce,
         hashed_init_code,
         hashed_call_data,

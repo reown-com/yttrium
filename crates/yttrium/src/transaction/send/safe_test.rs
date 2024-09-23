@@ -9,6 +9,7 @@ use crate::{
     },
     config::Config,
     smart_accounts::{
+        account_address::AccountAddress,
         nonce::get_nonce,
         safe::{
             factory_data, get_account_address, get_call_data, Owners,
@@ -16,7 +17,7 @@ use crate::{
             SAFE_ERC_7579_LAUNCHPAD_ADDRESS, SAFE_PROXY_FACTORY_ADDRESS,
             SEPOLIA_SAFE_ERC_7579_SINGLETON_ADDRESS,
         },
-        simple_account::{factory::FactoryAddress, SimpleAccountAddress},
+        simple_account::factory::FactoryAddress,
     },
     transaction::Transaction,
     user_operation::{Authorization, UserOperationV07},
@@ -70,7 +71,7 @@ impl fmt::Display for SentUserOperationHash {
 pub async fn get_address(
     owner: LocalSigner<SigningKey>,
     config: Config,
-) -> eyre::Result<Address> {
+) -> eyre::Result<AccountAddress> {
     let rpc_url = config.endpoints.rpc.base_url;
     let rpc_url: reqwest::Url = rpc_url.parse()?;
     let provider = ReqwestProvider::<Ethereum>::new_http(rpc_url);
@@ -83,7 +84,7 @@ pub async fn get_address(
 pub async fn send_transaction(
     execution_calldata: Vec<Transaction>,
     owner: LocalSigner<SigningKey>,
-    address: Option<Address>,
+    address: Option<AccountAddress>,
     authorization_list: Option<Vec<Authorization>>,
     config: Config,
 ) -> eyre::Result<String> {
@@ -123,7 +124,8 @@ pub async fn send_transaction(
 
     let call_data = get_call_data(execution_calldata);
 
-    let deployed = provider.get_code_at(account_address).await?.len() > 0;
+    let deployed =
+        provider.get_code_at(account_address.into()).await?.len() > 0;
     println!("Deployed: {}", deployed);
     // permissionless: signerToSafeSmartAccount -> encodeCallData
     let call_data = if deployed {
@@ -158,16 +160,12 @@ pub async fn send_transaction(
 
     assert!(gas_price.fast.max_fee_per_gas > U256::from(1));
 
-    let nonce = get_nonce(
-        &provider,
-        &SimpleAccountAddress::new(account_address),
-        &entry_point_address,
-    )
-    .await?;
+    let nonce =
+        get_nonce(&provider, account_address, &entry_point_address).await?;
 
     let user_op = UserOperationV07 {
         sender: account_address,
-        nonce: U256::from(nonce),
+        nonce,
         factory: deployed.not().then(|| safe_factory_address.to_address()),
         factory_data: deployed.not().then(|| factory_data_value.into()),
         call_data,
@@ -259,7 +257,7 @@ pub async fn send_transaction(
     }
 
     let message = SafeOp {
-        safe: account_address,
+        safe: account_address.into(),
         callData: sponsored_user_op.call_data.clone(),
         nonce: sponsored_user_op.nonce,
         initCode: deployed
@@ -324,7 +322,7 @@ pub async fn send_transaction(
 
     let erc7579_launchpad_address = true;
     let verifying_contract = if erc7579_launchpad_address && !deployed {
-        sponsored_user_op.sender
+        sponsored_user_op.sender.into()
     } else {
         SAFE_4337_MODULE_ADDRESS
     };
@@ -456,7 +454,7 @@ mod tests {
             provider.clone(),
             faucet.clone(),
             U256::from(2),
-            sender_address,
+            sender_address.into(),
         )
         .await?;
 
@@ -548,13 +546,17 @@ mod tests {
             Owners { owners: vec![owner.address()], threshold: 1 },
         )
         .await;
-        assert!(provider.get_code_at(sender_address).await.unwrap().is_empty());
+        assert!(provider
+            .get_code_at(sender_address.into())
+            .await
+            .unwrap()
+            .is_empty());
 
         use_faucet(
             provider.clone(),
             faucet.clone(),
             U256::from(3),
-            sender_address,
+            sender_address.into(),
         )
         .await?;
 
@@ -572,7 +574,7 @@ mod tests {
         println!("Transaction sent: {}", transaction_hash);
 
         assert!(!provider
-            .get_code_at(sender_address)
+            .get_code_at(sender_address.into())
             .await
             .unwrap()
             .is_empty());
@@ -603,7 +605,7 @@ mod tests {
             provider.clone(),
             faucet.clone(),
             U256::from(3),
-            sender_address,
+            sender_address.into(),
         )
         .await?;
 
@@ -671,7 +673,7 @@ mod tests {
         let chain_id = ChainId::ETHEREUM_SEPOLIA.eip155_chain_id();
         let auth_7702 = alloy::rpc::types::Authorization {
             chain_id: U256::from(chain_id),
-            address: contract_address,
+            address: contract_address.into(),
             nonce: provider.get_transaction_count(authority.address()).await?,
         };
 
@@ -700,7 +702,7 @@ mod tests {
         let transaction_hash = send_transaction(
             transaction,
             owner.clone(),
-            Some(authority.address()),
+            Some(authority.address().into()),
             Some(authorization_list.clone()),
             // None,
             config.clone(),
@@ -711,7 +713,7 @@ mod tests {
         println!("contract address: {}", contract_address);
         println!(
             "contract code: {}",
-            provider.get_code_at(contract_address).await?
+            provider.get_code_at(contract_address.into()).await?
         );
         println!(
             "authority code: {}",
@@ -727,7 +729,7 @@ mod tests {
         let transaction_hash = send_transaction(
             transaction,
             owner,
-            Some(authority.address()),
+            Some(authority.address().into()),
             // None,
             // Some(authorization_list.clone()),
             None,
@@ -804,7 +806,7 @@ mod tests {
         let chain_id = ChainId::ETHEREUM_SEPOLIA.eip155_chain_id();
         let auth_7702 = alloy::rpc::types::Authorization {
             chain_id: U256::from(chain_id),
-            address: contract_address,
+            address: contract_address.into(),
             nonce: provider.get_transaction_count(authority.address()).await?,
         };
 
@@ -857,7 +859,7 @@ mod tests {
         println!("contract address: {}", contract_address);
         println!(
             "contract code: {}",
-            provider.get_code_at(contract_address).await?
+            provider.get_code_at(contract_address.into()).await?
         );
         println!(
             "authority code: {}",
@@ -873,7 +875,7 @@ mod tests {
         let transaction_hash = send_transaction(
             transaction,
             owner,
-            Some(authority.address()),
+            Some(authority.address().into()),
             None,
             config,
         )

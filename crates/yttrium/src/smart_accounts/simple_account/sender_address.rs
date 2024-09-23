@@ -4,8 +4,11 @@ use crate::{
     entry_point::{
         get_sender_address::get_sender_address_v07, EntryPointVersion,
     },
-    smart_accounts::simple_account::{
-        create_account::SimpleAccountCreate, factory::FactoryAddress,
+    smart_accounts::{
+        account_address::AccountAddress,
+        simple_account::{
+            create_account::SimpleAccountCreate, factory::FactoryAddress,
+        },
     },
 };
 use alloy::{
@@ -17,7 +20,7 @@ pub async fn get_sender_address_with_signer(
     config: Config,
     chain_id: u64,
     signer: PrivateKeySigner,
-) -> eyre::Result<Address> {
+) -> eyre::Result<AccountAddress> {
     let _bundler_base_url = config.clone().endpoints.bundler.base_url;
     let _paymaster_base_url = config.clone().endpoints.paymaster.base_url;
     let rpc_base_url = config.clone().endpoints.rpc.base_url;

@@ -1,3 +1,4 @@
+use crate::smart_accounts::account_address::AccountAddress;
 use alloy::{
     contract::Error as ContractError,
     primitives::{Address, Bytes},
@@ -43,7 +44,7 @@ pub async fn get_sender_address_v07<P, T, N>(
     factory: Address,
     factory_data: Bytes,
     entrypoint: super::EntryPointAddress,
-) -> eyre::Result<Address>
+) -> eyre::Result<AccountAddress>
 where
     T: alloy::contract::private::Transport + ::core::clone::Clone,
     P: alloy::contract::private::Provider<T, N>,
@@ -113,7 +114,7 @@ where
 
                     println!("addr: {:?}", addr.clone());
 
-                    return Ok(addr);
+                    return Ok(addr.into());
                 } else {
                     return Err(eyre::eyre!("No data in error response"));
                 };

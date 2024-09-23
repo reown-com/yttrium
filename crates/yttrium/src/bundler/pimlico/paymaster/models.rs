@@ -39,7 +39,7 @@ pub struct UserOperationPreSponsorshipV07 {
 impl From<UserOperationV07> for UserOperationPreSponsorshipV07 {
     fn from(user_op: UserOperationV07) -> Self {
         Self {
-            sender: user_op.sender,
+            sender: user_op.sender.into(),
             nonce: user_op.nonce,
             factory: user_op.factory,
             factory_data: user_op.factory_data,

@@ -124,7 +124,7 @@ mod tests {
             nonce::get_nonce,
             simple_account::{
                 create_account::SimpleAccountCreate, factory::FactoryAddress,
-                SimpleAccountAddress, SimpleAccountExecute,
+                SimpleAccountExecute,
             },
         },
         user_operation::UserOperationV07,
@@ -261,16 +261,12 @@ mod tests {
 
         println!("Gas price: {:?}", gas_price);
 
-        let nonce = get_nonce(
-            &provider,
-            &SimpleAccountAddress::new(sender_address),
-            &entry_point_address,
-        )
-        .await?;
+        let nonce =
+            get_nonce(&provider, sender_address, &entry_point_address).await?;
 
         let user_op = UserOperationV07 {
             sender: sender_address,
-            nonce: U256::from(nonce),
+            nonce,
             factory: None,
             factory_data: None,
             call_data: Bytes::from_str(&call_data_value_hex)?,

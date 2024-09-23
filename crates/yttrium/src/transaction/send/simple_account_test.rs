@@ -15,7 +15,7 @@ use crate::{
         nonce::get_nonce,
         simple_account::{
             create_account::SimpleAccountCreate, factory::FactoryAddress,
-            SimpleAccountAddress, SimpleAccountExecute,
+            SimpleAccountExecute,
         },
     },
     transaction::Transaction,
@@ -169,16 +169,12 @@ pub async fn send_transaction_with_signer(
 
     println!("Gas price: {:?}", gas_price);
 
-    let nonce = get_nonce(
-        &provider,
-        &SimpleAccountAddress::new(sender_address),
-        &entry_point_address,
-    )
-    .await?;
+    let nonce =
+        get_nonce(&provider, sender_address, &entry_point_address).await?;
 
     let user_op = UserOperationV07 {
         sender: sender_address,
-        nonce: U256::from(nonce),
+        nonce,
         factory,
         factory_data,
         call_data: Bytes::from_str(&call_data_value_hex)?,
@@ -269,7 +265,7 @@ mod tests {
             nonce::get_nonce,
             simple_account::{
                 create_account::SimpleAccountCreate, factory::FactoryAddress,
-                SimpleAccountAddress, SimpleAccountExecute,
+                SimpleAccountExecute,
             },
         },
         transaction::Transaction,
@@ -372,16 +368,12 @@ mod tests {
 
         println!("Gas price: {:?}", gas_price);
 
-        let nonce = get_nonce(
-            &provider,
-            &SimpleAccountAddress::new(sender_address),
-            &entry_point_address,
-        )
-        .await?;
+        let nonce =
+            get_nonce(&provider, sender_address, &entry_point_address).await?;
 
         let user_op = UserOperationV07 {
             sender: sender_address,
-            nonce: U256::from(nonce),
+            nonce,
             factory: Some(simple_account_factory_address.to_address()),
             factory_data: Some(factory_data_value.into()),
             call_data: Bytes::from_str(&call_data_value_hex)?,
