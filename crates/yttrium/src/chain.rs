@@ -1,7 +1,7 @@
 use crate::entry_point::{EntryPointConfig, EntryPointVersion};
 use std::fmt;
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ChainId(u64);
 
 impl ChainId {
@@ -123,7 +123,7 @@ impl Chain {
 impl Chain {
     pub fn entry_point_config(&self) -> EntryPointConfig {
         EntryPointConfig {
-            chain_id: self.id.clone(),
+            chain_id: self.id,
             version: self.entry_point_version,
         }
     }

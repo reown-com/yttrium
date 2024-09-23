@@ -81,8 +81,7 @@ pub async fn send_transaction_with_signer(
 
     use crate::entry_point::EntryPointVersion;
     let chain_id = ChainId::new_eip155(chain_id);
-    let chain =
-        crate::chain::Chain::new(chain_id.clone(), EntryPointVersion::V07, "");
+    let chain = crate::chain::Chain::new(chain_id, EntryPointVersion::V07, "");
     let entry_point_config = chain.entry_point_config();
 
     let entry_point_address = entry_point_config.address();
