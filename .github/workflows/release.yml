@@ -7,7 +7,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  VERSION: ${{ github.event.inputs.version || '0.0.9' }}
+  VERSION: ${{ github.event.inputs.version || '0.0.10' }}
   TARGET_BRANCH: ${{ github.ref_name }}
 
 permissions:
