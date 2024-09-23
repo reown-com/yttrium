@@ -25,7 +25,7 @@ pub fn pack_user_operation_v07(user_operation: &UserOperationV07) -> Vec<u8> {
         verificaction_gas_limit_and_call_gas_limit::get_verificaction_gas_limit_and_call_gas_limit(user_operation);
 
     let max_priority_fee_per_gas_and_max_fee_per_gas_item =
-        max_priority_fee_per_gas_and_max_fee_per_gas::get_max_priority_fee_per_gas_and_max_fee_per_gas(user_operation).unwrap();
+        max_priority_fee_per_gas_and_max_fee_per_gas::get_max_priority_fee_per_gas_and_max_fee_per_gas(user_operation);
 
     let items: (
         Address,
