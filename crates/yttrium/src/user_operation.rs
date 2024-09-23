@@ -76,7 +76,7 @@ impl UserOperationV07 {
         &self,
         entry_point: &Address,
         chain_id: u64,
-    ) -> eyre::Result<UserOperationHash> {
+    ) -> UserOperationHash {
         get_user_operation_hash_v07(self, entry_point, chain_id)
     }
 }

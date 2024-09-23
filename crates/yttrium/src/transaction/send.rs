@@ -1,4 +1,3 @@
-use crate::smart_accounts::safe::Execution;
 use crate::transaction::send::simple_account_test::send_transaction_with_signer;
 use crate::{
     config::Config, transaction::Transaction, user_operation::UserOperationV07,
@@ -89,11 +88,7 @@ pub async fn send_transaction_with_private_key_signer(
 
     let user_operation_hash = if safe {
         safe_test::send_transaction(
-            vec![Execution {
-                target: transaction.to,
-                value: transaction.value,
-                callData: transaction.data,
-            }],
+            vec![transaction],
             signer,
             None,
             None,

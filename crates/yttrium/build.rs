@@ -1,7 +1,4 @@
-use {
-    // serde_json::Value,
-    std::process::{Command, Stdio},
-};
+use std::process::{Command, Stdio};
 
 fn main() {
     build_contracts();
@@ -9,17 +6,17 @@ fn main() {
 
 fn build_contracts() {
     install_foundry();
-    compile_contracts("crates/yttrium/safe-smart-account/contracts/proxies/SafeProxyFactory.sol", );
-    compile_contracts("crates/yttrium/safe-smart-account/contracts/Safe.sol");
     compile_contracts(
-        "crates/yttrium/safe-smart-account/contracts/libraries/MultiSend.sol",
+        "safe-smart-account/contracts/proxies/SafeProxyFactory.sol",
     );
+    compile_contracts("safe-smart-account/contracts/Safe.sol");
+    compile_contracts("safe-smart-account/contracts/libraries/MultiSend.sol");
     compile_contracts(
         "safe-modules/modules/4337/contracts/SafeModuleSetup.sol",
     );
 
     {
-        println!("cargo::rerun-if-changed=safe7579");
+        println!("cargo::rerun-if-changed=safe7579/pnpm-lock.yaml");
         let output = Command::new("pnpm")
             .current_dir("safe7579")
             .args(["install"])
@@ -46,7 +43,7 @@ fn build_contracts() {
     );
 
     {
-        println!("cargo::rerun-if-changed=src/contracts");
+        println!("cargo::rerun-if-changed=src/contracts/yarn.lock");
         let output = Command::new("yarn")
             .current_dir("src/contracts")
             .args(["install"])

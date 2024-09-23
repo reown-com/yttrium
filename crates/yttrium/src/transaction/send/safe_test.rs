@@ -11,31 +11,28 @@ use crate::{
     smart_accounts::{
         nonce::get_nonce,
         safe::{
-            factory_data, get_account_address, Execution, Owners, Safe7579,
-            Safe7579Launchpad, SAFE_4337_MODULE_ADDRESS,
+            factory_data, get_account_address, get_call_data, Owners,
+            Safe7579Launchpad, DUMMY_SIGNATURE, SAFE_4337_MODULE_ADDRESS,
             SAFE_ERC_7579_LAUNCHPAD_ADDRESS, SAFE_PROXY_FACTORY_ADDRESS,
             SEPOLIA_SAFE_ERC_7579_SINGLETON_ADDRESS,
         },
         simple_account::{factory::FactoryAddress, SimpleAccountAddress},
     },
+    transaction::Transaction,
     user_operation::{Authorization, UserOperationV07},
 };
 use alloy::{
-    dyn_abi::{
-        DynSolCall, DynSolReturns, DynSolType, DynSolValue, Eip712Domain,
-    },
+    dyn_abi::{DynSolValue, Eip712Domain},
     network::Ethereum,
-    primitives::{
-        aliases::U48, keccak256, Address, Bytes, FixedBytes, Uint, U128, U256,
-    },
+    primitives::{aliases::U48, Address, Bytes, Uint, U128, U256},
     providers::{Provider, ReqwestProvider},
     signers::{k256::ecdsa::SigningKey, local::LocalSigner, SignerSync},
     sol,
-    sol_types::{SolCall, SolValue},
+    sol_types::SolCall,
 };
 use core::fmt;
 use serde_json::json;
-use std::{ops::Not, str::FromStr};
+use std::ops::Not;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct UserOperationEstimated(UserOperationV07);
@@ -84,7 +81,7 @@ pub async fn get_address(
 }
 
 pub async fn send_transaction(
-    execution_calldata: Vec<Execution>,
+    execution_calldata: Vec<Transaction>,
     owner: LocalSigner<SigningKey>,
     address: Option<Address>,
     authorization_list: Option<Vec<Authorization>>,
@@ -124,63 +121,7 @@ pub async fn send_transaction(
     let account_address =
         if let Some(address) = address { address } else { contract_address };
 
-    let call_data = {
-        let batch = execution_calldata.len() != 1;
-        let revert_on_error = false;
-        let selector = [0u8; 4];
-        let context = [0u8; 22];
-
-        let mode =
-            DynSolValue::Tuple(vec![
-                DynSolValue::Uint(
-                    Uint::from(if batch { 0x01 } else { 0x00 }),
-                    8,
-                ), // DelegateCall is 0xFF
-                DynSolValue::Uint(Uint::from(revert_on_error as u8), 8),
-                DynSolValue::Bytes(vec![0u8; 4]),
-                DynSolValue::Bytes(selector.to_vec()),
-                DynSolValue::Bytes(context.to_vec()),
-            ])
-            .abi_encode_packed();
-
-        let execution_calldata = if batch {
-            DynSolCall::new(
-                FixedBytes::from_slice(
-                    &keccak256("executionBatch(tuple[])")[..4],
-                ),
-                vec![DynSolType::Array(Box::new(DynSolType::Tuple(vec![
-                    DynSolType::Address,
-                    DynSolType::Uint(32),
-                    DynSolType::Bytes,
-                ])))],
-                None,
-                DynSolReturns::new(vec![]),
-            )
-            .abi_encode_input(&[DynSolValue::Array(
-                execution_calldata
-                    .iter()
-                    .map(|execution| {
-                        DynSolValue::Tuple(vec![
-                            DynSolValue::Address(execution.target),
-                            DynSolValue::Uint(Uint::from(execution.value), 32),
-                            DynSolValue::Bytes(execution.callData.to_vec()),
-                        ])
-                    })
-                    .collect(),
-            )])?[4..]
-                .to_vec()
-        } else {
-            execution_calldata.abi_encode_packed()
-        }
-        .into();
-
-        Safe7579::executeCall {
-            mode: FixedBytes::from_slice(&mode),
-            executionCalldata: execution_calldata,
-        }
-        .abi_encode()
-        .into()
-    };
+    let call_data = get_call_data(execution_calldata);
 
     let deployed = provider.get_code_at(account_address).await?.len() > 0;
     println!("Deployed: {}", deployed);
@@ -230,9 +171,9 @@ pub async fn send_transaction(
         factory: deployed.not().then(|| safe_factory_address.to_address()),
         factory_data: deployed.not().then(|| factory_data_value.into()),
         call_data,
-        call_gas_limit: U256::from(0),
-        verification_gas_limit: U256::from(0),
-        pre_verification_gas: U256::from(0),
+        call_gas_limit: U256::ZERO,
+        verification_gas_limit: U256::ZERO,
+        pre_verification_gas: U256::ZERO,
         max_fee_per_gas: gas_price.fast.max_fee_per_gas,
         max_priority_fee_per_gas: gas_price.fast.max_priority_fee_per_gas,
         paymaster: None,
@@ -240,11 +181,7 @@ pub async fn send_transaction(
         paymaster_post_op_gas_limit: None,
         paymaster_data: None,
         // authorization_list: None,
-        signature: Bytes::from_str(
-            crate::smart_accounts::safe::DUMMY_SIGNATURE_HEX
-                .strip_prefix("0x")
-                .unwrap(),
-        )?,
+        signature: DUMMY_SIGNATURE,
     };
 
     if let Some(authorization_list) = authorization_list {
@@ -460,7 +397,7 @@ pub async fn send_transaction(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::chain::ChainId;
+    use crate::{chain::ChainId, transaction::Transaction};
     use alloy::{
         consensus::{SignableTransaction, TxEip7702},
         network::{EthereumWallet, TransactionBuilder, TxSignerSync},
@@ -523,10 +460,10 @@ mod tests {
         )
         .await?;
 
-        let transaction = vec![Execution {
-            target: destination.address(),
+        let transaction = vec![Transaction {
+            to: destination.address(),
             value: Uint::from(1),
-            callData: Bytes::new(),
+            data: Bytes::new(),
         }];
 
         let transaction_hash = send_transaction(
@@ -543,10 +480,10 @@ mod tests {
         let balance = provider.get_balance(destination.address()).await?;
         assert_eq!(balance, Uint::from(1));
 
-        let transaction = vec![Execution {
-            target: destination.address(),
+        let transaction = vec![Transaction {
+            to: destination.address(),
             value: Uint::from(1),
-            callData: Bytes::new(),
+            data: Bytes::new(),
         }];
 
         let transaction_hash =
@@ -671,15 +608,15 @@ mod tests {
         .await?;
 
         let transaction = vec![
-            Execution {
-                target: destination1.address(),
+            Transaction {
+                to: destination1.address(),
                 value: Uint::from(1),
-                callData: Bytes::new(),
+                data: Bytes::new(),
             },
-            Execution {
-                target: destination2.address(),
+            Transaction {
+                to: destination2.address(),
                 value: Uint::from(2),
-                callData: Bytes::new(),
+                data: Bytes::new(),
             },
         ];
 
@@ -781,10 +718,10 @@ mod tests {
             provider.get_code_at(authority.address()).await?
         );
 
-        let transaction = vec![Execution {
-            target: destination.address(),
+        let transaction = vec![Transaction {
+            to: destination.address(),
             value: Uint::from(1),
-            callData: Bytes::new(),
+            data: Bytes::new(),
         }];
 
         let transaction_hash = send_transaction(
@@ -927,10 +864,10 @@ mod tests {
             provider.get_code_at(authority.address()).await?
         );
 
-        let transaction = vec![Execution {
-            target: destination.address(),
+        let transaction: Vec<_> = vec![Transaction {
+            to: destination.address(),
             value: Uint::from(1),
-            callData: Bytes::new(),
+            data: Bytes::new(),
         }];
 
         let transaction_hash = send_transaction(
