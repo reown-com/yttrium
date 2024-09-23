@@ -94,20 +94,20 @@ mod ffi {
     }
 
     extern "Swift" {
-        type NativeSignerFFI;
+        pub type NativeSignerFFI;
 
         #[swift_bridge(init)]
-        fn new(signer_id: String) -> NativeSignerFFI;
+        pub fn new(signer_id: String) -> NativeSignerFFI;
 
-        fn sign(&self, message: String) -> FFIStringResult;
+        pub fn sign(&self, message: String) -> FFIStringResult;
     }
 
     extern "Swift" {
-        type PrivateKeySignerFFI;
+        pub type PrivateKeySignerFFI;
 
         #[swift_bridge(init)]
-        fn new(signer_id: String) -> PrivateKeySignerFFI;
+        pub fn new(signer_id: String) -> PrivateKeySignerFFI;
 
-        fn private_key(&self) -> FFIStringResult;
+        pub fn private_key(&self) -> FFIStringResult;
     }
 }
