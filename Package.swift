@@ -16,7 +16,7 @@ let package = Package(
         ),
     ],
     dependencies: [
-        // .package(url: "https://github.com/thebarndog/swift-dotenv.git", from: "2.0.0")
+        // Other dependencies if any
     ],
     targets: [
         .binaryTarget(
@@ -29,13 +29,17 @@ let package = Package(
             dependencies: [
                 "RustXcframework"
             ],
-            path: "crates/ffi/YttriumCore/Sources/YttriumCore"
+            path: "crates/ffi",
+            exclude: ["YttriumCore/RustXcframework.xcframework"],
+            sources: [
+                "YttriumCore/Sources/YttriumCore",
+                "generated"
+            ]
         ),
         .target(
             name: "Yttrium",
             dependencies: [
                 "YttriumCore"
-                // .product(name: "SwiftDotenv", package: "swift-dotenv")
             ],
             path: "platforms/swift/Sources/Yttrium"
         ),
@@ -43,7 +47,6 @@ let package = Package(
             name: "YttriumTests",
             dependencies: [
                 "Yttrium"
-                // .product(name: "SwiftDotenv", package: "swift-dotenv")
             ],
             path: "platforms/swift/Tests/YttriumTests"
         ),

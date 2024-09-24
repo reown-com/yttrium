@@ -1,39 +1,46 @@
 // swift-tools-version:5.9.0
 import PackageDescription
+
 let package = Package(
-	name: "YttriumCore",
-	platforms: [
+    name: "YttriumCore",
+    platforms: [
         .macOS(.v14),
         .iOS(.v13),
         .watchOS(.v10),
         .tvOS(.v17)
     ],
-	products: [
-		.library(
-			name: "YttriumCore",
-			targets: ["YttriumCore"]
-		),
-	],
-	dependencies: [
-		.package(url: "https://github.com/thebarndog/swift-dotenv.git", from: "2.0.0")
-	],
-	targets: [
-		.binaryTarget(
-			name: "RustXcframework",
-			path: "RustXcframework.xcframework"
-		),
-		.target(
-			name: "YttriumCore",
-			dependencies: [
+    products: [
+        .library(
+            name: "YttriumCore",
+            targets: ["YttriumCore"]
+        ),
+    ],
+    dependencies: [
+        .package(url: "https://github.com/thebarndog/swift-dotenv.git", from: "2.0.0")
+    ],
+    targets: [
+        .binaryTarget(
+            name: "RustXcframework",
+            path: "RustXcframework.xcframework"
+        ),
+        .target(
+            name: "YttriumCore",
+            dependencies: [
                 "RustXcframework",
-				.product(name: "SwiftDotenv", package: "swift-dotenv")
+                .product(name: "SwiftDotenv", package: "swift-dotenv")
+            ],
+            path: ".",
+            exclude: ["RustXcframework.xcframework"],
+            sources: [
+                "Sources/YttriumCore",
+                "../generated"
             ]
         ),
         .testTarget(
             name: "YttriumCoreTests",
             dependencies: [
-				"YttriumCore"
-			]
-		),
-	]
+                "YttriumCore"
+            ]
+        ),
+    ]
 )
