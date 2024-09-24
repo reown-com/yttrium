@@ -1,19 +1,16 @@
 [package]
 name = "kotlin-ffi"
-version.workspace = true
-edition.workspace = true
-rust-version.workspace = true
+version = "0.1.0"
+edition = "2024"
 
 [lib]
 crate-type = ["cdylib"]
 
 [build-dependencies]
-uniffi_build = "0.28.1"
+uniffi_build = "0.28.0"
 
 [dependencies]
 yttrium = { path = "../yttrium" }
-uniffi = "0.28.1"
-
-[[bin]]
-name = "uniffi-bindgen"
-path = "uniffi-bindgen.rs"
+uniffi = "0.28.0"
+openssl = { version = "0.10", features = ["vendored"] }
+openssl-sys = { version = "0.9.103", features = ["vendored"] }
