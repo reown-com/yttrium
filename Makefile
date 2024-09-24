@@ -75,7 +75,6 @@ zip-rust-xcframework:
 	cd crates/ffi/YttriumCore/ && \
 	zip -r ../../../Output/RustXcframework.xcframework.zip \
 		RustXcframework.xcframework \
-		../generated
 
 .PHONY: compute-rust-checksum
 compute-rust-checksum:
