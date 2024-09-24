@@ -1,0 +1,19 @@
+[package]
+name = "kotlin-ffi"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[lib]
+crate-type = ["cdylib"]
+
+[build-dependencies]
+uniffi_build = "0.28.1"
+
+[dependencies]
+yttrium = { path = "../yttrium" }
+uniffi = "0.28.1"
+
+[[bin]]
+name = "uniffi-bindgen"
+path = "uniffi-bindgen.rs"
