@@ -4,10 +4,11 @@ version = "0.1.0"
 edition = "2021"
 
 [lib]
+name = "uniffi_yttrium"
 crate-type = ["cdylib"]
 
 [build-dependencies]
-uniffi_build = "0.28.0"
+uniffi_build = "0.28.0" 
 
 [dependencies]
 yttrium = { path = "../yttrium" }
