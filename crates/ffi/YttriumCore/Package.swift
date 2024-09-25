@@ -32,8 +32,7 @@ let package = Package(
             path: ".",
             exclude: ["RustXcframework.xcframework"],
             sources: [
-                "Sources/YttriumCore",
-                "../generated"
+                "Sources/YttriumCore"
             ]
         ),
         .testTarget(
