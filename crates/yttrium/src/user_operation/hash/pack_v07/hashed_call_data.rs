@@ -8,7 +8,7 @@ pub fn get_hashed_call_data(
         let call_data = user_operation.clone().call_data;
         keccak256(call_data)
     };
-    let hashed_call_data_hex = hex::encode(hashed_call_data.clone());
+    let hashed_call_data_hex = hex::encode(hashed_call_data);
     println!("hashed_call_data_hex: {:?}", hashed_call_data_hex);
     Ok(hashed_call_data)
 }

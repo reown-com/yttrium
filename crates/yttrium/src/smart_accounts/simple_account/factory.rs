@@ -112,5 +112,5 @@ sol!(
     #[allow(missing_docs)]
     #[sol(rpc)]
     SimpleAccountFactory,
-    "src/contracts/artifacts/contracts/samples/SimpleAccountFactory.sol/SimpleAccountFactory.json"
+    ".foundry/forge/out/SimpleAccountFactory.sol/SimpleAccountFactory.json"
 );

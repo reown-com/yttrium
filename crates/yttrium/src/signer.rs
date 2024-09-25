@@ -36,8 +36,7 @@ impl Signer {
     pub async fn owner(&self) -> Address {
         let sign_service_clone = Arc::clone(&self.sign_service);
         let sign_service = sign_service_clone.lock().await;
-        let owner = sign_service.owner();
-        owner
+        sign_service.owner()
     }
 
     pub async fn sign_message(&self, message: String) -> eyre::Result<Vec<u8>> {
@@ -87,7 +86,7 @@ impl Signer {
         chain_id: u64,
         sign_service: &MutexGuard<SignService>,
     ) -> eyre::Result<UserOperationV07> {
-        let hash = uo.hash(&ep, chain_id)?;
+        let hash = uo.hash(ep, chain_id)?;
         let message_bytes = hash.0.to_vec();
         println!("message_bytes: {:?}", message_bytes.clone());
 
@@ -142,8 +141,7 @@ where
         });
         let sign_service_s = SignService::new(sign_fn, owner);
         let sign_service = Arc::new(Mutex::new(sign_service_s));
-        let signer = Signer::new(sign_service);
-        signer
+        Signer::new(sign_service)
     }
 }
 
@@ -154,7 +152,7 @@ pub fn sign_user_operation_v07_with_ecdsa_and_sign_service(
     signer: PrivateKeySigner,
     sign_service: &Arc<Mutex<SignService>>,
 ) -> eyre::Result<UserOperationV07> {
-    let hash = uo.hash(&ep, chain_id)?;
+    let hash = uo.hash(ep, chain_id)?;
 
     println!("hash: {:?}", hash.clone());
 
@@ -206,7 +204,7 @@ pub fn sign_user_operation_v07_with_ecdsa(
     chain_id: u64,
     signer: PrivateKeySigner,
 ) -> eyre::Result<UserOperationV07> {
-    let hash = uo.hash(&ep, chain_id)?;
+    let hash = uo.hash(ep, chain_id)?;
 
     println!("hash: {:?}", hash.clone());
 
@@ -243,7 +241,7 @@ mod tests {
         let signer = Signer::signer_from_phrase(MNEMONIC_PHRASE, CHAIN_ID)?;
         let message = "Hello, world!".to_string();
         let signature = signer.sign_message_sync(message)?;
-        ensure!(signature.len() > 0, "Signature is empty");
+        ensure!(!signature.is_empty(), "Signature is empty");
         Ok(())
     }
 }

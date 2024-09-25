@@ -17,30 +17,30 @@ pub fn pack_user_operation_v07(
     );
 
     let hashed_init_code =
-        hashed_init_code::get_hashed_init_code(&user_operation)?;
+        hashed_init_code::get_hashed_init_code(user_operation)?;
     println!("hashed_init_code: {:?}", hashed_init_code);
 
     let hashed_call_data =
-        hashed_call_data::get_hashed_call_data(&user_operation)?;
+        hashed_call_data::get_hashed_call_data(user_operation)?;
     println!("hashed_call_data: {:?}", hashed_call_data);
 
     let hashed_paymaster_and_data =
         hashed_paymaster_and_data::get_hashed_paymaster_and_data(
-            &user_operation,
+            user_operation,
         )?;
     println!("hashed_paymaster_and_data: {:?}", hashed_paymaster_and_data);
 
     use alloy::sol_types::SolValue;
 
     let verificaction_gas_limit_and_call_gas_limit_item =
-        verificaction_gas_limit_and_call_gas_limit::get_verificaction_gas_limit_and_call_gas_limit(&user_operation)?;
+        verificaction_gas_limit_and_call_gas_limit::get_verificaction_gas_limit_and_call_gas_limit(user_operation)?;
     println!(
         "verificaction_gas_limit_and_call_gas_limit_item: {:?}",
         verificaction_gas_limit_and_call_gas_limit_item
     );
 
     let max_priority_fee_per_gas_and_max_fee_per_gas_item =
-        max_priority_fee_per_gas_and_max_fee_per_gas::get_max_priority_fee_per_gas_and_max_fee_per_gas(&user_operation)?;
+        max_priority_fee_per_gas_and_max_fee_per_gas::get_max_priority_fee_per_gas_and_max_fee_per_gas(user_operation)?;
     println!(
         "max_priority_fee_per_gas_and_max_fee_per_gas_item: {:?}",
         max_priority_fee_per_gas_and_max_fee_per_gas_item

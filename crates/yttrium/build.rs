@@ -4,22 +4,84 @@ use {
 };
 
 fn main() {
-    // build_contracts();
+    build_contracts();
 }
 
-const CONTRACTS_DIR: &str = "crates/yttrium/safe-smart-account/contracts";
-
 fn build_contracts() {
-    println!("cargo::rerun-if-changed={CONTRACTS_DIR}");
     install_foundry();
-    compile_contracts(&format!("{CONTRACTS_DIR}/proxies"));
+    compile_contracts("crates/yttrium/safe-smart-account/contracts/proxies/SafeProxyFactory.sol", );
+    compile_contracts("crates/yttrium/safe-smart-account/contracts/Safe.sol");
+    compile_contracts(
+        "crates/yttrium/safe-smart-account/contracts/libraries/MultiSend.sol",
+    );
+    compile_contracts(
+        "safe-modules/modules/4337/contracts/SafeModuleSetup.sol",
+    );
+
+    {
+        println!("cargo::rerun-if-changed=safe7579");
+        let output = Command::new("pnpm")
+            .current_dir("safe7579")
+            .args(["install"])
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .unwrap()
+            .wait_with_output()
+            .unwrap();
+        println!("`pnpm install` status: {:?}", output.status);
+        let stdout = String::from_utf8(output.stdout).unwrap();
+        println!("`pnpm install` stdout: {stdout:?}");
+        let stderr = String::from_utf8(output.stderr).unwrap();
+        println!("`pnpm install` stderr: {stderr:?}");
+        assert!(output.status.success());
+    }
+    compile_contracts_with_args(
+        "safe7579/src/Safe7579Launchpad.sol",
+        &["--config-path=safe7579/foundry.toml".to_owned()],
+    );
+    compile_contracts_with_args(
+        "safe7579/src/Safe7579.sol",
+        &["--config-path=safe7579/foundry.toml".to_owned()],
+    );
+
+    {
+        println!("cargo::rerun-if-changed=src/contracts");
+        let output = Command::new("yarn")
+            .current_dir("src/contracts")
+            .args(["install"])
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .unwrap()
+            .wait_with_output()
+            .unwrap();
+        println!("`yarn install` status: {:?}", output.status);
+        let stdout = String::from_utf8(output.stdout).unwrap();
+        println!("`yarn install` stdout: {stdout:?}");
+        let stderr = String::from_utf8(output.stderr).unwrap();
+        println!("`yarn install` stderr: {stderr:?}");
+        assert!(output.status.success());
+    }
+    compile_contracts_with_args(
+        "src/contracts/contracts/samples/SimpleAccountFactory.sol",
+        &["--remappings=@openzeppelin=crates/yttrium/src/contracts/node_modules/@openzeppelin".to_owned()],
+    );
+    compile_contracts_with_args(
+        "src/contracts/contracts/samples/SimpleAccount.sol",
+        &["--remappings=@openzeppelin=crates/yttrium/src/contracts/node_modules/@openzeppelin".to_owned()],
+    );
+    compile_contracts_with_args(
+        "src/contracts/contracts/core/EntryPoint.sol",
+        &["--remappings=@openzeppelin=crates/yttrium/src/contracts/node_modules/@openzeppelin".to_owned()],
+    );
     // extract_bytecodes();
 }
 
 fn format_foundry_dir(path: &str) -> String {
     format!(
-        "{}/../../../../.foundry/{}",
-        std::env::var("OUT_DIR").unwrap(),
+        "{}/.foundry/{}",
+        std::env::var("CARGO_MANIFEST_DIR").unwrap(),
         path
     )
 }
@@ -52,16 +114,23 @@ fn install_foundry() {
 }
 
 fn compile_contracts(contracts_dir: &str) {
+    compile_contracts_with_args(contracts_dir, &[]);
+}
+
+fn compile_contracts_with_args(contracts_dir: &str, args: &[String]) {
+    println!("cargo::rerun-if-changed={contracts_dir}");
+    let mut built_args = vec![
+        "build".to_owned(),
+        contracts_dir.to_owned(),
+        "--skip=test".to_owned(),
+        "--cache-path".to_owned(),
+        format_foundry_dir("forge/cache"),
+        "--out".to_owned(),
+        format_foundry_dir("forge/out"),
+    ];
+    built_args.extend_from_slice(args);
     let output = Command::new(format_foundry_dir("bin/forge"))
-        .args([
-            "build",
-            &format!("--contracts={contracts_dir}"),
-            "--skip=test",
-            "--cache-path",
-            &format_foundry_dir("forge/cache"),
-            "--out",
-            &format_foundry_dir("forge/out"),
-        ])
+        .args(&built_args)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()

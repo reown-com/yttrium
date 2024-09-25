@@ -1,3 +1,7 @@
+use crate::bundler::{
+    client::BundlerClient, config::BundlerConfig,
+    models::user_operation_receipt::UserOperationReceipt,
+};
 use crate::config::Config;
 use crate::private_key_service::PrivateKeyService;
 use crate::sign_service::SignService;
@@ -114,7 +118,7 @@ impl AccountClient {
     pub async fn get_address(&self) -> eyre::Result<String> {
         get_address_with_signer(
             self.owner.clone(),
-            self.chain_id.clone(),
+            self.chain_id,
             self.config.clone(),
             self.signer.clone(),
             self.safe,
@@ -140,7 +144,7 @@ impl AccountClient {
         send_transaction(
             transaction,
             self.owner.clone(),
-            self.chain_id.clone(),
+            self.chain_id,
             self.config.clone(),
             self.signer.clone(),
             self.safe,
@@ -160,6 +164,30 @@ impl AccountClient {
         let signature = sign_service.sign(message)?;
 
         Ok(signature)
+    }
+
+    pub async fn wait_for_user_operation_receipt(
+        &self,
+        user_operation_hash: String,
+    ) -> eyre::Result<UserOperationReceipt> {
+        println!("Querying for receipts...");
+
+        let bundler_base_url = self.config.clone().endpoints.bundler.base_url;
+
+        let bundler_client =
+            BundlerClient::new(BundlerConfig::new(bundler_base_url.clone()));
+        let receipt = bundler_client
+            .wait_for_user_operation_receipt(user_operation_hash.clone())
+            .await?;
+
+        println!("Received User Operation receipt: {:?}", receipt);
+
+        let tx_hash = receipt.clone().receipt.transaction_hash;
+        println!(
+            "UserOperation included: https://sepolia.etherscan.io/tx/{}",
+            tx_hash
+        );
+        Ok(receipt)
     }
 }
 
@@ -199,14 +227,14 @@ pub async fn get_address_with_signer(
             )
             .await
         }
-        Signer::Native(sign_service) => {
+        Signer::Native(_sign_service) => {
             todo!("Implement native signer support")
         }
     }
 }
 
 pub async fn get_address_with_private_key_signer(
-    owner: String,
+    _owner: String,
     chain_id: u64,
     config: Config,
     signer: PrivateKeySigner,
@@ -267,6 +295,12 @@ mod tests {
             account_client.send_transaction(transaction).await?;
 
         println!("user_operation_hash: {:?}", user_operation_hash);
+
+        let receipt = account_client
+            .wait_for_user_operation_receipt(user_operation_hash)
+            .await?;
+
+        println!("receipt: {:?}", receipt);
 
         Ok(())
     }

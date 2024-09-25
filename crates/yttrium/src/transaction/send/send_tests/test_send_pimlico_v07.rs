@@ -118,9 +118,9 @@ mod tests {
 
         let sender_address = get_sender_address_v07(
             &provider,
-            simple_account_factory_address.clone().into(),
+            simple_account_factory_address.into(),
             factory_data_value.clone().into(),
-            entry_point_address.clone(),
+            entry_point_address,
         )
         .await?;
 
@@ -165,33 +165,27 @@ mod tests {
         )
         .await?;
 
-        let user_op = {
-            let user_op = UserOperationV07 {
-                sender: sender_address,
-                nonce: U256::from(nonce),
-                factory: None,
-                factory_data: None,
-                call_data: Bytes::from_str(&call_data_value_hex).unwrap(),
-                call_gas_limit: U256::from(0),
-                verification_gas_limit: U256::from(0),
-                pre_verification_gas: U256::from(0),
-                max_fee_per_gas: gas_price.fast.max_fee_per_gas,
-                max_priority_fee_per_gas: gas_price
-                    .fast
-                    .max_priority_fee_per_gas,
-                paymaster: None,
-                paymaster_verification_gas_limit: None,
-                paymaster_post_op_gas_limit: None,
-                paymaster_data: None,
-                // authorization_list: None,
-                signature: Bytes::from_str(
-                    crate::smart_accounts::simple_account::DUMMY_SIGNATURE_HEX
-                        .strip_prefix("0x")
-                        .unwrap(),
-                )?,
-            };
-
-            user_op
+        let user_op = UserOperationV07 {
+            sender: sender_address,
+            nonce: U256::from(nonce),
+            factory: None,
+            factory_data: None,
+            call_data: Bytes::from_str(&call_data_value_hex).unwrap(),
+            call_gas_limit: U256::from(0),
+            verification_gas_limit: U256::from(0),
+            pre_verification_gas: U256::from(0),
+            max_fee_per_gas: gas_price.fast.max_fee_per_gas,
+            max_priority_fee_per_gas: gas_price.fast.max_priority_fee_per_gas,
+            paymaster: None,
+            paymaster_verification_gas_limit: None,
+            paymaster_post_op_gas_limit: None,
+            paymaster_data: None,
+            // authorization_list: None,
+            signature: Bytes::from_str(
+                crate::smart_accounts::simple_account::DUMMY_SIGNATURE_HEX
+                    .strip_prefix("0x")
+                    .unwrap(),
+            )?,
         };
 
         // 8. Request Pimlico verifying paymaster sponsorship

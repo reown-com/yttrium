@@ -17,7 +17,7 @@ impl SimpleAccountExecute {
         value: alloy::primitives::U256,
         func: alloy::primitives::Bytes,
     ) -> Self {
-        Self(executeCall { dest: address, value: value, func: func })
+        Self(executeCall { dest: address, value, func })
     }
 
     pub fn encode(&self) -> Vec<u8> {
@@ -29,7 +29,7 @@ sol!(
     #[allow(missing_docs)]
     #[sol(rpc)]
     SimpleAccount,
-    "src/contracts/artifacts/contracts/samples/SimpleAccount.sol/SimpleAccount.json"
+    ".foundry/forge/out/SimpleAccount.sol/SimpleAccount.json"
 );
 
 pub const DUMMY_SIGNATURE_HEX: &str = "0xfffffffffffffffffffffffffffffff0000000000000000000000000000000007aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1c";
@@ -47,9 +47,9 @@ impl SimpleAccountAddress {
     }
 }
 
-impl Into<alloy::primitives::Address> for SimpleAccountAddress {
-    fn into(self) -> alloy::primitives::Address {
-        self.0
+impl From<SimpleAccountAddress> for alloy::primitives::Address {
+    fn from(val: SimpleAccountAddress) -> Self {
+        val.0
     }
 }
 
@@ -66,8 +66,8 @@ impl OwnerAddress {
     }
 }
 
-impl Into<alloy::primitives::Address> for OwnerAddress {
-    fn into(self) -> alloy::primitives::Address {
-        self.0
+impl From<OwnerAddress> for alloy::primitives::Address {
+    fn from(val: OwnerAddress) -> Self {
+        val.0
     }
 }

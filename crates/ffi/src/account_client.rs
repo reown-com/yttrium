@@ -27,7 +27,7 @@ impl FFIAccountClient {
         }
 
         let owner_address = config.owner_address.clone();
-        let chain_id = config.chain_id.clone();
+        let chain_id = config.chain_id;
         let signer_type = config.signer_type.clone();
         let signer_id =
             format!("{}-{}-{}", signer_type, owner_address, chain_id);
@@ -40,52 +40,47 @@ impl FFIAccountClient {
                     let signer_service =
                         ffi::NativeSignerFFI::new(signer_id.clone());
                     let sign = signer_service.sign(message);
-                    let result = match sign {
+                    match sign {
                         ffi::FFIStringResult::Ok(signed_message) => {
                             Ok(signed_message)
                         }
                         ffi::FFIStringResult::Err(error) => {
                             Err(YttriumError { message: error })
                         }
-                    };
-                    result
+                    }
                 });
                 let owner = address_from_string(&owner_address).unwrap();
                 let signer = SignService::new(sign_fn, owner);
-                let account_client = AccountClient::new_with_sign_service(
+                AccountClient::new_with_sign_service(
                     config.owner_address.clone(),
-                    config.chain_id.clone(),
+                    config.chain_id,
                     config.config.into(),
                     signer,
-                );
-                account_client
+                )
             }
             SignerType::PrivateKey => {
                 let private_key_fn = Box::new(move || {
                     let private_key_service =
                         ffi::PrivateKeySignerFFI::new(signer_id.clone());
                     let private_key = private_key_service.private_key();
-                    let result = match private_key {
+                    match private_key {
                         ffi::FFIStringResult::Ok(private_key) => {
                             Ok(private_key)
                         }
                         ffi::FFIStringResult::Err(error) => {
                             Err(YttriumError { message: error })
                         }
-                    };
-                    result
+                    }
                 });
                 let owner = address_from_string(&owner_address).unwrap();
                 let service = PrivateKeyService::new(private_key_fn, owner);
-                let account_client =
-                    AccountClient::new_with_private_key_service(
-                        config.owner_address.clone(),
-                        config.chain_id.clone(),
-                        config.config.into(),
-                        service,
-                        config.safe,
-                    );
-                account_client
+                AccountClient::new_with_private_key_service(
+                    config.owner_address.clone(),
+                    config.chain_id,
+                    config.config.into(),
+                    service,
+                    config.safe,
+                )
             }
         };
 
@@ -125,6 +120,19 @@ impl FFIAccountClient {
     ) -> Result<String, FFIError> {
         self.account_client
             .sign_message_with_mnemonic(message, mnemonic)
+            .map_err(|e| FFIError::Unknown(e.to_string()))
+    }
+
+    pub async fn wait_for_user_operation_receipt(
+        &self,
+        user_operation_hash: String,
+    ) -> Result<String, FFIError> {
+        self.account_client
+            .wait_for_user_operation_receipt(user_operation_hash)
+            .await
+            .iter()
+            .map(serde_json::to_string)
+            .collect::<Result<String, serde_json::Error>>()
             .map_err(|e| FFIError::Unknown(e.to_string()))
     }
 }

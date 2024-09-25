@@ -1,8 +1,4 @@
 use crate::{
-    bundler::{
-        client::BundlerClient, config::BundlerConfig,
-        pimlico::client::BundlerClient as PimlicoBundlerClient,
-    },
     chain::ChainId,
     config::Config,
     entry_point::{
@@ -22,11 +18,11 @@ pub async fn get_sender_address_with_signer(
     chain_id: u64,
     signer: PrivateKeySigner,
 ) -> eyre::Result<Address> {
-    let bundler_base_url = config.clone().endpoints.bundler.base_url;
-    let paymaster_base_url = config.clone().endpoints.paymaster.base_url;
+    let _bundler_base_url = config.clone().endpoints.bundler.base_url;
+    let _paymaster_base_url = config.clone().endpoints.paymaster.base_url;
     let rpc_base_url = config.clone().endpoints.rpc.base_url;
 
-    let chain_id = ChainId::new_eip155(chain_id.clone());
+    let chain_id = ChainId::new_eip155(chain_id);
     let chain =
         crate::chain::Chain::new(chain_id.clone(), EntryPointVersion::V07, "");
 

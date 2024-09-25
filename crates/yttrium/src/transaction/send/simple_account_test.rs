@@ -10,7 +10,6 @@ use crate::{
     chain::ChainId,
     config::Config,
     entry_point::get_sender_address::get_sender_address_v07,
-    sign_service::SignService,
     signer::sign_user_operation_v07_with_ecdsa,
     smart_accounts::{
         nonce::get_nonce,
@@ -26,12 +25,10 @@ use alloy::{
     network::EthereumWallet,
     primitives::{Address, Bytes, U256},
     providers::ProviderBuilder,
-    signers::local::{coins_bip39::English, MnemonicBuilder, PrivateKeySigner},
+    signers::local::PrivateKeySigner,
 };
 use core::fmt;
 use std::str::FromStr;
-use std::sync::Arc;
-use tokio::sync::Mutex;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct UserOperationEstimated(UserOperationV07);
@@ -83,7 +80,7 @@ pub async fn send_transaction_with_signer(
         PimlicoBundlerClient::new(BundlerConfig::new(bundler_base_url.clone()));
 
     use crate::entry_point::EntryPointVersion;
-    let chain_id = ChainId::new_eip155(chain_id.clone());
+    let chain_id = ChainId::new_eip155(chain_id);
     let chain =
         crate::chain::Chain::new(chain_id.clone(), EntryPointVersion::V07, "");
     let entry_point_config = chain.entry_point_config();
@@ -182,8 +179,8 @@ pub async fn send_transaction_with_signer(
     let user_op = UserOperationV07 {
         sender: sender_address,
         nonce: U256::from(nonce),
-        factory: factory,
-        factory_data: factory_data,
+        factory,
+        factory_data,
         call_data: Bytes::from_str(&call_data_value_hex)?,
         call_gas_limit: U256::from(0),
         verification_gas_limit: U256::from(0),
@@ -252,34 +249,11 @@ pub async fn send_transaction_with_signer(
 
     println!("Received User Operation hash: {:?}", user_operation_hash);
 
-    // TODO convert to polling
-    use std::time::Duration;
-    tokio::time::sleep(Duration::from_secs(2)).await;
-
-    let receipt = bundler_client
-        .get_user_operation_receipt(user_operation_hash.clone())
-        .await?;
-
-    println!("Received User Operation receipt: {:?}", receipt);
-
-    println!("Querying for receipts...");
-
-    let receipt = bundler_client
-        .wait_for_user_operation_receipt(user_operation_hash.clone())
-        .await?;
-
-    let tx_hash = receipt.receipt.transaction_hash;
-    println!(
-        "UserOperation included: https://sepolia.etherscan.io/tx/{}",
-        tx_hash
-    );
-
     Ok(user_operation_hash)
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::{
         bundler::{
             client::BundlerClient,
@@ -305,7 +279,7 @@ mod tests {
         network::EthereumWallet,
         primitives::{Address, Bytes, U256},
         providers::ProviderBuilder,
-        signers::{local::LocalSigner, SignerSync},
+        signers::local::LocalSigner,
     };
     use std::str::FromStr;
 

@@ -10,9 +10,7 @@ sol!(
     #[allow(missing_docs)]
     #[sol(rpc)]
     SafeProxyFactory,
-    "safe-smart-account/build/artifacts/contracts/proxies/SafeProxyFactory.sol/SafeProxyFactory.json"
-    // "../../target/.foundry/forge/out/SafeProxyFactory.sol/SafeProxyFactory.json"
-    // concat!(env!("OUT_DIR"), "/../../../../.foundry/forge/out/SafeProxyFactory.sol/SafeProxyFactory.json")
+    ".foundry/forge/out/SafeProxyFactory.sol/SafeProxyFactory.json"
 );
 
 sol!(
@@ -20,7 +18,7 @@ sol!(
     #[allow(missing_docs)]
     #[sol(rpc, abi)]
     Safe,
-    "safe-smart-account/build/artifacts/contracts/Safe.sol/Safe.json"
+    ".foundry/forge/out/Safe.sol/Safe.json"
 );
 
 sol!(
@@ -28,14 +26,14 @@ sol!(
     #[allow(missing_docs)]
     #[sol(rpc)]
     Safe7579Launchpad,
-    "safe7579/artifacts/Safe7579Launchpad.json"
+    ".foundry/forge/out/Safe7579Launchpad.sol/Safe7579Launchpad.json"
 );
 
 sol!(
     #[allow(missing_docs)]
     #[sol(rpc)]
     Safe7579,
-    "safe7579/artifacts/Safe7579.json"
+    ".foundry/forge/out/Safe7579.sol/Safe7579.json"
 );
 
 // Had to copy from safe7579/artifacts/interfaces/IERC7579Account.json
@@ -85,14 +83,14 @@ sol!(
     #[allow(missing_docs)]
     #[sol(rpc)]
     SafeModuleSetup,
-    "safe-modules/modules/4337/build/artifacts/contracts/SafeModuleSetup.sol/SafeModuleSetup.json"
+    ".foundry/forge/out/SafeModuleSetup.sol/SafeModuleSetup.json"
 );
 
 sol!(
     #[allow(missing_docs)]
     #[sol(rpc)]
     MultiSend,
-    "safe-smart-account/build/artifacts/contracts/libraries/MultiSend.sol/MultiSend.json"
+    ".foundry/forge/out/MultiSend.sol/MultiSend.json"
 );
 
 pub const DUMMY_SIGNATURE_HEX: &str = "0x000000000000000000000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
