@@ -1,4 +1,4 @@
-name: Build and Release Yttrium
+name: Build and Release Yttrium Swift
 
 on:
     workflow_dispatch:
