@@ -394,6 +394,31 @@ extension FFIAccountClientRef {
     public func sign_message_with_mnemonic<GenericIntoRustString: IntoRustString>(_ message: GenericIntoRustString, _ mnemonic: GenericIntoRustString) throws -> RustString {
         try { let val = __swift_bridge__$FFIAccountClient$sign_message_with_mnemonic(ptr, { let rustString = message.intoRustString(); rustString.isOwned = false; return rustString.ptr }(), { let rustString = mnemonic.intoRustString(); rustString.isOwned = false; return rustString.ptr }()); switch val.tag { case __swift_bridge__$ResultStringAndFFIError$ResultOk: return RustString(ptr: val.payload.ok) case __swift_bridge__$ResultStringAndFFIError$ResultErr: throw val.payload.err.intoSwiftRepr() default: fatalError() } }()
     }
+
+    public func wait_for_user_operation_receipt<GenericIntoRustString: IntoRustString>(_ user_operation_hash: GenericIntoRustString) async throws -> RustString {
+        func onComplete(cbWrapperPtr: UnsafeMutableRawPointer?, rustFnRetVal: __swift_bridge__$ResultStringAndFFIError) {
+            let wrapper = Unmanaged<CbWrapper$FFIAccountClient$wait_for_user_operation_receipt>.fromOpaque(cbWrapperPtr!).takeRetainedValue()
+            switch rustFnRetVal.tag { case __swift_bridge__$ResultStringAndFFIError$ResultOk: wrapper.cb(.success(RustString(ptr: rustFnRetVal.payload.ok))) case __swift_bridge__$ResultStringAndFFIError$ResultErr: wrapper.cb(.failure(rustFnRetVal.payload.err.intoSwiftRepr())) default: fatalError() }
+        }
+
+        return try await withCheckedThrowingContinuation({ (continuation: CheckedContinuation<RustString, Error>) in
+            let callback = { rustFnRetVal in
+                continuation.resume(with: rustFnRetVal)
+            }
+
+            let wrapper = CbWrapper$FFIAccountClient$wait_for_user_operation_receipt(cb: callback)
+            let wrapperPtr = Unmanaged.passRetained(wrapper).toOpaque()
+
+            __swift_bridge__$FFIAccountClient$wait_for_user_operation_receipt(wrapperPtr, onComplete, ptr, { let rustString = user_operation_hash.intoRustString(); rustString.isOwned = false; return rustString.ptr }())
+        })
+    }
+    class CbWrapper$FFIAccountClient$wait_for_user_operation_receipt {
+        var cb: (Result<RustString, Error>) -> ()
+    
+        public init(cb: @escaping (Result<RustString, Error>) -> ()) {
+            self.cb = cb
+        }
+    }
 }
 extension FFIAccountClient: Vectorizable {
     public static func vecOfSelfNew() -> UnsafeMutableRawPointer {
