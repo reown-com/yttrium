@@ -25,20 +25,53 @@ sol!(
     ".foundry/forge/out/Safe.sol/Safe.json"
 );
 
-sol!(
-    #[allow(clippy::too_many_arguments)]
-    #[allow(missing_docs)]
-    #[sol(rpc)]
-    Safe7579Launchpad,
-    ".foundry/forge/out/Safe7579Launchpad.sol/Safe7579Launchpad.json"
-);
+sol! {
+    contract Safe7579Launchpad {
+        struct ModuleInit {
+            address module;
+            bytes initData;
+        }
 
-sol!(
-    #[allow(missing_docs)]
-    #[sol(rpc)]
-    Safe7579,
-    ".foundry/forge/out/Safe7579.sol/Safe7579.json"
-);
+        struct InitData {
+            address singleton;
+            address[] owners;
+            uint256 threshold;
+            address setupTo;
+            bytes setupData;
+            address safe7579;
+            ModuleInit[] validators;
+            bytes callData;
+        }
+
+        function initSafe7579(
+            address safe7579,
+            ModuleInit[] calldata executors,
+            ModuleInit[] calldata fallbacks,
+            ModuleInit[] calldata hooks,
+            address[] calldata attesters,
+            uint8 threshold
+        );
+
+        function setupSafe(InitData calldata initData);
+
+        function preValidationSetup(
+            bytes32 initHash,
+            address to,
+            bytes calldata preInit
+        );
+    }
+}
+
+sol! {
+    contract Safe7579 {
+        type ModeCode is bytes32;
+
+        function execute(
+            ModeCode mode,
+            bytes calldata executionCalldata
+        );
+    }
+}
 
 // https://github.com/WalletConnect/secure-web3modal/blob/f1d16f973a313e598d124a0e4751aee12d5de628/src/core/SmartAccountSdk/utils.ts#L180
 pub const SAFE_ERC_7579_LAUNCHPAD_ADDRESS: Address =

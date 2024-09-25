@@ -81,7 +81,6 @@ To contribute to this project, ensure you have the following dependencies instal
 - `make`
 - `just`
 - `npm`
-- `pnpm`
 - `yarn`
 
 ### Setup
