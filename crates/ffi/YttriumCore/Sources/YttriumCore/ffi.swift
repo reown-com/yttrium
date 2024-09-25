@@ -1,21 +1,21 @@
 import RustXcframework
 @_cdecl("__swift_bridge__$NativeSignerFFI$new")
-func __swift_bridge__NativeSignerFFI_new (_ signer_id: UnsafeMutableRawPointer) -> UnsafeMutableRawPointer {
+public func __swift_bridge__NativeSignerFFI_new (_ signer_id: UnsafeMutableRawPointer) -> UnsafeMutableRawPointer {
     Unmanaged.passRetained(NativeSignerFFI(signer_id: RustString(ptr: signer_id))).toOpaque()
 }
 
 @_cdecl("__swift_bridge__$NativeSignerFFI$sign")
-func __swift_bridge__NativeSignerFFI_sign (_ this: UnsafeMutableRawPointer, _ message: UnsafeMutableRawPointer) -> __swift_bridge__$FFIStringResult {
+public func __swift_bridge__NativeSignerFFI_sign (_ this: UnsafeMutableRawPointer, _ message: UnsafeMutableRawPointer) -> __swift_bridge__$FFIStringResult {
     Unmanaged<NativeSignerFFI>.fromOpaque(this).takeUnretainedValue().sign(message: RustString(ptr: message)).intoFfiRepr()
 }
 
 @_cdecl("__swift_bridge__$PrivateKeySignerFFI$new")
-func __swift_bridge__PrivateKeySignerFFI_new (_ signer_id: UnsafeMutableRawPointer) -> UnsafeMutableRawPointer {
+public func __swift_bridge__PrivateKeySignerFFI_new (_ signer_id: UnsafeMutableRawPointer) -> UnsafeMutableRawPointer {
     Unmanaged.passRetained(PrivateKeySignerFFI(signer_id: RustString(ptr: signer_id))).toOpaque()
 }
 
 @_cdecl("__swift_bridge__$PrivateKeySignerFFI$private_key")
-func __swift_bridge__PrivateKeySignerFFI_private_key (_ this: UnsafeMutableRawPointer) -> __swift_bridge__$FFIStringResult {
+public func __swift_bridge__PrivateKeySignerFFI_private_key (_ this: UnsafeMutableRawPointer) -> __swift_bridge__$FFIStringResult {
     Unmanaged<PrivateKeySignerFFI>.fromOpaque(this).takeUnretainedValue().private_key().intoFfiRepr()
 }
 
@@ -552,13 +552,13 @@ extension FFI7702AccountClient: Vectorizable {
 
 
 @_cdecl("__swift_bridge__$NativeSignerFFI$_free")
-func __swift_bridge__NativeSignerFFI__free (ptr: UnsafeMutableRawPointer) {
+public func __swift_bridge__NativeSignerFFI__free (ptr: UnsafeMutableRawPointer) {
     let _ = Unmanaged<NativeSignerFFI>.fromOpaque(ptr).takeRetainedValue()
 }
 
 
 @_cdecl("__swift_bridge__$PrivateKeySignerFFI$_free")
-func __swift_bridge__PrivateKeySignerFFI__free (ptr: UnsafeMutableRawPointer) {
+public func __swift_bridge__PrivateKeySignerFFI__free (ptr: UnsafeMutableRawPointer) {
     let _ = Unmanaged<PrivateKeySignerFFI>.fromOpaque(ptr).takeRetainedValue()
 }
 

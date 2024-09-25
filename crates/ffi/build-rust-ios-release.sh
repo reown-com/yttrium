@@ -37,6 +37,9 @@ function create_package {
         --ios ./../../target/aarch64-apple-ios/release/lib$PACKAGE_NAME.a \
         --simulator ./../../target/universal-ios/release/lib$PACKAGE_NAME.a \
         --name $SWIFT_PACKAGE_NAME
+
+    # Make generated methods public in the ffi.swift file
+    sed -i '' 's/^func __swift_bridge__/public func __swift_bridge__/g' YttriumCore/Sources/YttriumCore/ffi.swift
 }
 
 # Check if Package.swift file exists
