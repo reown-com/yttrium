@@ -1,18 +1,24 @@
-use alloy::primitives::{Address, Bytes, U256};
+use crate::{
+    smart_accounts::account_address::AccountAddress,
+    user_operation::{
+        hash::get_user_operation_hash_v07,
+        user_operation_hash::UserOperationHash,
+    },
+};
+use alloy::primitives::{address, Address, Bytes, U256};
 use serde::{Deserialize, Serialize};
 
 pub mod hash;
 pub mod user_operation_hash;
 
-use crate::user_operation::{
-    hash::get_user_operation_hash_v07, user_operation_hash::UserOperationHash,
-};
-
-pub fn as_checksum_addr<S>(val: &Address, s: S) -> Result<S::Ok, S::Error>
+pub fn as_checksum_addr<S>(
+    val: &AccountAddress,
+    s: S,
+) -> Result<S::Ok, S::Error>
 where
     S: serde::Serializer,
 {
-    let address_checksum: String = val.to_checksum(None);
+    let address_checksum: String = val.to_address().to_checksum(None);
     serde::Serialize::serialize(&address_checksum, s)
 }
 
@@ -51,7 +57,7 @@ pub struct Authorization {
 #[serde(rename_all = "camelCase")]
 pub struct UserOperationV07 {
     #[serde(serialize_with = "as_checksum_addr")]
-    pub sender: Address,
+    pub sender: AccountAddress,
     pub nonce: U256,
     pub factory: Option<Address>,
     pub factory_data: Option<Bytes>,
@@ -76,7 +82,7 @@ impl UserOperationV07 {
         &self,
         entry_point: &Address,
         chain_id: u64,
-    ) -> eyre::Result<UserOperationHash> {
+    ) -> UserOperationHash {
         get_user_operation_hash_v07(self, entry_point, chain_id)
     }
 }
@@ -85,9 +91,8 @@ impl UserOperationV07 {
     pub fn mock() -> Self {
         use std::str::FromStr;
 
-        let sender = "0xa3aBDC7f6334CD3EE466A115f30522377787c024"
-            .parse::<Address>()
-            .unwrap();
+        let sender =
+            address!("a3aBDC7f6334CD3EE466A115f30522377787c024").into();
         let nonce = U256::from(16);
         let factory: Option<Address> = None;
         let factory_data: Option<Bytes> = None;

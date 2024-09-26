@@ -1,7 +1,4 @@
-use {
-    // serde_json::Value,
-    std::process::{Command, Stdio},
-};
+use std::process::{Command, Stdio};
 
 fn main() {
     build_contracts();
@@ -9,44 +6,17 @@ fn main() {
 
 fn build_contracts() {
     install_foundry();
-    compile_contracts("crates/yttrium/safe-smart-account/contracts/proxies/SafeProxyFactory.sol", );
-    compile_contracts("crates/yttrium/safe-smart-account/contracts/Safe.sol");
     compile_contracts(
-        "crates/yttrium/safe-smart-account/contracts/libraries/MultiSend.sol",
+        "safe-smart-account/contracts/proxies/SafeProxyFactory.sol",
     );
+    compile_contracts("safe-smart-account/contracts/Safe.sol");
+    compile_contracts("safe-smart-account/contracts/libraries/MultiSend.sol");
     compile_contracts(
         "safe-modules/modules/4337/contracts/SafeModuleSetup.sol",
     );
 
     {
-        println!("cargo::rerun-if-changed=safe7579");
-        let output = Command::new("pnpm")
-            .current_dir("safe7579")
-            .args(["install"])
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()
-            .unwrap()
-            .wait_with_output()
-            .unwrap();
-        println!("`pnpm install` status: {:?}", output.status);
-        let stdout = String::from_utf8(output.stdout).unwrap();
-        println!("`pnpm install` stdout: {stdout:?}");
-        let stderr = String::from_utf8(output.stderr).unwrap();
-        println!("`pnpm install` stderr: {stderr:?}");
-        assert!(output.status.success());
-    }
-    compile_contracts_with_args(
-        "safe7579/src/Safe7579Launchpad.sol",
-        &["--config-path=safe7579/foundry.toml".to_owned()],
-    );
-    compile_contracts_with_args(
-        "safe7579/src/Safe7579.sol",
-        &["--config-path=safe7579/foundry.toml".to_owned()],
-    );
-
-    {
-        println!("cargo::rerun-if-changed=src/contracts");
+        println!("cargo::rerun-if-changed=src/contracts/yarn.lock");
         let output = Command::new("yarn")
             .current_dir("src/contracts")
             .args(["install"])

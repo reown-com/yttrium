@@ -1,6 +1,10 @@
+use crate::smart_accounts::account_address::AccountAddress;
+use crate::transaction::Transaction;
 use alloy::{
     dyn_abi::DynSolValue,
-    primitives::{address, keccak256, Address, Bytes, Uint, U256},
+    primitives::{
+        address, bytes, keccak256, Address, Bytes, FixedBytes, Uint, U256,
+    },
     providers::ReqwestProvider,
     sol,
     sol_types::{SolCall, SolValue},
@@ -21,32 +25,53 @@ sol!(
     ".foundry/forge/out/Safe.sol/Safe.json"
 );
 
-sol!(
-    #[allow(clippy::too_many_arguments)]
-    #[allow(missing_docs)]
-    #[sol(rpc)]
-    Safe7579Launchpad,
-    ".foundry/forge/out/Safe7579Launchpad.sol/Safe7579Launchpad.json"
-);
+sol! {
+    contract Safe7579Launchpad {
+        struct ModuleInit {
+            address module;
+            bytes initData;
+        }
 
-sol!(
-    #[allow(missing_docs)]
-    #[sol(rpc)]
-    Safe7579,
-    ".foundry/forge/out/Safe7579.sol/Safe7579.json"
-);
+        struct InitData {
+            address singleton;
+            address[] owners;
+            uint256 threshold;
+            address setupTo;
+            bytes setupData;
+            address safe7579;
+            ModuleInit[] validators;
+            bytes callData;
+        }
 
-// Had to copy from safe7579/artifacts/interfaces/IERC7579Account.json
-// This struct doesn't seem to be in generated ABIs
-sol!(
-    #[allow(missing_docs)]
-    #[sol(rpc, abi)]
-    struct Execution {
-        address target;
-        uint256 value;
-        bytes callData;
+        function initSafe7579(
+            address safe7579,
+            ModuleInit[] calldata executors,
+            ModuleInit[] calldata fallbacks,
+            ModuleInit[] calldata hooks,
+            address[] calldata attesters,
+            uint8 threshold
+        );
+
+        function setupSafe(InitData calldata initData);
+
+        function preValidationSetup(
+            bytes32 initHash,
+            address to,
+            bytes calldata preInit
+        );
     }
-);
+}
+
+sol! {
+    contract Safe7579 {
+        type ModeCode is bytes32;
+
+        function execute(
+            ModeCode mode,
+            bytes calldata executionCalldata
+        );
+    }
+}
 
 // https://github.com/WalletConnect/secure-web3modal/blob/f1d16f973a313e598d124a0e4751aee12d5de628/src/core/SmartAccountSdk/utils.ts#L180
 pub const SAFE_ERC_7579_LAUNCHPAD_ADDRESS: Address =
@@ -93,7 +118,7 @@ sol!(
     ".foundry/forge/out/MultiSend.sol/MultiSend.json"
 );
 
-pub const DUMMY_SIGNATURE_HEX: &str = "0x000000000000000000000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
+pub const DUMMY_SIGNATURE: Bytes = bytes!("000000000000000000000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
 
 // https://github.com/WalletConnect/secure-web3modal/blob/c19a1e7b21c6188261728f4d521a17f94da4f055/src/core/SmartAccountSdk/constants.ts#L10
 // const APPKIT_SALT: U256 = U256::from_str("zg3ijy0p46");
@@ -161,7 +186,7 @@ pub fn factory_data(
 pub async fn get_account_address(
     provider: ReqwestProvider,
     owners: Owners,
-) -> Address {
+) -> AccountAddress {
     let creation_code =
         SafeProxyFactory::new(SAFE_PROXY_FACTORY_ADDRESS, provider.clone())
             .proxyCreationCode()
@@ -188,5 +213,148 @@ pub async fn get_account_address(
         ])
         .abi_encode_packed(),
     );
-    SAFE_PROXY_FACTORY_ADDRESS.create2(salt, keccak256(deployment_code))
+    SAFE_PROXY_FACTORY_ADDRESS.create2(salt, keccak256(deployment_code)).into()
+}
+
+pub fn get_call_data(execution_calldata: Vec<Transaction>) -> Bytes {
+    let batch = execution_calldata.len() != 1;
+    let revert_on_error = false;
+    let selector = [0u8; 4];
+    let context = [0u8; 22];
+
+    let mode = DynSolValue::Tuple(vec![
+        DynSolValue::Uint(Uint::from(if batch { 0x01 } else { 0x00 }), 8), // DelegateCall is 0xFF
+        DynSolValue::Uint(Uint::from(revert_on_error as u8), 8),
+        DynSolValue::Bytes(vec![0u8; 4]),
+        DynSolValue::Bytes(selector.to_vec()),
+        DynSolValue::Bytes(context.to_vec()),
+    ])
+    .abi_encode_packed();
+
+    let execution_calldata = encode_calls(execution_calldata);
+
+    Safe7579::executeCall {
+        mode: FixedBytes::from_slice(&mode),
+        executionCalldata: execution_calldata,
+    }
+    .abi_encode()
+    .into()
+}
+
+sol! {
+    function executionBatch((address, uint256, bytes)[]);
+}
+
+fn encode_calls(calls: Vec<Transaction>) -> Bytes {
+    fn call(call: Transaction) -> (Address, U256, Bytes) {
+        (call.to, call.value, call.data)
+    }
+
+    let tuples = calls.into_iter().map(call).collect::<Vec<_>>();
+    if tuples.len() == 1 {
+        tuples.abi_encode_packed()
+    } else {
+        let call = executionBatchCall { _0: tuples };
+
+        // encode without selector
+        let mut out = Vec::with_capacity(call.abi_encoded_size());
+        call.abi_encode_raw(&mut out);
+        out
+    }
+    .into()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn empty_execution_call_data() {
+        assert_eq!(encode_calls(vec![]), bytes!("00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000000"));
+    }
+
+    #[test]
+    fn single_execution_call_data_value() {
+        assert_eq!(
+            encode_calls(vec![Transaction {
+                to: address!("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
+                value: U256::from(19191919),
+                data: bytes!(""),
+            }]),
+            bytes!("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa000000000000000000000000000000000000000000000000000000000124d86f")
+        );
+    }
+
+    #[test]
+    fn single_execution_call_data_data() {
+        assert_eq!(
+            encode_calls(vec![Transaction {
+                to: address!("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
+                value: U256::ZERO,
+                data: bytes!("7777777777777777"),
+            }]),
+            bytes!("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa00000000000000000000000000000000000000000000000000000000000000007777777777777777")
+        );
+    }
+
+    #[test]
+    fn two_execution_call_data() {
+        assert_eq!(
+            encode_calls(vec![Transaction {
+                to: address!("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
+                value: U256::from(19191919),
+                data: bytes!(""),
+            }, Transaction {
+                to: address!("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
+                value: U256::ZERO,
+                data: bytes!("7777777777777777"),
+            }]),
+            bytes!("00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000c0000000000000000000000000aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa000000000000000000000000000000000000000000000000000000000124d86f00000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000000000000000000000000000000aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000087777777777777777000000000000000000000000000000000000000000000000")
+        );
+    }
+
+    #[test]
+    fn empty_call_data() {
+        assert_eq!(get_call_data(vec![]), bytes!("e9ae5c5301000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000000"));
+    }
+
+    #[test]
+    fn single_call_data_value() {
+        assert_eq!(
+            get_call_data(vec![Transaction {
+                to: address!("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
+                value: U256::from(19191919),
+                data: bytes!(""),
+            }]),
+            bytes!("e9ae5c53000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000034aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa000000000000000000000000000000000000000000000000000000000124d86f000000000000000000000000")
+        );
+    }
+
+    #[test]
+    fn single_call_data_data() {
+        assert_eq!(
+            get_call_data(vec![Transaction {
+                to: address!("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
+                value: U256::ZERO,
+                data: bytes!("7777777777777777"),
+            }]),
+            bytes!("e9ae5c5300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000003caaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa0000000000000000000000000000000000000000000000000000000000000000777777777777777700000000")
+        );
+    }
+
+    #[test]
+    fn two_call_data() {
+        assert_eq!(
+            get_call_data(vec![Transaction {
+                to: address!("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
+                value: U256::from(19191919),
+                data: bytes!(""),
+            }, Transaction {
+                to: address!("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
+                value: U256::ZERO,
+                data: bytes!("7777777777777777"),
+            }]),
+            bytes!("e9ae5c530100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000001a000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000c0000000000000000000000000aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa000000000000000000000000000000000000000000000000000000000124d86f00000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000000000000000000000000000000aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000087777777777777777000000000000000000000000000000000000000000000000")
+        );
+    }
 }

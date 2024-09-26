@@ -35,25 +35,6 @@ sol!(
 pub const DUMMY_SIGNATURE_HEX: &str = "0xfffffffffffffffffffffffffffffff0000000000000000000000000000000007aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1c";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct SimpleAccountAddress(alloy::primitives::Address);
-
-impl SimpleAccountAddress {
-    pub fn new(address: alloy::primitives::Address) -> Self {
-        Self(address)
-    }
-
-    pub fn to_address(&self) -> alloy::primitives::Address {
-        self.0
-    }
-}
-
-impl From<SimpleAccountAddress> for alloy::primitives::Address {
-    fn from(val: SimpleAccountAddress) -> Self {
-        val.0
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct OwnerAddress(alloy::primitives::Address);
 
 impl OwnerAddress {

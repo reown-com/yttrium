@@ -9,33 +9,31 @@ use crate::{
     },
     config::Config,
     smart_accounts::{
+        account_address::AccountAddress,
         nonce::get_nonce,
         safe::{
-            factory_data, get_account_address, Execution, Owners, Safe7579,
-            Safe7579Launchpad, SAFE_4337_MODULE_ADDRESS,
+            factory_data, get_account_address, get_call_data, Owners,
+            Safe7579Launchpad, DUMMY_SIGNATURE, SAFE_4337_MODULE_ADDRESS,
             SAFE_ERC_7579_LAUNCHPAD_ADDRESS, SAFE_PROXY_FACTORY_ADDRESS,
             SEPOLIA_SAFE_ERC_7579_SINGLETON_ADDRESS,
         },
-        simple_account::{factory::FactoryAddress, SimpleAccountAddress},
+        simple_account::factory::FactoryAddress,
     },
+    transaction::Transaction,
     user_operation::{Authorization, UserOperationV07},
 };
 use alloy::{
-    dyn_abi::{
-        DynSolCall, DynSolReturns, DynSolType, DynSolValue, Eip712Domain,
-    },
+    dyn_abi::{DynSolValue, Eip712Domain},
     network::Ethereum,
-    primitives::{
-        aliases::U48, keccak256, Address, Bytes, FixedBytes, Uint, U128, U256,
-    },
+    primitives::{aliases::U48, Address, Bytes, Uint, U128, U256},
     providers::{Provider, ReqwestProvider},
     signers::{k256::ecdsa::SigningKey, local::LocalSigner, SignerSync},
     sol,
-    sol_types::{SolCall, SolValue},
+    sol_types::SolCall,
 };
 use core::fmt;
 use serde_json::json;
-use std::{ops::Not, str::FromStr};
+use std::ops::Not;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct UserOperationEstimated(UserOperationV07);
@@ -73,7 +71,7 @@ impl fmt::Display for SentUserOperationHash {
 pub async fn get_address(
     owner: LocalSigner<SigningKey>,
     config: Config,
-) -> eyre::Result<Address> {
+) -> eyre::Result<AccountAddress> {
     let rpc_url = config.endpoints.rpc.base_url;
     let rpc_url: reqwest::Url = rpc_url.parse()?;
     let provider = ReqwestProvider::<Ethereum>::new_http(rpc_url);
@@ -84,9 +82,9 @@ pub async fn get_address(
 }
 
 pub async fn send_transaction(
-    execution_calldata: Vec<Execution>,
+    execution_calldata: Vec<Transaction>,
     owner: LocalSigner<SigningKey>,
-    address: Option<Address>,
+    address: Option<AccountAddress>,
     authorization_list: Option<Vec<Authorization>>,
     config: Config,
 ) -> eyre::Result<String> {
@@ -124,65 +122,10 @@ pub async fn send_transaction(
     let account_address =
         if let Some(address) = address { address } else { contract_address };
 
-    let call_data = {
-        let batch = execution_calldata.len() != 1;
-        let revert_on_error = false;
-        let selector = [0u8; 4];
-        let context = [0u8; 22];
+    let call_data = get_call_data(execution_calldata);
 
-        let mode =
-            DynSolValue::Tuple(vec![
-                DynSolValue::Uint(
-                    Uint::from(if batch { 0x01 } else { 0x00 }),
-                    8,
-                ), // DelegateCall is 0xFF
-                DynSolValue::Uint(Uint::from(revert_on_error as u8), 8),
-                DynSolValue::Bytes(vec![0u8; 4]),
-                DynSolValue::Bytes(selector.to_vec()),
-                DynSolValue::Bytes(context.to_vec()),
-            ])
-            .abi_encode_packed();
-
-        let execution_calldata = if batch {
-            DynSolCall::new(
-                FixedBytes::from_slice(
-                    &keccak256("executionBatch(tuple[])")[..4],
-                ),
-                vec![DynSolType::Array(Box::new(DynSolType::Tuple(vec![
-                    DynSolType::Address,
-                    DynSolType::Uint(32),
-                    DynSolType::Bytes,
-                ])))],
-                None,
-                DynSolReturns::new(vec![]),
-            )
-            .abi_encode_input(&[DynSolValue::Array(
-                execution_calldata
-                    .iter()
-                    .map(|execution| {
-                        DynSolValue::Tuple(vec![
-                            DynSolValue::Address(execution.target),
-                            DynSolValue::Uint(Uint::from(execution.value), 32),
-                            DynSolValue::Bytes(execution.callData.to_vec()),
-                        ])
-                    })
-                    .collect(),
-            )])?[4..]
-                .to_vec()
-        } else {
-            execution_calldata.abi_encode_packed()
-        }
-        .into();
-
-        Safe7579::executeCall {
-            mode: FixedBytes::from_slice(&mode),
-            executionCalldata: execution_calldata,
-        }
-        .abi_encode()
-        .into()
-    };
-
-    let deployed = provider.get_code_at(account_address).await?.len() > 0;
+    let deployed =
+        provider.get_code_at(account_address.into()).await?.len() > 0;
     println!("Deployed: {}", deployed);
     // permissionless: signerToSafeSmartAccount -> encodeCallData
     let call_data = if deployed {
@@ -217,22 +160,18 @@ pub async fn send_transaction(
 
     assert!(gas_price.fast.max_fee_per_gas > U256::from(1));
 
-    let nonce = get_nonce(
-        &provider,
-        &SimpleAccountAddress::new(account_address),
-        &entry_point_address,
-    )
-    .await?;
+    let nonce =
+        get_nonce(&provider, account_address, &entry_point_address).await?;
 
     let user_op = UserOperationV07 {
         sender: account_address,
-        nonce: U256::from(nonce),
+        nonce,
         factory: deployed.not().then(|| safe_factory_address.to_address()),
         factory_data: deployed.not().then(|| factory_data_value.into()),
         call_data,
-        call_gas_limit: U256::from(0),
-        verification_gas_limit: U256::from(0),
-        pre_verification_gas: U256::from(0),
+        call_gas_limit: U256::ZERO,
+        verification_gas_limit: U256::ZERO,
+        pre_verification_gas: U256::ZERO,
         max_fee_per_gas: gas_price.fast.max_fee_per_gas,
         max_priority_fee_per_gas: gas_price.fast.max_priority_fee_per_gas,
         paymaster: None,
@@ -240,11 +179,7 @@ pub async fn send_transaction(
         paymaster_post_op_gas_limit: None,
         paymaster_data: None,
         // authorization_list: None,
-        signature: Bytes::from_str(
-            crate::smart_accounts::safe::DUMMY_SIGNATURE_HEX
-                .strip_prefix("0x")
-                .unwrap(),
-        )?,
+        signature: DUMMY_SIGNATURE,
     };
 
     if let Some(authorization_list) = authorization_list {
@@ -322,7 +257,7 @@ pub async fn send_transaction(
     }
 
     let message = SafeOp {
-        safe: account_address,
+        safe: account_address.into(),
         callData: sponsored_user_op.call_data.clone(),
         nonce: sponsored_user_op.nonce,
         initCode: deployed
@@ -387,7 +322,7 @@ pub async fn send_transaction(
 
     let erc7579_launchpad_address = true;
     let verifying_contract = if erc7579_launchpad_address && !deployed {
-        sponsored_user_op.sender
+        sponsored_user_op.sender.into()
     } else {
         SAFE_4337_MODULE_ADDRESS
     };
@@ -460,7 +395,7 @@ pub async fn send_transaction(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::chain::ChainId;
+    use crate::{chain::ChainId, transaction::Transaction};
     use alloy::{
         consensus::{SignableTransaction, TxEip7702},
         network::{EthereumWallet, TransactionBuilder, TxSignerSync},
@@ -474,7 +409,7 @@ mod tests {
         faucet: LocalSigner<SigningKey>,
         amount: U256,
         to: Address,
-    ) -> eyre::Result<()> {
+    ) {
         // Basic check (which we can tune) to make sure we don't use excessive
         // amounts (e.g. 0.1) of test ETH. It is not infinite, so we should use
         // the minimum amount necessary.
@@ -487,13 +422,13 @@ mod tests {
             .send_transaction(
                 TransactionRequest::default().with_to(to).with_value(amount),
             )
-            .await?
+            .await
+            .unwrap()
             .watch()
-            .await?;
-        let balance = provider.get_balance(to).await?;
+            .await
+            .unwrap();
+        let balance = provider.get_balance(to).await.unwrap();
         assert_eq!(balance, amount);
-
-        Ok(())
     }
 
     async fn test_send_transaction(
@@ -519,14 +454,14 @@ mod tests {
             provider.clone(),
             faucet.clone(),
             U256::from(2),
-            sender_address,
+            sender_address.into(),
         )
-        .await?;
+        .await;
 
-        let transaction = vec![Execution {
-            target: destination.address(),
+        let transaction = vec![Transaction {
+            to: destination.address(),
             value: Uint::from(1),
-            callData: Bytes::new(),
+            data: Bytes::new(),
         }];
 
         let transaction_hash = send_transaction(
@@ -543,10 +478,10 @@ mod tests {
         let balance = provider.get_balance(destination.address()).await?;
         assert_eq!(balance, Uint::from(1));
 
-        let transaction = vec![Execution {
-            target: destination.address(),
+        let transaction = vec![Transaction {
+            to: destination.address(),
             value: Uint::from(1),
-            callData: Bytes::new(),
+            data: Bytes::new(),
         }];
 
         let transaction_hash =
@@ -611,15 +546,19 @@ mod tests {
             Owners { owners: vec![owner.address()], threshold: 1 },
         )
         .await;
-        assert!(provider.get_code_at(sender_address).await.unwrap().is_empty());
+        assert!(provider
+            .get_code_at(sender_address.into())
+            .await
+            .unwrap()
+            .is_empty());
 
         use_faucet(
             provider.clone(),
             faucet.clone(),
             U256::from(3),
-            sender_address,
+            sender_address.into(),
         )
-        .await?;
+        .await;
 
         let transaction = vec![];
 
@@ -635,7 +574,7 @@ mod tests {
         println!("Transaction sent: {}", transaction_hash);
 
         assert!(!provider
-            .get_code_at(sender_address)
+            .get_code_at(sender_address.into())
             .await
             .unwrap()
             .is_empty());
@@ -666,20 +605,20 @@ mod tests {
             provider.clone(),
             faucet.clone(),
             U256::from(3),
-            sender_address,
+            sender_address.into(),
         )
-        .await?;
+        .await;
 
         let transaction = vec![
-            Execution {
-                target: destination1.address(),
+            Transaction {
+                to: destination1.address(),
                 value: Uint::from(1),
-                callData: Bytes::new(),
+                data: Bytes::new(),
             },
-            Execution {
-                target: destination2.address(),
+            Transaction {
+                to: destination2.address(),
                 value: Uint::from(2),
-                callData: Bytes::new(),
+                data: Bytes::new(),
             },
         ];
 
@@ -734,7 +673,7 @@ mod tests {
         let chain_id = ChainId::ETHEREUM_SEPOLIA.eip155_chain_id();
         let auth_7702 = alloy::rpc::types::Authorization {
             chain_id: U256::from(chain_id),
-            address: contract_address,
+            address: contract_address.into(),
             nonce: provider.get_transaction_count(authority.address()).await?,
         };
 
@@ -763,7 +702,7 @@ mod tests {
         let transaction_hash = send_transaction(
             transaction,
             owner.clone(),
-            Some(authority.address()),
+            Some(authority.address().into()),
             Some(authorization_list.clone()),
             // None,
             config.clone(),
@@ -774,23 +713,23 @@ mod tests {
         println!("contract address: {}", contract_address);
         println!(
             "contract code: {}",
-            provider.get_code_at(contract_address).await?
+            provider.get_code_at(contract_address.into()).await?
         );
         println!(
             "authority code: {}",
             provider.get_code_at(authority.address()).await?
         );
 
-        let transaction = vec![Execution {
-            target: destination.address(),
+        let transaction = vec![Transaction {
+            to: destination.address(),
             value: Uint::from(1),
-            callData: Bytes::new(),
+            data: Bytes::new(),
         }];
 
         let transaction_hash = send_transaction(
             transaction,
             owner,
-            Some(authority.address()),
+            Some(authority.address().into()),
             // None,
             // Some(authorization_list.clone()),
             None,
@@ -867,7 +806,7 @@ mod tests {
         let chain_id = ChainId::ETHEREUM_SEPOLIA.eip155_chain_id();
         let auth_7702 = alloy::rpc::types::Authorization {
             chain_id: U256::from(chain_id),
-            address: contract_address,
+            address: contract_address.into(),
             nonce: provider.get_transaction_count(authority.address()).await?,
         };
 
@@ -920,23 +859,23 @@ mod tests {
         println!("contract address: {}", contract_address);
         println!(
             "contract code: {}",
-            provider.get_code_at(contract_address).await?
+            provider.get_code_at(contract_address.into()).await?
         );
         println!(
             "authority code: {}",
             provider.get_code_at(authority.address()).await?
         );
 
-        let transaction = vec![Execution {
-            target: destination.address(),
+        let transaction: Vec<_> = vec![Transaction {
+            to: destination.address(),
             value: Uint::from(1),
-            callData: Bytes::new(),
+            data: Bytes::new(),
         }];
 
         let transaction_hash = send_transaction(
             transaction,
             owner,
-            Some(authority.address()),
+            Some(authority.address().into()),
             None,
             config,
         )

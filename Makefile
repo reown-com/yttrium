@@ -35,7 +35,6 @@ fetch-thirdparty:
 setup-thirdparty:
 	cd crates/yttrium/src/contracts/ && yarn install --frozen-lockfile --immutable && yarn compile
 	cd crates/yttrium/safe-smart-account/ && npm install
-	cd crates/yttrium/safe-modules/ && pnpm install
 
 build-ios-bindings:
 	sh crates/ffi/build-rust-ios.sh

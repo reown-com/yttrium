@@ -269,7 +269,7 @@ mod tests {
         let bundler_client = setup_gas_estimation_bundler_mock().await?;
 
         let user_op = {
-            let sender: Address = sender;
+            let sender = sender.into();
             let nonce: U256 = U256::from(0);
             let factory: Address = Address::ZERO;
             let factory_data: Bytes = Bytes::new();

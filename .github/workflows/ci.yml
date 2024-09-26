@@ -17,9 +17,6 @@ jobs:
       - uses: actions/checkout@v4
       - name: Run sccache-cache
         uses: mozilla-actions/sccache-action@v0.0.4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 9
       - run: rustup update stable && rustup default stable
       - run: rustup toolchain install nightly -c rustfmt
       - run: git submodule update --init --recursive
@@ -41,9 +38,6 @@ jobs:
       - uses: actions/checkout@v4
       - name: Run sccache-cache
         uses: mozilla-actions/sccache-action@v0.0.4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 9
       - run: rustup update stable && rustup default stable
       - run: rustup toolchain install nightly -c rustfmt
       - run: git submodule update --init --recursive
@@ -58,9 +52,6 @@ jobs:
   #     - uses: actions/checkout@v4
   #     - name: Run sccache-cache
   #       uses: mozilla-actions/sccache-action@v0.0.4
-  #     - uses: pnpm/action-setup@v4
-  #       with:
-  #         version: 9
   #     - run: rustup update stable && rustup default stable
   #     - run: rustup target add wasm32-unknown-unknown
   #     - run: git submodule update --init --recursive
@@ -78,9 +69,6 @@ jobs:
       - uses: actions/checkout@v4
       - name: Run sccache-cache
         uses: mozilla-actions/sccache-action@v0.0.4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 9
       - run: rustup update stable && rustup default stable
       - run: git submodule update --init --recursive
       - run: make setup-thirdparty

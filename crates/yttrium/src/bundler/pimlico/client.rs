@@ -21,14 +21,13 @@ impl BundlerClient {
 
         use serde_json;
 
-        use crate::jsonrpc::{
-            JSONRPCResponse, RequestWithEmptyParams, Response,
-        };
+        use crate::jsonrpc::{JSONRPCResponse, Request, Response};
 
-        let req_body = RequestWithEmptyParams {
+        let req_body = Request {
             jsonrpc: "2.0".into(),
             id: 1,
             method: "pimlico_getUserOperationGasPrice".into(),
+            params: [] as [(); 0],
         };
         println!("req_body: {:?}", serde_json::to_string(&req_body)?);
 
@@ -74,6 +73,7 @@ mod tests {
             "id": 1,
             "jsonrpc": "2.0",
             "method": "pimlico_getUserOperationGasPrice",
+            "params": [],
         });
 
         let response_gas_price = GasPrice {
