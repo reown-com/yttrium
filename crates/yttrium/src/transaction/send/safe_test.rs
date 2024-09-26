@@ -409,7 +409,7 @@ mod tests {
         faucet: LocalSigner<SigningKey>,
         amount: U256,
         to: Address,
-    ) -> eyre::Result<()> {
+    ) {
         // Basic check (which we can tune) to make sure we don't use excessive
         // amounts (e.g. 0.1) of test ETH. It is not infinite, so we should use
         // the minimum amount necessary.
@@ -422,13 +422,13 @@ mod tests {
             .send_transaction(
                 TransactionRequest::default().with_to(to).with_value(amount),
             )
-            .await?
+            .await
+            .unwrap()
             .watch()
-            .await?;
-        let balance = provider.get_balance(to).await?;
+            .await
+            .unwrap();
+        let balance = provider.get_balance(to).await.unwrap();
         assert_eq!(balance, amount);
-
-        Ok(())
     }
 
     async fn test_send_transaction(
@@ -456,7 +456,7 @@ mod tests {
             U256::from(2),
             sender_address.into(),
         )
-        .await?;
+        .await;
 
         let transaction = vec![Transaction {
             to: destination.address(),
@@ -558,7 +558,7 @@ mod tests {
             U256::from(3),
             sender_address.into(),
         )
-        .await?;
+        .await;
 
         let transaction = vec![];
 
@@ -607,7 +607,7 @@ mod tests {
             U256::from(3),
             sender_address.into(),
         )
-        .await?;
+        .await;
 
         let transaction = vec![
             Transaction {

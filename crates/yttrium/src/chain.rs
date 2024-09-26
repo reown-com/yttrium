@@ -9,6 +9,8 @@ impl ChainId {
 
     pub const ETHEREUM_SEPOLIA: Self = Self::new_eip155(11155111);
 
+    pub const BASE_SEPOLIA: Self = Self::new_eip155(84532);
+
     pub const LOCAL_FOUNDRY_ETHEREUM_SEPOLIA: Self = Self::new_eip155(31337);
 
     pub const fn new_eip155(id: u64) -> Self {
@@ -99,6 +101,12 @@ impl Chain {
         id: ChainId::ETHEREUM_SEPOLIA,
         entry_point_version: EntryPointVersion::V07,
         name: "Ethereum Sepolia",
+    };
+
+    pub const BASE_SEPOLIA_V07: Self = Self {
+        id: ChainId::BASE_SEPOLIA,
+        entry_point_version: EntryPointVersion::V07,
+        name: "Base Sepolia",
     };
 
     pub const ETHEREUM_SEPOLIA_V06: Self = Self {
