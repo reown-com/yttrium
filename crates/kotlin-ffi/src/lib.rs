@@ -43,7 +43,7 @@ impl AccountClient {
                 YAccountClient::new_with_private_key_service(
                     config.owner_address.clone(),
                     config.chain_id,
-                    config.config.into(),
+                    config.config,
                     service,
                     config.safe,
                 )
