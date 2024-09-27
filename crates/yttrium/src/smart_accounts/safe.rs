@@ -10,20 +10,13 @@ use alloy::{
     sol_types::{SolCall, SolValue},
 };
 
-sol!(
-    #[allow(missing_docs)]
+sol! {
     #[sol(rpc)]
-    SafeProxyFactory,
-    ".foundry/forge/out/SafeProxyFactory.sol/SafeProxyFactory.json"
-);
-
-sol!(
-    #[allow(clippy::too_many_arguments)]
-    #[allow(missing_docs)]
-    #[sol(rpc, abi)]
-    Safe,
-    ".foundry/forge/out/Safe.sol/Safe.json"
-);
+    contract SafeProxyFactory {
+        function proxyCreationCode() returns (bytes memory);
+        function createProxyWithNonce(address _singleton, bytes memory initializer, uint256 saltNonce) returns (address proxy);
+    }
+}
 
 sol! {
     contract Safe7579Launchpad {
@@ -103,20 +96,6 @@ const _SAFE_MODULE_SETUP_ADDRESS: Address =
 
 pub const SAFE_PROXY_FACTORY_ADDRESS: Address =
     address!("4e1DCf7AD4e460CfD30791CCC4F9c8a4f820ec67");
-
-sol!(
-    #[allow(missing_docs)]
-    #[sol(rpc)]
-    SafeModuleSetup,
-    ".foundry/forge/out/SafeModuleSetup.sol/SafeModuleSetup.json"
-);
-
-sol!(
-    #[allow(missing_docs)]
-    #[sol(rpc)]
-    MultiSend,
-    ".foundry/forge/out/MultiSend.sol/MultiSend.json"
-);
 
 pub const DUMMY_SIGNATURE: Bytes = bytes!("000000000000000000000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
 

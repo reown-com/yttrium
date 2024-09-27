@@ -25,12 +25,10 @@ impl SimpleAccountExecute {
     }
 }
 
-sol!(
-    #[allow(missing_docs)]
+sol! {
     #[sol(rpc)]
-    SimpleAccount,
-    ".foundry/forge/out/SimpleAccount.sol/SimpleAccount.json"
-);
+    contract SimpleAccount {}
+}
 
 pub const DUMMY_SIGNATURE_HEX: &str = "0xfffffffffffffffffffffffffffffff0000000000000000000000000000000007aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1c";
 
