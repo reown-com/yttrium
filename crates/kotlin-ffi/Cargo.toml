@@ -8,10 +8,27 @@ name = "uniffi_yttrium"
 crate-type = ["cdylib"]
 
 [build-dependencies]
-uniffi_build = "0.28.0" 
+uniffi_build = "0.28.1" 
 
 [dependencies]
 yttrium = { path = "../yttrium" }
-uniffi = "0.28.0"
+uniffi = "0.28.1"
 openssl = { version = "0.10", features = ["vendored"] }
 openssl-sys = { version = "0.9.103", features = ["vendored"] }
+
+# Errors
+eyre.workspace = true
+
+# Async
+tokio.workspace = true
+
+# Serialization
+serde.workspace = true
+serde_json.workspace = true
+
+# Networking
+reqwest.workspace = true
+
+# Logging
+log.workspace = true
+thiserror.workspace = true
