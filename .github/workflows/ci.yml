@@ -15,11 +15,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
       - name: Run sccache-cache
         uses: mozilla-actions/sccache-action@v0.0.4
       - run: rustup update stable && rustup default stable
       - run: rustup toolchain install nightly -c rustfmt
-      - run: git submodule update --init --recursive
       - run: docker compose up -d
         working-directory: test/scripts/forked_state
       - run: while ! curl localhost:8545/health; do sleep 1; done
@@ -35,6 +36,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
       - name: Run sccache-cache
         uses: mozilla-actions/sccache-action@v0.0.4
       - run: rustup update stable && rustup default stable
@@ -48,6 +51,8 @@ jobs:
   #   runs-on: ubuntu-latest
   #   steps:
   #     - uses: actions/checkout@v4
+  #       with:
+  #         submodules: recursive
   #     - name: Run sccache-cache
   #       uses: mozilla-actions/sccache-action@v0.0.4
   #     - run: rustup update stable && rustup default stable
@@ -63,6 +68,8 @@ jobs:
           - debug
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
       - name: Run sccache-cache
         uses: mozilla-actions/sccache-action@v0.0.4
       - run: rustup update stable && rustup default stable
