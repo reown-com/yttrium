@@ -4,7 +4,7 @@ PLATFORM_IOS = iOS Simulator,id=$(call udid_for,iOS 17.5,iPhone \d\+ Pro [^M])
 build:
 	cargo build --release
 
-setup: fetch-thirdparty setup-thirdparty build-debug-mode build-ios-bindings build-swift-apple-platforms
+setup: build-debug-mode build-ios-bindings build-swift-apple-platforms
 
 build-swift-apple-platforms:
 	for platform in "iOS"; do \
@@ -28,13 +28,6 @@ test-swift-apple-platforms:
 
 build-debug-mode:
 	cargo build
-
-fetch-thirdparty:
-	git submodule update --init
-
-setup-thirdparty:
-	cd crates/yttrium/src/contracts/ && yarn install --frozen-lockfile --immutable && yarn compile
-	cd crates/yttrium/safe-smart-account/ && npm install
 
 build-ios-bindings:
 	sh crates/ffi/build-rust-ios.sh
