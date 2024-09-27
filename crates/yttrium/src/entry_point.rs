@@ -57,12 +57,13 @@ sol! (
     }
 );
 
-sol!(
-    #[allow(missing_docs)]
+sol! {
     #[sol(rpc)]
-    EntryPoint,
-    ".foundry/forge/out/EntryPoint.sol/EntryPoint.json"
-);
+    contract EntryPoint {
+        function getSenderAddress(bytes calldata initCode);
+        function getNonce(address sender, uint192 key) returns (uint256 nonce);
+    }
+}
 
 pub mod get_sender_address;
 

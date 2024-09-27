@@ -108,9 +108,7 @@ pub fn factory_address_from_chain_id_and_version(
     }
 }
 
-sol!(
-    #[allow(missing_docs)]
+sol! {
     #[sol(rpc)]
-    SimpleAccountFactory,
-    ".foundry/forge/out/SimpleAccountFactory.sol/SimpleAccountFactory.json"
-);
+    contract SimpleAccountFactory {}
+}
