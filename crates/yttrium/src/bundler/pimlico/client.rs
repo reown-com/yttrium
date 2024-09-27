@@ -1,6 +1,8 @@
 use super::gas_price::GasPrice;
-use crate::bundler::config::BundlerConfig;
-use eyre::Ok;
+use crate::{
+    bundler::config::BundlerConfig,
+    jsonrpc::{JSONRPCResponse, Request, Response},
+};
 
 pub struct BundlerClient {
     client: reqwest::Client,
@@ -15,41 +17,25 @@ impl BundlerClient {
     pub async fn estimate_user_operation_gas_price(
         &self,
     ) -> eyre::Result<GasPrice> {
-        println!("estimate_user_operation_gas_price");
-
-        let bundler_url = self.config.url().clone();
-
-        use serde_json;
-
-        use crate::jsonrpc::{JSONRPCResponse, Request, Response};
-
         let req_body = Request {
-            jsonrpc: "2.0".into(),
+            jsonrpc: "2.0".into(), // TODO use Arc<str>
             id: 1,
-            method: "pimlico_getUserOperationGasPrice".into(),
+            method: "pimlico_getUserOperationGasPrice".into(), /* TODO use Arc<str> */
             params: [] as [(); 0],
         };
-        println!("req_body: {:?}", serde_json::to_string(&req_body)?);
 
-        let post = self
+        let response: Response<GasPrice> = self
             .client
-            .post(bundler_url.as_str())
+            .post(self.config.url())
             .json(&req_body)
             .send()
-            .await?;
-        println!("pimlico_getUserOperationGasPrice post: {:?}", post);
-        let res = post.text().await?;
-        println!("pimlico_getUserOperationGasPrice res: {:?}", res);
-        let v = serde_json::from_str::<JSONRPCResponse<GasPrice>>(&res)?;
+            .await?
+            .json::<JSONRPCResponse<GasPrice>>()
+            .await?
+            .into();
 
-        println!("pimlico_getUserOperationGasPrice json: {:?}", v);
-
-        let response: Response<GasPrice> = v.into();
-
-        let response_estimate = response?;
-        let response_estimate = response_estimate.unwrap();
-
-        Ok(response_estimate)
+        response?
+            .ok_or(eyre::eyre!("estimate_user_operation_gas_price got None"))
     }
 }
 

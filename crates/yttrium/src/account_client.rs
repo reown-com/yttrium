@@ -7,7 +7,7 @@ use crate::private_key_service::PrivateKeyService;
 use crate::sign_service::SignService;
 use crate::transaction::send::safe_test;
 use crate::transaction::{send::send_transaction, Transaction};
-use alloy::primitives::Address;
+use alloy::primitives::{Address, B256};
 use alloy::signers::local::PrivateKeySigner;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -140,7 +140,7 @@ impl AccountClient {
     pub async fn send_transaction(
         &self,
         transaction: Transaction,
-    ) -> eyre::Result<String> {
+    ) -> eyre::Result<B256> {
         send_transaction(
             transaction,
             self.owner.clone(),
@@ -168,7 +168,7 @@ impl AccountClient {
 
     pub async fn wait_for_user_operation_receipt(
         &self,
-        user_operation_hash: String,
+        user_operation_hash: B256,
     ) -> eyre::Result<UserOperationReceipt> {
         println!("Querying for receipts...");
 
@@ -177,7 +177,7 @@ impl AccountClient {
         let bundler_client =
             BundlerClient::new(BundlerConfig::new(bundler_base_url.clone()));
         let receipt = bundler_client
-            .wait_for_user_operation_receipt(user_operation_hash.clone())
+            .wait_for_user_operation_receipt(user_operation_hash)
             .await?;
 
         println!("Received User Operation receipt: {:?}", receipt);

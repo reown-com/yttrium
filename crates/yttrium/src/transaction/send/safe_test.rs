@@ -25,7 +25,7 @@ use crate::{
 use alloy::{
     dyn_abi::{DynSolValue, Eip712Domain},
     network::Ethereum,
-    primitives::{aliases::U48, Address, Bytes, Uint, U128, U256},
+    primitives::{aliases::U48, Address, Bytes, Uint, B256, U128, U256},
     providers::{Provider, ReqwestProvider},
     signers::{k256::ecdsa::SigningKey, local::LocalSigner, SignerSync},
     sol,
@@ -87,7 +87,7 @@ pub async fn send_transaction(
     address: Option<AccountAddress>,
     authorization_list: Option<Vec<Authorization>>,
     config: Config,
-) -> eyre::Result<String> {
+) -> eyre::Result<B256> {
     let bundler_base_url = config.endpoints.bundler.base_url;
     let paymaster_base_url = config.endpoints.paymaster.base_url;
 
@@ -203,161 +203,160 @@ pub async fn send_transaction(
         assert!(success);
     }
 
-    let paymaster_client =
-        PaymasterClient::new(BundlerConfig::new(paymaster_base_url.clone()));
+    let user_op = {
+        let paymaster_client = PaymasterClient::new(BundlerConfig::new(
+            paymaster_base_url.clone(),
+        ));
 
-    let sponsor_user_op_result = paymaster_client
-        .sponsor_user_operation_v07(
-            &user_op.clone().into(),
-            &entry_point_address,
-            None,
-        )
-        .await?;
+        let sponsor_user_op_result = paymaster_client
+            .sponsor_user_operation_v07(
+                &user_op.clone().into(),
+                &entry_point_address,
+                None,
+            )
+            .await?;
 
-    let sponsored_user_op = {
-        let s = sponsor_user_op_result.clone();
-        let mut op = user_op.clone();
-
-        op.call_gas_limit = s.call_gas_limit;
-        op.verification_gas_limit = s.verification_gas_limit;
-        op.pre_verification_gas = s.pre_verification_gas;
-        op.paymaster = Some(s.paymaster);
-        op.paymaster_verification_gas_limit =
-            Some(s.paymaster_verification_gas_limit);
-        op.paymaster_post_op_gas_limit = Some(s.paymaster_post_op_gas_limit);
-        op.paymaster_data = Some(s.paymaster_data);
-
-        op
-    };
-
-    let valid_after = U48::from(0);
-    let valid_until = U48::from(0);
-
-    sol!(
-        struct SafeOp {
-            address safe;
-            uint256 nonce;
-            bytes initCode;
-            bytes callData;
-            uint128 verificationGasLimit;
-            uint128 callGasLimit;
-            uint256 preVerificationGas;
-            uint128 maxPriorityFeePerGas;
-            uint128 maxFeePerGas;
-            bytes paymasterAndData;
-            uint48 validAfter;
-            uint48 validUntil;
-            address entryPoint;
+        UserOperationV07 {
+            call_gas_limit: sponsor_user_op_result.call_gas_limit,
+            verification_gas_limit: sponsor_user_op_result
+                .verification_gas_limit,
+            pre_verification_gas: sponsor_user_op_result.pre_verification_gas,
+            paymaster: Some(sponsor_user_op_result.paymaster),
+            paymaster_verification_gas_limit: Some(
+                sponsor_user_op_result.paymaster_verification_gas_limit,
+            ),
+            paymaster_post_op_gas_limit: Some(
+                sponsor_user_op_result.paymaster_post_op_gas_limit,
+            ),
+            paymaster_data: Some(sponsor_user_op_result.paymaster_data),
+            ..user_op
         }
-    );
-
-    // TODO handle panic
-    fn coerce_u256_to_u128(u: U256) -> U128 {
-        U128::from(u)
-    }
-
-    let message = SafeOp {
-        safe: account_address.into(),
-        callData: sponsored_user_op.call_data.clone(),
-        nonce: sponsored_user_op.nonce,
-        initCode: deployed
-            .not()
-            .then(|| {
-                [
-                    sponsored_user_op.clone().factory.unwrap().to_vec().into(),
-                    sponsored_user_op.clone().factory_data.unwrap(),
-                ]
-                .concat()
-                .into()
-            })
-            .unwrap_or(Bytes::new()),
-        maxFeePerGas: u128::from_be_bytes(
-            coerce_u256_to_u128(sponsored_user_op.max_fee_per_gas)
-                .to_be_bytes(),
-        ),
-        maxPriorityFeePerGas: u128::from_be_bytes(
-            coerce_u256_to_u128(sponsored_user_op.max_priority_fee_per_gas)
-                .to_be_bytes(),
-        ),
-        preVerificationGas: sponsored_user_op.pre_verification_gas,
-        verificationGasLimit: u128::from_be_bytes(
-            coerce_u256_to_u128(sponsored_user_op.verification_gas_limit)
-                .to_be_bytes(),
-        ),
-        callGasLimit: u128::from_be_bytes(
-            coerce_u256_to_u128(sponsored_user_op.call_gas_limit).to_be_bytes(),
-        ),
-        // signerToSafeSmartAccount -> getPaymasterAndData
-        paymasterAndData: sponsored_user_op
-            .paymaster
-            .map(|paymaster| {
-                [
-                    paymaster.to_vec(),
-                    coerce_u256_to_u128(
-                        sponsored_user_op
-                            .paymaster_verification_gas_limit
-                            .unwrap_or(Uint::from(0)),
-                    )
-                    .to_be_bytes_vec(),
-                    coerce_u256_to_u128(
-                        sponsored_user_op
-                            .paymaster_post_op_gas_limit
-                            .unwrap_or(Uint::from(0)),
-                    )
-                    .to_be_bytes_vec(),
-                    sponsored_user_op
-                        .paymaster_data
-                        .clone()
-                        .unwrap_or(Bytes::new())
-                        .to_vec(),
-                ]
-                .concat()
-                .into()
-            })
-            .unwrap_or(Bytes::new()),
-        validAfter: valid_after,
-        validUntil: valid_until,
-        entryPoint: entry_point_address.to_address(),
     };
 
-    let erc7579_launchpad_address = true;
-    let verifying_contract = if erc7579_launchpad_address && !deployed {
-        sponsored_user_op.sender.into()
-    } else {
-        SAFE_4337_MODULE_ADDRESS
+    let user_op = {
+        let valid_after = U48::from(0);
+        let valid_until = U48::from(0);
+
+        sol!(
+            struct SafeOp {
+                address safe;
+                uint256 nonce;
+                bytes initCode;
+                bytes callData;
+                uint128 verificationGasLimit;
+                uint128 callGasLimit;
+                uint256 preVerificationGas;
+                uint128 maxPriorityFeePerGas;
+                uint128 maxFeePerGas;
+                bytes paymasterAndData;
+                uint48 validAfter;
+                uint48 validUntil;
+                address entryPoint;
+            }
+        );
+
+        // TODO handle panic
+        fn coerce_u256_to_u128(u: U256) -> U128 {
+            U128::from(u)
+        }
+
+        let message = SafeOp {
+            safe: account_address.into(),
+            callData: user_op.call_data.clone(),
+            nonce: user_op.nonce,
+            initCode: deployed
+                .not()
+                .then(|| {
+                    [
+                        user_op.clone().factory.unwrap().to_vec().into(),
+                        user_op.clone().factory_data.unwrap(),
+                    ]
+                    .concat()
+                    .into()
+                })
+                .unwrap_or(Bytes::new()),
+            maxFeePerGas: u128::from_be_bytes(
+                coerce_u256_to_u128(user_op.max_fee_per_gas).to_be_bytes(),
+            ),
+            maxPriorityFeePerGas: u128::from_be_bytes(
+                coerce_u256_to_u128(user_op.max_priority_fee_per_gas)
+                    .to_be_bytes(),
+            ),
+            preVerificationGas: user_op.pre_verification_gas,
+            verificationGasLimit: u128::from_be_bytes(
+                coerce_u256_to_u128(user_op.verification_gas_limit)
+                    .to_be_bytes(),
+            ),
+            callGasLimit: u128::from_be_bytes(
+                coerce_u256_to_u128(user_op.call_gas_limit).to_be_bytes(),
+            ),
+            // signerToSafeSmartAccount -> getPaymasterAndData
+            paymasterAndData: user_op
+                .paymaster
+                .map(|paymaster| {
+                    [
+                        paymaster.to_vec(),
+                        coerce_u256_to_u128(
+                            user_op
+                                .paymaster_verification_gas_limit
+                                .unwrap_or(Uint::from(0)),
+                        )
+                        .to_be_bytes_vec(),
+                        coerce_u256_to_u128(
+                            user_op
+                                .paymaster_post_op_gas_limit
+                                .unwrap_or(Uint::from(0)),
+                        )
+                        .to_be_bytes_vec(),
+                        user_op
+                            .paymaster_data
+                            .clone()
+                            .unwrap_or(Bytes::new())
+                            .to_vec(),
+                    ]
+                    .concat()
+                    .into()
+                })
+                .unwrap_or(Bytes::new()),
+            validAfter: valid_after,
+            validUntil: valid_until,
+            entryPoint: entry_point_address.to_address(),
+        };
+
+        let erc7579_launchpad_address = true;
+        let verifying_contract = if erc7579_launchpad_address && !deployed {
+            user_op.sender.into()
+        } else {
+            SAFE_4337_MODULE_ADDRESS
+        };
+
+        // TODO loop per-owner
+        let signature = owner.sign_typed_data_sync(
+            &message,
+            &Eip712Domain {
+                chain_id: Some(Uint::from(chain_id)),
+                verifying_contract: Some(verifying_contract),
+                ..Default::default()
+            },
+        )?;
+        // TODO sort by (lowercase) owner address not signature data
+        let mut signatures =
+            [signature].iter().map(|sig| sig.as_bytes()).collect::<Vec<_>>();
+        signatures.sort();
+        let signature_bytes = signatures.concat();
+
+        let signature = DynSolValue::Tuple(vec![
+            DynSolValue::Uint(Uint::from(valid_after), 48),
+            DynSolValue::Uint(Uint::from(valid_until), 48),
+            DynSolValue::Bytes(signature_bytes),
+        ])
+        .abi_encode_packed()
+        .into();
+        UserOperationV07 { signature, ..user_op }
     };
-
-    // TODO loop per-owner
-    let signature = owner.sign_typed_data_sync(
-        &message,
-        &Eip712Domain {
-            chain_id: Some(Uint::from(chain_id)),
-            verifying_contract: Some(verifying_contract),
-            ..Default::default()
-        },
-    )?;
-    // TODO sort by (lowercase) owner address not signature data
-    let mut signatures =
-        [signature].iter().map(|sig| sig.as_bytes()).collect::<Vec<_>>();
-    signatures.sort();
-    let signature_bytes = signatures.concat();
-
-    let signature = DynSolValue::Tuple(vec![
-        DynSolValue::Uint(Uint::from(valid_after), 48),
-        DynSolValue::Uint(Uint::from(valid_until), 48),
-        DynSolValue::Bytes(signature_bytes),
-    ])
-    .abi_encode_packed()
-    .into();
-    let signed_user_op = UserOperationV07 { signature, ..sponsored_user_op };
-
-    println!("Generated signature: {:?}", signed_user_op.signature);
 
     let user_operation_hash = bundler_client
-        .send_user_operation(
-            entry_point_address.to_address(),
-            signed_user_op.clone(),
-        )
+        .send_user_operation(entry_point_address, user_op.clone())
         .await?;
 
     println!("Received User Operation hash: {:?}", user_operation_hash);
@@ -365,7 +364,7 @@ pub async fn send_transaction(
     println!("Querying for receipts...");
 
     let receipt = bundler_client
-        .wait_for_user_operation_receipt(user_operation_hash.clone())
+        .wait_for_user_operation_receipt(user_operation_hash)
         .await?;
 
     let tx_hash = receipt.receipt.transaction_hash;

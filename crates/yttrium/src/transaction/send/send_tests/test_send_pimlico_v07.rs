@@ -238,10 +238,7 @@ mod tests {
         // 10. Submit the UserOperation to be bundled
 
         let user_operation_hash = bundler_client
-            .send_user_operation(
-                entry_point_address.to_address(),
-                signed_user_op.clone(),
-            )
+            .send_user_operation(entry_point_address, signed_user_op.clone())
             .await?;
 
         println!("Received User Operation hash: {:?}", user_operation_hash);
