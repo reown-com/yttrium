@@ -23,4 +23,4 @@ fmt:
   cargo +nightly fmt --all
 
 udeps:
-  # cargo +nightly udeps --workspace
+  cargo +nightly udeps --workspace
