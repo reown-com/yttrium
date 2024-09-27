@@ -34,13 +34,8 @@ pub enum Error {
 impl AccountClient {
     pub fn new(config: AccountClientConfig) -> Self {
         let owner_address = config.owner_address.clone();
-        // let chain_id = config.chain_id;
         let signer_type = config.signer_type.clone();
-        // let signer_id =
-        //     format!("{}-{}-{}", signer_type, owner_address, chain_id);
-
         let signer = SignerType::from(signer_type).unwrap();
-
         let account_client = match signer {
             SignerType::PrivateKey => {
                 let private_key_fn =
