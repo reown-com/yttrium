@@ -3,9 +3,12 @@ use super::models::{
     estimate_result::EstimateResult,
     user_operation_receipt::UserOperationReceipt,
 };
+use crate::entry_point::EntryPointAddress;
 use crate::jsonrpc::{JSONRPCResponse, Request, Response};
 use crate::user_operation::UserOperationV07;
+use alloy::primitives::B256;
 use eyre::Ok;
+use serde_json;
 
 pub struct BundlerClient {
     client: reqwest::Client,
@@ -19,96 +22,58 @@ impl BundlerClient {
 
     pub async fn send_user_operation(
         &self,
-        entry_point_address: alloy::primitives::Address,
+        entry_point_address: EntryPointAddress,
         user_op: UserOperationV07,
-    ) -> eyre::Result<String> {
-        let bundler_url = self.config.url().clone();
-
-        let user_op_value = serde_json::to_value(&user_op)?;
-
-        println!("\nuser_op_value: {}", user_op_value);
-
-        let entry_point_address_str = entry_point_address.to_string();
-
-        let entry_point_addr_param = entry_point_address_str.into();
-
-        println!("\nentry_point_addr_param: {}", entry_point_addr_param);
-
-        let params = vec![user_op_value, entry_point_addr_param];
-
-        println!("\nparams: {:#?}", params);
-
+    ) -> eyre::Result<B256> {
         let send_body = crate::jsonrpc::Request {
-            jsonrpc: "2.0".into(),
+            jsonrpc: "2.0".into(), // TODO use Arc<str>
             id: 1,
-            method: "eth_sendUserOperation".into(),
-            params,
+            method: "eth_sendUserOperation".into(), // TODO use Arc<str>
+            params: vec![
+                serde_json::to_value(&user_op)?,
+                entry_point_address.to_string().into(),
+            ],
         };
 
-        let response = self
+        let response: Response<B256> = self
             .client
-            .post(bundler_url.as_str())
+            .post(self.config.url())
             .json(&send_body)
             .send()
-            .await?;
+            .await?
+            .json::<JSONRPCResponse<B256>>()
+            .await?
+            .into();
 
-        let response_text = response.text().await?;
-        println!("response_text: {:?}", response_text);
-
-        let raw_payload =
-            serde_json::from_str::<JSONRPCResponse<String>>(&response_text)?;
-        println!("raw_payload: {:?}", raw_payload);
-
-        let response: Response<String> = raw_payload.into();
-
-        let user_operation_hash = response?;
-
-        Ok(user_operation_hash.unwrap())
+        response?.ok_or(eyre::eyre!("send_user_operation got None"))
     }
 
     pub async fn estimate_user_operation_gas(
         &self,
-        entry_point_address: crate::entry_point::EntryPointAddress,
+        entry_point_address: EntryPointAddress,
         user_op: UserOperationV07,
     ) -> eyre::Result<EstimateResult> {
-        println!("user_op: {:?}", user_op);
-
-        let bundler_url = self.config.url().clone();
-
-        use crate::jsonrpc::{JSONRPCResponse, Request, Response};
-        use serde_json;
-
-        let value = serde_json::to_value(&user_op).unwrap();
-
-        let params: Vec<serde_json::Value> =
-            vec![value, entry_point_address.to_string().into()];
-
         let req_body = Request {
-            jsonrpc: "2.0".into(),
+            jsonrpc: "2.0".into(), // TODO use Arc<str>
             id: 1,
-            method: "eth_estimateUserOperationGas".into(),
-            params,
+            method: "eth_estimateUserOperationGas".into(), // TODO use Arc<str>
+            params: vec![
+                serde_json::to_value(&user_op)?,
+                entry_point_address.to_string().into(),
+            ],
         };
-        println!("req_body: {:?}", serde_json::to_string(&req_body)?);
 
-        let post = self
+        let response: Response<EstimateResult> = self
             .client
-            .post(bundler_url.as_str())
+            .post(self.config.url())
             .json(&req_body)
             .send()
-            .await?;
-        println!("eth_estimateUserOperationGas post: {:?}", post);
-        let res = post.text().await?;
-        println!("eth_estimateUserOperationGas res: {:?}", res);
-        let v = serde_json::from_str::<JSONRPCResponse<EstimateResult>>(&res)?;
+            .await?
+            .json::<JSONRPCResponse<EstimateResult>>()
+            .await?
+            .into();
 
-        println!("eth_estimateUserOperationGas json: {:?}", v);
-
-        let response: Response<EstimateResult> = v.into();
-
-        let response_estimate = response?;
-
-        Ok(response_estimate.unwrap())
+        response?.ok_or(eyre::eyre!("estimate_user_operation_gas got None"))
     }
 
     pub async fn supported_entry_points(
@@ -131,11 +96,11 @@ impl BundlerClient {
 
     pub async fn get_user_operation_receipt(
         &self,
-        hash: String,
+        hash: B256,
     ) -> eyre::Result<Option<UserOperationReceipt>> {
         let bundler_url = self.config.url().clone();
 
-        let hash_value = serde_json::to_value(&hash)?;
+        let hash_value = serde_json::to_value(hash)?;
 
         let send_body = Request {
             jsonrpc: "2.0".into(),
@@ -143,6 +108,7 @@ impl BundlerClient {
             method: "eth_getUserOperationReceipt".into(),
             params: vec![hash_value],
         };
+        println!("send_body: {:?}", send_body);
 
         let response = self
             .client
@@ -168,7 +134,7 @@ impl BundlerClient {
 
     pub async fn wait_for_user_operation_receipt(
         &self,
-        hash: String,
+        hash: B256,
     ) -> eyre::Result<UserOperationReceipt> {
         use std::time::{Duration, Instant};
         use tokio::time::sleep;
@@ -179,7 +145,7 @@ impl BundlerClient {
         let start_time = Instant::now();
 
         loop {
-            match self.get_user_operation_receipt(hash.clone()).await {
+            match self.get_user_operation_receipt(hash).await {
                 eyre::Result::Ok(Some(receipt)) => return Ok(receipt),
                 _ => {
                     if let Some(timeout_duration) = timeout {
@@ -210,7 +176,7 @@ mod tests {
         },
         entry_point,
     };
-    use alloy::primitives::{Address, Bytes, U256};
+    use alloy::primitives::{b256, Address, Bytes, U256};
     use eyre::ensure;
 
     pub async fn setup_gas_estimation_bundler_mock(
@@ -325,7 +291,9 @@ mod tests {
             "method": "eth_getUserOperationReceipt",
         });
 
-        let user_operation_hash = "0x93c06f3f5909cc2b192713ed9bf93e3e1fde4b22fcd2466304fa404f9b80ff90".to_string();
+        let user_operation_hash = b256!(
+            "93c06f3f5909cc2b192713ed9bf93e3e1fde4b22fcd2466304fa404f9b80ff90"
+        );
 
         let response_payload = UserOperationReceipt::mock();
 
@@ -349,7 +317,7 @@ mod tests {
         ));
 
         let receipt = bundler_client
-            .get_user_operation_receipt(user_operation_hash.clone())
+            .get_user_operation_receipt(user_operation_hash)
             .await?;
 
         assert_eq!(receipt, Some(response_payload));

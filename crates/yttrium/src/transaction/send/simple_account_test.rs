@@ -23,7 +23,7 @@ use crate::{
 };
 use alloy::{
     network::EthereumWallet,
-    primitives::{Address, Bytes, U256},
+    primitives::{Address, Bytes, B256, U256},
     providers::ProviderBuilder,
     signers::local::PrivateKeySigner,
 };
@@ -68,7 +68,7 @@ pub async fn send_transaction_with_signer(
     config: Config,
     chain_id: u64,
     signer: PrivateKeySigner,
-) -> eyre::Result<String> {
+) -> eyre::Result<B256> {
     let bundler_base_url = config.clone().endpoints.bundler.base_url;
     let paymaster_base_url = config.clone().endpoints.paymaster.base_url;
     let rpc_base_url = config.clone().endpoints.rpc.base_url;
@@ -236,10 +236,7 @@ pub async fn send_transaction_with_signer(
     println!("Generated signature: {:?}", signed_user_op.signature);
 
     let user_operation_hash = bundler_client
-        .send_user_operation(
-            entry_point_address.to_address(),
-            signed_user_op.clone(),
-        )
+        .send_user_operation(entry_point_address, signed_user_op.clone())
         .await?;
 
     println!("Received User Operation hash: {:?}", user_operation_hash);
@@ -272,15 +269,13 @@ mod tests {
     };
     use alloy::{
         network::EthereumWallet,
-        primitives::{Address, Bytes, U256},
+        primitives::{Address, Bytes, B256, U256},
         providers::ProviderBuilder,
         signers::local::LocalSigner,
     };
     use std::str::FromStr;
 
-    async fn send_transaction(
-        transaction: Transaction,
-    ) -> eyre::Result<String> {
+    async fn send_transaction(transaction: Transaction) -> eyre::Result<B256> {
         let config = crate::config::Config::local();
 
         let bundler_base_url = config.endpoints.bundler.base_url;
@@ -438,16 +433,13 @@ mod tests {
         println!("Generated signature: {:?}", signed_user_op.signature);
 
         let user_operation_hash = bundler_client
-            .send_user_operation(
-                entry_point_address.to_address(),
-                signed_user_op.clone(),
-            )
+            .send_user_operation(entry_point_address, signed_user_op.clone())
             .await?;
 
         println!("Querying for receipts...");
 
         let receipt = bundler_client
-            .wait_for_user_operation_receipt(user_operation_hash.clone())
+            .wait_for_user_operation_receipt(user_operation_hash)
             .await?;
 
         println!("Received User Operation receipt: {:?}", receipt);
