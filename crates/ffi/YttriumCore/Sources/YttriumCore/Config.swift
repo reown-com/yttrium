@@ -1,5 +1,4 @@
 import Foundation
-import YttriumCore
 
 public struct Endpoint {
     

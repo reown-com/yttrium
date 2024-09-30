@@ -1,3 +1,16 @@
+#!/bin/bash
+
+set -e
+
+# Variables
+: "${VERSION:?Error: VERSION environment variable is not set.}"
+PACKAGE_VERSION="$VERSION" 
+RUST_CHECKSUM=$(cat rust_checksum.txt)
+RUST_XCFRAMEWORK_ZIP="RustXcframework.xcframework.zip"
+REPO_URL="https://github.com/reown-com/yttrium"
+
+# Generate Package.swift
+cat > Package.swift <<EOF
 // swift-tools-version:5.10
 import PackageDescription
 
@@ -21,14 +34,13 @@ let package = Package(
     targets: [
         .binaryTarget(
             name: "RustXcframework",
-            url: "https://github.com/reown-com/yttrium/releases/download/0.0.21/RustXcframework.xcframework.zip",
-            checksum: "2b4dcbbffcad427480950e0d069bf805dd837894c54568f4e2cf121ab2fd53e7"
+            url: "$REPO_URL/releases/download/$PACKAGE_VERSION/$RUST_XCFRAMEWORK_ZIP",
+            checksum: "$RUST_CHECKSUM"
         ),
         .target(
             name: "YttriumCore",
             dependencies: [
-                "RustXcframework",
-                .product(name: "SwiftDotenv", package: "swift-dotenv")
+                "RustXcframework"
             ],
             path: "crates/ffi/YttriumCore/Sources/YttriumCore"
         ),
@@ -50,3 +62,6 @@ let package = Package(
         ),
     ]
 )
+EOF
+
+echo "Package.swift generated with Rust XCFramework checksum: $RUST_CHECKSUM"
