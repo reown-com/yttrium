@@ -2,6 +2,7 @@ use crate::{
     bundler::{
         client::BundlerClient,
         config::BundlerConfig,
+        models::user_operation_receipt::UserOperationReceipt,
         pimlico::{
             client::BundlerClient as PimlicoBundlerClient,
             paymaster::client::PaymasterClient,
@@ -25,7 +26,7 @@ use crate::{
 use alloy::{
     dyn_abi::{DynSolValue, Eip712Domain},
     network::Ethereum,
-    primitives::{aliases::U48, Address, Bytes, Uint, B256, U128, U256},
+    primitives::{aliases::U48, Address, Bytes, Uint, U128, U160, U256},
     providers::{Provider, ReqwestProvider},
     signers::{k256::ecdsa::SigningKey, local::LocalSigner, SignerSync},
     sol,
@@ -87,7 +88,7 @@ pub async fn send_transaction(
     address: Option<AccountAddress>,
     authorization_list: Option<Vec<Authorization>>,
     config: Config,
-) -> eyre::Result<B256> {
+) -> eyre::Result<UserOperationReceipt> {
     let bundler_base_url = config.endpoints.bundler.base_url;
     let paymaster_base_url = config.endpoints.paymaster.base_url;
 
@@ -97,7 +98,7 @@ pub async fn send_transaction(
     let pimlico_client: PimlicoBundlerClient =
         PimlicoBundlerClient::new(BundlerConfig::new(bundler_base_url.clone()));
 
-    let chain = crate::chain::Chain::ETHEREUM_SEPOLIA_V07;
+    let chain = crate::chain::Chain::BASE_SEPOLIA_V07;
     let entry_point_config = chain.entry_point_config();
 
     let chain_id = chain.id.eip155_chain_id();
@@ -128,9 +129,17 @@ pub async fn send_transaction(
         provider.get_code_at(account_address.into()).await?.len() > 0;
     println!("Deployed: {}", deployed);
     // permissionless: signerToSafeSmartAccount -> encodeCallData
-    let call_data = if deployed {
+    let call_data = if deployed
+        && provider
+            .get_storage_at(account_address.into(), Uint::from(0))
+            .await?
+            == U256::from(U160::from_be_bytes(
+                SEPOLIA_SAFE_ERC_7579_SINGLETON_ADDRESS.into_array(),
+            )) {
+        println!("just calldata");
         call_data
     } else {
+        println!("setupSafeCall");
         Safe7579Launchpad::setupSafeCall {
             initData: Safe7579Launchpad::InitData {
                 singleton: SEPOLIA_SAFE_ERC_7579_SINGLETON_ADDRESS,
@@ -311,13 +320,13 @@ pub async fn send_transaction(
                         user_op
                             .paymaster_data
                             .clone()
-                            .unwrap_or(Bytes::new())
+                            .unwrap_or_default()
                             .to_vec(),
                     ]
                     .concat()
                     .into()
                 })
-                .unwrap_or(Bytes::new()),
+                .unwrap_or_default(),
             validAfter: valid_after,
             validUntil: valid_until,
             entryPoint: entry_point_address.to_address(),
@@ -367,10 +376,9 @@ pub async fn send_transaction(
         .wait_for_user_operation_receipt(user_operation_hash)
         .await?;
 
-    let tx_hash = receipt.receipt.transaction_hash;
     println!(
         "SAFE UserOperation included: https://sepolia.etherscan.io/tx/{}",
-        tx_hash
+        receipt.receipt.transaction_hash
     );
 
     // Some extra calls to wait for/get the actual transaction. But these
@@ -388,7 +396,7 @@ pub async fn send_transaction(
     //     provider.get_transaction_receipt(tx_hash).await?;
     // println!("Transaction receipt: {:?}", transaction_receipt);
 
-    Ok(user_operation_hash)
+    Ok(receipt)
 }
 
 #[cfg(test)]
@@ -398,7 +406,7 @@ mod tests {
     use alloy::{
         consensus::{SignableTransaction, TxEip7702},
         network::{EthereumWallet, TransactionBuilder, TxSignerSync},
-        primitives::U64,
+        primitives::{U160, U64},
         providers::{ext::AnvilApi, PendingTransactionConfig, ProviderBuilder},
         rpc::types::TransactionRequest,
     };
@@ -463,7 +471,7 @@ mod tests {
             data: Bytes::new(),
         }];
 
-        let transaction_hash = send_transaction(
+        let receipt = send_transaction(
             transaction,
             owner.clone(),
             None,
@@ -471,8 +479,7 @@ mod tests {
             config.clone(),
         )
         .await?;
-
-        println!("Transaction sent: {}", transaction_hash);
+        assert!(receipt.success);
 
         let balance = provider.get_balance(destination.address()).await?;
         assert_eq!(balance, Uint::from(1));
@@ -483,10 +490,9 @@ mod tests {
             data: Bytes::new(),
         }];
 
-        let transaction_hash =
+        let receipt =
             send_transaction(transaction, owner, None, None, config).await?;
-
-        println!("Transaction sent: {}", transaction_hash);
+        assert!(receipt.success);
 
         let balance = provider.get_balance(destination.address()).await?;
         assert_eq!(balance, Uint::from(2));
@@ -531,6 +537,104 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore = "broken"]
+    async fn test_send_transaction_first_reverted_local() {
+        let config = Config::local();
+        let faucet = anvil_faucet(config.clone()).await;
+        test_send_transaction_first_reverted(config, faucet).await;
+    }
+
+    #[tokio::test]
+    #[ignore = "not useful currently, can do same test locally"]
+    #[cfg(feature = "test_pimlico_api")]
+    async fn test_send_transaction_first_reverted_pimlico() {
+        let config = Config::pimlico();
+        let faucet = pimlico_faucet();
+        test_send_transaction_first_reverted(config, faucet).await;
+    }
+
+    async fn test_send_transaction_first_reverted(
+        config: Config,
+        faucet: LocalSigner<SigningKey>,
+    ) {
+        let provider = ReqwestProvider::<Ethereum>::new_http(
+            config.endpoints.rpc.base_url.parse().unwrap(),
+        );
+
+        let destination = LocalSigner::random();
+        let balance = provider.get_balance(destination.address()).await.unwrap();
+        assert_eq!(balance, Uint::from(0));
+
+        let owner = LocalSigner::random();
+        let sender_address = get_account_address(
+            provider.clone(),
+            Owners { owners: vec![owner.address()], threshold: 1 },
+        )
+        .await;
+
+        let transaction = vec![Transaction {
+            to: destination.address(),
+            value: Uint::from(1),
+            data: Bytes::new(),
+        }];
+
+        let _receipt = send_transaction(
+            transaction,
+            owner.clone(),
+            None,
+            None,
+            config.clone(),
+        )
+        .await.unwrap();
+        // assert!(!receipt.success);
+        // assert!(
+        //     provider.get_code_at(sender_address.into()).await.unwrap().len()
+        //         > 0
+        // );
+        // assert_eq!(
+        //     provider
+        //         .get_storage_at(sender_address.into(), Uint::from(0))
+        //         .await
+        //         .unwrap(),
+        //     U256::from(U160::from_be_bytes(
+        //         SAFE_ERC_7579_LAUNCHPAD_ADDRESS.into_array()
+        //     ))
+        // );
+
+        let balance = provider.get_balance(destination.address()).await.unwrap();
+        assert_eq!(balance, Uint::from(0));
+        use_faucet(
+            provider.clone(),
+            faucet.clone(),
+            U256::from(1),
+            sender_address.into(),
+        )
+        .await;
+
+        let transaction = vec![Transaction {
+            to: destination.address(),
+            value: Uint::from(1),
+            data: Bytes::new(),
+        }];
+
+        let receipt =
+            send_transaction(transaction, owner, None, None, config).await.unwrap();
+        assert!(receipt.success);
+        assert_eq!(
+            provider
+                .get_storage_at(sender_address.into(), Uint::from(0))
+                .await
+                .unwrap(),
+            U256::from(U160::from_be_bytes(
+                SEPOLIA_SAFE_ERC_7579_SINGLETON_ADDRESS.into_array()
+            ))
+        );
+
+        let balance = provider.get_balance(destination.address()).await.unwrap();
+        assert_eq!(balance, Uint::from(1));
+    }
+
+    #[tokio::test]
     async fn test_send_transaction_just_deploy() -> eyre::Result<()> {
         let config = Config::local();
         let faucet = anvil_faucet(config.clone()).await;
@@ -561,7 +665,7 @@ mod tests {
 
         let transaction = vec![];
 
-        let transaction_hash = send_transaction(
+        let receipt = send_transaction(
             transaction,
             owner.clone(),
             None,
@@ -569,8 +673,7 @@ mod tests {
             config.clone(),
         )
         .await?;
-
-        println!("Transaction sent: {}", transaction_hash);
+        assert!(receipt.success);
 
         assert!(!provider
             .get_code_at(sender_address.into())
@@ -621,7 +724,7 @@ mod tests {
             },
         ];
 
-        let transaction_hash = send_transaction(
+        let receipt = send_transaction(
             transaction,
             owner.clone(),
             None,
@@ -629,8 +732,7 @@ mod tests {
             config.clone(),
         )
         .await?;
-
-        println!("Transaction sent: {}", transaction_hash);
+        assert!(receipt.success);
 
         assert_eq!(
             provider.get_balance(destination1.address()).await?,
@@ -698,7 +800,7 @@ mod tests {
         }];
 
         let transaction = vec![];
-        let transaction_hash = send_transaction(
+        let receipt = send_transaction(
             transaction,
             owner.clone(),
             Some(authority.address().into()),
@@ -707,7 +809,7 @@ mod tests {
             config.clone(),
         )
         .await?;
-        println!("Transaction sent: {}", transaction_hash);
+        assert!(receipt.success);
 
         println!("contract address: {}", contract_address);
         println!(
@@ -725,7 +827,7 @@ mod tests {
             data: Bytes::new(),
         }];
 
-        let transaction_hash = send_transaction(
+        let receipt = send_transaction(
             transaction,
             owner,
             Some(authority.address().into()),
@@ -735,8 +837,7 @@ mod tests {
             config,
         )
         .await?;
-
-        println!("Transaction sent: {}", transaction_hash);
+        assert!(receipt.success);
 
         let balance = provider.get_balance(destination.address()).await?;
         assert_eq!(balance, Uint::from(1));
@@ -764,7 +865,7 @@ mod tests {
         .await;
 
         let transaction = vec![];
-        let transaction_hash = send_transaction(
+        let receipt = send_transaction(
             transaction,
             owner.clone(),
             None,
@@ -772,7 +873,7 @@ mod tests {
             config.clone(),
         )
         .await?;
-        println!("Transaction sent: {}", transaction_hash);
+        assert!(receipt.success);
 
         let authority = LocalSigner::random();
         provider.anvil_set_balance(authority.address(), U256::MAX).await?;
@@ -871,7 +972,7 @@ mod tests {
             data: Bytes::new(),
         }];
 
-        let transaction_hash = send_transaction(
+        let receipt = send_transaction(
             transaction,
             owner,
             Some(authority.address().into()),
@@ -879,8 +980,7 @@ mod tests {
             config,
         )
         .await?;
-
-        println!("Transaction sent: {}", transaction_hash);
+        assert!(receipt.success);
 
         let balance = provider.get_balance(destination.address()).await?;
         assert_eq!(balance, Uint::from(2));
