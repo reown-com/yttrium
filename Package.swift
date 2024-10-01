@@ -21,14 +21,13 @@ let package = Package(
     targets: [
         .binaryTarget(
             name: "RustXcframework",
-            url: "https://github.com/reown-com/yttrium/releases/download/0.0.21/RustXcframework.xcframework.zip",
-            checksum: "2b4dcbbffcad427480950e0d069bf805dd837894c54568f4e2cf121ab2fd53e7"
+            url: "https://github.com/reown-com/yttrium/releases/download/0.22.0/RustXcframework.xcframework.zip",
+            checksum: "09f6bab3fbfee5227f6929a4fa39e26a777aaf4177f1398601e47ca818b761e8"
         ),
         .target(
             name: "YttriumCore",
             dependencies: [
-                "RustXcframework",
-                .product(name: "SwiftDotenv", package: "swift-dotenv")
+                "RustXcframework"
             ],
             path: "crates/ffi/YttriumCore/Sources/YttriumCore"
         ),
