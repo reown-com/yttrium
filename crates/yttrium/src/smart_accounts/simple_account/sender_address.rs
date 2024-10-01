@@ -26,7 +26,7 @@ pub async fn get_sender_address_with_signer(
     let rpc_base_url = config.clone().endpoints.rpc.base_url;
 
     let chain_id = ChainId::new_eip155(chain_id);
-    let chain = crate::chain::Chain::new(chain_id, EntryPointVersion::V07, "");
+    let chain = crate::chain::Chain::new(chain_id, EntryPointVersion::V07);
 
     let entry_point_config = chain.entry_point_config();
 

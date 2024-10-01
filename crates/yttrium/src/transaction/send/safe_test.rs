@@ -8,14 +8,17 @@ use crate::{
             paymaster::client::PaymasterClient,
         },
     },
+    chain::ChainId,
     config::Config,
+    entry_point::EntryPointVersion,
     smart_accounts::{
         account_address::AccountAddress,
         nonce::get_nonce,
         safe::{
-            factory_data, get_account_address, get_call_data, Owners,
-            Safe7579Launchpad, DUMMY_SIGNATURE, SAFE_4337_MODULE_ADDRESS,
-            SAFE_ERC_7579_LAUNCHPAD_ADDRESS, SAFE_PROXY_FACTORY_ADDRESS,
+            factory_data, get_account_address, get_call_data,
+            get_call_data_with_try, Owners, Safe7579Launchpad, DUMMY_SIGNATURE,
+            SAFE_4337_MODULE_ADDRESS, SAFE_ERC_7579_LAUNCHPAD_ADDRESS,
+            SAFE_PROXY_FACTORY_ADDRESS,
             SEPOLIA_SAFE_ERC_7579_SINGLETON_ADDRESS,
         },
         simple_account::factory::FactoryAddress,
@@ -89,26 +92,28 @@ pub async fn send_transaction(
     authorization_list: Option<Vec<Authorization>>,
     config: Config,
 ) -> eyre::Result<UserOperationReceipt> {
-    let bundler_base_url = config.endpoints.bundler.base_url;
-    let paymaster_base_url = config.endpoints.paymaster.base_url;
+    let bundler_client = BundlerClient::new(BundlerConfig::new(
+        config.endpoints.bundler.base_url.clone(),
+    ));
 
-    let bundler_client =
-        BundlerClient::new(BundlerConfig::new(bundler_base_url.clone()));
+    let pimlico_client: PimlicoBundlerClient = PimlicoBundlerClient::new(
+        BundlerConfig::new(config.endpoints.bundler.base_url.clone()),
+    );
 
-    let pimlico_client: PimlicoBundlerClient =
-        PimlicoBundlerClient::new(BundlerConfig::new(bundler_base_url.clone()));
+    let provider = ReqwestProvider::<Ethereum>::new_http(
+        config.endpoints.rpc.base_url.parse()?,
+    );
 
-    let chain = crate::chain::Chain::BASE_SEPOLIA_V07;
+    let chain_id = provider.get_chain_id().await?;
+    let chain = crate::chain::Chain::new(
+        ChainId::new_eip155(chain_id),
+        EntryPointVersion::V07,
+    );
     let entry_point_config = chain.entry_point_config();
 
     let chain_id = chain.id.eip155_chain_id();
 
     let entry_point_address = entry_point_config.address();
-
-    let rpc_url = config.endpoints.rpc.base_url;
-
-    let rpc_url: reqwest::Url = rpc_url.parse()?;
-    let provider = ReqwestProvider::<Ethereum>::new_http(rpc_url);
 
     let safe_factory_address_primitives: Address = SAFE_PROXY_FACTORY_ADDRESS;
     let safe_factory_address =
@@ -123,8 +128,6 @@ pub async fn send_transaction(
     let account_address =
         if let Some(address) = address { address } else { contract_address };
 
-    let call_data = get_call_data(execution_calldata);
-
     let deployed =
         provider.get_code_at(account_address.into()).await?.len() > 0;
     println!("Deployed: {}", deployed);
@@ -136,10 +139,16 @@ pub async fn send_transaction(
             == U256::from(U160::from_be_bytes(
                 SEPOLIA_SAFE_ERC_7579_SINGLETON_ADDRESS.into_array(),
             )) {
-        println!("just calldata");
-        call_data
+        get_call_data(execution_calldata)
     } else {
-        println!("setupSafeCall");
+        // Note about using `try` mode for get_call_data & needing to check
+        // storage above. This is due to an issue in the Safe7579Launchpad
+        // contract where a revert will cause the Safe7579Launchpad::setupSafe
+        // to be reverted too. This leaves the account in a bricked state. To
+        // workaround, we use the `try` mode to ensure that the reverted
+        // execution does not revert the setupSafe call too. This unfortunately
+        // has the side-effect that the UserOp will be successful, which is
+        // misleading.
         Safe7579Launchpad::setupSafeCall {
             initData: Safe7579Launchpad::InitData {
                 singleton: SEPOLIA_SAFE_ERC_7579_SINGLETON_ADDRESS,
@@ -157,7 +166,7 @@ pub async fn send_transaction(
                 .abi_encode()
                 .into(),
                 safe7579: SAFE_4337_MODULE_ADDRESS,
-                callData: call_data,
+                callData: get_call_data_with_try(execution_calldata, true),
                 validators: vec![],
             },
         }
@@ -193,7 +202,7 @@ pub async fn send_transaction(
 
     if let Some(authorization_list) = authorization_list {
         let response = reqwest::Client::new()
-                .post(bundler_base_url.clone())
+                .post(config.endpoints.paymaster.base_url.clone())
                 .json(&json!({
                         "jsonrpc": "2.0",
                         "id": 1,
@@ -214,7 +223,7 @@ pub async fn send_transaction(
 
     let user_op = {
         let paymaster_client = PaymasterClient::new(BundlerConfig::new(
-            paymaster_base_url.clone(),
+            config.endpoints.paymaster.base_url.clone(),
         ));
 
         let sponsor_user_op_result = paymaster_client
@@ -537,7 +546,6 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore = "broken"]
     async fn test_send_transaction_first_reverted_local() {
         let config = Config::local();
         let faucet = anvil_faucet(config.clone()).await;
@@ -562,7 +570,8 @@ mod tests {
         );
 
         let destination = LocalSigner::random();
-        let balance = provider.get_balance(destination.address()).await.unwrap();
+        let balance =
+            provider.get_balance(destination.address()).await.unwrap();
         assert_eq!(balance, Uint::from(0));
 
         let owner = LocalSigner::random();
@@ -578,30 +587,34 @@ mod tests {
             data: Bytes::new(),
         }];
 
-        let _receipt = send_transaction(
+        let receipt = send_transaction(
             transaction,
             owner.clone(),
             None,
             None,
             config.clone(),
         )
-        .await.unwrap();
-        // assert!(!receipt.success);
-        // assert!(
-        //     provider.get_code_at(sender_address.into()).await.unwrap().len()
-        //         > 0
-        // );
-        // assert_eq!(
-        //     provider
-        //         .get_storage_at(sender_address.into(), Uint::from(0))
-        //         .await
-        //         .unwrap(),
-        //     U256::from(U160::from_be_bytes(
-        //         SAFE_ERC_7579_LAUNCHPAD_ADDRESS.into_array()
-        //     ))
-        // );
+        .await
+        .unwrap();
+        // The UserOp is successful, but the transaction actually failed. See
+        // note above near `Safe7579Launchpad::setupSafe`
+        assert!(receipt.success);
+        assert!(
+            provider.get_code_at(sender_address.into()).await.unwrap().len()
+                > 0
+        );
+        assert_eq!(
+            provider
+                .get_storage_at(sender_address.into(), Uint::from(0))
+                .await
+                .unwrap(),
+            U256::from(U160::from_be_bytes(
+                SEPOLIA_SAFE_ERC_7579_SINGLETON_ADDRESS.into_array()
+            ))
+        );
 
-        let balance = provider.get_balance(destination.address()).await.unwrap();
+        let balance =
+            provider.get_balance(destination.address()).await.unwrap();
         assert_eq!(balance, Uint::from(0));
         use_faucet(
             provider.clone(),
@@ -617,8 +630,9 @@ mod tests {
             data: Bytes::new(),
         }];
 
-        let receipt =
-            send_transaction(transaction, owner, None, None, config).await.unwrap();
+        let receipt = send_transaction(transaction, owner, None, None, config)
+            .await
+            .unwrap();
         assert!(receipt.success);
         assert_eq!(
             provider
@@ -630,7 +644,8 @@ mod tests {
             ))
         );
 
-        let balance = provider.get_balance(destination.address()).await.unwrap();
+        let balance =
+            provider.get_balance(destination.address()).await.unwrap();
         assert_eq!(balance, Uint::from(1));
     }
 
