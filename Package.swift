@@ -27,7 +27,8 @@ let package = Package(
         .target(
             name: "YttriumCore",
             dependencies: [
-                "RustXcframework"
+                "RustXcframework",
+                .product(name: "SwiftDotenv", package: "swift-dotenv")
             ],
             path: "crates/ffi/YttriumCore/Sources/YttriumCore"
         ),
