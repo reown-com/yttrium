@@ -86,7 +86,7 @@ impl Signer {
         chain_id: u64,
         sign_service: &MutexGuard<SignService>,
     ) -> eyre::Result<UserOperationV07> {
-        let hash = uo.hash(ep, chain_id)?;
+        let hash = uo.hash(ep, chain_id);
         let message_bytes = hash.0.to_vec();
         println!("message_bytes: {:?}", message_bytes.clone());
 
@@ -152,7 +152,7 @@ pub fn sign_user_operation_v07_with_ecdsa_and_sign_service(
     signer: PrivateKeySigner,
     sign_service: &Arc<Mutex<SignService>>,
 ) -> eyre::Result<UserOperationV07> {
-    let hash = uo.hash(ep, chain_id)?;
+    let hash = uo.hash(ep, chain_id);
 
     println!("hash: {:?}", hash.clone());
 
@@ -204,7 +204,7 @@ pub fn sign_user_operation_v07_with_ecdsa(
     chain_id: u64,
     signer: PrivateKeySigner,
 ) -> eyre::Result<UserOperationV07> {
-    let hash = uo.hash(ep, chain_id)?;
+    let hash = uo.hash(ep, chain_id);
 
     println!("hash: {:?}", hash.clone());
 

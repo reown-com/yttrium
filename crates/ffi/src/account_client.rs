@@ -107,10 +107,12 @@ impl FFIAccountClient {
         transaction: ffi::FFITransaction,
     ) -> Result<String, FFIError> {
         let transaction = Transaction::from(transaction);
-        self.account_client
+        Ok(self
+            .account_client
             .send_transaction(transaction)
             .await
-            .map_err(|e| FFIError::Unknown(e.to_string()))
+            .map_err(|e| FFIError::Unknown(e.to_string()))?
+            .to_string())
     }
 
     pub fn sign_message_with_mnemonic(
@@ -128,7 +130,13 @@ impl FFIAccountClient {
         user_operation_hash: String,
     ) -> Result<String, FFIError> {
         self.account_client
-            .wait_for_user_operation_receipt(user_operation_hash)
+            .wait_for_user_operation_receipt(
+                user_operation_hash.parse().map_err(|e| {
+                    FFIError::Unknown(format!(
+                        "Parsing user_operation_hash: {e}"
+                    ))
+                })?,
+            )
             .await
             .iter()
             .map(serde_json::to_string)

@@ -15,7 +15,7 @@ use crate::{
         nonce::get_nonce,
         simple_account::{
             create_account::SimpleAccountCreate, factory::FactoryAddress,
-            SimpleAccountAddress, SimpleAccountExecute,
+            SimpleAccountExecute,
         },
     },
     transaction::Transaction,
@@ -23,7 +23,7 @@ use crate::{
 };
 use alloy::{
     network::EthereumWallet,
-    primitives::{Address, Bytes, U256},
+    primitives::{Address, Bytes, B256, U256},
     providers::ProviderBuilder,
     signers::local::PrivateKeySigner,
 };
@@ -68,7 +68,7 @@ pub async fn send_transaction_with_signer(
     config: Config,
     chain_id: u64,
     signer: PrivateKeySigner,
-) -> eyre::Result<String> {
+) -> eyre::Result<B256> {
     let bundler_base_url = config.clone().endpoints.bundler.base_url;
     let paymaster_base_url = config.clone().endpoints.paymaster.base_url;
     let rpc_base_url = config.clone().endpoints.rpc.base_url;
@@ -81,8 +81,7 @@ pub async fn send_transaction_with_signer(
 
     use crate::entry_point::EntryPointVersion;
     let chain_id = ChainId::new_eip155(chain_id);
-    let chain =
-        crate::chain::Chain::new(chain_id.clone(), EntryPointVersion::V07, "");
+    let chain = crate::chain::Chain::new(chain_id, EntryPointVersion::V07, "");
     let entry_point_config = chain.entry_point_config();
 
     let entry_point_address = entry_point_config.address();
@@ -169,16 +168,12 @@ pub async fn send_transaction_with_signer(
 
     println!("Gas price: {:?}", gas_price);
 
-    let nonce = get_nonce(
-        &provider,
-        &SimpleAccountAddress::new(sender_address),
-        &entry_point_address,
-    )
-    .await?;
+    let nonce =
+        get_nonce(&provider, sender_address, &entry_point_address).await?;
 
     let user_op = UserOperationV07 {
         sender: sender_address,
-        nonce: U256::from(nonce),
+        nonce,
         factory,
         factory_data,
         call_data: Bytes::from_str(&call_data_value_hex)?,
@@ -241,10 +236,7 @@ pub async fn send_transaction_with_signer(
     println!("Generated signature: {:?}", signed_user_op.signature);
 
     let user_operation_hash = bundler_client
-        .send_user_operation(
-            entry_point_address.to_address(),
-            signed_user_op.clone(),
-        )
+        .send_user_operation(entry_point_address, signed_user_op.clone())
         .await?;
 
     println!("Received User Operation hash: {:?}", user_operation_hash);
@@ -269,7 +261,7 @@ mod tests {
             nonce::get_nonce,
             simple_account::{
                 create_account::SimpleAccountCreate, factory::FactoryAddress,
-                SimpleAccountAddress, SimpleAccountExecute,
+                SimpleAccountExecute,
             },
         },
         transaction::Transaction,
@@ -277,15 +269,13 @@ mod tests {
     };
     use alloy::{
         network::EthereumWallet,
-        primitives::{Address, Bytes, U256},
+        primitives::{Address, Bytes, B256, U256},
         providers::ProviderBuilder,
         signers::local::LocalSigner,
     };
     use std::str::FromStr;
 
-    async fn send_transaction(
-        transaction: Transaction,
-    ) -> eyre::Result<String> {
+    async fn send_transaction(transaction: Transaction) -> eyre::Result<B256> {
         let config = crate::config::Config::local();
 
         let bundler_base_url = config.endpoints.bundler.base_url;
@@ -372,16 +362,12 @@ mod tests {
 
         println!("Gas price: {:?}", gas_price);
 
-        let nonce = get_nonce(
-            &provider,
-            &SimpleAccountAddress::new(sender_address),
-            &entry_point_address,
-        )
-        .await?;
+        let nonce =
+            get_nonce(&provider, sender_address, &entry_point_address).await?;
 
         let user_op = UserOperationV07 {
             sender: sender_address,
-            nonce: U256::from(nonce),
+            nonce,
             factory: Some(simple_account_factory_address.to_address()),
             factory_data: Some(factory_data_value.into()),
             call_data: Bytes::from_str(&call_data_value_hex)?,
@@ -447,16 +433,13 @@ mod tests {
         println!("Generated signature: {:?}", signed_user_op.signature);
 
         let user_operation_hash = bundler_client
-            .send_user_operation(
-                entry_point_address.to_address(),
-                signed_user_op.clone(),
-            )
+            .send_user_operation(entry_point_address, signed_user_op.clone())
             .await?;
 
         println!("Querying for receipts...");
 
         let receipt = bundler_client
-            .wait_for_user_operation_receipt(user_operation_hash.clone())
+            .wait_for_user_operation_receipt(user_operation_hash)
             .await?;
 
         println!("Received User Operation receipt: {:?}", receipt);

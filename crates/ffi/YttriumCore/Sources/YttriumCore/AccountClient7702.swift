@@ -95,7 +95,6 @@ public final class AccountClient7702 {
             id: signerId,
             onSign: { message in
                 onSign(message)
-                    .mapError(YttriumCore.SignerError.from(error:))
             }
         )
         register(signer: .native(nativeSigner))

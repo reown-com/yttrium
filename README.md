@@ -77,12 +77,8 @@ To contribute to this project, ensure you have the following dependencies instal
 - `cargo`
 - `rustc`
 - `swiftc` and Xcode
-- `foundry`
 - `make`
 - `just`
-- `npm`
-- `pnpm`
-- `yarn`
 
 ### Setup
 

@@ -74,10 +74,12 @@ impl AccountClient {
         transaction: Transaction,
     ) -> Result<String, Error> {
         let transaction = YTransaction::from(transaction);
-        self.account_client
+        Ok(self
+            .account_client
             .send_transaction(transaction)
             .await
-            .map_err(|e| Error::Unknown(e.to_string()))
+            .map_err(|e| Error::Unknown(e.to_string()))?
+            .to_string())
     }
 
     pub fn sign_message_with_mnemonic(
@@ -95,7 +97,13 @@ impl AccountClient {
         user_operation_hash: String,
     ) -> Result<String, Error> {
         self.account_client
-            .wait_for_user_operation_receipt(user_operation_hash)
+            .wait_for_user_operation_receipt(
+                user_operation_hash.parse().map_err(|e| {
+                    Error::Unknown(format!(
+                        "Parsing user_operation_hash: {e}"
+                    ))
+                })?,
+            )
             .await
             .iter()
             .map(serde_json::to_string)

@@ -1,19 +1,18 @@
-use alloy::{
-    contract::private::{Network, Provider, Transport},
-    primitives::Address,
-};
+use super::account_address::AccountAddress;
+use alloy::contract::private::{Network, Provider, Transport};
 use core::clone::Clone;
 
 pub async fn is_smart_account_deployed<P, T, N>(
     provider: &P,
-    sender_address: Address,
+    sender_address: AccountAddress,
 ) -> eyre::Result<bool>
 where
     T: Transport + Clone,
     P: Provider<T, N>,
     N: Network,
 {
-    let contract_code = provider.get_code_at(sender_address).await?;
+    let contract_code =
+        provider.get_code_at(sender_address.to_address()).await?;
 
     if contract_code.len() > 2 {
         return Ok(true);

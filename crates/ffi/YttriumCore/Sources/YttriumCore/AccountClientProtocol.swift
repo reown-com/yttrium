@@ -1,5 +1,4 @@
 import Foundation
-import YttriumCore
 
 public struct Transaction: Codable, Equatable {
     let to: String
@@ -13,11 +12,6 @@ public struct Transaction: Codable, Equatable {
     }
 }
 
-public enum SignerError: Error {
-    case unknown
-}
-
-public typealias OnSign = (String) -> Result<String, SignerError>
 
 public protocol AccountClientProtocol {
     

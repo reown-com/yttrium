@@ -1,8 +1,8 @@
-use crate::smart_accounts::safe::Execution;
 use crate::transaction::send::simple_account_test::send_transaction_with_signer;
 use crate::{
     config::Config, transaction::Transaction, user_operation::UserOperationV07,
 };
+use alloy::primitives::B256;
 use alloy::signers::local::PrivateKeySigner;
 use core::fmt;
 
@@ -52,7 +52,7 @@ pub async fn send_transaction(
     config: Config,
     signer: Signer,
     safe: bool,
-) -> eyre::Result<String> {
+) -> eyre::Result<B256> {
     match signer {
         Signer::PrivateKey(private_key_service) => {
             let private_key_service = private_key_service.clone();
@@ -84,16 +84,12 @@ pub async fn send_transaction_with_private_key_signer(
     config: Config,
     private_key_signer: PrivateKeySigner,
     safe: bool,
-) -> eyre::Result<String> {
+) -> eyre::Result<B256> {
     let signer = private_key_signer;
 
     let user_operation_hash = if safe {
         safe_test::send_transaction(
-            vec![Execution {
-                target: transaction.to,
-                value: transaction.value,
-                callData: transaction.data,
-            }],
+            vec![transaction],
             signer,
             None,
             None,
@@ -129,14 +125,14 @@ mod tests {
             nonce::get_nonce,
             simple_account::{
                 create_account::SimpleAccountCreate, factory::FactoryAddress,
-                SimpleAccountAddress, SimpleAccountExecute,
+                SimpleAccountExecute,
             },
         },
         user_operation::UserOperationV07,
     };
     use alloy::{
         network::EthereumWallet,
-        primitives::{Address, Bytes, U256},
+        primitives::{Address, Bytes, B256, U256},
         providers::ProviderBuilder,
         signers::local::{
             coins_bip39::English, MnemonicBuilder, PrivateKeySigner,
@@ -152,7 +148,7 @@ mod tests {
     async fn send_transaction_alt(
         sign_service: Arc<Mutex<SignService>>,
         transaction: Transaction,
-    ) -> eyre::Result<String> {
+    ) -> eyre::Result<B256> {
         let sign_service = sign_service.clone();
         let sign_service = sign_service.lock().await;
 
@@ -266,16 +262,12 @@ mod tests {
 
         println!("Gas price: {:?}", gas_price);
 
-        let nonce = get_nonce(
-            &provider,
-            &SimpleAccountAddress::new(sender_address),
-            &entry_point_address,
-        )
-        .await?;
+        let nonce =
+            get_nonce(&provider, sender_address, &entry_point_address).await?;
 
         let user_op = UserOperationV07 {
             sender: sender_address,
-            nonce: U256::from(nonce),
+            nonce,
             factory: None,
             factory_data: None,
             call_data: Bytes::from_str(&call_data_value_hex)?,
@@ -340,10 +332,7 @@ mod tests {
         println!("Generated signature: {:?}", signed_user_op.signature);
 
         let user_operation_hash = bundler_client
-            .send_user_operation(
-                entry_point_address.to_address(),
-                signed_user_op.clone(),
-            )
+            .send_user_operation(entry_point_address, signed_user_op.clone())
             .await?;
 
         println!("Received User Operation hash: {:?}", user_operation_hash);

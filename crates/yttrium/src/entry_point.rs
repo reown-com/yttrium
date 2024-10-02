@@ -1,5 +1,8 @@
 use crate::chain::ChainId;
-use alloy::sol;
+use alloy::{
+    primitives::{address, Address},
+    sol,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct EntryPointAddress(alloy::primitives::Address);
@@ -32,10 +35,10 @@ impl From<&EntryPointAddress> for alloy::primitives::Address {
     }
 }
 
-pub const ENTRYPOINT_ADDRESS_V06: &str =
-    "0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789";
-pub const ENTRYPOINT_ADDRESS_V07: &str =
-    "0x0000000071727De22E5E9d8BAf0edAc6f37da032";
+pub const ENTRYPOINT_ADDRESS_V06: Address =
+    address!("5FF137D4b0FDCD49DcA30c7CF57E578a026d2789");
+pub const ENTRYPOINT_ADDRESS_V07: Address =
+    address!("0000000071727De22E5E9d8BAf0edAc6f37da032");
 
 pub const ENTRYPOINT_V06_TYPE: &str = "v0.6";
 pub const ENTRYPOINT_V07_TYPE: &str = "v0.7";
@@ -54,12 +57,13 @@ sol! (
     }
 );
 
-sol!(
-    #[allow(missing_docs)]
+sol! {
     #[sol(rpc)]
-    EntryPoint,
-    ".foundry/forge/out/EntryPoint.sol/EntryPoint.json"
-);
+    contract EntryPoint {
+        function getSenderAddress(bytes calldata initCode);
+        function getNonce(address sender, uint192 key) returns (uint256 nonce);
+    }
+}
 
 pub mod get_sender_address;
 
@@ -85,18 +89,15 @@ impl EntryPointConfig {
     };
 
     pub fn address(&self) -> EntryPointAddress {
-        match self.chain_id {
-            ChainId::ETHEREUM_MAINNET
-            | ChainId::ETHEREUM_SEPOLIA
-            | ChainId::LOCAL_FOUNDRY_ETHEREUM_SEPOLIA => match self.version {
-                EntryPointVersion::V06 => EntryPointAddress::new(
-                    ENTRYPOINT_ADDRESS_V06.parse().unwrap(),
-                ),
-                EntryPointVersion::V07 => EntryPointAddress::new(
-                    ENTRYPOINT_ADDRESS_V07.parse().unwrap(),
-                ),
-            },
-            _ => panic!("Unsupported chain ID"),
+        // assuming that the entrypoint address is the same for all chains, so
+        // not matching based on `chain_id` (anymore)
+        match self.version {
+            EntryPointVersion::V06 => {
+                EntryPointAddress::new(ENTRYPOINT_ADDRESS_V06)
+            }
+            EntryPointVersion::V07 => {
+                EntryPointAddress::new(ENTRYPOINT_ADDRESS_V07)
+            }
         }
     }
 
@@ -147,14 +148,12 @@ impl From<String> for EntryPointVersion {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use alloy::primitives::Address;
     use eyre;
 
     #[test]
     fn test_address_type() -> eyre::Result<()> {
         {
-            let expected_v06_address: Address =
-                ENTRYPOINT_ADDRESS_V06.parse().unwrap();
+            let expected_v06_address = ENTRYPOINT_ADDRESS_V06;
             let v06 = EntryPointVersion::V06;
             let mainnet_config = EntryPointConfig {
                 chain_id: ChainId::ETHEREUM_MAINNET,
@@ -168,8 +167,7 @@ mod tests {
         };
 
         {
-            let expected_v07_address: Address =
-                ENTRYPOINT_ADDRESS_V07.parse().unwrap();
+            let expected_v07_address = ENTRYPOINT_ADDRESS_V07;
             let v07 = EntryPointVersion::V07;
             let mainnet_config = EntryPointConfig {
                 chain_id: ChainId::ETHEREUM_MAINNET,
@@ -183,8 +181,7 @@ mod tests {
         };
 
         {
-            let expected_v07_address: Address =
-                ENTRYPOINT_ADDRESS_V07.parse().unwrap();
+            let expected_v07_address = ENTRYPOINT_ADDRESS_V07;
             let v07 = EntryPointVersion::V07;
             let local_sepolia_config = EntryPointConfig {
                 chain_id: ChainId::LOCAL_FOUNDRY_ETHEREUM_SEPOLIA,

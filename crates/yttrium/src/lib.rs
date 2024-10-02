@@ -5,6 +5,7 @@ pub mod chain;
 pub mod config;
 pub mod eip7702;
 pub mod entry_point;
+pub mod erc7579;
 pub mod error;
 pub mod jsonrpc;
 pub mod private_key_service;

@@ -95,7 +95,6 @@ public final class AccountClient: AccountClientProtocol {
             id: signerId,
             onSign: { message in
                 onSign(message)
-                    .mapError(YttriumCore.SignerError.from(error:))
             }
         )
         register(signer: .native(nativeSigner))
@@ -157,14 +156,5 @@ extension Transaction {
             value: value,
             data: data
         )
-    }
-}
-
-extension YttriumCore.SignerError {
-    static func from(error: SignerError) -> Self {
-        switch error {
-        case .unknown:
-            return .unknown
-        }
     }
 }
