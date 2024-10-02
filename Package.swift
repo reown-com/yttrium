@@ -21,8 +21,8 @@ let package = Package(
     targets: [
         .binaryTarget(
             name: "RustXcframework",
-            url: "https://github.com/reown-com/yttrium/releases/download/0.0.21/RustXcframework.xcframework.zip",
-            checksum: "2b4dcbbffcad427480950e0d069bf805dd837894c54568f4e2cf121ab2fd53e7"
+            url: "https://github.com/reown-com/yttrium/releases/download/0.0.22/RustXcframework.xcframework.zip",
+            checksum: "aadc4f0cc497950d87d5c8de5a45889815d44a5437a19ba3b6600f206549671c"
         ),
         .target(
             name: "YttriumCore",
