@@ -99,9 +99,7 @@ impl AccountClient {
         self.account_client
             .wait_for_user_operation_receipt(
                 user_operation_hash.parse().map_err(|e| {
-                    Error::Unknown(format!(
-                        "Parsing user_operation_hash: {e}"
-                    ))
+                    Error::Unknown(format!("Parsing user_operation_hash: {e}"))
                 })?,
             )
             .await

@@ -4,7 +4,7 @@ services:
     restart: unless-stopped
     ports: ["8545:8545"]
     entrypoint: [ "anvil", "--fork-url", "https://gateway.tenderly.co/public/sepolia", "--host", "0.0.0.0", "--block-time", "0.1", "--gas-price", "1", "--silent", "--hardfork", "prague" ]
-    platform: linux/amd64/v8
+    platform: linux/amd64
  
   mock-paymaster:
     # image: ghcr.io/pimlicolabs/mock-verifying-paymaster:main
