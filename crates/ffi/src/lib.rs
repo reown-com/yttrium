@@ -70,9 +70,9 @@ mod ffi {
 
         pub async fn get_address(&self) -> Result<String, FFIError>;
 
-        pub async fn send_transaction(
+        pub async fn send_transactions(
             &self,
-            _transaction: FFITransaction,
+            _transactions: Vec<String>,
         ) -> Result<String, FFIError>;
 
         pub fn sign_message_with_mnemonic(

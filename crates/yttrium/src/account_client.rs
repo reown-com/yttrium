@@ -6,7 +6,7 @@ use crate::config::Config;
 use crate::private_key_service::PrivateKeyService;
 use crate::sign_service::SignService;
 use crate::transaction::send::safe_test;
-use crate::transaction::{send::send_transaction, Transaction};
+use crate::transaction::{send::send_transactions, Transaction};
 use alloy::primitives::{Address, B256};
 use alloy::signers::local::PrivateKeySigner;
 use std::sync::Arc;
@@ -130,18 +130,11 @@ impl AccountClient {
         todo!("Implement sign_message: {}", message)
     }
 
-    pub async fn send_batch_transaction(
+    pub async fn send_transactions(
         &self,
-        batch: Vec<Transaction>,
-    ) -> eyre::Result<String> {
-        todo!("Implement send_batch_transaction: {:?}", batch)
-    }
-
-    pub async fn send_transaction(
-        &self,
-        transaction: Transaction,
+        transaction: Vec<Transaction>,
     ) -> eyre::Result<B256> {
-        send_transaction(
+        send_transactions(
             transaction,
             self.owner.clone(),
             self.chain_id,
@@ -292,7 +285,7 @@ mod tests {
         )?;
 
         let user_operation_hash =
-            account_client.send_transaction(transaction).await?;
+            account_client.send_transactions(vec![transaction]).await?;
 
         println!("user_operation_hash: {:?}", user_operation_hash);
 
