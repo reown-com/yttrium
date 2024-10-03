@@ -9,28 +9,70 @@ RUST_CHECKSUM=$(cat rust_checksum.txt)
 RUST_XCFRAMEWORK_ZIP="RustXcframework.xcframework.zip"
 REPO_URL="https://github.com/reown-com/yttrium"
 
-PACKAGE_FILE="Package.swift"
+# Generate Package.swift
+cat > Package.swift <<EOF
+// swift-tools-version:5.10
+import PackageDescription
+import Foundation
 
-# Prepare the new URL and checksum
-NEW_URL="$REPO_URL/releases/download/$PACKAGE_VERSION/$RUST_XCFRAMEWORK_ZIP"
-NEW_CHECKSUM="$RUST_CHECKSUM"
+let useLocalRustXcframework = ProcessInfo.processInfo.environment["USE_LOCAL_RUST_XCFRAMEWORK"] == "1"
 
-# Use perl to update the URL and checksum in the remote binaryTarget
-perl -i -pe '
-    $in_target = 0;
-    if (/let rustXcframeworkTarget: Target = useLocalRustXcframework \?/) {
-        $in_target = 1;
-    }
-    if ($in_target && /\.binaryTarget\(/) {
-        $in_binary_target = 1;
-    }
-    if ($in_binary_target && /url:\s*".*?"/) {
-        s|url:\s*".*?"|url: "'"\"$NEW_URL\""'"|;
-    }
-    if ($in_binary_target && /checksum:\s*".*?"/) {
-        s|checksum:\s*".*?"|checksum: "'"\"$NEW_CHECKSUM\""'"|;
-        $in_binary_target = 0; # End after checksum
-    }
-' "$PACKAGE_FILE"
+let rustXcframeworkTarget: Target = useLocalRustXcframework ?
+    .binaryTarget(
+        name: "RustXcframework",
+        path: "crates/ffi/YttriumCore/RustXcframework.xcframework"
+    ) :
+    .binaryTarget(
+        name: "RustXcframework",
+        url: "$REPO_URL/releases/download/$PACKAGE_VERSION/$RUST_XCFRAMEWORK_ZIP",
+        checksum: "$RUST_CHECKSUM"
+    )
 
-echo "Package.swift updated with new URL and checksum for RustXcframework."
+let package = Package(
+    name: "yttrium",
+    platforms: [
+        .macOS(.v14),
+        .iOS(.v13),
+        .watchOS(.v10),
+        .tvOS(.v17)
+    ],
+    products: [
+        .library(
+            name: "Yttrium",
+            targets: ["Yttrium"]
+        ),
+    ],
+    dependencies: [
+        .package(url: "https://github.com/thebarndog/swift-dotenv.git", from: "2.0.0")
+    ],
+    targets: [
+        rustXcframeworkTarget,
+        .target(
+            name: "YttriumCore",
+            dependencies: [
+                "RustXcframework",
+                .product(name: "SwiftDotenv", package: "swift-dotenv")
+            ],
+            path: "crates/ffi/YttriumCore/Sources/YttriumCore"
+        ),
+        .target(
+            name: "Yttrium",
+            dependencies: [
+                "YttriumCore",
+                .product(name: "SwiftDotenv", package: "swift-dotenv")
+            ],
+            path: "platforms/swift/Sources/Yttrium"
+        ),
+        .testTarget(
+            name: "YttriumTests",
+            dependencies: [
+                "Yttrium",
+                .product(name: "SwiftDotenv", package: "swift-dotenv")
+            ],
+            path: "platforms/swift/Tests/YttriumTests"
+        ),
+    ]
+)
+EOF
+
+echo "Package.swift generated with Rust XCFramework checksum: $RUST_CHECKSUM"
