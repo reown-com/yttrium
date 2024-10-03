@@ -96,6 +96,7 @@ pub async fn send_transactions_with_private_key_signer(
             config,
         )
         .await?
+        .user_op_hash
     } else {
         send_transaction_with_signer(transactions.first().unwrap().clone(), config, chain_id, signer)
             .await?
