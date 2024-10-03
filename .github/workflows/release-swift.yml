@@ -3,7 +3,7 @@ name: Build and Release Yttrium Swift
 on:
   push:
     branches:
-      - swift-batch-transaction
+      - swift-batch-transactions
     # workflow_dispatch:
     #   inputs:
     #     version:
