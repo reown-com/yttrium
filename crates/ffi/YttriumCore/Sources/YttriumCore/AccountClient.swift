@@ -104,8 +104,9 @@ public final class AccountClient: AccountClientProtocol {
         Signers.shared.register(signer: signer)
     }
     
-    public func sendTransaction(_ transaction: Transaction) async throws -> String {
-        try await coreAccountClient.send_transaction(transaction.ffi).toString()
+    public func sendTransactions(_ transactions: [Transaction]) async throws -> String {
+        let ffiTransactions = transactions.map {$0.ffi}
+        try await coreAccountClient.send_transactions(ffiTransactions).toString()
     }
     
     public func sendBatchTransaction(_ batch: [Transaction]) async throws -> String {

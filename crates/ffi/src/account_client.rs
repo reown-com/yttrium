@@ -102,14 +102,17 @@ impl FFIAccountClient {
             .map_err(|e| FFIError::Unknown(e.to_string()))
     }
 
-    pub async fn send_transaction(
+    pub async fn send_transactions(
         &self,
-        transaction: ffi::FFITransaction,
+        transactions: Vec<ffi::FFITransaction>,
     ) -> Result<String, FFIError> {
-        let transaction = Transaction::from(transaction);
+        let transactions = transactions
+            .into_iter()
+            .map(Transaction::from)
+            .collect::<Vec<Transaction>>();
         Ok(self
             .account_client
-            .send_transaction(transaction)
+            .send_transactions(transactions)
             .await
             .map_err(|e| FFIError::Unknown(e.to_string()))?
             .to_string())

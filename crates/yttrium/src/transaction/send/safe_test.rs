@@ -81,7 +81,7 @@ pub async fn get_address(
     Ok(get_account_address(provider.clone(), owners.clone()).await)
 }
 
-pub async fn send_transaction(
+pub async fn send_transactions(
     execution_calldata: Vec<Transaction>,
     owner: LocalSigner<SigningKey>,
     address: Option<AccountAddress>,
@@ -463,7 +463,7 @@ mod tests {
             data: Bytes::new(),
         }];
 
-        let transaction_hash = send_transaction(
+        let transaction_hash = send_transactions(
             transaction,
             owner.clone(),
             None,
@@ -484,7 +484,7 @@ mod tests {
         }];
 
         let transaction_hash =
-            send_transaction(transaction, owner, None, None, config).await?;
+            send_transactions(transaction, owner, None, None, config).await?;
 
         println!("Transaction sent: {}", transaction_hash);
 
@@ -561,7 +561,7 @@ mod tests {
 
         let transaction = vec![];
 
-        let transaction_hash = send_transaction(
+        let transaction_hash = send_transactions(
             transaction,
             owner.clone(),
             None,
@@ -621,7 +621,7 @@ mod tests {
             },
         ];
 
-        let transaction_hash = send_transaction(
+        let transaction_hash = send_transactions(
             transaction,
             owner.clone(),
             None,
@@ -698,7 +698,7 @@ mod tests {
         }];
 
         let transaction = vec![];
-        let transaction_hash = send_transaction(
+        let transaction_hash = send_transactions(
             transaction,
             owner.clone(),
             Some(authority.address().into()),
@@ -725,7 +725,7 @@ mod tests {
             data: Bytes::new(),
         }];
 
-        let transaction_hash = send_transaction(
+        let transaction_hash = send_transactions(
             transaction,
             owner,
             Some(authority.address().into()),
@@ -764,7 +764,7 @@ mod tests {
         .await;
 
         let transaction = vec![];
-        let transaction_hash = send_transaction(
+        let transaction_hash = send_transactions(
             transaction,
             owner.clone(),
             None,
@@ -871,7 +871,7 @@ mod tests {
             data: Bytes::new(),
         }];
 
-        let transaction_hash = send_transaction(
+        let transaction_hash = send_transactions(
             transaction,
             owner,
             Some(authority.address().into()),
