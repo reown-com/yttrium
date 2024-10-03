@@ -1,5 +1,19 @@
 // swift-tools-version:5.10
 import PackageDescription
+import Foundation
+
+let useLocalRustXcframework = ProcessInfo.processInfo.environment["USE_LOCAL_RUST_XCFRAMEWORK"] == "1"
+
+let rustXcframeworkTarget: Target = useLocalRustXcframework ?
+    .binaryTarget(
+        name: "RustXcframework",
+        path: "crates/ffi/YttriumCore/RustXcframework.xcframework"
+    ) :
+    .binaryTarget(
+        name: "RustXcframework",
+        url: "https://github.com/reown-com/yttrium/releases/download/0.0.22/RustXcframework.xcframework.zip",
+        checksum: "aadc4f0cc497950d87d5c8de5a45889815d44a5437a19ba3b6600f206549671c"
+    )
 
 let package = Package(
     name: "yttrium",
@@ -19,11 +33,7 @@ let package = Package(
         .package(url: "https://github.com/thebarndog/swift-dotenv.git", from: "2.0.0")
     ],
     targets: [
-        .binaryTarget(
-            name: "RustXcframework",
-            url: "https://github.com/reown-com/yttrium/releases/download/0.0.22/RustXcframework.xcframework.zip",
-            checksum: "aadc4f0cc497950d87d5c8de5a45889815d44a5437a19ba3b6600f206549671c"
-        ),
+        rustXcframeworkTarget,
         .target(
             name: "YttriumCore",
             dependencies: [
