@@ -481,7 +481,6 @@ mod tests {
         }];
 
         let receipt = send_transactions(
-
             transaction,
             owner.clone(),
             None,
@@ -500,9 +499,8 @@ mod tests {
             data: Bytes::new(),
         }];
 
-
         let receipt =
-        send_transactions(transaction, owner, None, None, config).await?;
+            send_transactions(transaction, owner, None, None, config).await?;
         assert!(receipt.success);
 
         let balance = provider.get_balance(destination.address()).await?;
@@ -683,7 +681,6 @@ mod tests {
         let transaction = vec![];
 
         let receipt = send_transactions(
-
             transaction,
             owner.clone(),
             None,

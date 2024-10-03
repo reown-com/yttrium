@@ -111,15 +111,18 @@ impl FFIAccountClient {
             .into_iter()
             .map(|json| serde_json::from_str::<Transaction>(&json))
             .collect();
-    
+
         // Handle any errors that occurred during deserialization
         let transactions = match transactions {
             Ok(transactions) => transactions,
             Err(e) => {
-                return Err(FFIError::Unknown(format!("Failed to deserialize transactions: {}", e)));
+                return Err(FFIError::Unknown(format!(
+                    "Failed to deserialize transactions: {}",
+                    e
+                )));
             }
         };
-    
+
         // Proceed to send transactions using account_client
         Ok(self
             .account_client

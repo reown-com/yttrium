@@ -88,18 +88,17 @@ pub async fn send_transactions_with_private_key_signer(
     let signer = private_key_signer;
 
     let user_operation_hash = if safe {
-        safe_test::send_transactions(
-            transactions,
-            signer,
-            None,
-            None,
+        safe_test::send_transactions(transactions, signer, None, None, config)
+            .await?
+            .user_op_hash
+    } else {
+        send_transaction_with_signer(
+            transactions.first().unwrap().clone(),
             config,
+            chain_id,
+            signer,
         )
         .await?
-        .user_op_hash
-    } else {
-        send_transaction_with_signer(transactions.first().unwrap().clone(), config, chain_id, signer)
-            .await?
     };
 
     println!("user_operation_hash: {:?}", user_operation_hash);
