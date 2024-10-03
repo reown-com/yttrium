@@ -366,7 +366,7 @@ extension FFIAccountClientRef {
         }
     }
 
-    public func send_transactions(_ _transactions: RustVec<FFITransaction>) async throws -> RustString {
+    public func send_transactions<GenericIntoRustString: IntoRustString>(_ _transactions: RustVec<GenericIntoRustString>) async throws -> RustString {
         func onComplete(cbWrapperPtr: UnsafeMutableRawPointer?, rustFnRetVal: __swift_bridge__$ResultStringAndFFIError) {
             let wrapper = Unmanaged<CbWrapper$FFIAccountClient$send_transactions>.fromOpaque(cbWrapperPtr!).takeRetainedValue()
             switch rustFnRetVal.tag { case __swift_bridge__$ResultStringAndFFIError$ResultOk: wrapper.cb(.success(RustString(ptr: rustFnRetVal.payload.ok))) case __swift_bridge__$ResultStringAndFFIError$ResultErr: wrapper.cb(.failure(rustFnRetVal.payload.err.intoSwiftRepr())) default: fatalError() }

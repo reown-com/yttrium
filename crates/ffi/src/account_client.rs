@@ -104,12 +104,23 @@ impl FFIAccountClient {
 
     pub async fn send_transactions(
         &self,
-        transactions: Vec<ffi::FFITransaction>,
+        transactions: Vec<String>,
     ) -> Result<String, FFIError> {
-        let transactions = transactions
+        // Map the JSON strings to Transaction objects
+        let transactions: Result<Vec<Transaction>, _> = transactions
             .into_iter()
-            .map(Transaction::from)
-            .collect::<Vec<Transaction>>();
+            .map(|json| serde_json::from_str::<Transaction>(&json))
+            .collect();
+    
+        // Handle any errors that occurred during deserialization
+        let transactions = match transactions {
+            Ok(transactions) => transactions,
+            Err(e) => {
+                return Err(FFIError::Unknown(format!("Failed to deserialize transactions: {}", e)));
+            }
+        };
+    
+        // Proceed to send transactions using account_client
         Ok(self
             .account_client
             .send_transactions(transactions)

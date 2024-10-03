@@ -105,12 +105,30 @@ public final class AccountClient: AccountClientProtocol {
     }
     
     public func sendTransactions(_ transactions: [Transaction]) async throws -> String {
-        let ffiTransactions = transactions.map {$0.ffi}
-        try await coreAccountClient.send_transactions(ffiTransactions).toString()
+        let jsonEncoder = JSONEncoder()
+
+        let jsonStrings = try transactions.map { transaction in
+            let jsonData = try jsonEncoder.encode(transaction)
+            guard let jsonString = String(data: jsonData, encoding: .utf8) else {
+                throw NSError(domain: "EncodingError", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to convert JSON data to string"])
+            }
+            return jsonString
+        }
+
+        let rustVec = createRustVec(from: jsonStrings)
+
+        return try await coreAccountClient.send_transactions(rustVec).toString()
     }
-    
-    public func sendBatchTransaction(_ batch: [Transaction]) async throws -> String {
-        fatalError("Not yet implemented")
+        
+    private func createRustVec(from strings: [String]) -> RustVec<RustString> {
+        let rustVec = RustVec<RustString>()
+
+        for string in strings {
+            let rustString = RustString(string)
+            rustVec.push(value: rustString)
+        }
+
+        return rustVec
     }
     
     public func getAddress() async throws -> String {

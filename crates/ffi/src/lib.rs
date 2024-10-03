@@ -72,7 +72,7 @@ mod ffi {
 
         pub async fn send_transactions(
             &self,
-            _transactions: Vec<FFITransaction>,
+            _transactions: Vec<String>,
         ) -> Result<String, FFIError>;
 
         pub fn sign_message_with_mnemonic(
