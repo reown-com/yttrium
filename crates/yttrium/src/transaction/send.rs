@@ -45,8 +45,8 @@ impl fmt::Display for SentUserOperationHash {
 
 use crate::account_client::Signer;
 
-pub async fn send_transaction(
-    transaction: Transaction,
+pub async fn send_transactions(
+    transaction: Vec<Transaction>,
     owner: String,
     chain_id: u64,
     config: Config,
@@ -61,7 +61,7 @@ pub async fn send_transaction(
                 private_key_service.private_key().unwrap();
             let private_key_signer: PrivateKeySigner =
                 private_key_signer_key.parse().unwrap();
-            send_transaction_with_private_key_signer(
+            send_transactions_with_private_key_signer(
                 transaction,
                 owner,
                 chain_id,
@@ -77,8 +77,8 @@ pub async fn send_transaction(
     }
 }
 
-pub async fn send_transaction_with_private_key_signer(
-    transaction: Transaction,
+pub async fn send_transactions_with_private_key_signer(
+    transactions: Vec<Transaction>,
     _owner: String,
     chain_id: u64,
     config: Config,
@@ -88,18 +88,17 @@ pub async fn send_transaction_with_private_key_signer(
     let signer = private_key_signer;
 
     let user_operation_hash = if safe {
-        safe_test::send_transaction(
-            vec![transaction],
-            signer,
-            None,
-            None,
+        safe_test::send_transactions(transactions, signer, None, None, config)
+            .await?
+            .user_op_hash
+    } else {
+        send_transaction_with_signer(
+            transactions.first().unwrap().clone(),
             config,
+            chain_id,
+            signer,
         )
         .await?
-        .user_op_hash
-    } else {
-        send_transaction_with_signer(transaction, config, chain_id, signer)
-            .await?
     };
 
     println!("user_operation_hash: {:?}", user_operation_hash);

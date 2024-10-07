@@ -85,7 +85,7 @@ pub async fn get_address(
     Ok(get_account_address(provider.clone(), owners.clone()).await)
 }
 
-pub async fn send_transaction(
+pub async fn send_transactions(
     execution_calldata: Vec<Transaction>,
     owner: LocalSigner<SigningKey>,
     address: Option<AccountAddress>,
@@ -457,7 +457,7 @@ mod tests {
             data: Bytes::new(),
         }];
 
-        let receipt = send_transaction(
+        let receipt = send_transactions(
             transaction,
             owner.clone(),
             None,
@@ -477,7 +477,7 @@ mod tests {
         }];
 
         let receipt =
-            send_transaction(transaction, owner, None, None, config).await?;
+            send_transactions(transaction, owner, None, None, config).await?;
         assert!(receipt.success);
 
         let balance = provider.get_balance(destination.address()).await?;
@@ -559,7 +559,7 @@ mod tests {
             data: Bytes::new(),
         }];
 
-        let receipt = send_transaction(
+        let receipt = send_transactions(
             transaction,
             owner.clone(),
             None,
@@ -602,7 +602,7 @@ mod tests {
             data: Bytes::new(),
         }];
 
-        let receipt = send_transaction(transaction, owner, None, None, config)
+        let receipt = send_transactions(transaction, owner, None, None, config)
             .await
             .unwrap();
         assert!(receipt.success);
@@ -733,7 +733,7 @@ mod tests {
 
         let transaction = vec![];
 
-        let receipt = send_transaction(
+        let receipt = send_transactions(
             transaction,
             owner.clone(),
             None,
@@ -792,7 +792,7 @@ mod tests {
             },
         ];
 
-        let receipt = send_transaction(
+        let receipt = send_transactions(
             transaction,
             owner.clone(),
             None,
@@ -868,7 +868,7 @@ mod tests {
         }];
 
         let transaction = vec![];
-        let receipt = send_transaction(
+        let receipt = send_transactions(
             transaction,
             owner.clone(),
             Some(authority.address().into()),
@@ -895,7 +895,7 @@ mod tests {
             data: Bytes::new(),
         }];
 
-        let receipt = send_transaction(
+        let receipt = send_transactions(
             transaction,
             owner,
             Some(authority.address().into()),
@@ -933,7 +933,7 @@ mod tests {
         .await;
 
         let transaction = vec![];
-        let receipt = send_transaction(
+        let receipt = send_transactions(
             transaction,
             owner.clone(),
             None,
@@ -1040,7 +1040,7 @@ mod tests {
             data: Bytes::new(),
         }];
 
-        let receipt = send_transaction(
+        let receipt = send_transactions(
             transaction,
             owner,
             Some(authority.address().into()),

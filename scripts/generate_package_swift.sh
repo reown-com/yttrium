@@ -4,7 +4,7 @@ set -e
 
 # Variables
 : "${VERSION:?Error: VERSION environment variable is not set.}"
-PACKAGE_VERSION="$VERSION" 
+PACKAGE_VERSION="$VERSION"
 RUST_CHECKSUM=$(cat rust_checksum.txt)
 RUST_XCFRAMEWORK_ZIP="RustXcframework.xcframework.zip"
 REPO_URL="https://github.com/reown-com/yttrium"
@@ -13,6 +13,20 @@ REPO_URL="https://github.com/reown-com/yttrium"
 cat > Package.swift <<EOF
 // swift-tools-version:5.10
 import PackageDescription
+import Foundation
+
+let useLocalRustXcframework = ProcessInfo.processInfo.environment["USE_LOCAL_RUST_XCFRAMEWORK"] == "1"
+
+let rustXcframeworkTarget: Target = useLocalRustXcframework ?
+    .binaryTarget(
+        name: "RustXcframework",
+        path: "crates/ffi/YttriumCore/RustXcframework.xcframework"
+    ) :
+    .binaryTarget(
+        name: "RustXcframework",
+        url: "$REPO_URL/releases/download/$PACKAGE_VERSION/$RUST_XCFRAMEWORK_ZIP",
+        checksum: "$RUST_CHECKSUM"
+    )
 
 let package = Package(
     name: "yttrium",
@@ -32,11 +46,7 @@ let package = Package(
         .package(url: "https://github.com/thebarndog/swift-dotenv.git", from: "2.0.0")
     ],
     targets: [
-        .binaryTarget(
-            name: "RustXcframework",
-            url: "$REPO_URL/releases/download/$PACKAGE_VERSION/$RUST_XCFRAMEWORK_ZIP",
-            checksum: "$RUST_CHECKSUM"
-        ),
+        rustXcframeworkTarget,
         .target(
             name: "YttriumCore",
             dependencies: [
