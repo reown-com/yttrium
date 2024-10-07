@@ -1,5 +1,5 @@
 use alloy::primitives::{
-    b256, Address, BlockHash, Bytes, TxHash, B256, U128, U64, U8
+    b256, Address, BlockHash, Bytes, TxHash, B256, U128, U64, U8,
 };
 use serde::{Deserialize, Serialize};
 
