@@ -12,7 +12,7 @@ uniffi_build = "0.28.1"
 
 [dependencies]
 yttrium = { path = "../yttrium" }
-uniffi = "0.28.1"
+uniffi = { version = "0.28.1", features = ["tokio"] }
 openssl = { version = "0.10", features = ["vendored"] }
 openssl-sys = { version = "0.9.103", features = ["vendored"] }
 

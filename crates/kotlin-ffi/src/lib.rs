@@ -8,6 +8,7 @@ use yttrium::{
     transaction::Transaction as YTransaction,
 };
 
+#[derive(uniffi::Object)]
 pub struct AccountClient {
     pub owner_address: String,
     pub chain_id: u64,
@@ -23,13 +24,23 @@ pub struct AccountClientConfig {
     pub private_key: String,
 }
 
+pub struct Transaction {
+    pub to: String,
+    pub value: String,
+    pub data: String,
+}
+
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error("Unknown {0}")]
     Unknown(String),
 }
 
+
+#[uniffi::export(async_runtime = "tokio")]
 impl AccountClient {
+
+    #[uniffi::constructor]
     pub fn new(config: AccountClientConfig) -> Self {
         let owner_address = config.owner_address.clone();
         let signer_type = config.signer_type.clone();
@@ -69,6 +80,7 @@ impl AccountClient {
             .map_err(|e| Error::Unknown(e.to_string()))
     }
 
+    
     pub async fn send_transaction(
         &self,
         transaction: Transaction,
@@ -108,12 +120,6 @@ impl AccountClient {
             .collect::<Result<String, serde_json::Error>>()
             .map_err(|e| Error::Unknown(e.to_string()))
     }
-}
-
-pub struct Transaction {
-    pub to: String,
-    pub value: String,
-    pub data: String,
 }
 
 uniffi::include_scaffolding!("yttrium");

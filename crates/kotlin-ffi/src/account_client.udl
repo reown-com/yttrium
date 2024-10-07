@@ -36,3 +36,18 @@ dictionary Endpoints {
     string value;
     string data;
   };
+
+interface AccountClient {
+    constructor(AccountClientConfig config);
+
+    u64 chain_id();
+
+    [Throws=Error, Async]
+    string get_address();
+
+    [Throws=Error, Async]
+    string send_transaction(Transaction transaction);
+
+    [Throws=Error, Async]
+    string wait_for_user_operation_receipt(string user_operation_hash);
+  };
