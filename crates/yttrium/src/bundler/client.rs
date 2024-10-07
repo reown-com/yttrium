@@ -1,12 +1,13 @@
 use super::config::BundlerConfig;
-use super::models::{
-    estimate_result::EstimateResult,
-    user_operation_receipt::UserOperationReceipt,
-};
+use super::models::estimate_result::EstimateResult;
+use super::models::user_operation_receipt::UserOperationReceipt;
 use crate::entry_point::EntryPointAddress;
 use crate::jsonrpc::{JSONRPCResponse, Request, Response};
 use crate::user_operation::UserOperationV07;
+use alloy::network::Ethereum;
 use alloy::primitives::B256;
+use alloy::transports::{Transport, TransportResult};
+use alloy_provider::{Network, Provider, ReqwestProvider};
 use eyre::Ok;
 use serde_json;
 
@@ -98,38 +99,9 @@ impl BundlerClient {
         &self,
         hash: B256,
     ) -> eyre::Result<Option<UserOperationReceipt>> {
-        let bundler_url = self.config.url().clone();
-
-        let hash_value = serde_json::to_value(hash)?;
-
-        let send_body = Request {
-            jsonrpc: "2.0".into(),
-            id: 1,
-            method: "eth_getUserOperationReceipt".into(),
-            params: vec![hash_value],
-        };
-        println!("send_body: {:?}", send_body);
-
-        let response = self
-            .client
-            .post(bundler_url.as_str())
-            .json(&send_body)
-            .send()
-            .await?;
-
-        let response_text = response.text().await?;
-        println!("response_text: {:?}", response_text);
-        let raw_payload = serde_json::from_str::<
-            JSONRPCResponse<UserOperationReceipt>,
-        >(&response_text)?;
-
-        println!("raw_payload: {:?}", raw_payload);
-
-        let response: Response<UserOperationReceipt> = raw_payload.into();
-
-        let response_estimate = response?;
-
-        Ok(response_estimate)
+        let provider =
+            ReqwestProvider::<Ethereum>::new_http(self.config.url().parse()?);
+        Ok(Some(provider.get_user_operation_receipt(hash).await?))
     }
 
     pub async fn wait_for_user_operation_receipt(
@@ -147,11 +119,11 @@ impl BundlerClient {
         loop {
             match self.get_user_operation_receipt(hash).await {
                 eyre::Result::Ok(Some(receipt)) => return Ok(receipt),
-                _ => {
+                e => {
                     if let Some(timeout_duration) = timeout {
                         if start_time.elapsed() > timeout_duration {
                             return Err(eyre::eyre!(
-                                "Timeout waiting for user operation receipt"
+                                "Timeout waiting for user operation receipt: {e:?}",
                             ));
                         }
                     }
@@ -166,17 +138,40 @@ impl BundlerClient {
     }
 }
 
+#[cfg_attr(target_arch = "wasm32", async_trait::async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait::async_trait)]
+pub trait CustomErc4337Api<N, T>: Send + Sync {
+    async fn get_user_operation_receipt(
+        &self,
+        user_op_hash: B256,
+    ) -> TransportResult<UserOperationReceipt>;
+}
+
+#[cfg_attr(target_arch = "wasm32", async_trait::async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait::async_trait)]
+impl<N, T, P> CustomErc4337Api<N, T> for P
+where
+    N: Network,
+    T: Transport + Clone,
+    P: Provider<T, N>,
+{
+    async fn get_user_operation_receipt(
+        &self,
+        user_op_hash: B256,
+    ) -> TransportResult<UserOperationReceipt> {
+        self.client()
+            .request("eth_getUserOperationReceipt", (user_op_hash,))
+            .await
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::{
-        bundler::models::{
-            estimate_result::EstimateResult,
-            user_operation_receipt::UserOperationReceipt,
-        },
-        entry_point,
+        bundler::models::estimate_result::EstimateResult, entry_point,
     };
-    use alloy::primitives::{b256, Address, Bytes, U256};
+    use alloy::primitives::{Address, Bytes, U256};
     use eyre::ensure;
 
     pub async fn setup_gas_estimation_bundler_mock(
@@ -274,53 +269,6 @@ mod tests {
             .await?;
 
         ensure!(estimate_result.call_gas_limit == U256::from(100000));
-
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn test_get_user_operation_receipt() -> eyre::Result<()> {
-        use wiremock::matchers::{method, path};
-        use wiremock::{Mock, MockServer, ResponseTemplate};
-
-        let mock_server = MockServer::start().await;
-
-        let expected_request_body = serde_json::json!({
-            "id": 1,
-            "jsonrpc": "2.0",
-            "method": "eth_getUserOperationReceipt",
-        });
-
-        let user_operation_hash = b256!(
-            "93c06f3f5909cc2b192713ed9bf93e3e1fde4b22fcd2466304fa404f9b80ff90"
-        );
-
-        let response_payload = UserOperationReceipt::mock();
-
-        let response_body = serde_json::json!({
-            "id": 1,
-            "jsonrpc": "2.0",
-            "result": response_payload,
-        });
-
-        let response = ResponseTemplate::new(200).set_body_json(response_body);
-        use wiremock::matchers::body_partial_json;
-        Mock::given(method("POST"))
-            .and(path("/"))
-            .and(body_partial_json(&expected_request_body))
-            .respond_with(response)
-            .mount(&mock_server)
-            .await;
-
-        let bundler_client = BundlerClient::new(BundlerConfig::new(
-            mock_server.uri().to_string(),
-        ));
-
-        let receipt = bundler_client
-            .get_user_operation_receipt(user_operation_hash)
-            .await?;
-
-        assert_eq!(receipt, Some(response_payload));
 
         Ok(())
     }

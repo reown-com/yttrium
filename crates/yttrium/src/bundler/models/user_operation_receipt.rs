@@ -1,4 +1,4 @@
-use alloy::primitives::{b256, Address, B256};
+use alloy::primitives::{b256, Address, B256, U8};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -13,7 +13,7 @@ pub struct UserOperationReceiptReceipt {
     pub cumulative_gas_used: String,
     pub gas_used: String,
     pub contract_address: Option<String>,
-    pub status: String,
+    pub status: U8,
     pub logs_bloom: String,
     // pub r#type: String,
     pub effective_gas_price: String,
@@ -60,7 +60,7 @@ impl UserOperationReceipt {
                 cumulative_gas_used: "0x12bafe6".to_string(),
                 gas_used: "0x20d07".to_string(),
                 contract_address: None,
-                status: "0x1".to_string(),
+                status: U8::from(1),
                 logs_bloom: "0x04400000000040002000000000000000000000000000000000000000000000000008000000000000000200010000000000100000000000000000020000000000000000000000000000000008000000000100000000000000000000000000000000000000080000000008000000000000000000000000000000000010000000000000000000040040100088000000000000000000000000000000000000000000000000000000000100400000000008000000000000000000000002000000000000000002000000100001000000000000000000002000000000000040000000000000000000000000200000000000000000000000000000000000000000000010".to_string(),
                 // r#type: "0x2".to_string(),
                 effective_gas_price: "0x86cb70a28".to_string(),
