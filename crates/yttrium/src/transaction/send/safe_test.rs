@@ -114,14 +114,45 @@ pub async fn send_transaction(
     let signature2 = owner.sign_hash_sync(&hash)?;
     assert_eq!(signature, signature2);
 
-    finalize_send_transaction(
+    let user_operation_hash = finalize_send_transaction(
         user_op,
         valid_after,
         valid_until,
         vec![OwnerSignature { owner: owner_address, signature }],
-        config,
+        config.clone(),
     )
-    .await
+    .await?;
+
+    println!("Querying for receipts...");
+
+    let bundler_client = BundlerClient::new(BundlerConfig::new(
+        config.endpoints.bundler.base_url.clone(),
+    ));
+    let receipt = bundler_client
+        .wait_for_user_operation_receipt(user_operation_hash)
+        .await?;
+
+    println!(
+        "SAFE UserOperation included: https://sepolia.etherscan.io/tx/{}",
+        receipt.receipt.transaction_hash
+    );
+
+    // Some extra calls to wait for/get the actual transaction. But these
+    // aren't required since eth_getUserOperationReceipt already waits
+    // let tx_hash = FixedBytes::from_slice(
+    //     &hex::decode(tx_hash.strip_prefix("0x").unwrap()).unwrap(),
+    // );
+    // let pending_txn = provider
+    //     .watch_pending_transaction(PendingTransactionConfig::new(tx_hash))
+    //     .await?;
+    // pending_txn.await.unwrap();
+    // let transaction = provider.get_transaction_by_hash(tx_hash).await?;
+    // println!("Transaction included: {:?}", transaction);
+    // let transaction_receipt =
+    //     provider.get_transaction_receipt(tx_hash).await?;
+    // println!("Transaction receipt: {:?}", transaction_receipt);
+
+    Ok(receipt)
 }
 
 pub struct PreparedSendTransaction {
@@ -391,7 +422,7 @@ pub async fn finalize_send_transaction(
     valid_until: U48,
     signatures: Vec<OwnerSignature>,
     config: Config,
-) -> eyre::Result<UserOperationReceipt> {
+) -> eyre::Result<B256> {
     if signatures.len() != 1 {
         return Err(eyre::eyre!("Only one signature is supported for now"));
     }
@@ -433,33 +464,7 @@ pub async fn finalize_send_transaction(
 
     println!("Received User Operation hash: {:?}", user_operation_hash);
 
-    println!("Querying for receipts...");
-
-    let receipt = bundler_client
-        .wait_for_user_operation_receipt(user_operation_hash)
-        .await?;
-
-    println!(
-        "SAFE UserOperation included: https://sepolia.etherscan.io/tx/{}",
-        receipt.receipt.transaction_hash
-    );
-
-    // Some extra calls to wait for/get the actual transaction. But these
-    // aren't required since eth_getUserOperationReceipt already waits
-    // let tx_hash = FixedBytes::from_slice(
-    //     &hex::decode(tx_hash.strip_prefix("0x").unwrap()).unwrap(),
-    // );
-    // let pending_txn = provider
-    //     .watch_pending_transaction(PendingTransactionConfig::new(tx_hash))
-    //     .await?;
-    // pending_txn.await.unwrap();
-    // let transaction = provider.get_transaction_by_hash(tx_hash).await?;
-    // println!("Transaction included: {:?}", transaction);
-    // let transaction_receipt =
-    //     provider.get_transaction_receipt(tx_hash).await?;
-    // println!("Transaction receipt: {:?}", transaction_receipt);
-
-    Ok(receipt)
+    Ok(user_operation_hash)
 }
 
 #[cfg(test)]

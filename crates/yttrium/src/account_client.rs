@@ -5,8 +5,15 @@ use crate::bundler::{
 use crate::config::Config;
 use crate::private_key_service::PrivateKeyService;
 use crate::sign_service::SignService;
-use crate::transaction::send::safe_test;
+use crate::transaction::send::safe_test::{
+    self, OwnerSignature, PreparedSendTransaction,
+};
+use crate::transaction::send::{
+    finalize_send_transaction, prepare_send_transaction,
+};
 use crate::transaction::{send::send_transaction, Transaction};
+use crate::user_operation::UserOperationV07;
+use alloy::primitives::aliases::U48;
 use alloy::primitives::{Address, B256};
 use alloy::signers::local::PrivateKeySigner;
 use std::sync::Arc;
@@ -32,6 +39,7 @@ impl SignerType {
 pub enum Signer {
     PrivateKey(Arc<Mutex<PrivateKeyService>>),
     Native(Arc<Mutex<SignService>>),
+    None,
 }
 
 impl Signer {
@@ -152,6 +160,39 @@ impl AccountClient {
         .await
     }
 
+    pub async fn prepare_send_transaction(
+        &self,
+        transaction: Transaction,
+    ) -> eyre::Result<PreparedSendTransaction> {
+        prepare_send_transaction(
+            transaction,
+            self.owner.clone(),
+            self.chain_id,
+            self.config.clone(),
+            self.safe,
+        )
+        .await
+    }
+
+    pub async fn finalize_send_transaction(
+        &self,
+        user_op: UserOperationV07,
+        valid_after: U48,
+        valid_until: U48,
+        signatures: Vec<OwnerSignature>,
+    ) -> eyre::Result<B256> {
+        finalize_send_transaction(
+            user_op,
+            valid_after,
+            valid_until,
+            signatures,
+            self.chain_id,
+            self.config.clone(),
+            self.safe,
+        )
+        .await
+    }
+
     pub fn sign_message_with_mnemonic(
         &self,
         message: String,
@@ -229,6 +270,9 @@ pub async fn get_address_with_signer(
         }
         Signer::Native(_sign_service) => {
             todo!("Implement native signer support")
+        }
+        Signer::None => {
+            todo!("get_address_with_signer doesn't work with None signer")
         }
     }
 }
