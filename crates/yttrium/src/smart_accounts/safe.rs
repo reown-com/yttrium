@@ -9,6 +9,7 @@ use alloy::{
     sol,
     sol_types::{SolCall, SolValue},
 };
+use serde::{Deserialize, Serialize};
 
 sol! {
     #[sol(rpc)]
@@ -67,6 +68,7 @@ sol! {
 }
 
 sol!(
+    #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
     struct SafeOp {
         address safe;
         uint256 nonce;

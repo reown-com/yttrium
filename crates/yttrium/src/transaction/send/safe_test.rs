@@ -28,14 +28,13 @@ use crate::{
 use alloy::{
     dyn_abi::{DynSolValue, Eip712Domain},
     network::Ethereum,
-    primitives::{aliases::U48, Address, Bytes, Uint, B256, U128, U160, U256},
+    primitives::{aliases::U48, Bytes, Uint, B256, U128, U160, U256},
     providers::{Provider, ReqwestProvider},
-    signers::{
-        k256::ecdsa::SigningKey, local::LocalSigner, Signature, SignerSync,
-    },
+    signers::{k256::ecdsa::SigningKey, local::LocalSigner, SignerSync},
     sol_types::{SolCall, SolStruct},
 };
 use core::fmt;
+use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::ops::Not;
 
@@ -151,17 +150,19 @@ pub async fn send_transactions(
     Ok(receipt)
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PreparedSendTransaction {
-    safe_op: SafeOp,
-    domain: Eip712Domain,
-    hash: B256,
-    do_send_transaction_params: DoSendTransactionParams,
+    pub safe_op: SafeOp,
+    pub domain: Eip712Domain,
+    pub hash: B256,
+    pub do_send_transaction_params: DoSendTransactionParams,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DoSendTransactionParams {
-    user_op: UserOperationV07,
-    valid_after: U48,
-    valid_until: U48,
+    pub user_op: UserOperationV07,
+    pub valid_after: U48,
+    pub valid_until: U48,
 }
 
 pub async fn prepare_send_transactions(
@@ -412,10 +413,11 @@ pub async fn prepare_send_transactions(
     })
 }
 
+pub use alloy::primitives::Address;
+pub use alloy::primitives::Signature;
 pub struct OwnerSignature {
-    #[allow(unused)]
-    owner: Address,
-    signature: Signature,
+    pub owner: Address,
+    pub signature: Signature,
 }
 
 pub async fn do_send_transactions(

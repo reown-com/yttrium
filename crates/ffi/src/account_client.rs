@@ -1,7 +1,8 @@
 use super::ffi;
 use super::ffi::{FFIAccountClientConfig, FFIError};
+use crate::ffi::{FFIOwnerSignature, FFIPreparedSendTransaction};
 use yttrium::transaction::send::safe_test::{
-    DoSendTransactionParams, OwnerSignature, PreparedSendTransaction,
+    Address, OwnerSignature, Signature,
 };
 use yttrium::{
     account_client::{AccountClient, SignerType},
@@ -138,7 +139,7 @@ impl FFIAccountClient {
     pub async fn prepare_send_transactions(
         &self,
         transactions: Vec<String>,
-    ) -> Result<PreparedSendTransaction, FFIError> {
+    ) -> Result<FFIPreparedSendTransaction, FFIError> {
         // Map the JSON strings to Transaction objects
         let transactions: Result<Vec<Transaction>, _> = transactions
             .into_iter()
@@ -157,20 +158,46 @@ impl FFIAccountClient {
         };
 
         // Proceed to send transactions using account_client
-        self.account_client
+        let prepared_send_transaction = self
+            .account_client
             .prepare_send_transactions(transactions)
             .await
-            .map_err(|e| FFIError::Unknown(e.to_string()))
+            .map_err(|e| FFIError::Unknown(e.to_string()))?;
+        Ok(FFIPreparedSendTransaction {
+            hash: prepared_send_transaction.hash.to_string(),
+            do_send_transaction_params: serde_json::to_string(
+                &prepared_send_transaction.do_send_transaction_params,
+            )
+            .map_err(|e| FFIError::Unknown(e.to_string()))?,
+        })
     }
 
     pub async fn do_send_transaction(
         &self,
-        signatures: Vec<OwnerSignature>,
-        do_send_transaction_params: DoSendTransactionParams,
+        signatures: Vec<FFIOwnerSignature>,
+        do_send_transaction_params: String,
     ) -> Result<String, FFIError> {
+        let mut signatures2 = Vec::with_capacity(signatures.len());
+        for signature in signatures {
+            signatures2.push(OwnerSignature {
+                owner: signature
+                    .owner
+                    .parse::<Address>()
+                    .map_err(|e| FFIError::Unknown(e.to_string()))?,
+                signature: signature
+                    .signature
+                    .parse::<Signature>()
+                    .map_err(|e| FFIError::Unknown(e.to_string()))?,
+            });
+        }
+
         Ok(self
             .account_client
-            .do_send_transactions(signatures, do_send_transaction_params)
+            .do_send_transactions(
+                signatures2,
+                serde_json::from_str(&do_send_transaction_params)
+                    .map_err(|e| FFIError::Unknown(e.to_string()))?,
+            )
             .await
             .map_err(|e| FFIError::Unknown(e.to_string()))?
             .to_string())
