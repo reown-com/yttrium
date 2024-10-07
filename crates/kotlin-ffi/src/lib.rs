@@ -36,10 +36,8 @@ pub enum Error {
     Unknown(String),
 }
 
-
 #[uniffi::export(async_runtime = "tokio")]
 impl AccountClient {
-
     #[uniffi::constructor]
     pub fn new(config: AccountClientConfig) -> Self {
         let owner_address = config.owner_address.clone();
@@ -80,7 +78,6 @@ impl AccountClient {
             .map_err(|e| Error::Unknown(e.to_string()))
     }
 
-    
     pub async fn send_transaction(
         &self,
         transaction: Transaction,
