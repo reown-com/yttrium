@@ -78,14 +78,28 @@ impl AccountClient {
             .map_err(|e| Error::Unknown(e.to_string()))
     }
 
-    pub async fn send_transaction(
+    pub async fn send_transactions(
         &self,
-        transaction: Transaction,
+        transactions: Vec<Transaction>,
     ) -> Result<String, Error> {
-        let transaction = YTransaction::from(transaction);
+        // Map Vec<Transaction> into Vec<YTransaction>
+        // let ytransactions: Vec<YTransaction> =
+        //     transactions
+        //     .into_iter()
+        //     .map(YTransaction::from)
+        //     .collect();
+
+        let ytransactions: Result<Vec<YTransaction>, Error> = transactions
+            .into_iter()    
+            .map(|t| YTransaction::try_from(t))
+            .collect();
+
+            / Handle the result of the mapping
+            let ytransactions = ytransactions?;
+
         Ok(self
             .account_client
-            .send_transaction(transaction)
+            .send_transactions(ytransactions)
             .await
             .map_err(|e| Error::Unknown(e.to_string()))?
             .to_string())

@@ -46,7 +46,7 @@ interface AccountClient {
     string get_address();
 
     [Throws=Error, Async]
-    string send_transaction(Transaction transaction);
+    string send_transactions(sequence<Transaction> transactions);
 
     [Throws=Error, Async]
     string wait_for_user_operation_receipt(string user_operation_hash);
