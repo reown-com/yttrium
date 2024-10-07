@@ -647,7 +647,7 @@ mod tests {
             data: Bytes::new(),
         }];
 
-        let receipt = send_transaction(
+        let receipt = send_transactions(
             transaction,
             LocalSigner::random(),
             Some(sender_address),
