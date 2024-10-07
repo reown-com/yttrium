@@ -1,5 +1,8 @@
 use super::ffi;
 use super::ffi::{FFIAccountClientConfig, FFIError};
+use yttrium::transaction::send::safe_test::{
+    DoSendTransactionParams, OwnerSignature, PreparedSendTransaction,
+};
 use yttrium::{
     account_client::{AccountClient, SignerType},
     error::YttriumError,
@@ -110,6 +113,31 @@ impl FFIAccountClient {
         Ok(self
             .account_client
             .send_transaction(transaction)
+            .await
+            .map_err(|e| FFIError::Unknown(e.to_string()))?
+            .to_string())
+    }
+
+    pub async fn prepare_send_transaction(
+        &self,
+        transaction: ffi::FFITransaction,
+    ) -> eyre::Result<PreparedSendTransaction> {
+        let transaction = Transaction::from(transaction);
+        Ok(self
+            .account_client
+            .prepare_send_transaction(transaction)
+            .await
+            .map_err(|e| FFIError::Unknown(e.to_string()))?)
+    }
+
+    pub async fn do_send_transaction(
+        &self,
+        signatures: Vec<OwnerSignature>,
+        do_send_transaction_params: DoSendTransactionParams,
+    ) -> eyre::Result<String> {
+        Ok(self
+            .account_client
+            .do_send_transaction(signatures, do_send_transaction_params)
             .await
             .map_err(|e| FFIError::Unknown(e.to_string()))?
             .to_string())

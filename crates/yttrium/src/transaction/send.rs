@@ -2,11 +2,12 @@ use crate::transaction::send::simple_account_test::send_transaction_with_signer;
 use crate::{
     config::Config, transaction::Transaction, user_operation::UserOperationV07,
 };
-use alloy::primitives::aliases::U48;
 use alloy::primitives::B256;
 use alloy::signers::local::PrivateKeySigner;
 use core::fmt;
-use safe_test::{OwnerSignature, PreparedSendTransaction};
+use safe_test::{
+    DoSendTransactionParams, OwnerSignature, PreparedSendTransaction,
+};
 
 pub mod safe_test;
 pub mod send_tests;
@@ -135,21 +136,17 @@ pub async fn prepare_send_transaction(
     Ok(user_operation_hash)
 }
 
-pub async fn finalize_send_transaction(
-    user_op: UserOperationV07,
-    valid_after: U48,
-    valid_until: U48,
+pub async fn do_send_transaction(
     signatures: Vec<OwnerSignature>,
+    do_send_transaction_params: DoSendTransactionParams,
     _chain_id: u64,
     config: Config,
     safe: bool,
 ) -> eyre::Result<B256> {
     let user_operation_hash = if safe {
-        safe_test::finalize_send_transaction(
-            user_op,
-            valid_after,
-            valid_until,
+        safe_test::do_send_transaction(
             signatures,
+            do_send_transaction_params,
             config,
         )
         .await?

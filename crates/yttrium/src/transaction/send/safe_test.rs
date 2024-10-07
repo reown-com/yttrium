@@ -94,12 +94,10 @@ pub async fn send_transaction(
 ) -> eyre::Result<UserOperationReceipt> {
     let owner_address = owner.address();
     let PreparedSendTransaction {
-        user_op,
         safe_op,
         domain,
         hash,
-        valid_after,
-        valid_until,
+        do_send_transaction_params,
     } = prepare_send_transaction(
         execution_calldata,
         owner_address,
@@ -114,11 +112,9 @@ pub async fn send_transaction(
     let signature2 = owner.sign_hash_sync(&hash)?;
     assert_eq!(signature, signature2);
 
-    let user_operation_hash = finalize_send_transaction(
-        user_op,
-        valid_after,
-        valid_until,
+    let user_operation_hash = do_send_transaction(
         vec![OwnerSignature { owner: owner_address, signature }],
+        do_send_transaction_params,
         config.clone(),
     )
     .await?;
@@ -156,10 +152,14 @@ pub async fn send_transaction(
 }
 
 pub struct PreparedSendTransaction {
-    user_op: UserOperationV07,
     safe_op: SafeOp,
     domain: Eip712Domain,
     hash: B256,
+    do_send_transaction_params: DoSendTransactionParams,
+}
+
+pub struct DoSendTransactionParams {
+    user_op: UserOperationV07,
     valid_after: U48,
     valid_until: U48,
 }
@@ -401,12 +401,14 @@ pub async fn prepare_send_transaction(
     let hash = safe_op.eip712_signing_hash(&domain);
 
     Ok(PreparedSendTransaction {
-        user_op,
         safe_op,
         domain,
         hash,
-        valid_after,
-        valid_until,
+        do_send_transaction_params: DoSendTransactionParams {
+            user_op,
+            valid_after,
+            valid_until,
+        },
     })
 }
 
@@ -416,11 +418,13 @@ pub struct OwnerSignature {
     signature: Signature,
 }
 
-pub async fn finalize_send_transaction(
-    user_op: UserOperationV07,
-    valid_after: U48,
-    valid_until: U48,
+pub async fn do_send_transaction(
     signatures: Vec<OwnerSignature>,
+    DoSendTransactionParams {
+        user_op,
+        valid_after,
+        valid_until,
+    }: DoSendTransactionParams,
     config: Config,
 ) -> eyre::Result<B256> {
     if signatures.len() != 1 {
