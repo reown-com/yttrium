@@ -8,8 +8,10 @@ use crate::sign_service::SignService;
 use crate::transaction::send::safe_test::{
     self, DoSendTransactionParams, OwnerSignature, PreparedSendTransaction,
 };
-use crate::transaction::send::{do_send_transaction, prepare_send_transaction};
-use crate::transaction::{send::send_transaction, Transaction};
+use crate::transaction::send::{
+    do_send_transactions, prepare_send_transaction,
+};
+use crate::transaction::{send::send_transactions, Transaction};
 use alloy::primitives::{Address, B256};
 use alloy::signers::local::PrivateKeySigner;
 use std::sync::Arc;
@@ -134,19 +136,12 @@ impl AccountClient {
         todo!("Implement sign_message: {}", message)
     }
 
-    pub async fn send_batch_transaction(
+    pub async fn send_transactions(
         &self,
-        batch: Vec<Transaction>,
-    ) -> eyre::Result<String> {
-        todo!("Implement send_batch_transaction: {:?}", batch)
-    }
-
-    pub async fn send_transaction(
-        &self,
-        transaction: Transaction,
+        transactions: Vec<Transaction>,
     ) -> eyre::Result<B256> {
-        send_transaction(
-            transaction,
+        send_transactions(
+            transactions,
             self.owner.clone(),
             self.chain_id,
             self.config.clone(),
@@ -156,12 +151,12 @@ impl AccountClient {
         .await
     }
 
-    pub async fn prepare_send_transaction(
+    pub async fn prepare_send_transactions(
         &self,
-        transaction: Transaction,
+        transactions: Vec<Transaction>,
     ) -> eyre::Result<PreparedSendTransaction> {
         prepare_send_transaction(
-            transaction,
+            transactions,
             self.owner.clone(),
             self.chain_id,
             self.config.clone(),
@@ -170,12 +165,12 @@ impl AccountClient {
         .await
     }
 
-    pub async fn do_send_transaction(
+    pub async fn do_send_transactions(
         &self,
         signatures: Vec<OwnerSignature>,
         do_send_transaction_params: DoSendTransactionParams,
     ) -> eyre::Result<B256> {
-        do_send_transaction(
+        do_send_transactions(
             signatures,
             do_send_transaction_params,
             self.chain_id,
@@ -328,7 +323,7 @@ mod tests {
         )?;
 
         let user_operation_hash =
-            account_client.send_transaction(transaction).await?;
+            account_client.send_transactions(vec![transaction]).await?;
 
         println!("user_operation_hash: {:?}", user_operation_hash);
 
