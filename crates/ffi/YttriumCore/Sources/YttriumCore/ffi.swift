@@ -366,9 +366,9 @@ extension FFIAccountClientRef {
         }
     }
 
-    public func send_transaction(_ _transaction: FFITransaction) async throws -> RustString {
+    public func send_transactions<GenericIntoRustString: IntoRustString>(_ _transactions: RustVec<GenericIntoRustString>) async throws -> RustString {
         func onComplete(cbWrapperPtr: UnsafeMutableRawPointer?, rustFnRetVal: __swift_bridge__$ResultStringAndFFIError) {
-            let wrapper = Unmanaged<CbWrapper$FFIAccountClient$send_transaction>.fromOpaque(cbWrapperPtr!).takeRetainedValue()
+            let wrapper = Unmanaged<CbWrapper$FFIAccountClient$send_transactions>.fromOpaque(cbWrapperPtr!).takeRetainedValue()
             switch rustFnRetVal.tag { case __swift_bridge__$ResultStringAndFFIError$ResultOk: wrapper.cb(.success(RustString(ptr: rustFnRetVal.payload.ok))) case __swift_bridge__$ResultStringAndFFIError$ResultErr: wrapper.cb(.failure(rustFnRetVal.payload.err.intoSwiftRepr())) default: fatalError() }
         }
 
@@ -377,13 +377,13 @@ extension FFIAccountClientRef {
                 continuation.resume(with: rustFnRetVal)
             }
 
-            let wrapper = CbWrapper$FFIAccountClient$send_transaction(cb: callback)
+            let wrapper = CbWrapper$FFIAccountClient$send_transactions(cb: callback)
             let wrapperPtr = Unmanaged.passRetained(wrapper).toOpaque()
 
-            __swift_bridge__$FFIAccountClient$send_transaction(wrapperPtr, onComplete, ptr, _transaction.intoFfiRepr())
+            __swift_bridge__$FFIAccountClient$send_transactions(wrapperPtr, onComplete, ptr, { let val = _transactions; val.isOwned = false; return val.ptr }())
         })
     }
-    class CbWrapper$FFIAccountClient$send_transaction {
+    class CbWrapper$FFIAccountClient$send_transactions {
         var cb: (Result<RustString, Error>) -> ()
     
         public init(cb: @escaping (Result<RustString, Error>) -> ()) {

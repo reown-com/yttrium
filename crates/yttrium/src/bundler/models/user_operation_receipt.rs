@@ -1,4 +1,4 @@
-use alloy::primitives::Address;
+use alloy::primitives::{b256, Address, B256};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -19,10 +19,11 @@ pub struct UserOperationReceiptReceipt {
     pub effective_gas_price: String,
 }
 
+// TODO replace with alloy's UserOperationReceipt
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UserOperationReceipt {
-    pub user_op_hash: String,
+    pub user_op_hash: B256,
     pub entry_point: Address,
     pub sender: Address,
     pub nonce: String,
@@ -38,7 +39,7 @@ pub struct UserOperationReceipt {
 impl UserOperationReceipt {
     pub fn mock() -> Self {
         UserOperationReceipt {
-            user_op_hash: "0x93c06f3f5909cc2b192713ed9bf93e3e1fde4b22fcd2466304fa404f9b80ff90".to_string(),
+            user_op_hash: b256!("93c06f3f5909cc2b192713ed9bf93e3e1fde4b22fcd2466304fa404f9b80ff90"),
             entry_point: "0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789"
                 .parse()
                 .unwrap(),

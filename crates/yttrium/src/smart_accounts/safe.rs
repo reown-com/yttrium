@@ -196,14 +196,20 @@ pub async fn get_account_address(
 }
 
 pub fn get_call_data(execution_calldata: Vec<Transaction>) -> Bytes {
+    get_call_data_with_try(execution_calldata, false)
+}
+
+pub fn get_call_data_with_try(
+    execution_calldata: Vec<Transaction>,
+    exec_type: bool,
+) -> Bytes {
     let batch = execution_calldata.len() != 1;
-    let revert_on_error = false;
     let selector = [0u8; 4];
     let context = [0u8; 22];
 
     let mode = DynSolValue::Tuple(vec![
         DynSolValue::Uint(Uint::from(if batch { 0x01 } else { 0x00 }), 8), // DelegateCall is 0xFF
-        DynSolValue::Uint(Uint::from(revert_on_error as u8), 8),
+        DynSolValue::Uint(Uint::from(exec_type as u8), 8), // revertOnError in permissionless
         DynSolValue::Bytes(vec![0u8; 4]),
         DynSolValue::Bytes(selector.to_vec()),
         DynSolValue::Bytes(context.to_vec()),

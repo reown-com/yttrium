@@ -21,8 +21,7 @@ public protocol AccountClientProtocol {
     
     func register(privateKey: String)
 
-    func sendTransaction(_ transaction: Transaction) async throws -> String
-    func sendBatchTransaction(_ batch: [Transaction]) async throws -> String
+    func sendTransactions(_ transactions: [Transaction]) async throws -> String
     func getAddress() async throws -> String
     func signMessage(_ message: String) throws -> String
 }
