@@ -82,10 +82,8 @@ impl AccountClient {
         &self,
         transactions: Vec<Transaction>,
     ) -> Result<String, Error> {
-        let ytransactions: Vec<YTransaction> = transactions
-            .into_iter()    
-            .map(YTransaction::from)
-            .collect();
+        let ytransactions: Vec<YTransaction> =
+            transactions.into_iter().map(YTransaction::from).collect();
 
         Ok(self
             .account_client
