@@ -174,9 +174,24 @@ impl FFIAccountClient {
 
     pub async fn do_send_transaction(
         &self,
-        signatures: Vec<FFIOwnerSignature>,
+        signatures: Vec<String>,
         do_send_transaction_params: String,
     ) -> Result<String, FFIError> {
+        let signatures: Result<Vec<FFIOwnerSignature>, _> = signatures
+            .into_iter()
+            .map(|json| serde_json::from_str::<FFIOwnerSignature>(&json))
+            .collect();
+    
+        let signatures = match signatures {
+            Ok(sigs) => sigs,
+            Err(e) => {
+                return Err(FFIError::Unknown(format!(
+                    "Failed to deserialize signatures: {}",
+                    e
+                )));
+            }
+        };
+    
         let mut signatures2 = Vec::with_capacity(signatures.len());
         for signature in signatures {
             signatures2.push(OwnerSignature {
@@ -190,7 +205,7 @@ impl FFIAccountClient {
                     .map_err(|e| FFIError::Unknown(e.to_string()))?,
             });
         }
-
+    
         Ok(self
             .account_client
             .do_send_transactions(

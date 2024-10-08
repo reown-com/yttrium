@@ -60,6 +60,7 @@ mod ffi {
 
     #[derive(Debug, Clone)]
     #[swift_bridge(swift_repr = "struct")]
+    #[derive(serde::Deserialize)]
     pub struct FFIOwnerSignature {
         pub owner: String,
         pub signature: String,
@@ -96,7 +97,7 @@ mod ffi {
 
         pub async fn do_send_transaction(
             &self,
-            _signatures: Vec<FFIOwnerSignature>,
+            _signatures: Vec<String>,
             _do_send_transaction_params: String,
         ) -> Result<String, FFIError>;
 

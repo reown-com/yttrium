@@ -1,21 +1,21 @@
 import RustXcframework
 @_cdecl("__swift_bridge__$NativeSignerFFI$new")
-public func __swift_bridge__NativeSignerFFI_new (_ signer_id: UnsafeMutableRawPointer) -> UnsafeMutableRawPointer {
+func __swift_bridge__NativeSignerFFI_new (_ signer_id: UnsafeMutableRawPointer) -> UnsafeMutableRawPointer {
     Unmanaged.passRetained(NativeSignerFFI(signer_id: RustString(ptr: signer_id))).toOpaque()
 }
 
 @_cdecl("__swift_bridge__$NativeSignerFFI$sign")
-public func __swift_bridge__NativeSignerFFI_sign (_ this: UnsafeMutableRawPointer, _ message: UnsafeMutableRawPointer) -> __swift_bridge__$FFIStringResult {
+func __swift_bridge__NativeSignerFFI_sign (_ this: UnsafeMutableRawPointer, _ message: UnsafeMutableRawPointer) -> __swift_bridge__$FFIStringResult {
     Unmanaged<NativeSignerFFI>.fromOpaque(this).takeUnretainedValue().sign(message: RustString(ptr: message)).intoFfiRepr()
 }
 
 @_cdecl("__swift_bridge__$PrivateKeySignerFFI$new")
-public func __swift_bridge__PrivateKeySignerFFI_new (_ signer_id: UnsafeMutableRawPointer) -> UnsafeMutableRawPointer {
+func __swift_bridge__PrivateKeySignerFFI_new (_ signer_id: UnsafeMutableRawPointer) -> UnsafeMutableRawPointer {
     Unmanaged.passRetained(PrivateKeySignerFFI(signer_id: RustString(ptr: signer_id))).toOpaque()
 }
 
 @_cdecl("__swift_bridge__$PrivateKeySignerFFI$private_key")
-public func __swift_bridge__PrivateKeySignerFFI_private_key (_ this: UnsafeMutableRawPointer) -> __swift_bridge__$FFIStringResult {
+func __swift_bridge__PrivateKeySignerFFI_private_key (_ this: UnsafeMutableRawPointer) -> __swift_bridge__$FFIStringResult {
     Unmanaged<PrivateKeySignerFFI>.fromOpaque(this).takeUnretainedValue().private_key().intoFfiRepr()
 }
 
@@ -222,6 +222,84 @@ extension __swift_bridge__$Option$FFIAccountClientConfig {
         }
     }
 }
+public struct FFIPreparedSendTransaction {
+    public var hash: RustString
+    public var do_send_transaction_params: RustString
+
+    public init(hash: RustString,do_send_transaction_params: RustString) {
+        self.hash = hash
+        self.do_send_transaction_params = do_send_transaction_params
+    }
+
+    @inline(__always)
+    func intoFfiRepr() -> __swift_bridge__$FFIPreparedSendTransaction {
+        { let val = self; return __swift_bridge__$FFIPreparedSendTransaction(hash: { let rustString = val.hash.intoRustString(); rustString.isOwned = false; return rustString.ptr }(), do_send_transaction_params: { let rustString = val.do_send_transaction_params.intoRustString(); rustString.isOwned = false; return rustString.ptr }()); }()
+    }
+}
+extension __swift_bridge__$FFIPreparedSendTransaction {
+    @inline(__always)
+    func intoSwiftRepr() -> FFIPreparedSendTransaction {
+        { let val = self; return FFIPreparedSendTransaction(hash: RustString(ptr: val.hash), do_send_transaction_params: RustString(ptr: val.do_send_transaction_params)); }()
+    }
+}
+extension __swift_bridge__$Option$FFIPreparedSendTransaction {
+    @inline(__always)
+    func intoSwiftRepr() -> Optional<FFIPreparedSendTransaction> {
+        if self.is_some {
+            return self.val.intoSwiftRepr()
+        } else {
+            return nil
+        }
+    }
+
+    @inline(__always)
+    static func fromSwiftRepr(_ val: Optional<FFIPreparedSendTransaction>) -> __swift_bridge__$Option$FFIPreparedSendTransaction {
+        if let v = val {
+            return __swift_bridge__$Option$FFIPreparedSendTransaction(is_some: true, val: v.intoFfiRepr())
+        } else {
+            return __swift_bridge__$Option$FFIPreparedSendTransaction(is_some: false, val: __swift_bridge__$FFIPreparedSendTransaction())
+        }
+    }
+}
+public struct FFIOwnerSignature {
+    public var owner: RustString
+    public var signature: RustString
+
+    public init(owner: RustString,signature: RustString) {
+        self.owner = owner
+        self.signature = signature
+    }
+
+    @inline(__always)
+    func intoFfiRepr() -> __swift_bridge__$FFIOwnerSignature {
+        { let val = self; return __swift_bridge__$FFIOwnerSignature(owner: { let rustString = val.owner.intoRustString(); rustString.isOwned = false; return rustString.ptr }(), signature: { let rustString = val.signature.intoRustString(); rustString.isOwned = false; return rustString.ptr }()); }()
+    }
+}
+extension __swift_bridge__$FFIOwnerSignature {
+    @inline(__always)
+    func intoSwiftRepr() -> FFIOwnerSignature {
+        { let val = self; return FFIOwnerSignature(owner: RustString(ptr: val.owner), signature: RustString(ptr: val.signature)); }()
+    }
+}
+extension __swift_bridge__$Option$FFIOwnerSignature {
+    @inline(__always)
+    func intoSwiftRepr() -> Optional<FFIOwnerSignature> {
+        if self.is_some {
+            return self.val.intoSwiftRepr()
+        } else {
+            return nil
+        }
+    }
+
+    @inline(__always)
+    static func fromSwiftRepr(_ val: Optional<FFIOwnerSignature>) -> __swift_bridge__$Option$FFIOwnerSignature {
+        if let v = val {
+            return __swift_bridge__$Option$FFIOwnerSignature(is_some: true, val: v.intoFfiRepr())
+        } else {
+            return __swift_bridge__$Option$FFIOwnerSignature(is_some: false, val: __swift_bridge__$FFIOwnerSignature())
+        }
+    }
+}
 public enum FFIStringResult {
     case Ok(RustString)
     case Err(RustString)
@@ -384,6 +462,56 @@ extension FFIAccountClientRef {
         })
     }
     class CbWrapper$FFIAccountClient$send_transactions {
+        var cb: (Result<RustString, Error>) -> ()
+    
+        public init(cb: @escaping (Result<RustString, Error>) -> ()) {
+            self.cb = cb
+        }
+    }
+
+    public func prepare_send_transactions<GenericIntoRustString: IntoRustString>(_ _transactions: RustVec<GenericIntoRustString>) async throws -> FFIPreparedSendTransaction {
+        func onComplete(cbWrapperPtr: UnsafeMutableRawPointer?, rustFnRetVal: __swift_bridge__$ResultFFIPreparedSendTransactionAndFFIError) {
+            let wrapper = Unmanaged<CbWrapper$FFIAccountClient$prepare_send_transactions>.fromOpaque(cbWrapperPtr!).takeRetainedValue()
+            switch rustFnRetVal.tag { case __swift_bridge__$ResultFFIPreparedSendTransactionAndFFIError$ResultOk: wrapper.cb(.success(rustFnRetVal.payload.ok.intoSwiftRepr())) case __swift_bridge__$ResultFFIPreparedSendTransactionAndFFIError$ResultErr: wrapper.cb(.failure(rustFnRetVal.payload.err.intoSwiftRepr())) default: fatalError() }
+        }
+
+        return try await withCheckedThrowingContinuation({ (continuation: CheckedContinuation<FFIPreparedSendTransaction, Error>) in
+            let callback = { rustFnRetVal in
+                continuation.resume(with: rustFnRetVal)
+            }
+
+            let wrapper = CbWrapper$FFIAccountClient$prepare_send_transactions(cb: callback)
+            let wrapperPtr = Unmanaged.passRetained(wrapper).toOpaque()
+
+            __swift_bridge__$FFIAccountClient$prepare_send_transactions(wrapperPtr, onComplete, ptr, { let val = _transactions; val.isOwned = false; return val.ptr }())
+        })
+    }
+    class CbWrapper$FFIAccountClient$prepare_send_transactions {
+        var cb: (Result<FFIPreparedSendTransaction, Error>) -> ()
+    
+        public init(cb: @escaping (Result<FFIPreparedSendTransaction, Error>) -> ()) {
+            self.cb = cb
+        }
+    }
+
+    public func do_send_transaction<GenericIntoRustString: IntoRustString>(_ _signatures: RustVec<GenericIntoRustString>, _ _do_send_transaction_params: GenericIntoRustString) async throws -> RustString {
+        func onComplete(cbWrapperPtr: UnsafeMutableRawPointer?, rustFnRetVal: __swift_bridge__$ResultStringAndFFIError) {
+            let wrapper = Unmanaged<CbWrapper$FFIAccountClient$do_send_transaction>.fromOpaque(cbWrapperPtr!).takeRetainedValue()
+            switch rustFnRetVal.tag { case __swift_bridge__$ResultStringAndFFIError$ResultOk: wrapper.cb(.success(RustString(ptr: rustFnRetVal.payload.ok))) case __swift_bridge__$ResultStringAndFFIError$ResultErr: wrapper.cb(.failure(rustFnRetVal.payload.err.intoSwiftRepr())) default: fatalError() }
+        }
+
+        return try await withCheckedThrowingContinuation({ (continuation: CheckedContinuation<RustString, Error>) in
+            let callback = { rustFnRetVal in
+                continuation.resume(with: rustFnRetVal)
+            }
+
+            let wrapper = CbWrapper$FFIAccountClient$do_send_transaction(cb: callback)
+            let wrapperPtr = Unmanaged.passRetained(wrapper).toOpaque()
+
+            __swift_bridge__$FFIAccountClient$do_send_transaction(wrapperPtr, onComplete, ptr, { let val = _signatures; val.isOwned = false; return val.ptr }(), { let rustString = _do_send_transaction_params.intoRustString(); rustString.isOwned = false; return rustString.ptr }())
+        })
+    }
+    class CbWrapper$FFIAccountClient$do_send_transaction {
         var cb: (Result<RustString, Error>) -> ()
     
         public init(cb: @escaping (Result<RustString, Error>) -> ()) {
@@ -577,13 +705,13 @@ extension FFI7702AccountClient: Vectorizable {
 
 
 @_cdecl("__swift_bridge__$NativeSignerFFI$_free")
-public func __swift_bridge__NativeSignerFFI__free (ptr: UnsafeMutableRawPointer) {
+func __swift_bridge__NativeSignerFFI__free (ptr: UnsafeMutableRawPointer) {
     let _ = Unmanaged<NativeSignerFFI>.fromOpaque(ptr).takeRetainedValue()
 }
 
 
 @_cdecl("__swift_bridge__$PrivateKeySignerFFI$_free")
-public func __swift_bridge__PrivateKeySignerFFI__free (ptr: UnsafeMutableRawPointer) {
+func __swift_bridge__PrivateKeySignerFFI__free (ptr: UnsafeMutableRawPointer) {
     let _ = Unmanaged<PrivateKeySignerFFI>.fromOpaque(ptr).takeRetainedValue()
 }
 
