@@ -150,12 +150,7 @@ public final class AccountClient: AccountClientProtocol {
 
         let rustSignatures = createRustVec(from: jsonSignatures)
 
-        let jsonParams = try jsonEncoder.encode(params)
-        guard let paramsString = String(data: jsonParams, encoding: .utf8) else {
-            throw NSError(domain: "EncodingError", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to convert params JSON data to string"])
-        }
-
-        return try await coreAccountClient.do_send_transaction(rustSignatures, RustString(paramsString)).toString()
+        return try await coreAccountClient.do_send_transaction(rustSignatures, RustString(params)).toString()
     }
 
     public func sendTransactions(_ transactions: [Transaction]) async throws -> String {
