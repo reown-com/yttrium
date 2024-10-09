@@ -181,7 +181,7 @@ impl FFIAccountClient {
             .into_iter()
             .map(|json| serde_json::from_str::<FFIOwnerSignature>(&json))
             .collect();
-    
+
         let signatures = match signatures {
             Ok(sigs) => sigs,
             Err(e) => {
@@ -191,7 +191,7 @@ impl FFIAccountClient {
                 )));
             }
         };
-    
+
         let mut signatures2 = Vec::with_capacity(signatures.len());
         for signature in signatures {
             signatures2.push(OwnerSignature {
@@ -205,7 +205,7 @@ impl FFIAccountClient {
                     .map_err(|e| FFIError::Unknown(e.to_string()))?,
             });
         }
-    
+
         Ok(self
             .account_client
             .do_send_transactions(
