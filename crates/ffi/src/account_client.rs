@@ -1,5 +1,9 @@
 use super::ffi;
 use super::ffi::{FFIAccountClientConfig, FFIError};
+use crate::ffi::{FFIOwnerSignature, FFIPreparedSendTransaction};
+use yttrium::transaction::send::safe_test::{
+    Address, OwnerSignature, Signature,
+};
 use yttrium::{
     account_client::{AccountClient, SignerType},
     error::YttriumError,
@@ -127,6 +131,88 @@ impl FFIAccountClient {
         Ok(self
             .account_client
             .send_transactions(transactions)
+            .await
+            .map_err(|e| FFIError::Unknown(e.to_string()))?
+            .to_string())
+    }
+
+    pub async fn prepare_send_transactions(
+        &self,
+        transactions: Vec<String>,
+    ) -> Result<FFIPreparedSendTransaction, FFIError> {
+        // Map the JSON strings to Transaction objects
+        let transactions: Result<Vec<Transaction>, _> = transactions
+            .into_iter()
+            .map(|json| serde_json::from_str::<Transaction>(&json))
+            .collect();
+
+        // Handle any errors that occurred during deserialization
+        let transactions = match transactions {
+            Ok(transactions) => transactions,
+            Err(e) => {
+                return Err(FFIError::Unknown(format!(
+                    "Failed to deserialize transactions: {}",
+                    e
+                )));
+            }
+        };
+
+        // Proceed to send transactions using account_client
+        let prepared_send_transaction = self
+            .account_client
+            .prepare_send_transactions(transactions)
+            .await
+            .map_err(|e| FFIError::Unknown(e.to_string()))?;
+        Ok(FFIPreparedSendTransaction {
+            hash: prepared_send_transaction.hash.to_string(),
+            do_send_transaction_params: serde_json::to_string(
+                &prepared_send_transaction.do_send_transaction_params,
+            )
+            .map_err(|e| FFIError::Unknown(e.to_string()))?,
+        })
+    }
+
+    pub async fn do_send_transaction(
+        &self,
+        signatures: Vec<String>,
+        do_send_transaction_params: String,
+    ) -> Result<String, FFIError> {
+        let signatures: Result<Vec<FFIOwnerSignature>, _> = signatures
+            .into_iter()
+            .map(|json| serde_json::from_str::<FFIOwnerSignature>(&json))
+            .collect();
+
+        let signatures = match signatures {
+            Ok(sigs) => sigs,
+            Err(e) => {
+                return Err(FFIError::Unknown(format!(
+                    "Failed to deserialize signatures: {}",
+                    e
+                )));
+            }
+        };
+
+        let mut signatures2 = Vec::with_capacity(signatures.len());
+        for signature in signatures {
+            signatures2.push(OwnerSignature {
+                owner: signature
+                    .owner
+                    .parse::<Address>()
+                    .map_err(|e| FFIError::Unknown(e.to_string()))?,
+                signature: signature
+                    .signature
+                    .parse::<Signature>()
+                    .map_err(|e| FFIError::Unknown(e.to_string()))?,
+            });
+        }
+
+        Ok(self
+            .account_client
+            .do_send_transactions(
+                signatures2,
+                serde_json::from_str(&do_send_transaction_params)
+                    .map_err(|e| FFIError::Unknown(e.to_string()))?,
+            )
             .await
             .map_err(|e| FFIError::Unknown(e.to_string()))?
             .to_string())

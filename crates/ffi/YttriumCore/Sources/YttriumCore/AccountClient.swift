@@ -1,5 +1,18 @@
 import Foundation
-import YttriumCore
+
+public struct OwnerSignature: Codable {
+    public var owner: String
+    public var signature: String
+    public init(owner: String, signature: String) {
+        self.owner = owner
+        self.signature = signature
+    }
+}
+
+public struct PreparedSendTransaction: Codable {
+    public var hash: String
+    public var doSendTransactionParams: String
+}
 
 public final class AccountClient: AccountClientProtocol {
     
@@ -103,7 +116,43 @@ public final class AccountClient: AccountClientProtocol {
     private func register(signer: Signer) {
         Signers.shared.register(signer: signer)
     }
-    
+
+    public func prepareSendTransactions(_ transactions: [Transaction]) async throws -> PreparedSendTransaction {
+        let jsonEncoder = JSONEncoder()
+
+        let jsonStrings = try transactions.map { transaction in
+            let jsonData = try jsonEncoder.encode(transaction)
+            guard let jsonString = String(data: jsonData, encoding: .utf8) else {
+                throw NSError(domain: "EncodingError", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to convert JSON data to string"])
+            }
+            return jsonString
+        }
+
+        let rustVec = createRustVec(from: jsonStrings)
+
+        let ffiPreparedSendTransaction =  try await coreAccountClient.prepare_send_transactions(rustVec)
+        return PreparedSendTransaction(
+            hash: ffiPreparedSendTransaction.hash.toString(),
+            doSendTransactionParams: ffiPreparedSendTransaction.do_send_transaction_params.toString()
+        )
+    }
+
+    public func doSendTransaction(signatures: [OwnerSignature], params: String) async throws -> String {
+        let jsonEncoder = JSONEncoder()
+
+        let jsonSignatures = try signatures.map { signature in
+            let jsonData = try jsonEncoder.encode(signature)
+            guard let jsonString = String(data: jsonData, encoding: .utf8) else {
+                throw NSError(domain: "EncodingError", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to convert signature JSON data to string"])
+            }
+            return jsonString
+        }
+
+        let rustSignatures = createRustVec(from: jsonSignatures)
+
+        return try await coreAccountClient.do_send_transaction(rustSignatures, RustString(params)).toString()
+    }
+
     public func sendTransactions(_ transactions: [Transaction]) async throws -> String {
         let jsonEncoder = JSONEncoder()
 
