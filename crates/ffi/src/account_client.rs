@@ -1,8 +1,6 @@
 use super::ffi;
 use super::ffi::{FFIAccountClientConfig, FFIError};
 use crate::ffi::{FFIOwnerSignature, FFIPreparedSendTransaction};
-use alloy::network::Ethereum;
-use alloy::providers::ReqwestProvider;
 use yttrium::transaction::send::safe_test::{
     Address, OwnerSignature, Signature,
 };
@@ -247,26 +245,6 @@ impl FFIAccountClient {
             .map(serde_json::to_string)
             .collect::<Result<String, serde_json::Error>>()
             .map_err(|e| FFIError::Unknown(e.to_string()))
-    }
-
-    pub async fn verify_signature(
-        &self,
-        signature: String,
-        address: String,
-        message: String,
-    ) -> Result<bool, FFIError> {
-        let provider = ReqwestProvider::<Ethereum>::new_http(
-            self.account_client.config.endpoints.rpc.base_url.parse().map_err(
-                |e| FFIError::Unknown(format!("Parse RPC URL: {e}")),
-            )?,
-        );
-        let address = address
-            .parse::<Address>()
-            .map_err(|e| FFIError::Unknown(format!("Parse address: {e}")))?;
-        Ok(erc6492::verify_signature(signature, address, message, provider)
-            .await
-            .map_err(|e| FFIError::Unknown(e.to_string()))?
-            .is_valid())
     }
 }
 
