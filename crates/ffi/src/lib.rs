@@ -111,6 +111,13 @@ mod ffi {
             &self,
             user_operation_hash: String,
         ) -> Result<String, FFIError>;
+
+        pub async fn verify_signature(
+            &self,
+            signature: String,
+            address: String,
+            message: String,
+        ) -> Result<bool, FFIError>;
     }
 
     extern "Rust" {
