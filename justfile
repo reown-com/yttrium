@@ -24,3 +24,6 @@ fmt:
 
 udeps:
   cargo +nightly udeps --workspace
+
+infra:
+  make local-infra-forked

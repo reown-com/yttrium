@@ -16,12 +16,11 @@ use crate::{
         nonce::get_nonce,
         safe::{
             factory_data, get_account_address, get_call_data,
-            get_call_data_with_try, Owners, Safe7579Launchpad, DUMMY_SIGNATURE,
-            SAFE_4337_MODULE_ADDRESS, SAFE_ERC_7579_LAUNCHPAD_ADDRESS,
-            SAFE_PROXY_FACTORY_ADDRESS,
+            get_call_data_with_try, Owners, Safe7579Launchpad, SafeOp,
+            DUMMY_SIGNATURE, SAFE_4337_MODULE_ADDRESS,
+            SAFE_ERC_7579_LAUNCHPAD_ADDRESS, SAFE_PROXY_FACTORY_ADDRESS,
             SEPOLIA_SAFE_ERC_7579_SINGLETON_ADDRESS,
         },
-        simple_account::factory::FactoryAddress,
     },
     transaction::Transaction,
     user_operation::{Authorization, UserOperationV07},
@@ -29,13 +28,13 @@ use crate::{
 use alloy::{
     dyn_abi::{DynSolValue, Eip712Domain},
     network::Ethereum,
-    primitives::{aliases::U48, Address, Bytes, Uint, U128, U160, U256},
+    primitives::{aliases::U48, Bytes, Uint, B256, U128, U160, U256},
     providers::{Provider, ReqwestProvider},
     signers::{k256::ecdsa::SigningKey, local::LocalSigner, SignerSync},
-    sol,
-    sol_types::SolCall,
+    sol_types::{SolCall, SolStruct},
 };
 use core::fmt;
+use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::ops::Not;
 
@@ -92,10 +91,87 @@ pub async fn send_transactions(
     authorization_list: Option<Vec<Authorization>>,
     config: Config,
 ) -> eyre::Result<UserOperationReceipt> {
+    let owner_address = owner.address();
+    let PreparedSendTransaction {
+        safe_op,
+        domain,
+        hash,
+        do_send_transaction_params,
+    } = prepare_send_transactions(
+        execution_calldata,
+        owner_address,
+        address,
+        authorization_list,
+        config.clone(),
+    )
+    .await?;
+
+    // TODO loop per-owner
+    let signature = owner.sign_typed_data_sync(&safe_op, &domain)?;
+    let signature2 = owner.sign_hash_sync(&hash)?;
+    assert_eq!(signature, signature2);
+
+    let user_operation_hash = do_send_transactions(
+        vec![OwnerSignature { owner: owner_address, signature }],
+        do_send_transaction_params,
+        config.clone(),
+    )
+    .await?;
+
+    println!("Querying for receipts...");
+
     let bundler_client = BundlerClient::new(BundlerConfig::new(
         config.endpoints.bundler.base_url.clone(),
     ));
+    let receipt = bundler_client
+        .wait_for_user_operation_receipt(user_operation_hash)
+        .await?;
 
+    println!(
+        "SAFE UserOperation included: https://sepolia.etherscan.io/tx/{}",
+        receipt.receipt.transaction_hash
+    );
+
+    // Some extra calls to wait for/get the actual transaction. But these
+    // aren't required since eth_getUserOperationReceipt already waits
+    // let tx_hash = FixedBytes::from_slice(
+    //     &hex::decode(tx_hash.strip_prefix("0x").unwrap()).unwrap(),
+    // );
+    // let pending_txn = provider
+    //     .watch_pending_transaction(PendingTransactionConfig::new(tx_hash))
+    //     .await?;
+    // pending_txn.await.unwrap();
+    // let transaction = provider.get_transaction_by_hash(tx_hash).await?;
+    // println!("Transaction included: {:?}", transaction);
+    // let transaction_receipt =
+    //     provider.get_transaction_receipt(tx_hash).await?;
+    // println!("Transaction receipt: {:?}", transaction_receipt);
+
+    Ok(receipt)
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PreparedSendTransaction {
+    pub safe_op: SafeOp,
+    pub domain: Eip712Domain,
+    pub hash: B256,
+    pub do_send_transaction_params: DoSendTransactionParams,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DoSendTransactionParams {
+    pub user_op: UserOperationV07,
+    pub valid_after: U48,
+    pub valid_until: U48,
+}
+
+pub async fn prepare_send_transactions(
+    execution_calldata: Vec<Transaction>,
+    owner: Address,
+    address: Option<AccountAddress>,
+    authorization_list: Option<Vec<Authorization>>,
+    config: Config,
+) -> eyre::Result<PreparedSendTransaction> {
     let pimlico_client: PimlicoBundlerClient = PimlicoBundlerClient::new(
         BundlerConfig::new(config.endpoints.bundler.base_url.clone()),
     );
@@ -109,17 +185,12 @@ pub async fn send_transactions(
         ChainId::new_eip155(chain_id),
         EntryPointVersion::V07,
     );
-    let entry_point_config = chain.entry_point_config();
-
     let chain_id = chain.id.eip155_chain_id();
 
+    let entry_point_config = chain.entry_point_config();
     let entry_point_address = entry_point_config.address();
 
-    let safe_factory_address_primitives: Address = SAFE_PROXY_FACTORY_ADDRESS;
-    let safe_factory_address =
-        FactoryAddress::new(safe_factory_address_primitives);
-
-    let owners = Owners { owners: vec![owner.address()], threshold: 1 };
+    let owners = Owners { owners: vec![owner], threshold: 1 };
 
     let factory_data_value = factory_data(owners.clone()).abi_encode();
 
@@ -184,7 +255,7 @@ pub async fn send_transactions(
     let user_op = UserOperationV07 {
         sender: account_address,
         nonce,
-        factory: deployed.not().then(|| safe_factory_address.to_address()),
+        factory: deployed.not().then_some(SAFE_PROXY_FACTORY_ADDRESS),
         factory_data: deployed.not().then(|| factory_data_value.into()),
         call_data,
         call_gas_limit: U256::ZERO,
@@ -251,115 +322,122 @@ pub async fn send_transactions(
         }
     };
 
-    let user_op = {
-        let valid_after = U48::from(0);
-        let valid_until = U48::from(0);
+    let valid_after = U48::from(0);
+    let valid_until = U48::from(0);
 
-        sol!(
-            struct SafeOp {
-                address safe;
-                uint256 nonce;
-                bytes initCode;
-                bytes callData;
-                uint128 verificationGasLimit;
-                uint128 callGasLimit;
-                uint256 preVerificationGas;
-                uint128 maxPriorityFeePerGas;
-                uint128 maxFeePerGas;
-                bytes paymasterAndData;
-                uint48 validAfter;
-                uint48 validUntil;
-                address entryPoint;
-            }
-        );
+    // TODO handle panic
+    fn coerce_u256_to_u128(u: U256) -> U128 {
+        U128::from(u)
+    }
 
-        // TODO handle panic
-        fn coerce_u256_to_u128(u: U256) -> U128 {
-            U128::from(u)
-        }
-
-        let message = SafeOp {
-            safe: account_address.into(),
-            callData: user_op.call_data.clone(),
-            nonce: user_op.nonce,
-            initCode: deployed
-                .not()
-                .then(|| {
-                    [
-                        user_op.clone().factory.unwrap().to_vec().into(),
-                        user_op.clone().factory_data.unwrap(),
-                    ]
-                    .concat()
-                    .into()
-                })
-                .unwrap_or(Bytes::new()),
-            maxFeePerGas: u128::from_be_bytes(
-                coerce_u256_to_u128(user_op.max_fee_per_gas).to_be_bytes(),
-            ),
-            maxPriorityFeePerGas: u128::from_be_bytes(
-                coerce_u256_to_u128(user_op.max_priority_fee_per_gas)
-                    .to_be_bytes(),
-            ),
-            preVerificationGas: user_op.pre_verification_gas,
-            verificationGasLimit: u128::from_be_bytes(
-                coerce_u256_to_u128(user_op.verification_gas_limit)
-                    .to_be_bytes(),
-            ),
-            callGasLimit: u128::from_be_bytes(
-                coerce_u256_to_u128(user_op.call_gas_limit).to_be_bytes(),
-            ),
-            // signerToSafeSmartAccount -> getPaymasterAndData
-            paymasterAndData: user_op
-                .paymaster
-                .map(|paymaster| {
-                    [
-                        paymaster.to_vec(),
-                        coerce_u256_to_u128(
-                            user_op
-                                .paymaster_verification_gas_limit
-                                .unwrap_or(Uint::from(0)),
-                        )
-                        .to_be_bytes_vec(),
-                        coerce_u256_to_u128(
-                            user_op
-                                .paymaster_post_op_gas_limit
-                                .unwrap_or(Uint::from(0)),
-                        )
-                        .to_be_bytes_vec(),
+    let safe_op = SafeOp {
+        safe: account_address.into(),
+        callData: user_op.call_data.clone(),
+        nonce: user_op.nonce,
+        initCode: deployed
+            .not()
+            .then(|| {
+                [
+                    user_op.clone().factory.unwrap().to_vec().into(),
+                    user_op.clone().factory_data.unwrap(),
+                ]
+                .concat()
+                .into()
+            })
+            .unwrap_or(Bytes::new()),
+        maxFeePerGas: u128::from_be_bytes(
+            coerce_u256_to_u128(user_op.max_fee_per_gas).to_be_bytes(),
+        ),
+        maxPriorityFeePerGas: u128::from_be_bytes(
+            coerce_u256_to_u128(user_op.max_priority_fee_per_gas).to_be_bytes(),
+        ),
+        preVerificationGas: user_op.pre_verification_gas,
+        verificationGasLimit: u128::from_be_bytes(
+            coerce_u256_to_u128(user_op.verification_gas_limit).to_be_bytes(),
+        ),
+        callGasLimit: u128::from_be_bytes(
+            coerce_u256_to_u128(user_op.call_gas_limit).to_be_bytes(),
+        ),
+        // signerToSafeSmartAccount -> getPaymasterAndData
+        paymasterAndData: user_op
+            .paymaster
+            .map(|paymaster| {
+                [
+                    paymaster.to_vec(),
+                    coerce_u256_to_u128(
                         user_op
-                            .paymaster_data
-                            .clone()
-                            .unwrap_or_default()
-                            .to_vec(),
-                    ]
-                    .concat()
-                    .into()
-                })
-                .unwrap_or_default(),
-            validAfter: valid_after,
-            validUntil: valid_until,
-            entryPoint: entry_point_address.to_address(),
-        };
+                            .paymaster_verification_gas_limit
+                            .unwrap_or(Uint::from(0)),
+                    )
+                    .to_be_bytes_vec(),
+                    coerce_u256_to_u128(
+                        user_op
+                            .paymaster_post_op_gas_limit
+                            .unwrap_or(Uint::from(0)),
+                    )
+                    .to_be_bytes_vec(),
+                    user_op.paymaster_data.clone().unwrap_or_default().to_vec(),
+                ]
+                .concat()
+                .into()
+            })
+            .unwrap_or_default(),
+        validAfter: valid_after,
+        validUntil: valid_until,
+        entryPoint: entry_point_address.to_address(),
+    };
 
-        let erc7579_launchpad_address = true;
-        let verifying_contract = if erc7579_launchpad_address && !deployed {
-            user_op.sender.into()
-        } else {
-            SAFE_4337_MODULE_ADDRESS
-        };
+    let erc7579_launchpad_address = true;
+    let verifying_contract = if erc7579_launchpad_address && !deployed {
+        user_op.sender.into()
+    } else {
+        SAFE_4337_MODULE_ADDRESS
+    };
 
-        // TODO loop per-owner
-        let signature = owner.sign_typed_data_sync(
-            &message,
-            &Eip712Domain {
-                chain_id: Some(Uint::from(chain_id)),
-                verifying_contract: Some(verifying_contract),
-                ..Default::default()
-            },
-        )?;
+    let domain = Eip712Domain {
+        chain_id: Some(Uint::from(chain_id)),
+        verifying_contract: Some(verifying_contract),
+        ..Default::default()
+    };
+    let hash = safe_op.eip712_signing_hash(&domain);
+
+    Ok(PreparedSendTransaction {
+        safe_op,
+        domain,
+        hash,
+        do_send_transaction_params: DoSendTransactionParams {
+            user_op,
+            valid_after,
+            valid_until,
+        },
+    })
+}
+
+pub use alloy::primitives::Address;
+pub use alloy::primitives::Signature;
+pub struct OwnerSignature {
+    pub owner: Address,
+    pub signature: Signature,
+}
+
+pub async fn do_send_transactions(
+    signatures: Vec<OwnerSignature>,
+    DoSendTransactionParams {
+        user_op,
+        valid_after,
+        valid_until,
+    }: DoSendTransactionParams,
+    config: Config,
+) -> eyre::Result<B256> {
+    if signatures.len() != 1 {
+        return Err(eyre::eyre!("Only one signature is supported for now"));
+    }
+    let user_op = {
         // TODO sort by (lowercase) owner address not signature data
-        let mut signatures =
-            [signature].iter().map(|sig| sig.as_bytes()).collect::<Vec<_>>();
+        let mut signatures = signatures
+            .iter()
+            .map(|sig| sig.signature.as_bytes())
+            .collect::<Vec<_>>();
         signatures.sort();
         let signature_bytes = signatures.concat();
 
@@ -373,39 +451,26 @@ pub async fn send_transactions(
         UserOperationV07 { signature, ..user_op }
     };
 
+    let provider = ReqwestProvider::<Ethereum>::new_http(
+        config.endpoints.rpc.base_url.parse()?,
+    );
+    let chain_id = provider.get_chain_id().await?;
+    let chain = crate::chain::Chain::new(
+        ChainId::new_eip155(chain_id),
+        EntryPointVersion::V07,
+    );
+    let entry_point_config = chain.entry_point_config();
+    let entry_point_address = entry_point_config.address();
+    let bundler_client = BundlerClient::new(BundlerConfig::new(
+        config.endpoints.bundler.base_url.clone(),
+    ));
     let user_operation_hash = bundler_client
         .send_user_operation(entry_point_address, user_op.clone())
         .await?;
 
     println!("Received User Operation hash: {:?}", user_operation_hash);
 
-    println!("Querying for receipts...");
-
-    let receipt = bundler_client
-        .wait_for_user_operation_receipt(user_operation_hash)
-        .await?;
-
-    println!(
-        "SAFE UserOperation included: https://sepolia.etherscan.io/tx/{}",
-        receipt.receipt.transaction_hash
-    );
-
-    // Some extra calls to wait for/get the actual transaction. But these
-    // aren't required since eth_getUserOperationReceipt already waits
-    // let tx_hash = FixedBytes::from_slice(
-    //     &hex::decode(tx_hash.strip_prefix("0x").unwrap()).unwrap(),
-    // );
-    // let pending_txn = provider
-    //     .watch_pending_transaction(PendingTransactionConfig::new(tx_hash))
-    //     .await?;
-    // pending_txn.await.unwrap();
-    // let transaction = provider.get_transaction_by_hash(tx_hash).await?;
-    // println!("Transaction included: {:?}", transaction);
-    // let transaction_receipt =
-    //     provider.get_transaction_receipt(tx_hash).await?;
-    // println!("Transaction receipt: {:?}", transaction_receipt);
-
-    Ok(receipt)
+    Ok(user_operation_hash)
 }
 
 #[cfg(test)]

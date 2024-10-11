@@ -3,7 +3,12 @@ use crate::bundler::{client::BundlerClient, config::BundlerConfig};
 use crate::config::Config;
 use crate::private_key_service::PrivateKeyService;
 use crate::sign_service::SignService;
-use crate::transaction::send::safe_test;
+use crate::transaction::send::safe_test::{
+    self, DoSendTransactionParams, OwnerSignature, PreparedSendTransaction,
+};
+use crate::transaction::send::{
+    do_send_transactions, prepare_send_transaction,
+};
 use crate::transaction::{send::send_transactions, Transaction};
 use alloy::primitives::{Address, B256};
 use alloy::signers::local::PrivateKeySigner;
@@ -30,6 +35,7 @@ impl SignerType {
 pub enum Signer {
     PrivateKey(Arc<Mutex<PrivateKeyService>>),
     Native(Arc<Mutex<SignService>>),
+    None,
 }
 
 impl Signer {
@@ -130,14 +136,43 @@ impl AccountClient {
 
     pub async fn send_transactions(
         &self,
-        transaction: Vec<Transaction>,
+        transactions: Vec<Transaction>,
     ) -> eyre::Result<B256> {
         send_transactions(
-            transaction,
+            transactions,
             self.owner.clone(),
             self.chain_id,
             self.config.clone(),
             self.signer.clone(),
+            self.safe,
+        )
+        .await
+    }
+
+    pub async fn prepare_send_transactions(
+        &self,
+        transactions: Vec<Transaction>,
+    ) -> eyre::Result<PreparedSendTransaction> {
+        prepare_send_transaction(
+            transactions,
+            self.owner.clone(),
+            self.chain_id,
+            self.config.clone(),
+            self.safe,
+        )
+        .await
+    }
+
+    pub async fn do_send_transactions(
+        &self,
+        signatures: Vec<OwnerSignature>,
+        do_send_transaction_params: DoSendTransactionParams,
+    ) -> eyre::Result<B256> {
+        do_send_transactions(
+            signatures,
+            do_send_transaction_params,
+            self.chain_id,
+            self.config.clone(),
             self.safe,
         )
         .await
@@ -220,6 +255,9 @@ pub async fn get_address_with_signer(
         }
         Signer::Native(_sign_service) => {
             todo!("Implement native signer support")
+        }
+        Signer::None => {
+            todo!("get_address_with_signer doesn't work with None signer")
         }
     }
 }
