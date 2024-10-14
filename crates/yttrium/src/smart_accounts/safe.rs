@@ -9,6 +9,7 @@ use alloy::{
     sol,
     sol_types::{SolCall, SolValue},
 };
+use serde::{Deserialize, Serialize};
 
 sol! {
     #[sol(rpc)]
@@ -65,6 +66,25 @@ sol! {
         );
     }
 }
+
+sol!(
+    #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+    struct SafeOp {
+        address safe;
+        uint256 nonce;
+        bytes initCode;
+        bytes callData;
+        uint128 verificationGasLimit;
+        uint128 callGasLimit;
+        uint256 preVerificationGas;
+        uint128 maxPriorityFeePerGas;
+        uint128 maxFeePerGas;
+        bytes paymasterAndData;
+        uint48 validAfter;
+        uint48 validUntil;
+        address entryPoint;
+    }
+);
 
 // https://github.com/WalletConnect/secure-web3modal/blob/f1d16f973a313e598d124a0e4751aee12d5de628/src/core/SmartAccountSdk/utils.ts#L180
 pub const SAFE_ERC_7579_LAUNCHPAD_ADDRESS: Address =

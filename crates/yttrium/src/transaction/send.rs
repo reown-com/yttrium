@@ -5,6 +5,9 @@ use crate::{
 use alloy::primitives::B256;
 use alloy::signers::local::PrivateKeySigner;
 use core::fmt;
+use safe_test::{
+    DoSendTransactionParams, OwnerSignature, PreparedSendTransaction,
+};
 
 pub mod safe_test;
 pub mod send_tests;
@@ -74,6 +77,9 @@ pub async fn send_transactions(
         Signer::Native(_sign_service) => {
             todo!("Implement native signer support")
         }
+        Signer::None => {
+            todo!("send_transaction doesn't work with None signer")
+        }
     }
 }
 
@@ -102,6 +108,50 @@ pub async fn send_transactions_with_private_key_signer(
     };
 
     println!("user_operation_hash: {:?}", user_operation_hash);
+
+    Ok(user_operation_hash)
+}
+
+pub async fn prepare_send_transaction(
+    transactions: Vec<Transaction>,
+    owner: String,
+    _chain_id: u64,
+    config: Config,
+    safe: bool,
+) -> eyre::Result<PreparedSendTransaction> {
+    let user_operation_hash = if safe {
+        safe_test::prepare_send_transactions(
+            transactions,
+            owner.parse()?,
+            None,
+            None,
+            config,
+        )
+        .await?
+    } else {
+        return Err(eyre::eyre!("Only Safe is implemented"));
+    };
+
+    Ok(user_operation_hash)
+}
+
+pub async fn do_send_transactions(
+    signatures: Vec<OwnerSignature>,
+    do_send_transaction_params: DoSendTransactionParams,
+    _chain_id: u64,
+    config: Config,
+    safe: bool,
+) -> eyre::Result<B256> {
+    let user_operation_hash = if safe {
+        safe_test::do_send_transactions(
+            signatures,
+            do_send_transaction_params,
+            config,
+        )
+        .await?
+    } else {
+        return Err(eyre::eyre!("Only Safe is implemented"));
+    };
 
     Ok(user_operation_hash)
 }

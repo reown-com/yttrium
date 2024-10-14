@@ -51,6 +51,21 @@ mod ffi {
         pub safe: bool,
     }
 
+    #[derive(Debug, Clone)]
+    #[swift_bridge(swift_repr = "struct")]
+    pub struct FFIPreparedSendTransaction {
+        pub hash: String,
+        pub do_send_transaction_params: String,
+    }
+
+    #[derive(Debug, Clone)]
+    #[swift_bridge(swift_repr = "struct")]
+    #[derive(serde::Deserialize)]
+    pub struct FFIOwnerSignature {
+        pub owner: String,
+        pub signature: String,
+    }
+
     enum FFIStringResult {
         Ok(String),
         Err(String),
@@ -73,6 +88,17 @@ mod ffi {
         pub async fn send_transactions(
             &self,
             _transactions: Vec<String>,
+        ) -> Result<String, FFIError>;
+
+        pub async fn prepare_send_transactions(
+            &self,
+            _transactions: Vec<String>,
+        ) -> Result<FFIPreparedSendTransaction, FFIError>;
+
+        pub async fn do_send_transaction(
+            &self,
+            _signatures: Vec<String>,
+            _do_send_transaction_params: String,
         ) -> Result<String, FFIError>;
 
         pub fn sign_message_with_mnemonic(
