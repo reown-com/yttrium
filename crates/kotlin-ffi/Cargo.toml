@@ -1,0 +1,34 @@
+[package]
+name = "kotlin-ffi"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "uniffi_yttrium"
+crate-type = ["cdylib"]
+
+[build-dependencies]
+uniffi_build = "0.28.1" 
+
+[dependencies]
+yttrium = { path = "../yttrium" }
+uniffi = { version = "0.28.1", features = ["tokio"] }
+openssl = { version = "0.10", features = ["vendored"] }
+openssl-sys = { version = "0.9.103", features = ["vendored"] }
+
+# Errors
+eyre.workspace = true
+
+# Async
+tokio.workspace = true
+
+# Serialization
+serde.workspace = true
+serde_json.workspace = true
+
+# Networking
+reqwest.workspace = true
+
+# Logging
+log.workspace = true
+thiserror.workspace = true

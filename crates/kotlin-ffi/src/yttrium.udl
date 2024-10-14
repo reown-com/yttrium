@@ -1,0 +1,38 @@
+namespace yttrium {
+
+};
+
+[Error]
+enum Error {
+  "Unknown"
+};
+
+dictionary Endpoint {
+    string api_key;
+    string base_url;
+};
+
+dictionary Endpoints {
+    Endpoint rpc;
+    Endpoint bundler;
+    Endpoint paymaster;
+};
+
+ dictionary Config {
+    Endpoints endpoints;
+  };
+
+  dictionary AccountClientConfig {
+    string owner_address;
+    u64 chain_id;
+    Config config;
+    string signer_type;
+    boolean safe;
+    string private_key;
+  };
+
+  dictionary Transaction {
+    string to;
+    string value;
+    string data;
+  };

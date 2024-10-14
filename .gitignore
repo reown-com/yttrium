@@ -27,3 +27,5 @@ Package.resolved
 Utilities/InstalledSwiftPMConfiguration/config.json
 .devcontainer
 .cursorignore
+/crates/kotlin-ffi/jniLibs
+/crates/kotlin-ffi/bindings/com/reown/kotlin/ffi/yttrium
