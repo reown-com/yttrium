@@ -78,34 +78,12 @@ extension Endpoints {
     }
 }
 
-import SwiftDotenv
 
 extension Config {
     
     public static func local() -> Self {
         Config(endpoints: .local())
     }
-    
-    static func pimlico() throws -> Self {
-        try Dotenv.configure()
-        
-        guard let rpcURL = Dotenv["PIMLICO_RPC_URL"]?.stringValue else {
-            fatalError("Missing PIMLICO_RPC_URL environment variable")
-        }
-        guard let bundlerURL = Dotenv["PIMLICO_BUNDLER_URL"]?.stringValue else {
-            fatalError("Missing PIMLICO_BUNDLER_URL environment variable")
-        }
-        let paymasterURL = bundlerURL
-        
-        return Self(
-            endpoints: .init(
-                rpc: .init(baseURL: rpcURL),
-                bundler: .init(baseURL: bundlerURL),
-                paymaster: .init(baseURL: paymasterURL)
-            )
-        )
-    }
-    
     
     public var ffi: FFIConfig {
         FFIConfig(endpoints: endpoints.ffi)
