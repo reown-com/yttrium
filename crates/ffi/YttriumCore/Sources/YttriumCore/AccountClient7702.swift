@@ -8,7 +8,7 @@ public final class AccountClient7702 {
     
     private let entryPoint: String
     
-    private let core7702AccountClient: YttriumCore.FFI7702AccountClient
+    private let core7702AccountClient: FFI7702AccountClient
     
     public convenience init(
         ownerAddress: String,
