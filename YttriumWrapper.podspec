@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name         = 'YttriumWrapper'
-  s.version      = '0.0.0'
+  s.version      = '0.1.1'
   s.summary      = '4337 implementation'
   s.description  = '4337 implementation '
   s.homepage     = 'https://reown.com'
@@ -18,7 +18,7 @@ Pod::Spec.new do |s|
 
   # Include the vendored framework
   s.prepare_command = <<-SCRIPT
-    curl -L -o RustXcframework.xcframework.zip 'https://github.com/reown-com/yttrium/releases/download/0.0.0/RustXcframework.xcframework.zip'
+    curl -L -o RustXcframework.xcframework.zip 'https://github.com/reown-com/yttrium/releases/download/0.1.1/RustXcframework.xcframework.zip'
     unzip -o RustXcframework.xcframework.zip -d crates/ffi/YttriumCore/
     rm RustXcframework.xcframework.zip
   SCRIPT

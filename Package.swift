@@ -11,8 +11,8 @@ let rustXcframeworkTarget: Target = useLocalRustXcframework ?
     ) :
     .binaryTarget(
         name: "RustXcframework",
-        url: "https://github.com/reown-com/yttrium/releases/download/0.1.0/RustXcframework.xcframework.zip",
-        checksum: "28ccb544483685ef2dc27dec3ba2bf193caabbe4bdae4cf7ae65a2b5b7b95bd2"
+        url: "https://github.com/reown-com/yttrium/releases/download/0.1.1/RustXcframework.xcframework.zip",
+        checksum: "fc67a8a88e94c61dc9532697596e773dbfe453d96e3457eb7dd37b5910ceed4b"
     )
 
 let package = Package(
@@ -30,27 +30,31 @@ let package = Package(
         ),
     ],
     dependencies: [
+        .package(url: "https://github.com/thebarndog/swift-dotenv.git", from: "2.0.0")
     ],
     targets: [
         rustXcframeworkTarget,
         .target(
             name: "YttriumCore",
             dependencies: [
-                "RustXcframework"
+                "RustXcframework",
+                .product(name: "SwiftDotenv", package: "swift-dotenv")
             ],
             path: "crates/ffi/YttriumCore/Sources/YttriumCore"
         ),
         .target(
             name: "Yttrium",
             dependencies: [
-                "YttriumCore"
+                "YttriumCore",
+                .product(name: "SwiftDotenv", package: "swift-dotenv")
             ],
             path: "platforms/swift/Sources/Yttrium"
         ),
         .testTarget(
             name: "YttriumTests",
             dependencies: [
-                "Yttrium"
+                "Yttrium",
+                .product(name: "SwiftDotenv", package: "swift-dotenv")
             ],
             path: "platforms/swift/Tests/YttriumTests"
         ),
