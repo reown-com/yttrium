@@ -61,36 +61,34 @@ jobs:
           make compute-rust-checksum
           make generate-package-swift
 
-      # 7. (Optional) Debug Environment Variables
-      - name: Debug Environment Variables
+      # 7. Update Podspec with Version and Download URL
+      - name: Update Podspec with Version and Download URL
         run: |
-          echo "VERSION: $VERSION"
-          echo "TARGET_BRANCH: $TARGET_BRANCH"
+          # Replace the version line in Podspec
+          sed -i '' "s/^  s\.version *= *.*/  s.version      = '${VERSION}'/g" YttriumWrapper.podspec
 
-      # 8. (Optional) Check Git Status
-      - name: Check Git Status
-        run: git status
+          # Construct the download URL
+          DOWNLOAD_URL="https://github.com/reown-com/yttrium/releases/download/${VERSION}/RustXcframework.xcframework.zip"
 
-      # 9. (Optional) List Changes in Package.swift
-      - name: List Changes in Package.swift
-        run: git diff Package.swift
+          # Replace the download URL in prepare_command
+          sed -i '' "s|curl -L -o RustXcframework.xcframework.zip '.*'|curl -L -o RustXcframework.xcframework.zip '${DOWNLOAD_URL}'|g" YttriumWrapper.podspec
 
-      # 10. Commit and Push Package.swift
-      - name: Commit and Push Package.swift
+      # 8. Commit and Push Package.swift and Podspec
+      - name: Commit and Push Package.swift and Podspec
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Use default token
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add Package.swift crates/ffi/YttriumCore/Sources/YttriumCore/*
+          git add Package.swift crates/ffi/YttriumCore/Sources/YttriumCore/* YttriumWrapper.podspec
           if git diff --cached --quiet; then
             echo "No changes to commit."
           else
-            git commit -m "chore: update Package.swift for version $VERSION"
+            git commit -m "chore: update Package.swift and podspec for version $VERSION"
             git push origin HEAD:$TARGET_BRANCH
           fi
 
-      # 11. Create Git Tag
+      # 9. Create Git Tag
       - name: Create Git Tag
         env:
           VERSION: ${{ env.VERSION }}
@@ -109,7 +107,7 @@ jobs:
           # Push the tag to the repository
           git push origin "${VERSION}"
 
-      # 12. Create a GitHub Release
+      # 10. Create a GitHub Release
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1
@@ -121,7 +119,7 @@ jobs:
           draft: false
           prerelease: true
 
-      # 13. Upload Rust XCFramework to the Release
+      # 11. Upload Rust XCFramework to the Release
       - name: Upload Rust XCFramework to Release
         uses: actions/upload-release-asset@v1
         env:
@@ -132,29 +130,9 @@ jobs:
           asset_name: RustXcframework.xcframework.zip
           asset_content_type: application/zip
 
-      # 14. Update Podspec with Version and Download URL
-      - name: Update Podspec with Version and Download URL
-        run: |
-          # Replace the version line
-          sed -i '' "s/^  s\.version *= *.*/  s.version      = '${VERSION}'/g" YttriumWrapper.podspec
-
-          # Construct the download URL
-          DOWNLOAD_URL="https://github.com/reown-com/yttrium/releases/download/${VERSION}/RustXcframework.xcframework.zip"
-
-          # Replace the download URL in prepare_command
-          sed -i '' "s|curl -L -o RustXcframework.xcframework.zip '.*'|curl -L -o RustXcframework.xcframework.zip '${DOWNLOAD_URL}'|g" YttriumWrapper.podspec
-
-          # Commit the updated podspec
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add YttriumWrapper.podspec
-          git commit -m "chore: update podspec for version ${VERSION}"
-          git push origin HEAD:${TARGET_BRANCH}
-
-      # 15. Publish to CocoaPods Trunk
+      # 12. Publish to CocoaPods Trunk
       - name: Publish to CocoaPods Trunk
         env:
           COCOAPODS_TRUNK_TOKEN: ${{ secrets.COCOAPODS_TRUNK_TOKEN }}
         run: |
           pod trunk push YttriumWrapper.podspec --allow-warnings
-          
