@@ -1,8 +1,8 @@
 Pod::Spec.new do |s|
   s.name         = 'YttriumWrapper'
-  s.version      = '0.0.1'  # Replace with your actual version
+  s.version      = '0.1.0'
   s.summary      = '4337 implementation'
-  s.description  = '4337 implementation'
+  s.description  = '4337 implementation '
   s.homepage     = 'https://reown.com'
   s.license      = { :type => 'MIT', :file => 'LICENSE' }
   s.authors      = 'Reown, Inc.'
@@ -20,5 +20,5 @@ Pod::Spec.new do |s|
   s.exclude_files = 'crates/ffi/YttriumCore/RustXcframework.xcframework'
 
   # Include the vendored framework
-  s.vendored_frameworks = 'crates/ffi/YttriumCore/RustXcframework.xcframework'
+  s.vendored_frameworks = 'https://github.com/reown-com/yttrium/releases/download/0.1.0/RustXcframework.xcframework.zip'
 end
