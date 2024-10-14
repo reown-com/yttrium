@@ -30,31 +30,27 @@ let package = Package(
         ),
     ],
     dependencies: [
-        .package(url: "https://github.com/thebarndog/swift-dotenv.git", from: "2.0.0")
     ],
     targets: [
         rustXcframeworkTarget,
         .target(
             name: "YttriumCore",
             dependencies: [
-                "RustXcframework",
-                .product(name: "SwiftDotenv", package: "swift-dotenv")
+                "RustXcframework"
             ],
             path: "crates/ffi/YttriumCore/Sources/YttriumCore"
         ),
         .target(
             name: "Yttrium",
             dependencies: [
-                "YttriumCore",
-                .product(name: "SwiftDotenv", package: "swift-dotenv")
+                "YttriumCore"
             ],
             path: "platforms/swift/Sources/Yttrium"
         ),
         .testTarget(
             name: "YttriumTests",
             dependencies: [
-                "Yttrium",
-                .product(name: "SwiftDotenv", package: "swift-dotenv")
+                "Yttrium"
             ],
             path: "platforms/swift/Tests/YttriumTests"
         ),
