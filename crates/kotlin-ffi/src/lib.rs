@@ -1,6 +1,6 @@
+uniffi::setup_scaffolding!();
+
 use yttrium::config::Config;
-use yttrium::config::Endpoint;
-use yttrium::config::Endpoints;
 use yttrium::{
     account_client::{AccountClient as YAccountClient, SignerType},
     private_key_service::PrivateKeyService,
@@ -15,6 +15,7 @@ pub struct AccountClient {
     account_client: YAccountClient,
 }
 
+#[derive(uniffi::Record)]
 pub struct AccountClientConfig {
     pub owner_address: String,
     pub chain_id: u64,
@@ -24,13 +25,14 @@ pub struct AccountClientConfig {
     pub private_key: String,
 }
 
+#[derive(uniffi::Record)]
 pub struct Transaction {
     pub to: String,
     pub value: String,
     pub data: String,
 }
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, thiserror::Error, uniffi::Error)]
 pub enum Error {
     #[error("Unknown {0}")]
     Unknown(String),
@@ -120,8 +122,6 @@ impl AccountClient {
             .map_err(|e| Error::Unknown(e.to_string()))
     }
 }
-
-uniffi::include_scaffolding!("yttrium");
 
 impl From<Transaction> for YTransaction {
     fn from(transaction: Transaction) -> Self {

@@ -1,3 +1,5 @@
+uniffi::setup_scaffolding!();
+
 pub mod account_client;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod bundler;
