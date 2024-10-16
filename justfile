@@ -7,7 +7,10 @@ clean:
 setup:
   git submodule update --init --recursive
 
-devloop: setup clippy test fmt udeps
+devloop: setup clippy fmt test udeps
+  @echo ""
+  @echo ""
+  @echo "PASS"
 
 test:
   cargo test --features=full --lib --bins
