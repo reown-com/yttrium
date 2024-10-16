@@ -32,3 +32,7 @@ reqwest.workspace = true
 # Logging
 log.workspace = true
 thiserror.workspace = true
+
+[[bin]]
+name = "uniffi-bindgen"
+path = "uniffi-bindgen.rs"

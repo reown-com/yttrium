@@ -53,6 +53,8 @@ impl Signer {
 }
 
 #[allow(dead_code)]
+#[cfg(feature = "uniffi")]
+#[derive(uniffi_macros::Object)]
 pub struct AccountClient {
     owner: String,
     chain_id: u64,
@@ -278,6 +280,10 @@ pub async fn get_address_with_private_key_signer(
     } else {
         get_sender_address_with_signer(config, chain_id, signer).await?
     };
+
+    // else {
+    //     unimplemented!()
+    // };
 
     Ok(sender_address.to_string())
 }

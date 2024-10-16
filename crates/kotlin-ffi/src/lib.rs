@@ -1,7 +1,7 @@
 uniffi::setup_scaffolding!();
 
 use yttrium::config::Config;
-use yttrium::{
+use yttrium::{ 
     account_client::{AccountClient as YAccountClient, SignerType},
     private_key_service::PrivateKeyService,
     sign_service::address_from_string,
@@ -65,7 +65,7 @@ impl AccountClient {
         Self {
             owner_address: config.owner_address.clone(),
             chain_id: config.chain_id,
-            account_client,
+            account_client: account_client,
         }
     }
 
