@@ -161,7 +161,7 @@ mod ffi {
             &self,
             signature: String,
             address: String,
-            message: String,
+            message_hash: String,
         ) -> Result<bool, Erc6492Error>;
     }
 }
