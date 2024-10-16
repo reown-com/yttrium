@@ -6,7 +6,7 @@ const LOCAL_BUNDLER_URL: &str = "http://localhost:4337";
 const LOCAL_PAYMASTER_URL: &str = "http://localhost:3000";
 
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Object))]
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
 pub struct Config {
     pub endpoints: Endpoints,
 }
@@ -22,7 +22,7 @@ impl Config {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Object))]
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
 pub struct Endpoints {
     pub rpc: Endpoint,
     pub bundler: Endpoint,
@@ -83,7 +83,7 @@ impl Endpoints {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Object))]
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
 pub struct Endpoint {
     pub base_url: String,
     pub api_key: String,
