@@ -281,10 +281,6 @@ pub async fn get_address_with_private_key_signer(
         get_sender_address_with_signer(config, chain_id, signer).await?
     };
 
-    // else {
-    //     unimplemented!()
-    // };
-
     Ok(sender_address.to_string())
 }
 
