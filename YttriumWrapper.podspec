@@ -5,7 +5,7 @@ Pod::Spec.new do |s|
   s.description  = '4337 implementation '
   s.homepage     = 'https://reown.com'
   s.license      = { :type => 'MIT', :file => 'LICENSE' }
-  s.authors      = 'Reown, Inc.'
+  s.authors      = 'reown inc.'
 
   s.source       = { :git => 'https://github.com/reown-com/yttrium.git', :tag => s.version.to_s }
 
