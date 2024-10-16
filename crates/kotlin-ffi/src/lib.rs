@@ -65,7 +65,7 @@ impl AccountClient {
         Self {
             owner_address: config.owner_address.clone(),
             chain_id: config.chain_id,
-            account_client: account_client,
+            account_client,
         }
     }
 
