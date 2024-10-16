@@ -83,8 +83,7 @@ impl Endpoints {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-#[cfg(feature = "uniffi")]
-#[derive(uniffi_macros:: Record)]
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Object))]
 pub struct Endpoint {
     pub base_url: String,
     pub api_key: String,
