@@ -29,6 +29,7 @@ jobs:
       - run: cargo build --workspace --features=full --all-targets
       - run: cargo test --features=full --lib --bins
       - run: cargo clippy --workspace --features=full --all-targets -- -D warnings
+      - run: cargo clippy --workspace --all-targets -- -D warnings
       - run: cargo +nightly fmt --all -- --check
 
   udeps:
