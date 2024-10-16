@@ -24,13 +24,13 @@ impl Erc6492Client {
     ) -> Result<bool, Erc6492Error> {
         let signature = signature
             .parse::<Bytes>()
-            .map_err(|e| Erc6492Error::InvalidAddress(e.to_string()))?;
+            .map_err(|e| Erc6492Error::InvalidSignature(e.to_string()))?;
         let address = address
             .parse::<Address>()
             .map_err(|e| Erc6492Error::InvalidAddress(e.to_string()))?;
         let message_hash = message_hash
             .parse::<B256>()
-            .map_err(|e| Erc6492Error::InvalidAddress(e.to_string()))?;
+            .map_err(|e| Erc6492Error::InvalidMessageHash(e.to_string()))?;
 
         let verification = erc6492::verify_signature(
             signature,

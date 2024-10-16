@@ -145,7 +145,9 @@ mod ffi {
     }
 
     enum Erc6492Error {
+        InvalidSignature(String),
         InvalidAddress(String),
+        InvalidMessageHash(String),
         Verification(String),
     }
 
