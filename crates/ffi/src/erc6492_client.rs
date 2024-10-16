@@ -1,6 +1,8 @@
 use crate::ffi::Erc6492Error;
 use alloy::{
-    network::Ethereum, primitives::Address, providers::ReqwestProvider,
+    network::Ethereum,
+    primitives::{Address, Bytes, B256},
+    providers::ReqwestProvider,
 };
 
 pub struct Erc6492Client {
@@ -18,16 +20,22 @@ impl Erc6492Client {
         &self,
         signature: String,
         address: String,
-        message: String,
+        message_hash: String,
     ) -> Result<bool, Erc6492Error> {
+        let signature = signature
+            .parse::<Bytes>()
+            .map_err(|e| Erc6492Error::InvalidAddress(e.to_string()))?;
         let address = address
             .parse::<Address>()
+            .map_err(|e| Erc6492Error::InvalidAddress(e.to_string()))?;
+        let message_hash = message_hash
+            .parse::<B256>()
             .map_err(|e| Erc6492Error::InvalidAddress(e.to_string()))?;
 
         let verification = erc6492::verify_signature(
             signature,
             address,
-            message,
+            message_hash,
             &self.provider,
         )
         .await
