@@ -12,5 +12,6 @@ pub mod private_key_service;
 pub mod sign_service;
 pub mod signer;
 pub mod smart_accounts;
+pub mod test_helpers;
 pub mod transaction;
 pub mod user_operation;

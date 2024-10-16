@@ -20,6 +20,7 @@ alloy = { version = "0.3.6", features = [
     "signer-mnemonic",
     "eip712",
 ] }
+alloy-provider = { version = "0.3.6", features = ["erc4337-api"] }
 # foundry-block-explorers = "0.2.3"
 getrandom = { version = "0.2", features = ["js"] }
 
@@ -39,6 +40,7 @@ dotenvy = "0.15.7"
 
 # Other
 hex = "0.4.3"
+async-trait = "0.1.83"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 
