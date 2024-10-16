@@ -23,8 +23,7 @@ impl Config {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-#[cfg(feature = "uniffi")]
-#[derive(uniffi_macros:: Record)]
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Object))]
 pub struct Endpoints {
     pub rpc: Endpoint,
     pub bundler: Endpoint,
