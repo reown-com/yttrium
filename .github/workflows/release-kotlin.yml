@@ -1,0 +1,87 @@
+name: Build and Release Yttrium Kotlin
+
+on:
+    workflow_dispatch:
+      inputs:
+        version:
+          description: 'Version to release (e.g. 0.0.1)'
+          required: true
+
+env:
+  CARGO_TERM_COLOR: always
+  VERSION: ${{ github.event.inputs.version || '0.0.24' }}
+  TARGET_BRANCH: ${{ github.ref_name }}
+
+permissions:
+  contents: write  # Grant write access to repository contents for this workflow
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        target: [aarch64-linux-android, armv7-linux-androideabi] #armeabi-v7a, arm64-v8a
+    
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: ${{ matrix.target }}
+          override: true
+      
+      - name: Install Android NDK
+        uses: malinskiy/action-android@v2
+        with:
+          components: build-tools;30.0.3
+      
+      - name: Set up Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '11'
+
+      - name: Build Rust library
+        run: |
+          cargo ndk -t ${{ matrix.target }} build --release --features=uniffi/cli 
+      
+      - name: Generate Kotlin bindings
+        run: |
+          cargo run --features=uniffi/cli --bin uniffi-bindgen generate --library target/aarch64-linux-android/release/libuniffi_yttrium.so --language kotlin --out-dir kotlin-bindings
+      # cargo install uniffi_bindgen
+      # uniffi-bindgen generate src/your_api.udl --language kotlin --out-dir bindings
+
+      - name: Package artifacts
+        run: |
+          # Copy the .so files and Kotlin bindings into a single directory
+          mkdir -p artifacts/libs/${{ matrix.target }}
+          cp target/${{ matrix.target }}/release/libuniffi_yttrium.so artifacts/libs/${{ matrix.target }}/
+          cp -r bindings artifacts/kotlin-bindings
+      
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ env.VERSION }}
+          release_name: Yttrium ${{ env.VERSION }}
+          draft: false
+          prerelease: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Release Assets
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./kotlin_artifacts.zip
+          asset_name: artifacts_${{ matrix.target }}.zip
+          asset_content_type: application/zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
