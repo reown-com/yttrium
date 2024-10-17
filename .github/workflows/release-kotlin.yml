@@ -52,8 +52,8 @@ jobs:
           cargo install cargo-ndk
 
       - name: Build Rust library
-        env:
-          ANDROID_NDK_HOME: ${{ env.ANDROID_NDK_HOME }}
+        # env:
+        #   ANDROID_NDK_HOME: ${{ env.ANDROID_NDK_HOME }}
         run: |
           cargo ndk -t ${{ matrix.target }} build --release --features=uniffi/cli 
       
