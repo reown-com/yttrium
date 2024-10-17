@@ -222,6 +222,43 @@ extension __swift_bridge__$Option$FFIAccountClientConfig {
         }
     }
 }
+public struct FFIPreparedSignature {
+    public var hash: RustString
+
+    public init(hash: RustString) {
+        self.hash = hash
+    }
+
+    @inline(__always)
+    func intoFfiRepr() -> __swift_bridge__$FFIPreparedSignature {
+        { let val = self; return __swift_bridge__$FFIPreparedSignature(hash: { let rustString = val.hash.intoRustString(); rustString.isOwned = false; return rustString.ptr }()); }()
+    }
+}
+extension __swift_bridge__$FFIPreparedSignature {
+    @inline(__always)
+    func intoSwiftRepr() -> FFIPreparedSignature {
+        { let val = self; return FFIPreparedSignature(hash: RustString(ptr: val.hash)); }()
+    }
+}
+extension __swift_bridge__$Option$FFIPreparedSignature {
+    @inline(__always)
+    func intoSwiftRepr() -> Optional<FFIPreparedSignature> {
+        if self.is_some {
+            return self.val.intoSwiftRepr()
+        } else {
+            return nil
+        }
+    }
+
+    @inline(__always)
+    static func fromSwiftRepr(_ val: Optional<FFIPreparedSignature>) -> __swift_bridge__$Option$FFIPreparedSignature {
+        if let v = val {
+            return __swift_bridge__$Option$FFIPreparedSignature(is_some: true, val: v.intoFfiRepr())
+        } else {
+            return __swift_bridge__$Option$FFIPreparedSignature(is_some: false, val: __swift_bridge__$FFIPreparedSignature())
+        }
+    }
+}
 public struct FFIPreparedSendTransaction {
     public var hash: RustString
     public var do_send_transaction_params: RustString
@@ -437,6 +474,56 @@ extension FFIAccountClientRef {
         })
     }
     class CbWrapper$FFIAccountClient$get_address {
+        var cb: (Result<RustString, Error>) -> ()
+    
+        public init(cb: @escaping (Result<RustString, Error>) -> ()) {
+            self.cb = cb
+        }
+    }
+
+    public func prepare_sign_message<GenericIntoRustString: IntoRustString>(_ _message_hash: GenericIntoRustString) async throws -> FFIPreparedSignature {
+        func onComplete(cbWrapperPtr: UnsafeMutableRawPointer?, rustFnRetVal: __swift_bridge__$ResultFFIPreparedSignatureAndFFIError) {
+            let wrapper = Unmanaged<CbWrapper$FFIAccountClient$prepare_sign_message>.fromOpaque(cbWrapperPtr!).takeRetainedValue()
+            switch rustFnRetVal.tag { case __swift_bridge__$ResultFFIPreparedSignatureAndFFIError$ResultOk: wrapper.cb(.success(rustFnRetVal.payload.ok.intoSwiftRepr())) case __swift_bridge__$ResultFFIPreparedSignatureAndFFIError$ResultErr: wrapper.cb(.failure(rustFnRetVal.payload.err.intoSwiftRepr())) default: fatalError() }
+        }
+
+        return try await withCheckedThrowingContinuation({ (continuation: CheckedContinuation<FFIPreparedSignature, Error>) in
+            let callback = { rustFnRetVal in
+                continuation.resume(with: rustFnRetVal)
+            }
+
+            let wrapper = CbWrapper$FFIAccountClient$prepare_sign_message(cb: callback)
+            let wrapperPtr = Unmanaged.passRetained(wrapper).toOpaque()
+
+            __swift_bridge__$FFIAccountClient$prepare_sign_message(wrapperPtr, onComplete, ptr, { let rustString = _message_hash.intoRustString(); rustString.isOwned = false; return rustString.ptr }())
+        })
+    }
+    class CbWrapper$FFIAccountClient$prepare_sign_message {
+        var cb: (Result<FFIPreparedSignature, Error>) -> ()
+    
+        public init(cb: @escaping (Result<FFIPreparedSignature, Error>) -> ()) {
+            self.cb = cb
+        }
+    }
+
+    public func do_sign_message<GenericIntoRustString: IntoRustString>(_ _signatures: RustVec<GenericIntoRustString>) async throws -> RustString {
+        func onComplete(cbWrapperPtr: UnsafeMutableRawPointer?, rustFnRetVal: __swift_bridge__$ResultStringAndFFIError) {
+            let wrapper = Unmanaged<CbWrapper$FFIAccountClient$do_sign_message>.fromOpaque(cbWrapperPtr!).takeRetainedValue()
+            switch rustFnRetVal.tag { case __swift_bridge__$ResultStringAndFFIError$ResultOk: wrapper.cb(.success(RustString(ptr: rustFnRetVal.payload.ok))) case __swift_bridge__$ResultStringAndFFIError$ResultErr: wrapper.cb(.failure(rustFnRetVal.payload.err.intoSwiftRepr())) default: fatalError() }
+        }
+
+        return try await withCheckedThrowingContinuation({ (continuation: CheckedContinuation<RustString, Error>) in
+            let callback = { rustFnRetVal in
+                continuation.resume(with: rustFnRetVal)
+            }
+
+            let wrapper = CbWrapper$FFIAccountClient$do_sign_message(cb: callback)
+            let wrapperPtr = Unmanaged.passRetained(wrapper).toOpaque()
+
+            __swift_bridge__$FFIAccountClient$do_sign_message(wrapperPtr, onComplete, ptr, { let val = _signatures; val.isOwned = false; return val.ptr }())
+        })
+    }
+    class CbWrapper$FFIAccountClient$do_sign_message {
         var cb: (Result<RustString, Error>) -> ()
     
         public init(cb: @escaping (Result<RustString, Error>) -> ()) {

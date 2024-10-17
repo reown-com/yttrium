@@ -54,6 +54,12 @@ mod ffi {
 
     #[derive(Debug, Clone)]
     #[swift_bridge(swift_repr = "struct")]
+    pub struct FFIPreparedSignature {
+        pub hash: String,
+    }
+
+    #[derive(Debug, Clone)]
+    #[swift_bridge(swift_repr = "struct")]
     pub struct FFIPreparedSendTransaction {
         pub hash: String,
         pub do_send_transaction_params: String,
@@ -85,6 +91,16 @@ mod ffi {
         pub fn chain_id(&self) -> u64;
 
         pub async fn get_address(&self) -> Result<String, FFIError>;
+
+        pub async fn prepare_sign_message(
+            &self,
+            _message_hash: String,
+        ) -> Result<FFIPreparedSignature, FFIError>;
+
+        pub async fn do_sign_message(
+            &self,
+            _signatures: Vec<String>,
+        ) -> Result<String, FFIError>;
 
         pub async fn send_transactions(
             &self,

@@ -48,6 +48,7 @@ reqwest.workspace = true
 [dev-dependencies]
 # mocking
 wiremock = "0.6.0"
+erc6492 = { git = "https://github.com/reown-com/erc6492.git", branch = "feat/verify-message-hash" }
 
 # Networking
 reqwest.workspace = true
