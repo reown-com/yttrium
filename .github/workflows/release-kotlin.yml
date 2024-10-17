@@ -34,10 +34,12 @@ jobs:
           target: ${{ matrix.target }}
           override: true
       
-      - name: Install Android NDK
-        uses: malinskiy/action-android@v3
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
         with:
-          components: build-tools;30.0.3
+          api-level: 35
+          build-tools: 35.0.0
+          ndk-version: 27.2.12479018
       
       - name: Set up Java
         uses: actions/setup-java@v3
