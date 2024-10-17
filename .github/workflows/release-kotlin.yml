@@ -46,8 +46,14 @@ jobs:
           api-level: 35
           build-tools: 35.0.0
           ndk-version: 27.2.12479018
+      
+      - name: Install cargo-ndk
+        run: |
+          cargo install cargo-ndk
 
       - name: Build Rust library
+        env:
+          ANDROID_NDK_HOME: ${{ env.ANDROID_NDK_HOME }}
         run: |
           cargo ndk -t ${{ matrix.target }} build --release --features=uniffi/cli 
       
