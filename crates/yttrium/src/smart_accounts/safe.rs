@@ -3,7 +3,10 @@ use crate::{
     smart_accounts::account_address::AccountAddress,
     transaction::send::safe_test::OwnerSignature,
 };
+use alloy::network::Network;
 use alloy::primitives::B256;
+use alloy::providers::Provider;
+use alloy::transports::Transport;
 use alloy::{
     dyn_abi::{DynSolValue, Eip712Domain},
     primitives::{
@@ -300,14 +303,33 @@ pub fn prepare_sign(
     PreparedSignature { safe_message, domain }
 }
 
-pub fn sign(signatures: Vec<OwnerSignature>) -> Bytes {
-    // TODO check if deployed, if so do ERC-6492
-
+pub async fn sign<P, T, N>(
+    account_address: AccountAddress,
+    signatures: Vec<OwnerSignature>,
+    provider: &P,
+) -> Bytes
+where
+    T: Transport + Clone,
+    P: Provider<T, N>,
+    N: Network,
+{
     if signatures.len() > 1 {
         unimplemented!("multi-signature is not supported");
     }
 
     let signature = Bytes::from(signatures[0].signature.as_bytes());
+
+    let signature = if provider
+        .get_code_at(account_address.into())
+        .await
+        .unwrap() // TODO handle error
+        .is_empty()
+    {
+        // TODO check if deployed, if so do ERC-6492
+        signature
+    } else {
+        signature
+    };
 
     // Null validator address for regular Safe signature
     (Address::ZERO, signature).abi_encode_packed().into()

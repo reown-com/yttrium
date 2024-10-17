@@ -13,7 +13,9 @@ use crate::transaction::send::{
     do_send_transactions, prepare_send_transaction,
 };
 use crate::transaction::{send::send_transactions, Transaction};
+use alloy::network::Ethereum;
 use alloy::primitives::{Address, Bytes, B256, U256, U64};
+use alloy::providers::ReqwestProvider;
 use alloy::signers::local::PrivateKeySigner;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -144,14 +146,15 @@ impl AccountClient {
         }
 
         prepare_sign(
-            // TODO refactor class to parse Address on AccountClient initialization instead of lazily
+            // TODO refactor class to parse Address on AccountClient
+            // initialization instead of lazily
             self.owner.parse::<Address>().unwrap().into(),
             U256::from(U64::from(self.chain_id)),
             message_hash,
         )
     }
 
-    pub fn do_sign_message(
+    pub async fn do_sign_message(
         &self,
         signatures: Vec<OwnerSignature>,
     ) -> Bytes {
@@ -161,7 +164,18 @@ impl AccountClient {
             );
         }
 
-        sign(signatures)
+        // TODO refactor class to create Provider on AccountClient
+        // initialization instead of lazily
+        let provider = ReqwestProvider::<Ethereum>::new_http(
+            self.config.endpoints.rpc.base_url.parse().unwrap(),
+        );
+
+        sign(
+            self.owner.parse::<Address>().unwrap().into(),
+            signatures,
+            &provider,
+        )
+        .await
     }
 
     pub async fn send_transactions(

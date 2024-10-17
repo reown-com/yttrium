@@ -858,17 +858,18 @@ mod tests {
         let message_hash = eip191_hash_message(message);
 
         let chain_id = provider.get_chain_id().await.unwrap();
-        let PreparedSignature { safe_message, domain } = prepare_sign(
-            sender_address,
-            U256::from(chain_id),
-            message_hash,
-        );
+        let PreparedSignature { safe_message, domain } =
+            prepare_sign(sender_address, U256::from(chain_id), message_hash);
 
         let signature =
             owner.sign_typed_data_sync(&safe_message, &domain).unwrap();
 
-        let signature =
-            sign(vec![OwnerSignature { owner: owner_address, signature }]);
+        let signature = sign(
+            sender_address,
+            vec![OwnerSignature { owner: owner_address, signature }],
+            &provider,
+        )
+        .await;
 
         sol! {
             #[sol(rpc)]
@@ -896,7 +897,7 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore]
+    #[ignore = "not implemented yet"]
     async fn test_sign_message_not_deployed() {
         let config = Config::local();
         let provider = ReqwestProvider::<Ethereum>::new_http(
@@ -912,17 +913,7 @@ mod tests {
         )
         .await;
 
-        let receipt = send_transactions(
-            vec![],
-            owner.clone(),
-            None,
-            None,
-            config.clone(),
-        )
-        .await
-        .unwrap();
-        assert!(receipt.success);
-        assert!(!provider
+        assert!(provider
             .get_code_at(sender_address.into())
             .await
             .unwrap()
@@ -932,31 +923,24 @@ mod tests {
         let message_hash = eip191_hash_message(message);
 
         let chain_id = provider.get_chain_id().await.unwrap();
-        let PreparedSignature { safe_message, domain } = prepare_sign(
-            sender_address,
-            U256::from(chain_id),
-            message_hash,
-        );
+        let PreparedSignature { safe_message, domain } =
+            prepare_sign(sender_address, U256::from(chain_id), message_hash);
 
         let signature =
             owner.sign_typed_data_sync(&safe_message, &domain).unwrap();
 
-        let signature =
-            sign(vec![OwnerSignature { owner: owner_address, signature }]);
+        let signature = sign(
+            sender_address,
+            vec![OwnerSignature { owner: owner_address, signature }],
+            &provider,
+        )
+        .await;
 
-        sol! {
-            #[sol(rpc)]
-            contract Eip1271 {
-                function isValidSignature(bytes32 hash, bytes calldata signature) external view returns (bytes4 magicValue);
-            }
-        };
-
-        let magic_value = Eip1271::new(sender_address.into(), provider.clone())
-            .isValidSignature(message_hash, signature.clone())
-            .call()
+        assert!(provider
+            .get_code_at(sender_address.into())
             .await
-            .unwrap();
-        assert_eq!(magic_value.magicValue, fixed_bytes!("1626ba7e"));
+            .unwrap()
+            .is_empty());
 
         assert!(erc6492::verify_signature(
             signature,
