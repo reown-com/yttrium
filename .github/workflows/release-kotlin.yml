@@ -1,12 +1,12 @@
 name: Build and Release Yttrium Kotlin
 
 on:
-    pull_request: 
-    workflow_dispatch:
-      inputs:
-        version:
-          description: 'Version to release (e.g. 0.0.1)'
-          required: true
+    # workflow_dispatch:
+    #   inputs:
+    #     version:
+    #       description: 'Version to release (e.g. 0.0.1)'
+    #       required: true
+    push:
 
 env:
   CARGO_TERM_COLOR: always
@@ -68,8 +68,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ env.VERSION }}
-          release_name: Yttrium ${{ env.VERSION }}
+          tag_name: 0.2.1 #${{ env.VERSION }}
+          release_name: Yttrium 0.2.1 #${{ env.VERSION }}
           draft: false
           prerelease: true
         env:
