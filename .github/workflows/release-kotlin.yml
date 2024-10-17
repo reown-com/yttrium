@@ -1,6 +1,7 @@
 name: Build and Release Yttrium Kotlin
 
 on:
+    pull_request: 
     workflow_dispatch:
       inputs:
         version:
