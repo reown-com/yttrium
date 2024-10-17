@@ -6,10 +6,13 @@ rust-version.workspace = true
 license.workspace = true
 
 [features]
-full = []
+full = ["uniffi"]
+uniffi = ["dep:uniffi", "dep:uniffi_macros"]
 test_pimlico_api = []
 
 [dependencies]
+uniffi = { version = "0.28.1", optional = true }
+uniffi_macros = { version = "0.28.1", optional = true }
 # Ethereum
 alloy = { version = "0.3.6", features = [
     "contract",

@@ -51,6 +51,7 @@ impl Signer {
 }
 
 #[allow(dead_code)]
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Object))]
 pub struct AccountClient {
     owner: String,
     chain_id: u64,
