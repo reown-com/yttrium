@@ -35,7 +35,7 @@ jobs:
           override: true
       
       - name: Install Android NDK
-        uses: malinskiy/action-android@v2
+        uses: malinskiy/action-android@v3
         with:
           components: build-tools;30.0.3
       
