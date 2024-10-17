@@ -1,7 +1,5 @@
-use crate::bundler::{
-    client::BundlerClient, config::BundlerConfig,
-    models::user_operation_receipt::UserOperationReceipt,
-};
+use crate::bundler::models::user_operation_receipt::UserOperationReceipt;
+use crate::bundler::{client::BundlerClient, config::BundlerConfig};
 use crate::config::Config;
 use crate::private_key_service::PrivateKeyService;
 use crate::sign_service::SignService;

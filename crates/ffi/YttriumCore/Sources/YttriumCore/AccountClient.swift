@@ -22,7 +22,7 @@ public final class AccountClient: AccountClientProtocol {
     
     private let entryPoint: String
     
-    private let coreAccountClient: YttriumCore.FFIAccountClient
+    private let coreAccountClient: FFIAccountClient
     
     public convenience init(
         ownerAddress: String,
