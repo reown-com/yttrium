@@ -10,6 +10,7 @@ use alloy::transports::{Transport, TransportResult};
 use alloy_provider::{Network, Provider, ReqwestProvider};
 use eyre::Ok;
 use serde_json;
+use tracing::debug;
 
 pub struct BundlerClient {
     client: reqwest::Client,
@@ -36,15 +37,19 @@ impl BundlerClient {
             ],
         };
 
-        let response: Response<B256> = self
+        let response = self
             .client
             .post(self.config.url())
             .json(&send_body)
             .send()
             .await?
-            .json::<JSONRPCResponse<B256>>()
-            .await?
-            .into();
+            .text()
+            .await?;
+
+        debug!("response: {}", response);
+
+        let response: Response<B256> =
+            serde_json::from_str::<JSONRPCResponse<B256>>(&response)?.into();
 
         response?.ok_or(eyre::eyre!("send_user_operation got None"))
     }

@@ -5,8 +5,8 @@ use super::models::{
 use crate::bundler::config::BundlerConfig;
 use crate::entry_point::EntryPointAddress;
 use crate::jsonrpc::{JSONRPCResponse, Request, Response};
-
 use serde_json;
+use tracing::debug;
 
 pub struct PaymasterClient {
     client: reqwest::Client,
@@ -24,49 +24,41 @@ impl PaymasterClient {
         entry_point: &EntryPointAddress,
         sponsorship_policy_id: Option<String>,
     ) -> eyre::Result<SponsorshipResultV07> {
-        println!("sponsor_user_operation_v07 ");
-
-        let bundler_url = self.config.url().clone();
-
-        let params: Vec<serde_json::Value> = {
-            let user_operation_value = serde_json::to_value(user_operation)?;
-            let mut vec: Vec<serde_json::Value> = vec![
-                user_operation_value,
+        let params = {
+            let mut params = vec![
+                serde_json::to_value(user_operation)?,
                 entry_point.to_address().to_string().into(),
             ];
             if let Some(sponsorship_policy_id) = sponsorship_policy_id {
-                vec.push(sponsorship_policy_id.into());
+                params.push(sponsorship_policy_id.into());
             }
-            vec
+            params
         };
 
-        let req_body: Request<Vec<serde_json::Value>> = Request {
+        let req_body = Request {
             jsonrpc: "2.0".into(),
             id: 1,
             method: "pm_sponsorUserOperation".into(),
             params,
         };
-        println!("req_body: {:?}", serde_json::to_string(&req_body)?);
+        debug!("req_body: {:?}", serde_json::to_string(&req_body)?);
 
-        let post = self
-            .client
-            .post(bundler_url.as_str())
-            .json(&req_body)
-            .send()
-            .await?;
-        println!("pm_sponsorUserOperation post: {:?}", post);
+        let post =
+            self.client.post(self.config.url()).json(&req_body).send().await?;
+        debug!("pm_sponsorUserOperation post: {:?}", post);
         let res = post.text().await?;
-        println!("pm_sponsorUserOperation res: {:?}", res);
+        debug!("pm_sponsorUserOperation res: {:?}", res);
         let v = serde_json::from_str::<JSONRPCResponse<SponsorshipResponseV07>>(
             &res,
         )?;
 
-        println!("pm_sponsorUserOperation json: {:?}", v);
+        debug!("pm_sponsorUserOperation json: {:?}", v);
 
         let response: Response<SponsorshipResponseV07> = v.into();
 
         let response_estimate = response?;
-        let response_estimate = response_estimate.unwrap();
+        let response_estimate = response_estimate
+            .ok_or(eyre::eyre!("response_estimate is None"))?;
 
         let result = SponsorshipResultV07 {
             call_gas_limit: response_estimate.call_gas_limit,
