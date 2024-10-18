@@ -14,7 +14,7 @@ env:
   TARGET_BRANCH: ${{ github.ref_name }}
 
 permissions:
-  contents: write  # Grant write access to repository contents for this workflow
+  contents: write
 
 jobs:
   build-kotlin-artifacts:
@@ -58,12 +58,9 @@ jobs:
       - name: Generate Kotlin bindings
         run: |
           cargo run --features=uniffi/cli --bin uniffi-bindgen generate --library target/${{ matrix.target }}/release/libuniffi_yttrium.so --language kotlin --out-dir kotlin-bindings
-      # cargo install uniffi_bindgen
-      # uniffi-bindgen generate src/your_api.udl --language kotlin --out-dir bindings
 
       - name: Package artifacts
         run: |
-          # Copy the .so files and Kotlin bindings into a single directory
           mkdir -p artifacts/libs/${{ matrix.target }}
           cp target/${{ matrix.target }}/release/libuniffi_yttrium.so artifacts/libs/${{ matrix.target }}/
           cp -r kotlin-bindings artifacts/kotlin-bindings
@@ -85,17 +82,12 @@ jobs:
       - name: Download artifacts
         uses: actions/download-artifact@v3
         with:
-          # name: artifacts-*
           path: kotlin-artifacts
 
       - name: Create artifacts zip
         run: |
           cd kotlin-artifacts
-          zip -r artifacts.zip ./*
-
-        #         - name: Create artifacts zip
-        # run: |  
-        #   zip -r artifacts_${{ matrix.target }}.zip artifacts/
+          zip -r kotlin-artifacts.zip ./*
 
       - name: Create Release
         id: create_release
@@ -114,6 +106,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: kotlin-artifacts/artifacts.zip
-          asset_name: artifacts.zip
+          asset_path: kotlin-artifacts/kotlin-artifacts.zip
+          asset_name: kotlin-artifacts.zip
           asset_content_type: application/zip
