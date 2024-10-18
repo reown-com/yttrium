@@ -16,6 +16,7 @@ use alloy::{
     sol,
     sol_types::{SolCall, SolValue},
 };
+use erc6492::create::create_erc6492_signature;
 use serde::{Deserialize, Serialize};
 
 sol! {
@@ -303,7 +304,11 @@ pub fn prepare_sign(
     PreparedSignature { safe_message, domain }
 }
 
+// TODO refactor to make account_address optional, if not provided it will
+// determine it based on Owners TODO refactor to make owners optional, in the
+// case where it already being deployed is assumed
 pub async fn sign<P, T, N>(
+    owners: Owners,
     account_address: AccountAddress,
     signatures: Vec<OwnerSignature>,
     provider: &P,
@@ -319,20 +324,29 @@ where
 
     let signature = Bytes::from(signatures[0].signature.as_bytes());
 
+    // Null validator address for regular Safe signature
+    let signature = (Address::ZERO, signature).abi_encode_packed().into();
+
+    println!("signature: {:?}", signature);
+
     let signature = if provider
         .get_code_at(account_address.into())
         .await
         .unwrap() // TODO handle error
         .is_empty()
     {
-        // TODO check if deployed, if so do ERC-6492
-        signature
+        create_erc6492_signature(
+            SAFE_PROXY_FACTORY_ADDRESS,
+            factory_data(owners).abi_encode().into(),
+            signature,
+        )
     } else {
         signature
     };
 
-    // Null validator address for regular Safe signature
-    (Address::ZERO, signature).abi_encode_packed().into()
+    println!("signature (w/ 6492): {:?}", signature);
+
+    signature
 }
 
 #[cfg(test)]

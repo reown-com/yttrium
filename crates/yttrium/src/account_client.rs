@@ -5,7 +5,9 @@ use crate::bundler::{
 use crate::config::Config;
 use crate::private_key_service::PrivateKeyService;
 use crate::sign_service::SignService;
-use crate::smart_accounts::safe::{prepare_sign, sign, PreparedSignature};
+use crate::smart_accounts::safe::{
+    prepare_sign, sign, Owners, PreparedSignature,
+};
 use crate::transaction::send::safe_test::{
     self, DoSendTransactionParams, OwnerSignature, PreparedSendTransaction,
 };
@@ -157,7 +159,7 @@ impl AccountClient {
     pub async fn do_sign_message(
         &self,
         signatures: Vec<OwnerSignature>,
-    ) -> Bytes {
+    ) -> eyre::Result<Bytes> {
         if !self.safe {
             unimplemented!(
                 "sign_message is not supported for non-safe accounts"
@@ -170,12 +172,21 @@ impl AccountClient {
             self.config.endpoints.rpc.base_url.parse().unwrap(),
         );
 
-        sign(
-            self.owner.parse::<Address>().unwrap().into(),
+        Ok(sign(
+            Owners {
+                owners: vec![self.owner.parse::<Address>().unwrap()],
+                threshold: 1,
+            },
+            self.get_address()
+                .await
+                .unwrap()
+                .parse::<Address>()
+                .unwrap()
+                .into(),
             signatures,
             &provider,
         )
-        .await
+        .await)
     }
 
     pub async fn send_transactions(
