@@ -98,7 +98,6 @@ jobs:
 
       - name: Create artifacts zip
         run: |
-          cd kotlin-artifacts
           zip -r kotlin-artifacts.zip yttrium/
 
       - name: Create Release
