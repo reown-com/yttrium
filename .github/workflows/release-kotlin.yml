@@ -17,7 +17,7 @@ permissions:
   contents: write  # Grant write access to repository contents for this workflow
 
 jobs:
-  build:
+  build-kotlin-artifacts:
     runs-on: ubuntu-latest
 
     strategy:
@@ -73,9 +73,9 @@ jobs:
         with:
           name: artifacts-${{ matrix.target }}
           path: artifacts/
-  
-  release:
-    needs: build
+
+  release-kotlin-artifacts:
+    needs: build-kotlin-artifacts
     runs-on: ubuntu-latest
 
     steps:
