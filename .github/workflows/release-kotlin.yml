@@ -85,12 +85,12 @@ jobs:
       - name: Download artifacts
         uses: actions/download-artifact@v3
         with:
-          name: artifacts-*
-          path: downloaded-artifacts
+          # name: artifacts-*
+          path: kotlin-artifacts
 
       - name: Create artifacts zip
         run: |
-          cd downloaded-artifacts
+          cd kotlin-artifacts
           zip -r artifacts.zip ./*
 
         #         - name: Create artifacts zip
@@ -114,6 +114,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: downloaded-artifacts/artifacts.zip
+          asset_path: kotlin-artifacts/artifacts.zip
           asset_name: artifacts.zip
           asset_content_type: application/zip
