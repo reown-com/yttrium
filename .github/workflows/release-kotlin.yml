@@ -59,7 +59,7 @@ jobs:
       
       - name: Generate Kotlin bindings
         run: |
-          cargo run --features=uniffi/cli --bin uniffi-bindgen generate --library target/aarch64-linux-android/release/libuniffi_yttrium.so --language kotlin --out-dir kotlin-bindings
+          cargo run --features=uniffi/cli --bin uniffi-bindgen generate --library target/${{ matrix.target }}/release/libuniffi_yttrium.so --language kotlin --out-dir kotlin-bindings
       # cargo install uniffi_bindgen
       # uniffi-bindgen generate src/your_api.udl --language kotlin --out-dir bindings
 
@@ -68,7 +68,7 @@ jobs:
           # Copy the .so files and Kotlin bindings into a single directory
           mkdir -p artifacts/libs/${{ matrix.target }}
           cp target/${{ matrix.target }}/release/libuniffi_yttrium.so artifacts/libs/${{ matrix.target }}/
-          cp -r bindings artifacts/kotlin-bindings
+          cp -r kotlin-bindings artifacts/kotlin-bindings
       
       - name: Create Release
         id: create_release
