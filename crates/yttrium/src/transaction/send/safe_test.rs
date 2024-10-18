@@ -476,15 +476,21 @@ pub async fn do_send_transactions(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{chain::ChainId, transaction::Transaction};
+    use crate::{
+        chain::ChainId,
+        smart_accounts::safe::{prepare_sign, sign, PreparedSignature},
+        transaction::Transaction,
+    };
     use alloy::{
         consensus::{SignableTransaction, TxEip7702},
         network::{EthereumWallet, TransactionBuilder, TxSignerSync},
-        primitives::{U160, U64},
+        primitives::{eip191_hash_message, fixed_bytes, U160, U64},
         providers::{ext::AnvilApi, PendingTransactionConfig, ProviderBuilder},
         rpc::types::TransactionRequest,
         sol,
+        sol_types::SolValue,
     };
+    use erc6492::create::ERC6492_MAGIC_BYTES;
 
     async fn use_faucet(
         provider: ReqwestProvider,
@@ -816,6 +822,174 @@ mod tests {
         );
 
         Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_sign_message_deployed() {
+        let config = Config::local();
+        let provider = ReqwestProvider::<Ethereum>::new_http(
+            config.endpoints.rpc.base_url.parse().unwrap(),
+        );
+
+        let owner = LocalSigner::random();
+        let owner_address = owner.address();
+        let owners = Owners { owners: vec![owner.address()], threshold: 1 };
+
+        let sender_address =
+            get_account_address(provider.clone(), owners.clone()).await;
+
+        let receipt = send_transactions(
+            vec![],
+            owner.clone(),
+            None,
+            None,
+            config.clone(),
+        )
+        .await
+        .unwrap();
+        assert!(receipt.success);
+        assert!(!provider
+            .get_code_at(sender_address.into())
+            .await
+            .unwrap()
+            .is_empty());
+
+        let message = "test message";
+        let message_hash = eip191_hash_message(message);
+
+        let chain_id = provider.get_chain_id().await.unwrap();
+        let PreparedSignature { safe_message, domain } =
+            prepare_sign(sender_address, U256::from(chain_id), message_hash);
+
+        let signature =
+            owner.sign_typed_data_sync(&safe_message, &domain).unwrap();
+
+        let signature = sign(
+            owners,
+            sender_address,
+            vec![OwnerSignature { owner: owner_address, signature }],
+            &provider,
+        )
+        .await;
+
+        sol! {
+            #[sol(rpc)]
+            contract Eip1271 {
+                function isValidSignature(bytes32 hash, bytes calldata signature) external view returns (bytes4 magicValue);
+            }
+        };
+
+        let magic_value = Eip1271::new(sender_address.into(), provider.clone())
+            .isValidSignature(message_hash, signature.clone())
+            .call()
+            .await
+            .unwrap();
+        assert_eq!(magic_value.magicValue, fixed_bytes!("1626ba7e"));
+
+        assert!(erc6492::verify_signature(
+            signature,
+            sender_address.into(),
+            message_hash,
+            &provider
+        )
+        .await
+        .unwrap()
+        .is_valid());
+    }
+
+    #[tokio::test]
+    // #[ignore = "not implemented yet"]
+    async fn test_sign_message_not_deployed() {
+        let config = Config::local();
+        let provider = ReqwestProvider::<Ethereum>::new_http(
+            config.endpoints.rpc.base_url.parse().unwrap(),
+        );
+
+        let owner = LocalSigner::random();
+        let owner_address = owner.address();
+        let owners = Owners { owners: vec![owner.address()], threshold: 1 };
+
+        let sender_address =
+            get_account_address(provider.clone(), owners.clone()).await;
+
+        assert!(provider
+            .get_code_at(sender_address.into())
+            .await
+            .unwrap()
+            .is_empty());
+
+        let message = "test message";
+        let message_hash = eip191_hash_message(message);
+
+        let chain_id = provider.get_chain_id().await.unwrap();
+        let PreparedSignature { safe_message, domain } =
+            prepare_sign(sender_address, U256::from(chain_id), message_hash);
+
+        let signature =
+            owner.sign_typed_data_sync(&safe_message, &domain).unwrap();
+
+        let signature = sign(
+            owners,
+            sender_address,
+            vec![OwnerSignature { owner: owner_address, signature }],
+            &provider,
+        )
+        .await;
+
+        assert!(provider
+            .get_code_at(sender_address.into())
+            .await
+            .unwrap()
+            .is_empty());
+
+        let working_signature = alloy::primitives::bytes!("0000000000000000000000004e1dcf7ad4e460cfd30791ccc4f9c8a4f820ec67000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000001c000000000000000000000000000000000000000000000000000000000000001241688f0b9000000000000000000000000ebe001b3d534b9b6e2500fb78e67a1a137f561ce0000000000000000000000000000000000000000000000000000000000000060000000000000000000000000000000000000000000007a6733696a793000000000000000000000000000000000000000000000000000000000000000000000844fff40e16f8df5c33b2c7d965da59c4388f834ccb5d47bd34540071e8f1d9dc5f01562e8000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000413166c6ce0ad1c80ff9451f750940773f745179462eed1c6be7f49fc3e213f59b2ff5dba38c2ca56b7ddef619a782837e7faf2a5aa50f1b0393444efd90a982eb20000000000000000000000000000000000000000000000000000000000000006492649264926492649264926492649264926492649264926492649264926492");
+
+        let sig = &working_signature[..working_signature.len() - 32];
+        println!("sig working    : {}", hex::encode(sig));
+        let decoded: (Address, Bytes, Bytes) =
+            alloy::sol_types::SolValue::abi_decode_params(sig, true).unwrap();
+        println!("decoded working: {:?}", decoded);
+        let working_signature: Bytes = (
+            (
+                decoded.0,
+                decoded.1,
+                (Address::ZERO, decoded.2).abi_encode_packed(),
+            )
+                .abi_encode_params(),
+            ERC6492_MAGIC_BYTES,
+        )
+            .abi_encode_packed()
+            .into();
+
+        assert!(erc6492::verify_signature(
+            working_signature.clone(),
+            alloy::primitives::address!(
+                "b9c5de50e15d52764eA43c858eD9F57C964960Cd"
+            ),
+            eip191_hash_message("Hello AppKit!"),
+            &ReqwestProvider::<Ethereum>::new_http(
+                "https://rpc.sepolia.org".parse().unwrap(),
+            )
+        )
+        .await
+        .unwrap()
+        .is_valid());
+
+        // let sig = &signature[..signature.len() - 32];
+        // println!("sig not working: {}", hex::encode(sig));
+        // let decoded: (Address, Bytes, Bytes) =
+        //     alloy::sol_types::SolValue::abi_decode_params(sig, true).unwrap();
+        // println!("decoded not working: {:?}", decoded);
+
+        assert!(erc6492::verify_signature(
+            signature,
+            sender_address.into(),
+            message_hash,
+            &provider
+        )
+        .await
+        .unwrap()
+        .is_valid());
     }
 
     #[tokio::test]
