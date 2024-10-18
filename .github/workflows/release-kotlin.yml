@@ -22,7 +22,7 @@ jobs:
 
     strategy:
       matrix:
-        target: [aarm64-v8a, armeabi-v7a]
+        target: [aarch64-linux-android, armv7-linux-androideabi]
     
     steps:
       - uses: actions/checkout@v3
