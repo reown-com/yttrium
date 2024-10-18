@@ -22,7 +22,7 @@ jobs:
 
     strategy:
       matrix:
-        target: [aarch64-linux-android, armv7-linux-androideabi] #armeabi-v7a, arm64-v8a
+        target: [aarch64-linux-android, armv7-linux-androideabi]
     
     steps:
       - uses: actions/checkout@v3
@@ -52,8 +52,6 @@ jobs:
           cargo install cargo-ndk
 
       - name: Build Rust library
-        # env:
-        #   ANDROID_NDK_HOME: ${{ env.ANDROID_NDK_HOME }}
         run: |
           cargo ndk -t ${{ matrix.target }} build --release --features=uniffi/cli 
       
@@ -69,21 +67,46 @@ jobs:
           mkdir -p artifacts/libs/${{ matrix.target }}
           cp target/${{ matrix.target }}/release/libuniffi_yttrium.so artifacts/libs/${{ matrix.target }}/
           cp -r kotlin-bindings artifacts/kotlin-bindings
-      
+          
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: artifacts-${{ matrix.target }}
+          path: artifacts/
+  
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+    - name: Download artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: artifacts-*
+          path: downloaded-artifacts
+
+      - name: Create artifacts zip
+        run: |
+          cd downloaded-artifacts
+          zip -r artifacts.zip ./*
+
+        #         - name: Create artifacts zip
+        # run: |  
+        #   zip -r artifacts_${{ matrix.target }}.zip artifacts/
+
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: 0.2.1 #${{ env.VERSION }}
-          release_name: Yttrium 0.2.1 #${{ env.VERSION }}
+          tag_name: 0.2.1  # Replace with dynamic version if needed
+          release_name: Yttrium 0.2.1
           draft: false
           prerelease: true
-      
-      - name: Create artifacts zip
-        run: |  
-          zip -r artifacts_${{ matrix.target }}.zip artifacts/
 
       - name: Upload Release Assets
         uses: actions/upload-release-asset@v1
@@ -91,6 +114,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./artifacts_${{ matrix.target }}.zip
-          asset_name: artifacts_${{ matrix.target }}.zip
+          asset_path: downloaded-artifacts/artifacts.zip
+          asset_name: artifacts.zip
           asset_content_type: application/zip
