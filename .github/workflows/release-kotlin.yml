@@ -68,7 +68,7 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v3
         with:
-          name: artifacts-${{ matrix.target }}
+          name: ${{ matrix.target }}
           path: artifacts/
 
   release-kotlin-artifacts:
