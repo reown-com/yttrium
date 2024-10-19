@@ -1,3 +1,6 @@
+#[cfg(feature = "uniffi")]
+uniffi::setup_scaffolding!();
+
 pub mod account_client;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod bundler;
@@ -12,5 +15,6 @@ pub mod private_key_service;
 pub mod sign_service;
 pub mod signer;
 pub mod smart_accounts;
+pub mod test_helpers;
 pub mod transaction;
 pub mod user_operation;

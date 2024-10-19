@@ -479,43 +479,16 @@ mod tests {
     use crate::{
         chain::ChainId,
         smart_accounts::safe::{prepare_sign, sign, PreparedSignature},
+        test_helpers::{self, use_faucet},
         transaction::Transaction,
     };
     use alloy::{
         consensus::{SignableTransaction, TxEip7702},
-        network::{EthereumWallet, TransactionBuilder, TxSignerSync},
+        network::TxSignerSync,
         primitives::{eip191_hash_message, fixed_bytes, U160, U64},
-        providers::{ext::AnvilApi, PendingTransactionConfig, ProviderBuilder},
-        rpc::types::TransactionRequest,
+        providers::{ext::AnvilApi, PendingTransactionConfig},
         sol,
     };
-
-    async fn use_faucet(
-        provider: ReqwestProvider,
-        faucet: LocalSigner<SigningKey>,
-        amount: U256,
-        to: Address,
-    ) {
-        // Basic check (which we can tune) to make sure we don't use excessive
-        // amounts (e.g. 0.1) of test ETH. It is not infinite, so we should use
-        // the minimum amount necessary.
-        assert!(amount < U256::from(20), "You probably don't need that much");
-
-        ProviderBuilder::new()
-            .with_recommended_fillers()
-            .wallet(EthereumWallet::new(faucet))
-            .on_provider(provider.clone())
-            .send_transaction(
-                TransactionRequest::default().with_to(to).with_value(amount),
-            )
-            .await
-            .unwrap()
-            .watch()
-            .await
-            .unwrap();
-        let balance = provider.get_balance(to).await.unwrap();
-        assert_eq!(balance, amount);
-    }
 
     async fn test_send_transaction(
         config: Config,
@@ -580,12 +553,7 @@ mod tests {
     }
 
     async fn anvil_faucet(config: Config) -> LocalSigner<SigningKey> {
-        let faucet = LocalSigner::random();
-        let provider = ReqwestProvider::<Ethereum>::new_http(
-            config.endpoints.rpc.base_url.parse().unwrap(),
-        );
-        provider.anvil_set_balance(faucet.address(), U256::MAX).await.unwrap();
-        faucet
+        test_helpers::anvil_faucet(config.endpoints.rpc.base_url).await
     }
 
     #[tokio::test]
@@ -717,6 +685,87 @@ mod tests {
         let balance =
             provider.get_balance(destination.address()).await.unwrap();
         assert_eq!(balance, Uint::from(1));
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn test_send_transaction_reverted() {
+        let config = Config::local();
+        let provider = ReqwestProvider::<Ethereum>::new_http(
+            config.endpoints.rpc.base_url.parse().unwrap(),
+        );
+
+        let destination = LocalSigner::random();
+        let balance =
+            provider.get_balance(destination.address()).await.unwrap();
+        assert_eq!(balance, Uint::from(0));
+
+        let owner = LocalSigner::random();
+        let sender_address = get_account_address(
+            provider.clone(),
+            Owners { owners: vec![owner.address()], threshold: 1 },
+        )
+        .await;
+
+        let transaction = vec![Transaction {
+            to: destination.address(),
+            value: Uint::from(1),
+            data: Bytes::new(),
+        }];
+
+        let receipt = send_transactions(
+            transaction,
+            LocalSigner::random(),
+            Some(sender_address),
+            None,
+            config.clone(),
+        )
+        .await
+        .unwrap();
+        // The UserOp is successful, but the transaction actually failed. See
+        // note above near `Safe7579Launchpad::setupSafe`
+        assert!(!receipt.success);
+        // assert!(
+        //     provider.get_code_at(sender_address.into()).await.unwrap().len()
+        //         > 0
+        // );
+        // assert_eq!(
+        //     provider
+        //         .get_storage_at(sender_address.into(), Uint::from(0))
+        //         .await
+        //         .unwrap(),
+        //     U256::from(U160::from_be_bytes(
+        //         SEPOLIA_SAFE_ERC_7579_SINGLETON_ADDRESS.into_array()
+        //     ))
+        // );
+
+        // let balance =
+        //     provider.get_balance(destination.address()).await.unwrap();
+        // assert_eq!(balance, Uint::from(0));
+
+        // let transaction = vec![Transaction {
+        //     to: destination.address(),
+        //     value: Uint::from(1),
+        //     data: Bytes::new(),
+        // }];
+
+        // let receipt = send_transaction(transaction, owner, None, None,
+        // config)     .await
+        //     .unwrap();
+        // assert!(receipt.success);
+        // assert_eq!(
+        //     provider
+        //         .get_storage_at(sender_address.into(), Uint::from(0))
+        //         .await
+        //         .unwrap(),
+        //     U256::from(U160::from_be_bytes(
+        //         SEPOLIA_SAFE_ERC_7579_SINGLETON_ADDRESS.into_array()
+        //     ))
+        // );
+
+        // let balance =
+        //     provider.get_balance(destination.address()).await.unwrap();
+        // assert_eq!(balance, Uint::from(1));
     }
 
     #[tokio::test]

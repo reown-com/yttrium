@@ -1,0 +1,4 @@
+[bindings.kotlin]
+package_name = "com.reown.kotlin.ffi.yttrium"
+android = true
+android_cleaner = true

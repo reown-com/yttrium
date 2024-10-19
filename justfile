@@ -28,6 +28,9 @@ fmt:
 udeps:
   cargo +nightly udeps --workspace
 
+infra:
+  make local-infra-forked
+
 swift:
   make build-ios-bindings
   make CONFIG=debug build-swift-apple-platforms
