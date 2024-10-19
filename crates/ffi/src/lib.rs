@@ -1,17 +1,18 @@
 #![allow(dead_code, improper_ctypes, clippy::unnecessary_cast)]
 use self::account_client::FFIAccountClient;
 use self::account_client_eip7702::FFI7702AccountClient;
+use self::erc6492_client::Erc6492Client;
 
 pub mod account_client;
 pub mod account_client_eip7702;
 pub mod config;
+pub mod erc6492_client;
 pub mod error;
 pub mod log;
 
 #[allow(non_camel_case_types)]
 #[swift_bridge::bridge]
 mod ffi {
-
     #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
     #[swift_bridge(swift_repr = "struct")]
     pub struct FFITransaction {
@@ -141,5 +142,26 @@ mod ffi {
         pub fn new(signer_id: String) -> PrivateKeySignerFFI;
 
         pub fn private_key(&self) -> FFIStringResult;
+    }
+
+    enum Erc6492Error {
+        InvalidSignature(String),
+        InvalidAddress(String),
+        InvalidMessageHash(String),
+        Verification(String),
+    }
+
+    extern "Rust" {
+        type Erc6492Client;
+
+        #[swift_bridge(init)]
+        fn new(rpc_url: String) -> Erc6492Client;
+
+        pub async fn verify_signature(
+            &self,
+            signature: String,
+            address: String,
+            message_hash: String,
+        ) -> Result<bool, Erc6492Error>;
     }
 }
