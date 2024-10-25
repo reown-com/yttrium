@@ -43,25 +43,27 @@ pub const ENTRYPOINT_ADDRESS_V07: Address =
 pub const ENTRYPOINT_V06_TYPE: &str = "v0.6";
 pub const ENTRYPOINT_V07_TYPE: &str = "v0.7";
 
-sol! (
-    struct PackedUserOperation {
-        address sender;
-        uint256 nonce;
-        bytes initCode;
-        bytes callData;
-        bytes32 accountGasLimits;
-        uint256 preVerificationGas;
-        bytes32 gasFees;
-        bytes paymasterAndData;
-        bytes signature;
-    }
-);
-
 sol! {
     #[sol(rpc)]
     contract EntryPoint {
+        struct PackedUserOperation {
+            address sender;
+            uint256 nonce;
+            bytes initCode;
+            bytes callData;
+            bytes32 accountGasLimits;
+            uint256 preVerificationGas;
+            bytes32 gasFees;
+            bytes paymasterAndData;
+            bytes signature;
+        }
+
         function getSenderAddress(bytes calldata initCode);
         function getNonce(address sender, uint192 key) returns (uint256 nonce);
+        function handleOps(
+            PackedUserOperation[] calldata ops,
+            address payable beneficiary
+        );
     }
 }
 

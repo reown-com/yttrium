@@ -1,9 +1,12 @@
 use crate::bundler::models::user_operation_receipt::UserOperationReceipt;
+use crate::bundler::pimlico::paymaster::client::PaymasterClient;
 use crate::bundler::{client::BundlerClient, config::BundlerConfig};
 use crate::config::Config;
 use crate::private_key_service::PrivateKeyService;
 use crate::sign_service::SignService;
-use crate::smart_accounts::safe::{prepare_sign, sign, PreparedSignature};
+use crate::smart_accounts::safe::{
+    prepare_sign, sign, Owners, PreparedSignature,
+};
 use crate::transaction::send::safe_test::{
     self, DoSendTransactionParams, OwnerSignature, PreparedSendTransaction,
 };
@@ -14,7 +17,7 @@ use crate::transaction::{send::send_transactions, Transaction};
 use alloy::network::Ethereum;
 use alloy::primitives::{Address, Bytes, B256, U256, U64};
 use alloy::providers::ReqwestProvider;
-use alloy::signers::local::PrivateKeySigner;
+use alloy::signers::local::{LocalSigner, PrivateKeySigner};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
@@ -156,7 +159,7 @@ impl AccountClient {
     pub async fn do_sign_message(
         &self,
         signatures: Vec<OwnerSignature>,
-    ) -> Bytes {
+    ) -> eyre::Result<Bytes> {
         if !self.safe {
             unimplemented!(
                 "sign_message is not supported for non-safe accounts"
@@ -170,9 +173,22 @@ impl AccountClient {
         );
 
         sign(
-            self.owner.parse::<Address>().unwrap().into(),
+            Owners {
+                owners: vec![self.owner.parse::<Address>().unwrap()],
+                threshold: 1,
+            },
+            self.get_address()
+                .await
+                .unwrap()
+                .parse::<Address>()
+                .unwrap()
+                .into(),
             signatures,
             &provider,
+            LocalSigner::random(),
+            PaymasterClient::new(BundlerConfig::new(
+                self.config.endpoints.paymaster.base_url.parse().unwrap(),
+            )),
         )
         .await
     }

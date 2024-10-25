@@ -32,10 +32,11 @@ use alloy::{
     providers::{Provider, ReqwestProvider},
     signers::{k256::ecdsa::SigningKey, local::LocalSigner, SignerSync},
     sol_types::{SolCall, SolStruct},
+    transports::Transport,
 };
+use alloy_provider::Network;
 use core::fmt;
 use serde::{Deserialize, Serialize};
-use serde_json::json;
 use std::ops::Not;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -165,21 +166,22 @@ pub struct DoSendTransactionParams {
     pub valid_until: U48,
 }
 
-pub async fn prepare_send_transactions(
+#[allow(clippy::too_many_arguments)]
+pub async fn prepare_send_transactions_inner<P, T, N>(
     execution_calldata: Vec<Transaction>,
-    owner: Address,
+    owners: Owners,
     address: Option<AccountAddress>,
     authorization_list: Option<Vec<Authorization>>,
-    config: Config,
-) -> eyre::Result<PreparedSendTransaction> {
-    let pimlico_client: PimlicoBundlerClient = PimlicoBundlerClient::new(
-        BundlerConfig::new(config.endpoints.bundler.base_url.clone()),
-    );
-
-    let provider = ReqwestProvider::<Ethereum>::new_http(
-        config.endpoints.rpc.base_url.parse()?,
-    );
-
+    provider: &P,
+    max_fee_per_gas: U256,
+    max_priority_fee_per_gas: U256,
+    paymaster_client: PaymasterClient,
+) -> eyre::Result<PreparedSendTransaction>
+where
+    T: Transport + Clone,
+    P: Provider<T, N>,
+    N: Network,
+{
     let chain_id = provider.get_chain_id().await?;
     let chain = crate::chain::Chain::new(
         ChainId::new_eip155(chain_id),
@@ -190,12 +192,9 @@ pub async fn prepare_send_transactions(
     let entry_point_config = chain.entry_point_config();
     let entry_point_address = entry_point_config.address();
 
-    let owners = Owners { owners: vec![owner], threshold: 1 };
-
     let factory_data_value = factory_data(owners.clone()).abi_encode();
 
-    let contract_address =
-        get_account_address(provider.clone(), owners.clone()).await;
+    let contract_address = get_account_address(provider, owners.clone()).await;
     let account_address =
         if let Some(address) = address { address } else { contract_address };
 
@@ -245,10 +244,6 @@ pub async fn prepare_send_transactions(
         .into()
     };
 
-    let gas_price = pimlico_client.estimate_user_operation_gas_price().await?;
-
-    assert!(gas_price.fast.max_fee_per_gas > U256::from(1));
-
     let nonce =
         get_nonce(&provider, account_address, &entry_point_address).await?;
 
@@ -261,8 +256,8 @@ pub async fn prepare_send_transactions(
         call_gas_limit: U256::ZERO,
         verification_gas_limit: U256::ZERO,
         pre_verification_gas: U256::ZERO,
-        max_fee_per_gas: gas_price.fast.max_fee_per_gas,
-        max_priority_fee_per_gas: gas_price.fast.max_priority_fee_per_gas,
+        max_fee_per_gas,
+        max_priority_fee_per_gas,
         paymaster: None,
         paymaster_verification_gas_limit: None,
         paymaster_post_op_gas_limit: None,
@@ -271,32 +266,29 @@ pub async fn prepare_send_transactions(
         signature: DUMMY_SIGNATURE,
     };
 
-    if let Some(authorization_list) = authorization_list {
-        let response = reqwest::Client::new()
-                .post(config.endpoints.paymaster.base_url.clone())
-                .json(&json!({
-                        "jsonrpc": "2.0",
-                        "id": 1,
-                        "method": "eth_prepareSendUserOperation7702",
-                        "params": [
-                            format!("{}:{}:{}", user_op.sender, user_op.nonce, user_op.call_data),
-                            authorization_list,
-                        ],
-                }))
-                .send()
-                .await
-                .unwrap();
-        let success = response.status().is_success();
-        println!("response: {:?}", response.text().await);
+    if let Some(_authorization_list) = authorization_list {
+        // let response = reqwest::Client::new()
+        //         .post(config.endpoints.paymaster.base_url.clone())
+        //         .json(&json!({
+        //                 "jsonrpc": "2.0",
+        //                 "id": 1,
+        //                 "method": "eth_prepareSendUserOperation7702",
+        //                 "params": [
+        //                     format!("{}:{}:{}", user_op.sender,
+        // user_op.nonce, user_op.call_data),
+        // authorization_list,                 ],
+        //         }))
+        //         .send()
+        //         .await
+        //         .unwrap();
+        // let success = response.status().is_success();
+        // println!("response: {:?}", response.text().await);
 
-        assert!(success);
+        // assert!(success);
+        unimplemented!("need to refactor provider config to re-enable this")
     }
 
     let user_op = {
-        let paymaster_client = PaymasterClient::new(BundlerConfig::new(
-            config.endpoints.paymaster.base_url.clone(),
-        ));
-
         let sponsor_user_op_result = paymaster_client
             .sponsor_user_operation_v07(
                 &user_op.clone().into(),
@@ -413,6 +405,39 @@ pub async fn prepare_send_transactions(
     })
 }
 
+pub async fn prepare_send_transactions(
+    execution_calldata: Vec<Transaction>,
+    owner: Address,
+    address: Option<AccountAddress>,
+    authorization_list: Option<Vec<Authorization>>,
+    config: Config,
+) -> eyre::Result<PreparedSendTransaction> {
+    let provider = ReqwestProvider::<Ethereum>::new_http(
+        config.endpoints.rpc.base_url.parse()?,
+    );
+
+    let paymaster_client = PaymasterClient::new(BundlerConfig::new(
+        config.endpoints.paymaster.base_url.clone(),
+    ));
+    let pimlico_client = PimlicoBundlerClient::new(BundlerConfig::new(
+        config.endpoints.bundler.base_url.clone(),
+    ));
+    let gas_price = pimlico_client.estimate_user_operation_gas_price().await?;
+    assert!(gas_price.fast.max_fee_per_gas > U256::from(1));
+
+    prepare_send_transactions_inner(
+        execution_calldata,
+        Owners { owners: vec![owner], threshold: 1 },
+        address,
+        authorization_list,
+        &provider,
+        gas_price.fast.max_fee_per_gas,
+        gas_price.fast.max_priority_fee_per_gas,
+        paymaster_client,
+    )
+    .await
+}
+
 pub use alloy::primitives::Address;
 pub use alloy::primitives::Signature;
 pub struct OwnerSignature {
@@ -420,36 +445,43 @@ pub struct OwnerSignature {
     pub signature: Signature,
 }
 
-pub async fn do_send_transactions(
+pub async fn encode_send_transactions(
     signatures: Vec<OwnerSignature>,
     DoSendTransactionParams {
         user_op,
         valid_after,
         valid_until,
     }: DoSendTransactionParams,
-    config: Config,
-) -> eyre::Result<B256> {
+) -> eyre::Result<UserOperationV07> {
     if signatures.len() != 1 {
         return Err(eyre::eyre!("Only one signature is supported for now"));
     }
-    let user_op = {
-        // TODO sort by (lowercase) owner address not signature data
-        let mut signatures = signatures
-            .iter()
-            .map(|sig| sig.signature.as_bytes())
-            .collect::<Vec<_>>();
-        signatures.sort();
-        let signature_bytes = signatures.concat();
 
-        let signature = DynSolValue::Tuple(vec![
-            DynSolValue::Uint(Uint::from(valid_after), 48),
-            DynSolValue::Uint(Uint::from(valid_until), 48),
-            DynSolValue::Bytes(signature_bytes),
-        ])
-        .abi_encode_packed()
-        .into();
-        UserOperationV07 { signature, ..user_op }
-    };
+    // TODO sort by (lowercase) owner address not signature data
+    let mut signatures = signatures
+        .iter()
+        .map(|sig| sig.signature.as_bytes())
+        .collect::<Vec<_>>();
+    signatures.sort();
+    let signature_bytes = signatures.concat();
+
+    let signature = DynSolValue::Tuple(vec![
+        DynSolValue::Uint(Uint::from(valid_after), 48),
+        DynSolValue::Uint(Uint::from(valid_until), 48),
+        DynSolValue::Bytes(signature_bytes),
+    ])
+    .abi_encode_packed()
+    .into();
+
+    Ok(UserOperationV07 { signature, ..user_op })
+}
+
+pub async fn do_send_transactions(
+    signatures: Vec<OwnerSignature>,
+    params: DoSendTransactionParams,
+    config: Config,
+) -> eyre::Result<B256> {
+    let user_op = encode_send_transactions(signatures, params).await?;
 
     let provider = ReqwestProvider::<Ethereum>::new_http(
         config.endpoints.rpc.base_url.parse()?,
@@ -880,12 +912,10 @@ mod tests {
 
         let owner = LocalSigner::random();
         let owner_address = owner.address();
+        let owners = Owners { owners: vec![owner.address()], threshold: 1 };
 
-        let sender_address = get_account_address(
-            provider.clone(),
-            Owners { owners: vec![owner.address()], threshold: 1 },
-        )
-        .await;
+        let sender_address =
+            get_account_address(provider.clone(), owners.clone()).await;
 
         let receipt = send_transactions(
             vec![],
@@ -914,11 +944,17 @@ mod tests {
             owner.sign_typed_data_sync(&safe_message, &domain).unwrap();
 
         let signature = sign(
+            owners,
             sender_address,
             vec![OwnerSignature { owner: owner_address, signature }],
             &provider,
+            owner,
+            PaymasterClient::new(BundlerConfig::new(
+                config.endpoints.paymaster.base_url.parse().unwrap(),
+            )),
         )
-        .await;
+        .await
+        .unwrap();
 
         sol! {
             #[sol(rpc)]
@@ -946,7 +982,6 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore = "not implemented yet"]
     async fn test_sign_message_not_deployed() {
         let config = Config::local();
         let provider = ReqwestProvider::<Ethereum>::new_http(
@@ -955,12 +990,10 @@ mod tests {
 
         let owner = LocalSigner::random();
         let owner_address = owner.address();
+        let owners = Owners { owners: vec![owner.address()], threshold: 1 };
 
-        let sender_address = get_account_address(
-            provider.clone(),
-            Owners { owners: vec![owner.address()], threshold: 1 },
-        )
-        .await;
+        let sender_address =
+            get_account_address(provider.clone(), owners.clone()).await;
 
         assert!(provider
             .get_code_at(sender_address.into())
@@ -979,11 +1012,17 @@ mod tests {
             owner.sign_typed_data_sync(&safe_message, &domain).unwrap();
 
         let signature = sign(
+            owners,
             sender_address,
             vec![OwnerSignature { owner: owner_address, signature }],
             &provider,
+            owner,
+            PaymasterClient::new(BundlerConfig::new(
+                config.endpoints.paymaster.base_url.parse().unwrap(),
+            )),
         )
-        .await;
+        .await
+        .unwrap();
 
         assert!(provider
             .get_code_at(sender_address.into())
@@ -1000,6 +1039,12 @@ mod tests {
         .await
         .unwrap()
         .is_valid());
+
+        assert!(provider
+            .get_code_at(sender_address.into())
+            .await
+            .unwrap()
+            .is_empty());
     }
 
     #[tokio::test]

@@ -162,7 +162,12 @@ impl FFIAccountClient {
             });
         }
 
-        Ok(self.account_client.do_sign_message(signatures2).await.to_string())
+        Ok(self
+            .account_client
+            .do_sign_message(signatures2)
+            .await
+            .map_err(|e| FFIError::Unknown(e.to_string()))?
+            .to_string())
     }
 
     pub async fn send_transactions(

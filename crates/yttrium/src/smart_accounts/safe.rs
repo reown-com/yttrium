@@ -1,21 +1,33 @@
+use crate::bundler::pimlico::paymaster::client::PaymasterClient;
+use crate::entry_point::EntryPoint::PackedUserOperation;
+use crate::entry_point::{EntryPoint, ENTRYPOINT_ADDRESS_V07};
+use crate::transaction::send::safe_test::{
+    encode_send_transactions, prepare_send_transactions_inner,
+    PreparedSendTransaction,
+};
 use crate::transaction::Transaction;
+use crate::user_operation::hash::pack_v07::combine::combine_and_trim_first_16_bytes;
+use crate::user_operation::hash::pack_v07::hashed_paymaster_and_data::get_data;
 use crate::{
     smart_accounts::account_address::AccountAddress,
     transaction::send::safe_test::OwnerSignature,
 };
 use alloy::network::Network;
-use alloy::primitives::B256;
+use alloy::primitives::{B256, U128};
 use alloy::providers::Provider;
+use alloy::signers::k256::ecdsa::SigningKey;
+use alloy::signers::local::LocalSigner;
+use alloy::signers::SignerSync;
 use alloy::transports::Transport;
 use alloy::{
     dyn_abi::{DynSolValue, Eip712Domain},
     primitives::{
         address, bytes, keccak256, Address, Bytes, FixedBytes, Uint, U256,
     },
-    providers::ReqwestProvider,
     sol,
     sol_types::{SolCall, SolValue},
 };
+use erc6492::create::create_erc6492_signature;
 use serde::{Deserialize, Serialize};
 
 sol! {
@@ -196,12 +208,17 @@ pub fn factory_data(
     }
 }
 
-pub async fn get_account_address(
-    provider: ReqwestProvider,
+pub async fn get_account_address<P, T, N>(
+    provider: P,
     owners: Owners,
-) -> AccountAddress {
+) -> AccountAddress
+where
+    T: Transport + Clone,
+    P: Provider<T, N>,
+    N: Network,
+{
     let creation_code =
-        SafeProxyFactory::new(SAFE_PROXY_FACTORY_ADDRESS, provider.clone())
+        SafeProxyFactory::new(SAFE_PROXY_FACTORY_ADDRESS, provider)
             .proxyCreationCode()
             .call()
             .await
@@ -303,21 +320,30 @@ pub fn prepare_sign(
     PreparedSignature { safe_message, domain }
 }
 
+// TODO refactor to make account_address optional, if not provided it will
+// determine it based on Owners TODO refactor to make owners optional, in the
+// case where it already being deployed is assumed
 pub async fn sign<P, T, N>(
+    owners: Owners,
     account_address: AccountAddress,
     signatures: Vec<OwnerSignature>,
     provider: &P,
-) -> Bytes
+    owner: LocalSigner<SigningKey>, // TODO remove
+    paymaster_client: PaymasterClient,
+) -> eyre::Result<Bytes>
 where
     T: Transport + Clone,
     P: Provider<T, N>,
     N: Network,
 {
     if signatures.len() > 1 {
-        unimplemented!("multi-signature is not supported");
+        unimplemented!("multi-signature is not yet supported");
     }
 
     let signature = Bytes::from(signatures[0].signature.as_bytes());
+
+    // Null validator address for regular Safe signature
+    let signature = (Address::ZERO, signature).abi_encode_packed().into();
 
     let signature = if provider
         .get_code_at(account_address.into())
@@ -325,14 +351,74 @@ where
         .unwrap() // TODO handle error
         .is_empty()
     {
-        // TODO check if deployed, if so do ERC-6492
-        signature
+        let eip1559_est = provider.estimate_eip1559_fees(None).await?;
+        let PreparedSendTransaction {
+            safe_op,
+            domain,
+            hash: _,
+            do_send_transaction_params,
+        } = prepare_send_transactions_inner(
+            vec![],
+            owners,
+            Some(account_address),
+            None,
+            provider,
+            U128::from(eip1559_est.max_fee_per_gas).to(),
+            U128::from(eip1559_est.max_priority_fee_per_gas).to(),
+            paymaster_client,
+        )
+        .await?;
+
+        // TODO don't do the signing here, allow wallet to do it
+        let user_op_signature = vec![OwnerSignature {
+            owner: owner.address(),
+            signature: owner.sign_typed_data_sync(&safe_op, &domain).unwrap(),
+        }];
+
+        let user_op = encode_send_transactions(
+            user_op_signature,
+            do_send_transaction_params,
+        )
+        .await
+        .unwrap();
+
+        let factory_address = ENTRYPOINT_ADDRESS_V07;
+        let factory_data = EntryPoint::handleOpsCall {
+            ops: vec![PackedUserOperation {
+                paymasterAndData: get_data(&user_op),
+                sender: user_op.sender.into(),
+                nonce: user_op.nonce,
+                initCode: [
+                    // TODO refactor to remove unwrap()
+                    // This code double-checks for code deployed unnecessesarly
+                    user_op.factory.unwrap().to_vec().into(),
+                    user_op.factory_data.unwrap(),
+                ]
+                .concat()
+                .into(),
+                callData: user_op.call_data,
+                accountGasLimits: combine_and_trim_first_16_bytes(
+                    user_op.verification_gas_limit,
+                    user_op.call_gas_limit,
+                ),
+                preVerificationGas: user_op.pre_verification_gas,
+                gasFees: combine_and_trim_first_16_bytes(
+                    user_op.max_priority_fee_per_gas,
+                    user_op.max_fee_per_gas,
+                ),
+                signature: user_op.signature,
+            }],
+            beneficiary: user_op.sender.into(),
+        }
+        .abi_encode()
+        .into();
+
+        create_erc6492_signature(factory_address, factory_data, signature)
     } else {
         signature
     };
 
-    // Null validator address for regular Safe signature
-    (Address::ZERO, signature).abi_encode_packed().into()
+    Ok(signature)
 }
 
 #[cfg(test)]
