@@ -27,10 +27,13 @@ serde_json = "1.0"
 oslog = "0.2.0"
 log = "0.4.20"
 
-# [profile.release]
-# lto = true
-# codegen-units = 1
+[profile.release]
+opt-level = 'z'
+lto = true
+codegen-units = 1
+strip = true
 # panic = "abort"
+
 
 # [profile.dev]
 # debug = 0
