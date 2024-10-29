@@ -29,9 +29,10 @@ jobs:
       - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: stable
+          toolchain: nightly
           target: ${{ matrix.target }}
           override: true
+          components: rust-src
 
       - name: Set up Java
         uses: actions/setup-java@v3
@@ -52,12 +53,12 @@ jobs:
 
       - name: Build Rust library
         run: |
-          cargo ndk -t ${{ matrix.target }} build --release --features=uniffi/cli 
+          RUSTFLAGS="-Zlocation-detail=none -Zfmt-debug=none" cargo +nightly ndk -t ${{ matrix.target }} build -Z build-std=std,panic_abort -Z build-std-features=panic_immediate_abort --release --features=uniffi/cli
       
       - name: Generate Kotlin bindings (once)
         if: ${{ matrix.target == 'aarch64-linux-android' }}
         run: |
-          cargo run --features=uniffi/cli --bin uniffi-bindgen generate --library target/${{ matrix.target }}/release/libuniffi_yttrium.so --language kotlin --out-dir yttrium/kotlin-bindings      
+          cargo +nightly run --features=uniffi/cli --bin uniffi-bindgen generate --library target/${{ matrix.target }}/release/libuniffi_yttrium.so --language kotlin --out-dir yttrium/kotlin-bindings      
 
       - name: Prepare artifacts
         run: | 
