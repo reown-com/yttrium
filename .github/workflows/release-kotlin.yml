@@ -52,7 +52,7 @@ jobs:
 
       - name: Build Rust library
         run: |
-          cargo ndk -t ${{ matrix.target }} build --release --features=uniffi/cli 
+          RUSTFLAGS="-Zlocation-detail=none -Zfmt-debug=none" cargo +nightly ndk -t ${{ matrix.target }} build -Z build-std=std,panic_abort -Z build-std-features=panic_immediate_abort --release --features=uniffi/cli
       
       - name: Generate Kotlin bindings (once)
         if: ${{ matrix.target == 'aarch64-linux-android' }}
