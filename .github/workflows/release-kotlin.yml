@@ -33,6 +33,7 @@ jobs:
           toolchain: nightly
           target: ${{ matrix.target }}
           override: true
+          components: rust-src
 
       - name: Set up Java
         uses: actions/setup-java@v3
@@ -58,7 +59,7 @@ jobs:
       - name: Generate Kotlin bindings (once)
         if: ${{ matrix.target == 'aarch64-linux-android' }}
         run: |
-          cargo run --features=uniffi/cli --bin uniffi-bindgen generate --library target/${{ matrix.target }}/release/libuniffi_yttrium.so --language kotlin --out-dir yttrium/kotlin-bindings      
+          cargo +nightly run --features=uniffi/cli --bin uniffi-bindgen generate --library target/${{ matrix.target }}/release/libuniffi_yttrium.so --language kotlin --out-dir yttrium/kotlin-bindings      
 
       - name: Prepare artifacts
         run: | 
