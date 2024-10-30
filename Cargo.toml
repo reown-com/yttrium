@@ -29,10 +29,10 @@ log = "0.4.20"
 
 [profile.release]
 opt-level = 'z'
-lto = true #keep
-codegen-units = 1 #keep?
-# strip = true
+lto = true
+codegen-units = 1
 panic = "abort"
+# strip = true - it removes kotlin-bindings
 
 
 # [profile.dev]
