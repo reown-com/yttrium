@@ -95,6 +95,64 @@ impl AccountClient {
             .to_string())
     }
 
+    pub async fn prepare_send_transactions(
+        &self,
+        transactions: Vec<Transaction>
+    ) -> Result<String, Error> {
+        let ytransactions: Vec<YTransaction> =
+            transactions.into_iter().map(YTransaction::from).collect();
+            
+        Ok(self
+            .account_client
+            .prepare_send_transactions(ytransactions)
+            .await
+            .map_err(|e| Error::Unknown(e.to_string()))?
+            .to_string())
+    }
+    // pub async fn send_transactions(
+    //     &self,
+    //     transactions: Vec<Transaction>,
+    // ) -> eyre::Result<B256> {
+    //     send_transactions(
+    //         transactions,
+    //         self.owner.clone(),
+    //         self.chain_id,
+    //         self.config.clone(),
+    //         self.signer.clone(),
+    //         self.safe,
+    //     )
+    //     .await
+    // }
+
+    // pub async fn prepare_send_transactions(
+    //     &self,
+    //     transactions: Vec<Transaction>,
+    // ) -> eyre::Result<PreparedSendTransaction> {
+    //     prepare_send_transaction(
+    //         transactions,
+    //         self.owner.clone(),
+    //         self.chain_id,
+    //         self.config.clone(),
+    //         self.safe,
+    //     )
+    //     .await
+    // }
+
+    // pub async fn do_send_transactions(
+    //     &self,
+    //     signatures: Vec<OwnerSignature>,
+    //     do_send_transaction_params: DoSendTransactionParams,
+    // ) -> eyre::Result<B256> {
+    //     do_send_transactions(
+    //         signatures,
+    //         do_send_transaction_params,
+    //         self.chain_id,
+    //         self.config.clone(),
+    //         self.safe,
+    //     )
+    //     .await
+    // }
+
     pub fn sign_message_with_mnemonic(
         &self,
         message: String,
