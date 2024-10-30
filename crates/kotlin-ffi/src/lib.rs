@@ -7,6 +7,9 @@ use yttrium::{
     sign_service::address_from_string,
     transaction::Transaction as YTransaction,
 };
+use yttrium::transaction::send::safe_test::{
+    Address, OwnerSignature as YOwnerSignature, Signature,
+};
 
 #[derive(uniffi::Object)]
 pub struct AccountClient {
@@ -30,6 +33,18 @@ pub struct Transaction {
     pub to: String,
     pub value: String,
     pub data: String,
+}
+
+#[derive(uniffi::Record)]
+pub struct PreparedSendTransaction {
+    pub hash: String,
+    pub do_send_transaction_params: String,
+}
+
+#[derive(uniffi::Record)]
+pub struct OwnerSignature {
+    pub owner: String,
+    pub signature: String,
 }
 
 #[derive(Debug, thiserror::Error, uniffi::Error)]
@@ -98,60 +113,56 @@ impl AccountClient {
     pub async fn prepare_send_transactions(
         &self,
         transactions: Vec<Transaction>
-    ) -> Result<String, Error> {
+    ) -> Result<PreparedSendTransaction, Error> {
         let ytransactions: Vec<YTransaction> =
             transactions.into_iter().map(YTransaction::from).collect();
             
-        Ok(self
+        let prepared_send_transaction = self
             .account_client
             .prepare_send_transactions(ytransactions)
+            .await
+            .map_err(|e| Error::Unknown(e.to_string()))?;
+
+            Ok(PreparedSendTransaction {
+                        hash: prepared_send_transaction.hash.to_string(),
+                        do_send_transaction_params: serde_json::to_string(
+                            &prepared_send_transaction.do_send_transaction_params,
+                        )
+                        .map_err(|e| Error::Unknown(e.to_string()))?,
+                    })
+    }
+
+    pub async fn do_send_transactions(
+        &self,
+        signatures: Vec<OwnerSignature>,
+        do_send_transaction_params: String,
+    ) -> Result<String, Error> {
+        let mut signatures2: Vec<YOwnerSignature> = Vec::with_capacity(signatures.len());
+
+        for signature in signatures {
+            signatures2.push(YOwnerSignature {
+                owner: signature
+                    .owner
+                    .parse::<Address>()
+                    .map_err(|e| Error::Unknown(e.to_string()))?,
+                signature: signature
+                    .signature
+                    .parse::<Signature>()
+                    .map_err(|e| Error::Unknown(e.to_string()))?,
+            });
+        }
+
+        Ok(self
+            .account_client
+            .do_send_transactions(
+                signatures2,
+                serde_json::from_str(&do_send_transaction_params)
+                    .map_err(|e| Error::Unknown(e.to_string()))?,
+            )
             .await
             .map_err(|e| Error::Unknown(e.to_string()))?
             .to_string())
     }
-    // pub async fn send_transactions(
-    //     &self,
-    //     transactions: Vec<Transaction>,
-    // ) -> eyre::Result<B256> {
-    //     send_transactions(
-    //         transactions,
-    //         self.owner.clone(),
-    //         self.chain_id,
-    //         self.config.clone(),
-    //         self.signer.clone(),
-    //         self.safe,
-    //     )
-    //     .await
-    // }
-
-    // pub async fn prepare_send_transactions(
-    //     &self,
-    //     transactions: Vec<Transaction>,
-    // ) -> eyre::Result<PreparedSendTransaction> {
-    //     prepare_send_transaction(
-    //         transactions,
-    //         self.owner.clone(),
-    //         self.chain_id,
-    //         self.config.clone(),
-    //         self.safe,
-    //     )
-    //     .await
-    // }
-
-    // pub async fn do_send_transactions(
-    //     &self,
-    //     signatures: Vec<OwnerSignature>,
-    //     do_send_transaction_params: DoSendTransactionParams,
-    // ) -> eyre::Result<B256> {
-    //     do_send_transactions(
-    //         signatures,
-    //         do_send_transaction_params,
-    //         self.chain_id,
-    //         self.config.clone(),
-    //         self.safe,
-    //     )
-    //     .await
-    // }
 
     pub fn sign_message_with_mnemonic(
         &self,
