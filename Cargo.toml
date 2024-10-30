@@ -29,8 +29,8 @@ log = "0.4.20"
 
 [profile.release]
 opt-level = 'z'
-# lto = true
-# codegen-units = 1
+lto = true #keep
+codegen-units = 1 #keep?
 # strip = true
 panic = "abort"
 
