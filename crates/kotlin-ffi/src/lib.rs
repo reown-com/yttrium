@@ -1,14 +1,14 @@
 uniffi::setup_scaffolding!();
 
 use yttrium::config::Config;
+use yttrium::transaction::send::safe_test::{
+    Address, OwnerSignature as YOwnerSignature, Signature,
+};
 use yttrium::{
     account_client::{AccountClient as YAccountClient, SignerType},
     private_key_service::PrivateKeyService,
     sign_service::address_from_string,
     transaction::Transaction as YTransaction,
-};
-use yttrium::transaction::send::safe_test::{
-    Address, OwnerSignature as YOwnerSignature, Signature,
 };
 
 #[derive(uniffi::Object)]
@@ -112,24 +112,24 @@ impl AccountClient {
 
     pub async fn prepare_send_transactions(
         &self,
-        transactions: Vec<Transaction>
+        transactions: Vec<Transaction>,
     ) -> Result<PreparedSendTransaction, Error> {
         let ytransactions: Vec<YTransaction> =
             transactions.into_iter().map(YTransaction::from).collect();
-            
+
         let prepared_send_transaction = self
             .account_client
             .prepare_send_transactions(ytransactions)
             .await
             .map_err(|e| Error::Unknown(e.to_string()))?;
 
-            Ok(PreparedSendTransaction {
-                        hash: prepared_send_transaction.hash.to_string(),
-                        do_send_transaction_params: serde_json::to_string(
-                            &prepared_send_transaction.do_send_transaction_params,
-                        )
-                        .map_err(|e| Error::Unknown(e.to_string()))?,
-                    })
+        Ok(PreparedSendTransaction {
+            hash: prepared_send_transaction.hash.to_string(),
+            do_send_transaction_params: serde_json::to_string(
+                &prepared_send_transaction.do_send_transaction_params,
+            )
+            .map_err(|e| Error::Unknown(e.to_string()))?,
+        })
     }
 
     pub async fn do_send_transactions(
@@ -137,7 +137,8 @@ impl AccountClient {
         signatures: Vec<OwnerSignature>,
         do_send_transaction_params: String,
     ) -> Result<String, Error> {
-        let mut signatures2: Vec<YOwnerSignature> = Vec::with_capacity(signatures.len());
+        let mut signatures2: Vec<YOwnerSignature> =
+            Vec::with_capacity(signatures.len());
 
         for signature in signatures {
             signatures2.push(YOwnerSignature {
