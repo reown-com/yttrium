@@ -1,6 +1,9 @@
 uniffi::setup_scaffolding!();
 
 use yttrium::config::Config;
+use yttrium::transaction::send::safe_test::{
+    Address, OwnerSignature as YOwnerSignature, Signature,
+};
 use yttrium::{
     account_client::{AccountClient as YAccountClient, SignerType},
     private_key_service::PrivateKeyService,
@@ -30,6 +33,18 @@ pub struct Transaction {
     pub to: String,
     pub value: String,
     pub data: String,
+}
+
+#[derive(uniffi::Record)]
+pub struct PreparedSendTransaction {
+    pub hash: String,
+    pub do_send_transaction_params: String,
+}
+
+#[derive(uniffi::Record)]
+pub struct OwnerSignature {
+    pub owner: String,
+    pub signature: String,
 }
 
 #[derive(Debug, thiserror::Error, uniffi::Error)]
@@ -90,6 +105,61 @@ impl AccountClient {
         Ok(self
             .account_client
             .send_transactions(ytransactions)
+            .await
+            .map_err(|e| Error::Unknown(e.to_string()))?
+            .to_string())
+    }
+
+    pub async fn prepare_send_transactions(
+        &self,
+        transactions: Vec<Transaction>,
+    ) -> Result<PreparedSendTransaction, Error> {
+        let ytransactions: Vec<YTransaction> =
+            transactions.into_iter().map(YTransaction::from).collect();
+
+        let prepared_send_transaction = self
+            .account_client
+            .prepare_send_transactions(ytransactions)
+            .await
+            .map_err(|e| Error::Unknown(e.to_string()))?;
+
+        Ok(PreparedSendTransaction {
+            hash: prepared_send_transaction.hash.to_string(),
+            do_send_transaction_params: serde_json::to_string(
+                &prepared_send_transaction.do_send_transaction_params,
+            )
+            .map_err(|e| Error::Unknown(e.to_string()))?,
+        })
+    }
+
+    pub async fn do_send_transactions(
+        &self,
+        signatures: Vec<OwnerSignature>,
+        do_send_transaction_params: String,
+    ) -> Result<String, Error> {
+        let mut signatures2: Vec<YOwnerSignature> =
+            Vec::with_capacity(signatures.len());
+
+        for signature in signatures {
+            signatures2.push(YOwnerSignature {
+                owner: signature
+                    .owner
+                    .parse::<Address>()
+                    .map_err(|e| Error::Unknown(e.to_string()))?,
+                signature: signature
+                    .signature
+                    .parse::<Signature>()
+                    .map_err(|e| Error::Unknown(e.to_string()))?,
+            });
+        }
+
+        Ok(self
+            .account_client
+            .do_send_transactions(
+                signatures2,
+                serde_json::from_str(&do_send_transaction_params)
+                    .map_err(|e| Error::Unknown(e.to_string()))?,
+            )
             .await
             .map_err(|e| Error::Unknown(e.to_string()))?
             .to_string())
