@@ -1,11 +1,12 @@
 name: Build and Release Yttrium Kotlin
 
 on:
-    workflow_dispatch:
-      inputs:
-        version:
-          description: 'Version to release (e.g. 0.0.1)'
-          required: true
+  push
+    # workflow_dispatch:
+    #   inputs:
+    #     version:
+    #       description: 'Version to release (e.g. 0.0.1)'
+    #       required: true
 
 env:
   CARGO_TERM_COLOR: always
@@ -53,7 +54,7 @@ jobs:
 
       - name: Build Rust library
         run: |
-          RUSTFLAGS="-Zlocation-detail=none -Zfmt-debug=none" cargo +nightly ndk -t ${{ matrix.target }} build -Z build-std=std,panic_abort -Z build-std-features=panic_immediate_abort --release --features=uniffi/cli
+          RUSTFLAGS="-Zlocation-detail=none -Zfmt-debug=none -C target-feature=-lse" cargo +nightly ndk -t ${{ matrix.target }} build -Z build-std=std,panic_abort -Z build-std-features=panic_immediate_abort --release --features=uniffi/cli
       
       - name: Generate Kotlin bindings (once)
         if: ${{ matrix.target == 'aarch64-linux-android' }}
@@ -106,8 +107,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ env.VERSION }}
-          release_name: Yttrium ${{ env.VERSION }}
+          tag_name: 0.2.6 #${{ env.VERSION }}
+          release_name: Yttrium 0.2.6 #${{ env.VERSION }}
           draft: false
           prerelease: true
 
