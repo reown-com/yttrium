@@ -31,7 +31,7 @@ log = "0.4.20"
 opt-level = 'z'
 lto = true
 codegen-units = 1
-panic = "abort"
+# panic = "abort"
 # strip = true - it removes kotlin-bindings
 
 
