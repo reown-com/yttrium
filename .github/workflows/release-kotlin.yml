@@ -30,7 +30,7 @@ jobs:
       - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly
+          toolchain: stable
           target: ${{ matrix.target }}
           override: true
           components: rust-src
@@ -54,12 +54,12 @@ jobs:
 
       - name: Build Rust library
         run: |
-          cargo +nightly ndk -t ${{ matrix.target }} build --release --features=uniffi/cli
-      
+          cargo ndk -t ${{ matrix.target }} build --release --features=uniffi/cli
+
       - name: Generate Kotlin bindings (once)
         if: ${{ matrix.target == 'aarch64-linux-android' }}
         run: |
-          cargo +nightly run --features=uniffi/cli --bin uniffi-bindgen generate --library target/${{ matrix.target }}/release/libuniffi_yttrium.so --language kotlin --out-dir yttrium/kotlin-bindings      
+          cargo run --features=uniffi/cli --bin uniffi-bindgen generate --library target/${{ matrix.target }}/release/libuniffi_yttrium.so --language kotlin --out-dir yttrium/kotlin-bindings      
 
       - name: Prepare artifacts
         run: | 
@@ -107,8 +107,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: 0.2.6 #${{ env.VERSION }}
-          release_name: Yttrium 0.2.6 #${{ env.VERSION }}
+          tag_name: 0.2.7 #${{ env.VERSION }}
+          release_name: Yttrium 0.2.7 #${{ env.VERSION }}
           draft: false
           prerelease: true
 
