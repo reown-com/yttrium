@@ -1,30 +1,30 @@
 import Foundation
 
 public struct UserOperationReceipt: Codable {
-    
+
     public struct Receipt: Codable {
         public let transactionHash: String
         public let transactionIndex: String
-        public let block_hash: String
-        public let block_number: String
+        public let blockHash: String
+        public let blockNumber: String
         public let from: String
         public let to: String
         public let cumulativeGasUsed: String
-        public let gas_used: String
+        public let gasUsed: String
         public let contractAddress: String?
         public let status: String
         public let logsBloom: String
         public let effectiveGasPrice: String
-        
+
         public init(
             transactionHash: String,
             transactionIndex: String,
-            block_hash: String,
-            block_number: String,
+            blockHash: String,
+            blockNumber: String,
             from: String,
             to: String,
             cumulativeGasUsed: String,
-            gas_used: String,
+            gasUsed: String,
             contractAddress: String?,
             status: String,
             logsBloom: String,
@@ -32,19 +32,25 @@ public struct UserOperationReceipt: Codable {
         ) {
             self.transactionHash = transactionHash
             self.transactionIndex = transactionIndex
-            self.block_hash = block_hash
-            self.block_number = block_number
+            self.blockHash = blockHash
+            self.blockNumber = blockNumber
             self.from = from
             self.to = to
             self.cumulativeGasUsed = cumulativeGasUsed
-            self.gas_used = gas_used
+            self.gasUsed = gasUsed
             self.contractAddress = contractAddress
             self.status = status
             self.logsBloom = logsBloom
             self.effectiveGasPrice = effectiveGasPrice
         }
     }
-    
+
+    public struct Log: Codable {
+        public let address: String
+        public let topics: [String]
+        public let data: String
+    }
+
     public let userOpHash: String
     public let entryPoint: String
     public let sender: String
@@ -54,7 +60,8 @@ public struct UserOperationReceipt: Codable {
     public let actualGasUsed: String
     public let success: Bool
     public let receipt: Receipt
-    
+    public let logs: [Log]
+
     public init(
         userOpHash: String,
         entryPoint: String,
@@ -64,7 +71,8 @@ public struct UserOperationReceipt: Codable {
         actualGasCost: String,
         actualGasUsed: String,
         success: Bool,
-        receipt: Receipt
+        receipt: Receipt,
+        logs: [Log]
     ) {
         self.userOpHash = userOpHash
         self.entryPoint = entryPoint
@@ -75,5 +83,6 @@ public struct UserOperationReceipt: Codable {
         self.actualGasUsed = actualGasUsed
         self.success = success
         self.receipt = receipt
+        self.logs = logs
     }
 }
