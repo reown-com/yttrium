@@ -1,5 +1,5 @@
 use alloy::primitives::{
-    b256, Address, BlockHash, Bytes, TxHash, B256, U128, U64, U8,
+    address, b256, Address, BlockHash, Bytes, TxHash, B256, U128, U64, U8,
 };
 use serde::{Deserialize, Serialize};
 
@@ -26,7 +26,7 @@ pub struct TransactionReceipt {
 #[serde(rename_all = "camelCase")]
 pub struct UserOperationReceipt {
     pub user_op_hash: B256,
-    pub entry_point: Address,
+    pub entry_point: Option<Address>,
     pub sender: Address,
     pub nonce: String,
     pub paymaster: String,
@@ -50,9 +50,7 @@ impl UserOperationReceipt {
     pub fn mock() -> Self {
         UserOperationReceipt {
             user_op_hash: b256!("93c06f3f5909cc2b192713ed9bf93e3e1fde4b22fcd2466304fa404f9b80ff90"),
-            entry_point: "0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789"
-                .parse()
-                .unwrap(),
+            entry_point: Some(address!("5FF137D4b0FDCD49DcA30c7CF57E578a026d2789")),
             sender: "0x9E1276a4A64D064256E7347cdA4d8C8039b1bc48".parse().unwrap(),
             nonce: "0x3".to_string(),
             paymaster: "0xb80bCD1Bcf735238EAB64ffc3431076605A21D61".to_string(),
