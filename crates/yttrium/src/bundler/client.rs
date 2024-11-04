@@ -106,7 +106,7 @@ impl BundlerClient {
     ) -> eyre::Result<Option<UserOperationReceipt>> {
         let provider =
             ReqwestProvider::<Ethereum>::new_http(self.config.url().parse()?);
-        Ok(Some(provider.get_user_operation_receipt(hash).await?))
+        Ok(provider.get_user_operation_receipt(hash).await?)
     }
 
     pub async fn wait_for_user_operation_receipt(
@@ -116,19 +116,19 @@ impl BundlerClient {
         use std::time::{Duration, Instant};
         use tokio::time::sleep;
 
-        let polling_interval: Duration = Duration::from_millis(2000);
-        let timeout: Option<Duration> = Some(Duration::from_secs(60));
+        let polling_interval = Duration::from_millis(2000);
+        let timeout = Some(Duration::from_secs(60));
 
         let start_time = Instant::now();
 
         loop {
-            match self.get_user_operation_receipt(hash).await {
-                eyre::Result::Ok(Some(receipt)) => return Ok(receipt),
-                e => {
+            match self.get_user_operation_receipt(hash).await? {
+                Some(receipt) => return Ok(receipt),
+                None => {
                     if let Some(timeout_duration) = timeout {
                         if start_time.elapsed() > timeout_duration {
                             return Err(eyre::eyre!(
-                                "Timeout waiting for user operation receipt: {e:?}",
+                                "Timeout waiting for user operation receipt",
                             ));
                         }
                     }
@@ -149,7 +149,7 @@ pub trait CustomErc4337Api<N, T>: Send + Sync {
     async fn get_user_operation_receipt(
         &self,
         user_op_hash: B256,
-    ) -> TransportResult<UserOperationReceipt>;
+    ) -> TransportResult<Option<UserOperationReceipt>>;
 }
 
 #[cfg_attr(target_arch = "wasm32", async_trait::async_trait(?Send))]
@@ -163,7 +163,7 @@ where
     async fn get_user_operation_receipt(
         &self,
         user_op_hash: B256,
-    ) -> TransportResult<UserOperationReceipt> {
+    ) -> TransportResult<Option<UserOperationReceipt>> {
         self.client()
             .request("eth_getUserOperationReceipt", (user_op_hash,))
             .await
