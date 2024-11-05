@@ -216,13 +216,3 @@ public final class AccountClient: AccountClientProtocol {
     }
 }
 
-extension Transaction {
-    
-    var ffi: FFITransaction {
-        FFITransaction(
-            to: to,
-            value: value,
-            data: data
-        )
-    }
-}

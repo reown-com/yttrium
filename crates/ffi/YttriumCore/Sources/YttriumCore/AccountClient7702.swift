@@ -102,11 +102,4 @@ public final class AccountClient7702 {
     private func register(signer: Signer) {
         Signers.shared.register(signer: signer)
     }
-    
-    public func sendBatchTransaction(_ batch: [Transaction]) async throws -> String {
-        let ffiBatch = batch.map(\.ffi)
-        let batchJSONData = try JSONEncoder().encode(ffiBatch)
-        let batchJSONString = String(decoding: batchJSONData, as: UTF8.self)
-        return try await core7702AccountClient.send_batch_transaction(batchJSONString).toString()
-    }
 }

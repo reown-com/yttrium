@@ -47,6 +47,6 @@ sol! {
 
     #[sol(rpc)]
     contract ISmartSession {
-        function isSessionEnabled(PermissionId permissionId, address account) external view returns (bool);
+        function isPermissionEnabled(PermissionId permissionId, address account) external view returns (bool);
     }
 }

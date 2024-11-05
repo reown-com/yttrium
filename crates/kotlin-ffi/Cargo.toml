@@ -8,7 +8,7 @@ name = "uniffi_yttrium"
 crate-type = ["cdylib"]
 
 [build-dependencies]
-uniffi_build = "0.28.1" 
+uniffi_build = "0.28.1"
 
 [dependencies]
 yttrium = { path = "../yttrium", features = ["uniffi"] }
@@ -36,3 +36,7 @@ thiserror.workspace = true
 [[bin]]
 name = "uniffi-bindgen"
 path = "uniffi-bindgen.rs"
+
+[package.metadata.cargo-udeps.ignore]
+# These crates are needed for Linux builds, but will give unused deps error when built on macOS
+normal = ["openssl", "openssl-sys"]
