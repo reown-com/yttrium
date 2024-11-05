@@ -166,6 +166,41 @@ pub struct DoSendTransactionParams {
     pub valid_until: U48,
 }
 
+pub async fn prepare_send_transactions(
+    execution_calldata: Vec<Transaction>,
+    owner: Address,
+    address: Option<AccountAddress>,
+    authorization_list: Option<Vec<Authorization>>,
+    config: Config,
+) -> eyre::Result<PreparedSendTransaction> {
+    let pimlico_client = PimlicoBundlerClient::new(BundlerConfig::new(
+        config.endpoints.bundler.base_url.clone(),
+    ));
+
+    let provider = ReqwestProvider::<Ethereum>::new_http(
+        config.endpoints.rpc.base_url.parse()?,
+    );
+
+    let paymaster_client = PaymasterClient::new(BundlerConfig::new(
+        config.endpoints.paymaster.base_url.clone(),
+    ));
+
+    let gas_price = pimlico_client.estimate_user_operation_gas_price().await?;
+    assert!(gas_price.fast.max_fee_per_gas > U256::from(1));
+
+    prepare_send_transactions_inner(
+        execution_calldata,
+        Owners { owners: vec![owner], threshold: 1 },
+        address,
+        authorization_list,
+        &provider,
+        gas_price.fast.max_fee_per_gas,
+        gas_price.fast.max_priority_fee_per_gas,
+        paymaster_client,
+    )
+    .await
+}
+
 #[allow(clippy::too_many_arguments)]
 pub async fn prepare_send_transactions_inner<P, T, N>(
     execution_calldata: Vec<Transaction>,
@@ -403,39 +438,6 @@ where
             valid_until,
         },
     })
-}
-
-pub async fn prepare_send_transactions(
-    execution_calldata: Vec<Transaction>,
-    owner: Address,
-    address: Option<AccountAddress>,
-    authorization_list: Option<Vec<Authorization>>,
-    config: Config,
-) -> eyre::Result<PreparedSendTransaction> {
-    let provider = ReqwestProvider::<Ethereum>::new_http(
-        config.endpoints.rpc.base_url.parse()?,
-    );
-
-    let paymaster_client = PaymasterClient::new(BundlerConfig::new(
-        config.endpoints.paymaster.base_url.clone(),
-    ));
-    let pimlico_client = PimlicoBundlerClient::new(BundlerConfig::new(
-        config.endpoints.bundler.base_url.clone(),
-    ));
-    let gas_price = pimlico_client.estimate_user_operation_gas_price().await?;
-    assert!(gas_price.fast.max_fee_per_gas > U256::from(1));
-
-    prepare_send_transactions_inner(
-        execution_calldata,
-        Owners { owners: vec![owner], threshold: 1 },
-        address,
-        authorization_list,
-        &provider,
-        gas_price.fast.max_fee_per_gas,
-        gas_price.fast.max_priority_fee_per_gas,
-        paymaster_client,
-    )
-    .await
 }
 
 pub use alloy::primitives::Address;
