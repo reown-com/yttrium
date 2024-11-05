@@ -715,5 +715,165 @@ public func __swift_bridge__PrivateKeySignerFFI__free (ptr: UnsafeMutableRawPoin
     let _ = Unmanaged<PrivateKeySignerFFI>.fromOpaque(ptr).takeRetainedValue()
 }
 
+public enum Erc6492Error {
+    case InvalidSignature(RustString)
+    case InvalidAddress(RustString)
+    case InvalidMessageHash(RustString)
+    case Verification(RustString)
+}
+extension Erc6492Error {
+    func intoFfiRepr() -> __swift_bridge__$Erc6492Error {
+        switch self {
+            case Erc6492Error.InvalidSignature(let _0):
+                return __swift_bridge__$Erc6492Error(tag: __swift_bridge__$Erc6492Error$InvalidSignature, payload: __swift_bridge__$Erc6492ErrorFields(InvalidSignature: __swift_bridge__$Erc6492Error$FieldOfInvalidSignature(_0: { let rustString = _0.intoRustString(); rustString.isOwned = false; return rustString.ptr }())))
+            case Erc6492Error.InvalidAddress(let _0):
+                return __swift_bridge__$Erc6492Error(tag: __swift_bridge__$Erc6492Error$InvalidAddress, payload: __swift_bridge__$Erc6492ErrorFields(InvalidAddress: __swift_bridge__$Erc6492Error$FieldOfInvalidAddress(_0: { let rustString = _0.intoRustString(); rustString.isOwned = false; return rustString.ptr }())))
+            case Erc6492Error.InvalidMessageHash(let _0):
+                return __swift_bridge__$Erc6492Error(tag: __swift_bridge__$Erc6492Error$InvalidMessageHash, payload: __swift_bridge__$Erc6492ErrorFields(InvalidMessageHash: __swift_bridge__$Erc6492Error$FieldOfInvalidMessageHash(_0: { let rustString = _0.intoRustString(); rustString.isOwned = false; return rustString.ptr }())))
+            case Erc6492Error.Verification(let _0):
+                return __swift_bridge__$Erc6492Error(tag: __swift_bridge__$Erc6492Error$Verification, payload: __swift_bridge__$Erc6492ErrorFields(Verification: __swift_bridge__$Erc6492Error$FieldOfVerification(_0: { let rustString = _0.intoRustString(); rustString.isOwned = false; return rustString.ptr }())))
+        }
+    }
+}
+extension __swift_bridge__$Erc6492Error {
+    func intoSwiftRepr() -> Erc6492Error {
+        switch self.tag {
+            case __swift_bridge__$Erc6492Error$InvalidSignature:
+                return Erc6492Error.InvalidSignature(RustString(ptr: self.payload.InvalidSignature._0))
+            case __swift_bridge__$Erc6492Error$InvalidAddress:
+                return Erc6492Error.InvalidAddress(RustString(ptr: self.payload.InvalidAddress._0))
+            case __swift_bridge__$Erc6492Error$InvalidMessageHash:
+                return Erc6492Error.InvalidMessageHash(RustString(ptr: self.payload.InvalidMessageHash._0))
+            case __swift_bridge__$Erc6492Error$Verification:
+                return Erc6492Error.Verification(RustString(ptr: self.payload.Verification._0))
+            default:
+                fatalError("Unreachable")
+        }
+    }
+}
+extension __swift_bridge__$Option$Erc6492Error {
+    @inline(__always)
+    func intoSwiftRepr() -> Optional<Erc6492Error> {
+        if self.is_some {
+            return self.val.intoSwiftRepr()
+        } else {
+            return nil
+        }
+    }
+    @inline(__always)
+    static func fromSwiftRepr(_ val: Optional<Erc6492Error>) -> __swift_bridge__$Option$Erc6492Error {
+        if let v = val {
+            return __swift_bridge__$Option$Erc6492Error(is_some: true, val: v.intoFfiRepr())
+        } else {
+            return __swift_bridge__$Option$Erc6492Error(is_some: false, val: __swift_bridge__$Erc6492Error())
+        }
+    }
+}
+
+public class Erc6492Client: Erc6492ClientRefMut {
+    var isOwned: Bool = true
+
+    public override init(ptr: UnsafeMutableRawPointer) {
+        super.init(ptr: ptr)
+    }
+
+    deinit {
+        if isOwned {
+            __swift_bridge__$Erc6492Client$_free(ptr)
+        }
+    }
+}
+extension Erc6492Client {
+    public convenience init<GenericIntoRustString: IntoRustString>(_ rpc_url: GenericIntoRustString) {
+        self.init(ptr: __swift_bridge__$Erc6492Client$new({ let rustString = rpc_url.intoRustString(); rustString.isOwned = false; return rustString.ptr }()))
+    }
+}
+public class Erc6492ClientRefMut: Erc6492ClientRef {
+    public override init(ptr: UnsafeMutableRawPointer) {
+        super.init(ptr: ptr)
+    }
+}
+public class Erc6492ClientRef {
+    var ptr: UnsafeMutableRawPointer
+
+    public init(ptr: UnsafeMutableRawPointer) {
+        self.ptr = ptr
+    }
+}
+extension Erc6492ClientRef {
+    public func verify_signature<GenericIntoRustString: IntoRustString>(_ signature: GenericIntoRustString, _ address: GenericIntoRustString, _ message_hash: GenericIntoRustString) async throws -> Bool {
+        func onComplete(cbWrapperPtr: UnsafeMutableRawPointer?, rustFnRetVal: __swift_bridge__$ResultBoolAndErc6492Error) {
+            let wrapper = Unmanaged<CbWrapper$Erc6492Client$verify_signature>.fromOpaque(cbWrapperPtr!).takeRetainedValue()
+            switch rustFnRetVal.tag { case __swift_bridge__$ResultBoolAndErc6492Error$ResultOk: wrapper.cb(.success(rustFnRetVal.payload.ok)) case __swift_bridge__$ResultBoolAndErc6492Error$ResultErr: wrapper.cb(.failure(rustFnRetVal.payload.err.intoSwiftRepr())) default: fatalError() }
+        }
+
+        return try await withCheckedThrowingContinuation({ (continuation: CheckedContinuation<Bool, Error>) in
+            let callback = { rustFnRetVal in
+                continuation.resume(with: rustFnRetVal)
+            }
+
+            let wrapper = CbWrapper$Erc6492Client$verify_signature(cb: callback)
+            let wrapperPtr = Unmanaged.passRetained(wrapper).toOpaque()
+
+            __swift_bridge__$Erc6492Client$verify_signature(wrapperPtr, onComplete, ptr, { let rustString = signature.intoRustString(); rustString.isOwned = false; return rustString.ptr }(), { let rustString = address.intoRustString(); rustString.isOwned = false; return rustString.ptr }(), { let rustString = message_hash.intoRustString(); rustString.isOwned = false; return rustString.ptr }())
+        })
+    }
+    class CbWrapper$Erc6492Client$verify_signature {
+        var cb: (Result<Bool, Error>) -> ()
+    
+        public init(cb: @escaping (Result<Bool, Error>) -> ()) {
+            self.cb = cb
+        }
+    }
+}
+extension Erc6492Client: Vectorizable {
+    public static func vecOfSelfNew() -> UnsafeMutableRawPointer {
+        __swift_bridge__$Vec_Erc6492Client$new()
+    }
+
+    public static func vecOfSelfFree(vecPtr: UnsafeMutableRawPointer) {
+        __swift_bridge__$Vec_Erc6492Client$drop(vecPtr)
+    }
+
+    public static func vecOfSelfPush(vecPtr: UnsafeMutableRawPointer, value: Erc6492Client) {
+        __swift_bridge__$Vec_Erc6492Client$push(vecPtr, {value.isOwned = false; return value.ptr;}())
+    }
+
+    public static func vecOfSelfPop(vecPtr: UnsafeMutableRawPointer) -> Optional<Self> {
+        let pointer = __swift_bridge__$Vec_Erc6492Client$pop(vecPtr)
+        if pointer == nil {
+            return nil
+        } else {
+            return (Erc6492Client(ptr: pointer!) as! Self)
+        }
+    }
+
+    public static func vecOfSelfGet(vecPtr: UnsafeMutableRawPointer, index: UInt) -> Optional<Erc6492ClientRef> {
+        let pointer = __swift_bridge__$Vec_Erc6492Client$get(vecPtr, index)
+        if pointer == nil {
+            return nil
+        } else {
+            return Erc6492ClientRef(ptr: pointer!)
+        }
+    }
+
+    public static func vecOfSelfGetMut(vecPtr: UnsafeMutableRawPointer, index: UInt) -> Optional<Erc6492ClientRefMut> {
+        let pointer = __swift_bridge__$Vec_Erc6492Client$get_mut(vecPtr, index)
+        if pointer == nil {
+            return nil
+        } else {
+            return Erc6492ClientRefMut(ptr: pointer!)
+        }
+    }
+
+    public static func vecOfSelfAsPtr(vecPtr: UnsafeMutableRawPointer) -> UnsafePointer<Erc6492ClientRef> {
+        UnsafePointer<Erc6492ClientRef>(OpaquePointer(__swift_bridge__$Vec_Erc6492Client$as_ptr(vecPtr)))
+    }
+
+    public static func vecOfSelfLen(vecPtr: UnsafeMutableRawPointer) -> UInt {
+        __swift_bridge__$Vec_Erc6492Client$len(vecPtr)
+    }
+}
+
 
 

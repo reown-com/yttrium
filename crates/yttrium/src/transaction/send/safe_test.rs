@@ -770,7 +770,6 @@ mod tests {
     #[tokio::test]
     async fn test_send_transaction_just_deploy() -> eyre::Result<()> {
         let config = Config::local();
-        let faucet = anvil_faucet(config.clone()).await;
 
         let provider = ReqwestProvider::<Ethereum>::new_http(
             config.endpoints.rpc.base_url.parse()?,
@@ -787,14 +786,6 @@ mod tests {
             .await
             .unwrap()
             .is_empty());
-
-        use_faucet(
-            provider.clone(),
-            faucet.clone(),
-            U256::from(3),
-            sender_address.into(),
-        )
-        .await;
 
         let transaction = vec![];
 

@@ -55,7 +55,7 @@ impl Signer {
 pub struct AccountClient {
     owner: String,
     chain_id: u64,
-    config: Config,
+    pub config: Config,
     signer: Signer,
     safe: bool,
 }

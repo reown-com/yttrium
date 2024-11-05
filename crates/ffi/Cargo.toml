@@ -19,6 +19,8 @@ swift-bridge = { git = "https://github.com/wooden-worm/swift-bridge.git", branch
     "async",
 ] }
 yttrium = { path = "../yttrium" }
+erc6492 = { git = "https://github.com/reown-com/erc6492.git" }
+alloy = { version = "0.3.6" }
 
 # Errors
 eyre.workspace = true
@@ -35,6 +37,7 @@ reqwest.workspace = true
 
 # Logging
 log.workspace = true
+url = "2.5.2"
 
 [target.'cfg(target_os = "ios")'.dependencies]
 oslog.workspace = true
