@@ -1084,6 +1084,154 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_sign_message_partial_deployed() {
+        let config = Config::local();
+        let provider = ReqwestProvider::<Ethereum>::new_http(
+            config.endpoints.rpc.base_url.parse().unwrap(),
+        );
+
+        let owner = LocalSigner::random();
+        let owner_address = owner.address();
+        let owners = Owners { owners: vec![owner.address()], threshold: 1 };
+
+        let sender_address =
+            get_account_address(provider.clone(), owners.clone()).await;
+
+        let destination = LocalSigner::random();
+        let balance =
+            provider.get_balance(destination.address()).await.unwrap();
+        assert_eq!(balance, Uint::from(0));
+        let receipt = send_transactions(
+            vec![Transaction {
+                to: destination.address(),
+                value: Uint::from(1),
+                data: Bytes::new(),
+            }],
+            owner.clone(),
+            None,
+            None,
+            config.clone(),
+        )
+        .await
+        .unwrap();
+        assert!(receipt.success);
+        assert!(!provider
+            .get_code_at(sender_address.into())
+            .await
+            .unwrap()
+            .is_empty());
+        assert_eq!(
+            provider
+                .get_storage_at(sender_address.into(), Uint::from(0))
+                .await
+                .unwrap(),
+            U256::from(U160::from_be_bytes(
+                SEPOLIA_SAFE_ERC_7579_SINGLETON_ADDRESS.into_array()
+            ))
+        );
+
+        let message = "test message";
+        let message_hash = eip191_hash_message(message);
+
+        let chain_id = provider.get_chain_id().await.unwrap();
+        let PreparedSignature { safe_message, domain } =
+            prepare_sign(sender_address, U256::from(chain_id), message_hash);
+
+        let signature =
+            owner.sign_typed_data_sync(&safe_message, &domain).unwrap();
+
+        let signature = sign(
+            owners,
+            sender_address,
+            vec![OwnerSignature { owner: owner_address, signature }],
+            &provider,
+            PaymasterClient::new(BundlerConfig::new(
+                config.endpoints.paymaster.base_url.parse().unwrap(),
+            )),
+        )
+        .await
+        .unwrap();
+
+        let signature = match signature {
+            SignOutputEnum::Signature(s) => s,
+            SignOutputEnum::SignOutput(so) => {
+                let signature = owner
+                    .sign_typed_data_sync(
+                        &so.to_sign.safe_op,
+                        &so.to_sign.domain,
+                    )
+                    .unwrap();
+                sign_step_3(
+                    vec![OwnerSignature { owner: owner.address(), signature }],
+                    so.sign_step_3_params,
+                )
+                .await
+                .unwrap()
+            }
+        };
+
+        sol! {
+            #[sol(rpc)]
+            contract Eip1271 {
+                function isValidSignature(bytes32 hash, bytes calldata signature) external view returns (bytes4 magicValue);
+            }
+        };
+
+        let magic_value = Eip1271::new(sender_address.into(), provider.clone())
+            .isValidSignature(message_hash, signature.clone())
+            .call()
+            .await
+            .unwrap();
+        assert_eq!(magic_value.magicValue, fixed_bytes!("1626ba7e"));
+
+        assert!(erc6492::verify_signature(
+            signature,
+            sender_address.into(),
+            message_hash,
+            &provider
+        )
+        .await
+        .unwrap()
+        .is_valid());
+
+        let balance =
+            provider.get_balance(destination.address()).await.unwrap();
+        assert_eq!(balance, Uint::from(0));
+        let faucet = anvil_faucet(config.clone()).await;
+        use_faucet(
+            provider.clone(),
+            faucet.clone(),
+            U256::from(1),
+            sender_address.into(),
+        )
+        .await;
+
+        let transaction = vec![Transaction {
+            to: destination.address(),
+            value: Uint::from(1),
+            data: Bytes::new(),
+        }];
+
+        let receipt = send_transactions(transaction, owner, None, None, config)
+            .await
+            .unwrap();
+        assert!(receipt.success);
+        assert_eq!(
+            provider
+                .get_storage_at(sender_address.into(), Uint::from(0))
+                .await
+                .unwrap(),
+            U256::from(U160::from_be_bytes(
+                SEPOLIA_SAFE_ERC_7579_SINGLETON_ADDRESS.into_array()
+            ))
+        );
+
+        let balance =
+            provider.get_balance(destination.address()).await.unwrap();
+        assert_eq!(balance, Uint::from(1));
+    }
+
+    #[tokio::test]
     #[ignore]
     async fn test_send_transaction_7702() -> eyre::Result<()> {
         let config = Config::local();
