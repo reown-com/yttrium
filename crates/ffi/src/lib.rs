@@ -1,4 +1,7 @@
 #![allow(dead_code, improper_ctypes, clippy::unnecessary_cast)]
+use alloy::primitives::{Bytes, B256};
+use serde::{Deserialize, Serialize};
+
 use self::account_client::FFIAccountClient;
 use self::account_client_eip7702::FFI7702AccountClient;
 use self::erc6492_client::Erc6492Client;
@@ -9,6 +12,18 @@ pub mod config;
 pub mod erc6492_client;
 pub mod error;
 pub mod log;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FFIPreparedSign {
+    pub signature: Option<Bytes>,
+    pub sign_step_3: Option<FFIPreparedSignStep3>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FFIPreparedSignStep3 {
+    pub hash: B256,
+    pub sign_step_3_params: String,
+}
 
 #[allow(non_camel_case_types)]
 #[swift_bridge::bridge]

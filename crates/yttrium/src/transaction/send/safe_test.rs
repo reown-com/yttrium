@@ -508,6 +508,8 @@ pub async fn do_send_transactions(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::smart_accounts::safe::sign_step_3;
+    use crate::smart_accounts::safe::SignOutputEnum;
     use crate::{
         chain::ChainId,
         smart_accounts::safe::{prepare_sign, sign, PreparedSignature},
@@ -948,13 +950,30 @@ mod tests {
             sender_address,
             vec![OwnerSignature { owner: owner_address, signature }],
             &provider,
-            owner,
             PaymasterClient::new(BundlerConfig::new(
                 config.endpoints.paymaster.base_url.parse().unwrap(),
             )),
         )
         .await
         .unwrap();
+
+        let signature = match signature {
+            SignOutputEnum::Signature(s) => s,
+            SignOutputEnum::SignOutput(so) => {
+                let signature = owner
+                    .sign_typed_data_sync(
+                        &so.to_sign.safe_op,
+                        &so.to_sign.domain,
+                    )
+                    .unwrap();
+                sign_step_3(
+                    vec![OwnerSignature { owner: owner.address(), signature }],
+                    so.sign_step_3_params,
+                )
+                .await
+                .unwrap()
+            }
+        };
 
         sol! {
             #[sol(rpc)]
@@ -1016,13 +1035,30 @@ mod tests {
             sender_address,
             vec![OwnerSignature { owner: owner_address, signature }],
             &provider,
-            owner,
             PaymasterClient::new(BundlerConfig::new(
                 config.endpoints.paymaster.base_url.parse().unwrap(),
             )),
         )
         .await
         .unwrap();
+
+        let signature = match signature {
+            SignOutputEnum::Signature(s) => s,
+            SignOutputEnum::SignOutput(so) => {
+                let signature = owner
+                    .sign_typed_data_sync(
+                        &so.to_sign.safe_op,
+                        &so.to_sign.domain,
+                    )
+                    .unwrap();
+                sign_step_3(
+                    vec![OwnerSignature { owner: owner.address(), signature }],
+                    so.sign_step_3_params,
+                )
+                .await
+                .unwrap()
+            }
+        };
 
         assert!(provider
             .get_code_at(sender_address.into())
