@@ -365,12 +365,7 @@ where
     // Null validator address for regular Safe signature
     let signature = (Address::ZERO, signature).abi_encode_packed().into();
 
-    if provider
-        .get_code_at(account_address.into())
-        .await
-        .unwrap() // TODO handle error
-        .is_empty()
-    {
+    if provider.get_code_at(account_address.into()).await?.is_empty() {
         let eip1559_est = provider.estimate_eip1559_fees(None).await?;
         let PreparedSendTransaction {
             safe_op,
@@ -409,8 +404,7 @@ pub async fn sign_step_3(
         user_op_signature,
         sign_step_3_params.do_send_transaction_params,
     )
-    .await
-    .unwrap();
+    .await?;
 
     let factory_address = ENTRYPOINT_ADDRESS_V07;
     let factory_data = EntryPoint::handleOpsCall {
@@ -420,7 +414,7 @@ pub async fn sign_step_3(
             nonce: user_op.nonce,
             initCode: [
                 // TODO refactor to remove unwrap()
-                // This code double-checks for code deployed unnecessesarly
+                // This code double-checks for code deployed unnecessesarly (i.e. here and inside prepare_send_transactions_inner())
                 user_op.factory.unwrap().to_vec().into(),
                 user_op.factory_data.unwrap(),
             ]
