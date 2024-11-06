@@ -2,7 +2,7 @@ uniffi::setup_scaffolding!();
 
 use yttrium::config::Config;
 use yttrium::transaction::send::safe_test::{
-    Address, OwnerSignature as YOwnerSignature, Signature,
+    Address, OwnerSignature as YOwnerSignature, PrimitiveSignature,
 };
 use yttrium::{
     account_client::{AccountClient as YAccountClient, SignerType},
@@ -148,7 +148,7 @@ impl AccountClient {
                     .map_err(|e| Error::Unknown(e.to_string()))?,
                 signature: signature
                     .signature
-                    .parse::<Signature>()
+                    .parse::<PrimitiveSignature>()
                     .map_err(|e| Error::Unknown(e.to_string()))?,
             });
         }
