@@ -414,7 +414,8 @@ pub async fn sign_step_3(
             nonce: user_op.nonce,
             initCode: [
                 // TODO refactor to remove unwrap()
-                // This code double-checks for code deployed unnecessesarly (i.e. here and inside prepare_send_transactions_inner())
+                // This code double-checks for code deployed unnecessesarly
+                // (i.e. here and inside prepare_send_transactions_inner())
                 user_op.factory.unwrap().to_vec().into(),
                 user_op.factory_data.unwrap(),
             ]
