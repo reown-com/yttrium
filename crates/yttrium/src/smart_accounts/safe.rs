@@ -1,14 +1,30 @@
-use crate::smart_accounts::account_address::AccountAddress;
+use crate::bundler::pimlico::paymaster::client::PaymasterClient;
+use crate::entry_point::EntryPoint::PackedUserOperation;
+use crate::entry_point::{EntryPoint, ENTRYPOINT_ADDRESS_V07};
+use crate::transaction::send::safe_test::{
+    encode_send_transactions, prepare_send_transactions_inner,
+    DoSendTransactionParams, PreparedSendTransaction,
+};
 use crate::transaction::Transaction;
+use crate::user_operation::hash::pack_v07::combine::combine_and_trim_first_16_bytes;
+use crate::user_operation::hash::pack_v07::hashed_paymaster_and_data::get_data;
+use crate::{
+    smart_accounts::account_address::AccountAddress,
+    transaction::send::safe_test::OwnerSignature,
+};
+use alloy::network::Network;
+use alloy::primitives::{B256, U128};
+use alloy::providers::Provider;
+use alloy::transports::Transport;
 use alloy::{
-    dyn_abi::DynSolValue,
+    dyn_abi::{DynSolValue, Eip712Domain},
     primitives::{
         address, bytes, keccak256, Address, Bytes, FixedBytes, Uint, U256,
     },
-    providers::ReqwestProvider,
     sol,
     sol_types::{SolCall, SolValue},
 };
+use erc6492::create::create_erc6492_signature;
 use serde::{Deserialize, Serialize};
 
 sol! {
@@ -83,6 +99,13 @@ sol!(
         uint48 validAfter;
         uint48 validUntil;
         address entryPoint;
+    }
+);
+
+sol!(
+    #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+    struct SafeMessage {
+        bytes message;
     }
 );
 
@@ -182,12 +205,17 @@ pub fn factory_data(
     }
 }
 
-pub async fn get_account_address(
-    provider: ReqwestProvider,
+pub async fn get_account_address<P, T, N>(
+    provider: P,
     owners: Owners,
-) -> AccountAddress {
+) -> AccountAddress
+where
+    T: Transport + Clone,
+    P: Provider<T, N>,
+    N: Network,
+{
     let creation_code =
-        SafeProxyFactory::new(SAFE_PROXY_FACTORY_ADDRESS, provider.clone())
+        SafeProxyFactory::new(SAFE_PROXY_FACTORY_ADDRESS, provider)
             .proxyCreationCode()
             .call()
             .await
@@ -267,6 +295,154 @@ fn encode_calls(calls: Vec<Transaction>) -> Bytes {
         out
     }
     .into()
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PreparedSignature {
+    pub safe_message: SafeMessage,
+    pub domain: Eip712Domain,
+}
+
+pub fn prepare_sign(
+    account_address: AccountAddress,
+    chain_id: U256,
+    message_hash: B256,
+) -> PreparedSignature {
+    let safe_message = SafeMessage { message: message_hash.into() };
+    let domain = Eip712Domain {
+        chain_id: Some(chain_id),
+        verifying_contract: Some(account_address.to_address()),
+        ..Default::default()
+    };
+    PreparedSignature { safe_message, domain }
+}
+
+pub enum SignOutputEnum {
+    Signature(Bytes),
+    SignOutput(SignOutput),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SignOutput {
+    pub to_sign: SignOutputToSign,
+    pub sign_step_3_params: SignStep3Params,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SignOutputToSign {
+    pub hash: B256,
+    pub safe_op: SafeOp,
+    pub domain: Eip712Domain,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SignStep3Params {
+    pub signature: Bytes,
+    pub do_send_transaction_params: DoSendTransactionParams,
+}
+
+// TODO refactor to make account_address optional, if not provided it will
+// determine it based on Owners TODO refactor to make owners optional, in the
+// case where it already being deployed is assumed
+pub async fn sign<P, T, N>(
+    owners: Owners,
+    account_address: AccountAddress,
+    signatures: Vec<OwnerSignature>,
+    provider: &P,
+    paymaster_client: PaymasterClient,
+) -> eyre::Result<SignOutputEnum>
+where
+    T: Transport + Clone,
+    P: Provider<T, N>,
+    N: Network,
+{
+    if signatures.len() > 1 {
+        unimplemented!("multi-signature is not yet supported");
+    }
+
+    let signature = Bytes::from(signatures[0].signature.as_bytes());
+
+    // Null validator address for regular Safe signature
+    let signature = (Address::ZERO, signature).abi_encode_packed().into();
+
+    if provider.get_code_at(account_address.into()).await?.is_empty() {
+        let eip1559_est = provider.estimate_eip1559_fees(None).await?;
+        let PreparedSendTransaction {
+            safe_op,
+            domain,
+            hash,
+            do_send_transaction_params,
+        } = prepare_send_transactions_inner(
+            vec![],
+            owners,
+            Some(account_address),
+            None,
+            provider,
+            U128::from(eip1559_est.max_fee_per_gas).to(),
+            U128::from(eip1559_est.max_priority_fee_per_gas).to(),
+            paymaster_client,
+        )
+        .await?;
+
+        Ok(SignOutputEnum::SignOutput(SignOutput {
+            to_sign: SignOutputToSign { hash, safe_op, domain },
+            sign_step_3_params: SignStep3Params {
+                signature,
+                do_send_transaction_params,
+            },
+        }))
+    } else {
+        Ok(SignOutputEnum::Signature(signature))
+    }
+}
+
+pub async fn sign_step_3(
+    user_op_signature: Vec<OwnerSignature>,
+    sign_step_3_params: SignStep3Params,
+) -> eyre::Result<Bytes> {
+    let user_op = encode_send_transactions(
+        user_op_signature,
+        sign_step_3_params.do_send_transaction_params,
+    )
+    .await?;
+
+    let factory_address = ENTRYPOINT_ADDRESS_V07;
+    let factory_data = EntryPoint::handleOpsCall {
+        ops: vec![PackedUserOperation {
+            paymasterAndData: get_data(&user_op),
+            sender: user_op.sender.into(),
+            nonce: user_op.nonce,
+            initCode: [
+                // TODO refactor to remove unwrap()
+                // This code double-checks for code deployed unnecessesarly
+                // (i.e. here and inside prepare_send_transactions_inner())
+                user_op.factory.unwrap().to_vec().into(),
+                user_op.factory_data.unwrap(),
+            ]
+            .concat()
+            .into(),
+            callData: user_op.call_data,
+            accountGasLimits: combine_and_trim_first_16_bytes(
+                user_op.verification_gas_limit,
+                user_op.call_gas_limit,
+            ),
+            preVerificationGas: user_op.pre_verification_gas,
+            gasFees: combine_and_trim_first_16_bytes(
+                user_op.max_priority_fee_per_gas,
+                user_op.max_fee_per_gas,
+            ),
+            signature: user_op.signature,
+        }],
+        beneficiary: user_op.sender.into(),
+    }
+    .abi_encode()
+    .into();
+
+    Ok(create_erc6492_signature(
+        factory_address,
+        factory_data,
+        sign_step_3_params.signature,
+    ))
 }
 
 #[cfg(test)]

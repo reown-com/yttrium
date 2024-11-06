@@ -19,7 +19,7 @@ swift-bridge = { git = "https://github.com/wooden-worm/swift-bridge.git", branch
     "async",
 ] }
 yttrium = { path = "../yttrium" }
-erc6492 = { git = "https://github.com/reown-com/erc6492.git" }
+erc6492 = { git = "https://github.com/reown-com/erc6492.git", branch = "chore/remove-foundry-install" }
 alloy = { version = "0.3.6" }
 
 # Errors

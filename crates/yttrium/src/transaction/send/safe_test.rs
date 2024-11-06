@@ -32,10 +32,11 @@ use alloy::{
     providers::{Provider, ReqwestProvider},
     signers::{k256::ecdsa::SigningKey, local::LocalSigner, SignerSync},
     sol_types::{SolCall, SolStruct},
+    transports::Transport,
 };
+use alloy_provider::Network;
 use core::fmt;
 use serde::{Deserialize, Serialize};
-use serde_json::json;
 use std::ops::Not;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -172,14 +173,50 @@ pub async fn prepare_send_transactions(
     authorization_list: Option<Vec<Authorization>>,
     config: Config,
 ) -> eyre::Result<PreparedSendTransaction> {
-    let pimlico_client: PimlicoBundlerClient = PimlicoBundlerClient::new(
-        BundlerConfig::new(config.endpoints.bundler.base_url.clone()),
-    );
+    let pimlico_client = PimlicoBundlerClient::new(BundlerConfig::new(
+        config.endpoints.bundler.base_url.clone(),
+    ));
 
     let provider = ReqwestProvider::<Ethereum>::new_http(
         config.endpoints.rpc.base_url.parse()?,
     );
 
+    let paymaster_client = PaymasterClient::new(BundlerConfig::new(
+        config.endpoints.paymaster.base_url.clone(),
+    ));
+
+    let gas_price = pimlico_client.estimate_user_operation_gas_price().await?;
+    assert!(gas_price.fast.max_fee_per_gas > U256::from(1));
+
+    prepare_send_transactions_inner(
+        execution_calldata,
+        Owners { owners: vec![owner], threshold: 1 },
+        address,
+        authorization_list,
+        &provider,
+        gas_price.fast.max_fee_per_gas,
+        gas_price.fast.max_priority_fee_per_gas,
+        paymaster_client,
+    )
+    .await
+}
+
+#[allow(clippy::too_many_arguments)]
+pub async fn prepare_send_transactions_inner<P, T, N>(
+    execution_calldata: Vec<Transaction>,
+    owners: Owners,
+    address: Option<AccountAddress>,
+    authorization_list: Option<Vec<Authorization>>,
+    provider: &P,
+    max_fee_per_gas: U256,
+    max_priority_fee_per_gas: U256,
+    paymaster_client: PaymasterClient,
+) -> eyre::Result<PreparedSendTransaction>
+where
+    T: Transport + Clone,
+    P: Provider<T, N>,
+    N: Network,
+{
     let chain_id = provider.get_chain_id().await?;
     let chain = crate::chain::Chain::new(
         ChainId::new_eip155(chain_id),
@@ -190,12 +227,9 @@ pub async fn prepare_send_transactions(
     let entry_point_config = chain.entry_point_config();
     let entry_point_address = entry_point_config.address();
 
-    let owners = Owners { owners: vec![owner], threshold: 1 };
-
     let factory_data_value = factory_data(owners.clone()).abi_encode();
 
-    let contract_address =
-        get_account_address(provider.clone(), owners.clone()).await;
+    let contract_address = get_account_address(provider, owners.clone()).await;
     let account_address =
         if let Some(address) = address { address } else { contract_address };
 
@@ -245,10 +279,6 @@ pub async fn prepare_send_transactions(
         .into()
     };
 
-    let gas_price = pimlico_client.estimate_user_operation_gas_price().await?;
-
-    assert!(gas_price.fast.max_fee_per_gas > U256::from(1));
-
     let nonce =
         get_nonce(&provider, account_address, &entry_point_address).await?;
 
@@ -261,8 +291,8 @@ pub async fn prepare_send_transactions(
         call_gas_limit: U256::ZERO,
         verification_gas_limit: U256::ZERO,
         pre_verification_gas: U256::ZERO,
-        max_fee_per_gas: gas_price.fast.max_fee_per_gas,
-        max_priority_fee_per_gas: gas_price.fast.max_priority_fee_per_gas,
+        max_fee_per_gas,
+        max_priority_fee_per_gas,
         paymaster: None,
         paymaster_verification_gas_limit: None,
         paymaster_post_op_gas_limit: None,
@@ -271,32 +301,29 @@ pub async fn prepare_send_transactions(
         signature: DUMMY_SIGNATURE,
     };
 
-    if let Some(authorization_list) = authorization_list {
-        let response = reqwest::Client::new()
-                .post(config.endpoints.paymaster.base_url.clone())
-                .json(&json!({
-                        "jsonrpc": "2.0",
-                        "id": 1,
-                        "method": "eth_prepareSendUserOperation7702",
-                        "params": [
-                            format!("{}:{}:{}", user_op.sender, user_op.nonce, user_op.call_data),
-                            authorization_list,
-                        ],
-                }))
-                .send()
-                .await
-                .unwrap();
-        let success = response.status().is_success();
-        println!("response: {:?}", response.text().await);
+    if let Some(_authorization_list) = authorization_list {
+        // let response = reqwest::Client::new()
+        //         .post(config.endpoints.paymaster.base_url.clone())
+        //         .json(&json!({
+        //                 "jsonrpc": "2.0",
+        //                 "id": 1,
+        //                 "method": "eth_prepareSendUserOperation7702",
+        //                 "params": [
+        //                     format!("{}:{}:{}", user_op.sender,
+        // user_op.nonce, user_op.call_data),
+        // authorization_list,                 ],
+        //         }))
+        //         .send()
+        //         .await
+        //         .unwrap();
+        // let success = response.status().is_success();
+        // println!("response: {:?}", response.text().await);
 
-        assert!(success);
+        // assert!(success);
+        unimplemented!("need to refactor provider config to re-enable this")
     }
 
     let user_op = {
-        let paymaster_client = PaymasterClient::new(BundlerConfig::new(
-            config.endpoints.paymaster.base_url.clone(),
-        ));
-
         let sponsor_user_op_result = paymaster_client
             .sponsor_user_operation_v07(
                 &user_op.clone().into(),
@@ -420,36 +447,43 @@ pub struct OwnerSignature {
     pub signature: Signature,
 }
 
-pub async fn do_send_transactions(
+pub async fn encode_send_transactions(
     signatures: Vec<OwnerSignature>,
     DoSendTransactionParams {
         user_op,
         valid_after,
         valid_until,
     }: DoSendTransactionParams,
-    config: Config,
-) -> eyre::Result<B256> {
+) -> eyre::Result<UserOperationV07> {
     if signatures.len() != 1 {
         return Err(eyre::eyre!("Only one signature is supported for now"));
     }
-    let user_op = {
-        // TODO sort by (lowercase) owner address not signature data
-        let mut signatures = signatures
-            .iter()
-            .map(|sig| sig.signature.as_bytes())
-            .collect::<Vec<_>>();
-        signatures.sort();
-        let signature_bytes = signatures.concat();
 
-        let signature = DynSolValue::Tuple(vec![
-            DynSolValue::Uint(Uint::from(valid_after), 48),
-            DynSolValue::Uint(Uint::from(valid_until), 48),
-            DynSolValue::Bytes(signature_bytes),
-        ])
-        .abi_encode_packed()
-        .into();
-        UserOperationV07 { signature, ..user_op }
-    };
+    // TODO sort by (lowercase) owner address not signature data
+    let mut signatures = signatures
+        .iter()
+        .map(|sig| sig.signature.as_bytes())
+        .collect::<Vec<_>>();
+    signatures.sort();
+    let signature_bytes = signatures.concat();
+
+    let signature = DynSolValue::Tuple(vec![
+        DynSolValue::Uint(Uint::from(valid_after), 48),
+        DynSolValue::Uint(Uint::from(valid_until), 48),
+        DynSolValue::Bytes(signature_bytes),
+    ])
+    .abi_encode_packed()
+    .into();
+
+    Ok(UserOperationV07 { signature, ..user_op })
+}
+
+pub async fn do_send_transactions(
+    signatures: Vec<OwnerSignature>,
+    params: DoSendTransactionParams,
+    config: Config,
+) -> eyre::Result<B256> {
+    let user_op = encode_send_transactions(signatures, params).await?;
 
     let provider = ReqwestProvider::<Ethereum>::new_http(
         config.endpoints.rpc.base_url.parse()?,
@@ -476,15 +510,18 @@ pub async fn do_send_transactions(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::smart_accounts::safe::sign_step_3;
+    use crate::smart_accounts::safe::SignOutputEnum;
     use crate::{
         chain::ChainId,
+        smart_accounts::safe::{prepare_sign, sign, PreparedSignature},
         test_helpers::{self, use_faucet},
         transaction::Transaction,
     };
     use alloy::{
         consensus::{SignableTransaction, TxEip7702},
         network::TxSignerSync,
-        primitives::{U160, U64},
+        primitives::{eip191_hash_message, fixed_bytes, U160, U64},
         providers::{ext::AnvilApi, PendingTransactionConfig},
         sol,
     };
@@ -868,6 +905,332 @@ mod tests {
         );
 
         Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_sign_message_deployed() {
+        let config = Config::local();
+        let provider = ReqwestProvider::<Ethereum>::new_http(
+            config.endpoints.rpc.base_url.parse().unwrap(),
+        );
+
+        let owner = LocalSigner::random();
+        let owner_address = owner.address();
+        let owners = Owners { owners: vec![owner.address()], threshold: 1 };
+
+        let sender_address =
+            get_account_address(provider.clone(), owners.clone()).await;
+
+        let receipt = send_transactions(
+            vec![],
+            owner.clone(),
+            None,
+            None,
+            config.clone(),
+        )
+        .await
+        .unwrap();
+        assert!(receipt.success);
+        assert!(!provider
+            .get_code_at(sender_address.into())
+            .await
+            .unwrap()
+            .is_empty());
+
+        let message = "test message";
+        let message_hash = eip191_hash_message(message);
+
+        let chain_id = provider.get_chain_id().await.unwrap();
+        let PreparedSignature { safe_message, domain } =
+            prepare_sign(sender_address, U256::from(chain_id), message_hash);
+
+        let signature =
+            owner.sign_typed_data_sync(&safe_message, &domain).unwrap();
+
+        let signature = sign(
+            owners,
+            sender_address,
+            vec![OwnerSignature { owner: owner_address, signature }],
+            &provider,
+            PaymasterClient::new(BundlerConfig::new(
+                config.endpoints.paymaster.base_url.parse().unwrap(),
+            )),
+        )
+        .await
+        .unwrap();
+
+        let signature = match signature {
+            SignOutputEnum::Signature(s) => s,
+            SignOutputEnum::SignOutput(so) => {
+                let signature = owner
+                    .sign_typed_data_sync(
+                        &so.to_sign.safe_op,
+                        &so.to_sign.domain,
+                    )
+                    .unwrap();
+                sign_step_3(
+                    vec![OwnerSignature { owner: owner.address(), signature }],
+                    so.sign_step_3_params,
+                )
+                .await
+                .unwrap()
+            }
+        };
+
+        sol! {
+            #[sol(rpc)]
+            contract Eip1271 {
+                function isValidSignature(bytes32 hash, bytes calldata signature) external view returns (bytes4 magicValue);
+            }
+        };
+
+        let magic_value = Eip1271::new(sender_address.into(), provider.clone())
+            .isValidSignature(message_hash, signature.clone())
+            .call()
+            .await
+            .unwrap();
+        assert_eq!(magic_value.magicValue, fixed_bytes!("1626ba7e"));
+
+        assert!(erc6492::verify_signature(
+            signature,
+            sender_address.into(),
+            message_hash,
+            &provider
+        )
+        .await
+        .unwrap()
+        .is_valid());
+    }
+
+    #[tokio::test]
+    async fn test_sign_message_not_deployed() {
+        let config = Config::local();
+        let provider = ReqwestProvider::<Ethereum>::new_http(
+            config.endpoints.rpc.base_url.parse().unwrap(),
+        );
+
+        let owner = LocalSigner::random();
+        let owner_address = owner.address();
+        let owners = Owners { owners: vec![owner.address()], threshold: 1 };
+
+        let sender_address =
+            get_account_address(provider.clone(), owners.clone()).await;
+
+        assert!(provider
+            .get_code_at(sender_address.into())
+            .await
+            .unwrap()
+            .is_empty());
+
+        let message = "test message";
+        let message_hash = eip191_hash_message(message);
+
+        let chain_id = provider.get_chain_id().await.unwrap();
+        let PreparedSignature { safe_message, domain } =
+            prepare_sign(sender_address, U256::from(chain_id), message_hash);
+
+        let signature =
+            owner.sign_typed_data_sync(&safe_message, &domain).unwrap();
+
+        let signature = sign(
+            owners,
+            sender_address,
+            vec![OwnerSignature { owner: owner_address, signature }],
+            &provider,
+            PaymasterClient::new(BundlerConfig::new(
+                config.endpoints.paymaster.base_url.parse().unwrap(),
+            )),
+        )
+        .await
+        .unwrap();
+
+        let signature = match signature {
+            SignOutputEnum::Signature(s) => s,
+            SignOutputEnum::SignOutput(so) => {
+                let signature = owner
+                    .sign_typed_data_sync(
+                        &so.to_sign.safe_op,
+                        &so.to_sign.domain,
+                    )
+                    .unwrap();
+                sign_step_3(
+                    vec![OwnerSignature { owner: owner.address(), signature }],
+                    so.sign_step_3_params,
+                )
+                .await
+                .unwrap()
+            }
+        };
+
+        assert!(provider
+            .get_code_at(sender_address.into())
+            .await
+            .unwrap()
+            .is_empty());
+
+        assert!(erc6492::verify_signature(
+            signature,
+            sender_address.into(),
+            message_hash,
+            &provider
+        )
+        .await
+        .unwrap()
+        .is_valid());
+
+        assert!(provider
+            .get_code_at(sender_address.into())
+            .await
+            .unwrap()
+            .is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_sign_message_partial_deployed() {
+        let config = Config::local();
+        let provider = ReqwestProvider::<Ethereum>::new_http(
+            config.endpoints.rpc.base_url.parse().unwrap(),
+        );
+
+        let owner = LocalSigner::random();
+        let owner_address = owner.address();
+        let owners = Owners { owners: vec![owner.address()], threshold: 1 };
+
+        let sender_address =
+            get_account_address(provider.clone(), owners.clone()).await;
+
+        let destination = LocalSigner::random();
+        let balance =
+            provider.get_balance(destination.address()).await.unwrap();
+        assert_eq!(balance, Uint::from(0));
+        let receipt = send_transactions(
+            vec![Transaction {
+                to: destination.address(),
+                value: Uint::from(1),
+                data: Bytes::new(),
+            }],
+            owner.clone(),
+            None,
+            None,
+            config.clone(),
+        )
+        .await
+        .unwrap();
+        assert!(receipt.success);
+        assert!(!provider
+            .get_code_at(sender_address.into())
+            .await
+            .unwrap()
+            .is_empty());
+        assert_eq!(
+            provider
+                .get_storage_at(sender_address.into(), Uint::from(0))
+                .await
+                .unwrap(),
+            U256::from(U160::from_be_bytes(
+                SEPOLIA_SAFE_ERC_7579_SINGLETON_ADDRESS.into_array()
+            ))
+        );
+
+        let message = "test message";
+        let message_hash = eip191_hash_message(message);
+
+        let chain_id = provider.get_chain_id().await.unwrap();
+        let PreparedSignature { safe_message, domain } =
+            prepare_sign(sender_address, U256::from(chain_id), message_hash);
+
+        let signature =
+            owner.sign_typed_data_sync(&safe_message, &domain).unwrap();
+
+        let signature = sign(
+            owners,
+            sender_address,
+            vec![OwnerSignature { owner: owner_address, signature }],
+            &provider,
+            PaymasterClient::new(BundlerConfig::new(
+                config.endpoints.paymaster.base_url.parse().unwrap(),
+            )),
+        )
+        .await
+        .unwrap();
+
+        let signature = match signature {
+            SignOutputEnum::Signature(s) => s,
+            SignOutputEnum::SignOutput(so) => {
+                let signature = owner
+                    .sign_typed_data_sync(
+                        &so.to_sign.safe_op,
+                        &so.to_sign.domain,
+                    )
+                    .unwrap();
+                sign_step_3(
+                    vec![OwnerSignature { owner: owner.address(), signature }],
+                    so.sign_step_3_params,
+                )
+                .await
+                .unwrap()
+            }
+        };
+
+        sol! {
+            #[sol(rpc)]
+            contract Eip1271 {
+                function isValidSignature(bytes32 hash, bytes calldata signature) external view returns (bytes4 magicValue);
+            }
+        };
+
+        let magic_value = Eip1271::new(sender_address.into(), provider.clone())
+            .isValidSignature(message_hash, signature.clone())
+            .call()
+            .await
+            .unwrap();
+        assert_eq!(magic_value.magicValue, fixed_bytes!("1626ba7e"));
+
+        assert!(erc6492::verify_signature(
+            signature,
+            sender_address.into(),
+            message_hash,
+            &provider
+        )
+        .await
+        .unwrap()
+        .is_valid());
+
+        let balance =
+            provider.get_balance(destination.address()).await.unwrap();
+        assert_eq!(balance, Uint::from(0));
+        let faucet = anvil_faucet(config.clone()).await;
+        use_faucet(
+            provider.clone(),
+            faucet.clone(),
+            U256::from(1),
+            sender_address.into(),
+        )
+        .await;
+
+        let transaction = vec![Transaction {
+            to: destination.address(),
+            value: Uint::from(1),
+            data: Bytes::new(),
+        }];
+
+        let receipt = send_transactions(transaction, owner, None, None, config)
+            .await
+            .unwrap();
+        assert!(receipt.success);
+        assert_eq!(
+            provider
+                .get_storage_at(sender_address.into(), Uint::from(0))
+                .await
+                .unwrap(),
+            U256::from(U160::from_be_bytes(
+                SEPOLIA_SAFE_ERC_7579_SINGLETON_ADDRESS.into_array()
+            ))
+        );
+
+        let balance =
+            provider.get_balance(destination.address()).await.unwrap();
+        assert_eq!(balance, Uint::from(1));
     }
 
     #[tokio::test]
