@@ -14,6 +14,10 @@ public struct PreparedSendTransaction: Codable {
     public var doSendTransactionParams: String
 }
 
+public struct PreparedSignMessage: Codable {
+    let hash: String
+}
+
 public final class AccountClient: AccountClientProtocol {
     
     public let ownerAddress: String
@@ -23,7 +27,7 @@ public final class AccountClient: AccountClientProtocol {
     private let entryPoint: String
     
     private let coreAccountClient: FFIAccountClient
-    
+
     public convenience init(
         ownerAddress: String,
         entryPoint: String,
@@ -81,7 +85,7 @@ public final class AccountClient: AccountClientProtocol {
         self.chainId = chainId
         self.entryPoint = entryPoint
         self.coreAccountClient = FFIAccountClient(ffiConfig)
-        
+
         register(signer: signer)
     }
     
@@ -168,7 +172,23 @@ public final class AccountClient: AccountClientProtocol {
 
         return try await coreAccountClient.send_transactions(rustVec).toString()
     }
-        
+
+    public func prepareSignMessage(_ messageHash: String) async throws -> PreparedSignMessage {
+        let messageHash = messageHash.intoRustString()
+        let ffiPrepareSignMessage = try await coreAccountClient.prepare_sign_message(messageHash)
+        return PreparedSignMessage(hash: ffiPrepareSignMessage.hash.toString())
+    }
+
+    public func doSignMessage(_ signatures: [String]) async throws -> String {
+        let rustSignatures = createRustVec(from: signatures)
+        return try await coreAccountClient.do_sign_message(rustSignatures).toString()
+    }
+
+    public func finalizeSignMessage(_ signatures: [String], signStep3Params: String) async throws -> String {
+        let rustSignatures = createRustVec(from: signatures)
+        return try await coreAccountClient.finalize_sign_message(rustSignatures, signStep3Params.intoRustString()).toString()
+    }
+
     private func createRustVec(from strings: [String]) -> RustVec<RustString> {
         let rustVec = RustVec<RustString>()
 
@@ -215,4 +235,3 @@ public final class AccountClient: AccountClientProtocol {
         return receipt
     }
 }
-
