@@ -25,6 +25,7 @@ alloy = { workspace = true, features = [
 ] }
 alloy-provider = { workspace = true, features = ["erc4337-api"] }
 erc6492.workspace = true
+relay_rpc = { git = "https://github.com/WalletConnect/WalletConnectRust.git" }
 
 # foundry-block-explorers = "0.2.3"
 getrandom = { version = "0.2", features = ["js"] }
