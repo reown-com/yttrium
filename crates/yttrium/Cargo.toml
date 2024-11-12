@@ -24,7 +24,7 @@ alloy = { version = "0.3.6", features = [
     "eip712",
 ] }
 alloy-provider = { version = "0.3.6", features = ["erc4337-api"] }
-erc6492 = { git = "https://github.com/reown-com/erc6492.git", branch = "feat/create-6492" }
+erc6492 = { git = "https://github.com/reown-com/erc6492.git", branch = "main" }
 # foundry-block-explorers = "0.2.3"
 getrandom = { version = "0.2", features = ["js"] }
 

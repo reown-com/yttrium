@@ -531,6 +531,31 @@ extension FFIAccountClientRef {
         }
     }
 
+    public func finalize_sign_message<GenericIntoRustString: IntoRustString>(_ signatures: RustVec<GenericIntoRustString>, _ sign_step_3_params: GenericIntoRustString) async throws -> RustString {
+        func onComplete(cbWrapperPtr: UnsafeMutableRawPointer?, rustFnRetVal: __swift_bridge__$ResultStringAndFFIError) {
+            let wrapper = Unmanaged<CbWrapper$FFIAccountClient$finalize_sign_message>.fromOpaque(cbWrapperPtr!).takeRetainedValue()
+            switch rustFnRetVal.tag { case __swift_bridge__$ResultStringAndFFIError$ResultOk: wrapper.cb(.success(RustString(ptr: rustFnRetVal.payload.ok))) case __swift_bridge__$ResultStringAndFFIError$ResultErr: wrapper.cb(.failure(rustFnRetVal.payload.err.intoSwiftRepr())) default: fatalError() }
+        }
+
+        return try await withCheckedThrowingContinuation({ (continuation: CheckedContinuation<RustString, Error>) in
+            let callback = { rustFnRetVal in
+                continuation.resume(with: rustFnRetVal)
+            }
+
+            let wrapper = CbWrapper$FFIAccountClient$finalize_sign_message(cb: callback)
+            let wrapperPtr = Unmanaged.passRetained(wrapper).toOpaque()
+
+            __swift_bridge__$FFIAccountClient$finalize_sign_message(wrapperPtr, onComplete, ptr, { let val = signatures; val.isOwned = false; return val.ptr }(), { let rustString = sign_step_3_params.intoRustString(); rustString.isOwned = false; return rustString.ptr }())
+        })
+    }
+    class CbWrapper$FFIAccountClient$finalize_sign_message {
+        var cb: (Result<RustString, Error>) -> ()
+    
+        public init(cb: @escaping (Result<RustString, Error>) -> ()) {
+            self.cb = cb
+        }
+    }
+
     public func send_transactions<GenericIntoRustString: IntoRustString>(_ _transactions: RustVec<GenericIntoRustString>) async throws -> RustString {
         func onComplete(cbWrapperPtr: UnsafeMutableRawPointer?, rustFnRetVal: __swift_bridge__$ResultStringAndFFIError) {
             let wrapper = Unmanaged<CbWrapper$FFIAccountClient$send_transactions>.fromOpaque(cbWrapperPtr!).takeRetainedValue()
