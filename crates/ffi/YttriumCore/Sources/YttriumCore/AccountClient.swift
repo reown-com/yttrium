@@ -19,7 +19,14 @@ public struct PreparedSignMessage: Codable {
 }
 
 public final class AccountClient: AccountClientProtocol {
-    
+    struct Errors: LocalizedError {
+        let message: String
+
+        var errorDescription: String? {
+            return message
+        }
+    }
+
     public let ownerAddress: String
     
     public let chainId: Int
@@ -154,7 +161,17 @@ public final class AccountClient: AccountClientProtocol {
 
         let rustSignatures = createRustVec(from: jsonSignatures)
 
-        return try await coreAccountClient.do_send_transaction(rustSignatures, RustString(params)).toString()
+        do {
+            return try await coreAccountClient.do_send_transaction(rustSignatures, RustString(params)).toString()
+        } catch let ffiError as FFIError {
+            switch ffiError {
+            case .Unknown(let x):
+                let errorMessage = x.toString()
+                throw Errors(message: errorMessage)
+            }
+        } catch {
+            throw error
+        }
     }
 
     public func sendTransactions(_ transactions: [Transaction]) async throws -> String {
