@@ -19,8 +19,8 @@ swift-bridge = { git = "https://github.com/wooden-worm/swift-bridge.git", branch
     "async",
 ] }
 yttrium = { path = "../yttrium" }
-erc6492 = { git = "https://github.com/reown-com/erc6492.git", branch = "main" }
-alloy = { version = "0.3.6" }
+erc6492.workspace = true
+alloy.workspace = true
 
 # Errors
 eyre.workspace = true
