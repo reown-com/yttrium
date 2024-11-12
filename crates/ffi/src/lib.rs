@@ -117,6 +117,12 @@ mod ffi {
             _signatures: Vec<String>,
         ) -> Result<String, FFIError>;
 
+        pub async fn finalize_sign_message(
+            &self,
+            signatures: Vec<String>,
+            sign_step_3_params: String,
+        ) -> Result<String, FFIError>;
+
         pub async fn send_transactions(
             &self,
             _transactions: Vec<String>,

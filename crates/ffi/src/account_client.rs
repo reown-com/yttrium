@@ -11,7 +11,7 @@ use alloy::sol_types::SolStruct;
 use std::str::FromStr;
 use yttrium::smart_accounts::safe::SignOutputEnum;
 use yttrium::transaction::send::safe_test::{
-    Address, OwnerSignature, Signature,
+    Address, OwnerSignature, PrimitiveSignature,
 };
 use yttrium::{
     account_client::{AccountClient, SignerType},
@@ -161,7 +161,7 @@ impl FFIAccountClient {
                     .map_err(|e| FFIError::Unknown(e.to_string()))?,
                 signature: signature
                     .signature
-                    .parse::<Signature>()
+                    .parse::<PrimitiveSignature>()
                     .map_err(|e| FFIError::Unknown(e.to_string()))?,
             });
         }
@@ -224,7 +224,7 @@ impl FFIAccountClient {
                     .map_err(|e| FFIError::Unknown(e.to_string()))?,
                 signature: signature
                     .signature
-                    .parse::<Signature>()
+                    .parse::<PrimitiveSignature>()
                     .map_err(|e| FFIError::Unknown(e.to_string()))?,
             });
         }
@@ -335,7 +335,7 @@ impl FFIAccountClient {
                     .map_err(|e| FFIError::Unknown(e.to_string()))?,
                 signature: signature
                     .signature
-                    .parse::<Signature>()
+                    .parse::<PrimitiveSignature>()
                     .map_err(|e| FFIError::Unknown(e.to_string()))?,
             });
         }

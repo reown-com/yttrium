@@ -14,8 +14,19 @@ public struct PreparedSendTransaction: Codable {
     public var doSendTransactionParams: String
 }
 
+public struct PreparedSignMessage: Codable {
+    let hash: String
+}
+
 public final class AccountClient: AccountClientProtocol {
-    
+    struct Errors: LocalizedError {
+        let message: String
+
+        var errorDescription: String? {
+            return message
+        }
+    }
+
     public let ownerAddress: String
     
     public let chainId: Int
@@ -23,7 +34,7 @@ public final class AccountClient: AccountClientProtocol {
     private let entryPoint: String
     
     private let coreAccountClient: FFIAccountClient
-    
+
     public convenience init(
         ownerAddress: String,
         entryPoint: String,
@@ -81,7 +92,7 @@ public final class AccountClient: AccountClientProtocol {
         self.chainId = chainId
         self.entryPoint = entryPoint
         self.coreAccountClient = FFIAccountClient(ffiConfig)
-        
+
         register(signer: signer)
     }
     
@@ -130,11 +141,21 @@ public final class AccountClient: AccountClientProtocol {
 
         let rustVec = createRustVec(from: jsonStrings)
 
-        let ffiPreparedSendTransaction =  try await coreAccountClient.prepare_send_transactions(rustVec)
-        return PreparedSendTransaction(
-            hash: ffiPreparedSendTransaction.hash.toString(),
-            doSendTransactionParams: ffiPreparedSendTransaction.do_send_transaction_params.toString()
-        )
+        do {
+            let ffiPreparedSendTransaction = try await coreAccountClient.prepare_send_transactions(rustVec)
+            return PreparedSendTransaction(
+                hash: ffiPreparedSendTransaction.hash.toString(),
+                doSendTransactionParams: ffiPreparedSendTransaction.do_send_transaction_params.toString()
+            )
+        } catch let ffiError as FFIError {
+            switch ffiError {
+            case .Unknown(let x):
+                let errorMessage = x.toString()
+                throw Errors(message: errorMessage)
+            }
+        } catch {
+            throw error
+        }
     }
 
     public func doSendTransaction(signatures: [OwnerSignature], params: String) async throws -> String {
@@ -150,7 +171,17 @@ public final class AccountClient: AccountClientProtocol {
 
         let rustSignatures = createRustVec(from: jsonSignatures)
 
-        return try await coreAccountClient.do_send_transaction(rustSignatures, RustString(params)).toString()
+        do {
+            return try await coreAccountClient.do_send_transaction(rustSignatures, RustString(params)).toString()
+        } catch let ffiError as FFIError {
+            switch ffiError {
+            case .Unknown(let x):
+                let errorMessage = x.toString()
+                throw Errors(message: errorMessage)
+            }
+        } catch {
+            throw error
+        }
     }
 
     public func sendTransactions(_ transactions: [Transaction]) async throws -> String {
@@ -168,7 +199,53 @@ public final class AccountClient: AccountClientProtocol {
 
         return try await coreAccountClient.send_transactions(rustVec).toString()
     }
-        
+
+    public func prepareSignMessage(_ messageHash: String) async throws -> PreparedSignMessage {
+        let messageHash = messageHash.intoRustString()
+        do {
+            let ffiPrepareSignMessage = try await coreAccountClient.prepare_sign_message(messageHash)
+            return PreparedSignMessage(hash: ffiPrepareSignMessage.hash.toString())
+        } catch let ffiError as FFIError {
+            switch ffiError {
+            case .Unknown(let x):
+                let errorMessage = x.toString()
+                throw Errors(message: errorMessage)
+            }
+        } catch {
+            throw error
+        }
+    }
+
+    public func doSignMessage(_ signatures: [String]) async throws -> String {
+        let rustSignatures = createRustVec(from: signatures)
+        do {
+            return try await coreAccountClient.do_sign_message(rustSignatures).toString()
+        } catch let ffiError as FFIError {
+            switch ffiError {
+            case .Unknown(let x):
+                let errorMessage = x.toString()
+                throw Errors(message: errorMessage)
+            }
+        } catch {
+            throw error
+        }
+    }
+
+    public func finalizeSignMessage(_ signatures: [String], signStep3Params: String) async throws -> String {
+        let rustSignatures = createRustVec(from: signatures)
+        do {
+            return try await coreAccountClient.finalize_sign_message(rustSignatures, signStep3Params.intoRustString()).toString()
+        } catch let ffiError as FFIError {
+            switch ffiError {
+            case .Unknown(let x):
+                let errorMessage = x.toString()
+                throw Errors(message: errorMessage)
+            }
+        } catch {
+            throw error
+        }
+    }
+
     private func createRustVec(from strings: [String]) -> RustVec<RustString> {
         let rustVec = RustVec<RustString>()
 
@@ -199,20 +276,28 @@ public final class AccountClient: AccountClientProtocol {
         .toString()
     }
 
-    public func waitForUserOperationReceipt(
-        userOperationHash: String
-    ) async throws -> UserOperationReceipt {
-        let jsonString = try await coreAccountClient
-            .wait_for_user_operation_receipt(
-                userOperationHash.intoRustString()
+    public func waitForUserOperationReceipt(userOperationHash: String) async throws -> UserOperationReceipt {
+        do {
+            let jsonString = try await coreAccountClient
+                .wait_for_user_operation_receipt(
+                    userOperationHash.intoRustString()
+                )
+                .toString()
+            let jsonData = Data(jsonString.utf8)
+            let receipt = try JSONDecoder().decode(
+                UserOperationReceipt.self,
+                from: jsonData
             )
-            .toString()
-        let jsonData = Data(jsonString.utf8)
-        let receipt = try JSONDecoder().decode(
-            UserOperationReceipt.self,
-            from: jsonData
-        )
-        return receipt
+            return receipt
+        } catch let ffiError as FFIError {
+            switch ffiError {
+            case .Unknown(let x):
+                let errorMessage = x.toString()
+                throw Errors(message: errorMessage)
+            }
+        } catch {
+            throw error
+        }
     }
-}
 
+}

@@ -39,8 +39,8 @@ pub struct Authorization {
     pub chain_id: u64,
     pub nonce: u64,
     pub y_parity: u8,
-    pub r: String,
-    pub s: String,
+    pub r: U256,
+    pub s: U256,
 }
 
 #[derive(

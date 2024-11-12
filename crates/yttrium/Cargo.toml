@@ -14,7 +14,7 @@ test_pimlico_api = []
 uniffi = { version = "0.28.1", optional = true }
 uniffi_macros = { version = "0.28.1", optional = true }
 # Ethereum
-alloy = { version = "0.3.6", features = [
+alloy = { workspace = true, features = [
     "contract",
     "network",
     "providers",
@@ -23,8 +23,9 @@ alloy = { version = "0.3.6", features = [
     "signer-mnemonic",
     "eip712",
 ] }
-alloy-provider = { version = "0.3.6", features = ["erc4337-api"] }
-erc6492 = { git = "https://github.com/reown-com/erc6492.git", branch = "main" }
+alloy-provider = { workspace = true, features = ["erc4337-api"] }
+erc6492.workspace = true
+
 # foundry-block-explorers = "0.2.3"
 getrandom = { version = "0.2", features = ["js"] }
 
@@ -58,6 +59,3 @@ wiremock = "0.6.0"
 
 # Networking
 reqwest.workspace = true
-
-[build-dependencies]
-serde_json = "1"

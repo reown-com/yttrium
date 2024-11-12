@@ -121,11 +121,11 @@ impl Signer {
 
 impl<S> From<S> for Signer
 where
-    S: alloy::signers::SignerSync<alloy::signers::Signature>
+    S: alloy::signers::SignerSync<alloy::primitives::PrimitiveSignature>
         + Send
         + Sync
         + 'static,
-    S: alloy::signers::Signer<alloy::signers::Signature>
+    S: alloy::signers::Signer<alloy::primitives::PrimitiveSignature>
         + Send
         + Sync
         + 'static,

@@ -441,10 +441,10 @@ where
 }
 
 pub use alloy::primitives::Address;
-pub use alloy::primitives::Signature;
+pub use alloy::primitives::PrimitiveSignature;
 pub struct OwnerSignature {
     pub owner: Address,
-    pub signature: Signature,
+    pub signature: PrimitiveSignature,
 }
 
 pub async fn encode_send_transactions(
@@ -518,9 +518,9 @@ mod tests {
         test_helpers::{self, use_faucet},
         transaction::Transaction,
     };
+    use alloy::network::{TransactionBuilder, TransactionBuilder7702};
+    use alloy::rpc::types::TransactionRequest;
     use alloy::{
-        consensus::{SignableTransaction, TxEip7702},
-        network::TxSignerSync,
         primitives::{eip191_hash_message, fixed_bytes, U160, U64},
         providers::{ext::AnvilApi, PendingTransactionConfig},
         sol,
@@ -1260,7 +1260,7 @@ mod tests {
 
         let chain_id = ChainId::ETHEREUM_SEPOLIA.eip155_chain_id();
         let auth_7702 = alloy::rpc::types::Authorization {
-            chain_id: U256::from(chain_id),
+            chain_id,
             address: contract_address.into(),
             nonce: provider.get_transaction_count(authority.address()).await?,
         };
@@ -1275,15 +1275,9 @@ mod tests {
                 U64::from(auth.chain_id).to_be_bytes(),
             ),
             nonce: auth.nonce,
-            y_parity: auth.signature().v().y_parity_byte(),
-            r: format!(
-                "0x{}",
-                hex::encode(auth.signature().r().to_be_bytes_vec())
-            ),
-            s: format!(
-                "0x{}",
-                hex::encode(auth.signature().s().to_be_bytes_vec())
-            ),
+            y_parity: auth.y_parity(),
+            r: auth.r(),
+            s: auth.s(),
         }];
 
         let transaction = vec![];
@@ -1392,7 +1386,7 @@ mod tests {
 
         let chain_id = ChainId::ETHEREUM_SEPOLIA.eip155_chain_id();
         let auth_7702 = alloy::rpc::types::Authorization {
-            chain_id: U256::from(chain_id),
+            chain_id,
             address: contract_address.into(),
             nonce: provider.get_transaction_count(authority.address()).await?,
         };
@@ -1402,35 +1396,43 @@ mod tests {
         let auth = auth_7702.into_signed(sig);
 
         // Estimate the EIP1559 fees
-        let eip1559_est = provider.estimate_eip1559_fees(None).await?;
+        // let eip1559_est = provider.estimate_eip1559_fees(None).await?;
 
         // Build the transaction
         // let sender = authority.clone(); // The one sending the txn can be
         // different form the EOA being delgated
         let sender = LocalSigner::random();
         provider.anvil_set_balance(sender.address(), U256::MAX).await?;
-        let mut tx = TxEip7702 {
-            to: dummy_contract_address,
-            authorization_list: vec![auth],
-            input: dummy_contract_calldata,
-            nonce: provider.get_transaction_count(sender.address()).await?,
-            chain_id,
-            gas_limit: 1000000,
-            max_fee_per_gas: eip1559_est.max_fee_per_gas,
-            max_priority_fee_per_gas: eip1559_est.max_priority_fee_per_gas,
-            ..Default::default()
-        };
+
+        let tx = TransactionRequest::default()
+            .with_to(dummy_contract_address)
+            .with_authorization_list(vec![auth])
+            .with_input(dummy_contract_calldata);
+        // let mut tx = TxEip7702 {
+        //     to: dummy_contract_address,
+        //     authorization_list: vec![auth],
+        //     input: dummy_contract_calldata,
+        //     nonce: provider.get_transaction_count(sender.address()).await?,
+        //     chain_id,
+        //     gas_limit: 1000000,
+        //     max_fee_per_gas: eip1559_est.max_fee_per_gas,
+        //     max_priority_fee_per_gas: eip1559_est.max_priority_fee_per_gas,
+        //     ..Default::default()
+        // };
 
         // Sign and Encode the transaction
-        let sig = sender.sign_transaction_sync(&mut tx)?;
-        let tx = tx.into_signed(sig);
-        let mut encoded = Vec::new();
-        tx.tx().encode_with_signature(tx.signature(), &mut encoded, false);
-        let receipt = provider
-            .send_raw_transaction(&encoded)
-            .await?
-            .get_receipt()
-            .await?;
+        // let sig = sender.sign_transaction_sync(&mut tx)?;
+        // let tx = tx.into_signed(sig);
+        // let mut encoded = Vec::new();
+        // tx.tx().encode_with_signature(tx.signature(), &mut encoded, false);
+        // let receipt = provider
+        //     .send_raw_transaction(&encoded)
+        //     .await?
+        //     .get_receipt()
+        //     .await?;
+
+        let receipt =
+            provider.send_transaction(tx).await?.get_receipt().await?;
 
         assert!(receipt.status());
         assert_eq!(receipt.inner.logs().len(), 1);
