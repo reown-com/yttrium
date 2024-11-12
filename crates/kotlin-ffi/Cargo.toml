@@ -15,8 +15,9 @@ yttrium = { path = "../yttrium", features = ["uniffi"] }
 uniffi = { version = "0.28.1", features = ["tokio", "cli"] }
 openssl = { version = "0.10", features = ["vendored"] }
 openssl-sys = { version = "0.9.103", features = ["vendored"] }
-erc6492 = { git = "https://github.com/reown-com/erc6492.git", branch = "main" }
-alloy = { version = "0.3.6" }
+erc6492.workspace = true
+alloy.workspace = true
+
 
 # Errors
 eyre.workspace = true
