@@ -2,9 +2,8 @@ use super::ffi;
 use super::ffi::{FFIAccountClientConfig, FFIError};
 use crate::{
     ffi::{
-        FFIOwnerSignature, FFIPreparedSendTransaction, FFIPreparedSignature,
-    },
-    FFIPreparedSign, FFIPreparedSignStep3,
+        FFIOwnerSignature, FFIPreparedSendTransaction, FFIPreparedSignature, FFIPreparedSign, FFIPreparedSignStep3,
+    }
 };
 use alloy::primitives::B256;
 use alloy::sol_types::SolStruct;
@@ -136,12 +135,12 @@ impl FFIAccountClient {
     pub async fn do_sign_message(
         &self,
         signatures: Vec<String>,
-    ) -> Result<String, FFIError> {
+    ) -> Result<FFIPreparedSign, FFIError> {
         let signatures: Result<Vec<FFIOwnerSignature>, _> = signatures
             .into_iter()
             .map(|json| serde_json::from_str::<FFIOwnerSignature>(&json))
             .collect();
-
+    
         let signatures = match signatures {
             Ok(sigs) => sigs,
             Err(e) => {
@@ -151,7 +150,7 @@ impl FFIAccountClient {
                 )));
             }
         };
-
+    
         let mut signatures2 = Vec::with_capacity(signatures.len());
         for signature in signatures {
             signatures2.push(OwnerSignature {
@@ -165,34 +164,30 @@ impl FFIAccountClient {
                     .map_err(|e| FFIError::Unknown(e.to_string()))?,
             });
         }
-
+    
         let result = self
             .account_client
             .do_sign_message(signatures2)
             .await
             .map_err(|e| FFIError::Unknown(e.to_string()))?;
-
+    
         let ffi_output = match result {
             SignOutputEnum::Signature(signature) => FFIPreparedSign {
-                signature: Some(signature),
+                signature: signature.to_string(),  
                 sign_step_3: None,
             },
             SignOutputEnum::SignOutput(so) => FFIPreparedSign {
-                signature: None,
+                signature: "".to_string(),
                 sign_step_3: Some(FFIPreparedSignStep3 {
-                    hash: so.to_sign.hash,
-                    sign_step_3_params: serde_json::to_string(
-                        &so.sign_step_3_params,
-                    )
-                    .map_err(|e| FFIError::Unknown(e.to_string()))?,
+                    hash: so.to_sign.hash.to_string(),  // Convert `B256` to `String`
+                    sign_step_3_params: serde_json::to_string(&so.sign_step_3_params)
+                        .map_err(|e| FFIError::Unknown(e.to_string()))?,
                 }),
             },
         };
-
-        let serialized = serde_json::to_string(&ffi_output)
-            .map_err(|e| FFIError::Unknown(e.to_string()))?;
-
-        Ok(serialized)
+    
+        // Return the `FFIPreparedSign` struct directly
+        Ok(ffi_output)
     }
 
     pub async fn finalize_sign_message(

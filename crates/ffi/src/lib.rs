@@ -13,18 +13,6 @@ pub mod erc6492_client;
 pub mod error;
 pub mod log;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct FFIPreparedSign {
-    pub signature: Option<Bytes>,
-    pub sign_step_3: Option<FFIPreparedSignStep3>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct FFIPreparedSignStep3 {
-    pub hash: B256,
-    pub sign_step_3_params: String,
-}
-
 #[allow(non_camel_case_types)]
 #[swift_bridge::bridge]
 mod ffi {
@@ -34,6 +22,20 @@ mod ffi {
         pub _to: String,
         pub _value: String,
         pub _data: String,
+    }
+
+    #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+    #[swift_bridge(swift_repr = "struct")]
+    pub struct FFIPreparedSign {
+        pub signature: String,
+        pub sign_step_3: Option<FFIPreparedSignStep3>,
+    }
+
+    #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+    #[swift_bridge(swift_repr = "struct")]
+    pub struct FFIPreparedSignStep3 {
+        pub hash: String,
+        pub sign_step_3_params: String,
     }
 
     #[derive(Debug, Clone)]
@@ -115,7 +117,7 @@ mod ffi {
         pub async fn do_sign_message(
             &self,
             _signatures: Vec<String>,
-        ) -> Result<String, FFIError>;
+        ) -> Result<FFIPreparedSign, FFIError>;
 
         pub async fn finalize_sign_message(
             &self,
