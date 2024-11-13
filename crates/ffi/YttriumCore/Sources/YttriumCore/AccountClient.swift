@@ -15,7 +15,7 @@ public struct PreparedSendTransaction: Codable {
 }
 
 public struct PreparedSignMessage: Codable {
-    let hash: String
+    public let hash: String
 }
 
 public final class AccountClient: AccountClientProtocol {
