@@ -15,14 +15,16 @@ pub struct RouteRequest {
     pub transaction: Transaction,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, uniffi::Record)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
 #[serde(rename_all = "camelCase")]
 pub struct Metadata {
     pub funding_from: Vec<FundingMetadata>,
     pub check_in: u32,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, uniffi::Record)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
 #[serde(rename_all = "camelCase")]
 pub struct FundingMetadata {
     pub chain_id: String,
@@ -31,7 +33,8 @@ pub struct FundingMetadata {
     pub amount: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, uniffi::Record)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
 #[serde(rename_all = "camelCase")]
 pub struct RouteResponseAvailable {
     pub orchestration_id: String,
@@ -39,17 +42,20 @@ pub struct RouteResponseAvailable {
     pub metadata: Metadata,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, uniffi::Record)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
 pub struct Empty;
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize,  uniffi::Record)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
 #[serde(rename_all = "camelCase")]
 pub struct RouteResponseNotRequired {
     #[serde(rename = "transactions")]
     _flag: Empty,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize,  uniffi::Enum)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Enum))]
 #[serde(untagged)]
 pub enum RouteResponseSuccess {
     Available(RouteResponseAvailable),
@@ -67,12 +73,14 @@ impl RouteResponseSuccess {
 
 /// Bridging check error response that should be returned as a normal HTTP 200
 /// response
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, uniffi::Record)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
 pub struct RouteResponseError {
     pub error: BridgingError,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, uniffi::Enum)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Enum))]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum BridgingError {
     NoRoutesAvailable,
@@ -80,7 +88,8 @@ pub enum BridgingError {
     InsufficientGasFunds,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, uniffi::Enum)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Enum))]
 #[serde(untagged)]
 pub enum RouteResponse {
     Success(RouteResponseSuccess),

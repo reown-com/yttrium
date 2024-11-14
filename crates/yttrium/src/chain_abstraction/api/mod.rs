@@ -3,7 +3,8 @@ use serde::{Deserialize, Serialize};
 pub mod route;
 pub mod status;
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, uniffi::Record)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
 #[serde(rename_all = "camelCase")]
 pub struct Transaction {
     pub from: String,
