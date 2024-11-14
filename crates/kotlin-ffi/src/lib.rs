@@ -1,5 +1,10 @@
 uniffi::setup_scaffolding!();
 
+use yttrium::chain_abstraction::api::route::RouteResponse;
+use yttrium::chain_abstraction::api::status::StatusResponse;
+use yttrium::chain_abstraction::api::Transaction as CATransaction;
+
+use yttrium::chain_abstraction::client::Client;
 use yttrium::config::Config;
 use yttrium::transaction::send::safe_test::{
     Address, OwnerSignature as YOwnerSignature, PrimitiveSignature,
@@ -10,13 +15,8 @@ use yttrium::{
     sign_service::address_from_string,
     transaction::Transaction as YTransaction,
 };
+use relay_rpc::domain::ProjectId;
 
-#[derive(uniffi::Object)]
-pub struct AccountClient {
-    pub owner_address: String,
-    pub chain_id: u64,
-    account_client: YAccountClient,
-}
 
 #[derive(uniffi::Record)]
 pub struct AccountClientConfig {
@@ -36,6 +36,20 @@ pub struct Transaction {
 }
 
 #[derive(uniffi::Record)]
+pub struct InitTransaction {
+    pub from: String,
+    pub to: String,
+    pub value: String,
+    pub gas: String,
+    pub gas_price: String,
+    pub data: String,
+    pub nonce: String,
+    pub max_fee_per_gas: String,
+    pub max_priority_fee_per_gas: String,
+    pub chain_id: String,
+}
+
+#[derive(uniffi::Record)]
 pub struct PreparedSendTransaction {
     pub hash: String,
     pub do_send_transaction_params: String,
@@ -49,9 +63,60 @@ pub struct OwnerSignature {
 
 #[derive(Debug, thiserror::Error, uniffi::Error)]
 pub enum Error {
-    #[error("Unknown {0}")]
-    Unknown(String),
+    #[error("General {0}")]
+    General(String),
 }
+
+#[derive(uniffi::Object)]
+pub struct AccountClient {
+    pub owner_address: String,
+    pub chain_id: u64,
+    account_client: YAccountClient,
+}
+
+#[derive(uniffi::Object)]
+pub struct ChainAbstractionClient {
+    pub project_id: String,
+    client: Client
+}
+
+#[uniffi::export(async_runtime = "tokio")]
+impl ChainAbstractionClient {
+
+    #[uniffi::constructor]
+    pub fn new(project_id: String) -> Self {
+        let client = Client::new(ProjectId::from(project_id.clone()));
+        Self {
+            project_id: project_id,
+            client
+        }
+    }
+
+    pub async fn route(
+        &self,
+        transaction: InitTransaction,
+    ) -> Result<RouteResponse, Error> {
+        let ca_transaction = CATransaction::from(transaction);
+
+        Ok(self
+        .client
+        .route(ca_transaction)
+        .await
+        .map_err(|e| Error::General(e.to_string()))?)
+    }
+
+    pub async fn status(
+        &self,
+        orchestration_id: String,
+    ) -> Result<StatusResponse, Error> {
+        Ok(self
+            .client
+            .status(orchestration_id)
+            .await
+            .map_err(|e| Error::General(e.to_string()))?)
+    }
+}
+
 
 #[uniffi::export(async_runtime = "tokio")]
 impl AccountClient {
@@ -92,7 +157,7 @@ impl AccountClient {
         self.account_client
             .get_address()
             .await
-            .map_err(|e| Error::Unknown(e.to_string()))
+            .map_err(|e| Error::General(e.to_string()))
     }
 
     pub async fn send_transactions(
@@ -106,7 +171,7 @@ impl AccountClient {
             .account_client
             .send_transactions(ytransactions)
             .await
-            .map_err(|e| Error::Unknown(e.to_string()))?
+            .map_err(|e| Error::General(e.to_string()))?
             .to_string())
     }
 
@@ -121,14 +186,14 @@ impl AccountClient {
             .account_client
             .prepare_send_transactions(ytransactions)
             .await
-            .map_err(|e| Error::Unknown(e.to_string()))?;
+            .map_err(|e| Error::General(e.to_string()))?;
 
         Ok(PreparedSendTransaction {
             hash: prepared_send_transaction.hash.to_string(),
             do_send_transaction_params: serde_json::to_string(
                 &prepared_send_transaction.do_send_transaction_params,
             )
-            .map_err(|e| Error::Unknown(e.to_string()))?,
+            .map_err(|e| Error::General(e.to_string()))?,
         })
     }
 
@@ -145,11 +210,11 @@ impl AccountClient {
                 owner: signature
                     .owner
                     .parse::<Address>()
-                    .map_err(|e| Error::Unknown(e.to_string()))?,
+                    .map_err(|e| Error::General(e.to_string()))?,
                 signature: signature
                     .signature
                     .parse::<PrimitiveSignature>()
-                    .map_err(|e| Error::Unknown(e.to_string()))?,
+                    .map_err(|e| Error::General(e.to_string()))?,
             });
         }
 
@@ -158,10 +223,10 @@ impl AccountClient {
             .do_send_transactions(
                 signatures2,
                 serde_json::from_str(&do_send_transaction_params)
-                    .map_err(|e| Error::Unknown(e.to_string()))?,
+                    .map_err(|e| Error::General(e.to_string()))?,
             )
             .await
-            .map_err(|e| Error::Unknown(e.to_string()))?
+            .map_err(|e| Error::General(e.to_string()))?
             .to_string())
     }
 
@@ -172,7 +237,7 @@ impl AccountClient {
     ) -> Result<String, Error> {
         self.account_client
             .sign_message_with_mnemonic(message, mnemonic)
-            .map_err(|e| Error::Unknown(e.to_string()))
+            .map_err(|e| Error::General(e.to_string()))
     }
 
     pub async fn wait_for_user_operation_receipt(
@@ -182,14 +247,14 @@ impl AccountClient {
         self.account_client
             .wait_for_user_operation_receipt(
                 user_operation_hash.parse().map_err(|e| {
-                    Error::Unknown(format!("Parsing user_operation_hash: {e}"))
+                    Error::General(format!("Parsing user_operation_hash: {e}"))
                 })?,
             )
             .await
             .iter()
             .map(serde_json::to_string)
             .collect::<Result<String, serde_json::Error>>()
-            .map_err(|e| Error::Unknown(e.to_string()))
+            .map_err(|e| Error::General(e.to_string()))
     }
 }
 
@@ -201,5 +266,22 @@ impl From<Transaction> for YTransaction {
             transaction.data,
         )
         .unwrap()
+    }
+}
+
+impl From<InitTransaction> for CATransaction {
+    fn from(source: InitTransaction) -> Self {
+        CATransaction {
+            from: source.from,
+            to: source.to,
+            value: source.value,
+            gas: source.gas,
+            gas_price: source.gas_price,
+            data: source.data,
+            nonce: source.nonce,
+            max_fee_per_gas: source.max_fee_per_gas,
+            max_priority_fee_per_gas: source.max_priority_fee_per_gas,
+            chain_id: source.chain_id
+        }
     }
 }

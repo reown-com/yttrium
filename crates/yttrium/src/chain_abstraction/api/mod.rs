@@ -1,14 +1,13 @@
-use alloy::primitives::Address;
 use serde::{Deserialize, Serialize};
 
 pub mod route;
 pub mod status;
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, uniffi::Record)]
 #[serde(rename_all = "camelCase")]
 pub struct Transaction {
-    pub from: Address,
-    pub to: Address,
+    pub from: String,
+    pub to: String,
     pub value: String,
     pub gas: String,
     pub gas_price: String,

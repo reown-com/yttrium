@@ -30,3 +30,4 @@ Utilities/InstalledSwiftPMConfiguration/config.json
 /crates/kotlin-ffi/jniLibs
 /crates/kotlin-ffi/bindings/com/reown/kotlin/ffi/yttrium
 /kotlin-bindings
+/yttrium/kotlin-bindings
