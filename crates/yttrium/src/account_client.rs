@@ -299,7 +299,7 @@ impl AccountClient {
 }
 
 pub async fn get_address_with_signer(
-    owner: String,
+    owner_address: String,
     chain_id: u64,
     config: Config,
     signer: Signer,
@@ -314,7 +314,7 @@ pub async fn get_address_with_signer(
             let private_key_signer: PrivateKeySigner =
                 private_key_signer_key.parse().unwrap();
             get_address_with_private_key_signer(
-                owner,
+                owner_address,
                 chain_id,
                 config,
                 private_key_signer,
@@ -332,7 +332,7 @@ pub async fn get_address_with_signer(
 }
 
 pub async fn get_address_with_private_key_signer(
-    _owner: String,
+    owner_address: String,
     chain_id: u64,
     config: Config,
     signer: PrivateKeySigner,
@@ -341,7 +341,7 @@ pub async fn get_address_with_private_key_signer(
     use crate::smart_accounts::simple_account::sender_address::get_sender_address_with_signer;
 
     let sender_address = if safe {
-        safe_test::get_address(signer, config).await?
+        safe_test::get_address(owner_address, config).await?
     } else {
         get_sender_address_with_signer(config, chain_id, signer).await?
     };
