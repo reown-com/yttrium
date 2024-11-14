@@ -24,8 +24,8 @@ public enum PreparedSign: Codable {
 }
 
 public struct PreparedSignStep3: Codable {
-    let hash: String
-    let signStep3Params: String
+    public let hash: String
+    public let signStep3Params: String
 }
 
 public final class AccountClient: AccountClientProtocol {
