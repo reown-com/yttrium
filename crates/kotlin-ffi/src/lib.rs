@@ -87,7 +87,7 @@ impl ChainAbstractionClient {
     pub fn new(project_id: String) -> Self {
         let client = Client::new(ProjectId::from(project_id.clone()));
         Self {
-            project_id: project_id,
+            project_id,
             client
         }
     }
