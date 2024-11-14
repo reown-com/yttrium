@@ -4,6 +4,7 @@ use yttrium::chain_abstraction::api::route::RouteResponse;
 use yttrium::chain_abstraction::api::status::StatusResponse;
 use yttrium::chain_abstraction::api::Transaction as CATransaction;
 
+use relay_rpc::domain::ProjectId;
 use yttrium::chain_abstraction::client::Client;
 use yttrium::config::Config;
 use yttrium::transaction::send::safe_test::{
@@ -15,8 +16,6 @@ use yttrium::{
     sign_service::address_from_string,
     transaction::Transaction as YTransaction,
 };
-use relay_rpc::domain::ProjectId;
-
 
 #[derive(uniffi::Record)]
 pub struct AccountClientConfig {
@@ -77,19 +76,15 @@ pub struct AccountClient {
 #[derive(uniffi::Object)]
 pub struct ChainAbstractionClient {
     pub project_id: String,
-    client: Client
+    client: Client,
 }
 
 #[uniffi::export(async_runtime = "tokio")]
 impl ChainAbstractionClient {
-
     #[uniffi::constructor]
     pub fn new(project_id: String) -> Self {
         let client = Client::new(ProjectId::from(project_id.clone()));
-        Self {
-            project_id,
-            client
-        }
+        Self { project_id, client }
     }
 
     pub async fn route(
@@ -97,25 +92,22 @@ impl ChainAbstractionClient {
         transaction: InitTransaction,
     ) -> Result<RouteResponse, Error> {
         let ca_transaction = CATransaction::from(transaction);
-        self
-        .client
-        .route(ca_transaction)
-        .await
-        .map_err(|e| Error::General(e.to_string()))
+        self.client
+            .route(ca_transaction)
+            .await
+            .map_err(|e| Error::General(e.to_string()))
     }
 
     pub async fn status(
         &self,
         orchestration_id: String,
     ) -> Result<StatusResponse, Error> {
-        self
-            .client
+        self.client
             .status(orchestration_id)
             .await
             .map_err(|e| Error::General(e.to_string()))
     }
 }
-
 
 #[uniffi::export(async_runtime = "tokio")]
 impl AccountClient {
@@ -280,7 +272,7 @@ impl From<InitTransaction> for CATransaction {
             nonce: source.nonce,
             max_fee_per_gas: source.max_fee_per_gas,
             max_priority_fee_per_gas: source.max_priority_fee_per_gas,
-            chain_id: source.chain_id
+            chain_id: source.chain_id,
         }
     }
 }
