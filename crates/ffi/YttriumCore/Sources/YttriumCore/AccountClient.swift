@@ -18,6 +18,16 @@ public struct PreparedSignMessage: Codable {
     public let hash: String
 }
 
+public enum PreparedSign: Codable {
+    case signature(String)
+    case signStep3(PreparedSignStep3)
+}
+
+public struct PreparedSignStep3: Codable {
+    let hash: String
+    let signStep3Params: String
+}
+
 public final class AccountClient: AccountClientProtocol {
     struct Errors: LocalizedError {
         let message: String
@@ -216,10 +226,26 @@ public final class AccountClient: AccountClientProtocol {
         }
     }
 
-    public func doSignMessage(_ signatures: [String]) async throws -> String {
+    public func doSignMessage(_ signatures: [String]) async throws -> PreparedSign {
         let rustSignatures = createRustVec(from: signatures)
         do {
-            return try await coreAccountClient.do_sign_message(rustSignatures).toString()
+            let ffi = try await coreAccountClient.do_sign_message(rustSignatures)
+
+            // Convert fields from `FFIPreparedSign`
+            let signature = ffi.signature.toString().isEmpty ? nil : ffi.signature.toString()
+            let hash = ffi.hash.toString().isEmpty ? nil : ffi.hash.toString()
+            let signStep3Params = ffi.sign_step_3_params.toString().isEmpty ? nil : ffi.sign_step_3_params.toString()
+
+            // Decide which case of `PreparedSign` to return
+            if let signature = signature {
+                return .signature(signature)
+            } else if let hash = hash, let params = signStep3Params {
+                let signStep3 = PreparedSignStep3(hash: hash, signStep3Params: params)
+                return .signStep3(signStep3)
+            } else {
+                throw Errors(message: "Unexpected data: both signature and signStep3Params are empty.")
+            }
+
         } catch let ffiError as FFIError {
             switch ffiError {
             case .Unknown(let x):

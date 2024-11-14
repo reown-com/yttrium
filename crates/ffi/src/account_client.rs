@@ -2,7 +2,7 @@ use super::ffi;
 use super::ffi::{FFIAccountClientConfig, FFIError};
 use crate::{
     ffi::{
-        FFIOwnerSignature, FFIPreparedSendTransaction, FFIPreparedSignature, FFIPreparedSign, FFIPreparedSignStep3,
+        FFIOwnerSignature, FFIPreparedSendTransaction, FFIPreparedSignature, FFIPreparedSign,
     }
 };
 use alloy::primitives::B256;
@@ -166,28 +166,28 @@ impl FFIAccountClient {
         }
     
         let result = self
-            .account_client
-            .do_sign_message(signatures2)
-            .await
-            .map_err(|e| FFIError::Unknown(e.to_string()))?;
+        .account_client
+        .do_sign_message(signatures2)
+        .await
+        .map_err(|e| FFIError::Unknown(e.to_string()))?;
     
-        let ffi_output = match result {
-            SignOutputEnum::Signature(signature) => FFIPreparedSign {
-                signature: signature.to_string(),  
-                sign_step_3: None,
-            },
-            SignOutputEnum::SignOutput(so) => FFIPreparedSign {
-                signature: "".to_string(),
-                sign_step_3: Some(FFIPreparedSignStep3 {
-                    hash: so.to_sign.hash.to_string(),  // Convert `B256` to `String`
-                    sign_step_3_params: serde_json::to_string(&so.sign_step_3_params)
-                        .map_err(|e| FFIError::Unknown(e.to_string()))?,
-                }),
-            },
-        };
+    // Create FFIPreparedSign based on the result
+    let ffi_output = match result {
+        SignOutputEnum::Signature(signature) => FFIPreparedSign {
+            signature: signature.to_string(),
+            hash: "".to_string(),  // Default empty hash
+            sign_step_3_params: "".to_string(),  // Default empty sign_step_3_params
+        },
+        SignOutputEnum::SignOutput(so) => FFIPreparedSign {
+            signature: "".to_string(),  // Empty signature for this case
+            hash: so.to_sign.hash.to_string(),  // Convert `B256` to `String`
+            sign_step_3_params: serde_json::to_string(&so.sign_step_3_params)
+                .map_err(|e| FFIError::Unknown(e.to_string()))?,
+        },
+    };
     
-        // Return the `FFIPreparedSign` struct directly
-        Ok(ffi_output)
+    // Return the `FFIPreparedSign` struct directly
+    Ok(ffi_output)
     }
 
     pub async fn finalize_sign_message(

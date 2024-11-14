@@ -28,14 +28,9 @@ mod ffi {
     #[swift_bridge(swift_repr = "struct")]
     pub struct FFIPreparedSign {
         pub signature: String,
-        pub sign_step_3: Option<FFIPreparedSignStep3>,
-    }
-
-    #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-    #[swift_bridge(swift_repr = "struct")]
-    pub struct FFIPreparedSignStep3 {
         pub hash: String,
         pub sign_step_3_params: String,
+
     }
 
     #[derive(Debug, Clone)]
