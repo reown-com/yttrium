@@ -97,23 +97,22 @@ impl ChainAbstractionClient {
         transaction: InitTransaction,
     ) -> Result<RouteResponse, Error> {
         let ca_transaction = CATransaction::from(transaction);
-
-        Ok(self
+        self
         .client
         .route(ca_transaction)
         .await
-        .map_err(|e| Error::General(e.to_string()))?)
+        .map_err(|e| Error::General(e.to_string()))
     }
 
     pub async fn status(
         &self,
         orchestration_id: String,
     ) -> Result<StatusResponse, Error> {
-        Ok(self
+        self
             .client
             .status(orchestration_id)
             .await
-            .map_err(|e| Error::General(e.to_string()))?)
+            .map_err(|e| Error::General(e.to_string()))
     }
 }
 
