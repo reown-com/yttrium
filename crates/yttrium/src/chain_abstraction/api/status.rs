@@ -14,23 +14,23 @@ pub struct StatusQueryParams {
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
 #[serde(rename_all = "camelCase")]
 pub struct StatusResponseSuccessPending {
-    created_at: u32,
+    created_at: u64,
     /// Polling interval in ms for the client
-    check_in: u32,
+    check_in: u64,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
 #[serde(rename_all = "camelCase")]
 pub struct StatusResponseSuccessCompleted {
-    created_at: u32,
+    created_at: u64,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
 #[serde(rename_all = "camelCase")]
 pub struct StatusResponseSuccessError {
-    created_at: u32,
+    created_at: u64,
     error_reason: String,
 }
 

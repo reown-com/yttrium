@@ -21,14 +21,8 @@ pub struct RouteRequest {
 #[serde(rename_all = "camelCase")]
 pub struct Metadata {
     pub funding_from: Vec<FundingMetadata>,
-    pub check_in: u32,
+    pub check_in: u64,
 }
-
-#[cfg(feature = "uniffi")]
-uniffi::custom_type!(Address, String, {
-    try_lift: |val| Ok(val.parse()?),
-    lower: |obj| obj.to_string(),
-});
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
