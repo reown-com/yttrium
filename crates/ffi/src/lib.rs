@@ -1,6 +1,4 @@
 #![allow(dead_code, improper_ctypes, clippy::unnecessary_cast)]
-use alloy::primitives::{Bytes, B256};
-use serde::{Deserialize, Serialize};
 
 use self::account_client::FFIAccountClient;
 use self::account_client_eip7702::FFI7702AccountClient;
@@ -30,7 +28,6 @@ mod ffi {
         pub signature: String,
         pub hash: String,
         pub sign_step_3_params: String,
-
     }
 
     #[derive(Debug, Clone)]

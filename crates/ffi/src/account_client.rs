@@ -1,9 +1,8 @@
 use super::ffi;
 use super::ffi::{FFIAccountClientConfig, FFIError};
-use crate::{
-    ffi::{
-        FFIOwnerSignature, FFIPreparedSendTransaction, FFIPreparedSignature, FFIPreparedSign,
-    }
+use crate::ffi::{
+    FFIOwnerSignature, FFIPreparedSendTransaction, FFIPreparedSign,
+    FFIPreparedSignature,
 };
 use alloy::primitives::B256;
 use alloy::sol_types::SolStruct;
@@ -137,30 +136,33 @@ impl FFIAccountClient {
         signatures: Vec<String>,
     ) -> Result<FFIPreparedSign, FFIError> {
         // Parse the owner address from self.owner_address
-        let owner_address = self.owner_address
-            .parse::<Address>()
-            .map_err(|e| FFIError::Unknown(format!("Invalid owner address: {}", e)))?;
-    
+        let owner_address =
+            self.owner_address.parse::<Address>().map_err(|e| {
+                FFIError::Unknown(format!("Invalid owner address: {}", e))
+            })?;
+
         // Parse the signatures and associate them with the known owner
         let mut owner_signatures = Vec::with_capacity(signatures.len());
         for sig_str in signatures {
-            let signature = sig_str
-                .parse::<PrimitiveSignature>()
-                .map_err(|e| FFIError::Unknown(format!("Invalid signature format: {}", e)))?;
-    
-            owner_signatures.push(OwnerSignature {
-                owner: owner_address,
-                signature,
-            });
+            let signature =
+                sig_str.parse::<PrimitiveSignature>().map_err(|e| {
+                    FFIError::Unknown(format!(
+                        "Invalid signature format: {}",
+                        e
+                    ))
+                })?;
+
+            owner_signatures
+                .push(OwnerSignature { owner: owner_address, signature });
         }
-    
+
         // Proceed to call account_client's do_sign_message
         let result = self
             .account_client
             .do_sign_message(owner_signatures)
             .await
             .map_err(|e| FFIError::Unknown(e.to_string()))?;
-    
+
         // Create FFIPreparedSign based on the result
         let ffi_output = match result {
             SignOutputEnum::Signature(signature) => FFIPreparedSign {
@@ -171,11 +173,13 @@ impl FFIAccountClient {
             SignOutputEnum::SignOutput(so) => FFIPreparedSign {
                 signature: "".to_string(),
                 hash: so.to_sign.hash.to_string(),
-                sign_step_3_params: serde_json::to_string(&so.sign_step_3_params)
-                    .map_err(|e| FFIError::Unknown(e.to_string()))?,
+                sign_step_3_params: serde_json::to_string(
+                    &so.sign_step_3_params,
+                )
+                .map_err(|e| FFIError::Unknown(e.to_string()))?,
             },
         };
-    
+
         // Return the FFIPreparedSign struct directly
         Ok(ffi_output)
     }
@@ -186,34 +190,42 @@ impl FFIAccountClient {
         sign_step_3_params: String,
     ) -> Result<String, FFIError> {
         // Parse the owner address from self.owner_address
-        let owner_address = self.owner_address
-            .parse::<Address>()
-            .map_err(|e| FFIError::Unknown(format!("Invalid owner address: {}", e)))?;
-    
+        let owner_address =
+            self.owner_address.parse::<Address>().map_err(|e| {
+                FFIError::Unknown(format!("Invalid owner address: {}", e))
+            })?;
+
         // Parse the signatures and associate them with the known owner
         let mut owner_signatures = Vec::with_capacity(signatures.len());
         for sig_str in signatures {
-            let signature = sig_str
-                .parse::<PrimitiveSignature>()
-                .map_err(|e| FFIError::Unknown(format!("Invalid signature format: {}", e)))?;
-    
-            owner_signatures.push(OwnerSignature {
-                owner: owner_address,
-                signature,
-            });
+            let signature =
+                sig_str.parse::<PrimitiveSignature>().map_err(|e| {
+                    FFIError::Unknown(format!(
+                        "Invalid signature format: {}",
+                        e
+                    ))
+                })?;
+
+            owner_signatures
+                .push(OwnerSignature { owner: owner_address, signature });
         }
-    
+
         // Deserialize sign_step_3_params into the expected type
-        let params = serde_json::from_str(&sign_step_3_params)
-            .map_err(|e| FFIError::Unknown(format!("Failed to deserialize sign_step_3_params: {}", e)))?;
-    
+        let params =
+            serde_json::from_str(&sign_step_3_params).map_err(|e| {
+                FFIError::Unknown(format!(
+                    "Failed to deserialize sign_step_3_params: {}",
+                    e
+                ))
+            })?;
+
         // Call the account_client's finalize_sign_message method
         let result = self
             .account_client
             .finalize_sign_message(owner_signatures, params)
             .await
             .map_err(|e| FFIError::Unknown(e.to_string()))?;
-    
+
         // Return the result as a string
         Ok(result.to_string())
     }
@@ -293,7 +305,7 @@ impl FFIAccountClient {
             .into_iter()
             .map(|json| serde_json::from_str::<FFIOwnerSignature>(&json))
             .collect();
-    
+
         let signatures = match signatures {
             Ok(sigs) => sigs,
             Err(e) => {
@@ -303,7 +315,7 @@ impl FFIAccountClient {
                 )));
             }
         };
-    
+
         let mut signatures2 = Vec::with_capacity(signatures.len());
         for signature in signatures {
             signatures2.push(OwnerSignature {
@@ -317,7 +329,7 @@ impl FFIAccountClient {
                     .map_err(|e| FFIError::Unknown(e.to_string()))?,
             });
         }
-    
+
         Ok(self
             .account_client
             .do_send_transactions(
