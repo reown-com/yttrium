@@ -289,37 +289,45 @@ impl FFIAccountClient {
         signatures: Vec<String>,
         do_send_transaction_params: String,
     ) -> Result<String, FFIError> {
-        // Parse the owner address from self.owner_address
-        let owner_address = self.owner_address
-            .parse::<Address>()
-            .map_err(|e| FFIError::Unknown(format!("Invalid owner address: {}", e)))?;
+        let signatures: Result<Vec<FFIOwnerSignature>, _> = signatures
+            .into_iter()
+            .map(|json| serde_json::from_str::<FFIOwnerSignature>(&json))
+            .collect();
     
-        // Parse the signatures and associate them with the known owner
-        let mut owner_signatures = Vec::with_capacity(signatures.len());
-        for sig_str in signatures {
-            let signature = sig_str
-                .parse::<PrimitiveSignature>()
-                .map_err(|e| FFIError::Unknown(format!("Invalid signature format: {}", e)))?;
+        let signatures = match signatures {
+            Ok(sigs) => sigs,
+            Err(e) => {
+                return Err(FFIError::Unknown(format!(
+                    "Failed to deserialize signatures: {}",
+                    e
+                )));
+            }
+        };
     
-            owner_signatures.push(OwnerSignature {
-                owner: owner_address,
-                signature,
+        let mut signatures2 = Vec::with_capacity(signatures.len());
+        for signature in signatures {
+            signatures2.push(OwnerSignature {
+                owner: signature
+                    .owner
+                    .parse::<Address>()
+                    .map_err(|e| FFIError::Unknown(e.to_string()))?,
+                signature: signature
+                    .signature
+                    .parse::<PrimitiveSignature>()
+                    .map_err(|e| FFIError::Unknown(e.to_string()))?,
             });
         }
     
-        // Deserialize do_send_transaction_params into the expected type
-        let params = serde_json::from_str(&do_send_transaction_params)
-            .map_err(|e| FFIError::Unknown(format!("Failed to deserialize params: {}", e)))?;
-    
-        // Call the account_client's do_send_transactions method
-        let result = self
+        Ok(self
             .account_client
-            .do_send_transactions(owner_signatures, params)
+            .do_send_transactions(
+                signatures2,
+                serde_json::from_str(&do_send_transaction_params)
+                    .map_err(|e| FFIError::Unknown(e.to_string()))?,
+            )
             .await
-            .map_err(|e| FFIError::Unknown(e.to_string()))?;
-    
-        // Return the result as a string
-        Ok(result.to_string())
+            .map_err(|e| FFIError::Unknown(e.to_string()))?
+            .to_string())
     }
 
     pub fn sign_message_with_mnemonic(
