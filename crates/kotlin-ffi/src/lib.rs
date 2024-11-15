@@ -45,7 +45,7 @@ uniffi::custom_type!(Address, String, {
 });
 
 #[derive(uniffi::Record)]
-pub struct InitTransaction { //todo: remove?
+pub struct InitTransaction {
     pub from: Address,
     pub to: Address,
     pub value: String,
