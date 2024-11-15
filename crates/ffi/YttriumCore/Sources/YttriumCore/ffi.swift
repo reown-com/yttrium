@@ -60,6 +60,47 @@ extension __swift_bridge__$Option$FFITransaction {
         }
     }
 }
+public struct FFIPreparedSign {
+    public var signature: RustString
+    public var hash: RustString
+    public var sign_step_3_params: RustString
+
+    public init(signature: RustString,hash: RustString,sign_step_3_params: RustString) {
+        self.signature = signature
+        self.hash = hash
+        self.sign_step_3_params = sign_step_3_params
+    }
+
+    @inline(__always)
+    func intoFfiRepr() -> __swift_bridge__$FFIPreparedSign {
+        { let val = self; return __swift_bridge__$FFIPreparedSign(signature: { let rustString = val.signature.intoRustString(); rustString.isOwned = false; return rustString.ptr }(), hash: { let rustString = val.hash.intoRustString(); rustString.isOwned = false; return rustString.ptr }(), sign_step_3_params: { let rustString = val.sign_step_3_params.intoRustString(); rustString.isOwned = false; return rustString.ptr }()); }()
+    }
+}
+extension __swift_bridge__$FFIPreparedSign {
+    @inline(__always)
+    func intoSwiftRepr() -> FFIPreparedSign {
+        { let val = self; return FFIPreparedSign(signature: RustString(ptr: val.signature), hash: RustString(ptr: val.hash), sign_step_3_params: RustString(ptr: val.sign_step_3_params)); }()
+    }
+}
+extension __swift_bridge__$Option$FFIPreparedSign {
+    @inline(__always)
+    func intoSwiftRepr() -> Optional<FFIPreparedSign> {
+        if self.is_some {
+            return self.val.intoSwiftRepr()
+        } else {
+            return nil
+        }
+    }
+
+    @inline(__always)
+    static func fromSwiftRepr(_ val: Optional<FFIPreparedSign>) -> __swift_bridge__$Option$FFIPreparedSign {
+        if let v = val {
+            return __swift_bridge__$Option$FFIPreparedSign(is_some: true, val: v.intoFfiRepr())
+        } else {
+            return __swift_bridge__$Option$FFIPreparedSign(is_some: false, val: __swift_bridge__$FFIPreparedSign())
+        }
+    }
+}
 public struct FFIEndpoint {
     public var api_key: RustString
     public var base_url: RustString
@@ -506,13 +547,13 @@ extension FFIAccountClientRef {
         }
     }
 
-    public func do_sign_message<GenericIntoRustString: IntoRustString>(_ _signatures: RustVec<GenericIntoRustString>) async throws -> RustString {
-        func onComplete(cbWrapperPtr: UnsafeMutableRawPointer?, rustFnRetVal: __swift_bridge__$ResultStringAndFFIError) {
+    public func do_sign_message<GenericIntoRustString: IntoRustString>(_ _signatures: RustVec<GenericIntoRustString>) async throws -> FFIPreparedSign {
+        func onComplete(cbWrapperPtr: UnsafeMutableRawPointer?, rustFnRetVal: __swift_bridge__$ResultFFIPreparedSignAndFFIError) {
             let wrapper = Unmanaged<CbWrapper$FFIAccountClient$do_sign_message>.fromOpaque(cbWrapperPtr!).takeRetainedValue()
-            switch rustFnRetVal.tag { case __swift_bridge__$ResultStringAndFFIError$ResultOk: wrapper.cb(.success(RustString(ptr: rustFnRetVal.payload.ok))) case __swift_bridge__$ResultStringAndFFIError$ResultErr: wrapper.cb(.failure(rustFnRetVal.payload.err.intoSwiftRepr())) default: fatalError() }
+            switch rustFnRetVal.tag { case __swift_bridge__$ResultFFIPreparedSignAndFFIError$ResultOk: wrapper.cb(.success(rustFnRetVal.payload.ok.intoSwiftRepr())) case __swift_bridge__$ResultFFIPreparedSignAndFFIError$ResultErr: wrapper.cb(.failure(rustFnRetVal.payload.err.intoSwiftRepr())) default: fatalError() }
         }
 
-        return try await withCheckedThrowingContinuation({ (continuation: CheckedContinuation<RustString, Error>) in
+        return try await withCheckedThrowingContinuation({ (continuation: CheckedContinuation<FFIPreparedSign, Error>) in
             let callback = { rustFnRetVal in
                 continuation.resume(with: rustFnRetVal)
             }
@@ -524,9 +565,9 @@ extension FFIAccountClientRef {
         })
     }
     class CbWrapper$FFIAccountClient$do_sign_message {
-        var cb: (Result<RustString, Error>) -> ()
+        var cb: (Result<FFIPreparedSign, Error>) -> ()
     
-        public init(cb: @escaping (Result<RustString, Error>) -> ()) {
+        public init(cb: @escaping (Result<FFIPreparedSign, Error>) -> ()) {
             self.cb = cb
         }
     }
