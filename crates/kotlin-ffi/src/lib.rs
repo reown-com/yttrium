@@ -1,5 +1,6 @@
 uniffi::setup_scaffolding!();
 
+use alloy::providers::Provider;
 use yttrium::chain_abstraction::api::route::RouteResponse;
 use yttrium::chain_abstraction::api::status::StatusResponse;
 use yttrium::chain_abstraction::api::Transaction as CATransaction;
@@ -15,6 +16,10 @@ use yttrium::{
     private_key_service::PrivateKeyService,
     sign_service::address_from_string,
     transaction::Transaction as YTransaction,
+};
+use alloy::{
+    network::Ethereum,
+    providers::ReqwestProvider,
 };
 
 #[derive(uniffi::Record)]
@@ -34,10 +39,15 @@ pub struct Transaction {
     pub data: String,
 }
 
+uniffi::custom_type!(Address, String, {
+    try_lift: |val| Ok(val.parse()?),
+    lower: |obj| obj.to_string(),
+});
+
 #[derive(uniffi::Record)]
-pub struct InitTransaction {
-    pub from: String,
-    pub to: String,
+pub struct InitTransaction { //todo: remove?
+    pub from: Address,
+    pub to: Address,
     pub value: String,
     pub gas: String,
     pub gas_price: String,
@@ -79,9 +89,16 @@ pub struct ChainAbstractionClient {
     client: Client,
 }
 
+#[derive(uniffi::Record)]
+pub struct Eip1559Estimation {
+    pub max_fee_per_gas: i64, 
+    pub max_priority_fee_per_gas: i64,
+}
+
 #[uniffi::export(async_runtime = "tokio")]
 impl ChainAbstractionClient {
     #[uniffi::constructor]
+
     pub fn new(project_id: String) -> Self {
         let client = Client::new(ProjectId::from(project_id.clone()));
         Self { project_id, client }
@@ -106,6 +123,15 @@ impl ChainAbstractionClient {
             .status(orchestration_id)
             .await
             .map_err(|e| Error::General(e.to_string()))
+    }
+
+    pub async fn estimate_fees(&self, chain_id: String) -> Result<Eip1559Estimation, Error>  {
+        let url = format!("https://rpc.walletconnect.com/v1?chainId={chain_id}&projectId={}", self.project_id).parse().expect("Invalid RPC URL");
+        let provider = ReqwestProvider::<Ethereum>::new_http(url);
+        provider.estimate_eip1559_fees(None)
+        .await
+        .map_err(|e| Error::General(e.to_string()))
+        .map(|fees| Eip1559Estimation { max_fee_per_gas: fees.max_fee_per_gas as i64, max_priority_fee_per_gas: fees.max_priority_fee_per_gas as i64 })
     }
 }
 
