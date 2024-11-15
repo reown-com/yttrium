@@ -185,44 +185,37 @@ impl FFIAccountClient {
         signatures: Vec<String>,
         sign_step_3_params: String,
     ) -> Result<String, FFIError> {
-        let signatures: Result<Vec<FFIOwnerSignature>, _> = signatures
-            .into_iter()
-            .map(|json| serde_json::from_str::<FFIOwnerSignature>(&json))
-            .collect();
-
-        let signatures = match signatures {
-            Ok(sigs) => sigs,
-            Err(e) => {
-                return Err(FFIError::Unknown(format!(
-                    "Failed to deserialize signatures: {}",
-                    e
-                )));
-            }
-        };
-
-        let mut signatures2 = Vec::with_capacity(signatures.len());
-        for signature in signatures {
-            signatures2.push(OwnerSignature {
-                owner: signature
-                    .owner
-                    .parse::<Address>()
-                    .map_err(|e| FFIError::Unknown(e.to_string()))?,
-                signature: signature
-                    .signature
-                    .parse::<PrimitiveSignature>()
-                    .map_err(|e| FFIError::Unknown(e.to_string()))?,
+        // Parse the owner address from self.owner_address
+        let owner_address = self.owner_address
+            .parse::<Address>()
+            .map_err(|e| FFIError::Unknown(format!("Invalid owner address: {}", e)))?;
+    
+        // Parse the signatures and associate them with the known owner
+        let mut owner_signatures = Vec::with_capacity(signatures.len());
+        for sig_str in signatures {
+            let signature = sig_str
+                .parse::<PrimitiveSignature>()
+                .map_err(|e| FFIError::Unknown(format!("Invalid signature format: {}", e)))?;
+    
+            owner_signatures.push(OwnerSignature {
+                owner: owner_address,
+                signature,
             });
         }
-
-        let sign_step_3_params = serde_json::from_str(&sign_step_3_params)
-            .map_err(|e| FFIError::Unknown(e.to_string()))?;
-
-        Ok(self
+    
+        // Deserialize sign_step_3_params into the expected type
+        let params = serde_json::from_str(&sign_step_3_params)
+            .map_err(|e| FFIError::Unknown(format!("Failed to deserialize sign_step_3_params: {}", e)))?;
+    
+        // Call the account_client's finalize_sign_message method
+        let result = self
             .account_client
-            .finalize_sign_message(signatures2, sign_step_3_params)
+            .finalize_sign_message(owner_signatures, params)
             .await
-            .map_err(|e| FFIError::Unknown(e.to_string()))?
-            .to_string())
+            .map_err(|e| FFIError::Unknown(e.to_string()))?;
+    
+        // Return the result as a string
+        Ok(result.to_string())
     }
 
     pub async fn send_transactions(
