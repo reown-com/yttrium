@@ -5,6 +5,7 @@ use yttrium::chain_abstraction::api::route::RouteResponse;
 use yttrium::chain_abstraction::api::status::StatusResponse;
 use yttrium::chain_abstraction::api::Transaction as CATransaction;
 
+use alloy::{network::Ethereum, providers::ReqwestProvider};
 use relay_rpc::domain::ProjectId;
 use yttrium::chain_abstraction::client::Client;
 use yttrium::config::Config;
@@ -16,10 +17,6 @@ use yttrium::{
     private_key_service::PrivateKeyService,
     sign_service::address_from_string,
     transaction::Transaction as YTransaction,
-};
-use alloy::{
-    network::Ethereum,
-    providers::ReqwestProvider,
 };
 
 #[derive(uniffi::Record)]
@@ -91,7 +88,7 @@ pub struct ChainAbstractionClient {
 
 #[derive(uniffi::Record)]
 pub struct Eip1559Estimation {
-    pub max_fee_per_gas: i64, 
+    pub max_fee_per_gas: i64,
     pub max_priority_fee_per_gas: i64,
 }
 
@@ -125,13 +122,25 @@ impl ChainAbstractionClient {
             .map_err(|e| Error::General(e.to_string()))
     }
 
-    pub async fn estimate_fees(&self, chain_id: String) -> Result<Eip1559Estimation, Error>  {
-        let url = format!("https://rpc.walletconnect.com/v1?chainId={chain_id}&projectId={}", self.project_id).parse().expect("Invalid RPC URL");
+    pub async fn estimate_fees(
+        &self,
+        chain_id: String,
+    ) -> Result<Eip1559Estimation, Error> {
+        let url = format!(
+            "https://rpc.walletconnect.com/v1?chainId={chain_id}&projectId={}",
+            self.project_id
+        )
+        .parse()
+        .expect("Invalid RPC URL");
         let provider = ReqwestProvider::<Ethereum>::new_http(url);
-        provider.estimate_eip1559_fees(None)
-        .await
-        .map_err(|e| Error::General(e.to_string()))
-        .map(|fees| Eip1559Estimation { max_fee_per_gas: fees.max_fee_per_gas as i64, max_priority_fee_per_gas: fees.max_priority_fee_per_gas as i64 })
+        provider
+            .estimate_eip1559_fees(None)
+            .await
+            .map_err(|e| Error::General(e.to_string()))
+            .map(|fees| Eip1559Estimation {
+                max_fee_per_gas: fees.max_fee_per_gas as i64,
+                max_priority_fee_per_gas: fees.max_priority_fee_per_gas as i64,
+            })
     }
 }
 

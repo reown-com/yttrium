@@ -1,6 +1,6 @@
 use super::Transaction;
-use relay_rpc::domain::ProjectId;
 use alloy::primitives::Address;
+use relay_rpc::domain::ProjectId;
 use serde::{Deserialize, Serialize};
 
 pub const ROUTE_ENDPOINT_PATH: &str = "/v1/ca/orchestrator/route";
