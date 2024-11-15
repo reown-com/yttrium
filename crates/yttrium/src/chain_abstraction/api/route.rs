@@ -55,7 +55,8 @@ pub struct RouteResponseNotRequired {
     _flag: Empty,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, uniffi_macros::Enum)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Enum))]
 #[serde(untagged)]
 pub enum RouteResponseSuccess {
     Available(RouteResponseAvailable),
