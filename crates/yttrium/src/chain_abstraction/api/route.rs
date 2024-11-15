@@ -2,7 +2,6 @@ use super::Transaction;
 use alloy::primitives::Address;
 use relay_rpc::domain::ProjectId;
 use serde::{Deserialize, Serialize};
-use std::convert::Infallible;
 
 pub const ROUTE_ENDPOINT_PATH: &str = "/v1/ca/orchestrator/route";
 
@@ -26,6 +25,16 @@ pub struct Metadata {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub enum BridgingStatus {
+    BridgingAvailable,
+    BridgingNotAvailable,
+    BridgingNotRequired,
+    InsufficientFunds,
+    InsufficientGasFunds,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct FundingMetadata {
     pub chain_id: String,
     pub token_contract: Address,
@@ -35,61 +44,30 @@ pub struct FundingMetadata {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct RouteResponseAvailable {
+pub struct RouteResponseBridging {
     pub orchestration_id: String,
     pub transactions: Vec<Transaction>,
     pub metadata: Metadata,
+    pub status: BridgingStatus,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct RouteResponseNotRequired {
-    #[serde(rename = "transactions")]
-    _flag: [Infallible; 0],
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum RouteResponseSuccess {
-    Available(RouteResponseAvailable),
-    NotRequired(RouteResponseNotRequired),
-}
-
-impl RouteResponseSuccess {
-    pub fn into_option(self) -> Option<RouteResponseAvailable> {
-        match self {
-            Self::Available(a) => Some(a),
-            Self::NotRequired(_) => None,
-        }
-    }
-}
-
-/// Bridging check error response that should be returned as a normal HTTP 200
-/// response
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RouteResponseError {
-    pub error: BridgingError,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum BridgingError {
-    NoRoutesAvailable,
-    InsufficientFunds,
-    InsufficientGasFunds,
+    pub status: BridgingStatus,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum RouteResponse {
-    Success(RouteResponseSuccess),
+    Success(RouteResponseBridging),
     Error(RouteResponseError),
 }
 
 impl RouteResponse {
     pub fn into_result(
         self,
-    ) -> Result<RouteResponseSuccess, RouteResponseError> {
+    ) -> Result<RouteResponseBridging, RouteResponseError> {
         match self {
             Self::Success(success) => Ok(success),
             Self::Error(error) => Err(error),
