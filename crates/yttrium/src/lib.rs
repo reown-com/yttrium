@@ -5,6 +5,7 @@ pub mod account_client;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod bundler;
 pub mod chain;
+pub mod chain_abstraction;
 pub mod config;
 pub mod eip7702;
 pub mod entry_point;
