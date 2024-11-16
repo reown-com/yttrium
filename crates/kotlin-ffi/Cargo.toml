@@ -15,6 +15,9 @@ yttrium = { path = "../yttrium", features = ["uniffi"] }
 uniffi = { version = "0.28.1", features = ["tokio", "cli"] }
 openssl = { version = "0.10", features = ["vendored"] }
 openssl-sys = { version = "0.9.103", features = ["vendored"] }
+erc6492.workspace = true
+alloy.workspace = true
+
 
 # Errors
 eyre.workspace = true
@@ -32,6 +35,7 @@ reqwest.workspace = true
 # Logging
 log.workspace = true
 thiserror.workspace = true
+url = "2.5.2"
 
 [[bin]]
 name = "uniffi-bindgen"
