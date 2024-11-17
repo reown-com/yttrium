@@ -4,7 +4,14 @@ use serde::{Deserialize, Serialize};
 pub mod route;
 pub mod status;
 
+#[cfg(feature = "uniffi")]
+uniffi::custom_type!(Address, String, {
+    try_lift: |val| Ok(val.parse()?),
+    lower: |obj| obj.to_string(),
+});
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
 #[serde(rename_all = "camelCase")]
 pub struct Transaction {
     pub from: Address,

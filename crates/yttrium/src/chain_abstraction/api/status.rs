@@ -11,27 +11,31 @@ pub struct StatusQueryParams {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
 #[serde(rename_all = "camelCase")]
 pub struct StatusResponseSuccessPending {
-    created_at: usize,
+    created_at: u64,
     /// Polling interval in ms for the client
-    check_in: usize,
+    check_in: u64,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
 #[serde(rename_all = "camelCase")]
 pub struct StatusResponseSuccessCompleted {
-    created_at: usize,
+    created_at: u64,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
 #[serde(rename_all = "camelCase")]
 pub struct StatusResponseSuccessError {
-    created_at: usize,
+    created_at: u64,
     error_reason: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Enum))]
 #[serde(rename_all = "camelCase", tag = "status")]
 pub enum StatusResponseSuccess {
     Pending(StatusResponseSuccessPending),
@@ -40,12 +44,14 @@ pub enum StatusResponseSuccess {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
 #[serde(rename_all = "camelCase")]
 pub struct StatusResponseError {
     pub error: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Enum))]
 #[serde(untagged)]
 pub enum StatusResponse {
     Success(StatusResponseSuccess),

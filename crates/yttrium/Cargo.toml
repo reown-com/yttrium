@@ -11,8 +11,8 @@ uniffi = ["dep:uniffi", "dep:uniffi_macros"]
 test_pimlico_api = []
 
 [dependencies]
-uniffi = { version = "0.28.1", optional = true }
-uniffi_macros = { version = "0.28.1", optional = true }
+uniffi = { git = "https://github.com/mozilla/uniffi-rs", rev = "e796e00ad150f8b14b61a859a2e8c6497b35074e", optional = true }
+uniffi_macros = { git = "https://github.com/mozilla/uniffi-rs", optional = true }
 # Ethereum
 alloy = { workspace = true, features = [
     "contract",

@@ -2,7 +2,6 @@ use super::Transaction;
 use alloy::primitives::Address;
 use relay_rpc::domain::ProjectId;
 use serde::{Deserialize, Serialize};
-use std::convert::Infallible;
 
 pub const ROUTE_ENDPOINT_PATH: &str = "/v1/ca/orchestrator/route";
 
@@ -18,13 +17,15 @@ pub struct RouteRequest {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
 #[serde(rename_all = "camelCase")]
 pub struct Metadata {
     pub funding_from: Vec<FundingMetadata>,
-    pub check_in: usize,
+    pub check_in: u64,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
 #[serde(rename_all = "camelCase")]
 pub struct FundingMetadata {
     pub chain_id: String,
@@ -34,6 +35,7 @@ pub struct FundingMetadata {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
 #[serde(rename_all = "camelCase")]
 pub struct RouteResponseAvailable {
     pub orchestration_id: String,
@@ -42,13 +44,19 @@ pub struct RouteResponseAvailable {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
+pub struct Empty;
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
 #[serde(rename_all = "camelCase")]
 pub struct RouteResponseNotRequired {
     #[serde(rename = "transactions")]
-    _flag: [Infallible; 0],
+    _flag: Empty,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Enum))]
 #[serde(untagged)]
 pub enum RouteResponseSuccess {
     Available(RouteResponseAvailable),
@@ -67,11 +75,13 @@ impl RouteResponseSuccess {
 /// Bridging check error response that should be returned as a normal HTTP 200
 /// response
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
 pub struct RouteResponseError {
     pub error: BridgingError,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Enum))]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum BridgingError {
     NoRoutesAvailable,
@@ -80,6 +90,7 @@ pub enum BridgingError {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Enum))]
 #[serde(untagged)]
 pub enum RouteResponse {
     Success(RouteResponseSuccess),
