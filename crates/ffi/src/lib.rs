@@ -16,7 +16,19 @@ pub mod log;
 #[allow(non_camel_case_types)]
 #[swift_bridge::bridge]
 mod ffi {
-    enum FFIRouteError {
+
+
+    pub enum FFIRouteResponseSuccess {
+        Available(String),   // JSON string of RouteResponseAvailable
+        NotRequired(String), // JSON string of RouteResponseNotRequired
+    }
+
+    pub enum FFIRouteResponse {
+        Success(FFIRouteResponseSuccess),
+        Error(String), // JSON string of RouteResponseError
+    }
+
+    pub enum FFIRouteError {
         Request(String),
         RequestFailed(String),
     }
@@ -212,7 +224,7 @@ mod ffi {
         pub async fn route(
             &self,
             transaction: String,
-        ) -> Result<String, FFIRouteError>;
+        ) -> Result<FFIRouteResponse, FFIRouteError>;
 
         pub async fn status(
             &self,

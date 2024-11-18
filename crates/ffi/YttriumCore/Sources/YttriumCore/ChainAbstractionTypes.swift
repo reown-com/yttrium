@@ -81,63 +81,12 @@ public enum StatusResponse: Codable {
 
 
 
-public enum RouteResponse: Codable {
-    case success(RouteResponseSuccess)
-    case error(RouteResponseError)
 
-    public init(from decoder: Decoder) throws {
-        if let error = try? decoder.singleValueContainer().decode(RouteResponseError.self) {
-            self = .error(error)
-        } else if let success = try? decoder.singleValueContainer().decode(RouteResponseSuccess.self) {
-            self = .success(success)
-        } else {
-            throw DecodingError.dataCorruptedError(
-                in: try decoder.singleValueContainer(),
-                debugDescription: "Unable to decode RouteResponse"
-            )
-        }
-    }
-
-    public func encode(to encoder: Encoder) throws {
-        switch self {
-        case .success(let success):
-            try success.encode(to: encoder)
-        case .error(let error):
-            try error.encode(to: encoder)
-        }
-    }
-}
-
-public enum RouteResponseSuccess: Codable {
+public enum RouteResponseSuccess {
     case available(RouteResponseAvailable)
     case notRequired(RouteResponseNotRequired)
-
-    public init(from decoder: Decoder) throws {
-        let container = try decoder.singleValueContainer()
-        if let available = try? container.decode(RouteResponseAvailable.self) {
-            self = .available(available)
-        } else if let notRequired = try? container.decode(RouteResponseNotRequired.self) {
-            self = .notRequired(notRequired)
-        } else {
-            throw DecodingError.dataCorruptedError(
-                in: container,
-                debugDescription: "Unable to decode RouteResponseSuccess"
-            )
-        }
-    }
-
-    public func encode(to encoder: Encoder) throws {
-        switch self {
-        case .available(let available):
-            try available.encode(to: encoder)
-        case .notRequired(let notRequired):
-            try notRequired.encode(to: encoder)
-        }
-    }
 }
-public struct RouteResponseError: Codable {
-    public let error: String
-}
+
 
 public struct RouteResponseAvailable: Codable {
     public let orchestrationId: String
