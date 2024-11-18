@@ -16,7 +16,16 @@ pub mod log;
 #[allow(non_camel_case_types)]
 #[swift_bridge::bridge]
 mod ffi {
-
+    pub enum FFIStatusResponseSuccess {
+        Pending(String),    // JSON string of StatusResponseSuccessPending
+        Completed(String),  // JSON string of StatusResponseSuccessCompleted
+        Error(String),      // JSON string of StatusResponseSuccessError
+    }
+    
+    pub enum FFIStatusResponse {
+        Success(FFIStatusResponseSuccess),
+        Error(String),      // JSON string of StatusResponseError
+    }
 
     pub enum FFIRouteResponseSuccess {
         Available(String),   // JSON string of RouteResponseAvailable
@@ -229,6 +238,6 @@ mod ffi {
         pub async fn status(
             &self,
             orchestration_id: String,
-        ) -> Result<String, FFIRouteError>;
+        ) -> Result<FFIStatusResponse, FFIRouteError>;
     }
 }

@@ -1,18 +1,6 @@
 
 import Foundation
 
-public struct EthTransaction: Codable {
-    public let from: String
-    public let to: String
-    public let value: String
-    public let gas: String
-    public let gasPrice: String
-    public let data: String
-    public let nonce: String
-    public let maxFeePerGas: String
-    public let maxPriorityFeePerGas: String
-    public let chainId: String
-}
 
 public final class ChainAbstractionClient {
     struct Errors: LocalizedError {
@@ -29,22 +17,52 @@ public final class ChainAbstractionClient {
         self.ffiClient = FFIChainClient(projectId.intoRustString())
     }
 
-    public func status(orchestrationId: String) async throws -> StatusResponse {
+    public func status(orchestrationId: String) async throws -> StatusResponseSuccess {
         do {
             // Call the Rust function
-            let jsonString = try await ffiClient.status(orchestrationId.intoRustString()).toString()
+            let ffiResponse = try await ffiClient.status(orchestrationId)
 
-            // Parse the JSON string into StatusResponse
-            let jsonData = Data(jsonString.utf8)
-            let decoder = JSONDecoder()
-            decoder.keyDecodingStrategy = .convertFromSnakeCase
-            let statusResponse = try decoder.decode(StatusResponse.self, from: jsonData)
-            return statusResponse
-        } catch let ffiError as FFIError {
+            // Handle the response
+            switch ffiResponse {
+            case .Success(let success):
+                switch success {
+                case .Pending(let jsonString):
+                    // Decode jsonString into StatusResponseSuccessPending
+                    let data = Data(jsonString.toString().utf8)
+                    let decoder = JSONDecoder()
+                    decoder.keyDecodingStrategy = .convertFromSnakeCase
+                    let pending = try decoder.decode(StatusResponseSuccessPending.self, from: data)
+                    return .pending(pending)
+                case .Completed(let jsonString):
+                    // Decode jsonString into StatusResponseSuccessCompleted
+                    let data = Data(jsonString.toString().utf8)
+                    let decoder = JSONDecoder()
+                    decoder.keyDecodingStrategy = .convertFromSnakeCase
+                    let completed = try decoder.decode(StatusResponseSuccessCompleted.self, from: data)
+                    return .completed(completed)
+                case .Error(let jsonString):
+                    // Decode jsonString into StatusResponseSuccessError
+                    let data = Data(jsonString.toString().utf8)
+                    let decoder = JSONDecoder()
+                    decoder.keyDecodingStrategy = .convertFromSnakeCase
+                    let errorResponse = try decoder.decode(StatusResponseSuccessError.self, from: data)
+                    return .error(errorResponse)
+                }
+            case .Error(let jsonString):
+                // Decode jsonString into StatusResponseError
+                let data = Data(jsonString.toString().utf8)
+                let decoder = JSONDecoder()
+                decoder.keyDecodingStrategy = .convertFromSnakeCase
+                let errorResponse = try decoder.decode(StatusResponseError.self, from: data)
+                throw Errors(message: errorResponse.error)
+            }
+        } catch let ffiError as FFIRouteError {
+            // Handle FFIRouteError
             switch ffiError {
-            case .Unknown(let x):
-                let errorMessage = x.toString()
-                throw Errors(message: errorMessage)
+            case .Request(let message):
+                throw Errors(message: "Request error: \(message)")
+            case .RequestFailed(let message):
+                throw Errors(message: "Request failed: \(message)")
             }
         } catch {
             throw error

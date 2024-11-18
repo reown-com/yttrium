@@ -2,8 +2,10 @@ use serde_json;
 use yttrium::chain_abstraction::api::Transaction;
 use yttrium::chain_abstraction::client::Client;
 use yttrium::chain_abstraction::error::RouteError;
-use crate::ffi::{FFIRouteResponse, FFIRouteResponseSuccess, FFIRouteError};
+use crate::ffi::{FFIRouteResponse, FFIRouteResponseSuccess, FFIRouteError, FFIStatusResponse, FFIStatusResponseSuccess};
 use yttrium::chain_abstraction::api::route::{RouteResponse, RouteResponseSuccess};
+use yttrium::chain_abstraction::api::status::{StatusResponse, StatusResponseSuccess};
+
 
 
 pub struct FFIChainClient {
@@ -70,7 +72,7 @@ impl FFIChainClient {
     pub async fn status(
         &self,
         orchestration_id: String,
-    ) -> Result<String, FFIRouteError> {
+    ) -> Result<FFIStatusResponse, FFIRouteError> {
         // Call the underlying client
         let response = self.client.status(orchestration_id).await.map_err(
             |e| match e {
@@ -81,12 +83,40 @@ impl FFIChainClient {
                 }
             },
         )?;
-
-        // Serialize the response to JSON
-        let json_response = serde_json::to_string(&response)
-            .map_err(|e| FFIRouteError::Request(e.to_string()))?;
-
-        // Return the JSON string
-        Ok(json_response)
+    
+        // Map the StatusResponse to FFIStatusResponse
+        let ffi_status_response = match response {
+            StatusResponse::Success(success) => {
+                let ffi_success = match success {
+                    StatusResponseSuccess::Pending(pending) => {
+                        // Serialize `pending` into a JSON string
+                        let json_string = serde_json::to_string(&pending)
+                            .map_err(|e| FFIRouteError::RequestFailed(e.to_string()))?;
+                        FFIStatusResponseSuccess::Pending(json_string)
+                    }
+                    StatusResponseSuccess::Completed(completed) => {
+                        // Serialize `completed` into a JSON string
+                        let json_string = serde_json::to_string(&completed)
+                            .map_err(|e| FFIRouteError::RequestFailed(e.to_string()))?;
+                        FFIStatusResponseSuccess::Completed(json_string)
+                    }
+                    StatusResponseSuccess::Error(error) => {
+                        // Serialize `error` into a JSON string
+                        let json_string = serde_json::to_string(&error)
+                            .map_err(|e| FFIRouteError::RequestFailed(e.to_string()))?;
+                        FFIStatusResponseSuccess::Error(json_string)
+                    }
+                };
+                FFIStatusResponse::Success(ffi_success)
+            }
+            StatusResponse::Error(error) => {
+                // Serialize `error` into a JSON string
+                let json_string = serde_json::to_string(&error)
+                    .map_err(|e| FFIRouteError::RequestFailed(e.to_string()))?;
+                FFIStatusResponse::Error(json_string)
+            }
+        };
+    
+        Ok(ffi_status_response)
     }
 }
