@@ -10,10 +10,31 @@ pub mod config;
 pub mod erc6492_client;
 pub mod error;
 pub mod log;
+pub mod chain_abstraction_client;
 
 #[allow(non_camel_case_types)]
 #[swift_bridge::bridge]
 mod ffi {
+    #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+    #[swift_bridge(swift_repr = "struct")]
+    pub struct FFIRouteResponse {
+        pub orchestration_id: String,
+        pub status: String,
+    }
+
+    #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+    #[swift_bridge(swift_repr = "struct")]
+    pub struct FFIStatusResponse {
+        pub status: String,
+        pub result: Option<String>,
+        pub error: Option<String>,
+    }
+
+    enum FFIRouteError {
+        Request(String),
+        RequestFailed(String),
+    }
+
     #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
     #[swift_bridge(swift_repr = "struct")]
     pub struct FFITransaction {
@@ -194,5 +215,22 @@ mod ffi {
             address: String,
             message_hash: String,
         ) -> Result<bool, Erc6492Error>;
+    }
+
+    extern "Rust" {
+        type FFIChainClient;
+
+        #[swift_bridge(init)]
+        fn new(project_id: String) -> FFIChainClient;
+
+        pub async fn route(
+            &self,
+            transaction: String,
+        ) -> Result<FFIRouteResponse, FFIRouteError>;
+
+        pub async fn status(
+            &self,
+            orchestration_id: String,
+        ) -> Result<FFIStatusResponse, FFIRouteError>;
     }
 }

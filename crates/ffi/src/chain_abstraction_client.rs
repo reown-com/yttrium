@@ -12,13 +12,8 @@ pub struct FFIChainClient {
 }
 
 impl FFIChainClient {
-    pub fn new(config: FFIChainClientConfig) -> Self {
-        let project_id = ProjectId::new(config.project_id);
+    pub fn new(project_id: String) -> Self {
         let mut client = Client::new(project_id);
-        
-        if let Some(base_url) = config.base_url {
-            client.base_url = base_url.parse().unwrap();
-        }
 
         Self { client }
     }
