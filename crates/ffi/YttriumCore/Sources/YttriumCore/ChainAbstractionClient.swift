@@ -14,7 +14,7 @@ public struct Transaction: Codable {
     public let chainId: String
 }
 
-class ChainAbstractionClient {
+public final class ChainAbstractionClient {
     struct Errors: LocalizedError {
         let message: String
 
@@ -25,8 +25,9 @@ class ChainAbstractionClient {
 
     private let ffiClient: FFIChainClient
 
-    init(ffiClient: FFIChainClient) {
-        self.ffiClient = ffiClient
+    init() {
+        fatalError()
+        self.ffiClient = FFIChainClient("".intoRustString())
     }
 
     public func status(orchestrationId: String) async throws -> StatusResponse {
