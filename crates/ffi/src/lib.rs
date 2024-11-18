@@ -2,34 +2,20 @@
 
 use self::account_client::FFIAccountClient;
 use self::account_client_eip7702::FFI7702AccountClient;
+use self::chain_abstraction_client::FFIChainClient;
 use self::erc6492_client::Erc6492Client;
 
 pub mod account_client;
 pub mod account_client_eip7702;
+pub mod chain_abstraction_client;
 pub mod config;
 pub mod erc6492_client;
 pub mod error;
 pub mod log;
-pub mod chain_abstraction_client;
 
 #[allow(non_camel_case_types)]
 #[swift_bridge::bridge]
 mod ffi {
-    #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-    #[swift_bridge(swift_repr = "struct")]
-    pub struct FFIRouteResponse {
-        pub orchestration_id: String,
-        pub status: String,
-    }
-
-    #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-    #[swift_bridge(swift_repr = "struct")]
-    pub struct FFIStatusResponse {
-        pub status: String,
-        pub result: Option<String>,
-        pub error: Option<String>,
-    }
-
     enum FFIRouteError {
         Request(String),
         RequestFailed(String),
@@ -226,11 +212,11 @@ mod ffi {
         pub async fn route(
             &self,
             transaction: String,
-        ) -> Result<FFIRouteResponse, FFIRouteError>;
+        ) -> Result<String, FFIRouteError>;
 
         pub async fn status(
             &self,
             orchestration_id: String,
-        ) -> Result<FFIStatusResponse, FFIRouteError>;
+        ) -> Result<String, FFIRouteError>;
     }
 }

@@ -19,6 +19,50 @@ public func __swift_bridge__PrivateKeySignerFFI_private_key (_ this: UnsafeMutab
     Unmanaged<PrivateKeySignerFFI>.fromOpaque(this).takeUnretainedValue().private_key().intoFfiRepr()
 }
 
+public enum FFIRouteError {
+    case Request(RustString)
+    case RequestFailed(RustString)
+}
+extension FFIRouteError {
+    func intoFfiRepr() -> __swift_bridge__$FFIRouteError {
+        switch self {
+            case FFIRouteError.Request(let _0):
+                return __swift_bridge__$FFIRouteError(tag: __swift_bridge__$FFIRouteError$Request, payload: __swift_bridge__$FFIRouteErrorFields(Request: __swift_bridge__$FFIRouteError$FieldOfRequest(_0: { let rustString = _0.intoRustString(); rustString.isOwned = false; return rustString.ptr }())))
+            case FFIRouteError.RequestFailed(let _0):
+                return __swift_bridge__$FFIRouteError(tag: __swift_bridge__$FFIRouteError$RequestFailed, payload: __swift_bridge__$FFIRouteErrorFields(RequestFailed: __swift_bridge__$FFIRouteError$FieldOfRequestFailed(_0: { let rustString = _0.intoRustString(); rustString.isOwned = false; return rustString.ptr }())))
+        }
+    }
+}
+extension __swift_bridge__$FFIRouteError {
+    func intoSwiftRepr() -> FFIRouteError {
+        switch self.tag {
+            case __swift_bridge__$FFIRouteError$Request:
+                return FFIRouteError.Request(RustString(ptr: self.payload.Request._0))
+            case __swift_bridge__$FFIRouteError$RequestFailed:
+                return FFIRouteError.RequestFailed(RustString(ptr: self.payload.RequestFailed._0))
+            default:
+                fatalError("Unreachable")
+        }
+    }
+}
+extension __swift_bridge__$Option$FFIRouteError {
+    @inline(__always)
+    func intoSwiftRepr() -> Optional<FFIRouteError> {
+        if self.is_some {
+            return self.val.intoSwiftRepr()
+        } else {
+            return nil
+        }
+    }
+    @inline(__always)
+    static func fromSwiftRepr(_ val: Optional<FFIRouteError>) -> __swift_bridge__$Option$FFIRouteError {
+        if let v = val {
+            return __swift_bridge__$Option$FFIRouteError(is_some: true, val: v.intoFfiRepr())
+        } else {
+            return __swift_bridge__$Option$FFIRouteError(is_some: false, val: __swift_bridge__$FFIRouteError())
+        }
+    }
+}
 public struct FFITransaction {
     public var _to: RustString
     public var _value: RustString
@@ -1025,6 +1069,137 @@ extension Erc6492Client: Vectorizable {
 
     public static func vecOfSelfLen(vecPtr: UnsafeMutableRawPointer) -> UInt {
         __swift_bridge__$Vec_Erc6492Client$len(vecPtr)
+    }
+}
+
+
+public class FFIChainClient: FFIChainClientRefMut {
+    var isOwned: Bool = true
+
+    public override init(ptr: UnsafeMutableRawPointer) {
+        super.init(ptr: ptr)
+    }
+
+    deinit {
+        if isOwned {
+            __swift_bridge__$FFIChainClient$_free(ptr)
+        }
+    }
+}
+extension FFIChainClient {
+    public convenience init<GenericIntoRustString: IntoRustString>(_ project_id: GenericIntoRustString) {
+        self.init(ptr: __swift_bridge__$FFIChainClient$new({ let rustString = project_id.intoRustString(); rustString.isOwned = false; return rustString.ptr }()))
+    }
+}
+public class FFIChainClientRefMut: FFIChainClientRef {
+    public override init(ptr: UnsafeMutableRawPointer) {
+        super.init(ptr: ptr)
+    }
+}
+public class FFIChainClientRef {
+    var ptr: UnsafeMutableRawPointer
+
+    public init(ptr: UnsafeMutableRawPointer) {
+        self.ptr = ptr
+    }
+}
+extension FFIChainClientRef {
+    public func route<GenericIntoRustString: IntoRustString>(_ transaction: GenericIntoRustString) async throws -> RustString {
+        func onComplete(cbWrapperPtr: UnsafeMutableRawPointer?, rustFnRetVal: __swift_bridge__$ResultStringAndFFIRouteError) {
+            let wrapper = Unmanaged<CbWrapper$FFIChainClient$route>.fromOpaque(cbWrapperPtr!).takeRetainedValue()
+            switch rustFnRetVal.tag { case __swift_bridge__$ResultStringAndFFIRouteError$ResultOk: wrapper.cb(.success(RustString(ptr: rustFnRetVal.payload.ok))) case __swift_bridge__$ResultStringAndFFIRouteError$ResultErr: wrapper.cb(.failure(rustFnRetVal.payload.err.intoSwiftRepr())) default: fatalError() }
+        }
+
+        return try await withCheckedThrowingContinuation({ (continuation: CheckedContinuation<RustString, Error>) in
+            let callback = { rustFnRetVal in
+                continuation.resume(with: rustFnRetVal)
+            }
+
+            let wrapper = CbWrapper$FFIChainClient$route(cb: callback)
+            let wrapperPtr = Unmanaged.passRetained(wrapper).toOpaque()
+
+            __swift_bridge__$FFIChainClient$route(wrapperPtr, onComplete, ptr, { let rustString = transaction.intoRustString(); rustString.isOwned = false; return rustString.ptr }())
+        })
+    }
+    class CbWrapper$FFIChainClient$route {
+        var cb: (Result<RustString, Error>) -> ()
+    
+        public init(cb: @escaping (Result<RustString, Error>) -> ()) {
+            self.cb = cb
+        }
+    }
+
+    public func status<GenericIntoRustString: IntoRustString>(_ orchestration_id: GenericIntoRustString) async throws -> RustString {
+        func onComplete(cbWrapperPtr: UnsafeMutableRawPointer?, rustFnRetVal: __swift_bridge__$ResultStringAndFFIRouteError) {
+            let wrapper = Unmanaged<CbWrapper$FFIChainClient$status>.fromOpaque(cbWrapperPtr!).takeRetainedValue()
+            switch rustFnRetVal.tag { case __swift_bridge__$ResultStringAndFFIRouteError$ResultOk: wrapper.cb(.success(RustString(ptr: rustFnRetVal.payload.ok))) case __swift_bridge__$ResultStringAndFFIRouteError$ResultErr: wrapper.cb(.failure(rustFnRetVal.payload.err.intoSwiftRepr())) default: fatalError() }
+        }
+
+        return try await withCheckedThrowingContinuation({ (continuation: CheckedContinuation<RustString, Error>) in
+            let callback = { rustFnRetVal in
+                continuation.resume(with: rustFnRetVal)
+            }
+
+            let wrapper = CbWrapper$FFIChainClient$status(cb: callback)
+            let wrapperPtr = Unmanaged.passRetained(wrapper).toOpaque()
+
+            __swift_bridge__$FFIChainClient$status(wrapperPtr, onComplete, ptr, { let rustString = orchestration_id.intoRustString(); rustString.isOwned = false; return rustString.ptr }())
+        })
+    }
+    class CbWrapper$FFIChainClient$status {
+        var cb: (Result<RustString, Error>) -> ()
+    
+        public init(cb: @escaping (Result<RustString, Error>) -> ()) {
+            self.cb = cb
+        }
+    }
+}
+extension FFIChainClient: Vectorizable {
+    public static func vecOfSelfNew() -> UnsafeMutableRawPointer {
+        __swift_bridge__$Vec_FFIChainClient$new()
+    }
+
+    public static func vecOfSelfFree(vecPtr: UnsafeMutableRawPointer) {
+        __swift_bridge__$Vec_FFIChainClient$drop(vecPtr)
+    }
+
+    public static func vecOfSelfPush(vecPtr: UnsafeMutableRawPointer, value: FFIChainClient) {
+        __swift_bridge__$Vec_FFIChainClient$push(vecPtr, {value.isOwned = false; return value.ptr;}())
+    }
+
+    public static func vecOfSelfPop(vecPtr: UnsafeMutableRawPointer) -> Optional<Self> {
+        let pointer = __swift_bridge__$Vec_FFIChainClient$pop(vecPtr)
+        if pointer == nil {
+            return nil
+        } else {
+            return (FFIChainClient(ptr: pointer!) as! Self)
+        }
+    }
+
+    public static func vecOfSelfGet(vecPtr: UnsafeMutableRawPointer, index: UInt) -> Optional<FFIChainClientRef> {
+        let pointer = __swift_bridge__$Vec_FFIChainClient$get(vecPtr, index)
+        if pointer == nil {
+            return nil
+        } else {
+            return FFIChainClientRef(ptr: pointer!)
+        }
+    }
+
+    public static func vecOfSelfGetMut(vecPtr: UnsafeMutableRawPointer, index: UInt) -> Optional<FFIChainClientRefMut> {
+        let pointer = __swift_bridge__$Vec_FFIChainClient$get_mut(vecPtr, index)
+        if pointer == nil {
+            return nil
+        } else {
+            return FFIChainClientRefMut(ptr: pointer!)
+        }
+    }
+
+    public static func vecOfSelfAsPtr(vecPtr: UnsafeMutableRawPointer) -> UnsafePointer<FFIChainClientRef> {
+        UnsafePointer<FFIChainClientRef>(OpaquePointer(__swift_bridge__$Vec_FFIChainClient$as_ptr(vecPtr)))
+    }
+
+    public static func vecOfSelfLen(vecPtr: UnsafeMutableRawPointer) -> UInt {
+        __swift_bridge__$Vec_FFIChainClient$len(vecPtr)
     }
 }
 
