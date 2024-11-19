@@ -16,6 +16,14 @@ pub mod log;
 #[allow(non_camel_case_types)]
 #[swift_bridge::bridge]
 mod ffi {
+
+    #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+    #[swift_bridge(swift_repr = "struct")]
+    pub struct FFIEip1559Estimation {
+        pub max_fee_per_gas: i64,
+        pub max_priority_fee_per_gas: i64,
+    }
+
     pub enum FFIStatusResponseSuccess {
         Pending(String),    // JSON string of StatusResponseSuccessPending
         Completed(String),  // JSON string of StatusResponseSuccessCompleted
@@ -254,5 +262,10 @@ mod ffi {
             &self,
             orchestration_id: String,
         ) -> Result<FFIStatusResponse, FFIRouteError>;
+
+        pub async fn estimate_fees(
+            &self,
+            chain_id: String,
+        ) -> Result<FFIEip1559Estimation, FFIError>;
     }
 }

@@ -3,7 +3,9 @@ use yttrium::chain_abstraction::api::Transaction;
 use yttrium::chain_abstraction::client::Client;
 use yttrium::chain_abstraction::error::RouteError;
 use alloy::primitives::Address;
-use crate::ffi::{FFIRouteResponse, FFIRouteResponseSuccess, FFIRouteError, FFIStatusResponse, FFIStatusResponseSuccess, FFIEthTransaction};
+use alloy::providers::Provider;
+use alloy::{network::Ethereum, providers::ReqwestProvider};
+use crate::ffi::{FFIRouteResponse, FFIRouteResponseSuccess, FFIRouteError, FFIStatusResponse, FFIStatusResponseSuccess, FFIEthTransaction, FFIEip1559Estimation, FFIError};
 use yttrium::chain_abstraction::api::route::{RouteResponse, RouteResponseSuccess};
 use yttrium::chain_abstraction::api::status::{StatusResponse, StatusResponseSuccess};
 
@@ -134,5 +136,26 @@ impl FFIChainClient {
         };
     
         Ok(ffi_status_response)
+    }
+
+    pub async fn estimate_fees(
+        &self,
+        chain_id: String,
+    ) -> Result<FFIEip1559Estimation, FFIError> {
+        let url = format!(
+            "https://rpc.walletconnect.com/v1?chainId={chain_id}&projectId={}",
+            self.client.project_id
+        )
+        .parse()
+        .expect("Invalid RPC URL");
+        let provider = ReqwestProvider::<Ethereum>::new_http(url);
+        provider
+            .estimate_eip1559_fees(None)
+            .await
+            .map_err(|e| FFIError::Unknown(e.to_string()))
+            .map(|fees| FFIEip1559Estimation {
+                max_fee_per_gas: fees.max_fee_per_gas as i64,
+                max_priority_fee_per_gas: fees.max_priority_fee_per_gas as i64,
+            })
     }
 }
