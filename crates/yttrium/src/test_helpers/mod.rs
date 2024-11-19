@@ -66,7 +66,9 @@ pub async fn use_faucet_gas(
     amount: U256,
     to: Address,
 ) {
-    let max = 1000000000000_u128;
+    let max_usd = 0.05;
+    let eth_price = 3000.;
+    let max = max_usd / eth_price * 10_i64.pow(18) as f64;
     assert!(amount < U256::from(max), "Crossed limit");
     use_faucet_unlimited(provider, faucet, amount, to).await;
 }
