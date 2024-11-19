@@ -124,7 +124,7 @@ impl ChainAbstractionClient {
 
     pub async fn estimate_fees(
         &self,
-        chain_id: String,   
+        chain_id: String,
     ) -> Result<Eip1559Estimation, Error> {
         let url = format!(
             "https://rpc.walletconnect.com/v1?chainId={chain_id}&projectId={}",
