@@ -21,7 +21,7 @@ impl Client {
     pub fn new(project_id: ProjectId) -> Self {
         Self {
             client: ReqwestClient::new(),
-            base_url: "https://maksy.ngrok.dev".parse().unwrap(),
+            base_url: "https://rpc.walletconnect.com".parse().unwrap(),
             project_id,
         }
     }
