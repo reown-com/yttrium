@@ -65,11 +65,14 @@ pub async fn use_faucet_gas(
     faucet: LocalSigner<SigningKey>,
     amount: U256,
     to: Address,
+    multiplier: u64,
 ) {
     let max_usd = 0.05;
     let eth_price = 3000.;
     let max = max_usd / eth_price * 10_i64.pow(18) as f64;
     assert!(amount < U256::from(max), "Crossed limit");
+    let amount = amount * U256::from(multiplier);
+    println!("Using faucet (multiplier:{multiplier}) to send {amount} to {to}");
     use_faucet_unlimited(provider, faucet, amount, to).await;
 }
 

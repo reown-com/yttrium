@@ -372,6 +372,7 @@ async fn bridging_routes_routes_available_v3() {
                 faucet.clone(),
                 U256::from(additional_balance_required),
                 from_address,
+                4,
             )
             .await;
             println!("funded");
@@ -590,6 +591,7 @@ async fn bridging_routes_routes_available_v3() {
                 faucet.clone(),
                 additional_balance_required,
                 address,
+                4,
             )
             .await;
             println!("funded");
