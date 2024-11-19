@@ -1,5 +1,6 @@
 uniffi::setup_scaffolding!();
 
+use alloy::primitives::{Bytes, U256, U64};
 use alloy::providers::Provider;
 use yttrium::chain_abstraction::api::route::RouteResponse;
 use yttrium::chain_abstraction::api::status::StatusResponse;
@@ -41,17 +42,32 @@ uniffi::custom_type!(Address, String, {
     lower: |obj| obj.to_string(),
 });
 
+uniffi::custom_type!(U256, String, {
+    try_lift: |val| Ok(val.parse()?),
+    lower: |obj| obj.to_string(),
+});
+
+uniffi::custom_type!(U64, String, {
+    try_lift: |val| Ok(val.parse()?),
+    lower: |obj| obj.to_string(),
+});
+
+uniffi::custom_type!(Bytes, String, {
+    try_lift: |val| Ok(val.parse()?),
+    lower: |obj| obj.to_string(),
+});
+
 #[derive(uniffi::Record)]
 pub struct InitTransaction {
     pub from: Address,
     pub to: Address,
-    pub value: String,
-    pub gas: String,
-    pub gas_price: String,
-    pub data: String,
-    pub nonce: String,
-    pub max_fee_per_gas: String,
-    pub max_priority_fee_per_gas: String,
+    pub value: U256,
+    pub gas: U64,
+    pub gas_price: U256,
+    pub data: Bytes,
+    pub nonce: U64,
+    pub max_fee_per_gas: U256,
+    pub max_priority_fee_per_gas: U256,
     pub chain_id: String,
 }
 

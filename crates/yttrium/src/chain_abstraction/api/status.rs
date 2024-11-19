@@ -36,7 +36,7 @@ pub struct StatusResponseSuccessError {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Enum))]
-#[serde(rename_all = "camelCase", tag = "status")]
+#[serde(rename_all = "UPPERCASE", tag = "status")]
 pub enum StatusResponseSuccess {
     Pending(StatusResponseSuccessPending),
     Completed(StatusResponseSuccessCompleted),

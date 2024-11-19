@@ -1,3 +1,5 @@
+set dotenv-load
+
 clean:
   cargo clean
   rm -rf crates/yttrium/.foundry
@@ -7,7 +9,7 @@ clean:
 setup:
   git submodule update --init --recursive
 
-devloop: setup clippy fmt test udeps
+devloop: setup clippy fmt test env-tests udeps
   @echo ""
   @echo ""
   @echo "PASS"
@@ -15,8 +17,16 @@ devloop: setup clippy fmt test udeps
 test:
   cargo test --features=full --lib --bins
 
+# Runs tests that require environment variables to be set
+env-tests:
+  if [ ! -z "${REOWN_PROJECT_ID}" ]; then just test-blockchain-api; fi
+  if [ ! -z "${PIMLICO_API_KEY}" ] && [ ! -z "${PIMLICO_RPC_URL}" ] && [ ! -z "${PIMLICO_BUNDLER_URL}" ]; then just test-pimlico-api; fi
+
 test-pimlico-api:
   cargo test --features=test_pimlico_api --lib --bins
+
+test-blockchain-api:
+  cargo test --features=test_blockchain_api --lib --bins
 
 clippy:
   cargo clippy --workspace --features=full --all-targets -- -D warnings

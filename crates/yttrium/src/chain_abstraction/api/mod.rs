@@ -1,4 +1,4 @@
-use alloy::primitives::Address;
+use alloy::primitives::{Address, Bytes, U256, U64};
 use serde::{Deserialize, Serialize};
 
 pub mod route;
@@ -10,18 +10,38 @@ uniffi::custom_type!(Address, String, {
     lower: |obj| obj.to_string(),
 });
 
+#[cfg(feature = "uniffi")]
+uniffi::custom_type!(U256, String, {
+    try_lift: |val| Ok(val.parse()?),
+    lower: |obj| obj.to_string(),
+});
+
+#[cfg(feature = "uniffi")]
+uniffi::custom_type!(U64, String, {
+    try_lift: |val| Ok(val.parse()?),
+    lower: |obj| obj.to_string(),
+});
+
+#[cfg(feature = "uniffi")]
+uniffi::custom_type!(Bytes, String, {
+    try_lift: |val| Ok(val.parse()?),
+    lower: |obj| obj.to_string(),
+});
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
 #[serde(rename_all = "camelCase")]
 pub struct Transaction {
     pub from: Address,
     pub to: Address,
-    pub value: String,
-    pub gas: String,
-    pub gas_price: String,
-    pub data: String,
-    pub nonce: String,
-    pub max_fee_per_gas: String,
-    pub max_priority_fee_per_gas: String,
+    pub value: U256,
+    pub gas: U64,
+    pub data: Bytes,
+    pub nonce: U64,
     pub chain_id: String,
+
+    // deprecated
+    pub gas_price: U256,
+    pub max_fee_per_gas: U256,
+    pub max_priority_fee_per_gas: U256,
 }

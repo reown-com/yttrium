@@ -9,6 +9,7 @@ license.workspace = true
 full = ["uniffi"]
 uniffi = ["dep:uniffi", "dep:uniffi_macros"]
 test_pimlico_api = []
+test_blockchain_api = []
 
 [dependencies]
 uniffi = { git = "https://github.com/mozilla/uniffi-rs", rev = "e796e00ad150f8b14b61a859a2e8c6497b35074e", optional = true }
@@ -60,3 +61,4 @@ wiremock = "0.6.0"
 
 # Networking
 reqwest.workspace = true
+alloy = { workspace = true, features = ["node-bindings"] }
