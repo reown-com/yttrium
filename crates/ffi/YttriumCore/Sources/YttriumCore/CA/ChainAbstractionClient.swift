@@ -109,4 +109,22 @@ public final class ChainAbstractionClient {
         }
     }
 
+    public func estimateFees(chainId: String) async throws -> FFIEip1559Estimation {
+           do {
+               // Call the Rust function via ffiClient
+               let estimation = try await ffiClient.estimate_fees(chainId)
+
+               // Return the estimation directly
+               return estimation
+           } catch let error as FFIError {
+               // Handle FFIError
+               switch error {
+               case .Unknown(let message):
+                   throw Errors(message: "Unknown error: \(message)")
+               }
+           } catch {
+               // Handle other errors
+               throw error
+           }
+       }
 }
