@@ -49,7 +49,8 @@ impl Client {
         &self,
         orchestration_id: String,
     ) -> Result<StatusResponse, RouteError> {
-        self.client
+        let response = self
+            .client
             .get(self.base_url.join(STATUS_ENDPOINT_PATH).unwrap())
             .query(&StatusQueryParams {
                 project_id: self.project_id.clone(),
@@ -59,9 +60,11 @@ impl Client {
             .await
             .map_err(RouteError::Request)?
             .error_for_status()
-            .map_err(RouteError::Request)?
-            .json()
-            .await
-            .map_err(RouteError::Request)
+            .map_err(RouteError::Request)?;
+        if response.status().is_success() {
+            response.json().await.map_err(RouteError::Request)
+        } else {
+            Err(RouteError::RequestFailed(response.text().await))
+        }
     }
 }
