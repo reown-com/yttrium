@@ -479,7 +479,7 @@ async fn bridging_routes_routes_available_v3() {
     if faucet_required {
         // TODO fund chain_1_balance_1 with required_amount USDC
         // (erc20 transfer & faucet)
-        unimplemented!("shouldn't be required for current test accounts");
+        unimplemented!("shouldn't be required for current test accounts; for now manually send USDC to chain_1_address_1_token");
     }
     assert!(source.token_balance(&sources).await >= required_amount);
 
