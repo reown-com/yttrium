@@ -108,9 +108,9 @@ public final class ChainAbstractionClient {
             // Handle FFIRouteError
             switch ffiError {
             case .Request(let message):
-                throw Errors(message: "Request error: \(message)")
+                throw Errors(message: "Request error: \(message.toString())")
             case .RequestFailed(let message):
-                throw Errors(message: "Request failed: \(message)")
+                throw Errors(message: "Request failed: \(message.toString())")
             }
         } catch {
             throw error
