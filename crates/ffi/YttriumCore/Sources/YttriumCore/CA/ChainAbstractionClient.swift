@@ -70,17 +70,9 @@ public final class ChainAbstractionClient {
     }
 
     public func route(transaction: EthTransaction) async throws -> RouteResponseSuccess {
-        // Encode the transaction to JSON string
-        let encoder = JSONEncoder()
-        encoder.keyEncodingStrategy = .convertToSnakeCase
-        let transactionData = try encoder.encode(transaction)
-        guard let transactionJsonString = String(data: transactionData, encoding: .utf8) else {
-            throw Errors(message: "Failed to encode transaction to JSON string")
-        }
-
         do {
             // Call the Rust function
-            let ffiResponse = try await ffiClient.route(transactionJsonString)
+            let ffiResponse = try await ffiClient.route(transaction.ffi())
 
             // Handle the response
             switch ffiResponse {

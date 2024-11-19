@@ -2,7 +2,8 @@ use serde_json;
 use yttrium::chain_abstraction::api::Transaction;
 use yttrium::chain_abstraction::client::Client;
 use yttrium::chain_abstraction::error::RouteError;
-use crate::ffi::{FFIRouteResponse, FFIRouteResponseSuccess, FFIRouteError, FFIStatusResponse, FFIStatusResponseSuccess};
+use alloy::primitives::Address;
+use crate::ffi::{FFIRouteResponse, FFIRouteResponseSuccess, FFIRouteError, FFIStatusResponse, FFIStatusResponseSuccess, FFIEthTransaction};
 use yttrium::chain_abstraction::api::route::{RouteResponse, RouteResponseSuccess};
 use yttrium::chain_abstraction::api::status::{StatusResponse, StatusResponseSuccess};
 
@@ -20,11 +21,29 @@ impl FFIChainClient {
 
     pub async fn route(
         &self,
-        transaction: String,
+        transaction: FFIEthTransaction,
     ) -> Result<FFIRouteResponse, FFIRouteError> {
-        // Parse the transaction JSON string into a Transaction
-        let transaction: Transaction = serde_json::from_str(&transaction)
-            .map_err(|e| FFIRouteError::RequestFailed(e.to_string()))?;
+        // Map FFIEthTransaction to Transaction
+    
+        // Parse the 'from' and 'to' addresses
+        let from_address = transaction.from.parse::<Address>()
+            .map_err(|e| FFIRouteError::Request(format!("Invalid 'from' address: {}", e)))?;
+        let to_address = transaction.to.parse::<Address>()
+            .map_err(|e| FFIRouteError::Request(format!("Invalid 'to' address: {}", e)))?;
+    
+        // Construct the Transaction
+        let transaction = Transaction {
+            from: from_address,
+            to: to_address,
+            value: transaction.value,
+            gas: transaction.gas,
+            gas_price: transaction.gas_price,
+            data: transaction.data,
+            nonce: transaction.nonce,
+            max_fee_per_gas: transaction.max_fee_per_gas,
+            max_priority_fee_per_gas: transaction.max_priority_fee_per_gas,
+            chain_id: transaction.chain_id,
+        };
     
         // Call the underlying client
         let route_response = self.client.route(transaction).await
@@ -33,10 +52,7 @@ impl FFIChainClient {
                     FFIRouteError::Request(reqwest_error.to_string())
                 }
                 RouteError::RequestFailed(result) => {
-                    let message = match result {
-                        Ok(response_body) => response_body,
-                        Err(reqwest_error) => reqwest_error.to_string(),
-                    };
+                    let message = result.unwrap_or_else(|err| err.to_string());
                     FFIRouteError::RequestFailed(message)
                 }
             })?;

@@ -35,4 +35,19 @@ public struct EthTransaction: Codable {
         self.maxPriorityFeePerGas = maxPriorityFeePerGas
         self.chainId = chainId
     }
+
+    func ffi() -> FFIEthTransaction {
+        return FFIEthTransaction(
+            from: self.from.intoRustString(),
+            to: self.to.intoRustString(),
+            value: self.value.intoRustString(),
+            gas: self.gas.intoRustString(),
+            gas_price: self.gasPrice.intoRustString(),
+            data: self.data.intoRustString(),
+            nonce: self.nonce.intoRustString(),
+            max_fee_per_gas: self.maxFeePerGas.intoRustString(),
+            max_priority_fee_per_gas: self.maxPriorityFeePerGas.intoRustString(),
+            chain_id: self.chainId.intoRustString()
+        )
+    }
 }

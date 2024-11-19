@@ -44,6 +44,21 @@ mod ffi {
 
     #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
     #[swift_bridge(swift_repr = "struct")]
+    pub struct FFIEthTransaction {
+        pub from: String,
+        pub to: String,
+        pub value: String,
+        pub gas: String,
+        pub gas_price: String,
+        pub data: String,
+        pub nonce: String,
+        pub max_fee_per_gas: String,
+        pub max_priority_fee_per_gas: String,
+        pub chain_id: String,
+    }
+
+    #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+    #[swift_bridge(swift_repr = "struct")]
     pub struct FFITransaction {
         pub _to: String,
         pub _value: String,
@@ -232,7 +247,7 @@ mod ffi {
 
         pub async fn route(
             &self,
-            transaction: String,
+            transaction: FFIEthTransaction,
         ) -> Result<FFIRouteResponse, FFIRouteError>;
 
         pub async fn status(

@@ -244,6 +244,61 @@ extension __swift_bridge__$Option$FFIRouteError {
         }
     }
 }
+public struct FFIEthTransaction {
+    public var from: RustString
+    public var to: RustString
+    public var value: RustString
+    public var gas: RustString
+    public var gas_price: RustString
+    public var data: RustString
+    public var nonce: RustString
+    public var max_fee_per_gas: RustString
+    public var max_priority_fee_per_gas: RustString
+    public var chain_id: RustString
+
+    public init(from: RustString,to: RustString,value: RustString,gas: RustString,gas_price: RustString,data: RustString,nonce: RustString,max_fee_per_gas: RustString,max_priority_fee_per_gas: RustString,chain_id: RustString) {
+        self.from = from
+        self.to = to
+        self.value = value
+        self.gas = gas
+        self.gas_price = gas_price
+        self.data = data
+        self.nonce = nonce
+        self.max_fee_per_gas = max_fee_per_gas
+        self.max_priority_fee_per_gas = max_priority_fee_per_gas
+        self.chain_id = chain_id
+    }
+
+    @inline(__always)
+    func intoFfiRepr() -> __swift_bridge__$FFIEthTransaction {
+        { let val = self; return __swift_bridge__$FFIEthTransaction(from: { let rustString = val.from.intoRustString(); rustString.isOwned = false; return rustString.ptr }(), to: { let rustString = val.to.intoRustString(); rustString.isOwned = false; return rustString.ptr }(), value: { let rustString = val.value.intoRustString(); rustString.isOwned = false; return rustString.ptr }(), gas: { let rustString = val.gas.intoRustString(); rustString.isOwned = false; return rustString.ptr }(), gas_price: { let rustString = val.gas_price.intoRustString(); rustString.isOwned = false; return rustString.ptr }(), data: { let rustString = val.data.intoRustString(); rustString.isOwned = false; return rustString.ptr }(), nonce: { let rustString = val.nonce.intoRustString(); rustString.isOwned = false; return rustString.ptr }(), max_fee_per_gas: { let rustString = val.max_fee_per_gas.intoRustString(); rustString.isOwned = false; return rustString.ptr }(), max_priority_fee_per_gas: { let rustString = val.max_priority_fee_per_gas.intoRustString(); rustString.isOwned = false; return rustString.ptr }(), chain_id: { let rustString = val.chain_id.intoRustString(); rustString.isOwned = false; return rustString.ptr }()); }()
+    }
+}
+extension __swift_bridge__$FFIEthTransaction {
+    @inline(__always)
+    func intoSwiftRepr() -> FFIEthTransaction {
+        { let val = self; return FFIEthTransaction(from: RustString(ptr: val.from), to: RustString(ptr: val.to), value: RustString(ptr: val.value), gas: RustString(ptr: val.gas), gas_price: RustString(ptr: val.gas_price), data: RustString(ptr: val.data), nonce: RustString(ptr: val.nonce), max_fee_per_gas: RustString(ptr: val.max_fee_per_gas), max_priority_fee_per_gas: RustString(ptr: val.max_priority_fee_per_gas), chain_id: RustString(ptr: val.chain_id)); }()
+    }
+}
+extension __swift_bridge__$Option$FFIEthTransaction {
+    @inline(__always)
+    func intoSwiftRepr() -> Optional<FFIEthTransaction> {
+        if self.is_some {
+            return self.val.intoSwiftRepr()
+        } else {
+            return nil
+        }
+    }
+
+    @inline(__always)
+    static func fromSwiftRepr(_ val: Optional<FFIEthTransaction>) -> __swift_bridge__$Option$FFIEthTransaction {
+        if let v = val {
+            return __swift_bridge__$Option$FFIEthTransaction(is_some: true, val: v.intoFfiRepr())
+        } else {
+            return __swift_bridge__$Option$FFIEthTransaction(is_some: false, val: __swift_bridge__$FFIEthTransaction())
+        }
+    }
+}
 public struct FFITransaction {
     public var _to: RustString
     public var _value: RustString
@@ -1285,7 +1340,7 @@ public class FFIChainClientRef {
     }
 }
 extension FFIChainClientRef {
-    public func route<GenericIntoRustString: IntoRustString>(_ transaction: GenericIntoRustString) async throws -> FFIRouteResponse {
+    public func route(_ transaction: FFIEthTransaction) async throws -> FFIRouteResponse {
         func onComplete(cbWrapperPtr: UnsafeMutableRawPointer?, rustFnRetVal: __swift_bridge__$ResultFFIRouteResponseAndFFIRouteError) {
             let wrapper = Unmanaged<CbWrapper$FFIChainClient$route>.fromOpaque(cbWrapperPtr!).takeRetainedValue()
             switch rustFnRetVal.tag { case __swift_bridge__$ResultFFIRouteResponseAndFFIRouteError$ResultOk: wrapper.cb(.success(rustFnRetVal.payload.ok.intoSwiftRepr())) case __swift_bridge__$ResultFFIRouteResponseAndFFIRouteError$ResultErr: wrapper.cb(.failure(rustFnRetVal.payload.err.intoSwiftRepr())) default: fatalError() }
@@ -1299,7 +1354,7 @@ extension FFIChainClientRef {
             let wrapper = CbWrapper$FFIChainClient$route(cb: callback)
             let wrapperPtr = Unmanaged.passRetained(wrapper).toOpaque()
 
-            __swift_bridge__$FFIChainClient$route(wrapperPtr, onComplete, ptr, { let rustString = transaction.intoRustString(); rustString.isOwned = false; return rustString.ptr }())
+            __swift_bridge__$FFIChainClient$route(wrapperPtr, onComplete, ptr, transaction.intoFfiRepr())
         })
     }
     class CbWrapper$FFIChainClient$route {

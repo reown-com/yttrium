@@ -11,7 +11,7 @@ public enum RouteResponseSuccess {
 
 public struct RouteResponseAvailable: Codable {
     public let orchestrationId: String
-    public let transactions: [Transaction]
+    public let transactions: [EthTransaction]
     public let metadata: Metadata
 }
 
