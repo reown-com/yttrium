@@ -1,5 +1,8 @@
 use crate::{
-    chain_abstraction::{api::Transaction, client::Client},
+    chain_abstraction::{
+        api::{status::StatusResponse, Transaction},
+        client::Client,
+    },
     test_helpers::{
         private_faucet, use_account, use_faucet_gas, BRIDGE_ACCOUNT_1,
         BRIDGE_ACCOUNT_2,
@@ -22,7 +25,10 @@ use alloy_provider::{
     Identity, Provider, ProviderBuilder, ReqwestProvider, RootProvider,
 };
 use relay_rpc::domain::ProjectId;
-use std::{collections::HashMap, time::{Duration, Instant}};
+use std::{
+    collections::HashMap,
+    time::{Duration, Instant},
+};
 use ERC20::ERC20Instance;
 
 const CHAIN_ID_OPTIMISM: &str = "eip155:10";
@@ -608,6 +614,9 @@ async fn bridging_routes_routes_available_v3() {
     assert_eq!(original.len(), 1);
     let original = original.first().unwrap();
 
+    let status = client.status(result.orchestration_id.clone()).await.unwrap();
+    assert!(matches!(status, StatusResponse::Pending(_)));
+
     let approval_start = Instant::now();
 
     let mut bridge_txn_hashes = Vec::with_capacity(bridge.len());
@@ -627,8 +636,13 @@ async fn bridging_routes_routes_available_v3() {
         );
     }
 
-    let status =
-        client.wait_for_success(result.orchestration_id, Duration::from_millis(result.metadata.check_in)).await.unwrap();
+    let status = client
+        .wait_for_success(
+            result.orchestration_id,
+            Duration::from_millis(result.metadata.check_in),
+        )
+        .await
+        .unwrap();
     println!("status: {:?}", status);
     println!("bridge success in {:?}", approval_start.elapsed());
 
