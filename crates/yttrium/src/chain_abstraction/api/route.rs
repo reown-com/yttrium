@@ -48,7 +48,7 @@ pub struct RouteResponseAvailable {
 #[serde(rename_all = "camelCase")]
 pub struct RouteResponseNotRequired {
     #[serde(rename = "transactions")]
-    _flag: String,
+    _flag: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
