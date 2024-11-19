@@ -336,6 +336,7 @@ mod tests {
     };
 
     #[tokio::test]
+    #[ignore = "run manually"]
     async fn estimate_fees() {
         let chain_id = "eip155:42161";
         let project_id = std::env::var("REOWN_PROJECT_ID").unwrap();
