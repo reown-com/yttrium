@@ -38,6 +38,7 @@ pub struct Transaction {
     pub gas: U64,
     pub data: Bytes,
     pub nonce: U64,
+    // CAIP-2 chain ID
     pub chain_id: String,
 
     // deprecated

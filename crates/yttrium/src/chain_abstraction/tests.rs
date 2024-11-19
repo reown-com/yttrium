@@ -21,17 +21,64 @@ use alloy_provider::{
     },
     Identity, Provider, ProviderBuilder, ReqwestProvider, RootProvider,
 };
-use core::panic;
 use relay_rpc::domain::ProjectId;
 use std::{collections::HashMap, time::Duration};
 use ERC20::ERC20Instance;
 
 const CHAIN_ID_OPTIMISM: &str = "eip155:10";
 const CHAIN_ID_BASE: &str = "eip155:8453";
+const CHAIN_ID_ARBITRUM: &str = "eip155:42161";
 const USDC_CONTRACT_OPTIMISM: Address =
     address!("0b2c639c533813f4aa9d7837caf62653d097ff85");
 const USDC_CONTRACT_BASE: Address =
     address!("833589fCD6eDb6E08f4c7C32D4f71b54bdA02913");
+const USDC_CONTRACT_ARBITRUM: Address =
+    address!("af88d065e77c8cC2239327C5EDb3A432268e5831");
+
+#[derive(Debug, Clone, PartialEq, Eq, Copy)]
+enum Chain {
+    Base,
+    Optimism,
+    Arbitrum,
+}
+
+impl Chain {
+    fn eip155_chain_id(&self) -> &'static str {
+        match self {
+            Chain::Base => CHAIN_ID_BASE,
+            Chain::Optimism => CHAIN_ID_OPTIMISM,
+            Chain::Arbitrum => CHAIN_ID_ARBITRUM,
+        }
+    }
+
+    #[allow(unused)]
+    fn chain_id(&self) -> &'static str {
+        self.eip155_chain_id().strip_prefix("eip155:").unwrap()
+    }
+
+    fn token_address(&self, token: &Token) -> Address {
+        match self {
+            Chain::Base => match token {
+                Token::Usdc => USDC_CONTRACT_BASE,
+            },
+            Chain::Optimism => match token {
+                Token::Usdc => USDC_CONTRACT_OPTIMISM,
+            },
+            Chain::Arbitrum => match token {
+                Token::Usdc => USDC_CONTRACT_ARBITRUM,
+            },
+        }
+    }
+
+    fn from_eip155_chain_id(chain_id: &str) -> Chain {
+        match chain_id {
+            CHAIN_ID_BASE => Chain::Base,
+            CHAIN_ID_OPTIMISM => Chain::Optimism,
+            CHAIN_ID_ARBITRUM => Chain::Arbitrum,
+            _ => unimplemented!(),
+        }
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Copy)]
 enum Token {
@@ -47,16 +94,21 @@ sol! {
     }
 }
 
-fn provider_for_chain(chain_id: &str) -> ReqwestProvider {
+fn provider_for_chain(chain_id: &Chain) -> ReqwestProvider {
     let project_id: ProjectId =
         std::env::var("REOWN_PROJECT_ID").unwrap().into();
-    let url = format!("https://rpc.walletconnect.org/v1?chainId={chain_id}&projectId={project_id}").parse().unwrap();
+    let url = format!(
+        "https://rpc.walletconnect.org/v1?chainId={}&projectId={project_id}",
+        chain_id.eip155_chain_id()
+    )
+    .parse()
+    .unwrap();
     ProviderBuilder::new().on_http(url)
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct BridgeTokenParams {
-    chain_id: String,
+    chain: Chain,
     account_address: Address,
     token: Token,
 }
@@ -92,17 +144,9 @@ impl BridgeToken {
         let provider = ProviderBuilder::new()
             .with_recommended_fillers()
             .wallet(EthereumWallet::new(account))
-            .on_provider(provider_for_chain(&params.chain_id));
+            .on_provider(provider_for_chain(&params.chain));
 
-        let token_address = match params.chain_id.as_ref() {
-            CHAIN_ID_BASE => match params.token {
-                Token::Usdc => USDC_CONTRACT_BASE,
-            },
-            CHAIN_ID_OPTIMISM => match params.token {
-                Token::Usdc => USDC_CONTRACT_OPTIMISM,
-            },
-            _ => panic!("Invalid chain ID"),
-        };
+        let token_address = params.chain.token_address(&params.token);
 
         let token = ERC20::new(token_address, provider.clone());
 
@@ -142,15 +186,15 @@ async fn bridging_routes_routes_available_v3() {
 
     let token = Token::Usdc;
 
-    let chain_1 = CHAIN_ID_BASE;
-    let chain_2 = CHAIN_ID_OPTIMISM;
+    let chain_1 = Chain::Base;
+    let chain_2 = Chain::Optimism;
 
-    let chain_1_provider = provider_for_chain(chain_1);
-    let chain_2_provider = provider_for_chain(chain_2);
+    let chain_1_provider = provider_for_chain(&chain_1);
+    let chain_2_provider = provider_for_chain(&chain_2);
 
     let chain_1_address_1_token = BridgeToken::new(
         BridgeTokenParams {
-            chain_id: chain_1.to_owned(),
+            chain: chain_1.to_owned(),
             account_address: account_1.address(),
             token,
         },
@@ -158,7 +202,7 @@ async fn bridging_routes_routes_available_v3() {
     );
     let chain_1_address_2_token = BridgeToken::new(
         BridgeTokenParams {
-            chain_id: chain_1.to_owned(),
+            chain: chain_1.to_owned(),
             account_address: account_2.address(),
             token,
         },
@@ -166,7 +210,7 @@ async fn bridging_routes_routes_available_v3() {
     );
     let chain_2_address_1_token = BridgeToken::new(
         BridgeTokenParams {
-            chain_id: chain_2.to_owned(),
+            chain: chain_2.to_owned(),
             account_address: account_1.address(),
             token,
         },
@@ -174,7 +218,7 @@ async fn bridging_routes_routes_available_v3() {
     );
     let chain_2_address_2_token = BridgeToken::new(
         BridgeTokenParams {
-            chain_id: chain_2.to_owned(),
+            chain: chain_2.to_owned(),
             account_address: account_2.address(),
             token,
         },
@@ -462,7 +506,13 @@ async fn bridging_routes_routes_available_v3() {
                 .await
                 .unwrap()
         }),
-        chain_id: source.other().bridge_token(&sources).params.chain_id.clone(),
+        chain_id: source
+            .other()
+            .bridge_token(&sources)
+            .params
+            .chain
+            .eip155_chain_id()
+            .to_owned(),
         gas_price: U256::ZERO,
         max_fee_per_gas: U256::ZERO,
         max_priority_fee_per_gas: U256::ZERO,
@@ -504,7 +554,8 @@ async fn bridging_routes_routes_available_v3() {
     for txn in
         result.transactions.into_iter().chain(std::iter::once(transaction))
     {
-        let provider = provider_for_chain(&txn.chain_id);
+        let provider =
+            provider_for_chain(&Chain::from_eip155_chain_id(&txn.chain_id));
         let fees = provider.estimate_eip1559_fees(None).await.unwrap();
         let txn = map_transaction(txn)
             .with_max_fee_per_gas(fees.max_fee_per_gas)
@@ -528,7 +579,8 @@ async fn bridging_routes_routes_available_v3() {
     }
 
     for ((chain_id, address), total_fee) in total_fees {
-        let provider = provider_for_chain(&chain_id);
+        let provider =
+            provider_for_chain(&Chain::from_eip155_chain_id(&chain_id));
         let balance = provider.get_balance(address).await.unwrap();
         if total_fee > balance {
             let additional_balance_required = total_fee - balance;
@@ -555,9 +607,8 @@ async fn bridging_routes_routes_available_v3() {
             .wallet(EthereumWallet::new(
                 wallet_lookup.get(&txn.from.unwrap()).unwrap().clone(),
             ))
-            .on_provider(provider_for_chain(&format!(
-                "eip155:{}",
-                txn.chain_id.unwrap()
+            .on_provider(provider_for_chain(&Chain::from_eip155_chain_id(
+                &format!("eip155:{}", txn.chain_id.unwrap()),
             )))
             .send_transaction(txn)
             .await
