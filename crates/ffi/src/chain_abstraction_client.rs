@@ -1,15 +1,21 @@
-use serde_json;
-use yttrium::chain_abstraction::api::Transaction;
-use yttrium::chain_abstraction::client::Client;
-use yttrium::chain_abstraction::error::RouteError;
+use crate::ffi::{
+    FFIEip1559Estimation, FFIError, FFIEthTransaction, FFIRouteError,
+    FFIRouteResponse, FFIRouteResponseSuccess, FFIStatusResponse,
+    FFIStatusResponseSuccess,
+};
 use alloy::primitives::Address;
 use alloy::providers::Provider;
 use alloy::{network::Ethereum, providers::ReqwestProvider};
-use crate::ffi::{FFIRouteResponse, FFIRouteResponseSuccess, FFIRouteError, FFIStatusResponse, FFIStatusResponseSuccess, FFIEthTransaction, FFIEip1559Estimation, FFIError};
-use yttrium::chain_abstraction::api::route::{RouteResponse, RouteResponseSuccess};
-use yttrium::chain_abstraction::api::status::{StatusResponse, StatusResponseSuccess};
-
-
+use serde_json;
+use yttrium::chain_abstraction::api::route::{
+    RouteResponse, RouteResponseSuccess,
+};
+use yttrium::chain_abstraction::api::status::{
+    StatusResponse, StatusResponseSuccess,
+};
+use yttrium::chain_abstraction::api::Transaction;
+use yttrium::chain_abstraction::client::Client;
+use yttrium::chain_abstraction::error::RouteError;
 
 pub struct FFIChainClient {
     client: Client,
@@ -26,13 +32,16 @@ impl FFIChainClient {
         transaction: FFIEthTransaction,
     ) -> Result<FFIRouteResponse, FFIRouteError> {
         // Map FFIEthTransaction to Transaction
-    
+
         // Parse the 'from' and 'to' addresses
-        let from_address = transaction.from.parse::<Address>()
-            .map_err(|e| FFIRouteError::Request(format!("Invalid 'from' address: {}", e)))?;
-        let to_address = transaction.to.parse::<Address>()
-            .map_err(|e| FFIRouteError::Request(format!("Invalid 'to' address: {}", e)))?;
-    
+        let from_address =
+            transaction.from.parse::<Address>().map_err(|e| {
+                FFIRouteError::Request(format!("Invalid 'from' address: {}", e))
+            })?;
+        let to_address = transaction.to.parse::<Address>().map_err(|e| {
+            FFIRouteError::Request(format!("Invalid 'to' address: {}", e))
+        })?;
+
         // Construct the Transaction
         let transaction = Transaction {
             from: from_address,
@@ -46,19 +55,22 @@ impl FFIChainClient {
             max_priority_fee_per_gas: transaction.max_priority_fee_per_gas,
             chain_id: transaction.chain_id,
         };
-    
+
         // Call the underlying client
-        let route_response = self.client.route(transaction).await
-            .map_err(|route_error| match route_error {
-                RouteError::Request(reqwest_error) => {
-                    FFIRouteError::Request(reqwest_error.to_string())
-                }
-                RouteError::RequestFailed(result) => {
-                    let message = result.unwrap_or_else(|err| err.to_string());
-                    FFIRouteError::RequestFailed(message)
+        let route_response =
+            self.client.route(transaction).await.map_err(|route_error| {
+                match route_error {
+                    RouteError::Request(reqwest_error) => {
+                        FFIRouteError::Request(reqwest_error.to_string())
+                    }
+                    RouteError::RequestFailed(result) => {
+                        let message =
+                            result.unwrap_or_else(|err| err.to_string());
+                        FFIRouteError::RequestFailed(message)
+                    }
                 }
             })?;
-    
+
         // Map the RouteResponse to FFIRouteResponse
         let ffi_route_response = match route_response {
             RouteResponse::Success(success) => {
@@ -66,13 +78,17 @@ impl FFIChainClient {
                     RouteResponseSuccess::Available(available) => {
                         // Serialize `available` into a JSON string
                         let json_string = serde_json::to_string(&available)
-                            .map_err(|e| FFIRouteError::RequestFailed(e.to_string()))?;
+                            .map_err(|e| {
+                                FFIRouteError::RequestFailed(e.to_string())
+                            })?;
                         FFIRouteResponseSuccess::Available(json_string)
                     }
                     RouteResponseSuccess::NotRequired(not_required) => {
                         // Serialize `not_required` into a JSON string
                         let json_string = serde_json::to_string(&not_required)
-                            .map_err(|e| FFIRouteError::RequestFailed(e.to_string()))?;
+                            .map_err(|e| {
+                                FFIRouteError::RequestFailed(e.to_string())
+                            })?;
                         FFIRouteResponseSuccess::NotRequired(json_string)
                     }
                 };
@@ -83,7 +99,7 @@ impl FFIChainClient {
                 FFIRouteResponse::Error(error_message)
             }
         };
-    
+
         Ok(ffi_route_response)
     }
 
@@ -101,7 +117,7 @@ impl FFIChainClient {
                 }
             },
         )?;
-    
+
         // Map the StatusResponse to FFIStatusResponse
         let ffi_status_response = match response {
             StatusResponse::Success(success) => {
@@ -109,19 +125,25 @@ impl FFIChainClient {
                     StatusResponseSuccess::Pending(pending) => {
                         // Serialize `pending` into a JSON string
                         let json_string = serde_json::to_string(&pending)
-                            .map_err(|e| FFIRouteError::RequestFailed(e.to_string()))?;
+                            .map_err(|e| {
+                                FFIRouteError::RequestFailed(e.to_string())
+                            })?;
                         FFIStatusResponseSuccess::Pending(json_string)
                     }
                     StatusResponseSuccess::Completed(completed) => {
                         // Serialize `completed` into a JSON string
                         let json_string = serde_json::to_string(&completed)
-                            .map_err(|e| FFIRouteError::RequestFailed(e.to_string()))?;
+                            .map_err(|e| {
+                                FFIRouteError::RequestFailed(e.to_string())
+                            })?;
                         FFIStatusResponseSuccess::Completed(json_string)
                     }
                     StatusResponseSuccess::Error(error) => {
                         // Serialize `error` into a JSON string
                         let json_string = serde_json::to_string(&error)
-                            .map_err(|e| FFIRouteError::RequestFailed(e.to_string()))?;
+                            .map_err(|e| {
+                                FFIRouteError::RequestFailed(e.to_string())
+                            })?;
                         FFIStatusResponseSuccess::Error(json_string)
                     }
                 };
@@ -134,7 +156,7 @@ impl FFIChainClient {
                 FFIStatusResponse::Error(json_string)
             }
         };
-    
+
         Ok(ffi_status_response)
     }
 

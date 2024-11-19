@@ -1,4 +1,4 @@
-use crate::ffi::{FFIRouteError, FFIError};
+use crate::ffi::{FFIError, FFIRouteError};
 
 impl std::fmt::Display for FFIError {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {

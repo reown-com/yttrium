@@ -25,14 +25,14 @@ mod ffi {
     }
 
     pub enum FFIStatusResponseSuccess {
-        Pending(String),    // JSON string of StatusResponseSuccessPending
-        Completed(String),  // JSON string of StatusResponseSuccessCompleted
-        Error(String),      // JSON string of StatusResponseSuccessError
+        Pending(String),   // JSON string of StatusResponseSuccessPending
+        Completed(String), // JSON string of StatusResponseSuccessCompleted
+        Error(String),     // JSON string of StatusResponseSuccessError
     }
-    
+
     pub enum FFIStatusResponse {
         Success(FFIStatusResponseSuccess),
-        Error(String),      // JSON string of StatusResponseError
+        Error(String), // JSON string of StatusResponseError
     }
 
     pub enum FFIRouteResponseSuccess {

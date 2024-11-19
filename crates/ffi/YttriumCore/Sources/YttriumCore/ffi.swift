@@ -19,6 +19,45 @@ public func __swift_bridge__PrivateKeySignerFFI_private_key (_ this: UnsafeMutab
     Unmanaged<PrivateKeySignerFFI>.fromOpaque(this).takeUnretainedValue().private_key().intoFfiRepr()
 }
 
+public struct FFIEip1559Estimation {
+    public var max_fee_per_gas: Int64
+    public var max_priority_fee_per_gas: Int64
+
+    public init(max_fee_per_gas: Int64,max_priority_fee_per_gas: Int64) {
+        self.max_fee_per_gas = max_fee_per_gas
+        self.max_priority_fee_per_gas = max_priority_fee_per_gas
+    }
+
+    @inline(__always)
+    func intoFfiRepr() -> __swift_bridge__$FFIEip1559Estimation {
+        { let val = self; return __swift_bridge__$FFIEip1559Estimation(max_fee_per_gas: val.max_fee_per_gas, max_priority_fee_per_gas: val.max_priority_fee_per_gas); }()
+    }
+}
+extension __swift_bridge__$FFIEip1559Estimation {
+    @inline(__always)
+    func intoSwiftRepr() -> FFIEip1559Estimation {
+        { let val = self; return FFIEip1559Estimation(max_fee_per_gas: val.max_fee_per_gas, max_priority_fee_per_gas: val.max_priority_fee_per_gas); }()
+    }
+}
+extension __swift_bridge__$Option$FFIEip1559Estimation {
+    @inline(__always)
+    func intoSwiftRepr() -> Optional<FFIEip1559Estimation> {
+        if self.is_some {
+            return self.val.intoSwiftRepr()
+        } else {
+            return nil
+        }
+    }
+
+    @inline(__always)
+    static func fromSwiftRepr(_ val: Optional<FFIEip1559Estimation>) -> __swift_bridge__$Option$FFIEip1559Estimation {
+        if let v = val {
+            return __swift_bridge__$Option$FFIEip1559Estimation(is_some: true, val: v.intoFfiRepr())
+        } else {
+            return __swift_bridge__$Option$FFIEip1559Estimation(is_some: false, val: __swift_bridge__$FFIEip1559Estimation())
+        }
+    }
+}
 public enum FFIStatusResponseSuccess {
     case Pending(RustString)
     case Completed(RustString)
@@ -1386,6 +1425,31 @@ extension FFIChainClientRef {
         var cb: (Result<FFIStatusResponse, Error>) -> ()
     
         public init(cb: @escaping (Result<FFIStatusResponse, Error>) -> ()) {
+            self.cb = cb
+        }
+    }
+
+    public func estimate_fees<GenericIntoRustString: IntoRustString>(_ chain_id: GenericIntoRustString) async throws -> FFIEip1559Estimation {
+        func onComplete(cbWrapperPtr: UnsafeMutableRawPointer?, rustFnRetVal: __swift_bridge__$ResultFFIEip1559EstimationAndFFIError) {
+            let wrapper = Unmanaged<CbWrapper$FFIChainClient$estimate_fees>.fromOpaque(cbWrapperPtr!).takeRetainedValue()
+            switch rustFnRetVal.tag { case __swift_bridge__$ResultFFIEip1559EstimationAndFFIError$ResultOk: wrapper.cb(.success(rustFnRetVal.payload.ok.intoSwiftRepr())) case __swift_bridge__$ResultFFIEip1559EstimationAndFFIError$ResultErr: wrapper.cb(.failure(rustFnRetVal.payload.err.intoSwiftRepr())) default: fatalError() }
+        }
+
+        return try await withCheckedThrowingContinuation({ (continuation: CheckedContinuation<FFIEip1559Estimation, Error>) in
+            let callback = { rustFnRetVal in
+                continuation.resume(with: rustFnRetVal)
+            }
+
+            let wrapper = CbWrapper$FFIChainClient$estimate_fees(cb: callback)
+            let wrapperPtr = Unmanaged.passRetained(wrapper).toOpaque()
+
+            __swift_bridge__$FFIChainClient$estimate_fees(wrapperPtr, onComplete, ptr, { let rustString = chain_id.intoRustString(); rustString.isOwned = false; return rustString.ptr }())
+        })
+    }
+    class CbWrapper$FFIChainClient$estimate_fees {
+        var cb: (Result<FFIEip1559Estimation, Error>) -> ()
+    
+        public init(cb: @escaping (Result<FFIEip1559Estimation, Error>) -> ()) {
             self.cb = cb
         }
     }
