@@ -1,5 +1,5 @@
 use crate::ffi::{
-    Eip1559Estimation, FFIError, FFIEthTransaction, FFIRouteError,
+    FFIEip1559Estimation, FFIError, FFIEthTransaction, FFIRouteError,
     FFIRouteResponse, FFIRouteResponseSuccess, FFIStatusResponse,
     FFIStatusResponseSuccess,
 };
@@ -163,7 +163,7 @@ impl FFIChainClient {
     pub async fn estimate_fees(
         &self,
         chain_id: String,
-    ) -> Result<Eip1559Estimation, FFIError> {
+    ) -> Result<FFIEip1559Estimation, FFIError> {
         let url = format!(
             "https://rpc.walletconnect.com/v1?chainId={chain_id}&projectId={}",
             self.client.project_id
@@ -175,9 +175,9 @@ impl FFIChainClient {
             .estimate_eip1559_fees(None)
             .await
             .map_err(|e| FFIError::Unknown(e.to_string()))
-            .map(|fees| Eip1559Estimation {
-                maxFeePerGas: fees.max_fee_per_gas as i64,
-                maxPriorityFeePerGas: fees.max_priority_fee_per_gas as i64,
+            .map(|fees| FFIEip1559Estimation {
+                maxFeePerGas: fees.max_fee_per_gas.to_string(),
+                maxPriorityFeePerGas: fees.max_priority_fee_per_gas.to_string(),
             })
     }
 }

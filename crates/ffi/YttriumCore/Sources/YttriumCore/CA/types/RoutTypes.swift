@@ -1,17 +1,13 @@
 import Foundation
 
-
-
-
 public enum RouteResponseSuccess {
     case available(RouteResponseAvailable)
     case notRequired(RouteResponseNotRequired)
 }
 
-
 public struct RouteResponseAvailable: Codable {
     public let orchestrationId: String
-    public let transactions: [EthTransaction]
+    public let transactions: [RoutingTransaction]
     public let metadata: Metadata
 }
 
@@ -32,3 +28,13 @@ public struct RouteResponseNotRequired: Codable {
 }
 
 public struct Empty: Codable {}
+
+public struct RoutingTransaction: Codable {
+    public let from: String
+    public let to: String
+    public let value: String
+    public let gas: String
+    public let data: String
+    public let nonce: String
+    public let chainId: String
+}

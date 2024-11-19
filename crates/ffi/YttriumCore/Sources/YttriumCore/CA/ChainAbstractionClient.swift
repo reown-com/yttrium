@@ -1,5 +1,9 @@
 import Foundation
 
+public struct Eip1559Estimation {
+    public var maxFeePerGas: String
+    public var maxPriorityFeePerGas: String
+}
 
 public final class ChainAbstractionClient {
     struct Errors: LocalizedError {
@@ -114,7 +118,10 @@ public final class ChainAbstractionClient {
                let estimation = try await ffiClient.estimate_fees(chainId)
 
                // Return the estimation directly
-               return estimation
+               return Eip1559Estimation(
+                maxFeePerGas: estimation.maxFeePerGas.toString(),
+                maxPriorityFeePerGas: estimation.maxPriorityFeePerGas.toString()
+               )
            } catch let error as FFIError {
                // Handle FFIError
                switch error {

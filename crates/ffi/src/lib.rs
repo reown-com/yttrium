@@ -19,9 +19,9 @@ mod ffi {
 
     #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
     #[swift_bridge(swift_repr = "struct")]
-    pub struct Eip1559Estimation {
-        pub maxFeePerGas: i64,
-        pub maxPriorityFeePerGas: i64,
+    pub struct FFIEip1559Estimation {
+        pub maxFeePerGas: String,
+        pub maxPriorityFeePerGas: String,
     }
 
     pub enum FFIStatusResponseSuccess {
@@ -266,6 +266,6 @@ mod ffi {
         pub async fn estimate_fees(
             &self,
             chain_id: String,
-        ) -> Result<Eip1559Estimation, FFIError>;
+        ) -> Result<FFIEip1559Estimation, FFIError>;
     }
 }
