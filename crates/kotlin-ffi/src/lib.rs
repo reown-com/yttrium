@@ -327,3 +327,26 @@ impl From<InitTransaction> for CATransaction {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use alloy::{
+        network::Ethereum,
+        providers::{Provider, ReqwestProvider},
+    };
+
+    #[tokio::test]
+    async fn estimate_fees() {
+        let chain_id = "eip155:42161";
+        let project_id = std::env::var("REOWN_PROJECT_ID").unwrap();
+        let url = format!(
+            "https://rpc.walletconnect.com/v1?chainId={chain_id}&projectId={project_id}")
+        .parse()
+        .expect("Invalid RPC URL");
+        let provider = ReqwestProvider::<Ethereum>::new_http(url);
+
+        let estimate = provider.estimate_eip1559_fees(None).await.unwrap();
+
+        println!("estimate: {estimate:?}");
+    }
+}

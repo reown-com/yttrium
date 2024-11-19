@@ -22,7 +22,7 @@ use alloy_provider::{
     Identity, Provider, ProviderBuilder, ReqwestProvider, RootProvider,
 };
 use relay_rpc::domain::ProjectId;
-use std::{collections::HashMap, time::Duration};
+use std::{collections::HashMap, time::{Duration, Instant}};
 use ERC20::ERC20Instance;
 
 const CHAIN_ID_OPTIMISM: &str = "eip155:10";
@@ -598,32 +598,72 @@ async fn bridging_routes_routes_available_v3() {
         }
     }
 
-    let origional_source_balance = source.token_balance(&sources).await;
-    let origional_destination_balance =
+    let original_source_balance = source.token_balance(&sources).await;
+    let original_destination_balance =
         source.other().bridge_token(&sources).token_balance().await;
 
-    for txn in transactions_with_fees {
-        println!("processing txn: {txn:?}");
+    let (bridge, original) =
+        transactions_with_fees.split_at(transactions_with_fees.len() - 1);
+    assert_eq!(bridge.len(), 2);
+    assert_eq!(original.len(), 1);
+    let original = original.first().unwrap();
 
-        let receipt = ProviderBuilder::new()
-            .wallet(EthereumWallet::new(
-                wallet_lookup.get(&txn.from.unwrap()).unwrap().clone(),
-            ))
-            .on_provider(provider_for_chain(&Chain::from_eip155_chain_id(
-                &format!("eip155:{}", txn.chain_id.unwrap()),
-            )))
-            .send_transaction(txn)
+    let approval_start = Instant::now();
+
+    let mut bridge_txn_hashes = Vec::with_capacity(bridge.len());
+    for txn in bridge {
+        println!("sending txn: {txn:?}");
+        bridge_txn_hashes.push(
+            ProviderBuilder::new()
+                .wallet(EthereumWallet::new(
+                    wallet_lookup.get(&txn.from.unwrap()).unwrap().clone(),
+                ))
+                .on_provider(provider_for_chain(&Chain::from_eip155_chain_id(
+                    &format!("eip155:{}", txn.chain_id.unwrap()),
+                )))
+                .send_transaction(txn.clone())
+                .await
+                .unwrap(),
+        );
+    }
+
+    let status =
+        client.wait_for_success(result.orchestration_id, Duration::from_millis(result.metadata.check_in)).await.unwrap();
+    println!("status: {:?}", status);
+    println!("bridge success in {:?}", approval_start.elapsed());
+
+    for bridge_txn in bridge_txn_hashes {
+        let hash = bridge_txn.tx_hash();
+        let receipt = bridge_txn
+            .provider()
+            .get_transaction_receipt(*hash)
             .await
             .unwrap()
-            .with_timeout(Some(Duration::from_secs(10)))
-            .get_receipt()
-            .await
             .unwrap();
         println!("txn hash: {}", receipt.transaction_hash);
-
         let status = receipt.status();
         assert!(status);
     }
+    println!("confirmed receipts in {:?}", approval_start.elapsed());
+
+    let receipt = ProviderBuilder::new()
+        .wallet(EthereumWallet::new(
+            wallet_lookup.get(&original.from.unwrap()).unwrap().clone(),
+        ))
+        .on_provider(provider_for_chain(&Chain::from_eip155_chain_id(
+            &format!("eip155:{}", original.chain_id.unwrap()),
+        )))
+        .send_transaction(original.clone())
+        .await
+        .unwrap()
+        .with_timeout(Some(Duration::from_secs(10)))
+        .get_receipt()
+        .await
+        .unwrap();
+    println!("txn hash: {}", receipt.transaction_hash);
+    let status = receipt.status();
+    assert!(status);
+    println!("original txn finished in {:?}", approval_start.elapsed());
 
     println!("final token balances:");
     println!(
@@ -647,10 +687,10 @@ async fn bridging_routes_routes_available_v3() {
     let new_destination_balance =
         source.other().bridge_token(&sources).token_balance().await;
 
-    assert!(new_destination_balance > origional_destination_balance);
-    assert!(new_source_balance < origional_source_balance);
+    assert!(new_destination_balance > original_destination_balance);
+    assert!(new_source_balance < original_source_balance);
     assert_eq!(
         new_destination_balance,
-        origional_destination_balance + send_amount
+        original_destination_balance + send_amount
     );
 }
