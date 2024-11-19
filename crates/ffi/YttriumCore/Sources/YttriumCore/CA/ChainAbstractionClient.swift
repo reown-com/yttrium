@@ -108,7 +108,7 @@ public final class ChainAbstractionClient {
         }
     }
 
-    public func estimateFees(chainId: String) async throws -> FFIEip1559Estimation {
+    public func estimateFees(chainId: String) async throws -> Eip1559Estimation {
            do {
                // Call the Rust function via ffiClient
                let estimation = try await ffiClient.estimate_fees(chainId)
