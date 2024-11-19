@@ -1,6 +1,10 @@
 use crate::{
     chain_abstraction::{
-        api::{status::StatusResponse, Transaction},
+        api::{
+            route::{BridgingError, RouteResponse, RouteResponseError},
+            status::StatusResponse,
+            Transaction,
+        },
         client::Client,
     },
     test_helpers::{
@@ -159,7 +163,6 @@ impl BridgeToken {
         BridgeToken { params, token, provider }
     }
 
-    #[allow(unused)]
     async fn native_balance(&self) -> U256 {
         self.provider.get_balance(self.params.account_address).await.unwrap()
     }
@@ -175,7 +178,7 @@ impl BridgeToken {
 }
 
 #[tokio::test]
-async fn bridging_routes_routes_available_v3() {
+async fn bridging_routes_routes_available() {
     let faucet = private_faucet();
     println!("faucet: {}", faucet.address());
 
@@ -706,5 +709,90 @@ async fn bridging_routes_routes_available_v3() {
     assert_eq!(
         new_destination_balance,
         original_destination_balance + send_amount
+    );
+}
+
+#[tokio::test]
+async fn bridging_routes_routes_insufficient_funds() {
+    let account_1 = LocalSigner::random();
+    println!("account_1: {}", account_1.address());
+    let account_2 = LocalSigner::random();
+    println!("account_2: {}", account_2.address());
+
+    let token = Token::Usdc;
+
+    let chain_1 = Chain::Base;
+    let chain_2 = Chain::Optimism;
+
+    let chain_1_address_1_token = BridgeToken::new(
+        BridgeTokenParams {
+            chain: chain_1.to_owned(),
+            account_address: account_1.address(),
+            token,
+        },
+        account_1.clone(),
+    );
+    let chain_1_address_2_token = BridgeToken::new(
+        BridgeTokenParams {
+            chain: chain_1.to_owned(),
+            account_address: account_2.address(),
+            token,
+        },
+        account_2.clone(),
+    );
+    let chain_2_address_1_token = BridgeToken::new(
+        BridgeTokenParams {
+            chain: chain_2.to_owned(),
+            account_address: account_1.address(),
+            token,
+        },
+        account_1.clone(),
+    );
+    let chain_2_address_2_token = BridgeToken::new(
+        BridgeTokenParams {
+            chain: chain_2.to_owned(),
+            account_address: account_2.address(),
+            token,
+        },
+        account_2.clone(),
+    );
+    assert_eq!(chain_1_address_1_token.token_balance().await, U256::ZERO);
+    assert_eq!(chain_1_address_2_token.token_balance().await, U256::ZERO);
+    assert_eq!(chain_2_address_1_token.token_balance().await, U256::ZERO);
+    assert_eq!(chain_2_address_2_token.token_balance().await, U256::ZERO);
+    assert_eq!(chain_1_address_1_token.native_balance().await, U256::ZERO);
+    assert_eq!(chain_1_address_2_token.native_balance().await, U256::ZERO);
+    assert_eq!(chain_2_address_1_token.native_balance().await, U256::ZERO);
+    assert_eq!(chain_2_address_2_token.native_balance().await, U256::ZERO);
+
+    let send_amount = U256::from(1_500_000); // 1.5 USDC (6 decimals)
+
+    let transaction = Transaction {
+        from: account_1.address(),
+        to: *chain_1_address_2_token.token.address(),
+        value: U256::ZERO,
+        gas: U64::ZERO,
+        data: ERC20::transferCall {
+            to: account_2.address(),
+            amount: send_amount,
+        }
+        .abi_encode()
+        .into(),
+        nonce: U64::ZERO,
+        chain_id: chain_1.eip155_chain_id().to_owned(),
+        gas_price: U256::ZERO,
+        max_fee_per_gas: U256::ZERO,
+        max_priority_fee_per_gas: U256::ZERO,
+    };
+    println!("input transaction: {:?}", transaction);
+
+    let project_id = std::env::var("REOWN_PROJECT_ID").unwrap().into();
+    let client = Client::new(project_id);
+    let result = client.route(transaction.clone()).await.unwrap();
+    assert_eq!(
+        result,
+        RouteResponse::Error(RouteResponseError {
+            error: BridgingError::InsufficientFunds,
+        })
     );
 }
