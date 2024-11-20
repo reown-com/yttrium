@@ -18,7 +18,7 @@ use std::time::{Duration, Instant};
 pub struct Client {
     client: ReqwestClient,
     base_url: Url,
-    project_id: ProjectId,
+    pub project_id: ProjectId,
 }
 
 impl Client {

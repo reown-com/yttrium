@@ -2,10 +2,12 @@
 
 use self::account_client::FFIAccountClient;
 use self::account_client_eip7702::FFI7702AccountClient;
+use self::chain_abstraction_client::FFIChainClient;
 use self::erc6492_client::Erc6492Client;
 
 pub mod account_client;
 pub mod account_client_eip7702;
+pub mod chain_abstraction_client;
 pub mod config;
 pub mod erc6492_client;
 pub mod error;
@@ -14,6 +16,55 @@ pub mod log;
 #[allow(non_camel_case_types)]
 #[swift_bridge::bridge]
 mod ffi {
+
+    #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+    #[swift_bridge(swift_repr = "struct")]
+    pub struct FFIEip1559Estimation {
+        pub maxFeePerGas: String,
+        pub maxPriorityFeePerGas: String,
+    }
+
+    pub enum FFIStatusResponseSuccess {
+        Pending(String),   // JSON string of StatusResponseSuccessPending
+        Completed(String), // JSON string of StatusResponseSuccessCompleted
+        Error(String),     // JSON string of StatusResponseSuccessError
+    }
+
+    pub enum FFIStatusResponse {
+        Success(FFIStatusResponseSuccess),
+        Error(String), // JSON string of StatusResponseError
+    }
+
+    pub enum FFIRouteResponseSuccess {
+        Available(String),   // JSON string of RouteResponseAvailable
+        NotRequired(String), // JSON string of RouteResponseNotRequired
+    }
+
+    pub enum FFIRouteResponse {
+        Success(FFIRouteResponseSuccess),
+        Error(String), // JSON string of RouteResponseError
+    }
+
+    pub enum FFIRouteError {
+        Request(String),
+        RequestFailed(String),
+    }
+
+    #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+    #[swift_bridge(swift_repr = "struct")]
+    pub struct FFIEthTransaction {
+        pub from: String,
+        pub to: String,
+        pub value: String,
+        pub gas: String,
+        pub gas_price: String,
+        pub data: String,
+        pub nonce: String,
+        pub max_fee_per_gas: String,
+        pub max_priority_fee_per_gas: String,
+        pub chain_id: String,
+    }
+
     #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
     #[swift_bridge(swift_repr = "struct")]
     pub struct FFITransaction {
@@ -194,5 +245,27 @@ mod ffi {
             address: String,
             message_hash: String,
         ) -> Result<bool, Erc6492Error>;
+    }
+
+    extern "Rust" {
+        type FFIChainClient;
+
+        #[swift_bridge(init)]
+        fn new(project_id: String) -> FFIChainClient;
+
+        pub async fn route(
+            &self,
+            transaction: FFIEthTransaction,
+        ) -> Result<FFIRouteResponse, FFIRouteError>;
+
+        pub async fn status(
+            &self,
+            orchestration_id: String,
+        ) -> Result<FFIStatusResponse, FFIRouteError>;
+
+        pub async fn estimate_fees(
+            &self,
+            chain_id: String,
+        ) -> Result<FFIEip1559Estimation, FFIError>;
     }
 }
