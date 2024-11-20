@@ -1,0 +1,32 @@
+rust_root: ../yttrium
+rust_input: crate::yttrium
+dart_output: lib/src
+c_output: bridge_generated.h
+# full_dep: true
+web: false
+local: true
+# stop_on_error: true
+# build_runner: false
+# duplicated_c_output: args.duplicated_c_output,
+# rust_output: args.rust_output,
+# dart_entrypoint_class_name: args.dart_entrypoint_class_name,
+# dart_format_line_length: args.dart_format_line_length,
+# dart_preamble: args.dart_preamble,
+# rust_preamble: args.rust_preamble,
+# dart_enums_style: negative_bool_arg(args.no_dart_enums_style),
+# add_mod_to_lib: negative_bool_arg(args.no_add_mod_to_lib),
+# llvm_path: args.llvm_path,
+# llvm_compiler_opts: args.llvm_compiler_opts,
+# dart_root: args.dart_root,
+# extra_headers: args.extra_headers,
+# deps_check: negative_bool_arg(args.no_deps_check),
+# dart3: negative_bool_arg(args.no_dart3),
+# full_dep: positive_bool_arg(args.full_dep),
+# default_external_library_loader_web_prefix: args.default_external_library_loader_web_prefix,
+# dart_type_rename: None, // complex type, not supported on command line yet
+# enable_lifetime: positive_bool_arg(args.enable_lifetime),
+# type_64bit_int: positive_bool_arg(args.type_64bit_int),
+# default_dart_async: negative_bool_arg(args.no_default_dart_async),
+# dump: args.dump,
+# dump_all: positive_bool_arg(args.dump_all),
+# rust_features: args.rust_features,

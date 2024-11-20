@@ -1,0 +1,17 @@
+name: dart_ffi
+description: A starting point for Dart libraries or applications.
+version: 1.0.0
+# repository: https://github.com/my_org/my_repo
+
+environment:
+  sdk: ">=3.3.3 <4.0.0"
+
+# Add regular dependencies here.
+dependencies:
+  flutter_rust_bridge: ^1.82.6
+
+dev_dependencies:
+  # lints: ^4.0.0
+  # test: ^1.24.0
+  build_runner: 2.4.7
+  ffigen: 14.0.1
