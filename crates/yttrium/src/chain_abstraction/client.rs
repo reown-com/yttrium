@@ -53,14 +53,6 @@ impl Client {
         &self,
         orchestration_id: String,
     ) -> Result<StatusResponse, RouteError> {
-        self.status_with_timeout(orchestration_id, Duration::from_secs(5)).await
-    }
-
-    pub async fn status_with_timeout(
-        &self,
-        orchestration_id: String,
-        timeout: Duration,
-    ) -> Result<StatusResponse, RouteError> {
         let response = self
             .client
             .get(self.base_url.join(STATUS_ENDPOINT_PATH).unwrap())
@@ -68,7 +60,7 @@ impl Client {
                 project_id: self.project_id.clone(),
                 orchestration_id,
             })
-            .timeout(timeout)
+            .timeout(Duration::from_secs(5))
             .send()
             .await
             .map_err(RouteError::Request)?
@@ -80,6 +72,7 @@ impl Client {
             Err(RouteError::RequestFailed(response.text().await))
         }
     }
+
     pub async fn wait_for_success(
         &self,
         orchestration_id: String,
@@ -93,6 +86,10 @@ impl Client {
         .await
     }
 
+    /// Waits for the orchestration to complete, polling the status endpoint at a rate set by the orchestration server
+    /// - `orchestration_id` - The orchestration ID returned from the route endpoint
+    /// - `check_in` - The check_in value returned from the route endpoint
+    /// - `timeout` - An approximate timeout to wait for the orchestration to complete
     pub async fn wait_for_success_with_timeout(
         &self,
         orchestration_id: String,
@@ -102,11 +99,7 @@ impl Client {
         let start = Instant::now();
         tokio::time::sleep(check_in).await;
         loop {
-            let remaining_time = timeout - start.elapsed();
-            let request_timeout = remaining_time.max(Duration::from_secs(5));
-            let result = self
-                .status_with_timeout(orchestration_id.clone(), request_timeout)
-                .await;
+            let result = self.status(orchestration_id.clone()).await;
             let (error, check_in) = match result {
                 Ok(status_response_success) => match status_response_success {
                     StatusResponse::Completed(completed) => {
@@ -125,6 +118,7 @@ impl Client {
                 },
                 Err(e) => {
                     (WaitForSuccessError::RouteError(e), Duration::from_secs(1))
+                    // TODO exponential back-off: 0ms, 500ms, 1s
                 }
             };
             if start.elapsed() > timeout {
