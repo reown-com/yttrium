@@ -14,7 +14,7 @@ use reqwest::{Client as ReqwestClient, Url};
 pub struct Client {
     client: ReqwestClient,
     base_url: Url,
-    project_id: ProjectId,
+    pub project_id: ProjectId,
 }
 
 impl Client {
