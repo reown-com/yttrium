@@ -95,7 +95,6 @@ pub struct Eip1559Estimation {
 #[uniffi::export(async_runtime = "tokio")]
 impl ChainAbstractionClient {
     #[uniffi::constructor]
-
     pub fn new(project_id: String) -> Self {
         let client = Client::new(ProjectId::from(project_id.clone()));
         Self { project_id, client }
@@ -139,7 +138,9 @@ impl ChainAbstractionClient {
             .map_err(|e| Error::General(e.to_string()))
             .map(|fees| Eip1559Estimation {
                 max_fee_per_gas: fees.max_fee_per_gas.to_string(),
-                max_priority_fee_per_gas: fees.max_priority_fee_per_gas.to_string(),
+                max_priority_fee_per_gas: fees
+                    .max_priority_fee_per_gas
+                    .to_string(),
             })
     }
 }
