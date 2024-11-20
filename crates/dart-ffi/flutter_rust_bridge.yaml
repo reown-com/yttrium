@@ -1,6 +1,6 @@
 rust_root: ../yttrium
 rust_input: crate::yttrium
-dart_output: lib/src
+dart_output: lib/src/generated/
 c_output: bridge_generated.h
 # full_dep: true
 web: false
