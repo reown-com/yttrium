@@ -84,9 +84,11 @@ async fn use_faucet_unlimited(
     amount: U256,
     to: Address,
 ) {
-    let faucet_balance = provider.get_balance(faucet.address()).await.unwrap();
+    let chain_id = format!("eip155:{}", provider.get_chain_id().await.unwrap());
+    let faucet_address = faucet.address();
+    let faucet_balance = provider.get_balance(faucet_address).await.unwrap();
     if amount > faucet_balance {
-        panic!("not enough funds in faucet. Needed to send {amount} but only had {faucet_balance} available");
+        panic!("not enough funds in faucet. Needed to send {amount} but only had {faucet_balance} available. Please add more funds to the faucet at {chain_id}:{faucet_address}");
     }
     ProviderBuilder::new()
         .with_recommended_fillers()

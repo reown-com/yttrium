@@ -86,10 +86,13 @@ impl Client {
         .await
     }
 
-    /// Waits for the orchestration to complete, polling the status endpoint at a rate set by the orchestration server
-    /// - `orchestration_id` - The orchestration ID returned from the route endpoint
+    /// Waits for the orchestration to complete, polling the status endpoint at
+    /// a rate set by the orchestration server
+    /// - `orchestration_id` - The orchestration ID returned from the route
+    ///   endpoint
     /// - `check_in` - The check_in value returned from the route endpoint
-    /// - `timeout` - An approximate timeout to wait for the orchestration to complete
+    /// - `timeout` - An approximate timeout to wait for the orchestration to
+    ///   complete
     pub async fn wait_for_success_with_timeout(
         &self,
         orchestration_id: String,

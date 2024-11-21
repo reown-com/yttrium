@@ -335,6 +335,7 @@ async fn bridging_routes_routes_available() {
         } else {
             U256::ZERO
         };
+        println!("l1_data_fee: {l1_data_fee}");
 
         U256::from(max_fee_per_gas) * U256::from(gas) + l1_data_fee
     }
@@ -599,6 +600,7 @@ async fn bridging_routes_routes_available() {
             txn.clone(),
         )
         .await;
+        println!("total fee: {} for txn {:?}", fee, txn);
         total_fees
             .entry((
                 format!("eip155:{}", txn.chain_id.unwrap()),
@@ -643,21 +645,36 @@ async fn bridging_routes_routes_available() {
 
     let approval_start = Instant::now();
 
-    let mut bridge_txn_hashes = Vec::with_capacity(bridge.len());
+    let mut pending_bridge_txn_hashes = Vec::with_capacity(bridge.len());
     for txn in bridge {
         println!("sending txn: {txn:?}");
-        bridge_txn_hashes.push(
-            ProviderBuilder::new()
-                .wallet(EthereumWallet::new(
-                    wallet_lookup.get(&txn.from.unwrap()).unwrap().clone(),
-                ))
-                .on_provider(provider_for_chain(&Chain::from_eip155_chain_id(
-                    &format!("eip155:{}", txn.chain_id.unwrap()),
-                )))
-                .send_transaction(txn.clone())
-                .await
-                .unwrap(),
-        );
+
+        let pending_txn = ProviderBuilder::new()
+            .wallet(EthereumWallet::new(
+                wallet_lookup.get(&txn.from.unwrap()).unwrap().clone(),
+            ))
+            .on_provider(provider_for_chain(&Chain::from_eip155_chain_id(
+                &format!("eip155:{}", txn.chain_id.unwrap()),
+            )))
+            .send_transaction(txn.clone())
+            .await
+            .unwrap();
+
+        pending_bridge_txn_hashes
+            .push((pending_txn.provider().clone(), *pending_txn.tx_hash()));
+
+        // assert!(pending_txn.get_receipt().await.unwrap().status());
+
+        // let hash = pending_txn.tx_hash();
+        // println!("txn hash: {hash}");
+        // let receipt = pending_txn
+        //     .provider()
+        //     .get_transaction_receipt(*hash)
+        //     .await
+        //     .unwrap()
+        //     .unwrap();
+        // let status = receipt.status();
+        // assert!(status);
     }
 
     let status = client
@@ -670,11 +687,9 @@ async fn bridging_routes_routes_available() {
     println!("status: {:?}", status);
     println!("bridge success in {:?}", approval_start.elapsed());
 
-    for bridge_txn in bridge_txn_hashes {
-        let hash = bridge_txn.tx_hash();
-        let receipt = bridge_txn
-            .provider()
-            .get_transaction_receipt(*hash)
+    for (provider, pending_txn_hash) in pending_bridge_txn_hashes {
+        let receipt = provider
+            .get_transaction_receipt(pending_txn_hash)
             .await
             .unwrap()
             .unwrap();
