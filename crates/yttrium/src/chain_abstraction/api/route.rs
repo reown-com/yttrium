@@ -47,8 +47,7 @@ pub struct RouteResponseAvailable {
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
 #[serde(rename_all = "camelCase")]
 pub struct RouteResponseNotRequired {
-    #[serde(rename = "transactions")]
-    _flag: Vec<String>,
+    pub transactions: Vec<Transaction>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
