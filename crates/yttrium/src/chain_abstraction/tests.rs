@@ -486,9 +486,30 @@ async fn bridging_routes_routes_available() {
     println!("source: {:?}", source);
 
     if faucet_required {
-        // TODO fund chain_1_balance_1 with required_amount USDC
-        // (erc20 transfer & faucet)
-        unimplemented!("shouldn't be required for current test accounts; for now manually send USDC to chain_1_address_1_token");
+        assert!(required_amount < U256::from(2000000));
+        println!(
+            "using token faucet {} on chain {} for amount {required_amount} on token {:?} ({}). Send tokens to faucet at: {}",
+            faucet.address(),
+            chain_1_address_1_token.params.chain.eip155_chain_id(),
+            token,
+            chain_1_address_1_token.token.address(),
+            faucet.address(),
+        );
+        let status = BridgeToken::new(
+            chain_1_address_1_token.params.clone(),
+            faucet.clone(),
+        )
+        .token
+        .transfer(account_1.address(), required_amount)
+        .send()
+        .await
+        .unwrap()
+        .with_timeout(Some(Duration::from_secs(30)))
+        .get_receipt()
+        .await
+        .unwrap()
+        .status();
+        assert!(status);
     }
     assert!(source.token_balance(&sources).await >= required_amount);
 
