@@ -97,3 +97,5 @@ jobs:
       #   run: while ! curl localhost:3000/ping; do sleep 1; done
       # - name: Run ${{ matrix.config }} tests
       #   run: make CONFIG=${{ matrix.config }} test-swift-apple-platforms
+      - run: git diff crates/ffi
+      - run: if [ -n "$(git diff crates/ffi)" ]; then exit 1; fi
