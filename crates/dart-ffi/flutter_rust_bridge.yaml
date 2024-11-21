@@ -1,5 +1,5 @@
-rust_root: ../yttrium
-rust_input: crate::yttrium
+rust_root: "."
+rust_input: crate
 dart_output: lib/src/generated/
 c_output: bridge_generated.h
 # full_dep: true
@@ -14,7 +14,7 @@ local: true
 # dart_preamble: args.dart_preamble,
 # rust_preamble: args.rust_preamble,
 # dart_enums_style: negative_bool_arg(args.no_dart_enums_style),
-# add_mod_to_lib: negative_bool_arg(args.no_add_mod_to_lib),
+add_mod_to_lib: true
 # llvm_path: args.llvm_path,
 # llvm_compiler_opts: args.llvm_compiler_opts,
 # dart_root: args.dart_root,
@@ -24,7 +24,7 @@ local: true
 # full_dep: positive_bool_arg(args.full_dep),
 # default_external_library_loader_web_prefix: args.default_external_library_loader_web_prefix,
 # dart_type_rename: None, // complex type, not supported on command line yet
-# enable_lifetime: positive_bool_arg(args.enable_lifetime),
+enable_lifetime: true
 # type_64bit_int: positive_bool_arg(args.type_64bit_int),
 # default_dart_async: negative_bool_arg(args.no_default_dart_async),
 # dump: args.dump,
