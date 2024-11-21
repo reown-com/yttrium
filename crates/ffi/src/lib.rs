@@ -24,15 +24,10 @@ mod ffi {
         pub maxPriorityFeePerGas: String,
     }
 
-    pub enum FFIStatusResponseSuccess {
-        Pending(String),   // JSON string of StatusResponseSuccessPending
-        Completed(String), // JSON string of StatusResponseSuccessCompleted
-        Error(String),     // JSON string of StatusResponseSuccessError
-    }
-
     pub enum FFIStatusResponse {
-        Success(FFIStatusResponseSuccess),
-        Error(String), // JSON string of StatusResponseError
+        Pending(String),   // JSON string of StatusResponsePending
+        Completed(String), // JSON string of StatusResponseCompleted
+        Error(String),     // JSON string of StatusResponseError
     }
 
     pub enum FFIRouteResponseSuccess {

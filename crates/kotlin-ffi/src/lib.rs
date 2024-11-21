@@ -1,5 +1,6 @@
 uniffi::setup_scaffolding!();
 
+use alloy::primitives::{Bytes, U256, U64};
 use alloy::providers::Provider;
 use yttrium::chain_abstraction::api::route::RouteResponse;
 use yttrium::chain_abstraction::api::status::StatusResponse;
@@ -41,17 +42,32 @@ uniffi::custom_type!(Address, String, {
     lower: |obj| obj.to_string(),
 });
 
+uniffi::custom_type!(U256, String, {
+    try_lift: |val| Ok(val.parse()?),
+    lower: |obj| obj.to_string(),
+});
+
+uniffi::custom_type!(U64, String, {
+    try_lift: |val| Ok(val.parse()?),
+    lower: |obj| obj.to_string(),
+});
+
+uniffi::custom_type!(Bytes, String, {
+    try_lift: |val| Ok(val.parse()?),
+    lower: |obj| obj.to_string(),
+});
+
 #[derive(uniffi::Record)]
 pub struct InitTransaction {
     pub from: Address,
     pub to: Address,
-    pub value: String,
-    pub gas: String,
-    pub gas_price: String,
-    pub data: String,
-    pub nonce: String,
-    pub max_fee_per_gas: String,
-    pub max_priority_fee_per_gas: String,
+    pub value: U256,
+    pub gas: U64,
+    pub gas_price: U256,
+    pub data: Bytes,
+    pub nonce: U64,
+    pub max_fee_per_gas: U256,
+    pub max_priority_fee_per_gas: U256,
     pub chain_id: String,
 }
 
@@ -309,5 +325,29 @@ impl From<InitTransaction> for CATransaction {
             max_priority_fee_per_gas: source.max_priority_fee_per_gas,
             chain_id: source.chain_id,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use alloy::{
+        network::Ethereum,
+        providers::{Provider, ReqwestProvider},
+    };
+
+    #[tokio::test]
+    #[ignore = "run manually"]
+    async fn estimate_fees() {
+        let chain_id = "eip155:42161";
+        let project_id = std::env::var("REOWN_PROJECT_ID").unwrap();
+        let url = format!(
+            "https://rpc.walletconnect.com/v1?chainId={chain_id}&projectId={project_id}")
+        .parse()
+        .expect("Invalid RPC URL");
+        let provider = ReqwestProvider::<Ethereum>::new_http(url);
+
+        let estimate = provider.estimate_eip1559_fees(None).await.unwrap();
+
+        println!("estimate: {estimate:?}");
     }
 }

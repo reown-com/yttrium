@@ -1,7 +1,6 @@
 use crate::ffi::{
     FFIEip1559Estimation, FFIError, FFIEthTransaction, FFIRouteError,
     FFIRouteResponse, FFIRouteResponseSuccess, FFIStatusResponse,
-    FFIStatusResponseSuccess,
 };
 use alloy::primitives::Address;
 use alloy::providers::Provider;
@@ -10,9 +9,7 @@ use serde_json;
 use yttrium::chain_abstraction::api::route::{
     RouteResponse, RouteResponseSuccess,
 };
-use yttrium::chain_abstraction::api::status::{
-    StatusResponse, StatusResponseSuccess,
-};
+use yttrium::chain_abstraction::api::status::StatusResponse;
 use yttrium::chain_abstraction::api::Transaction;
 use yttrium::chain_abstraction::client::Client;
 use yttrium::chain_abstraction::error::RouteError;
@@ -46,14 +43,41 @@ impl FFIChainClient {
         let transaction = Transaction {
             from: from_address,
             to: to_address,
-            value: transaction.value,
-            gas: transaction.gas,
-            gas_price: transaction.gas_price,
-            data: transaction.data,
-            nonce: transaction.nonce,
-            max_fee_per_gas: transaction.max_fee_per_gas,
-            max_priority_fee_per_gas: transaction.max_priority_fee_per_gas,
-            chain_id: transaction.chain_id,
+            value: transaction.value.parse().map_err(|e| {
+                FFIRouteError::Request(format!("Invalid `value`: {}", e))
+            })?,
+            gas: transaction.gas.parse().map_err(|e| {
+                FFIRouteError::Request(format!("Invalid `gas`: {}", e))
+            })?,
+            gas_price: transaction.gas_price.parse().map_err(|e| {
+                FFIRouteError::Request(format!("Invalid `gas_price`: {}", e))
+            })?,
+            data: transaction.data.parse().map_err(|e| {
+                FFIRouteError::Request(format!("Invalid `data`: {}", e))
+            })?,
+            nonce: transaction.nonce.parse().map_err(|e| {
+                FFIRouteError::Request(format!("Invalid `nonce`: {}", e))
+            })?,
+            max_fee_per_gas: transaction.max_fee_per_gas.parse().map_err(
+                |e| {
+                    FFIRouteError::Request(format!(
+                        "Invalid `max_fee_per_gas`: {}",
+                        e
+                    ))
+                },
+            )?,
+            max_priority_fee_per_gas: transaction
+                .max_priority_fee_per_gas
+                .parse()
+                .map_err(|e| {
+                    FFIRouteError::Request(format!(
+                        "Invalid `max_priority_fee_per_gas`: {}",
+                        e
+                    ))
+                })?,
+            chain_id: transaction.chain_id.parse().map_err(|e| {
+                FFIRouteError::Request(format!("Invalid `chain_id`: {}", e))
+            })?,
         };
 
         // Call the underlying client
@@ -120,34 +144,17 @@ impl FFIChainClient {
 
         // Map the StatusResponse to FFIStatusResponse
         let ffi_status_response = match response {
-            StatusResponse::Success(success) => {
-                let ffi_success = match success {
-                    StatusResponseSuccess::Pending(pending) => {
-                        // Serialize `pending` into a JSON string
-                        let json_string = serde_json::to_string(&pending)
-                            .map_err(|e| {
-                                FFIRouteError::RequestFailed(e.to_string())
-                            })?;
-                        FFIStatusResponseSuccess::Pending(json_string)
-                    }
-                    StatusResponseSuccess::Completed(completed) => {
-                        // Serialize `completed` into a JSON string
-                        let json_string = serde_json::to_string(&completed)
-                            .map_err(|e| {
-                                FFIRouteError::RequestFailed(e.to_string())
-                            })?;
-                        FFIStatusResponseSuccess::Completed(json_string)
-                    }
-                    StatusResponseSuccess::Error(error) => {
-                        // Serialize `error` into a JSON string
-                        let json_string = serde_json::to_string(&error)
-                            .map_err(|e| {
-                                FFIRouteError::RequestFailed(e.to_string())
-                            })?;
-                        FFIStatusResponseSuccess::Error(json_string)
-                    }
-                };
-                FFIStatusResponse::Success(ffi_success)
+            StatusResponse::Pending(pending) => {
+                // Serialize `pending` into a JSON string
+                let json_string = serde_json::to_string(&pending)
+                    .map_err(|e| FFIRouteError::RequestFailed(e.to_string()))?;
+                FFIStatusResponse::Pending(json_string)
+            }
+            StatusResponse::Completed(completed) => {
+                // Serialize `completed` into a JSON string
+                let json_string = serde_json::to_string(&completed)
+                    .map_err(|e| FFIRouteError::RequestFailed(e.to_string()))?;
+                FFIStatusResponse::Completed(json_string)
             }
             StatusResponse::Error(error) => {
                 // Serialize `error` into a JSON string

@@ -1,6 +1,6 @@
 use alloy::{
     network::{Ethereum, EthereumWallet, TransactionBuilder},
-    primitives::{Address, U256},
+    primitives::{keccak256, Address, U256},
     rpc::types::TransactionRequest,
     signers::{k256::ecdsa::SigningKey, local::LocalSigner},
 };
@@ -8,6 +8,33 @@ use alloy_provider::{
     ext::AnvilApi, Provider, ProviderBuilder, ReqwestProvider,
 };
 use reqwest::IntoUrl;
+use std::time::Duration;
+
+pub fn private_faucet() -> LocalSigner<SigningKey> {
+    use_account(None)
+}
+
+// Account index. Must have unique strings.
+pub const BRIDGE_ACCOUNT_1: &str = "bridge_1";
+pub const BRIDGE_ACCOUNT_2: &str = "bridge_2";
+
+pub fn use_account(name: Option<&str>) -> LocalSigner<SigningKey> {
+    use alloy::signers::local::{coins_bip39::English, MnemonicBuilder};
+    let mut builder = MnemonicBuilder::<English>::default().phrase(
+        std::env::var("FAUCET_MNEMONIC")
+            .expect("You've not set the FAUCET_MNEMONIC"),
+    );
+
+    if let Some(name) = name {
+        builder = builder
+            .index(u32::from_be_bytes(
+                keccak256(name).as_slice()[..4].try_into().unwrap(),
+            ))
+            .unwrap();
+    }
+
+    builder.build().unwrap()
+}
 
 pub async fn anvil_faucet<T: IntoUrl>(url: T) -> LocalSigner<SigningKey> {
     let faucet = LocalSigner::random();
@@ -17,6 +44,7 @@ pub async fn anvil_faucet<T: IntoUrl>(url: T) -> LocalSigner<SigningKey> {
     faucet
 }
 
+// Get tiny amounts of wei to test with
 pub async fn use_faucet(
     provider: ReqwestProvider,
     faucet: LocalSigner<SigningKey>,
@@ -28,6 +56,40 @@ pub async fn use_faucet(
     // the minimum amount necessary.
     assert!(amount < U256::from(20), "You probably don't need that much");
 
+    use_faucet_unlimited(provider, faucet, amount, to).await;
+}
+
+// Get resonable amounts of gwei for gas
+pub async fn use_faucet_gas(
+    provider: ReqwestProvider,
+    faucet: LocalSigner<SigningKey>,
+    amount: U256,
+    to: Address,
+    multiplier: u64,
+) {
+    let max_usd = 0.05;
+    let eth_price = 3000.;
+    let max = max_usd / eth_price * 10_i64.pow(18) as f64;
+    assert!(amount < U256::from(max), "Crossed limit");
+    let amount = amount * U256::from(multiplier);
+    println!("Using faucet (multiplier:{multiplier}) to send {amount} to {to}");
+    use_faucet_unlimited(provider, faucet, amount, to).await;
+}
+
+// Use the faucet without any limits. Function is intentionally private to
+// prevent accidental abuse
+async fn use_faucet_unlimited(
+    provider: ReqwestProvider,
+    faucet: LocalSigner<SigningKey>,
+    amount: U256,
+    to: Address,
+) {
+    let chain_id = format!("eip155:{}", provider.get_chain_id().await.unwrap());
+    let faucet_address = faucet.address();
+    let faucet_balance = provider.get_balance(faucet_address).await.unwrap();
+    if amount > faucet_balance {
+        panic!("not enough funds in faucet. Needed to send {amount} but only had {faucet_balance} available. Please add more funds to the faucet at {chain_id}:{faucet_address}");
+    }
     ProviderBuilder::new()
         .with_recommended_fillers()
         .wallet(EthereumWallet::new(faucet))
@@ -37,9 +99,12 @@ pub async fn use_faucet(
         )
         .await
         .unwrap()
+        .with_timeout(Some(Duration::from_secs(120)))
         .watch()
         .await
         .unwrap();
     let balance = provider.get_balance(to).await.unwrap();
-    assert_eq!(balance, amount);
+    println!("Balance of {}: {}", to, balance);
+    println!("amount: {}", amount);
+    assert!(balance >= amount);
 }

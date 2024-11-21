@@ -58,64 +58,18 @@ extension __swift_bridge__$Option$FFIEip1559Estimation {
         }
     }
 }
-public enum FFIStatusResponseSuccess {
+public enum FFIStatusResponse {
     case Pending(RustString)
     case Completed(RustString)
-    case Error(RustString)
-}
-extension FFIStatusResponseSuccess {
-    func intoFfiRepr() -> __swift_bridge__$FFIStatusResponseSuccess {
-        switch self {
-            case FFIStatusResponseSuccess.Pending(let _0):
-                return __swift_bridge__$FFIStatusResponseSuccess(tag: __swift_bridge__$FFIStatusResponseSuccess$Pending, payload: __swift_bridge__$FFIStatusResponseSuccessFields(Pending: __swift_bridge__$FFIStatusResponseSuccess$FieldOfPending(_0: { let rustString = _0.intoRustString(); rustString.isOwned = false; return rustString.ptr }())))
-            case FFIStatusResponseSuccess.Completed(let _0):
-                return __swift_bridge__$FFIStatusResponseSuccess(tag: __swift_bridge__$FFIStatusResponseSuccess$Completed, payload: __swift_bridge__$FFIStatusResponseSuccessFields(Completed: __swift_bridge__$FFIStatusResponseSuccess$FieldOfCompleted(_0: { let rustString = _0.intoRustString(); rustString.isOwned = false; return rustString.ptr }())))
-            case FFIStatusResponseSuccess.Error(let _0):
-                return __swift_bridge__$FFIStatusResponseSuccess(tag: __swift_bridge__$FFIStatusResponseSuccess$Error, payload: __swift_bridge__$FFIStatusResponseSuccessFields(Error: __swift_bridge__$FFIStatusResponseSuccess$FieldOfError(_0: { let rustString = _0.intoRustString(); rustString.isOwned = false; return rustString.ptr }())))
-        }
-    }
-}
-extension __swift_bridge__$FFIStatusResponseSuccess {
-    func intoSwiftRepr() -> FFIStatusResponseSuccess {
-        switch self.tag {
-            case __swift_bridge__$FFIStatusResponseSuccess$Pending:
-                return FFIStatusResponseSuccess.Pending(RustString(ptr: self.payload.Pending._0))
-            case __swift_bridge__$FFIStatusResponseSuccess$Completed:
-                return FFIStatusResponseSuccess.Completed(RustString(ptr: self.payload.Completed._0))
-            case __swift_bridge__$FFIStatusResponseSuccess$Error:
-                return FFIStatusResponseSuccess.Error(RustString(ptr: self.payload.Error._0))
-            default:
-                fatalError("Unreachable")
-        }
-    }
-}
-extension __swift_bridge__$Option$FFIStatusResponseSuccess {
-    @inline(__always)
-    func intoSwiftRepr() -> Optional<FFIStatusResponseSuccess> {
-        if self.is_some {
-            return self.val.intoSwiftRepr()
-        } else {
-            return nil
-        }
-    }
-    @inline(__always)
-    static func fromSwiftRepr(_ val: Optional<FFIStatusResponseSuccess>) -> __swift_bridge__$Option$FFIStatusResponseSuccess {
-        if let v = val {
-            return __swift_bridge__$Option$FFIStatusResponseSuccess(is_some: true, val: v.intoFfiRepr())
-        } else {
-            return __swift_bridge__$Option$FFIStatusResponseSuccess(is_some: false, val: __swift_bridge__$FFIStatusResponseSuccess())
-        }
-    }
-}
-public enum FFIStatusResponse {
-    case Success(FFIStatusResponseSuccess)
     case Error(RustString)
 }
 extension FFIStatusResponse {
     func intoFfiRepr() -> __swift_bridge__$FFIStatusResponse {
         switch self {
-            case FFIStatusResponse.Success(let _0):
-                return __swift_bridge__$FFIStatusResponse(tag: __swift_bridge__$FFIStatusResponse$Success, payload: __swift_bridge__$FFIStatusResponseFields(Success: __swift_bridge__$FFIStatusResponse$FieldOfSuccess(_0: _0.intoFfiRepr())))
+            case FFIStatusResponse.Pending(let _0):
+                return __swift_bridge__$FFIStatusResponse(tag: __swift_bridge__$FFIStatusResponse$Pending, payload: __swift_bridge__$FFIStatusResponseFields(Pending: __swift_bridge__$FFIStatusResponse$FieldOfPending(_0: { let rustString = _0.intoRustString(); rustString.isOwned = false; return rustString.ptr }())))
+            case FFIStatusResponse.Completed(let _0):
+                return __swift_bridge__$FFIStatusResponse(tag: __swift_bridge__$FFIStatusResponse$Completed, payload: __swift_bridge__$FFIStatusResponseFields(Completed: __swift_bridge__$FFIStatusResponse$FieldOfCompleted(_0: { let rustString = _0.intoRustString(); rustString.isOwned = false; return rustString.ptr }())))
             case FFIStatusResponse.Error(let _0):
                 return __swift_bridge__$FFIStatusResponse(tag: __swift_bridge__$FFIStatusResponse$Error, payload: __swift_bridge__$FFIStatusResponseFields(Error: __swift_bridge__$FFIStatusResponse$FieldOfError(_0: { let rustString = _0.intoRustString(); rustString.isOwned = false; return rustString.ptr }())))
         }
@@ -124,8 +78,10 @@ extension FFIStatusResponse {
 extension __swift_bridge__$FFIStatusResponse {
     func intoSwiftRepr() -> FFIStatusResponse {
         switch self.tag {
-            case __swift_bridge__$FFIStatusResponse$Success:
-                return FFIStatusResponse.Success(self.payload.Success._0.intoSwiftRepr())
+            case __swift_bridge__$FFIStatusResponse$Pending:
+                return FFIStatusResponse.Pending(RustString(ptr: self.payload.Pending._0))
+            case __swift_bridge__$FFIStatusResponse$Completed:
+                return FFIStatusResponse.Completed(RustString(ptr: self.payload.Completed._0))
             case __swift_bridge__$FFIStatusResponse$Error:
                 return FFIStatusResponse.Error(RustString(ptr: self.payload.Error._0))
             default:
