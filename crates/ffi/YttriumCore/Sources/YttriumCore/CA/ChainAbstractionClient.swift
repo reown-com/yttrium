@@ -20,44 +20,34 @@ public final class ChainAbstractionClient {
         self.ffiClient = FFIChainClient(projectId.intoRustString())
     }
 
-    public func status(orchestrationId: String) async throws -> StatusResponseSuccess {
+    public func status(orchestrationId: String) async throws -> StatusResponse {
         do {
             // Call the Rust function
             let ffiResponse = try await ffiClient.status(orchestrationId)
 
             // Handle the response
             switch ffiResponse {
-            case .Success(let success):
-                switch success {
-                case .Pending(let jsonString):
-                    // Decode jsonString into StatusResponseSuccessPending
-                    let data = Data(jsonString.toString().utf8)
-                    let decoder = JSONDecoder()
-                    decoder.keyDecodingStrategy = .convertFromSnakeCase
-                    let pending = try decoder.decode(StatusResponseSuccessPending.self, from: data)
-                    return .pending(pending)
-                case .Completed(let jsonString):
-                    // Decode jsonString into StatusResponseSuccessCompleted
-                    let data = Data(jsonString.toString().utf8)
-                    let decoder = JSONDecoder()
-                    decoder.keyDecodingStrategy = .convertFromSnakeCase
-                    let completed = try decoder.decode(StatusResponseSuccessCompleted.self, from: data)
-                    return .completed(completed)
-                case .Error(let jsonString):
-                    // Decode jsonString into StatusResponseSuccessError
-                    let data = Data(jsonString.toString().utf8)
-                    let decoder = JSONDecoder()
-                    decoder.keyDecodingStrategy = .convertFromSnakeCase
-                    let errorResponse = try decoder.decode(StatusResponseSuccessError.self, from: data)
-                    return .error(errorResponse)
-                }
+            case .Pending(let jsonString):
+                // Decode jsonString into StatusResponseSuccessPending
+                let data = Data(jsonString.toString().utf8)
+                let decoder = JSONDecoder()
+                decoder.keyDecodingStrategy = .convertFromSnakeCase
+                let pending = try decoder.decode(StatusResponsePending.self, from: data)
+                return .pending(pending)
+            case .Completed(let jsonString):
+                // Decode jsonString into StatusResponseSuccessCompleted
+                let data = Data(jsonString.toString().utf8)
+                let decoder = JSONDecoder()
+                decoder.keyDecodingStrategy = .convertFromSnakeCase
+                let completed = try decoder.decode(StatusResponseCompleted.self, from: data)
+                return .completed(completed)
             case .Error(let jsonString):
-                // Decode jsonString into StatusResponseError
+                // Decode jsonString into StatusResponseSuccessError
                 let data = Data(jsonString.toString().utf8)
                 let decoder = JSONDecoder()
                 decoder.keyDecodingStrategy = .convertFromSnakeCase
                 let errorResponse = try decoder.decode(StatusResponseError.self, from: data)
-                throw Errors(message: errorResponse.error)
+                return .error(errorResponse)
             }
         } catch let ffiError as FFIRouteError {
             // Handle FFIRouteError
