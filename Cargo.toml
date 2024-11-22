@@ -1,5 +1,11 @@
 [workspace]
-members = ["crates/*"]
+members = [
+  "crates/cli",
+  "crates/dart-ffi/rust",
+  "crates/ffi",
+  "crates/kotlin-ffi",
+  "crates/yttrium",
+]
 resolver = "2"
 
 [workspace.package]

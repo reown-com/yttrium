@@ -1,0 +1,36 @@
+[package]
+name = "dart-ffi"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[lib]
+name = "dart_ffi"
+crate-type = ["cdylib"]
+
+[build-dependencies]
+flutter_rust_bridge_codegen = "2.6.0"
+
+[dependencies]
+flutter_rust_bridge = "2.6.0"
+yttrium = { path = "../../yttrium" }
+erc6492.workspace = true
+alloy.workspace = true
+
+# Errors
+eyre.workspace = true
+
+# Async
+tokio.workspace = true
+
+# Serialization
+serde.workspace = true
+serde_json.workspace = true
+
+# Networking
+reqwest.workspace = true
+
+# Logging
+log.workspace = true
+

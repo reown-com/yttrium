@@ -3,8 +3,9 @@
 /// More dartdocs go here.
 library;
 
-export 'src/generated/lib.dart';
-export 'src/generated/frb_generated.io.dart';
-export 'src/generated/frb_generated.dart';
+export 'generated/frb_generated.dart';
+export 'generated/frb_generated.io.dart';
+export 'generated/lib.dart';
 
-// TODO: Export any libraries intended for clients of this package.
+export 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
+export 'dart:ffi';
