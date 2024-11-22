@@ -61,8 +61,6 @@ impl Endpoints {
     }
 
     pub fn pimlico() -> Self {
-        dotenv().unwrap();
-
         let api_key = env::var("PIMLICO_API_KEY")
             .expect("You've not set the PIMLICO_API_KEY");
 

@@ -600,23 +600,12 @@ mod tests {
         test_send_transaction(config, faucet).await.unwrap();
     }
 
-    #[cfg(feature = "test_pimlico_api")]
-    fn pimlico_faucet() -> LocalSigner<SigningKey> {
-        use alloy::signers::local::{coins_bip39::English, MnemonicBuilder};
-        MnemonicBuilder::<English>::default()
-            .phrase(
-                std::env::var("FAUCET_MNEMONIC")
-                    .expect("You've not set the FAUCET_MNEMONIC"),
-            )
-            .build()
-            .unwrap()
-    }
-
     #[tokio::test]
     #[cfg(feature = "test_pimlico_api")]
     async fn test_send_transaction_pimlico() {
+        use crate::test_helpers::private_faucet;
         let config = Config::pimlico();
-        let faucet = pimlico_faucet();
+        let faucet = private_faucet();
         test_send_transaction(config, faucet).await.unwrap();
     }
 
@@ -631,8 +620,10 @@ mod tests {
     #[ignore = "not useful currently, can do same test locally"]
     #[cfg(feature = "test_pimlico_api")]
     async fn test_send_transaction_first_reverted_pimlico() {
+        use crate::test_helpers::private_faucet;
+
         let config = Config::pimlico();
-        let faucet = pimlico_faucet();
+        let faucet = private_faucet();
         test_send_transaction_first_reverted(config, faucet).await;
     }
 
