@@ -3,6 +3,8 @@
 /// More dartdocs go here.
 library;
 
-export 'src/dart_ffi_base.dart';
+export 'src/generated/lib.dart';
+export 'src/generated/frb_generated.io.dart';
+export 'src/generated/frb_generated.dart';
 
 // TODO: Export any libraries intended for clients of this package.

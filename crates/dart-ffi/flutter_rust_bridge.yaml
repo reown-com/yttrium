@@ -1,12 +1,12 @@
-rust_root: "."
+rust_root: ../yttrium
 rust_input: crate
 dart_output: lib/src/generated/
-c_output: bridge_generated.h
+# c_output: bridge_generated.h
 # full_dep: true
-web: false
-local: true
+# web: false
+# local: true
 # stop_on_error: true
-# build_runner: false
+build_runner: true
 # duplicated_c_output: args.duplicated_c_output,
 # rust_output: args.rust_output,
 # dart_entrypoint_class_name: args.dart_entrypoint_class_name,
