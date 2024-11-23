@@ -16,6 +16,12 @@ pub mod log;
 #[allow(non_camel_case_types)]
 #[swift_bridge::bridge]
 mod ffi {
+    pub enum FFIWaitForSuccessError {
+        StatusResponseError(String),   // JSON string of the error
+        StatusResponsePending(String), // JSON string of the pending response
+        RouteError(String),     // Nested FFIRouteError
+        Unknown(String),               // Generic unknown error
+    }
 
     #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
     #[swift_bridge(swift_repr = "struct")]
@@ -262,5 +268,11 @@ mod ffi {
             &self,
             chain_id: String,
         ) -> Result<FFIEip1559Estimation, FFIError>;
+
+        pub async fn wait_for_success(
+            &self,
+            orchestration_id: String,
+            check_in_millis: u64,
+        ) -> Result<String, FFIWaitForSuccessError>;
     }
 }

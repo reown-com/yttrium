@@ -1,6 +1,8 @@
 use crate::ffi::{
     FFIEip1559Estimation, FFIError, FFIEthTransaction, FFIRouteError,
     FFIRouteResponse, FFIRouteResponseSuccess, FFIStatusResponse,
+    FFIWaitForSuccessError,
+
 };
 use alloy::primitives::Address;
 use alloy::providers::Provider;
@@ -10,9 +12,11 @@ use yttrium::chain_abstraction::api::route::{
     RouteResponse, RouteResponseSuccess,
 };
 use yttrium::chain_abstraction::api::status::StatusResponse;
+use yttrium::chain_abstraction::error::WaitForSuccessError;
 use yttrium::chain_abstraction::api::Transaction;
 use yttrium::chain_abstraction::client::Client;
 use yttrium::chain_abstraction::error::RouteError;
+use std::time::Duration;
 
 pub struct FFIChainClient {
     client: Client,
@@ -186,5 +190,47 @@ impl FFIChainClient {
                 maxFeePerGas: fees.max_fee_per_gas.to_string(),
                 maxPriorityFeePerGas: fees.max_priority_fee_per_gas.to_string(),
             })
+    }
+
+    pub async fn wait_for_success(
+        &self,
+        orchestration_id: String,
+        check_in_millis: u64,
+    ) -> Result<String, FFIWaitForSuccessError> {
+        let check_in = Duration::from_millis(check_in_millis);
+    
+        let result = self
+            .client
+            .wait_for_success(orchestration_id, check_in)
+            .await;
+    
+        match result {
+            Ok(completed) => {
+                let json_string = serde_json::to_string(&completed)
+                    .map_err(|e| FFIWaitForSuccessError::Unknown(e.to_string()))?;
+                Ok(json_string)
+            }
+            Err(WaitForSuccessError::RouteError(route_error)) => {
+                Err(FFIWaitForSuccessError::RouteError(
+                    match route_error {
+                        RouteError::Request(err) => err.to_string(),
+                        RouteError::RequestFailed(result) => {
+                            let message = result.unwrap_or_else(|err| err.to_string());
+                            message
+                        }
+                    },
+                ))
+            }
+            Err(WaitForSuccessError::StatusResponseError(status_error)) => {
+                let json_string = serde_json::to_string(&status_error)
+                    .unwrap_or_else(|_| "".to_string());
+                Err(FFIWaitForSuccessError::StatusResponseError(json_string))
+            }
+            Err(WaitForSuccessError::StatusResponsePending(pending)) => {
+                let json_string = serde_json::to_string(&pending)
+                    .unwrap_or_else(|_| "".to_string());
+                Err(FFIWaitForSuccessError::StatusResponsePending(json_string))
+            }
+        }
     }
 }

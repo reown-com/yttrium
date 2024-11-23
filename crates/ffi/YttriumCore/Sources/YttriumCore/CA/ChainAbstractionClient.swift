@@ -123,4 +123,49 @@ public final class ChainAbstractionClient {
                throw error
            }
        }
+
+    public func waitForSuccess(orchestrationId: String, checkIn: UInt64) async throws -> StatusResponseCompleted {
+           do {
+               // Call the Rust function via ffiClient
+               let jsonString = try await ffiClient.wait_for_success(
+                orchestrationId,
+                checkIn
+               )
+
+               // Deserialize the JSON string into `StatusResponseCompleted`
+               let data = Data(jsonString.toString().utf8)
+               let decoder = JSONDecoder()
+               decoder.keyDecodingStrategy = .convertFromSnakeCase
+               let completed = try decoder.decode(StatusResponseCompleted.self, from: data)
+
+               return completed
+           } catch let error as FFIWaitForSuccessError {
+               // Handle FFIWaitForSuccessError
+               switch error {
+               case .StatusResponseError(let jsonString):
+                   // Deserialize the error and throw a custom error
+                   let data = Data(jsonString.toString().utf8)
+                   let decoder = JSONDecoder()
+                   decoder.keyDecodingStrategy = .convertFromSnakeCase
+                   let statusError = try decoder.decode(StatusResponseError.self, from: data)
+                   throw Errors.init(message: statusError.error)
+               case .StatusResponsePending(let jsonString):
+                   // Deserialize the pending status and throw or handle accordingly
+                   let data = Data(jsonString.toString().utf8)
+                   let decoder = JSONDecoder()
+                   decoder.keyDecodingStrategy = .convertFromSnakeCase
+                   let statusPending = try decoder.decode(StatusResponsePending.self, from: data)
+                   throw Errors.init(message: "Status response mending")
+               case .RouteError(let routeError):
+                   // Handle route errors
+                   throw Errors.init(message: routeError.toString())
+               case .Unknown(let message):
+                   throw Errors.init(message: message.toString())
+               }
+           } catch {
+               // Handle any other errors
+               throw error
+           }
+       }
 }
+
