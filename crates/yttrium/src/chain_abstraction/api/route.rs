@@ -39,6 +39,7 @@ pub struct FundingMetadata {
 #[serde(rename_all = "camelCase")]
 pub struct RouteResponseAvailable {
     pub orchestration_id: String,
+    pub initial_transaction: Transaction,
     pub transactions: Vec<Transaction>,
     pub metadata: Metadata,
 }
@@ -47,6 +48,7 @@ pub struct RouteResponseAvailable {
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
 #[serde(rename_all = "camelCase")]
 pub struct RouteResponseNotRequired {
+    pub initial_transaction: Transaction,
     pub transactions: Vec<Transaction>,
 }
 
