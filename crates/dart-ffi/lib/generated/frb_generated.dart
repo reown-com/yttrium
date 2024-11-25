@@ -12,15 +12,16 @@ import 'lib.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 /// Main entrypoint of the Rust API
-class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
+class YttriumDart extends BaseEntrypoint<YttriumDartApi, YttriumDartApiImpl,
+    YttriumDartWire> {
   @internal
-  static final instance = RustLib._();
+  static final instance = YttriumDart._();
 
-  RustLib._();
+  YttriumDart._();
 
   /// Initialize flutter_rust_bridge
   static Future<void> init({
-    RustLibApi? api,
+    YttriumDartApi? api,
     BaseHandler? handler,
     ExternalLibrary? externalLibrary,
   }) async {
@@ -34,7 +35,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   /// Initialize flutter_rust_bridge in mock mode.
   /// No libraries for FFI are loaded.
   static void initMock({
-    required RustLibApi api,
+    required YttriumDartApi api,
   }) {
     instance.initMockImpl(
       api: api,
@@ -48,12 +49,12 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   static void dispose() => instance.disposeImpl();
 
   @override
-  ApiImplConstructor<RustLibApiImpl, RustLibWire> get apiImplConstructor =>
-      RustLibApiImpl.new;
+  ApiImplConstructor<YttriumDartApiImpl, YttriumDartWire>
+      get apiImplConstructor => YttriumDartApiImpl.new;
 
   @override
-  WireConstructor<RustLibWire> get wireConstructor =>
-      RustLibWire.fromExternalLibrary;
+  WireConstructor<YttriumDartWire> get wireConstructor =>
+      YttriumDartWire.fromExternalLibrary;
 
   @override
   Future<void> executeRustInitializers() async {}
@@ -76,7 +77,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   );
 }
 
-abstract class RustLibApi extends BaseApi {
+abstract class YttriumDartApi extends BaseApi {
   BigInt crateAccountClientConfigAutoAccessorGetChainId(
       {required AccountClientConfig that});
 
@@ -329,8 +330,9 @@ abstract class RustLibApi extends BaseApi {
   CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_U64Ptr;
 }
 
-class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
-  RustLibApiImpl({
+class YttriumDartApiImpl extends YttriumDartApiImplPlatform
+    implements YttriumDartApi {
+  YttriumDartApiImpl({
     required super.handler,
     required super.wire,
     required super.generalizedFrbRustBinding,
@@ -3068,65 +3070,65 @@ class AccountClientConfigImpl extends RustOpaque
       : super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
 
   static final _kStaticData = RustArcStaticData(
-    rustArcIncrementStrongCount: RustLib
+    rustArcIncrementStrongCount: YttriumDart
         .instance.api.rust_arc_increment_strong_count_AccountClientConfig,
-    rustArcDecrementStrongCount: RustLib
+    rustArcDecrementStrongCount: YttriumDart
         .instance.api.rust_arc_decrement_strong_count_AccountClientConfig,
-    rustArcDecrementStrongCountPtr: RustLib
+    rustArcDecrementStrongCountPtr: YttriumDart
         .instance.api.rust_arc_decrement_strong_count_AccountClientConfigPtr,
   );
 
   BigInt get chainId =>
-      RustLib.instance.api.crateAccountClientConfigAutoAccessorGetChainId(
+      YttriumDart.instance.api.crateAccountClientConfigAutoAccessorGetChainId(
         that: this,
       );
 
   Config get config =>
-      RustLib.instance.api.crateAccountClientConfigAutoAccessorGetConfig(
+      YttriumDart.instance.api.crateAccountClientConfigAutoAccessorGetConfig(
         that: this,
       );
 
-  String get ownerAddress =>
-      RustLib.instance.api.crateAccountClientConfigAutoAccessorGetOwnerAddress(
+  String get ownerAddress => YttriumDart.instance.api
+          .crateAccountClientConfigAutoAccessorGetOwnerAddress(
         that: this,
       );
 
-  String get privateKey =>
-      RustLib.instance.api.crateAccountClientConfigAutoAccessorGetPrivateKey(
+  String get privateKey => YttriumDart.instance.api
+          .crateAccountClientConfigAutoAccessorGetPrivateKey(
         that: this,
       );
 
   bool get safe =>
-      RustLib.instance.api.crateAccountClientConfigAutoAccessorGetSafe(
+      YttriumDart.instance.api.crateAccountClientConfigAutoAccessorGetSafe(
         that: this,
       );
 
-  String get signerType =>
-      RustLib.instance.api.crateAccountClientConfigAutoAccessorGetSignerType(
+  String get signerType => YttriumDart.instance.api
+          .crateAccountClientConfigAutoAccessorGetSignerType(
         that: this,
       );
 
   set chainId(BigInt chainId) =>
-      RustLib.instance.api.crateAccountClientConfigAutoAccessorSetChainId(
+      YttriumDart.instance.api.crateAccountClientConfigAutoAccessorSetChainId(
           that: this, chainId: chainId);
 
   set config(Config config) =>
-      RustLib.instance.api.crateAccountClientConfigAutoAccessorSetConfig(
+      YttriumDart.instance.api.crateAccountClientConfigAutoAccessorSetConfig(
           that: this, config: config);
 
-  set ownerAddress(String ownerAddress) =>
-      RustLib.instance.api.crateAccountClientConfigAutoAccessorSetOwnerAddress(
+  set ownerAddress(String ownerAddress) => YttriumDart.instance.api
+      .crateAccountClientConfigAutoAccessorSetOwnerAddress(
           that: this, ownerAddress: ownerAddress);
 
-  set privateKey(String privateKey) =>
-      RustLib.instance.api.crateAccountClientConfigAutoAccessorSetPrivateKey(
+  set privateKey(String privateKey) => YttriumDart.instance.api
+      .crateAccountClientConfigAutoAccessorSetPrivateKey(
           that: this, privateKey: privateKey);
 
-  set safe(bool safe) => RustLib.instance.api
+  set safe(bool safe) => YttriumDart.instance.api
       .crateAccountClientConfigAutoAccessorSetSafe(that: this, safe: safe);
 
-  set signerType(String signerType) =>
-      RustLib.instance.api.crateAccountClientConfigAutoAccessorSetSignerType(
+  set signerType(String signerType) => YttriumDart.instance.api
+      .crateAccountClientConfigAutoAccessorSetSignerType(
           that: this, signerType: signerType);
 }
 
@@ -3142,65 +3144,65 @@ class AccountClientImpl extends RustOpaque implements AccountClient {
 
   static final _kStaticData = RustArcStaticData(
     rustArcIncrementStrongCount:
-        RustLib.instance.api.rust_arc_increment_strong_count_AccountClient,
+        YttriumDart.instance.api.rust_arc_increment_strong_count_AccountClient,
     rustArcDecrementStrongCount:
-        RustLib.instance.api.rust_arc_decrement_strong_count_AccountClient,
-    rustArcDecrementStrongCountPtr:
-        RustLib.instance.api.rust_arc_decrement_strong_count_AccountClientPtr,
+        YttriumDart.instance.api.rust_arc_decrement_strong_count_AccountClient,
+    rustArcDecrementStrongCountPtr: YttriumDart
+        .instance.api.rust_arc_decrement_strong_count_AccountClientPtr,
   );
 
   BigInt get chainId =>
-      RustLib.instance.api.crateAccountClientAutoAccessorGetChainId(
+      YttriumDart.instance.api.crateAccountClientAutoAccessorGetChainId(
         that: this,
       );
 
   String get ownerAddress =>
-      RustLib.instance.api.crateAccountClientAutoAccessorGetOwnerAddress(
+      YttriumDart.instance.api.crateAccountClientAutoAccessorGetOwnerAddress(
         that: this,
       );
 
-  set chainId(BigInt chainId) => RustLib.instance.api
+  set chainId(BigInt chainId) => YttriumDart.instance.api
       .crateAccountClientAutoAccessorSetChainId(that: this, chainId: chainId);
 
   set ownerAddress(String ownerAddress) =>
-      RustLib.instance.api.crateAccountClientAutoAccessorSetOwnerAddress(
+      YttriumDart.instance.api.crateAccountClientAutoAccessorSetOwnerAddress(
           that: this, ownerAddress: ownerAddress);
 
   Future<String> doSendTransactions(
           {required List<OwnerSignature> signatures,
           required String doSendTransactionParams}) =>
-      RustLib.instance.api.crateAccountClientDoSendTransactions(
+      YttriumDart.instance.api.crateAccountClientDoSendTransactions(
           that: this,
           signatures: signatures,
           doSendTransactionParams: doSendTransactionParams);
 
   Future<String> getAddress() =>
-      RustLib.instance.api.crateAccountClientGetAddress(
+      YttriumDart.instance.api.crateAccountClientGetAddress(
         that: this,
       );
 
   Future<BigInt> getChainId() =>
-      RustLib.instance.api.crateAccountClientGetChainId(
+      YttriumDart.instance.api.crateAccountClientGetChainId(
         that: this,
       );
 
   Future<PreparedSendTransaction> prepareSendTransactions(
           {required List<Transaction> transactions}) =>
-      RustLib.instance.api.crateAccountClientPrepareSendTransactions(
+      YttriumDart.instance.api.crateAccountClientPrepareSendTransactions(
           that: this, transactions: transactions);
 
   Future<String> sendTransactions({required List<Transaction> transactions}) =>
-      RustLib.instance.api.crateAccountClientSendTransactions(
+      YttriumDart.instance.api.crateAccountClientSendTransactions(
           that: this, transactions: transactions);
 
   Future<String> signMessageWithMnemonic(
           {required String message, required String mnemonic}) =>
-      RustLib.instance.api.crateAccountClientSignMessageWithMnemonic(
+      YttriumDart.instance.api.crateAccountClientSignMessageWithMnemonic(
           that: this, message: message, mnemonic: mnemonic);
 
   Future<String> waitForUserOperationReceipt(
           {required String userOperationHash}) =>
-      RustLib.instance.api.crateAccountClientWaitForUserOperationReceipt(
+      YttriumDart.instance.api.crateAccountClientWaitForUserOperationReceipt(
           that: this, userOperationHash: userOperationHash);
 }
 
@@ -3216,11 +3218,11 @@ class AddressImpl extends RustOpaque implements Address {
 
   static final _kStaticData = RustArcStaticData(
     rustArcIncrementStrongCount:
-        RustLib.instance.api.rust_arc_increment_strong_count_Address,
+        YttriumDart.instance.api.rust_arc_increment_strong_count_Address,
     rustArcDecrementStrongCount:
-        RustLib.instance.api.rust_arc_decrement_strong_count_Address,
+        YttriumDart.instance.api.rust_arc_decrement_strong_count_Address,
     rustArcDecrementStrongCountPtr:
-        RustLib.instance.api.rust_arc_decrement_strong_count_AddressPtr,
+        YttriumDart.instance.api.rust_arc_decrement_strong_count_AddressPtr,
   );
 }
 
@@ -3236,11 +3238,11 @@ class BytesImpl extends RustOpaque implements Bytes {
 
   static final _kStaticData = RustArcStaticData(
     rustArcIncrementStrongCount:
-        RustLib.instance.api.rust_arc_increment_strong_count_Bytes,
+        YttriumDart.instance.api.rust_arc_increment_strong_count_Bytes,
     rustArcDecrementStrongCount:
-        RustLib.instance.api.rust_arc_decrement_strong_count_Bytes,
+        YttriumDart.instance.api.rust_arc_decrement_strong_count_Bytes,
     rustArcDecrementStrongCountPtr:
-        RustLib.instance.api.rust_arc_decrement_strong_count_BytesPtr,
+        YttriumDart.instance.api.rust_arc_decrement_strong_count_BytesPtr,
   );
 }
 
@@ -3257,44 +3259,45 @@ class ChainAbstractionClientImpl extends RustOpaque
       : super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
 
   static final _kStaticData = RustArcStaticData(
-    rustArcIncrementStrongCount: RustLib
+    rustArcIncrementStrongCount: YttriumDart
         .instance.api.rust_arc_increment_strong_count_ChainAbstractionClient,
-    rustArcDecrementStrongCount: RustLib
+    rustArcDecrementStrongCount: YttriumDart
         .instance.api.rust_arc_decrement_strong_count_ChainAbstractionClient,
-    rustArcDecrementStrongCountPtr: RustLib
+    rustArcDecrementStrongCountPtr: YttriumDart
         .instance.api.rust_arc_decrement_strong_count_ChainAbstractionClientPtr,
   );
 
-  String get projectId =>
-      RustLib.instance.api.crateChainAbstractionClientAutoAccessorGetProjectId(
+  String get projectId => YttriumDart.instance.api
+          .crateChainAbstractionClientAutoAccessorGetProjectId(
         that: this,
       );
 
-  set projectId(String projectId) =>
-      RustLib.instance.api.crateChainAbstractionClientAutoAccessorSetProjectId(
+  set projectId(String projectId) => YttriumDart.instance.api
+      .crateChainAbstractionClientAutoAccessorSetProjectId(
           that: this, projectId: projectId);
 
-  Future<Eip1559Estimation> estimateFees({required String chainId}) => RustLib
-      .instance.api
-      .crateChainAbstractionClientEstimateFees(that: this, chainId: chainId);
+  Future<Eip1559Estimation> estimateFees({required String chainId}) =>
+      YttriumDart.instance.api.crateChainAbstractionClientEstimateFees(
+          that: this, chainId: chainId);
 
-  Future<RouteResponse> route({required InitTransaction transaction}) => RustLib
-      .instance.api
-      .crateChainAbstractionClientRoute(that: this, transaction: transaction);
+  Future<RouteResponse> route({required InitTransaction transaction}) =>
+      YttriumDart.instance.api.crateChainAbstractionClientRoute(
+          that: this, transaction: transaction);
 
   Future<StatusResponse> status({required String orchestrationId}) =>
-      RustLib.instance.api.crateChainAbstractionClientStatus(
+      YttriumDart.instance.api.crateChainAbstractionClientStatus(
           that: this, orchestrationId: orchestrationId);
 
   Future<StatusResponseCompleted> waitForSuccessWithTimeout(
           {required String orchestrationId,
           required BigInt checkIn,
           required BigInt timeout}) =>
-      RustLib.instance.api.crateChainAbstractionClientWaitForSuccessWithTimeout(
-          that: this,
-          orchestrationId: orchestrationId,
-          checkIn: checkIn,
-          timeout: timeout);
+      YttriumDart.instance.api
+          .crateChainAbstractionClientWaitForSuccessWithTimeout(
+              that: this,
+              orchestrationId: orchestrationId,
+              checkIn: checkIn,
+              timeout: timeout);
 }
 
 @sealed
@@ -3309,11 +3312,11 @@ class ConfigImpl extends RustOpaque implements Config {
 
   static final _kStaticData = RustArcStaticData(
     rustArcIncrementStrongCount:
-        RustLib.instance.api.rust_arc_increment_strong_count_Config,
+        YttriumDart.instance.api.rust_arc_increment_strong_count_Config,
     rustArcDecrementStrongCount:
-        RustLib.instance.api.rust_arc_decrement_strong_count_Config,
+        YttriumDart.instance.api.rust_arc_decrement_strong_count_Config,
     rustArcDecrementStrongCountPtr:
-        RustLib.instance.api.rust_arc_decrement_strong_count_ConfigPtr,
+        YttriumDart.instance.api.rust_arc_decrement_strong_count_ConfigPtr,
   );
 }
 
@@ -3328,93 +3331,96 @@ class InitTransactionImpl extends RustOpaque implements InitTransaction {
       : super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
 
   static final _kStaticData = RustArcStaticData(
-    rustArcIncrementStrongCount:
-        RustLib.instance.api.rust_arc_increment_strong_count_InitTransaction,
-    rustArcDecrementStrongCount:
-        RustLib.instance.api.rust_arc_decrement_strong_count_InitTransaction,
-    rustArcDecrementStrongCountPtr:
-        RustLib.instance.api.rust_arc_decrement_strong_count_InitTransactionPtr,
+    rustArcIncrementStrongCount: YttriumDart
+        .instance.api.rust_arc_increment_strong_count_InitTransaction,
+    rustArcDecrementStrongCount: YttriumDart
+        .instance.api.rust_arc_decrement_strong_count_InitTransaction,
+    rustArcDecrementStrongCountPtr: YttriumDart
+        .instance.api.rust_arc_decrement_strong_count_InitTransactionPtr,
   );
 
   String get chainId =>
-      RustLib.instance.api.crateInitTransactionAutoAccessorGetChainId(
+      YttriumDart.instance.api.crateInitTransactionAutoAccessorGetChainId(
         that: this,
       );
 
   Bytes get data =>
-      RustLib.instance.api.crateInitTransactionAutoAccessorGetData(
+      YttriumDart.instance.api.crateInitTransactionAutoAccessorGetData(
         that: this,
       );
 
   Address get from =>
-      RustLib.instance.api.crateInitTransactionAutoAccessorGetFrom(
+      YttriumDart.instance.api.crateInitTransactionAutoAccessorGetFrom(
         that: this,
       );
 
-  U64 get gas => RustLib.instance.api.crateInitTransactionAutoAccessorGetGas(
+  U64 get gas =>
+      YttriumDart.instance.api.crateInitTransactionAutoAccessorGetGas(
         that: this,
       );
 
   U256 get gasPrice =>
-      RustLib.instance.api.crateInitTransactionAutoAccessorGetGasPrice(
+      YttriumDart.instance.api.crateInitTransactionAutoAccessorGetGasPrice(
         that: this,
       );
 
   U256 get maxFeePerGas =>
-      RustLib.instance.api.crateInitTransactionAutoAccessorGetMaxFeePerGas(
+      YttriumDart.instance.api.crateInitTransactionAutoAccessorGetMaxFeePerGas(
         that: this,
       );
 
-  U256 get maxPriorityFeePerGas => RustLib.instance.api
+  U256 get maxPriorityFeePerGas => YttriumDart.instance.api
           .crateInitTransactionAutoAccessorGetMaxPriorityFeePerGas(
         that: this,
       );
 
   U64 get nonce =>
-      RustLib.instance.api.crateInitTransactionAutoAccessorGetNonce(
+      YttriumDart.instance.api.crateInitTransactionAutoAccessorGetNonce(
         that: this,
       );
 
-  Address get to => RustLib.instance.api.crateInitTransactionAutoAccessorGetTo(
+  Address get to =>
+      YttriumDart.instance.api.crateInitTransactionAutoAccessorGetTo(
         that: this,
       );
 
   U256 get value =>
-      RustLib.instance.api.crateInitTransactionAutoAccessorGetValue(
+      YttriumDart.instance.api.crateInitTransactionAutoAccessorGetValue(
         that: this,
       );
 
-  set chainId(String chainId) => RustLib.instance.api
+  set chainId(String chainId) => YttriumDart.instance.api
       .crateInitTransactionAutoAccessorSetChainId(that: this, chainId: chainId);
 
-  set data(Bytes data) => RustLib.instance.api
+  set data(Bytes data) => YttriumDart.instance.api
       .crateInitTransactionAutoAccessorSetData(that: this, data: data);
 
-  set from(Address from) => RustLib.instance.api
+  set from(Address from) => YttriumDart.instance.api
       .crateInitTransactionAutoAccessorSetFrom(that: this, from: from);
 
-  set gas(U64 gas) => RustLib.instance.api
+  set gas(U64 gas) => YttriumDart.instance.api
       .crateInitTransactionAutoAccessorSetGas(that: this, gas: gas);
 
   set gasPrice(U256 gasPrice) =>
-      RustLib.instance.api.crateInitTransactionAutoAccessorSetGasPrice(
+      YttriumDart.instance.api.crateInitTransactionAutoAccessorSetGasPrice(
           that: this, gasPrice: gasPrice);
 
   set maxFeePerGas(U256 maxFeePerGas) =>
-      RustLib.instance.api.crateInitTransactionAutoAccessorSetMaxFeePerGas(
+      YttriumDart.instance.api.crateInitTransactionAutoAccessorSetMaxFeePerGas(
           that: this, maxFeePerGas: maxFeePerGas);
 
-  set maxPriorityFeePerGas(U256 maxPriorityFeePerGas) => RustLib.instance.api
-      .crateInitTransactionAutoAccessorSetMaxPriorityFeePerGas(
-          that: this, maxPriorityFeePerGas: maxPriorityFeePerGas);
+  set maxPriorityFeePerGas(U256 maxPriorityFeePerGas) =>
+      YttriumDart.instance.api
+          .crateInitTransactionAutoAccessorSetMaxPriorityFeePerGas(
+              that: this, maxPriorityFeePerGas: maxPriorityFeePerGas);
 
-  set nonce(U64 nonce) => RustLib.instance.api
+  set nonce(U64 nonce) => YttriumDart.instance.api
       .crateInitTransactionAutoAccessorSetNonce(that: this, nonce: nonce);
 
-  set to(Address to) => RustLib.instance.api
+  set to(Address to) => YttriumDart.instance.api
       .crateInitTransactionAutoAccessorSetTo(that: this, to: to);
 
-  set value(U256 value) => RustLib.instance.api
+  set value(U256 value) => YttriumDart.instance.api
       .crateInitTransactionAutoAccessorSetValue(that: this, value: value);
 }
 
@@ -3430,11 +3436,11 @@ class RouteResponseImpl extends RustOpaque implements RouteResponse {
 
   static final _kStaticData = RustArcStaticData(
     rustArcIncrementStrongCount:
-        RustLib.instance.api.rust_arc_increment_strong_count_RouteResponse,
+        YttriumDart.instance.api.rust_arc_increment_strong_count_RouteResponse,
     rustArcDecrementStrongCount:
-        RustLib.instance.api.rust_arc_decrement_strong_count_RouteResponse,
-    rustArcDecrementStrongCountPtr:
-        RustLib.instance.api.rust_arc_decrement_strong_count_RouteResponsePtr,
+        YttriumDart.instance.api.rust_arc_decrement_strong_count_RouteResponse,
+    rustArcDecrementStrongCountPtr: YttriumDart
+        .instance.api.rust_arc_decrement_strong_count_RouteResponsePtr,
   );
 }
 
@@ -3451,11 +3457,11 @@ class StatusResponseCompletedImpl extends RustOpaque
       : super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
 
   static final _kStaticData = RustArcStaticData(
-    rustArcIncrementStrongCount: RustLib
+    rustArcIncrementStrongCount: YttriumDart
         .instance.api.rust_arc_increment_strong_count_StatusResponseCompleted,
-    rustArcDecrementStrongCount: RustLib
+    rustArcDecrementStrongCount: YttriumDart
         .instance.api.rust_arc_decrement_strong_count_StatusResponseCompleted,
-    rustArcDecrementStrongCountPtr: RustLib.instance.api
+    rustArcDecrementStrongCountPtr: YttriumDart.instance.api
         .rust_arc_decrement_strong_count_StatusResponseCompletedPtr,
   );
 }
@@ -3472,11 +3478,11 @@ class StatusResponseImpl extends RustOpaque implements StatusResponse {
 
   static final _kStaticData = RustArcStaticData(
     rustArcIncrementStrongCount:
-        RustLib.instance.api.rust_arc_increment_strong_count_StatusResponse,
+        YttriumDart.instance.api.rust_arc_increment_strong_count_StatusResponse,
     rustArcDecrementStrongCount:
-        RustLib.instance.api.rust_arc_decrement_strong_count_StatusResponse,
-    rustArcDecrementStrongCountPtr:
-        RustLib.instance.api.rust_arc_decrement_strong_count_StatusResponsePtr,
+        YttriumDart.instance.api.rust_arc_decrement_strong_count_StatusResponse,
+    rustArcDecrementStrongCountPtr: YttriumDart
+        .instance.api.rust_arc_decrement_strong_count_StatusResponsePtr,
   );
 }
 
@@ -3492,11 +3498,11 @@ class U256Impl extends RustOpaque implements U256 {
 
   static final _kStaticData = RustArcStaticData(
     rustArcIncrementStrongCount:
-        RustLib.instance.api.rust_arc_increment_strong_count_U256,
+        YttriumDart.instance.api.rust_arc_increment_strong_count_U256,
     rustArcDecrementStrongCount:
-        RustLib.instance.api.rust_arc_decrement_strong_count_U256,
+        YttriumDart.instance.api.rust_arc_decrement_strong_count_U256,
     rustArcDecrementStrongCountPtr:
-        RustLib.instance.api.rust_arc_decrement_strong_count_U256Ptr,
+        YttriumDart.instance.api.rust_arc_decrement_strong_count_U256Ptr,
   );
 }
 
@@ -3512,10 +3518,10 @@ class U64Impl extends RustOpaque implements U64 {
 
   static final _kStaticData = RustArcStaticData(
     rustArcIncrementStrongCount:
-        RustLib.instance.api.rust_arc_increment_strong_count_U64,
+        YttriumDart.instance.api.rust_arc_increment_strong_count_U64,
     rustArcDecrementStrongCount:
-        RustLib.instance.api.rust_arc_decrement_strong_count_U64,
+        YttriumDart.instance.api.rust_arc_decrement_strong_count_U64,
     rustArcDecrementStrongCountPtr:
-        RustLib.instance.api.rust_arc_decrement_strong_count_U64Ptr,
+        YttriumDart.instance.api.rust_arc_decrement_strong_count_U64Ptr,
   );
 }

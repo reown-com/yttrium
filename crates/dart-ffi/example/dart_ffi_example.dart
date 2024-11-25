@@ -7,7 +7,7 @@ void main() async {
   );
 
   // Initialize the Rust library
-  await RustLib.init(externalLibrary: externalLibrary);
+  await YttriumDart.init(externalLibrary: externalLibrary);
 
   // final config = AccountClientConfigI(
   //   chainId: BigInt.from(1),
