@@ -3,7 +3,7 @@ uniffi::setup_scaffolding!();
 use alloy::primitives::{Bytes, U256, U64};
 use alloy::providers::Provider;
 use yttrium::chain_abstraction::api::route::RouteResponse;
-use yttrium::chain_abstraction::api::status::StatusResponse;
+use yttrium::chain_abstraction::api::status::{StatusResponse, StatusResponseCompleted};
 use yttrium::chain_abstraction::api::Transaction as CATransaction;
 
 use alloy::{network::Ethereum, providers::ReqwestProvider};
@@ -19,6 +19,7 @@ use yttrium::{
     sign_service::address_from_string,
     transaction::Transaction as YTransaction,
 };
+use std::time::Duration;
 
 #[derive(uniffi::Record)]
 pub struct AccountClientConfig {
@@ -133,6 +134,18 @@ impl ChainAbstractionClient {
     ) -> Result<StatusResponse, Error> {
         self.client
             .status(orchestration_id)
+            .await
+            .map_err(|e| Error::General(e.to_string()))
+    }
+
+    pub async fn wait_for_success_with_timeout(
+        &self,
+        orchestration_id: String,
+        check_in: u64,
+        timeout: u64,
+    ) -> Result<StatusResponseCompleted, Error> {
+        self.client
+            .wait_for_success_with_timeout(orchestration_id, Duration::from_secs(check_in), Duration::from_secs(timeout))
             .await
             .map_err(|e| Error::General(e.to_string()))
     }
