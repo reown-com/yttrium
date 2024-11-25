@@ -6,19 +6,19 @@ rust-version.workspace = true
 license.workspace = true
 
 [lib]
-name = "yttrium_dart"
+name = "dart_yttrium"
 crate-type = ["cdylib"]
 
 [build-dependencies]
 flutter_rust_bridge_codegen = "2.6.0"
-uniffi_build = { git = "https://github.com/mozilla/uniffi-rs", rev = "e796e00ad150f8b14b61a859a2e8c6497b35074e" }
+# uniffi_build = { git = "https://github.com/mozilla/uniffi-rs", rev = "e796e00ad150f8b14b61a859a2e8c6497b35074e" }
 
 [dependencies]
-flutter_rust_bridge = "2.6.0"
-yttrium = { path = "../../yttrium" }
-uniffi = { git = "https://github.com/mozilla/uniffi-rs", rev = "e796e00ad150f8b14b61a859a2e8c6497b35074e", features = ["tokio", "cli"] }
-openssl = { version = "0.10", features = ["vendored"] }
-openssl-sys = { version = "0.9.103", features = ["vendored"] }
+flutter_rust_bridge = "=2.6.0"
+yttrium = { path = "../../yttrium"}
+# uniffi = { git = "https://github.com/mozilla/uniffi-rs", rev = "e796e00ad150f8b14b61a859a2e8c6497b35074e" }
+# openssl = { version = "0.10", features = ["vendored"] }
+# openssl-sys = { version = "0.9.103", features = ["vendored"] }
 relay_rpc = { git = "https://github.com/WalletConnect/WalletConnectRust.git" }
 alloy.workspace = true
 
@@ -39,10 +39,10 @@ reqwest.workspace = true
 log.workspace = true
 thiserror.workspace = true
 
-[[bin]]
-name = "dart-bindgen"
-path = "dart-bindgen.rs"
+# [[bin]]
+# name = "dart_bindgen"
+# path = "dart_bindgen.rs"
 
-[package.metadata.cargo-udeps.ignore]
-# These crates are needed for Linux builds, but will give unused deps error when built on macOS
-normal = ["openssl", "openssl-sys"]
+# [package.metadata.cargo-udeps.ignore]
+# # These crates are needed for Linux builds, but will give unused deps error when built on macOS
+# normal = ["openssl", "openssl-sys"]

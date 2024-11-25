@@ -1,13 +1,10 @@
-uniffi::setup_scaffolding!();
+mod bridge_generated; /* AUTO INJECTED BY flutter_rust_bridge. This line may not be accurate, and you can change it according to your needs. */
 
-use alloy::primitives::{Bytes, U256, U64};
-use alloy::providers::Provider;
 use yttrium::chain_abstraction::api::route::RouteResponse;
-use yttrium::chain_abstraction::api::status::StatusResponse;
+use yttrium::chain_abstraction::api::status::{
+    StatusResponse, StatusResponseCompleted,
+};
 use yttrium::chain_abstraction::api::Transaction as CATransaction;
-
-use alloy::{network::Ethereum, providers::ReqwestProvider};
-use relay_rpc::domain::ProjectId;
 use yttrium::chain_abstraction::client::Client;
 use yttrium::config::Config;
 use yttrium::transaction::send::safe_test::{
@@ -20,44 +17,25 @@ use yttrium::{
     transaction::Transaction as YTransaction,
 };
 
-#[derive(uniffi::Record)]
-pub struct AccountClientConfig {
-    pub owner_address: String,
-    pub chain_id: u64,
-    pub config: Config,
-    pub signer_type: String,
-    pub safe: bool,
-    pub private_key: String,
-}
+use alloy::primitives::{Bytes, U256, U64};
+use alloy::providers::Provider;
+use alloy::{network::Ethereum, providers::ReqwestProvider};
 
-#[derive(uniffi::Record)]
+use relay_rpc::domain::ProjectId;
+use std::time::Duration;
+use flutter_rust_bridge::frb;
+use serde::{Deserialize, Serialize};
+
+#[frb]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Transaction {
     pub to: String,
     pub value: String,
     pub data: String,
 }
 
-uniffi::custom_type!(Address, String, {
-    try_lift: |val| Ok(val.parse()?),
-    lower: |obj| obj.to_string(),
-});
-
-uniffi::custom_type!(U256, String, {
-    try_lift: |val| Ok(val.parse()?),
-    lower: |obj| obj.to_string(),
-});
-
-uniffi::custom_type!(U64, String, {
-    try_lift: |val| Ok(val.parse()?),
-    lower: |obj| obj.to_string(),
-});
-
-uniffi::custom_type!(Bytes, String, {
-    try_lift: |val| Ok(val.parse()?),
-    lower: |obj| obj.to_string(),
-});
-
-#[derive(uniffi::Record)]
+#[frb]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct InitTransaction {
     pub from: Address,
     pub to: Address,
@@ -71,51 +49,49 @@ pub struct InitTransaction {
     pub chain_id: String,
 }
 
-#[derive(uniffi::Record)]
+#[frb]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PreparedSendTransaction {
     pub hash: String,
     pub do_send_transaction_params: String,
 }
 
-#[derive(uniffi::Record)]
+#[frb]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct OwnerSignature {
     pub owner: String,
     pub signature: String,
 }
 
-#[derive(Debug, thiserror::Error, uniffi::Error)]
+#[frb]
+#[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error("General {0}")]
     General(String),
 }
 
-#[derive(uniffi::Object)]
-pub struct AccountClient {
-    pub owner_address: String,
-    pub chain_id: u64,
-    account_client: YAccountClient,
-}
-
-#[derive(uniffi::Object)]
-pub struct ChainAbstractionClient {
-    pub project_id: String,
-    client: Client,
-}
-
-#[derive(uniffi::Record)]
+#[frb]
+#[derive(Clone, Debug)]
 pub struct Eip1559Estimation {
     pub max_fee_per_gas: String,
     pub max_priority_fee_per_gas: String,
 }
 
-#[uniffi::export(async_runtime = "tokio")]
+#[frb]
+pub struct ChainAbstractionClient {
+    pub project_id: String,
+    client: Client,
+}
+
+#[frb]
 impl ChainAbstractionClient {
-    #[uniffi::constructor]
+    // #[frb(constructor)]
     pub fn new(project_id: String) -> Self {
         let client = Client::new(ProjectId::from(project_id.clone()));
         Self { project_id, client }
     }
-
+    
+    #[frb]
     pub async fn route(
         &self,
         transaction: InitTransaction,
@@ -127,6 +103,7 @@ impl ChainAbstractionClient {
             .map_err(|e| Error::General(e.to_string()))
     }
 
+    #[frb]
     pub async fn status(
         &self,
         orchestration_id: String,
@@ -137,6 +114,24 @@ impl ChainAbstractionClient {
             .map_err(|e| Error::General(e.to_string()))
     }
 
+    #[frb]
+    pub async fn wait_for_success_with_timeout(
+        &self,
+        orchestration_id: String,
+        check_in: u64,
+        timeout: u64,
+    ) -> Result<StatusResponseCompleted, Error> {
+        self.client
+            .wait_for_success_with_timeout(
+                orchestration_id,
+                Duration::from_secs(check_in),
+                Duration::from_secs(timeout),
+            )
+            .await
+            .map_err(|e| Error::General(e.to_string()))
+    }
+
+    #[frb]
     pub async fn estimate_fees(
         &self,
         chain_id: String,
@@ -148,6 +143,7 @@ impl ChainAbstractionClient {
         .parse()
         .expect("Invalid RPC URL");
         let provider = ReqwestProvider::<Ethereum>::new_http(url);
+        // Ensure async execution
         provider
             .estimate_eip1559_fees(None)
             .await
@@ -161,9 +157,26 @@ impl ChainAbstractionClient {
     }
 }
 
-#[uniffi::export(async_runtime = "tokio")]
+#[frb]
+pub struct AccountClientConfig {
+    pub owner_address: String,
+    pub chain_id: u64,
+    pub config: Config,
+    pub signer_type: String,
+    pub safe: bool,
+    pub private_key: String,
+}
+
+#[frb]
+pub struct AccountClient {
+    pub owner_address: String,
+    pub chain_id: u64,
+    account_client: YAccountClient,
+}
+
+#[frb]
 impl AccountClient {
-    #[uniffi::constructor]
+    // #[frb(constructor)]
     pub fn new(config: AccountClientConfig) -> Self {
         let owner_address = config.owner_address.clone();
         let signer_type = config.signer_type.clone();
@@ -192,10 +205,12 @@ impl AccountClient {
         }
     }
 
-    pub fn chain_id(&self) -> u64 {
+    pub fn get_chain_id(&self) -> u64 {
         self.chain_id
     }
 
+    // Async method for fetching address
+    #[frb]
     pub async fn get_address(&self) -> Result<String, Error> {
         self.account_client
             .get_address()
@@ -203,6 +218,7 @@ impl AccountClient {
             .map_err(|e| Error::General(e.to_string()))
     }
 
+    #[frb]
     pub async fn send_transactions(
         &self,
         transactions: Vec<Transaction>,
@@ -218,6 +234,7 @@ impl AccountClient {
             .to_string())
     }
 
+    #[frb]
     pub async fn prepare_send_transactions(
         &self,
         transactions: Vec<Transaction>,
@@ -239,7 +256,8 @@ impl AccountClient {
             .map_err(|e| Error::General(e.to_string()))?,
         })
     }
-
+    
+    #[frb]
     pub async fn do_send_transactions(
         &self,
         signatures: Vec<OwnerSignature>,
@@ -283,6 +301,7 @@ impl AccountClient {
             .map_err(|e| Error::General(e.to_string()))
     }
 
+    #[frb]
     pub async fn wait_for_user_operation_receipt(
         &self,
         user_operation_hash: String,
@@ -301,6 +320,7 @@ impl AccountClient {
     }
 }
 
+#[frb]
 impl From<Transaction> for YTransaction {
     fn from(transaction: Transaction) -> Self {
         YTransaction::new_from_strings(
@@ -312,6 +332,7 @@ impl From<Transaction> for YTransaction {
     }
 }
 
+#[frb]
 impl From<InitTransaction> for CATransaction {
     fn from(source: InitTransaction) -> Self {
         CATransaction {
