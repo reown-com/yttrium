@@ -623,10 +623,6 @@ async fn bridging_routes_routes_available() {
             .await
             .unwrap()
     );
-    // have     : 21160991915723
-    // estimated: 3070388659344
-    // real:      1196464595117
-    // l1 d fee r:869654011778
 
     fn map_transaction(txn: Transaction) -> TransactionRequest {
         TransactionRequest::default()
