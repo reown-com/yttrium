@@ -5,9 +5,8 @@ void main() async {
   final externalLibrary = ExternalLibrary.open(
     '../../target/debug/libdart_yttrium.dylib',
   );
-
   // Initialize the Rust library
-  await YttriumDart.init(externalLibrary: externalLibrary);
+  await ReownYttrium.init(externalLibrary: externalLibrary);
 
   // final config = AccountClientConfigI(
   //   chainId: BigInt.from(1),

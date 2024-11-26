@@ -32,7 +32,7 @@ abstract class AccountClient implements RustOpaqueInterface {
   // HINT: Make it `#[frb(sync)]` to let it become the default constructor of Dart class.
   static Future<AccountClient> newInstance(
           {required AccountClientConfig config}) =>
-      YttriumDart.instance.api.crateAccountClientNew(config: config);
+      ReownYttrium.instance.api.crateAccountClientNew(config: config);
 
   Future<PreparedSendTransaction> prepareSendTransactions(
       {required List<Transaction> transactions});
@@ -90,7 +90,7 @@ abstract class ChainAbstractionClient implements RustOpaqueInterface {
   // HINT: Make it `#[frb(sync)]` to let it become the default constructor of Dart class.
   static Future<ChainAbstractionClient> newInstance(
           {required String projectId}) =>
-      YttriumDart.instance.api
+      ReownYttrium.instance.api
           .crateChainAbstractionClientNew(projectId: projectId);
 
   Future<RouteResponse> route({required InitTransaction transaction});

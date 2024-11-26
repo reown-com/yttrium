@@ -10,8 +10,9 @@ import 'frb_generated.dart';
 import 'lib.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated_io.dart';
 
-abstract class YttriumDartApiImplPlatform extends BaseApiImpl<YttriumDartWire> {
-  YttriumDartApiImplPlatform({
+abstract class ReownYttriumApiImplPlatform
+    extends BaseApiImpl<ReownYttriumWire> {
+  ReownYttriumApiImplPlatform({
     required super.handler,
     required super.wire,
     required super.generalizedFrbRustBinding,
@@ -681,16 +682,16 @@ abstract class YttriumDartApiImplPlatform extends BaseApiImpl<YttriumDartWire> {
 
 // Section: wire_class
 
-class YttriumDartWire implements BaseWire {
-  factory YttriumDartWire.fromExternalLibrary(ExternalLibrary lib) =>
-      YttriumDartWire(lib.ffiDynamicLibrary);
+class ReownYttriumWire implements BaseWire {
+  factory ReownYttriumWire.fromExternalLibrary(ExternalLibrary lib) =>
+      ReownYttriumWire(lib.ffiDynamicLibrary);
 
   /// Holds the symbol lookup function.
   final ffi.Pointer<T> Function<T extends ffi.NativeType>(String symbolName)
       _lookup;
 
   /// The symbols are looked up in [dynamicLibrary].
-  YttriumDartWire(ffi.DynamicLibrary dynamicLibrary)
+  ReownYttriumWire(ffi.DynamicLibrary dynamicLibrary)
       : _lookup = dynamicLibrary.lookup;
 
   void
