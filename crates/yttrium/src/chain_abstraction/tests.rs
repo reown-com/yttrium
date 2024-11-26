@@ -7,6 +7,7 @@ use crate::{
         },
         client::Client,
         currency::Currency,
+        l1_data_fee::get_l1_data_fee,
     },
     test_helpers::{
         private_faucet, use_account, use_faucet_gas, BRIDGE_ACCOUNT_1,
@@ -16,7 +17,6 @@ use crate::{
 use alloy::{
     network::{Ethereum, EthereumWallet, TransactionBuilder},
     primitives::{address, Address, U256, U64},
-    rlp::Encodable,
     rpc::types::TransactionRequest,
     signers::{k256::ecdsa::SigningKey, local::LocalSigner},
     sol,
@@ -326,33 +326,7 @@ async fn bridging_routes_routes_available() {
         let l1_data_fee = if provider_chain_id == CHAIN_ID_BASE
             || provider_chain_id == CHAIN_ID_OPTIMISM
         {
-            // https://docs.optimism.io/builders/app-developers/transactions/fees#l1-data-fee
-            sol! {
-                #[sol(rpc)]
-                contract GasPriceOracle {
-                    function getL1Fee(bytes memory _data) public view returns (uint256);
-                }
-            }
-            // https://github.com/wevm/viem/blob/ae3b8aeab22d56b2cf6d3b05e4f9eeaab7cf81fe/src/op-stack/contracts.ts#L8
-            let oracle_address =
-                address!("420000000000000000000000000000000000000F");
-            let oracle = GasPriceOracle::new(oracle_address, provider.clone());
-            let x = txn.build_unsigned().unwrap();
-            let txn = x.eip1559().unwrap();
-            let mut buf = Vec::with_capacity(txn.length());
-            txn.encode(&mut buf);
-            // txn.build_unsigned().unwrap().eip1559().unwrap().
-            // let built = txn.build(wallet).await.unwrap();
-            // let mut buf = Vec::with_capacity(built.eip2718_encoded_length());
-            // built.as_eip1559().unwrap().rlp_encode(&mut buf);
-            let current_l1_fee =
-                oracle.getL1Fee(buf.into()).call().await.unwrap()._0;
-            // The fee can change a maximum of 12.5% per mainnet block: https://docs.optimism.io/builders/app-developers/transactions/fees#mechanism
-            // Multiplying by 2 gives us 6 blocks of buffer, and also is simpler
-            // to implement here w/ integers (vs floats)
-            current_l1_fee * U256::from(2)
-
-            // TODO also consider "blob fee" (max_fee_per_blob_gas): https://docs.optimism.io/builders/app-developers/transactions/fees#mechanism
+            get_l1_data_fee(txn, provider.clone()).await
         } else {
             U256::ZERO
         };
@@ -611,18 +585,17 @@ async fn bridging_routes_routes_available() {
     result.transactions[0].gas = U64::from(60000 /* 55437 */); // until Blockchain API estimates this
     result.transactions[1].gas = U64::from(140000 /* 107394 */); // until Blockchain API estimates this
 
-    println!(
-        "output result: {:?}",
-        client
-            .get_route_ui_fields(
-                result.clone(),
-                transaction.clone(),
-                Currency::Usd,
-                "normal".to_owned()
-            )
-            .await
-            .unwrap()
-    );
+    let start = Instant::now();
+    let route_ui_fields = client
+        .get_route_ui_fields(
+            result.clone(),
+            transaction.clone(),
+            Currency::Usd,
+            "normal".to_owned(),
+        )
+        .await
+        .unwrap();
+    println!("output route_ui_fields in ({:#?}): {:?}", start.elapsed(), route_ui_fields);
 
     fn map_transaction(txn: Transaction) -> TransactionRequest {
         TransactionRequest::default()

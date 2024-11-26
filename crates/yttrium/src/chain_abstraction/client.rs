@@ -18,10 +18,14 @@ use super::{
     currency::Currency,
     error::{RouteError, WaitForSuccessError},
 };
-use crate::chain_abstraction::error::RouteUiFieldsError;
+use crate::chain_abstraction::{
+    error::RouteUiFieldsError, l1_data_fee::get_l1_data_fee,
+};
 use alloy::{
-    network::Ethereum,
-    primitives::{utils::Unit, U256},
+    network::{Ethereum, TransactionBuilder},
+    primitives::{utils::Unit, U256, U64},
+    rpc::{client::RpcClient, types::TransactionRequest},
+    transports::http::Http,
 };
 use alloy_provider::{utils::Eip1559Estimation, Provider, ReqwestProvider};
 use relay_rpc::domain::ProjectId;
@@ -30,6 +34,8 @@ use std::{
     collections::{HashMap, HashSet},
     time::{Duration, Instant},
 };
+
+pub const PROXY_ENDPOINT_PATH: &str = "/v1";
 
 pub struct Client {
     client: ReqwestClient,
@@ -80,6 +86,22 @@ impl Client {
             .map(|t| t.chain_id.clone())
             .collect::<HashSet<_>>();
         println!("chains: {chains:?}");
+
+        let mut providers = HashMap::new();
+        for chain_id in &chains {
+            let mut url = self.base_url.join(PROXY_ENDPOINT_PATH).unwrap();
+            url.query_pairs_mut()
+                .append_pair("chainId", chain_id)
+                .append_pair("projectId", self.project_id.as_ref());
+            let provider = ReqwestProvider::<Ethereum>::new(RpcClient::new(
+                Http::with_client(self.client.clone(), url),
+                false,
+            ));
+            providers.insert(chain_id, provider);
+        }
+
+        // TODO run fungible lookup, eip1559_fees, and l1 data fee, in parallel
+
         let addresses = chains
             .iter()
             .map(|t| format!("{}:{}", t, NATIVE_TOKEN_ADDRESS))
@@ -110,45 +132,70 @@ impl Client {
 
         let mut eip1559_fees = HashMap::new();
         for chain_id in &chains {
-            // TODO use internal provider mapping
-            let url = format!(
-                "https://rpc.walletconnect.com/v1?chainId={chain_id}&projectId={}",
-                self.project_id
-            )
-                .parse()
-            .expect("Invalid RPC URL");
-            let provider = ReqwestProvider::<Ethereum>::new_http(url);
-            let estimate = provider.estimate_eip1559_fees(None).await.unwrap();
+            let estimate = providers
+                .get(chain_id)
+                .unwrap()
+                .estimate_eip1559_fees(None)
+                .await
+                .unwrap();
             eip1559_fees.insert(chain_id, estimate);
         }
 
-        fn estimate_gas_fees(
+        async fn estimate_gas_fees(
             txn: Transaction,
             eip1559_fees: &HashMap<&String, Eip1559Estimation>,
+            providers: &HashMap<&String, ReqwestProvider>,
         ) -> (Transaction, Eip1559Estimation, U256) {
             let eip1559_estimation = *eip1559_fees.get(&txn.chain_id).unwrap();
+            let l1_data_fee = get_l1_data_fee(
+                TransactionRequest::default()
+                    .with_from(txn.from)
+                    .with_to(txn.to)
+                    .with_value(txn.value)
+                    .with_gas_limit(txn.gas.to())
+                    .with_input(txn.data.clone())
+                    .with_nonce(txn.nonce.to())
+                    .with_chain_id(
+                        txn.chain_id
+                            .strip_prefix("eip155:")
+                            .unwrap()
+                            .parse::<U64>()
+                            .unwrap()
+                            .to(),
+                    )
+                    .with_max_fee_per_gas(eip1559_estimation.max_fee_per_gas)
+                    .max_priority_fee_per_gas(
+                        eip1559_estimation.max_priority_fee_per_gas,
+                    ),
+                providers.get(&txn.chain_id).unwrap().clone(),
+            )
+            .await;
+            println!("l1_data_fee: {l1_data_fee}");
             let fee = U256::from(eip1559_estimation.max_fee_per_gas)
                 .checked_mul(U256::from(txn.gas))
-                .expect("fee overflow");
-            // TODO L1 Data Fee
-            // TODO potentially queued cost?
+                .expect("fee overflow")
+                .checked_add(l1_data_fee)
+                .expect("fee overflow in adding");
             (txn, eip1559_estimation, fee)
         }
 
         let mut estimated_transactions =
             Vec::with_capacity(route_response.transactions.len());
         for txn in route_response.transactions {
-            estimated_transactions.push(estimate_gas_fees(txn, &eip1559_fees));
+            estimated_transactions
+                .push(estimate_gas_fees(txn, &eip1559_fees, &providers).await);
         }
         let estimated_initial_transaction =
-            estimate_gas_fees(initial_transaction, &eip1559_fees);
+            estimate_gas_fees(initial_transaction, &eip1559_fees, &providers)
+                .await;
 
         // Set desired granularity for local currency exchange rate
         // Individual prices may have less granularity
         // Must have 1 decimals value for all rates for math to work
         const DECIMALS_LOCAL_EXCHANGE_RATE: u8 = 6;
+        const FUNGIBLE_DECIMALS: Unit = Unit::ETHER;
         let const_local_unit =
-            Unit::new(Unit::ETHER.get() + DECIMALS_LOCAL_EXCHANGE_RATE)
+            Unit::new(FUNGIBLE_DECIMALS.get() + DECIMALS_LOCAL_EXCHANGE_RATE)
                 .unwrap();
         let mut total_local_fee = U256::ZERO;
 
@@ -171,6 +218,9 @@ impl Client {
             //             == format!("{}:{}", txn.chain_id,
             // NATIVE_TOKEN_ADDRESS)     })
             //     .unwrap();
+
+            // Math currently doesn't support variable decimals for fungible assets
+            assert_eq!(fungible.decimals, FUNGIBLE_DECIMALS);
             let fungible_local_exchange_rate = U256::from(
                 fungible.price
                     * (10_f64).powf(DECIMALS_LOCAL_EXCHANGE_RATE as f64),
@@ -183,7 +233,11 @@ impl Client {
                 txn,
                 eip1559_estimation,
                 TransactionFee {
-                    fee: Amount::new(fungible.symbol.clone(), fee, Unit::ETHER),
+                    fee: Amount::new(
+                        fungible.symbol.clone(),
+                        fee,
+                        fungible.decimals,
+                    ),
                     local_fee: Amount::new(
                         "USD".to_owned(),
                         local_fee,
