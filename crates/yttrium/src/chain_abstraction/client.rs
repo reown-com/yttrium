@@ -168,8 +168,8 @@ impl Client {
             //     .iter()
             //     .find(|f| {
             //         f.address
-            //             == format!("{}:{}", txn.chain_id, NATIVE_TOKEN_ADDRESS)
-            //     })
+            //             == format!("{}:{}", txn.chain_id,
+            // NATIVE_TOKEN_ADDRESS)     })
             //     .unwrap();
             let fungible_local_exchange_rate = U256::from(
                 fungible.price
