@@ -616,6 +616,7 @@ async fn bridging_routes_routes_available() {
         client
             .get_route_ui_fields(
                 result.clone(),
+                transaction.clone(),
                 Currency::Usd,
                 "normal".to_owned()
             )

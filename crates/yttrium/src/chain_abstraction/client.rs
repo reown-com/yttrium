@@ -1,5 +1,3 @@
-use crate::chain_abstraction::error::RouteUiFieldsError;
-
 use super::{
     amount::Amount,
     api::{
@@ -20,14 +18,18 @@ use super::{
     currency::Currency,
     error::{RouteError, WaitForSuccessError},
 };
+use crate::chain_abstraction::error::RouteUiFieldsError;
 use alloy::{
     network::Ethereum,
-    primitives::{map::HashMap, utils::Unit, U256},
+    primitives::{utils::Unit, U256},
 };
 use alloy_provider::{utils::Eip1559Estimation, Provider, ReqwestProvider};
 use relay_rpc::domain::ProjectId;
 use reqwest::{Client as ReqwestClient, Url};
-use std::time::{Duration, Instant};
+use std::{
+    collections::{HashMap, HashSet},
+    time::{Duration, Instant},
+};
 
 pub struct Client {
     client: ReqwestClient,
@@ -65,16 +67,23 @@ impl Client {
 
     pub async fn get_route_ui_fields(
         &self,
-        inputs: RouteResponseAvailable,
+        route_response: RouteResponseAvailable,
+        initial_transaction: Transaction,
         currency: Currency,
         // TODO use this to e.g. modify priority fee
         _speed: String,
     ) -> Result<RouteUiFields, RouteUiFieldsError> {
-        let addresses = inputs
+        let chains = route_response
             .transactions
             .iter()
-            .map(|t| format!("{}:{}", t.chain_id, NATIVE_TOKEN_ADDRESS))
-            .collect::<Vec<_>>();
+            .chain(std::iter::once(&initial_transaction))
+            .map(|t| t.chain_id.clone())
+            .collect::<HashSet<_>>();
+        println!("chains: {chains:?}");
+        let addresses = chains
+            .iter()
+            .map(|t| format!("{}:{}", t, NATIVE_TOKEN_ADDRESS))
+            .collect();
         println!("addresses: {addresses:?}");
         let response = self
             .client
@@ -100,8 +109,7 @@ impl Client {
         }?;
 
         let mut eip1559_fees = HashMap::new();
-        for txn in &inputs.transactions {
-            let chain_id = txn.chain_id.clone();
+        for chain_id in &chains {
             // TODO use internal provider mapping
             let url = format!(
                 "https://rpc.walletconnect.com/v1?chainId={chain_id}&projectId={}",
@@ -114,40 +122,64 @@ impl Client {
             eip1559_fees.insert(chain_id, estimate);
         }
 
-        let mut estimated_transactions =
-            Vec::with_capacity(inputs.transactions.len());
-        for txn in inputs.transactions {
+        fn estimate_gas_fees(
+            txn: Transaction,
+            eip1559_fees: &HashMap<&String, Eip1559Estimation>,
+        ) -> (Transaction, Eip1559Estimation, U256) {
             let eip1559_estimation = *eip1559_fees.get(&txn.chain_id).unwrap();
             let fee = U256::from(eip1559_estimation.max_fee_per_gas)
                 .checked_mul(U256::from(txn.gas))
                 .expect("fee overflow");
             // TODO L1 Data Fee
             // TODO potentially queued cost?
-            estimated_transactions.push((txn, eip1559_estimation, fee));
+            (txn, eip1559_estimation, fee)
         }
+
+        let mut estimated_transactions =
+            Vec::with_capacity(route_response.transactions.len());
+        for txn in route_response.transactions {
+            estimated_transactions.push(estimate_gas_fees(txn, &eip1559_fees));
+        }
+        let estimated_initial_transaction =
+            estimate_gas_fees(initial_transaction, &eip1559_fees);
 
         // Set desired granularity for local currency exchange rate
         // Individual prices may have less granularity
         // Must have 1 decimals value for all rates for math to work
-        let decimals_local_exchange_rate = 6;
-        let local_unit =
-            Unit::new(Unit::ETHER.get() + decimals_local_exchange_rate)
+        const DECIMALS_LOCAL_EXCHANGE_RATE: u8 = 6;
+        let const_local_unit =
+            Unit::new(Unit::ETHER.get() + DECIMALS_LOCAL_EXCHANGE_RATE)
                 .unwrap();
         let mut total_local_fee = U256::ZERO;
 
-        let mut route = Vec::with_capacity(estimated_transactions.len());
-        for (txn, eip1559_estimation, fee) in estimated_transactions {
-            // TODO use correct fungible for chain
+        fn compute_amounts(
+            (txn, eip1559_estimation, fee): (
+                Transaction,
+                Eip1559Estimation,
+                U256,
+            ),
+            total_local_fee: &mut U256,
+            const_local_unit: Unit,
+            prices: &PriceResponseBody,
+        ) -> (Transaction, Eip1559Estimation, TransactionFee) {
             let fungible = prices.fungibles.first().unwrap();
+            // let fungible = prices
+            //     .fungibles
+            //     .iter()
+            //     .find(|f| {
+            //         f.address
+            //             == format!("{}:{}", txn.chain_id, NATIVE_TOKEN_ADDRESS)
+            //     })
+            //     .unwrap();
             let fungible_local_exchange_rate = U256::from(
                 fungible.price
-                    * (10_f64).powf(decimals_local_exchange_rate as f64),
+                    * (10_f64).powf(DECIMALS_LOCAL_EXCHANGE_RATE as f64),
             );
 
             let local_fee = fee * fungible_local_exchange_rate;
-            total_local_fee += local_fee;
+            *total_local_fee += local_fee;
 
-            route.push((
+            (
                 txn,
                 eip1559_estimation,
                 TransactionFee {
@@ -155,11 +187,27 @@ impl Client {
                     local_fee: Amount::new(
                         "USD".to_owned(),
                         local_fee,
-                        local_unit,
+                        const_local_unit,
                     ),
                 },
+            )
+        }
+
+        let mut route = Vec::with_capacity(estimated_transactions.len());
+        for item in estimated_transactions {
+            route.push(compute_amounts(
+                item,
+                &mut total_local_fee,
+                const_local_unit,
+                &prices,
             ));
         }
+        let initial = compute_amounts(
+            estimated_initial_transaction,
+            &mut total_local_fee,
+            const_local_unit,
+            &prices,
+        );
 
         Ok(RouteUiFields {
             route,
@@ -167,14 +215,11 @@ impl Client {
             //     fee: Amount::zero(),
             //     local_fee: Amount::zero(),
             // },
-            // initial: TransactionFee {
-            //     fee: Amount::zero(),
-            //     local_fee: Amount::zero(),
-            // },
+            initial,
             local_total: Amount::new(
                 "USD".to_owned(),
                 total_local_fee,
-                local_unit,
+                const_local_unit,
             ),
         })
     }
@@ -266,11 +311,13 @@ impl Client {
 
 #[derive(Debug)]
 pub struct RouteUiFields {
-    pub route: Vec<(Transaction, Eip1559Estimation, TransactionFee)>,
-    // pub bridge: (Transaction, Eip1559Estimation, TransactionFee),
-    // pub initial: (Transaction, Eip1559Estimation, TransactionFee),
+    pub route: Vec<TxnDetails>,
+    // pub bridge: TxnDetails,
+    pub initial: TxnDetails,
     pub local_total: Amount,
 }
+
+pub type TxnDetails = (Transaction, Eip1559Estimation, TransactionFee);
 
 #[derive(Debug)]
 pub struct TransactionFee {

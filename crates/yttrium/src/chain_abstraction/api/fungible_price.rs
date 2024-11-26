@@ -1,5 +1,5 @@
 use crate::chain_abstraction::currency::Currency;
-use alloy::primitives::{address, utils::Unit, Address};
+use alloy::primitives::{address, map::HashSet, utils::Unit, Address};
 use relay_rpc::domain::ProjectId;
 use serde::{Deserialize, Serialize};
 
@@ -19,7 +19,7 @@ pub struct Caip10 {
 pub struct PriceRequestBody {
     pub project_id: ProjectId,
     pub currency: Currency,
-    pub addresses: Vec<String>,
+    pub addresses: HashSet<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
@@ -31,6 +31,7 @@ pub struct PriceResponseBody {
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct FungiblePriceItem {
+    // pub address: String,
     pub name: String,
     pub symbol: String,
     pub icon_url: String,
