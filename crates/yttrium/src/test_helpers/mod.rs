@@ -8,7 +8,7 @@ use alloy_provider::{
     ext::AnvilApi, Provider, ProviderBuilder, ReqwestProvider,
 };
 use reqwest::IntoUrl;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 pub fn private_faucet() -> LocalSigner<SigningKey> {
     use_account(None)
@@ -60,6 +60,9 @@ pub async fn use_faucet(
 }
 
 // Get resonable amounts of gwei for gas
+// Provide the maximum amount you need for 1 execution of this
+// This must be lower than `max_usd` to prevent abuse (find a cheaper L2)
+// Set `multiplier` to top-off with additional gas for later executions
 pub async fn use_faucet_gas(
     provider: ReqwestProvider,
     faucet: LocalSigner<SigningKey>,
@@ -67,7 +70,8 @@ pub async fn use_faucet_gas(
     to: Address,
     multiplier: u64,
 ) {
-    let max_usd = 0.05;
+    // Set the maximum
+    let max_usd = 0.10;
     let eth_price = 3000.;
     let max = max_usd / eth_price * 10_i64.pow(18) as f64;
     assert!(amount < U256::from(max), "Crossed limit");
@@ -90,19 +94,44 @@ async fn use_faucet_unlimited(
     if amount > faucet_balance {
         panic!("not enough funds in faucet. Needed to send {amount} but only had {faucet_balance} available. Please add more funds to the faucet at {chain_id}:{faucet_address}");
     }
-    ProviderBuilder::new()
-        .with_recommended_fillers()
-        .wallet(EthereumWallet::new(faucet))
-        .on_provider(provider.clone())
-        .send_transaction(
-            TransactionRequest::default().with_to(to).with_value(amount),
-        )
-        .await
-        .unwrap()
-        .with_timeout(Some(Duration::from_secs(120)))
-        .watch()
-        .await
-        .unwrap();
+    let txn = TransactionRequest::default().with_to(to).with_value(amount);
+    let start = Instant::now();
+    loop {
+        println!("sending txn: {:?}", txn);
+        let txn_sent = ProviderBuilder::new()
+            .with_recommended_fillers()
+            .wallet(EthereumWallet::new(faucet.clone()))
+            .on_provider(provider.clone())
+            .send_transaction(txn.clone())
+            .await
+            .unwrap()
+            // .with_required_confirmations(3)
+            .with_timeout(Some(Duration::from_secs(15)));
+        println!(
+            "txn hash: {} on chain {}",
+            txn_sent.tx_hash(),
+            provider.get_chain_id().await.unwrap()
+        );
+        // if provider
+        //     .get_transaction_by_hash(*txn_sent.tx_hash())
+        //     .await
+        //     .unwrap()
+        //     .is_none()
+        // {
+        //     println!("get_transaction_by_hash returned None, retrying...");
+        //     continue;
+        // }
+        let receipt = txn_sent.get_receipt().await;
+        if let Ok(receipt) = receipt {
+            assert!(receipt.status());
+            break;
+        }
+
+        println!("error getting receipt: {:?}", receipt);
+        if start.elapsed() > Duration::from_secs(30) {
+            panic!("timed out");
+        }
+    }
     let balance = provider.get_balance(to).await.unwrap();
     println!("Balance of {}: {}", to, balance);
     println!("amount: {}", amount);

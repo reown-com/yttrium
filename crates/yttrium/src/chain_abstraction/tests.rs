@@ -6,6 +6,7 @@ use crate::{
             Transaction,
         },
         client::Client,
+        currency::Currency,
     },
     test_helpers::{
         private_faucet, use_account, use_faucet_gas, BRIDGE_ACCOUNT_1,
@@ -15,6 +16,7 @@ use crate::{
 use alloy::{
     network::{Ethereum, EthereumWallet, TransactionBuilder},
     primitives::{address, Address, U256, U64},
+    rlp::Encodable,
     rpc::types::TransactionRequest,
     signers::{k256::ecdsa::SigningKey, local::LocalSigner},
     sol,
@@ -28,7 +30,6 @@ use alloy_provider::{
     },
     Identity, Provider, ProviderBuilder, ReqwestProvider, RootProvider,
 };
-use relay_rpc::domain::ProjectId;
 use std::{
     collections::HashMap,
     time::{Duration, Instant},
@@ -105,12 +106,20 @@ sol! {
 }
 
 fn provider_for_chain(chain_id: &Chain) -> ReqwestProvider {
-    let project_id: ProjectId =
-        std::env::var("REOWN_PROJECT_ID").unwrap().into();
-    let url = format!(
-        "https://rpc.walletconnect.org/v1?chainId={}&projectId={project_id}",
-        chain_id.eip155_chain_id()
-    )
+    // let project_id: ProjectId =
+    //     std::env::var("REOWN_PROJECT_ID").unwrap().into();
+    // let url = format!(
+    //     "https://rpc.walletconnect.org/v1?chainId={}&projectId={project_id}",
+    //     chain_id.eip155_chain_id()
+    // )
+    // .parse()
+    // .unwrap();
+    // https://reown-inc.slack.com/archives/C0816SK4877/p1732598903113679?thread_ts=1732562310.770219&cid=C0816SK4877
+    let url = match chain_id {
+        Chain::Base => "https://mainnet.base.org",
+        Chain::Optimism => "https://mainnet.optimism.io",
+        Chain::Arbitrum => "https://arbitrum.gateway.tenderly.co",
+    }
     .parse()
     .unwrap();
     ProviderBuilder::new().on_http(url)
@@ -305,7 +314,7 @@ async fn bridging_routes_routes_available() {
     }
 
     async fn estimate_total_fees(
-        wallet: &EthereumWallet,
+        _wallet: &EthereumWallet,
         provider: &ReqwestProvider,
         txn: TransactionRequest,
     ) -> U256 {
@@ -328,10 +337,22 @@ async fn bridging_routes_routes_available() {
             let oracle_address =
                 address!("420000000000000000000000000000000000000F");
             let oracle = GasPriceOracle::new(oracle_address, provider.clone());
-            let built = txn.build(wallet).await.unwrap();
-            let mut buf = Vec::with_capacity(built.eip2718_encoded_length());
-            built.as_eip1559().unwrap().eip2718_encode(&mut buf);
-            oracle.getL1Fee(buf.into()).call().await.unwrap()._0
+            let x = txn.build_unsigned().unwrap();
+            let txn = x.eip1559().unwrap();
+            let mut buf = Vec::with_capacity(txn.length());
+            txn.encode(&mut buf);
+            // txn.build_unsigned().unwrap().eip1559().unwrap().
+            // let built = txn.build(wallet).await.unwrap();
+            // let mut buf = Vec::with_capacity(built.eip2718_encoded_length());
+            // built.as_eip1559().unwrap().rlp_encode(&mut buf);
+            let current_l1_fee =
+                oracle.getL1Fee(buf.into()).call().await.unwrap()._0;
+            // The fee can change a maximum of 12.5% per mainnet block: https://docs.optimism.io/builders/app-developers/transactions/fees#mechanism
+            // Multiplying by 2 gives us 6 blocks of buffer, and also is simpler
+            // to implement here w/ integers (vs floats)
+            current_l1_fee * U256::from(2)
+
+            // TODO also consider "blob fee" (max_fee_per_blob_gas): https://docs.optimism.io/builders/app-developers/transactions/fees#mechanism
         } else {
             U256::ZERO
         };
@@ -374,7 +395,7 @@ async fn bridging_routes_routes_available() {
                 "additional_balance_required: {additional_balance_required}"
             );
             println!(
-                "using faucet for {}:{} at {}",
+                "using faucet (2) for {}:{} at {}",
                 provider_chain_id, from_address, additional_balance_required
             );
             use_faucet_gas(
@@ -388,19 +409,42 @@ async fn bridging_routes_routes_available() {
             println!("funded");
         }
 
-        let txn_sent = ProviderBuilder::new()
-            .with_recommended_fillers()
-            .wallet(wallet.clone())
-            .on_provider(provider)
-            .send_transaction(txn)
-            .await
-            .unwrap()
-            .with_timeout(Some(Duration::from_secs(15)));
-        println!(
-            "txn hash: {} on chain {provider_chain_id}",
-            txn_sent.tx_hash()
-        );
-        assert!(txn_sent.get_receipt().await.unwrap().status());
+        let start = Instant::now();
+        loop {
+            println!("sending txn: {:?}", txn);
+            let txn_sent = ProviderBuilder::new()
+                .with_recommended_fillers()
+                .wallet(wallet.clone())
+                .on_provider(provider)
+                .send_transaction(txn.clone())
+                .await
+                .unwrap()
+                // .with_required_confirmations(3)
+                .with_timeout(Some(Duration::from_secs(15)));
+            println!(
+                "txn hash: {} on chain {provider_chain_id}",
+                txn_sent.tx_hash()
+            );
+            // if provider
+            //     .get_transaction_by_hash(*txn_sent.tx_hash())
+            //     .await
+            //     .unwrap()
+            //     .is_none()
+            // {
+            //     println!("get_transaction_by_hash returned None,
+            // retrying...");     continue;
+            // }
+            let receipt = txn_sent.get_receipt().await;
+            if let Ok(receipt) = receipt {
+                assert!(receipt.status());
+                break;
+            }
+
+            println!("error getting receipt: {:?}", receipt);
+            if start.elapsed() > Duration::from_secs(30) {
+                panic!("timed out");
+            }
+        }
     }
 
     // Consolidate balances if necessary to the source and destination accounts.
@@ -520,7 +564,7 @@ async fn bridging_routes_routes_available() {
         value: U256::ZERO,
         // gas: U64::ZERO,
         // https://reown-inc.slack.com/archives/C0816SK4877/p1731962527043399
-        gas: U64::from(1023618), // until Blockchain API estimates this
+        gas: U64::from(50000), // until Blockchain API estimates this
         data: ERC20::transferCall {
             to: source.other().address(&sources),
             amount: send_amount,
@@ -553,7 +597,7 @@ async fn bridging_routes_routes_available() {
 
     let project_id = std::env::var("REOWN_PROJECT_ID").unwrap().into();
     let client = Client::new(project_id);
-    let result = client
+    let mut result = client
         .route(transaction.clone())
         .await
         .unwrap()
@@ -561,6 +605,27 @@ async fn bridging_routes_routes_available() {
         .unwrap()
         .into_option()
         .unwrap();
+    println!("route result: {:?}", result);
+
+    assert_eq!(result.transactions.len(), 2);
+    result.transactions[0].gas = U64::from(60000 /* 55437 */); // until Blockchain API estimates this
+    result.transactions[1].gas = U64::from(140000 /* 107394 */); // until Blockchain API estimates this
+
+    println!(
+        "output result: {:?}",
+        client
+            .get_route_ui_fields(
+                result.clone(),
+                Currency::Usd,
+                "normal".to_owned()
+            )
+            .await
+            .unwrap()
+    );
+    // have     : 21160991915723
+    // estimated: 3070388659344
+    // real:      1196464595117
+    // l1 d fee r:869654011778
 
     fn map_transaction(txn: Transaction) -> TransactionRequest {
         TransactionRequest::default()
@@ -579,7 +644,6 @@ async fn bridging_routes_routes_available() {
                     .to(),
             )
     }
-    println!("output transactions: {:?}", result.transactions);
 
     let mut total_fees = HashMap::new();
     let mut transactions_with_fees = vec![];
@@ -617,7 +681,7 @@ async fn bridging_routes_routes_available() {
         let balance = provider.get_balance(address).await.unwrap();
         if total_fee > balance {
             let additional_balance_required = total_fee - balance;
-            println!("using faucet for {chain_id}:{address} at {additional_balance_required}");
+            println!("using faucet (1) for {chain_id}:{address} at {additional_balance_required}");
             use_faucet_gas(
                 provider,
                 faucet.clone(),
@@ -647,34 +711,59 @@ async fn bridging_routes_routes_available() {
 
     let mut pending_bridge_txn_hashes = Vec::with_capacity(bridge.len());
     for txn in bridge {
-        println!("sending txn: {txn:?}");
+        let provider = provider_for_chain(&Chain::from_eip155_chain_id(
+            &format!("eip155:{}", txn.chain_id.unwrap()),
+        ));
+        let start = Instant::now();
+        loop {
+            println!("sending txn: {:?}", txn);
+            let txn_sent = ProviderBuilder::new()
+                .wallet(EthereumWallet::new(
+                    wallet_lookup.get(&txn.from.unwrap()).unwrap().clone(),
+                ))
+                .on_provider(provider.clone())
+                .send_transaction(txn.clone())
+                .await
+                .unwrap()
+                // .with_required_confirmations(3)
+                .with_timeout(Some(Duration::from_secs(15)));
 
-        let pending_txn = ProviderBuilder::new()
-            .wallet(EthereumWallet::new(
-                wallet_lookup.get(&txn.from.unwrap()).unwrap().clone(),
-            ))
-            .on_provider(provider_for_chain(&Chain::from_eip155_chain_id(
-                &format!("eip155:{}", txn.chain_id.unwrap()),
-            )))
-            .send_transaction(txn.clone())
-            .await
-            .unwrap();
+            let tx_hash = *txn_sent.tx_hash();
+            println!(
+                "txn hash: {} on chain {}",
+                tx_hash,
+                txn.chain_id.unwrap()
+            );
+            // if provider
+            //     .get_transaction_by_hash(tx_hash)
+            //     .await
+            //     .unwrap()
+            //     .is_none()
+            // {
+            //     println!("get_transaction_by_hash returned None,
+            // retrying...");     continue;
+            // }
+            let receipt = txn_sent.get_receipt().await;
+            if let Ok(receipt) = receipt {
+                assert!(receipt.status());
+                pending_bridge_txn_hashes.push((provider.clone(), tx_hash));
+                break;
+            }
 
-        pending_bridge_txn_hashes
-            .push((pending_txn.provider().clone(), *pending_txn.tx_hash()));
+            println!("error getting receipt: {:?}", receipt);
+            if start.elapsed() > Duration::from_secs(30) {
+                panic!("timed out");
+            }
 
-        // assert!(pending_txn.get_receipt().await.unwrap().status());
-
-        // let hash = pending_txn.tx_hash();
-        // println!("txn hash: {hash}");
-        // let receipt = pending_txn
-        //     .provider()
-        //     .get_transaction_receipt(*hash)
-        //     .await
-        //     .unwrap()
-        //     .unwrap();
-        // let status = receipt.status();
-        // assert!(status);
+            // let receipt = pending_txn
+            //     .provider()
+            //     .get_transaction_receipt(*hash)
+            //     .await
+            //     .unwrap()
+            //     .unwrap();
+            // let status = receipt.status();
+            // assert!(status);
+        }
     }
 
     let status = client
@@ -699,23 +788,58 @@ async fn bridging_routes_routes_available() {
     }
     println!("confirmed receipts in {:?}", approval_start.elapsed());
 
-    let receipt = ProviderBuilder::new()
-        .wallet(EthereumWallet::new(
-            wallet_lookup.get(&original.from.unwrap()).unwrap().clone(),
-        ))
-        .on_provider(provider_for_chain(&Chain::from_eip155_chain_id(
-            &format!("eip155:{}", original.chain_id.unwrap()),
-        )))
-        .send_transaction(original.clone())
-        .await
-        .unwrap()
-        .with_timeout(Some(Duration::from_secs(10)))
-        .get_receipt()
-        .await
-        .unwrap();
-    println!("txn hash: {}", receipt.transaction_hash);
-    let status = receipt.status();
-    assert!(status);
+    let provider = provider_for_chain(&Chain::from_eip155_chain_id(&format!(
+        "eip155:{}",
+        original.chain_id.unwrap()
+    )));
+
+    let start = Instant::now();
+    loop {
+        println!("sending txn: {:?}", original);
+        let txn_sent = match ProviderBuilder::new()
+            .wallet(EthereumWallet::new(
+                wallet_lookup.get(&original.from.unwrap()).unwrap().clone(),
+            ))
+            .on_provider(provider.clone())
+            .send_transaction(original.clone())
+            .await
+        {
+            Ok(txn_sent) => {
+                txn_sent
+                    // .with_required_confirmations(3)
+                    .with_timeout(Some(Duration::from_secs(15)))
+            }
+            Err(e) => {
+                println!("error sending txn: {:?}", e);
+                tokio::time::sleep(Duration::from_secs(1)).await;
+                continue;
+            }
+        };
+        println!(
+            "txn hash: {} on chain {}",
+            txn_sent.tx_hash(),
+            original.chain_id.unwrap()
+        );
+        // if provider
+        //     .get_transaction_by_hash(*txn_sent.tx_hash())
+        //     .await
+        //     .unwrap()
+        //     .is_none()
+        // {
+        //     println!("get_transaction_by_hash returned None, retrying...");
+        //     continue;
+        // }
+        let receipt = txn_sent.get_receipt().await;
+        if let Ok(receipt) = receipt {
+            assert!(receipt.status());
+            break;
+        }
+
+        println!("error getting receipt: {:?}", receipt);
+        if start.elapsed() > Duration::from_secs(30) {
+            panic!("timed out");
+        }
+    }
     println!("original txn finished in {:?}", approval_start.elapsed());
 
     println!("final token balances:");
