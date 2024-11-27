@@ -1,5 +1,4 @@
 mod bridge_generated; /* AUTO INJECTED BY flutter_rust_bridge. This line may not be accurate, and you can change it according to your needs. */
-
 use alloy::primitives::{Bytes, U256, U64};
 use alloy::providers::Provider;
 use alloy::{network::Ethereum, providers::ReqwestProvider};
