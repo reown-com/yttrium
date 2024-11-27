@@ -1,71 +1,80 @@
-#!/bin/bash
+#!/usr/bin/env zsh
 
-set -e  # Exit on error
+set -e
+set -u
 
-PACKAGE_NAME="uniffi_yttrium"  # Must match [lib] name in Cargo.toml
-STAGING_DIR="target/uniffi-xcframework-staging"
-XCFRAMEWORK_DIR="target/ios"
-FAT_SIMULATOR_LIB_DIR="target/ios-simulator-fat/release"
-SWIFT_PACKAGE_DIR="platforms/swift/Sources/Yttrium"
+release=false
 
-# 1. Build Rust libraries
-echo "Building Rust libraries for iOS targets..."
-rustup target add aarch64-apple-ios x86_64-apple-ios aarch64-apple-ios-sim
+for arg in "$@"
+do
+    case $arg in
+        --release)
+            release=true
+            shift # Remove --release from processing
+            ;;
+        *)
+            shift # Ignore other argument from processing
+            ;;
+    esac
+done
 
-#cargo build --release --target aarch64-apple-ios
-#cargo build --release --target x86_64-apple-ios
-#cargo build --release --target aarch64-apple-ios-sim
+PACKAGE_NAME="uniffi_yttrium"
+fat_simulator_lib_dir="target/ios-simulator-fat/release"
+swift_package_dir="platforms/swift/Sources/Yttrium"
 
-# 2. Create Fat Simulator Library
-echo "Creating fat library for iOS simulators..."
-mkdir -p "$FAT_SIMULATOR_LIB_DIR"
-lipo -create \
-    target/x86_64-apple-ios/release/lib$PACKAGE_NAME.a \
-    target/aarch64-apple-ios-sim/release/lib$PACKAGE_NAME.a \
-    -output "$FAT_SIMULATOR_LIB_DIR/lib$PACKAGE_NAME.a"
+generate_ffi() {
+  echo "Generating framework module mapping and FFI bindings..."
+  cargo run --features uniffi/cli --bin uniffi-bindgen generate \
+      --library target/aarch64-apple-ios/release/lib$1.dylib \
+      --language swift \
+      --crate $1 \
+      --out-dir target/uniffi-xcframework-staging
 
-# 3. Generate FFI Bindings with UniFFI
-echo "Generating FFI bindings with UniFFI..."
-rm -rf "$STAGING_DIR"  # Clean staging directory
-mkdir -p "$STAGING_DIR"
+  # Handle modulemap
+  if [ -f "target/uniffi-xcframework-staging/$1FFI.modulemap" ]; then
+      mv "target/uniffi-xcframework-staging/$1FFI.modulemap" "target/uniffi-xcframework-staging/module.modulemap"
+  fi
 
-cargo run --features uniffi/cli --bin uniffi-bindgen generate \
-    --library target/aarch64-apple-ios/release/lib$PACKAGE_NAME.dylib \
-    --language swift \
-    --crate "$PACKAGE_NAME" \
-    --out-dir "$STAGING_DIR"
+  echo "Copying bindings to Swift package directory..."
+  mkdir -p "$swift_package_dir"
+  cp target/uniffi-xcframework-staging/*.swift "$swift_package_dir/"
+  cp target/uniffi-xcframework-staging/*.h "$swift_package_dir/"
+  cp target/uniffi-xcframework-staging/module.modulemap "$swift_package_dir/" || echo "No modulemap to copy."
+}
 
-# Ensure modulemap is correctly named
-if [ -f "$STAGING_DIR/$PACKAGE_NAME.modulemap" ]; then
-    mv "$STAGING_DIR/$PACKAGE_NAME.modulemap" "$STAGING_DIR/module.modulemap"
-elif [ -f "$STAGING_DIR/${PACKAGE_NAME}FFI.modulemap" ]; then
-    mv "$STAGING_DIR/${PACKAGE_NAME}FFI.modulemap" "$STAGING_DIR/module.modulemap"
-else
-    echo "No modulemap found to rename!"
-    exit 1
-fi
+create_fat_simulator_lib() {
+  echo "Creating a fat library for x86_64 and aarch64 simulators..."
+  mkdir -p "$fat_simulator_lib_dir"
+  lipo -create \
+      target/x86_64-apple-ios/release/lib$1.a \
+      target/aarch64-apple-ios-sim/release/lib$1.a \
+      -output "$fat_simulator_lib_dir/lib$1.a"
+}
 
-# 4. Create XCFramework
-echo "Creating XCFramework..."
-rm -rf "$XCFRAMEWORK_DIR"  # Clean XCFramework directory
-mkdir -p "$XCFRAMEWORK_DIR"
+build_xcframework() {
+  echo "Generating XCFramework..."
+  rm -rf target/ios
+  mkdir -p target/ios
+  xcodebuild -create-xcframework \
+      -library target/aarch64-apple-ios/release/lib$1.a -headers target/uniffi-xcframework-staging \
+      -library "$fat_simulator_lib_dir/lib$1.a" -headers target/uniffi-xcframework-staging \
+      -output target/ios/lib$1.xcframework
 
-xcodebuild -create-xcframework \
-    -library target/aarch64-apple-ios/release/lib$PACKAGE_NAME.a -headers "$STAGING_DIR" \
-    -library "$FAT_SIMULATOR_LIB_DIR/lib$PACKAGE_NAME.a" -headers "$STAGING_DIR" \
-    -output "$XCFRAMEWORK_DIR/lib$PACKAGE_NAME.xcframework"
+  if $release; then
+      echo "Building xcframework archive..."
+      ditto -c -k --sequesterRsrc --keepParent target/ios/lib$1.xcframework target/ios/lib$1.xcframework.zip
+      checksum=$(swift package compute-checksum target/ios/lib$1.xcframework.zip)
+      version=$(cargo metadata --format-version 1 | jq -r --arg pkg_name "$1" '.packages[] | select(.name==$pkg_name) .version')
+      sed -i "" -E "s/(let releaseTag = \")[^\"]+(\")/\1$version\2/g" ../Package.swift
+      sed -i "" -E "s/(let releaseChecksum = \")[^\"]+(\")/\1$checksum\2/g" ../Package.swift
+  fi
+}
 
-# 5. Copy outputs to Swift Package Directory
-echo "Copying Swift bindings and runtime files to Swift package..."
-rm -rf "$SWIFT_PACKAGE_DIR"  # Clean Swift package directory
-mkdir -p "$SWIFT_PACKAGE_DIR"
+# Build Rust libraries
+#cargo build -p $PACKAGE_NAME --lib --release --target x86_64-apple-ios
+#cargo build -p $PACKAGE_NAME --lib --release --target aarch64-apple-ios-sim
+#cargo build -p $PACKAGE_NAME --lib --release --target aarch64-apple-ios
 
-cp "$STAGING_DIR"/*.swift "$SWIFT_PACKAGE_DIR/"
-cp "$STAGING_DIR"/*.h "$SWIFT_PACKAGE_DIR/"
-cp "$STAGING_DIR/module.modulemap" "$SWIFT_PACKAGE_DIR/" || echo "No modulemap to copy."
-
-echo "Copying XCFramework to Swift package..."
-rm -rf "$SWIFT_PACKAGE_DIR/lib$PACKAGE_NAME.xcframework"
-cp -R "$XCFRAMEWORK_DIR/lib$PACKAGE_NAME.xcframework" "$SWIFT_PACKAGE_DIR/"
-
-echo "Build and setup completed."
+generate_ffi $PACKAGE_NAME
+create_fat_simulator_lib $PACKAGE_NAME
+build_xcframework $PACKAGE_NAME
