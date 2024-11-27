@@ -595,7 +595,11 @@ async fn bridging_routes_routes_available() {
         )
         .await
         .unwrap();
-    println!("output route_ui_fields in ({:#?}): {:?}", start.elapsed(), route_ui_fields);
+    println!(
+        "output route_ui_fields in ({:#?}): {:?}",
+        start.elapsed(),
+        route_ui_fields
+    );
 
     fn map_transaction(txn: Transaction) -> TransactionRequest {
         TransactionRequest::default()

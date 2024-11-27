@@ -219,7 +219,8 @@ impl Client {
             // NATIVE_TOKEN_ADDRESS)     })
             //     .unwrap();
 
-            // Math currently doesn't support variable decimals for fungible assets
+            // Math currently doesn't support variable decimals for fungible
+            // assets
             assert_eq!(fungible.decimals, FUNGIBLE_DECIMALS);
             let fungible_local_exchange_rate = U256::from(
                 fungible.price
