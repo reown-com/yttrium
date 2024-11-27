@@ -16,8 +16,8 @@ let package = Package(
     targets: [
         .target(
             name: "Yttrium",
-            dependencies: [],
-            path: "Sources/Yttrium",
+            dependencies: ["YttriumXCFramework"],
+            path: "platforms/swift/Sources/Yttrium",
             publicHeadersPath: ".",
             cSettings: [
                 .headerSearchPath(".")
@@ -25,7 +25,7 @@ let package = Package(
         ),
         .binaryTarget(
             name: "YttriumXCFramework",
-            path: "target/ios/libyttrium.xcframework"
+            path: "platforms/swift/Sources/Yttrium/libyttrium.xcframework"
         )
     ]
 )
