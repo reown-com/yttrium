@@ -460,13 +460,13 @@ pub async fn encode_send_transactions(
         return Err(eyre::eyre!("Only one signature is supported for now"));
     }
 
-    // TODO sort by (lowercase) owner address not signature data
-    let mut signatures = signatures
-        .iter()
-        .map(|sig| sig.signature.as_bytes())
-        .collect::<Vec<_>>();
-    signatures.sort();
-    let signature_bytes = signatures.concat();
+    let mut signatures = signatures;
+    signatures.sort_by(|a, b| a.owner.cmp(&b.owner));
+    let signature_bytes = signatures
+        .into_iter()
+        .map(|s| s.signature.as_bytes())
+        .collect::<Vec<_>>()
+        .concat();
 
     let signature = DynSolValue::Tuple(vec![
         DynSolValue::Uint(Uint::from(valid_after), 48),

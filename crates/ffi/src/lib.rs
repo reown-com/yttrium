@@ -1,12 +1,10 @@
 #![allow(dead_code, improper_ctypes, clippy::unnecessary_cast)]
 
 use self::account_client::FFIAccountClient;
-use self::account_client_eip7702::FFI7702AccountClient;
 use self::chain_abstraction_client::FFIChainClient;
 use self::erc6492_client::Erc6492Client;
 
 pub mod account_client;
-pub mod account_client_eip7702;
 pub mod chain_abstraction_client;
 pub mod config;
 pub mod erc6492_client;
@@ -188,18 +186,6 @@ mod ffi {
         pub async fn wait_for_user_operation_receipt(
             &self,
             user_operation_hash: String,
-        ) -> Result<String, FFIError>;
-    }
-
-    extern "Rust" {
-        type FFI7702AccountClient;
-
-        #[swift_bridge(init)]
-        fn new(config: FFIAccountClientConfig) -> FFI7702AccountClient;
-
-        pub async fn send_batch_transaction(
-            &self,
-            batch: String,
         ) -> Result<String, FFIError>;
     }
 

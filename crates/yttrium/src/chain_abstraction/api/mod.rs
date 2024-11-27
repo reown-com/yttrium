@@ -1,6 +1,7 @@
 use alloy::primitives::{Address, Bytes, U256, U64};
 use serde::{Deserialize, Serialize};
 
+pub mod fungible_price;
 pub mod route;
 pub mod status;
 

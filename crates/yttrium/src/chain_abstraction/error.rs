@@ -1,3 +1,5 @@
+use reqwest::StatusCode;
+
 use super::api::status::{StatusResponseError, StatusResponsePending};
 
 #[derive(thiserror::Error, Debug)]
@@ -21,4 +23,19 @@ pub enum WaitForSuccessError {
 
     #[error("StatusResponsePending: {0:?}")]
     StatusResponsePending(StatusResponsePending),
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum RouteUiFieldsError {
+    /// Retryable error
+    #[error("HTTP request: {0}")]
+    Request(reqwest::Error),
+
+    /// Retryable error
+    #[error("HTTP request failed: {0:?}")]
+    RequestFailed(StatusCode, Result<String, reqwest::Error>),
+
+    /// Retryable error
+    #[error("Json request: {0}")]
+    Json(reqwest::Error),
 }

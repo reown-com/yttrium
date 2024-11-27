@@ -23,6 +23,7 @@ alloy = { workspace = true, features = [
     "rpc-types-trace",
     "signer-mnemonic",
     "eip712",
+    "rlp"
 ] }
 alloy-provider = { workspace = true, features = ["erc4337-api"] }
 erc6492.workspace = true
