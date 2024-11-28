@@ -76,8 +76,8 @@ compute-rust-checksum:
 
 .PHONY: generate-package-swift
 generate-package-swift:
-	chmod +x scripts/generate_package_swift.sh
-	./scripts/generate_package_swift.sh
+	chmod +x scripts/generate-package-swift.sh
+	./scripts/generate-package-swift.sh
 
 .PHONY: build setup build-ios-bindings build-swift-apple-platforms test-swift-apple-platforms fetch-thirdparty setup-thirdparty test format clean local-infra local-infra-forked local-infra-7702
 
