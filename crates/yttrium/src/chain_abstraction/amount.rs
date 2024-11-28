@@ -3,6 +3,7 @@ use alloy::primitives::{
     U256,
 };
 
+#[cfg(feature = "uniffi")]
 uniffi::custom_type!(Unit, String, {
     try_lift: |val| Ok(val.parse()?),
     lower: |obj| obj.to_string(),
