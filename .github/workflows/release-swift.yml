@@ -117,15 +117,15 @@ jobs:
           draft: false
           prerelease: true
 
-      # 11. Upload Rust XCFramework to the Release
-      - name: Upload Rust XCFramework to Release
+      # 11. Upload XCFramework to the Release
+      - name: Upload XCFramework to Release
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./Output/RustXcframework.xcframework.zip
-          asset_name: RustXcframework.xcframework.zip
+          asset_path: ./Output/libuniffi_yttrium.xcframework.zip
+          asset_name: libuniffi_yttrium.xcframework.zip
           asset_content_type: application/zip
 
       # # 12. Publish to CocoaPods Trunk
