@@ -5,11 +5,22 @@ set -e
 # Variables
 : "${VERSION:?Error: VERSION environment variable is not set.}"
 PACKAGE_VERSION="$VERSION"
-RUST_CHECKSUM=$(cat rust_checksum.txt)
-RUST_XCFRAMEWORK_ZIP="RustXcframework.xcframework.zip"
+RUST_XCFRAMEWORK_DIR="target/ios/libuniffi_yttrium.xcframework"
+RUST_XCFRAMEWORK_ZIP="libuniffi_yttrium.xcframework.zip"
 REPO_URL="https://github.com/reown-com/yttrium"
 
-# Generate Package.swift
+# 1. Zip the XCFramework
+echo "Zipping Rust XCFramework..."
+mkdir -p Output
+zip -r Output/$RUST_XCFRAMEWORK_ZIP $RUST_XCFRAMEWORK_DIR
+
+# 2. Compute the checksum
+echo "Computing checksum for Rust XCFramework..."
+RUST_CHECKSUM=$(swift package compute-checksum Output/$RUST_XCFRAMEWORK_ZIP)
+echo "Rust XCFramework checksum: $RUST_CHECKSUM"
+
+# 3. Generate Package.swift
+echo "Generating Package.swift..."
 cat > Package.swift <<EOF
 // swift-tools-version:5.10
 import PackageDescription

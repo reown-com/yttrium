@@ -37,7 +37,7 @@ build-ios-bindings-release:
 	sh crates/ffi/build-rust-ios-release.sh
 
 build-xcframework:
-	sh scripts/build_xcframework.sh
+	sh scripts/build-xcframework.sh
 
 set-up-local-swift-package:
 	sh scripts/set-up-local-package.sh
@@ -68,12 +68,6 @@ local-infra-forked:
 local-infra-7702:
 	cd test/scripts/7702 && sh local-infra.sh
 
-.PHONY: zip-rust-xcframework
-zip-rust-xcframework:
-	mkdir -p Output
-	cd crates/ffi/YttriumCore/ && \
-	zip -r ../../../Output/RustXcframework.xcframework.zip \
-		RustXcframework.xcframework \
 
 .PHONY: compute-rust-checksum
 compute-rust-checksum:

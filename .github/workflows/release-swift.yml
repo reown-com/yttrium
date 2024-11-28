@@ -56,22 +56,20 @@ jobs:
       # 6. Build and Package Rust XCFramework
       - name: Build and Package Rust XCFramework
         run: |
-          make build-ios-bindings-release
-          make zip-rust-xcframework
-          make compute-rust-checksum
+          make build-xcframework
           make generate-package-swift
 
-      # 7. Update Podspec with Version and Download URL
-      - name: Update Podspec with Version and Download URL
-        run: |
-          # Replace the version line in Podspec
-          sed -i '' "s/^  s\.version *= *.*/  s.version      = '${VERSION}'/g" YttriumWrapper.podspec
+      # # 7. Update Podspec with Version and Download URL
+      # - name: Update Podspec with Version and Download URL
+      #   run: |
+      #     # Replace the version line in Podspec
+      #     sed -i '' "s/^  s\.version *= *.*/  s.version      = '${VERSION}'/g" YttriumWrapper.podspec
 
-          # Construct the download URL
-          DOWNLOAD_URL="https://github.com/reown-com/yttrium/releases/download/${VERSION}/RustXcframework.xcframework.zip"
+      #     # Construct the download URL
+      #     DOWNLOAD_URL="https://github.com/reown-com/yttrium/releases/download/${VERSION}/RustXcframework.xcframework.zip"
 
-          # Replace the download URL in prepare_command
-          sed -i '' "s|curl -L -o RustXcframework.xcframework.zip '.*'|curl -L -o RustXcframework.xcframework.zip '${DOWNLOAD_URL}'|g" YttriumWrapper.podspec
+      #     # Replace the download URL in prepare_command
+      #     sed -i '' "s|curl -L -o RustXcframework.xcframework.zip '.*'|curl -L -o RustXcframework.xcframework.zip '${DOWNLOAD_URL}'|g" YttriumWrapper.podspec
 
       # 8. Commit and Push Package.swift and Podspec
       - name: Commit and Push Package.swift and Podspec
@@ -80,7 +78,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add Package.swift crates/ffi/YttriumCore/Sources/YttriumCore/* YttriumWrapper.podspec
+          git add Package.swift platforms/swift/Sources/Yttrium/* 
           if git diff --cached --quiet; then
             echo "No changes to commit."
           else
@@ -130,9 +128,9 @@ jobs:
           asset_name: RustXcframework.xcframework.zip
           asset_content_type: application/zip
 
-      # 12. Publish to CocoaPods Trunk
-      - name: Publish to CocoaPods Trunk
-        env:
-          COCOAPODS_TRUNK_TOKEN: ${{ secrets.COCOAPODS_TRUNK_TOKEN }}
-        run: |
-          pod trunk push YttriumWrapper.podspec --allow-warnings
+      # # 12. Publish to CocoaPods Trunk
+      # - name: Publish to CocoaPods Trunk
+      #   env:
+      #     COCOAPODS_TRUNK_TOKEN: ${{ secrets.COCOAPODS_TRUNK_TOKEN }}
+      #   run: |
+      #     pod trunk push YttriumWrapper.podspec --allow-warnings
