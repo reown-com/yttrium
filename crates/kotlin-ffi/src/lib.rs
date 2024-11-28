@@ -1,6 +1,6 @@
 uniffi::setup_scaffolding!();
 
-use alloy::primitives::{Bytes, U256, U64};
+use alloy::primitives::{Bytes as FFIBytes, U256 as FFIU256, U64 as FFIU64};
 use alloy::providers::Provider;
 use yttrium::chain_abstraction::api::route::RouteResponse;
 use yttrium::chain_abstraction::api::status::{
@@ -14,7 +14,7 @@ use std::time::Duration;
 use yttrium::chain_abstraction::client::Client;
 use yttrium::config::Config;
 use yttrium::transaction::send::safe_test::{
-    Address, OwnerSignature as YOwnerSignature, PrimitiveSignature,
+    Address as FFIAddress, OwnerSignature as YOwnerSignature, PrimitiveSignature,
 };
 use yttrium::{
     account_client::{AccountClient as YAccountClient, SignerType},
@@ -24,7 +24,7 @@ use yttrium::{
 };
 
 #[derive(uniffi::Record)]
-pub struct AccountClientConfig {
+pub struct FFIAccountClientConfig {
     pub owner_address: String,
     pub chain_id: u64,
     pub config: Config,
@@ -34,43 +34,43 @@ pub struct AccountClientConfig {
 }
 
 #[derive(uniffi::Record)]
-pub struct Transaction {
+pub struct FFITransaction {
     pub to: String,
     pub value: String,
     pub data: String,
 }
 
-uniffi::custom_type!(Address, String, {
+uniffi::custom_type!(FFIAddress, String, {
     try_lift: |val| Ok(val.parse()?),
     lower: |obj| obj.to_string(),
 });
 
-uniffi::custom_type!(U256, String, {
+uniffi::custom_type!(FFIU256, String, {
     try_lift: |val| Ok(val.parse()?),
     lower: |obj| obj.to_string(),
 });
 
-uniffi::custom_type!(U64, String, {
+uniffi::custom_type!(FFIU64, String, {
     try_lift: |val| Ok(val.parse()?),
     lower: |obj| obj.to_string(),
 });
 
-uniffi::custom_type!(Bytes, String, {
+uniffi::custom_type!(FFIBytes, String, {
     try_lift: |val| Ok(val.parse()?),
     lower: |obj| obj.to_string(),
 });
 
 #[derive(uniffi::Record)]
 pub struct InitTransaction {
-    pub from: Address,
-    pub to: Address,
-    pub value: U256,
-    pub gas: U64,
-    pub gas_price: U256,
-    pub data: Bytes,
-    pub nonce: U64,
-    pub max_fee_per_gas: U256,
-    pub max_priority_fee_per_gas: U256,
+    pub from: FFIAddress,
+    pub to: FFIAddress,
+    pub value: FFIU256,
+    pub gas: FFIU64,
+    pub gas_price: FFIU256,
+    pub data: FFIBytes,
+    pub nonce: FFIU64,
+    pub max_fee_per_gas: FFIU256,
+    pub max_priority_fee_per_gas: FFIU256,
     pub chain_id: String,
 }
 
@@ -93,14 +93,14 @@ pub enum Error {
 }
 
 #[derive(uniffi::Object)]
-pub struct AccountClient {
+pub struct FFIAccountClient {
     pub owner_address: String,
     pub chain_id: u64,
     account_client: YAccountClient,
 }
 
 #[derive(uniffi::Object)]
-pub struct ChainAbstractionClient {
+pub struct FFIChainAbstractionClient {
     pub project_id: String,
     client: Client,
 }
@@ -112,7 +112,7 @@ pub struct Eip1559Estimation {
 }
 
 #[uniffi::export(async_runtime = "tokio")]
-impl ChainAbstractionClient {
+impl FFIChainAbstractionClient {
     #[uniffi::constructor]
     pub fn new(project_id: String) -> Self {
         let client = Client::new(ProjectId::from(project_id.clone()));
@@ -181,9 +181,9 @@ impl ChainAbstractionClient {
 }
 
 #[uniffi::export(async_runtime = "tokio")]
-impl AccountClient {
+impl FFIAccountClient {
     #[uniffi::constructor]
-    pub fn new(config: AccountClientConfig) -> Self {
+    pub fn new(config: FFIAccountClientConfig) -> Self {
         let owner_address = config.owner_address.clone();
         let signer_type = config.signer_type.clone();
         let signer = SignerType::from(signer_type).unwrap();
@@ -224,7 +224,7 @@ impl AccountClient {
 
     pub async fn send_transactions(
         &self,
-        transactions: Vec<Transaction>,
+        transactions: Vec<FFITransaction>,
     ) -> Result<String, Error> {
         let ytransactions: Vec<YTransaction> =
             transactions.into_iter().map(YTransaction::from).collect();
@@ -239,7 +239,7 @@ impl AccountClient {
 
     pub async fn prepare_send_transactions(
         &self,
-        transactions: Vec<Transaction>,
+        transactions: Vec<FFITransaction>,
     ) -> Result<PreparedSendTransaction, Error> {
         let ytransactions: Vec<YTransaction> =
             transactions.into_iter().map(YTransaction::from).collect();
@@ -271,7 +271,7 @@ impl AccountClient {
             signatures2.push(YOwnerSignature {
                 owner: signature
                     .owner
-                    .parse::<Address>()
+                    .parse::<FFIAddress>()
                     .map_err(|e| Error::General(e.to_string()))?,
                 signature: signature
                     .signature
@@ -320,8 +320,8 @@ impl AccountClient {
     }
 }
 
-impl From<Transaction> for YTransaction {
-    fn from(transaction: Transaction) -> Self {
+impl From<FFITransaction> for YTransaction {
+    fn from(transaction: FFITransaction) -> Self {
         YTransaction::new_from_strings(
             transaction.to,
             transaction.value,

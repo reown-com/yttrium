@@ -25,7 +25,7 @@ let package = Package(
         ),
         .binaryTarget(
             name: "YttriumXCFramework",
-            path: "platforms/swift/Sources/Yttrium/libyttrium.xcframework"
+            path: "target/ios/libuniffi_yttrium.xcframework"
         )
     ]
 )
