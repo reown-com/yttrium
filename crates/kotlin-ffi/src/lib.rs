@@ -175,12 +175,6 @@ impl ChainAbstractionClient {
             )
             .await
             .map_err(|e| Error::General(e.to_string()))
-        // .map(|fees| Eip1559Estimation {
-        //     max_fee_per_gas: fees.max_fee_per_gas.to_string(),
-        //     max_priority_fee_per_gas: fees
-        //         .max_priority_fee_per_gas
-        //         .to_string(),
-        // })
     }
 
     pub async fn estimate_fees(
