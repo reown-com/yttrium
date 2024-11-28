@@ -36,6 +36,12 @@ build-ios-bindings:
 build-ios-bindings-release:
 	sh crates/ffi/build-rust-ios-release.sh
 
+build-xcframework:
+	sh scripts/build_xcframework.sh
+
+set-up-local-swift-package:
+	sh scripts/set-up-local-package.sh
+
 test:
 	cargo test --workspace
 
