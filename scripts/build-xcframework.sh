@@ -44,6 +44,10 @@ build_xcframework() {
       -output target/ios/lib$1.xcframework
 }
 
+rustup target add aarch64-apple-ios
+rustup target add x86_64-apple-ios
+rustup target add aarch64-apple-ios-sim
+
 cargo build --release --target aarch64-apple-ios
 cargo build --release --target x86_64-apple-ios
 cargo build --release --target aarch64-apple-ios-sim
