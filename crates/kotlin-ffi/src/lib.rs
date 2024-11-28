@@ -87,7 +87,7 @@ pub struct OwnerSignature {
 }
 
 #[derive(Debug, thiserror::Error, uniffi::Error)]
-pub enum Error {
+pub enum FFIError {
     #[error("General {0}")]
     General(String),
 }
@@ -100,7 +100,7 @@ pub struct FFIAccountClient {
 }
 
 #[derive(uniffi::Object)]
-pub struct FFIChainAbstractionClient {
+pub struct ChainAbstractionClient {
     pub project_id: String,
     client: Client,
 }
@@ -112,7 +112,7 @@ pub struct Eip1559Estimation {
 }
 
 #[uniffi::export(async_runtime = "tokio")]
-impl FFIChainAbstractionClient {
+impl ChainAbstractionClient {
     #[uniffi::constructor]
     pub fn new(project_id: String) -> Self {
         let client = Client::new(ProjectId::from(project_id.clone()));
@@ -122,22 +122,22 @@ impl FFIChainAbstractionClient {
     pub async fn route(
         &self,
         transaction: InitTransaction,
-    ) -> Result<RouteResponse, Error> {
+    ) -> Result<RouteResponse, FFIError> {
         let ca_transaction = CATransaction::from(transaction);
         self.client
             .route(ca_transaction)
             .await
-            .map_err(|e| Error::General(e.to_string()))
+            .map_err(|e| FFIError::General(e.to_string()))
     }
 
     pub async fn status(
         &self,
         orchestration_id: String,
-    ) -> Result<StatusResponse, Error> {
+    ) -> Result<StatusResponse, FFIError> {
         self.client
             .status(orchestration_id)
             .await
-            .map_err(|e| Error::General(e.to_string()))
+            .map_err(|e| FFIError::General(e.to_string()))
     }
 
     pub async fn wait_for_success_with_timeout(
@@ -145,7 +145,7 @@ impl FFIChainAbstractionClient {
         orchestration_id: String,
         check_in: u64,
         timeout: u64,
-    ) -> Result<StatusResponseCompleted, Error> {
+    ) -> Result<StatusResponseCompleted, FFIError> {
         self.client
             .wait_for_success_with_timeout(
                 orchestration_id,
@@ -153,13 +153,13 @@ impl FFIChainAbstractionClient {
                 Duration::from_secs(timeout),
             )
             .await
-            .map_err(|e| Error::General(e.to_string()))
+            .map_err(|e| FFIError::General(e.to_string()))
     }
 
     pub async fn estimate_fees(
         &self,
         chain_id: String,
-    ) -> Result<Eip1559Estimation, Error> {
+    ) -> Result<Eip1559Estimation, FFIError> {
         let url = format!(
             "https://rpc.walletconnect.com/v1?chainId={chain_id}&projectId={}",
             self.project_id
@@ -170,7 +170,7 @@ impl FFIChainAbstractionClient {
         provider
             .estimate_eip1559_fees(None)
             .await
-            .map_err(|e| Error::General(e.to_string()))
+            .map_err(|e| FFIError::General(e.to_string()))
             .map(|fees| Eip1559Estimation {
                 max_fee_per_gas: fees.max_fee_per_gas.to_string(),
                 max_priority_fee_per_gas: fees
@@ -215,17 +215,17 @@ impl FFIAccountClient {
         self.chain_id
     }
 
-    pub async fn get_address(&self) -> Result<String, Error> {
+    pub async fn get_address(&self) -> Result<String, FFIError> {
         self.account_client
             .get_address()
             .await
-            .map_err(|e| Error::General(e.to_string()))
+            .map_err(|e| FFIError::General(e.to_string()))
     }
 
     pub async fn send_transactions(
         &self,
         transactions: Vec<FFITransaction>,
-    ) -> Result<String, Error> {
+    ) -> Result<String, FFIError> {
         let ytransactions: Vec<YTransaction> =
             transactions.into_iter().map(YTransaction::from).collect();
 
@@ -233,14 +233,14 @@ impl FFIAccountClient {
             .account_client
             .send_transactions(ytransactions)
             .await
-            .map_err(|e| Error::General(e.to_string()))?
+            .map_err(|e| FFIError::General(e.to_string()))?
             .to_string())
     }
 
     pub async fn prepare_send_transactions(
         &self,
         transactions: Vec<FFITransaction>,
-    ) -> Result<PreparedSendTransaction, Error> {
+    ) -> Result<PreparedSendTransaction, FFIError> {
         let ytransactions: Vec<YTransaction> =
             transactions.into_iter().map(YTransaction::from).collect();
 
@@ -248,14 +248,14 @@ impl FFIAccountClient {
             .account_client
             .prepare_send_transactions(ytransactions)
             .await
-            .map_err(|e| Error::General(e.to_string()))?;
+            .map_err(|e| FFIError::General(e.to_string()))?;
 
         Ok(PreparedSendTransaction {
             hash: prepared_send_transaction.hash.to_string(),
             do_send_transaction_params: serde_json::to_string(
                 &prepared_send_transaction.do_send_transaction_params,
             )
-            .map_err(|e| Error::General(e.to_string()))?,
+            .map_err(|e| FFIError::General(e.to_string()))?,
         })
     }
 
@@ -263,7 +263,7 @@ impl FFIAccountClient {
         &self,
         signatures: Vec<OwnerSignature>,
         do_send_transaction_params: String,
-    ) -> Result<String, Error> {
+    ) -> Result<String, FFIError> {
         let mut signatures2: Vec<YOwnerSignature> =
             Vec::with_capacity(signatures.len());
 
@@ -272,11 +272,11 @@ impl FFIAccountClient {
                 owner: signature
                     .owner
                     .parse::<FFIAddress>()
-                    .map_err(|e| Error::General(e.to_string()))?,
+                    .map_err(|e| FFIError::General(e.to_string()))?,
                 signature: signature
                     .signature
                     .parse::<PrimitiveSignature>()
-                    .map_err(|e| Error::General(e.to_string()))?,
+                    .map_err(|e| FFIError::General(e.to_string()))?,
             });
         }
 
@@ -285,10 +285,10 @@ impl FFIAccountClient {
             .do_send_transactions(
                 signatures2,
                 serde_json::from_str(&do_send_transaction_params)
-                    .map_err(|e| Error::General(e.to_string()))?,
+                    .map_err(|e| FFIError::General(e.to_string()))?,
             )
             .await
-            .map_err(|e| Error::General(e.to_string()))?
+            .map_err(|e| FFIError::General(e.to_string()))?
             .to_string())
     }
 
@@ -296,27 +296,27 @@ impl FFIAccountClient {
         &self,
         message: String,
         mnemonic: String,
-    ) -> Result<String, Error> {
+    ) -> Result<String, FFIError> {
         self.account_client
             .sign_message_with_mnemonic(message, mnemonic)
-            .map_err(|e| Error::General(e.to_string()))
+            .map_err(|e| FFIError::General(e.to_string()))
     }
 
     pub async fn wait_for_user_operation_receipt(
         &self,
         user_operation_hash: String,
-    ) -> Result<String, Error> {
+    ) -> Result<String, FFIError> {
         self.account_client
             .wait_for_user_operation_receipt(
                 user_operation_hash.parse().map_err(|e| {
-                    Error::General(format!("Parsing user_operation_hash: {e}"))
+                    FFIError::General(format!("Parsing user_operation_hash: {e}"))
                 })?,
             )
             .await
             .iter()
             .map(serde_json::to_string)
             .collect::<Result<String, serde_json::Error>>()
-            .map_err(|e| Error::General(e.to_string()))
+            .map_err(|e| FFIError::General(e.to_string()))
     }
 }
 

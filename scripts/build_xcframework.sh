@@ -29,16 +29,15 @@ generate_ffi() {
       --language swift \
       --out-dir target/uniffi-xcframework-staging
 
-  # Handle modulemap
-#  if [ -f "target/uniffi-xcframework-staging/$1FFI.modulemap" ]; then
-#      mv "target/uniffi-xcframework-staging/$1FFI.modulemap" "target/uniffi-xcframework-staging/module.modulemap"
-#  fi
+echo "creating module.modulemap"
+cat target/uniffi-xcframework-staging/yttriumFFI.modulemap \
+    target/uniffi-xcframework-staging/uniffi_yttriumFFI.modulemap \
+    > target/uniffi-xcframework-staging/module.modulemap
 
   echo "Copying bindings to Swift package directory..."
   mkdir -p "$swift_package_dir"
   cp target/uniffi-xcframework-staging/*.swift "$swift_package_dir/"
   cp target/uniffi-xcframework-staging/*.h "$swift_package_dir/"
-  cp target/uniffi-xcframework-staging/*.modulemap "$swift_package_dir/" || echo "No modulemap to copy."
 }
 
 create_fat_simulator_lib() {
@@ -68,11 +67,6 @@ build_xcframework() {
       sed -i "" -E "s/(let releaseChecksum = \")[^\"]+(\")/\1$checksum\2/g" ../Package.swift
   fi
 }
-
-# Build Rust libraries
-#cargo build -p $PACKAGE_NAME --lib --release --target x86_64-apple-ios
-#cargo build -p $PACKAGE_NAME --lib --release --target aarch64-apple-ios-sim
-#cargo build -p $PACKAGE_NAME --lib --release --target aarch64-apple-ios
 
 cargo build --target aarch64-apple-ios
 cargo build --target x86_64-apple-ios
