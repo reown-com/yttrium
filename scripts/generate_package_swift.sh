@@ -15,26 +15,10 @@ cat > Package.swift <<EOF
 import PackageDescription
 import Foundation
 
-let useLocalRustXcframework = ProcessInfo.processInfo.environment["USE_LOCAL_RUST_XCFRAMEWORK"] == "1"
-
-let rustXcframeworkTarget: Target = useLocalRustXcframework ?
-    .binaryTarget(
-        name: "RustXcframework",
-        path: "crates/ffi/YttriumCore/RustXcframework.xcframework"
-    ) :
-    .binaryTarget(
-        name: "RustXcframework",
-        url: "$REPO_URL/releases/download/$PACKAGE_VERSION/$RUST_XCFRAMEWORK_ZIP",
-        checksum: "$RUST_CHECKSUM"
-    )
-
 let package = Package(
-    name: "yttrium",
+    name: "Yttrium",
     platforms: [
-        .macOS(.v14),
-        .iOS(.v13),
-        .watchOS(.v10),
-        .tvOS(.v17)
+        .iOS(.v13), .macOS(.v12)
     ],
     products: [
         .library(
@@ -42,37 +26,24 @@ let package = Package(
             targets: ["Yttrium"]
         ),
     ],
-    dependencies: [
-        .package(url: "https://github.com/thebarndog/swift-dotenv.git", from: "2.0.0")
-    ],
     targets: [
-        rustXcframeworkTarget,
-        .target(
-            name: "YttriumCore",
-            dependencies: [
-                "RustXcframework",
-                .product(name: "SwiftDotenv", package: "swift-dotenv")
-            ],
-            path: "crates/ffi/YttriumCore/Sources/YttriumCore"
-        ),
         .target(
             name: "Yttrium",
-            dependencies: [
-                "YttriumCore",
-                .product(name: "SwiftDotenv", package: "swift-dotenv")
-            ],
-            path: "platforms/swift/Sources/Yttrium"
+            dependencies: ["YttriumXCFramework"],
+            path: "platforms/swift/Sources/Yttrium",
+            publicHeadersPath: ".",
+            cSettings: [
+                .headerSearchPath(".")
+            ]
         ),
-        .testTarget(
-            name: "YttriumTests",
-            dependencies: [
-                "Yttrium",
-                .product(name: "SwiftDotenv", package: "swift-dotenv")
-            ],
-            path: "platforms/swift/Tests/YttriumTests"
-        ),
+        .binaryTarget(
+            name: "YttriumXCFramework",
+            url: "$REPO_URL/releases/download/$PACKAGE_VERSION/$RUST_XCFRAMEWORK_ZIP",
+            checksum: "$RUST_CHECKSUM"
+        )
     ]
 )
+
 EOF
 
 echo "Package.swift generated with Rust XCFramework checksum: $RUST_CHECKSUM"
