@@ -3,7 +3,13 @@ use alloy::primitives::{
     U256,
 };
 
+uniffi::custom_type!(Unit, String, {
+    try_lift: |val| Ok(val.parse()?),
+    lower: |obj| obj.to_string(),
+});
+
 #[derive(Debug)]
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
 pub struct Amount {
     pub symbol: String,        // USDC, USD
     pub amount: U256,          // e.g. 40000, 4

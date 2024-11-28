@@ -145,7 +145,7 @@ impl Client {
             txn: Transaction,
             eip1559_fees: &HashMap<&String, Eip1559Estimation>,
             providers: &HashMap<&String, ReqwestProvider>,
-        ) -> (Transaction, Eip1559Estimation, U256) {
+        ) -> (Transaction, Eip1559EstimationFields, U256) {
             let eip1559_estimation = *eip1559_fees.get(&txn.chain_id).unwrap();
             let l1_data_fee = get_l1_data_fee(
                 TransactionRequest::default()
@@ -176,7 +176,8 @@ impl Client {
                 .expect("fee overflow")
                 .checked_add(l1_data_fee)
                 .expect("fee overflow in adding");
-            (txn, eip1559_estimation, fee)
+
+            (txn, Eip1559EstimationFields::from(eip1559_estimation), fee)
         }
 
         let mut estimated_transactions =
@@ -202,13 +203,13 @@ impl Client {
         fn compute_amounts(
             (txn, eip1559_estimation, fee): (
                 Transaction,
-                Eip1559Estimation,
+                Eip1559EstimationFields,
                 U256,
             ),
             total_local_fee: &mut U256,
             const_local_unit: Unit,
             prices: &PriceResponseBody,
-        ) -> (Transaction, Eip1559Estimation, TransactionFee) {
+        ) -> TxnDetails {
             let fungible = prices.fungibles.first().unwrap();
             // let fungible = prices
             //     .fungibles
@@ -229,11 +230,10 @@ impl Client {
 
             let local_fee = fee * fungible_local_exchange_rate;
             *total_local_fee += local_fee;
-
-            (
-                txn,
-                eip1559_estimation,
-                TransactionFee {
+            TxnDetails {
+                transaction: txn,
+                eip1559: eip1559_estimation,
+                transaction_fee: TransactionFee {
                     fee: Amount::new(
                         fungible.symbol.clone(),
                         fee,
@@ -245,7 +245,7 @@ impl Client {
                         const_local_unit,
                     ),
                 },
-            )
+            }
         }
 
         let mut route = Vec::with_capacity(estimated_transactions.len());
@@ -265,12 +265,12 @@ impl Client {
         );
 
         Ok(RouteUiFields {
-            route,
+            route_details: route,
             // bridge: TransactionFee {
             //     fee: Amount::zero(),
             //     local_fee: Amount::zero(),
             // },
-            initial,
+            initial_details: initial,
             local_total: Amount::new(
                 "USD".to_owned(),
                 total_local_fee,
@@ -365,19 +365,45 @@ impl Client {
 }
 
 #[derive(Debug)]
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
 pub struct RouteUiFields {
-    pub route: Vec<TxnDetails>,
+    pub route_details: Vec<TxnDetails>,
     // pub bridge: TxnDetails,
-    pub initial: TxnDetails,
+    pub initial_details: TxnDetails,
     pub local_total: Amount,
 }
 
-pub type TxnDetails = (Transaction, Eip1559Estimation, TransactionFee);
+#[derive(Debug)]
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
+pub struct TxnDetails {
+    pub transaction: Transaction,
+    pub eip1559: Eip1559EstimationFields,
+    pub transaction_fee: TransactionFee,
+}
 
 #[derive(Debug)]
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
+pub struct Eip1559EstimationFields {
+    pub max_fee_per_gas: String,
+    pub max_priority_fee_per_gas: String,
+}
+
+#[derive(Debug)]
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
 pub struct TransactionFee {
     pub fee: Amount,
     pub local_fee: Amount,
+}
+
+impl From<Eip1559Estimation> for Eip1559EstimationFields {
+    fn from(estimation: Eip1559Estimation) -> Self {
+        Eip1559EstimationFields {
+            max_fee_per_gas: estimation.max_fee_per_gas.to_string(),
+            max_priority_fee_per_gas: estimation
+                .max_priority_fee_per_gas
+                .to_string(),
+        }
+    }
 }
 
 // #[cfg(test)]

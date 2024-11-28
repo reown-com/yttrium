@@ -2,16 +2,19 @@ uniffi::setup_scaffolding!();
 
 use alloy::primitives::{Bytes, U256, U64};
 use alloy::providers::Provider;
-use yttrium::chain_abstraction::api::route::RouteResponse;
+use yttrium::chain_abstraction::api::route::{
+    RouteResponse, RouteResponseAvailable,
+};
 use yttrium::chain_abstraction::api::status::{
     StatusResponse, StatusResponseCompleted,
 };
 use yttrium::chain_abstraction::api::Transaction as CATransaction;
+use yttrium::chain_abstraction::currency::Currency;
 
 use alloy::{network::Ethereum, providers::ReqwestProvider};
 use relay_rpc::domain::ProjectId;
 use std::time::Duration;
-use yttrium::chain_abstraction::client::Client;
+use yttrium::chain_abstraction::client::{Client, RouteUiFields};
 use yttrium::config::Config;
 use yttrium::transaction::send::safe_test::{
     Address, OwnerSignature as YOwnerSignature, PrimitiveSignature,
@@ -154,6 +157,30 @@ impl ChainAbstractionClient {
             )
             .await
             .map_err(|e| Error::General(e.to_string()))
+    }
+
+    pub async fn get_ui_fields(
+        &self,
+        route_response: RouteResponseAvailable,
+        initial_transaction: InitTransaction,
+        currency: Currency,
+    ) -> Result<RouteUiFields, Error> {
+        let ca_transaction = CATransaction::from(initial_transaction);
+        self.client
+            .get_route_ui_fields(
+                route_response,
+                ca_transaction,
+                currency,
+                "".to_string(),
+            )
+            .await
+            .map_err(|e| Error::General(e.to_string()))
+        // .map(|fees| Eip1559Estimation {
+        //     max_fee_per_gas: fees.max_fee_per_gas.to_string(),
+        //     max_priority_fee_per_gas: fees
+        //         .max_priority_fee_per_gas
+        //         .to_string(),
+        // })
     }
 
     pub async fn estimate_fees(
