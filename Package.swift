@@ -25,7 +25,9 @@ let package = Package(
         ),
         .binaryTarget(
             name: "YttriumXCFramework",
-            path: "target/ios/libuniffi_yttrium.xcframework"
+            url: "https://github.com/reown-com/yttrium/releases/download/0.2.16/libuniffi_yttrium.xcframework.zip",
+            checksum: "99c134cfd46d36c382b86ee2fa57cd762989b85ba626a5dbba26d44fcd1690ce"
         )
     ]
 )
+
