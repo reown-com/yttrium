@@ -1,0 +1,4 @@
+//module uniffi_yttriumFFI {
+//    header "uniffi_yttriumFFI.h"
+//    export *
+//}
