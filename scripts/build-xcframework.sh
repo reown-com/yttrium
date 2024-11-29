@@ -48,9 +48,9 @@ rustup target add aarch64-apple-ios
 rustup target add x86_64-apple-ios
 rustup target add aarch64-apple-ios-sim
 
-cargo build --release --target aarch64-apple-ios
-cargo build --release --target x86_64-apple-ios
-cargo build --release --target aarch64-apple-ios-sim
+cargo build --lib --release --target aarch64-apple-ios
+cargo build --lib --release --target x86_64-apple-ios
+cargo build --lib --release --target aarch64-apple-ios-sim
 
 generate_ffi $PACKAGE_NAME
 create_fat_simulator_lib $PACKAGE_NAME

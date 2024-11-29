@@ -32,8 +32,11 @@ alloy-provider = "0.6.1"
 erc6492 = { git = "https://github.com/reown-com/erc6492.git", branch = "main" }
 
 [profile.release]
-opt-level = 'z'
+debug = true
 lto = true
+opt-level = 0
+
+
 codegen-units = 1
 # panic = "abort"
 # strip = true - it removes kotlin-bindings
