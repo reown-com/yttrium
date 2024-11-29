@@ -14,14 +14,14 @@ Pod::Spec.new do |s|
   s.swift_version = '5.9'
 
   # Include the Swift source files
-  s.source_files = 'crates/ffi/YttriumCore/Sources/YttriumCore/**/*.{swift,h}'
+  s.source_files = 'platforms/swift/Sources/Yttrium/**/*.{swift,h}'
 
   # Include the vendored framework
   s.prepare_command = <<-SCRIPT
-    curl -L -o RustXcframework.xcframework.zip 'https://github.com/reown-com/yttrium/releases/download/0.2.7/RustXcframework.xcframework.zip'
-    unzip -o RustXcframework.xcframework.zip -d crates/ffi/YttriumCore/
+    curl -L -o libuniffi_yttrium.xcframework.zip 'https://github.com/reown-com/yttrium/releases/download/0.2.7/libuniffi_yttrium.xcframework.zip'
+    unzip -o libuniffi_yttrium.xcframework.zip -d platforms/swift/
     rm RustXcframework.xcframework.zip
   SCRIPT
 
-  s.vendored_frameworks = 'crates/ffi/YttriumCore/RustXcframework.xcframework'
+  s.vendored_frameworks = 'platforms/swift/libuniffi_yttrium.xcframework'
 end

@@ -59,17 +59,17 @@ jobs:
           make build-xcframework
           make generate-package-swift
 
-      # # 7. Update Podspec with Version and Download URL
-      # - name: Update Podspec with Version and Download URL
-      #   run: |
-      #     # Replace the version line in Podspec
-      #     sed -i '' "s/^  s\.version *= *.*/  s.version      = '${VERSION}'/g" YttriumWrapper.podspec
+      # 7. Update Podspec with Version and Download URL
+      - name: Update Podspec with Version and Download URL
+        run: |
+          # Replace the version line in Podspec
+          sed -i '' "s/^  s\.version *= *.*/  s.version      = '${VERSION}'/g" YttriumWrapper.podspec
 
-      #     # Construct the download URL
-      #     DOWNLOAD_URL="https://github.com/reown-com/yttrium/releases/download/${VERSION}/RustXcframework.xcframework.zip"
+          # Construct the download URL
+          DOWNLOAD_URL="https://github.com/reown-com/yttrium/releases/download/${VERSION}/libuniffi_yttrium.xcframework.zip"
 
-      #     # Replace the download URL in prepare_command
-      #     sed -i '' "s|curl -L -o RustXcframework.xcframework.zip '.*'|curl -L -o RustXcframework.xcframework.zip '${DOWNLOAD_URL}'|g" YttriumWrapper.podspec
+          # Replace the download URL in prepare_command
+          sed -i '' "s|curl -L -o libuniffi_yttrium.xcframework.zip '.*'|curl -L -o libuniffi_yttrium.xcframework.zip '${DOWNLOAD_URL}'|g" YttriumWrapper.podspec
 
       # 8. Commit and Push Package.swift and Podspec
       - name: Commit and Push Package.swift and Podspec
