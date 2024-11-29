@@ -53,8 +53,8 @@ jobs:
         run: | 
           sudo xcode-select -s /Applications/Xcode_15.4.app
 
-      # 6. Build and Package Rust XCFramework
-      - name: Build and Package Rust XCFramework
+      # 6. Build and Package XCFramework
+      - name: Build and Package XCFramework
         run: |
           make build-xcframework
           make generate-package-swift
