@@ -20,7 +20,7 @@ Pod::Spec.new do |s|
   s.prepare_command = <<-SCRIPT
     curl -L -o libuniffi_yttrium.xcframework.zip 'https://github.com/reown-com/yttrium/releases/download/0.2.7/libuniffi_yttrium.xcframework.zip'
     unzip -o libuniffi_yttrium.xcframework.zip -d platforms/swift/
-    rm RustXcframework.xcframework.zip
+    rm libuniffi_yttrium.xcframework.zip
   SCRIPT
 
   s.vendored_frameworks = 'platforms/swift/libuniffi_yttrium.xcframework'
