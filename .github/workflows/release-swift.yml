@@ -128,9 +128,9 @@ jobs:
           asset_name: libuniffi_yttrium.xcframework.zip
           asset_content_type: application/zip
 
-      # # 12. Publish to CocoaPods Trunk
-      # - name: Publish to CocoaPods Trunk
-      #   env:
-      #     COCOAPODS_TRUNK_TOKEN: ${{ secrets.COCOAPODS_TRUNK_TOKEN }}
-      #   run: |
-      #     pod trunk push YttriumWrapper.podspec --allow-warnings
+      # 12. Publish to CocoaPods Trunk
+      - name: Publish to CocoaPods Trunk
+        env:
+          COCOAPODS_TRUNK_TOKEN: ${{ secrets.COCOAPODS_TRUNK_TOKEN }}
+        run: |
+          pod trunk push YttriumWrapper.podspec --allow-warnings
