@@ -22,7 +22,8 @@ class _MyAppState extends State<MyApp> {
   @override
   void initState() {
     super.initState();
-    initPlatformState();
+    // initPlatformState();
+    _yttriumDartPlugin.init();
   }
 
   // Platform messages are asynchronous, so we initialize in an async method.
@@ -31,8 +32,8 @@ class _MyAppState extends State<MyApp> {
     // Platform messages may fail, so we use a try/catch PlatformException.
     // We also handle the message potentially returning null.
     try {
-      platformVersion =
-          await _yttriumDartPlugin.getPlatformVersion() ?? 'Unknown platform version';
+      platformVersion = await _yttriumDartPlugin.getPlatformVersion() ??
+          'Unknown platform version';
     } on PlatformException {
       platformVersion = 'Failed to get platform version.';
     }

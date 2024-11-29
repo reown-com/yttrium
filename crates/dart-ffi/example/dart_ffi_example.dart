@@ -1,12 +1,14 @@
 import 'package:dart_ffi/dart_ffi.dart';
 
 void main() async {
-  // Locate the native library file
-  final externalLibrary = ExternalLibrary.open(
-    '../../target/debug/libdart_yttrium.dylib',
-  );
-  // Initialize the Rust library
-  await ReownYttrium.init(externalLibrary: externalLibrary);
+  // // Locate the native library file
+  // final yttrium = ExternalLibrary.open(
+  //   '../../target/release/libyttrium_dart.dylib',
+  // );
+  // // Initialize the Rust library
+  // await YttriumDart.init(externalLibrary: yttrium);
+
+  await DartFfi.init();
 
   // final config = AccountClientConfigI(
   //   chainId: BigInt.from(1),

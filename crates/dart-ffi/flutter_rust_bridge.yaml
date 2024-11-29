@@ -3,13 +3,13 @@ rust_input: crate # meaning src/ folder inside rust/
 dart_output: lib/generated/ # output path for generated Dart code
 c_output: bridge_generated.h
 # duplicated_c_output: args.duplicated_c_output,
-rust_output: rust/src/bridge_generated.rs
+# rust_output: rust/src/bridge_generated.rs
 # full_dep: true
 web: false
 # local: true
 # stop_on_error: true
 build_runner: true
-dart_entrypoint_class_name: "ReownYttrium"
+dart_entrypoint_class_name: "YttriumDart"
 dart_format_line_length: 80
 # dart_preamble: args.dart_preamble,
 # rust_preamble: args.rust_preamble,

@@ -7,7 +7,7 @@ license.workspace = true
 
 [lib]
 name = "yttrium_dart"
-crate-type = ["cdylib"]
+crate-type = ["staticlib"]
 
 [build-dependencies]
 flutter_rust_bridge_codegen = "2.6.0"

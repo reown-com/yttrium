@@ -9,11 +9,15 @@ class YttriumDart {
   }
 
   Future<void> init() async {
-    // Locate the native library file
-    final externalLibrary = ExternalLibrary.open(
-      '../../target/debug/libdart_yttrium.dylib',
-    );
-    // Initialize the Rust library
-    await frb.YttriumDart.init(externalLibrary: externalLibrary);
+    try {
+      // Locate the native library in the app's bundle
+      final yttrium =
+          ExternalLibrary.open('generated/libyttrium_dart_universal.a');
+
+      // Initialize the Rust library
+      await frb.YttriumDart.init(externalLibrary: yttrium);
+    } catch (e) {
+      print(e.toString());
+    }
   }
 }
