@@ -7,7 +7,10 @@ android:
     - platform-tools
     - platforms;android-33
 
-  # build:
-  #   script:
-  #     - cd crates/kotlin-ffi/android
-  #     - ./gradlew assembleRelease --no-daemon --refresh-dependencies
+env:
+  GRADLE_USER_HOME: $HOME/gradle_cache
+
+build:
+  script:
+    - cd crates/kotlin-ffi/android
+    - ./gradlew assembleRelease --no-daemon --refresh-dependencies
