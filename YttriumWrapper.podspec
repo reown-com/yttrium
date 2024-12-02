@@ -2,7 +2,7 @@ Pod::Spec.new do |s|
   s.name         = 'YttriumWrapper'
   s.version      = '0.2.20'
   s.summary      = '4337 implementation'
-  s.description  = '4337 implementation '
+  s.description  = '4337 implementation and Chain Abstraction'
   s.homepage     = 'https://reown.com'
   s.license      = { :type => 'MIT', :file => 'LICENSE' }
   s.authors      = 'reown inc.'
