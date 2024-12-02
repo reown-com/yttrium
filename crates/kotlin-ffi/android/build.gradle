@@ -5,10 +5,12 @@ buildscript {
     }
     dependencies {
         classpath 'com.android.tools.build:gradle:8.4.1'
+        classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:1.8.10'
     }
 }
 
 apply plugin: 'com.android.library'
+apply plugin: 'org.jetbrains.kotlin.android'
 apply plugin: 'maven-publish'
 
 android {
@@ -42,11 +44,16 @@ android {
      packagingOptions {
         doNotStrip "*/libuniffi_yttrium.so"
     }
-}
 
-// dependencies {
-//     implementation fileTree(dir: 'libs', include: ['*.jar'])
-// }
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11
+    }
+
+    kotlinOptions {
+        jvmTarget = "11"
+    }
+}
 
 publishing {
     publications {
@@ -63,13 +70,13 @@ publishing {
                 name.set("Yttrium")
                 description.set("An Android library for Yttrium.")
                 url.set("https://github.com/reown-com/Yttrium")
-            }
-        }
-    }
 
-    repositories {
-        maven {
-            url = layout.buildDirectory.dir("maven-repo")
+                 scm {
+                        connection.set("scm:git:git://github.com:reown-com/yttrium.git")
+                        developerConnection.set("scm:git:ssh://github.com:reown-com/yttrium.git")
+                        url.set("https://github.com/reown-com/yttrium")
+                    }
+            }
         }
     }
 }
