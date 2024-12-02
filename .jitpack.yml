@@ -7,7 +7,7 @@ android:
     - platform-tools
     - platforms;android-33
 
-  build:
-    script:
-      - cd crates/kotlin-ffi/android
-      - ./gradlew assembleRelease --no-daemon --refresh-dependencies
+  # build:
+  #   script:
+  #     - cd crates/kotlin-ffi/android
+  #     - ./gradlew assembleRelease --no-daemon --refresh-dependencies
