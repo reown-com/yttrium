@@ -1,15 +1,23 @@
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:8.1.0'
+    }
+}
+
 apply plugin: 'com.android.library'
 
 android {
+    namespace "com.reown.yttrium"
+
     compileSdkVersion 33
 
     defaultConfig {
         minSdkVersion 21
         targetSdkVersion 33
-    }
-
-    ndk {
-        abiFilters 'armeabi-v7a', 'arm64-v8a'
     }
 
     sourceSets {

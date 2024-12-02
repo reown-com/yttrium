@@ -1,0 +1,13 @@
+jdk:
+  - openjdk17
+
+android:
+  components:
+    - build-tools;33.0.0
+    - platform-tools
+    - platforms;android-33
+
+build:
+  script:
+    - cd crates/kotlin-ffi/android
+    - ./gradlew assembleRelease
