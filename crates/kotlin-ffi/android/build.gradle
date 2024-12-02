@@ -29,7 +29,7 @@ android {
     sourceSets {
         main {
             jniLibs.srcDirs = ['src/main/jniLibs']
-            java.srcDirs = ['src/main/java']
+            java.srcDirs = ['src/main/kotlin']
         }
     }
 
@@ -44,9 +44,9 @@ android {
     }
 }
 
-dependencies {
-    implementation fileTree(dir: 'libs', include: ['*.jar'])
-}
+// dependencies {
+//     implementation fileTree(dir: 'libs', include: ['*.jar'])
+// }
 
 publishing {
     publications {
