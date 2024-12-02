@@ -14,7 +14,8 @@ use std::time::Duration;
 use yttrium::chain_abstraction::client::Client;
 use yttrium::config::Config;
 use yttrium::transaction::send::safe_test::{
-    Address as FFIAddress, OwnerSignature as YOwnerSignature, PrimitiveSignature,
+    Address as FFIAddress, OwnerSignature as YOwnerSignature,
+    PrimitiveSignature,
 };
 use yttrium::{
     account_client::{AccountClient as YAccountClient, SignerType},
@@ -309,7 +310,9 @@ impl FFIAccountClient {
         self.account_client
             .wait_for_user_operation_receipt(
                 user_operation_hash.parse().map_err(|e| {
-                    FFIError::General(format!("Parsing user_operation_hash: {e}"))
+                    FFIError::General(format!(
+                        "Parsing user_operation_hash: {e}"
+                    ))
                 })?,
             )
             .await
