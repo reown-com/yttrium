@@ -7,6 +7,9 @@ android:
     - platform-tools
     - platforms;android-33
 
+env:
+  GRADLE_USER_HOME: $HOME/gradle_cache
+
 build:
   script:
     - cd crates/kotlin-ffi/android
