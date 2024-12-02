@@ -1,5 +1,5 @@
 use super::Transaction;
-use alloy::primitives::Address;
+use alloy::primitives::{Address, U256};
 use relay_rpc::domain::ProjectId;
 use serde::{Deserialize, Serialize};
 
@@ -31,7 +31,8 @@ pub struct FundingMetadata {
     pub chain_id: String,
     pub token_contract: Address,
     pub symbol: String,
-    pub amount: String,
+    pub amount: U256,
+    pub bridging_fee: U256,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
