@@ -18,6 +18,12 @@ android {
             java.srcDirs = ['src/main/java']
         }
     }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+        }
+    }
 }
 
 dependencies {
