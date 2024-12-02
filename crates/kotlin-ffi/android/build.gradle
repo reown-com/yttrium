@@ -57,7 +57,7 @@ publishing {
             // Customize POM details
             groupId = 'com.github.reown-com'
             artifactId = 'yttrium'
-            version = '0.2.48'
+            version = '0.2.49'
 
             pom {
                 name.set("Yttrium")
