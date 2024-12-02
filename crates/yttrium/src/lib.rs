@@ -19,3 +19,6 @@ pub mod smart_accounts;
 pub mod test_helpers;
 pub mod transaction;
 pub mod user_operation;
+
+#[cfg(test)]
+pub mod examples;
