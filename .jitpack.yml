@@ -1,5 +1,5 @@
 jdk:
-  - openjdk11
+  - openjdk17
 
 android:
   components:
@@ -8,8 +8,6 @@ android:
     - platforms;android-33
 
 build:
-  # gradle:
-  #   version: 7.4
   script:
     - cd crates/kotlin-ffi/android
     - ./gradlew clean --no-daemon
