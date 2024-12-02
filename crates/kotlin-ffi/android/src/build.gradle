@@ -9,7 +9,7 @@ android {
     }
 
     ndk {
-        abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86', 'x86_64'
+        abiFilters 'armeabi-v7a', 'arm64-v8a'
     }
 
     sourceSets {
@@ -18,4 +18,8 @@ android {
             java.srcDirs = ['src/main/java']
         }
     }
+}
+
+dependencies {
+    implementation fileTree(dir: 'libs', include: ['*.jar'])
 }
