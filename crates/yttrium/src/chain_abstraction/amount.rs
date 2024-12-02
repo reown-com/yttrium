@@ -44,6 +44,12 @@ impl Amount {
     pub fn zero() -> Self {
         Self::new("UNK".to_string(), U256::from(0), Unit::new(0).unwrap())
     }
+
+    /// Used only for tests. This function is inherently inaccurate and should
+    /// not be used in production.
+    pub fn as_float_inaccurate(&self) -> f64 {
+        self.amount.to::<u128>() as f64 / 10_f64.powf(self.unit.get() as f64)
+    }
 }
 
 impl Default for Amount {

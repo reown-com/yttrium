@@ -92,6 +92,15 @@ impl FFIChainClient {
                             result.unwrap_or_else(|err| err.to_string());
                         FFIRouteError::RequestFailed(message)
                     }
+                    RouteError::DecodingText(reqwest_error) => {
+                        FFIRouteError::DecodingText(reqwest_error.to_string())
+                    }
+                    RouteError::DecodingJson(serde_error, json) => {
+                        FFIRouteError::DecodingJson(
+                            serde_error.to_string(),
+                            json,
+                        )
+                    }
                 }
             })?;
 
@@ -138,6 +147,12 @@ impl FFIChainClient {
                 RouteError::RequestFailed(e) => {
                     let msg = e.unwrap_or_else(|err| err.to_string());
                     FFIRouteError::RequestFailed(msg)
+                }
+                RouteError::DecodingText(reqwest_error) => {
+                    FFIRouteError::DecodingText(reqwest_error.to_string())
+                }
+                RouteError::DecodingJson(serde_error, json) => {
+                    FFIRouteError::DecodingJson(serde_error.to_string(), json)
                 }
             },
         )?;

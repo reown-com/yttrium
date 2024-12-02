@@ -1,17 +1,19 @@
 use crate::{
     chain_abstraction::{
+        amount::Amount,
         api::{
             route::{BridgingError, RouteResponse, RouteResponseError},
             status::StatusResponse,
             Transaction,
         },
-        client::Client,
+        client::{Client, TransactionFee},
         currency::Currency,
         l1_data_fee::get_l1_data_fee,
     },
     test_helpers::{
         private_faucet, use_account, use_faucet_gas, BRIDGE_ACCOUNT_1,
-        BRIDGE_ACCOUNT_2,
+        BRIDGE_ACCOUNT_2, BRIDGE_ACCOUNT_USDC_1557_1,
+        BRIDGE_ACCOUNT_USDC_1557_2,
     },
 };
 use alloy::{
@@ -31,7 +33,9 @@ use alloy_provider::{
     Identity, Provider, ProviderBuilder, ReqwestProvider, RootProvider,
 };
 use std::{
+    cmp::max,
     collections::HashMap,
+    iter,
     time::{Duration, Instant},
 };
 use ERC20::ERC20Instance;
@@ -188,6 +192,194 @@ impl BridgeToken {
 
 #[tokio::test]
 async fn bridging_routes_routes_available() {
+    let faucet = private_faucet();
+    println!("faucet: {}", faucet.address());
+
+    // Accounts unique to this test fixture
+    let account_1 = use_account(Some(BRIDGE_ACCOUNT_USDC_1557_1));
+    println!("account_1: {}", account_1.address());
+    let account_2 = use_account(Some(BRIDGE_ACCOUNT_USDC_1557_2));
+    println!("account_2: {}", account_2.address());
+
+    let source = account_1.clone();
+    let destination = account_2.clone();
+
+    let token = Token::Usdc;
+
+    let chain_1 = Chain::Base;
+    let chain_2 = Chain::Optimism;
+
+    let chain_1_address_1_token = BridgeToken::new(
+        BridgeTokenParams {
+            chain: chain_1.to_owned(),
+            account_address: account_1.address(),
+            token,
+        },
+        account_1.clone(),
+    );
+    let chain_2_address_1_token = BridgeToken::new(
+        BridgeTokenParams {
+            chain: chain_2.to_owned(),
+            account_address: account_1.address(),
+            token,
+        },
+        account_1.clone(),
+    );
+
+    let current_balance = chain_1_address_1_token.token_balance().await;
+
+    /// How much to multiply the amount by when bridging to cover bridging
+    /// differences
+    pub const BRIDGING_AMOUNT_MULTIPLIER: i8 = 5; // 5%
+
+    /// Minimal bridging fees coverage using decimals
+    static MINIMAL_BRIDGING_FEES_COVERAGE: u64 = 50000; // 0.05 USDC/USDT
+
+    let send_amount = U256::from(1_500_000); // 1.5 USDC (6 decimals)
+
+    // let required_amount =
+    //     U256::from((send_amount.to::<u128>() as f64 * 1.05) as u128);
+    let required_amount = {
+        let erc20_topup_value = send_amount;
+        // Multiply the topup value by the bridging percent multiplier and get
+        // the maximum between the calculated fees covering value and
+        // the minimal bridging fees coverage
+        let calculated_fees_covering_value = (erc20_topup_value
+            * U256::from(BRIDGING_AMOUNT_MULTIPLIER))
+            / U256::from(100);
+        erc20_topup_value
+            + max(
+                calculated_fees_covering_value,
+                U256::from(MINIMAL_BRIDGING_FEES_COVERAGE),
+            )
+    };
+    println!("required_amount: {required_amount}");
+
+    if current_balance < required_amount {
+        assert!(required_amount < U256::from(2000000));
+        println!(
+                "using token faucet {} on chain {} for amount {current_balance} on token {:?} ({}). Send tokens to faucet at: {}",
+                faucet.address(),
+                chain_1_address_1_token.params.chain.eip155_chain_id(),
+                token,
+                chain_1_address_1_token.token.address(),
+                faucet.address(),
+            );
+        let status = BridgeToken::new(
+            chain_1_address_1_token.params.clone(),
+            faucet.clone(),
+        )
+        .token
+        .transfer(account_1.address(), required_amount - current_balance)
+        .send()
+        .await
+        .unwrap()
+        .with_timeout(Some(Duration::from_secs(30)))
+        .get_receipt()
+        .await
+        .unwrap()
+        .status();
+        assert!(status);
+    }
+    assert!(chain_1_address_1_token.token_balance().await >= required_amount);
+
+    let transaction = Transaction {
+        from: source.address(),
+        to: *chain_2_address_1_token.token.address(),
+        value: U256::ZERO,
+        // gas: U64::ZERO,
+        // https://reown-inc.slack.com/archives/C0816SK4877/p1731962527043399
+        gas: U64::from(50000), // until Blockchain API estimates this
+        data: ERC20::transferCall {
+            to: destination.address(),
+            amount: send_amount,
+        }
+        .abi_encode()
+        .into(),
+        nonce: U64::from({
+            let token = chain_2_address_1_token;
+            token
+                .provider
+                .get_transaction_count(token.params.account_address)
+                .await
+                .unwrap()
+        }),
+        chain_id: chain_2.eip155_chain_id().to_owned(),
+        gas_price: U256::ZERO,
+        max_fee_per_gas: U256::ZERO,
+        max_priority_fee_per_gas: U256::ZERO,
+    };
+    println!("input transaction: {:?}", transaction);
+
+    let project_id = std::env::var("REOWN_PROJECT_ID").unwrap().into();
+    let client = Client::new(project_id);
+    let mut result = client
+        .route(transaction.clone())
+        .await
+        .unwrap()
+        .into_result()
+        .unwrap()
+        .into_option()
+        .unwrap();
+    println!("route result: {:?}", result);
+
+    assert_eq!(result.transactions.len(), 2);
+    result.transactions[0].gas = U64::from(60000 /* 55437 */); // until Blockchain API estimates this
+    result.transactions[1].gas = U64::from(140000 /* 107394 */); // until Blockchain API estimates this
+
+    let start = Instant::now();
+    let route_ui_fields = client
+        .get_route_ui_fields(
+            result.clone(),
+            transaction.clone(),
+            Currency::Usd,
+            "normal".to_owned(),
+        )
+        .await
+        .unwrap();
+    println!(
+        "output route_ui_fields in ({:#?}): {:?}",
+        start.elapsed(),
+        route_ui_fields
+    );
+
+    fn sanity_check_fee(fee: &Amount) {
+        assert_eq!(fee.symbol, "USD".to_owned());
+        assert!(fee.amount > U256::ZERO);
+        assert!(fee.as_float_inaccurate() < 10.);
+        assert!(fee.as_float_inaccurate() < 0.10);
+        assert!(fee.formatted.ends_with(&fee.symbol));
+        assert!(
+            fee.formatted_alt.starts_with("$")
+                || fee.formatted_alt.starts_with("<$")
+        );
+    }
+
+    sanity_check_fee(&route_ui_fields.local_total);
+    sanity_check_fee(&route_ui_fields.initial.2.local_fee);
+    for (_, _, TransactionFee { local_fee: fee, .. }) in &route_ui_fields.route
+    {
+        sanity_check_fee(fee);
+    }
+
+    let total_fee = route_ui_fields.local_total.as_float_inaccurate();
+    let combined_fees =
+        iter::once(route_ui_fields.initial.2.local_fee.as_float_inaccurate())
+            .chain(route_ui_fields.route.iter().map(
+                |(_, _, TransactionFee { local_fee, .. })| {
+                    local_fee.as_float_inaccurate()
+                },
+            ))
+            .sum::<f64>();
+    println!("total_fee: {total_fee}");
+    println!("combined_fees: {combined_fees}");
+    let error = (total_fee - combined_fees).abs();
+    println!("error: {error}");
+    assert!(error < 0.00000000000001);
+}
+
+#[tokio::test]
+async fn happy_path() {
     let faucet = private_faucet();
     println!("faucet: {}", faucet.address());
 
@@ -626,6 +818,7 @@ async fn bridging_routes_routes_available() {
     {
         let provider =
             provider_for_chain(&Chain::from_eip155_chain_id(&txn.chain_id));
+        // TODO use fees from response of route_ui_fields: https://linear.app/reown/issue/RES-140/use-fees-from-response-of-route-ui-fields-for-happy-path-ca-tests
         let fees = provider.estimate_eip1559_fees(None).await.unwrap();
         let txn = map_transaction(txn)
             .with_max_fee_per_gas(fees.max_fee_per_gas)

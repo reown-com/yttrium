@@ -64,8 +64,12 @@ impl Client {
             .send()
             .await
             .map_err(RouteError::Request)?;
-        if response.status().is_success() {
-            response.json().await.map_err(RouteError::Request)
+        let status = response.status();
+        if status.is_success() {
+            let text =
+                response.text().await.map_err(RouteError::DecodingText)?;
+            serde_json::from_str(&text)
+                .map_err(|e| RouteError::DecodingJson(e, text))
         } else {
             Err(RouteError::RequestFailed(response.text().await))
         }
@@ -296,8 +300,12 @@ impl Client {
             .map_err(RouteError::Request)?
             .error_for_status()
             .map_err(RouteError::Request)?;
-        if response.status().is_success() {
-            response.json().await.map_err(RouteError::Request)
+        let status = response.status();
+        if status.is_success() {
+            let text =
+                response.text().await.map_err(RouteError::DecodingText)?;
+            serde_json::from_str(&text)
+                .map_err(|e| RouteError::DecodingJson(e, text))
         } else {
             Err(RouteError::RequestFailed(response.text().await))
         }

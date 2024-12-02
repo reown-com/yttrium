@@ -41,6 +41,8 @@ mod ffi {
     pub enum FFIRouteError {
         Request(String),
         RequestFailed(String),
+        DecodingText(String),
+        DecodingJson(String, String),
     }
 
     #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]

@@ -1,6 +1,5 @@
-use reqwest::StatusCode;
-
 use super::api::status::{StatusResponseError, StatusResponsePending};
+use reqwest::StatusCode;
 
 #[derive(thiserror::Error, Debug)]
 pub enum RouteError {
@@ -11,6 +10,14 @@ pub enum RouteError {
     /// Retryable error
     #[error("HTTP request failed: {0:?}")]
     RequestFailed(Result<String, reqwest::Error>),
+
+    /// Retryable error
+    #[error("Decoding response as text failed: {0:?}")]
+    DecodingText(reqwest::Error),
+
+    /// Retryable error
+    #[error("Decoding response as json failed: {0:?}")]
+    DecodingJson(serde_json::Error, String),
 }
 
 #[derive(thiserror::Error, Debug)]
