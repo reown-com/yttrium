@@ -92,6 +92,7 @@ impl Client {
             .collect::<HashSet<_>>();
         println!("chains: {chains:?}");
 
+        // TODO use universal version: https://linear.app/reown/issue/RES-142/universal-provider-router
         let mut providers = HashMap::new();
         for chain_id in &chains {
             let mut url = self.base_url.join(PROXY_ENDPOINT_PATH).unwrap();
