@@ -8,7 +8,7 @@ android:
     - platforms;android-33
 
 env:
-  GRADLE_USER_HOME: $HOME/gradle_cache
+  GRADLE_USER_HOME: /home/jitpack/gradle_cache
 
 build:
   script:
