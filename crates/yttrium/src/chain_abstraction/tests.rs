@@ -10,6 +10,7 @@ use crate::{
         currency::Currency,
         l1_data_fee::get_l1_data_fee,
     },
+    erc20::{Token, ERC20},
     test_helpers::{
         private_faucet, use_account, use_faucet_gas, BRIDGE_ACCOUNT_1,
         BRIDGE_ACCOUNT_2, BRIDGE_ACCOUNT_USDC_1557_1,
@@ -21,7 +22,6 @@ use alloy::{
     primitives::{address, Address, U256, U64},
     rpc::types::TransactionRequest,
     signers::{k256::ecdsa::SigningKey, local::LocalSigner},
-    sol,
     sol_types::SolCall,
     transports::http::Http,
 };
@@ -92,20 +92,6 @@ impl Chain {
             CHAIN_ID_ARBITRUM => Chain::Arbitrum,
             _ => unimplemented!(),
         }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Copy)]
-enum Token {
-    Usdc,
-}
-
-sol! {
-    #[sol(rpc)]
-    contract ERC20 {
-        function transfer(address to, uint256 amount);
-        function approve(address spender, uint256 amount) public returns (bool);
-        function balanceOf(address _owner) public view returns (uint256 balance);
     }
 }
 
@@ -230,7 +216,7 @@ async fn bridging_routes_routes_available() {
 
     /// How much to multiply the amount by when bridging to cover bridging
     /// differences
-    pub const BRIDGING_AMOUNT_MULTIPLIER: i8 = 5; // 5%
+    pub const BRIDGING_AMOUNT_MULTIPLIER: i8 = 10; // 5%
 
     /// Minimal bridging fees coverage using decimals
     static MINIMAL_BRIDGING_FEES_COVERAGE: u64 = 50000; // 0.05 USDC/USDT

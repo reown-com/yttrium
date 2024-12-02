@@ -18,13 +18,16 @@ use super::{
     currency::Currency,
     error::{RouteError, WaitForSuccessError},
 };
-use crate::chain_abstraction::{
-    api::fungible_price::FungiblePriceItem, error::RouteUiFieldsError,
-    l1_data_fee::get_l1_data_fee,
+use crate::{
+    chain_abstraction::{
+        api::fungible_price::FungiblePriceItem, error::RouteUiFieldsError,
+        l1_data_fee::get_l1_data_fee,
+    },
+    erc20::ERC20,
 };
 use alloy::{
     network::{Ethereum, TransactionBuilder},
-    primitives::{utils::Unit, U256, U64},
+    primitives::{utils::Unit, Address, U256, U64},
     rpc::{client::RpcClient, types::TransactionRequest},
     transports::http::Http,
 };
@@ -33,13 +36,17 @@ use relay_rpc::domain::ProjectId;
 use reqwest::{Client as ReqwestClient, Url};
 use std::{
     collections::{HashMap, HashSet},
+    sync::Arc,
     time::{Duration, Instant},
 };
+use tokio::sync::RwLock;
 
 pub const PROXY_ENDPOINT_PATH: &str = "/v1";
 
+#[derive(Clone)]
 pub struct Client {
     client: ReqwestClient,
+    providers: Arc<RwLock<HashMap<String, ReqwestProvider>>>,
     base_url: Url,
     pub project_id: ProjectId,
 }
@@ -48,6 +55,7 @@ impl Client {
     pub fn new(project_id: ProjectId) -> Self {
         Self {
             client: ReqwestClient::new(),
+            providers: Arc::new(RwLock::new(HashMap::new())),
             base_url: "https://rpc.walletconnect.com".parse().unwrap(),
             project_id,
         }
@@ -92,20 +100,6 @@ impl Client {
             .collect::<HashSet<_>>();
         println!("chains: {chains:?}");
 
-        // TODO use universal version: https://linear.app/reown/issue/RES-142/universal-provider-router
-        let mut providers = HashMap::new();
-        for chain_id in &chains {
-            let mut url = self.base_url.join(PROXY_ENDPOINT_PATH).unwrap();
-            url.query_pairs_mut()
-                .append_pair("chainId", chain_id)
-                .append_pair("projectId", self.project_id.as_ref());
-            let provider = ReqwestProvider::<Ethereum>::new(RpcClient::new(
-                Http::with_client(self.client.clone(), url),
-                false,
-            ));
-            providers.insert(chain_id, provider);
-        }
-
         // TODO run fungible lookup, eip1559_fees, and l1 data fee, in parallel
 
         let addresses = chains
@@ -143,9 +137,9 @@ impl Client {
 
         let mut eip1559_fees = HashMap::new();
         for chain_id in &chains {
-            let estimate = providers
-                .get(chain_id)
-                .unwrap()
+            let estimate = self
+                .get_provider(chain_id.clone())
+                .await
                 .estimate_eip1559_fees(None)
                 .await
                 .unwrap();
@@ -155,7 +149,7 @@ impl Client {
         async fn estimate_gas_fees(
             txn: Transaction,
             eip1559_fees: &HashMap<&String, Eip1559Estimation>,
-            providers: &HashMap<&String, ReqwestProvider>,
+            providers: &Client,
         ) -> (Transaction, Eip1559Estimation, U256) {
             let eip1559_estimation = *eip1559_fees.get(&txn.chain_id).unwrap();
             let l1_data_fee = get_l1_data_fee(
@@ -178,7 +172,7 @@ impl Client {
                     .max_priority_fee_per_gas(
                         eip1559_estimation.max_priority_fee_per_gas,
                     ),
-                providers.get(&txn.chain_id).unwrap().clone(),
+                providers.get_provider(txn.chain_id.clone()).await,
             )
             .await;
             println!("l1_data_fee: {l1_data_fee}");
@@ -194,11 +188,10 @@ impl Client {
             Vec::with_capacity(route_response.transactions.len());
         for txn in route_response.transactions {
             estimated_transactions
-                .push(estimate_gas_fees(txn, &eip1559_fees, &providers).await);
+                .push(estimate_gas_fees(txn, &eip1559_fees, self).await);
         }
         let estimated_initial_transaction =
-            estimate_gas_fees(initial_transaction, &eip1559_fees, &providers)
-                .await;
+            estimate_gas_fees(initial_transaction, &eip1559_fees, self).await;
 
         // Set desired granularity for local currency exchange rate
         // Individual prices may have less granularity
@@ -378,6 +371,39 @@ impl Client {
             }
             tokio::time::sleep(check_in).await;
         }
+    }
+
+    pub async fn get_provider(&self, chain_id: String) -> ReqwestProvider {
+        let providers = self.providers.read().await;
+        if let Some(provider) = providers.get(&chain_id) {
+            provider.clone()
+        } else {
+            std::mem::drop(providers);
+
+            // TODO use universal version: https://linear.app/reown/issue/RES-142/universal-provider-router
+            let mut url = self.base_url.join(PROXY_ENDPOINT_PATH).unwrap();
+            url.query_pairs_mut()
+                .append_pair("chainId", &chain_id)
+                .append_pair("projectId", self.project_id.as_ref());
+            let provider = ReqwestProvider::<Ethereum>::new(RpcClient::new(
+                Http::with_client(self.client.clone(), url),
+                false,
+            ));
+            self.providers.write().await.insert(chain_id, provider.clone());
+            provider
+        }
+    }
+
+    pub async fn erc20_token_balance(
+        &'static self,
+        chain_id: String,
+        token: Address,
+        owner: Address,
+    ) -> Result<U256, alloy::contract::Error> {
+        let provider = self.get_provider(chain_id).await;
+        let erc20 = ERC20::new(token, provider);
+        let balance = erc20.balanceOf(owner).call().await?;
+        Ok(balance.balance)
     }
 }
 
