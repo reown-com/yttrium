@@ -19,7 +19,8 @@ use super::{
     error::{RouteError, WaitForSuccessError},
 };
 use crate::chain_abstraction::{
-    error::RouteUiFieldsError, l1_data_fee::get_l1_data_fee,
+    api::fungible_price::FungiblePriceItem, error::RouteUiFieldsError,
+    l1_data_fee::get_l1_data_fee,
 };
 use alloy::{
     network::{Ethereum, TransactionBuilder},
@@ -109,30 +110,35 @@ impl Client {
         let addresses = chains
             .iter()
             .map(|t| format!("{}:{}", t, NATIVE_TOKEN_ADDRESS))
-            .collect();
+            .collect::<HashSet<_>>();
+        let mut fungibles = Vec::with_capacity(addresses.len());
         println!("addresses: {addresses:?}");
-        let response = self
-            .client
-            .post(self.base_url.join(FUNGIBLE_PRICE_ENDPOINT_PATH).unwrap())
-            .json(&PriceRequestBody {
-                project_id: self.project_id.clone(),
-                currency,
-                addresses,
-            })
-            .send()
-            .await
-            .map_err(RouteUiFieldsError::Request)?;
-        let prices = if response.status().is_success() {
-            response
-                .json::<PriceResponseBody>()
+        for address in addresses {
+            // TODO: batch these requests when Blockchain API supports it: https://reown-inc.slack.com/archives/C0816SK4877/p1733168173213809
+            let response = self
+                .client
+                .post(self.base_url.join(FUNGIBLE_PRICE_ENDPOINT_PATH).unwrap())
+                .json(&PriceRequestBody {
+                    project_id: self.project_id.clone(),
+                    currency,
+                    addresses: HashSet::from([address]),
+                })
+                .send()
                 .await
-                .map_err(RouteUiFieldsError::Json)
-        } else {
-            Err(RouteUiFieldsError::RequestFailed(
-                response.status(),
-                response.text().await,
-            ))
-        }?;
+                .map_err(RouteUiFieldsError::Request)?;
+            let prices = if response.status().is_success() {
+                response
+                    .json::<PriceResponseBody>()
+                    .await
+                    .map_err(RouteUiFieldsError::Json)
+            } else {
+                Err(RouteUiFieldsError::RequestFailed(
+                    response.status(),
+                    response.text().await,
+                ))
+            }?;
+            fungibles.extend(prices.fungibles);
+        }
 
         let mut eip1559_fees = HashMap::new();
         for chain_id in &chains {
@@ -211,17 +217,19 @@ impl Client {
             ),
             total_local_fee: &mut U256,
             const_local_unit: Unit,
-            prices: &PriceResponseBody,
+            fungibles: &[FungiblePriceItem],
         ) -> (Transaction, Eip1559Estimation, TransactionFee) {
-            let fungible = prices.fungibles.first().unwrap();
-            // let fungible = prices
-            //     .fungibles
-            //     .iter()
-            //     .find(|f| {
-            //         f.address
-            //             == format!("{}:{}", txn.chain_id,
-            // NATIVE_TOKEN_ADDRESS)     })
-            //     .unwrap();
+            let native_token_caip10 = format!(
+                "{}:{}",
+                txn.chain_id,
+                NATIVE_TOKEN_ADDRESS.to_checksum(None)
+            );
+            println!("native_token_caip10: {native_token_caip10}");
+            println!("fungibles: {fungibles:?}");
+            let fungible = fungibles
+                .iter()
+                .find(|f| f.address == native_token_caip10)
+                .unwrap();
 
             // Math currently doesn't support variable decimals for fungible
             // assets
@@ -258,14 +266,14 @@ impl Client {
                 item,
                 &mut total_local_fee,
                 const_local_unit,
-                &prices,
+                &fungibles,
             ));
         }
         let initial = compute_amounts(
             estimated_initial_transaction,
             &mut total_local_fee,
             const_local_unit,
-            &prices,
+            &fungibles,
         );
 
         Ok(RouteUiFields {
