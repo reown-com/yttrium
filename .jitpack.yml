@@ -10,4 +10,5 @@ android:
 build:
   script:
     - cd crates/kotlin-ffi/android
+    - ./gradlew clean
     - ./gradlew assembleRelease --no-daemon --refresh-dependencies --debug
