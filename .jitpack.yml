@@ -8,6 +8,8 @@ android:
     - platforms;android-33
 
 build:
+  gradle:
+    version: 7.3.3
   script:
     - cd crates/kotlin-ffi/android
     - ./gradlew clean --no-daemon
