@@ -4,8 +4,7 @@ buildscript {
         mavenCentral()
     }
     dependencies {
-        classpath 'com.android.tools.build:gradle:7.3.1'
-        classpath 'com.android.tools.lint:lint-gradle:30.0.0'
+        classpath 'com.android.tools.build:gradle:8.4.1'
     }
 }
 
@@ -21,14 +20,10 @@ android {
         targetSdkVersion 33
     }
 
-    lint {
+    lintOptions {
         abortOnError false
         checkReleaseBuilds false
     }
-
-    // buildFeatures {
-    //     lint false
-    // }
 
     sourceSets {
         main {
