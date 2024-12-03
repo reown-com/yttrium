@@ -41,24 +41,15 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import uniffi.yttrium.Config
-import uniffi.yttrium.Currency
 import uniffi.yttrium.FfiConverterTypeConfig
-import uniffi.yttrium.FfiConverterTypeCurrency
 import uniffi.yttrium.FfiConverterTypeRouteResponse
-import uniffi.yttrium.FfiConverterTypeRouteResponseAvailable
-import uniffi.yttrium.FfiConverterTypeRouteUiFields
 import uniffi.yttrium.FfiConverterTypeStatusResponse
 import uniffi.yttrium.FfiConverterTypeStatusResponseCompleted
 import uniffi.yttrium.RouteResponse
-import uniffi.yttrium.RouteResponseAvailable
-import uniffi.yttrium.RouteUiFields
 import uniffi.yttrium.StatusResponse
 import uniffi.yttrium.StatusResponseCompleted
 import uniffi.yttrium.RustBuffer as RustBufferConfig
-import uniffi.yttrium.RustBuffer as RustBufferCurrency
 import uniffi.yttrium.RustBuffer as RustBufferRouteResponse
-import uniffi.yttrium.RustBuffer as RustBufferRouteResponseAvailable
-import uniffi.yttrium.RustBuffer as RustBufferRouteUiFields
 import uniffi.yttrium.RustBuffer as RustBufferStatusResponse
 import uniffi.yttrium.RustBuffer as RustBufferStatusResponseCompleted
 
@@ -772,8 +763,6 @@ internal interface UniffiForeignFutureCompleteVoid : com.sun.jna.Callback {
 
 
 
-
-
 // A JNA Library to expose the extern-C FFI definitions.
 // This is an implementation detail which will be called internally by the public API.
 
@@ -820,8 +809,6 @@ internal interface UniffiLib : Library {
     fun uniffi_uniffi_yttrium_fn_constructor_chainabstractionclient_new(`projectId`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): Pointer
     fun uniffi_uniffi_yttrium_fn_method_chainabstractionclient_estimate_fees(`ptr`: Pointer,`chainId`: RustBuffer.ByValue,
-    ): Long
-    fun uniffi_uniffi_yttrium_fn_method_chainabstractionclient_get_ui_fields(`ptr`: Pointer,`routeResponse`: RustBufferRouteResponseAvailable.ByValue,`initialTransaction`: RustBuffer.ByValue,`currency`: RustBufferCurrency.ByValue,
     ): Long
     fun uniffi_uniffi_yttrium_fn_method_chainabstractionclient_route(`ptr`: Pointer,`transaction`: RustBuffer.ByValue,
     ): Long
@@ -957,8 +944,6 @@ internal interface UniffiLib : Library {
     ): Short
     fun uniffi_uniffi_yttrium_checksum_method_chainabstractionclient_estimate_fees(
     ): Short
-    fun uniffi_uniffi_yttrium_checksum_method_chainabstractionclient_get_ui_fields(
-    ): Short
     fun uniffi_uniffi_yttrium_checksum_method_chainabstractionclient_route(
     ): Short
     fun uniffi_uniffi_yttrium_checksum_method_chainabstractionclient_status(
@@ -1008,9 +993,6 @@ private fun uniffiCheckApiChecksums(lib: UniffiLib) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_uniffi_yttrium_checksum_method_chainabstractionclient_estimate_fees() != 15180.toShort()) {
-        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
-    }
-    if (lib.uniffi_uniffi_yttrium_checksum_method_chainabstractionclient_get_ui_fields() != 45142.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_uniffi_yttrium_checksum_method_chainabstractionclient_route() != 14984.toShort()) {
@@ -1757,8 +1739,6 @@ public interface ChainAbstractionClientInterface {
     
     suspend fun `estimateFees`(`chainId`: kotlin.String): Eip1559Estimation
     
-    suspend fun `getUiFields`(`routeResponse`: RouteResponseAvailable, `initialTransaction`: InitTransaction, `currency`: Currency): RouteUiFields
-    
     suspend fun `route`(`transaction`: InitTransaction): RouteResponse
     
     suspend fun `status`(`orchestrationId`: kotlin.String): StatusResponse
@@ -1873,27 +1853,6 @@ open class ChainAbstractionClient: Disposable, AutoCloseable, ChainAbstractionCl
         { future -> UniffiLib.INSTANCE.ffi_uniffi_yttrium_rust_future_free_rust_buffer(future) },
         // lift function
         { FfiConverterTypeEip1559Estimation.lift(it) },
-        // Error FFI converter
-        Exception.ErrorHandler,
-    )
-    }
-
-    
-    @Throws(Exception::class)
-    @Suppress("ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE")
-    override suspend fun `getUiFields`(`routeResponse`: RouteResponseAvailable, `initialTransaction`: InitTransaction, `currency`: Currency) : RouteUiFields {
-        return uniffiRustCallAsync(
-        callWithPointer { thisPtr ->
-            UniffiLib.INSTANCE.uniffi_uniffi_yttrium_fn_method_chainabstractionclient_get_ui_fields(
-                thisPtr,
-                FfiConverterTypeRouteResponseAvailable.lower(`routeResponse`),FfiConverterTypeInitTransaction.lower(`initialTransaction`),FfiConverterTypeCurrency.lower(`currency`),
-            )
-        },
-        { future, callback, continuation -> UniffiLib.INSTANCE.ffi_uniffi_yttrium_rust_future_poll_rust_buffer(future, callback, continuation) },
-        { future, continuation -> UniffiLib.INSTANCE.ffi_uniffi_yttrium_rust_future_complete_rust_buffer(future, continuation).let { RustBufferRouteUiFields.create(it.capacity.toULong(), it.len.toULong(), it.data) } },
-        { future -> UniffiLib.INSTANCE.ffi_uniffi_yttrium_rust_future_free_rust_buffer(future) },
-        // lift function
-        { FfiConverterTypeRouteUiFields.lift(it) },
         // Error FFI converter
         Exception.ErrorHandler,
     )
@@ -2356,18 +2315,6 @@ public object FfiConverterSequenceTypeTransaction: FfiConverterRustBuffer<List<T
         }
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

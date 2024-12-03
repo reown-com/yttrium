@@ -1280,50 +1280,6 @@ public object FfiConverterTypeAccountClient: FfiConverter<AccountClient, Pointer
 
 
 
-data class Amount (
-    var `symbol`: kotlin.String, 
-    var `amount`: U256, 
-    var `unit`: Unit, 
-    var `formatted`: kotlin.String, 
-    var `formattedAlt`: kotlin.String
-) {
-    
-    companion object
-}
-
-/**
- * @suppress
- */
-public object FfiConverterTypeAmount: FfiConverterRustBuffer<Amount> {
-    override fun read(buf: ByteBuffer): Amount {
-        return Amount(
-            FfiConverterString.read(buf),
-            FfiConverterTypeU256.read(buf),
-            FfiConverterTypeUnit.read(buf),
-            FfiConverterString.read(buf),
-            FfiConverterString.read(buf),
-        )
-    }
-
-    override fun allocationSize(value: Amount) = (
-            FfiConverterString.allocationSize(value.`symbol`) +
-            FfiConverterTypeU256.allocationSize(value.`amount`) +
-            FfiConverterTypeUnit.allocationSize(value.`unit`) +
-            FfiConverterString.allocationSize(value.`formatted`) +
-            FfiConverterString.allocationSize(value.`formattedAlt`)
-    )
-
-    override fun write(value: Amount, buf: ByteBuffer) {
-            FfiConverterString.write(value.`symbol`, buf)
-            FfiConverterTypeU256.write(value.`amount`, buf)
-            FfiConverterTypeUnit.write(value.`unit`, buf)
-            FfiConverterString.write(value.`formatted`, buf)
-            FfiConverterString.write(value.`formattedAlt`, buf)
-    }
-}
-
-
-
 data class Config (
     var `endpoints`: Endpoints
 ) {
@@ -1347,38 +1303,6 @@ public object FfiConverterTypeConfig: FfiConverterRustBuffer<Config> {
 
     override fun write(value: Config, buf: ByteBuffer) {
             FfiConverterTypeEndpoints.write(value.`endpoints`, buf)
-    }
-}
-
-
-
-data class Eip1559EstimationFields (
-    var `maxFeePerGas`: kotlin.String, 
-    var `maxPriorityFeePerGas`: kotlin.String
-) {
-    
-    companion object
-}
-
-/**
- * @suppress
- */
-public object FfiConverterTypeEip1559EstimationFields: FfiConverterRustBuffer<Eip1559EstimationFields> {
-    override fun read(buf: ByteBuffer): Eip1559EstimationFields {
-        return Eip1559EstimationFields(
-            FfiConverterString.read(buf),
-            FfiConverterString.read(buf),
-        )
-    }
-
-    override fun allocationSize(value: Eip1559EstimationFields) = (
-            FfiConverterString.allocationSize(value.`maxFeePerGas`) +
-            FfiConverterString.allocationSize(value.`maxPriorityFeePerGas`)
-    )
-
-    override fun write(value: Eip1559EstimationFields, buf: ByteBuffer) {
-            FfiConverterString.write(value.`maxFeePerGas`, buf)
-            FfiConverterString.write(value.`maxPriorityFeePerGas`, buf)
     }
 }
 
@@ -1526,6 +1450,7 @@ public object FfiConverterTypeMetadata: FfiConverterRustBuffer<Metadata> {
 
 data class RouteResponseAvailable (
     var `orchestrationId`: kotlin.String, 
+    var `initialTransaction`: Transaction, 
     var `transactions`: List<Transaction>, 
     var `metadata`: Metadata
 ) {
@@ -1540,6 +1465,7 @@ public object FfiConverterTypeRouteResponseAvailable: FfiConverterRustBuffer<Rou
     override fun read(buf: ByteBuffer): RouteResponseAvailable {
         return RouteResponseAvailable(
             FfiConverterString.read(buf),
+            FfiConverterTypeTransaction.read(buf),
             FfiConverterSequenceTypeTransaction.read(buf),
             FfiConverterTypeMetadata.read(buf),
         )
@@ -1547,12 +1473,14 @@ public object FfiConverterTypeRouteResponseAvailable: FfiConverterRustBuffer<Rou
 
     override fun allocationSize(value: RouteResponseAvailable) = (
             FfiConverterString.allocationSize(value.`orchestrationId`) +
+            FfiConverterTypeTransaction.allocationSize(value.`initialTransaction`) +
             FfiConverterSequenceTypeTransaction.allocationSize(value.`transactions`) +
             FfiConverterTypeMetadata.allocationSize(value.`metadata`)
     )
 
     override fun write(value: RouteResponseAvailable, buf: ByteBuffer) {
             FfiConverterString.write(value.`orchestrationId`, buf)
+            FfiConverterTypeTransaction.write(value.`initialTransaction`, buf)
             FfiConverterSequenceTypeTransaction.write(value.`transactions`, buf)
             FfiConverterTypeMetadata.write(value.`metadata`, buf)
     }
@@ -1593,7 +1521,8 @@ public object FfiConverterTypeRouteResponseError: FfiConverterRustBuffer<RouteRe
 
 
 data class RouteResponseNotRequired (
-    var `flag`: List<kotlin.String>
+    var `initialTransaction`: Transaction, 
+    var `transactions`: List<Transaction>
 ) {
     
     companion object
@@ -1605,52 +1534,19 @@ data class RouteResponseNotRequired (
 public object FfiConverterTypeRouteResponseNotRequired: FfiConverterRustBuffer<RouteResponseNotRequired> {
     override fun read(buf: ByteBuffer): RouteResponseNotRequired {
         return RouteResponseNotRequired(
-            FfiConverterSequenceString.read(buf),
+            FfiConverterTypeTransaction.read(buf),
+            FfiConverterSequenceTypeTransaction.read(buf),
         )
     }
 
     override fun allocationSize(value: RouteResponseNotRequired) = (
-            FfiConverterSequenceString.allocationSize(value.`flag`)
+            FfiConverterTypeTransaction.allocationSize(value.`initialTransaction`) +
+            FfiConverterSequenceTypeTransaction.allocationSize(value.`transactions`)
     )
 
     override fun write(value: RouteResponseNotRequired, buf: ByteBuffer) {
-            FfiConverterSequenceString.write(value.`flag`, buf)
-    }
-}
-
-
-
-data class RouteUiFields (
-    var `routeDetails`: List<TxnDetails>, 
-    var `initialDetails`: TxnDetails, 
-    var `localTotal`: Amount
-) {
-    
-    companion object
-}
-
-/**
- * @suppress
- */
-public object FfiConverterTypeRouteUiFields: FfiConverterRustBuffer<RouteUiFields> {
-    override fun read(buf: ByteBuffer): RouteUiFields {
-        return RouteUiFields(
-            FfiConverterSequenceTypeTxnDetails.read(buf),
-            FfiConverterTypeTxnDetails.read(buf),
-            FfiConverterTypeAmount.read(buf),
-        )
-    }
-
-    override fun allocationSize(value: RouteUiFields) = (
-            FfiConverterSequenceTypeTxnDetails.allocationSize(value.`routeDetails`) +
-            FfiConverterTypeTxnDetails.allocationSize(value.`initialDetails`) +
-            FfiConverterTypeAmount.allocationSize(value.`localTotal`)
-    )
-
-    override fun write(value: RouteUiFields, buf: ByteBuffer) {
-            FfiConverterSequenceTypeTxnDetails.write(value.`routeDetails`, buf)
-            FfiConverterTypeTxnDetails.write(value.`initialDetails`, buf)
-            FfiConverterTypeAmount.write(value.`localTotal`, buf)
+            FfiConverterTypeTransaction.write(value.`initialTransaction`, buf)
+            FfiConverterSequenceTypeTransaction.write(value.`transactions`, buf)
     }
 }
 
@@ -1815,74 +1711,6 @@ public object FfiConverterTypeTransaction: FfiConverterRustBuffer<Transaction> {
 
 
 
-data class TransactionFee (
-    var `fee`: Amount, 
-    var `localFee`: Amount
-) {
-    
-    companion object
-}
-
-/**
- * @suppress
- */
-public object FfiConverterTypeTransactionFee: FfiConverterRustBuffer<TransactionFee> {
-    override fun read(buf: ByteBuffer): TransactionFee {
-        return TransactionFee(
-            FfiConverterTypeAmount.read(buf),
-            FfiConverterTypeAmount.read(buf),
-        )
-    }
-
-    override fun allocationSize(value: TransactionFee) = (
-            FfiConverterTypeAmount.allocationSize(value.`fee`) +
-            FfiConverterTypeAmount.allocationSize(value.`localFee`)
-    )
-
-    override fun write(value: TransactionFee, buf: ByteBuffer) {
-            FfiConverterTypeAmount.write(value.`fee`, buf)
-            FfiConverterTypeAmount.write(value.`localFee`, buf)
-    }
-}
-
-
-
-data class TxnDetails (
-    var `transaction`: Transaction, 
-    var `eip1559`: Eip1559EstimationFields, 
-    var `transactionFee`: TransactionFee
-) {
-    
-    companion object
-}
-
-/**
- * @suppress
- */
-public object FfiConverterTypeTxnDetails: FfiConverterRustBuffer<TxnDetails> {
-    override fun read(buf: ByteBuffer): TxnDetails {
-        return TxnDetails(
-            FfiConverterTypeTransaction.read(buf),
-            FfiConverterTypeEip1559EstimationFields.read(buf),
-            FfiConverterTypeTransactionFee.read(buf),
-        )
-    }
-
-    override fun allocationSize(value: TxnDetails) = (
-            FfiConverterTypeTransaction.allocationSize(value.`transaction`) +
-            FfiConverterTypeEip1559EstimationFields.allocationSize(value.`eip1559`) +
-            FfiConverterTypeTransactionFee.allocationSize(value.`transactionFee`)
-    )
-
-    override fun write(value: TxnDetails, buf: ByteBuffer) {
-            FfiConverterTypeTransaction.write(value.`transaction`, buf)
-            FfiConverterTypeEip1559EstimationFields.write(value.`eip1559`, buf)
-            FfiConverterTypeTransactionFee.write(value.`transactionFee`, buf)
-    }
-}
-
-
-
 
 enum class BridgingError {
     
@@ -1906,43 +1734,6 @@ public object FfiConverterTypeBridgingError: FfiConverterRustBuffer<BridgingErro
     override fun allocationSize(value: BridgingError) = 4UL
 
     override fun write(value: BridgingError, buf: ByteBuffer) {
-        buf.putInt(value.ordinal + 1)
-    }
-}
-
-
-
-
-
-
-enum class Currency {
-    
-    USD,
-    EUR,
-    GBP,
-    AUD,
-    CAD,
-    INR,
-    JPY,
-    BTC,
-    ETH;
-    companion object
-}
-
-
-/**
- * @suppress
- */
-public object FfiConverterTypeCurrency: FfiConverterRustBuffer<Currency> {
-    override fun read(buf: ByteBuffer) = try {
-        Currency.values()[buf.getInt() - 1]
-    } catch (e: IndexOutOfBoundsException) {
-        throw RuntimeException("invalid enum value, something is very wrong!!", e)
-    }
-
-    override fun allocationSize(value: Currency) = 4UL
-
-    override fun write(value: Currency, buf: ByteBuffer) {
         buf.putInt(value.ordinal + 1)
     }
 }
@@ -2185,34 +1976,6 @@ public object FfiConverterTypeStatusResponse : FfiConverterRustBuffer<StatusResp
 /**
  * @suppress
  */
-public object FfiConverterSequenceString: FfiConverterRustBuffer<List<kotlin.String>> {
-    override fun read(buf: ByteBuffer): List<kotlin.String> {
-        val len = buf.getInt()
-        return List<kotlin.String>(len) {
-            FfiConverterString.read(buf)
-        }
-    }
-
-    override fun allocationSize(value: List<kotlin.String>): ULong {
-        val sizeForLength = 4UL
-        val sizeForItems = value.map { FfiConverterString.allocationSize(it) }.sum()
-        return sizeForLength + sizeForItems
-    }
-
-    override fun write(value: List<kotlin.String>, buf: ByteBuffer) {
-        buf.putInt(value.size)
-        value.iterator().forEach {
-            FfiConverterString.write(it, buf)
-        }
-    }
-}
-
-
-
-
-/**
- * @suppress
- */
 public object FfiConverterSequenceTypeFundingMetadata: FfiConverterRustBuffer<List<FundingMetadata>> {
     override fun read(buf: ByteBuffer): List<FundingMetadata> {
         val len = buf.getInt()
@@ -2265,34 +2028,6 @@ public object FfiConverterSequenceTypeTransaction: FfiConverterRustBuffer<List<T
 
 
 
-
-/**
- * @suppress
- */
-public object FfiConverterSequenceTypeTxnDetails: FfiConverterRustBuffer<List<TxnDetails>> {
-    override fun read(buf: ByteBuffer): List<TxnDetails> {
-        val len = buf.getInt()
-        return List<TxnDetails>(len) {
-            FfiConverterTypeTxnDetails.read(buf)
-        }
-    }
-
-    override fun allocationSize(value: List<TxnDetails>): ULong {
-        val sizeForLength = 4UL
-        val sizeForItems = value.map { FfiConverterTypeTxnDetails.allocationSize(it) }.sum()
-        return sizeForLength + sizeForItems
-    }
-
-    override fun write(value: List<TxnDetails>, buf: ByteBuffer) {
-        buf.putInt(value.size)
-        value.iterator().forEach {
-            FfiConverterTypeTxnDetails.write(it, buf)
-        }
-    }
-}
-
-
-
 /**
  * Typealias from the type name used in the UDL file to the builtin type.  This
  * is needed because the UDL type name is used in function/method signatures.
@@ -2330,14 +2065,4 @@ public typealias FfiConverterTypeU256 = FfiConverterString
  */
 public typealias U64 = kotlin.String
 public typealias FfiConverterTypeU64 = FfiConverterString
-
-
-
-/**
- * Typealias from the type name used in the UDL file to the builtin type.  This
- * is needed because the UDL type name is used in function/method signatures.
- * It's also what we have an external type that references a custom type.
- */
-public typealias Unit = kotlin.String
-public typealias FfiConverterTypeUnit = FfiConverterString
 
