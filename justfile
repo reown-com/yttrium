@@ -28,7 +28,7 @@ test-pimlico-api:
 test-blockchain-api:
   RUST_BACKTRACE=1 cargo test --features=test_blockchain_api --lib --bins
 test-blockchain-api-debug:
-  RUST_BACKTRACE=1 cargo test --features=test_blockchain_api --lib --bins chain_abstraction::tests::bridging_routes_routes_available -- --nocapture
+  RUST_BACKTRACE=1 cargo test --features=test_blockchain_api --lib --bins chain_abstraction::tests -- --nocapture
 
 clippy:
   cargo clippy --workspace --features=full --all-targets -- -D warnings

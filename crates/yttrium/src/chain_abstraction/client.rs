@@ -20,14 +20,15 @@ use super::{
 };
 use crate::{
     chain_abstraction::{
-        api::fungible_price::FungiblePriceItem, error::RouteUiFieldsError,
-        l1_data_fee::get_l1_data_fee,
+        amount::from_float, api::fungible_price::FungiblePriceItem,
+        error::RouteUiFieldsError, l1_data_fee::get_l1_data_fee,
+        local_fee_acc::LocalAmountAcc,
     },
     erc20::ERC20,
 };
 use alloy::{
     network::{Ethereum, TransactionBuilder},
-    primitives::{utils::Unit, Address, U256, U64},
+    primitives::{Address, U256, U64},
     rpc::{client::RpcClient, types::TransactionRequest},
     transports::http::Http,
 };
@@ -200,39 +201,31 @@ impl Client {
         let estimated_initial_transaction =
             estimate_gas_fees(initial_transaction, &eip1559_fees, self).await;
 
-        // Set desired granularity for local currency exchange rate
-        // Individual prices may have less granularity
-        // Must have 1 decimals value for all rates for math to work
-        const DECIMALS_LOCAL_EXCHANGE_RATE: u8 = 6;
-        let max_fungible_decimals = Unit::new(
-            fungibles.iter().map(|f| f.decimals.get()).max().unwrap(),
-        )
-        .unwrap();
-        let const_local_unit = Unit::new(
-            max_fungible_decimals.get() + DECIMALS_LOCAL_EXCHANGE_RATE,
-        )
-        .unwrap();
-        let mut total_local_fee = U256::ZERO;
+        let mut total_local_fee = LocalAmountAcc::new();
 
         fn compute_amounts(
             fee: U256,
-            total_local_fee: &mut U256,
-            const_local_unit: Unit,
+            total_local_fee: &mut LocalAmountAcc,
             fungible: &FungiblePriceItem,
-            max_fungible_decimals: Unit,
         ) -> TransactionFee {
-            assert!(fungible.decimals <= max_fungible_decimals);
-            let fungible_local_exchange_rate = U256::from(
-                fungible.price
-                    * (10_f64).powf(DECIMALS_LOCAL_EXCHANGE_RATE as f64),
+            let (fungible_price, fungible_price_decimals) =
+                from_float(fungible.price, fungible.decimals.get());
+
+            total_local_fee.add(
+                fee,
+                fungible.decimals,
+                fungible_price,
+                fungible_price_decimals,
             );
 
-            let extra_decimals =
-                max_fungible_decimals.get() - fungible.decimals.get();
-            let local_fee = fee
-                * fungible_local_exchange_rate
-                * U256::from(10_u64.pow(extra_decimals as u32));
-            *total_local_fee += local_fee;
+            let mut local_fee = LocalAmountAcc::new();
+            local_fee.add(
+                fee,
+                fungible.decimals,
+                fungible_price,
+                fungible_price_decimals,
+            );
+            let (local_fee, local_fee_unit) = local_fee.compute();
 
             TransactionFee {
                 fee: Amount::new(
@@ -243,7 +236,7 @@ impl Client {
                 local_fee: Amount::new(
                     "USD".to_owned(),
                     local_fee,
-                    const_local_unit,
+                    local_fee_unit,
                 ),
             }
         }
@@ -253,7 +246,6 @@ impl Client {
             let fee = compute_amounts(
                 item.2,
                 &mut total_local_fee,
-                const_local_unit,
                 fungibles
                     .iter()
                     .find(|f| {
@@ -265,7 +257,6 @@ impl Client {
                             )
                     })
                     .unwrap(),
-                max_fungible_decimals,
             );
             route.push((item.0, item.1, fee));
         }
@@ -273,7 +264,6 @@ impl Client {
         let initial_fee = compute_amounts(
             estimated_initial_transaction.2,
             &mut total_local_fee,
-            const_local_unit,
             fungibles
                 .iter()
                 .find(|f| {
@@ -285,7 +275,6 @@ impl Client {
                         )
                 })
                 .unwrap(),
-            max_fungible_decimals,
         );
         let initial = (
             estimated_initial_transaction.0,
@@ -312,20 +301,19 @@ impl Client {
             bridge.push(compute_amounts(
                 item.bridging_fee,
                 &mut total_local_fee,
-                const_local_unit,
                 fungible,
-                max_fungible_decimals,
             ))
         }
 
+        let (local_total_fee, local_total_fee_unit) = total_local_fee.compute();
         Ok(RouteUiFields {
             route,
             bridge,
             initial,
             local_total: Amount::new(
                 "USD".to_owned(),
-                total_local_fee,
-                const_local_unit,
+                local_total_fee,
+                local_total_fee_unit,
             ),
         })
     }

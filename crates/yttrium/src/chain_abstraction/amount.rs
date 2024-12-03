@@ -48,8 +48,19 @@ impl Amount {
     /// Used only for tests. This function is inherently inaccurate and should
     /// not be used in production.
     pub fn as_float_inaccurate(&self) -> f64 {
-        self.amount.to::<u128>() as f64 / 10_f64.powf(self.unit.get() as f64)
+        to_float(self.amount, self.unit)
     }
+}
+
+pub fn from_float(amount: f64, precision: u8) -> (U256, Unit) {
+    (
+        U256::from(amount * 10_f64.powf(precision as f64)),
+        Unit::new(precision).unwrap(),
+    )
+}
+
+pub fn to_float(amount: U256, decimals: Unit) -> f64 {
+    amount.to::<u128>() as f64 / 10_f64.powf(decimals.get() as f64)
 }
 
 impl Default for Amount {

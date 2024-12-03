@@ -8,7 +8,7 @@ use crate::{
         },
         client::{Client, TransactionFee},
         currency::Currency,
-        l1_data_fee::get_l1_data_fee,
+        l1_data_fee::get_l1_data_fee, test_helpers::floats_close,
     },
     erc20::{Token, ERC20},
     test_helpers::{
@@ -779,6 +779,8 @@ async fn happy_path() {
         .unwrap();
     println!("route result: {:?}", result);
 
+    // TODO it's possible this is only 1 transaction due to already being approved:
+    // https://reown-inc.slack.com/archives/C0816SK4877/p1732813465413249?thread_ts=1732787456.681429&cid=C0816SK4877
     assert_eq!(result.transactions.len(), 2);
     result.transactions[0].gas = U64::from(60000 /* 55437 */); // until Blockchain API estimates this
     result.transactions[1].gas = U64::from(140000 /* 107394 */); // until Blockchain API estimates this
@@ -1158,26 +1160,4 @@ async fn bridging_routes_routes_insufficient_funds() {
             error: BridgingError::InsufficientFunds,
         })
     );
-}
-
-// Thanks ChatGPT: https://chatgpt.com/share/674f376c-3df8-8002-b5b8-6b3da5faa597
-fn floats_close(a: f64, b: f64, margin: f64) -> bool {
-    // Handle the case where both numbers are exactly equal
-    if a == b {
-        return true;
-    }
-
-    let diff = (a - b).abs();
-    let max_ab = a.abs().max(b.abs());
-
-    // If the maximum absolute value is zero, both numbers are zero
-    if max_ab == 0.0 {
-        return true; // Consider zero equal to zero within any margin
-    }
-
-    // Calculate the relative difference
-    let relative_error = diff / max_ab;
-
-    // Check if the relative error is within the specified margin
-    relative_error <= margin
 }
