@@ -40,6 +40,7 @@ use std::{
     time::{Duration, Instant},
 };
 use tokio::sync::RwLock;
+use tracing::warn;
 
 pub const PROXY_ENDPOINT_PATH: &str = "/v1";
 
@@ -102,10 +103,16 @@ impl Client {
 
         // TODO run fungible lookup, eip1559_fees, and l1 data fee, in parallel
 
-        let addresses = chains
-            .iter()
-            .map(|t| format!("{}:{}", t, NATIVE_TOKEN_ADDRESS))
-            .collect::<HashSet<_>>();
+        let addresses =
+            chains
+                .iter()
+                .map(|t| format!("{}:{}", t, NATIVE_TOKEN_ADDRESS))
+                .chain(
+                    route_response.metadata.funding_from.iter().map(|f| {
+                        format!("{}:{}", f.chain_id, f.token_contract)
+                    }),
+                )
+                .collect::<HashSet<_>>();
         let mut fungibles = Vec::with_capacity(addresses.len());
         println!("addresses: {addresses:?}");
         for address in addresses {
@@ -197,85 +204,123 @@ impl Client {
         // Individual prices may have less granularity
         // Must have 1 decimals value for all rates for math to work
         const DECIMALS_LOCAL_EXCHANGE_RATE: u8 = 6;
-        const FUNGIBLE_DECIMALS: Unit = Unit::ETHER;
-        let const_local_unit =
-            Unit::new(FUNGIBLE_DECIMALS.get() + DECIMALS_LOCAL_EXCHANGE_RATE)
-                .unwrap();
+        let max_fungible_decimals = Unit::new(
+            fungibles.iter().map(|f| f.decimals.get()).max().unwrap(),
+        )
+        .unwrap();
+        let const_local_unit = Unit::new(
+            max_fungible_decimals.get() + DECIMALS_LOCAL_EXCHANGE_RATE,
+        )
+        .unwrap();
         let mut total_local_fee = U256::ZERO;
 
         fn compute_amounts(
-            (txn, eip1559_estimation, fee): (
-                Transaction,
-                Eip1559Estimation,
-                U256,
-            ),
+            fee: U256,
             total_local_fee: &mut U256,
             const_local_unit: Unit,
-            fungibles: &[FungiblePriceItem],
-        ) -> (Transaction, Eip1559Estimation, TransactionFee) {
-            let native_token_caip10 = format!(
-                "{}:{}",
-                txn.chain_id,
-                NATIVE_TOKEN_ADDRESS.to_checksum(None)
-            );
-            println!("native_token_caip10: {native_token_caip10}");
-            println!("fungibles: {fungibles:?}");
-            let fungible = fungibles
-                .iter()
-                .find(|f| f.address == native_token_caip10)
-                .unwrap();
-
-            // Math currently doesn't support variable decimals for fungible
-            // assets
-            assert_eq!(fungible.decimals, FUNGIBLE_DECIMALS);
+            fungible: &FungiblePriceItem,
+            max_fungible_decimals: Unit,
+        ) -> TransactionFee {
+            assert!(fungible.decimals <= max_fungible_decimals);
             let fungible_local_exchange_rate = U256::from(
                 fungible.price
                     * (10_f64).powf(DECIMALS_LOCAL_EXCHANGE_RATE as f64),
             );
 
-            let local_fee = fee * fungible_local_exchange_rate;
+            let extra_decimals =
+                max_fungible_decimals.get() - fungible.decimals.get();
+            let local_fee = fee
+                * fungible_local_exchange_rate
+                * U256::from(10_u64.pow(extra_decimals as u32));
             *total_local_fee += local_fee;
 
-            (
-                txn,
-                eip1559_estimation,
-                TransactionFee {
-                    fee: Amount::new(
-                        fungible.symbol.clone(),
-                        fee,
-                        fungible.decimals,
-                    ),
-                    local_fee: Amount::new(
-                        "USD".to_owned(),
-                        local_fee,
-                        const_local_unit,
-                    ),
-                },
-            )
+            TransactionFee {
+                fee: Amount::new(
+                    fungible.symbol.clone(),
+                    fee,
+                    fungible.decimals,
+                ),
+                local_fee: Amount::new(
+                    "USD".to_owned(),
+                    local_fee,
+                    const_local_unit,
+                ),
+            }
         }
 
         let mut route = Vec::with_capacity(estimated_transactions.len());
         for item in estimated_transactions {
-            route.push(compute_amounts(
-                item,
+            let fee = compute_amounts(
+                item.2,
                 &mut total_local_fee,
                 const_local_unit,
-                &fungibles,
-            ));
+                fungibles
+                    .iter()
+                    .find(|f| {
+                        f.address
+                            == format!(
+                                "{}:{}",
+                                item.0.chain_id,
+                                NATIVE_TOKEN_ADDRESS.to_checksum(None)
+                            )
+                    })
+                    .unwrap(),
+                max_fungible_decimals,
+            );
+            route.push((item.0, item.1, fee));
         }
-        let initial = compute_amounts(
-            estimated_initial_transaction,
+
+        let initial_fee = compute_amounts(
+            estimated_initial_transaction.2,
             &mut total_local_fee,
             const_local_unit,
-            &fungibles,
+            fungibles
+                .iter()
+                .find(|f| {
+                    f.address
+                        == format!(
+                            "{}:{}",
+                            estimated_initial_transaction.0.chain_id,
+                            NATIVE_TOKEN_ADDRESS.to_checksum(None)
+                        )
+                })
+                .unwrap(),
+            max_fungible_decimals,
         );
+        let initial = (
+            estimated_initial_transaction.0,
+            estimated_initial_transaction.1,
+            initial_fee,
+        );
+
+        let mut bridge =
+            Vec::with_capacity(route_response.metadata.funding_from.len());
+        for item in route_response.metadata.funding_from {
+            let fungible = fungibles
+                .iter()
+                .find(|f| {
+                    f.address
+                        == format!("{}:{}", item.chain_id, item.token_contract)
+                })
+                .unwrap();
+            if item.symbol != fungible.symbol {
+                warn!(
+                    "Fungible symbol mismatch: item:{} != fungible:{}",
+                    item.symbol, fungible.symbol
+                );
+            }
+            bridge.push(compute_amounts(
+                item.bridging_fee,
+                &mut total_local_fee,
+                const_local_unit,
+                fungible,
+                max_fungible_decimals,
+            ))
+        }
 
         Ok(RouteUiFields {
             route,
-            // bridge: TransactionFee {
-            //     fee: Amount::zero(),
-            //     local_fee: Amount::zero(),
-            // },
+            bridge,
             initial,
             local_total: Amount::new(
                 "USD".to_owned(),
@@ -410,7 +455,7 @@ impl Client {
 #[derive(Debug)]
 pub struct RouteUiFields {
     pub route: Vec<TxnDetails>,
-    // pub bridge: TxnDetails,
+    pub bridge: Vec<TransactionFee>,
     pub initial: TxnDetails,
     pub local_total: Amount,
 }

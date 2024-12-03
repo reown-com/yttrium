@@ -348,9 +348,23 @@ async fn bridging_routes_routes_available() {
         sanity_check_fee(fee);
     }
 
+    let fee = route_ui_fields.bridge.first().unwrap();
+    sanity_check_fee(&fee.local_fee);
+    let fee = &fee.fee;
+    assert_eq!(fee.symbol, "USDC".to_owned());
+    assert!(fee.amount > U256::ZERO);
+    assert!(fee.as_float_inaccurate() < 1.);
+    assert!(fee.as_float_inaccurate() < 0.20);
+
     let total_fee = route_ui_fields.local_total.as_float_inaccurate();
     let combined_fees =
         iter::once(route_ui_fields.initial.2.local_fee.as_float_inaccurate())
+            .chain(
+                route_ui_fields
+                    .bridge
+                    .iter()
+                    .map(|f| f.local_fee.as_float_inaccurate()),
+            )
             .chain(route_ui_fields.route.iter().map(
                 |(_, _, TransactionFee { local_fee, .. })| {
                     local_fee.as_float_inaccurate()
