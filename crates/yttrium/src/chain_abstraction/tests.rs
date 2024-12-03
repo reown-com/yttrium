@@ -780,8 +780,8 @@ async fn happy_path() {
         .unwrap();
     println!("route result: {:?}", result);
 
-    // TODO it's possible this is only 1 transaction due to already being approved:
-    // https://reown-inc.slack.com/archives/C0816SK4877/p1732813465413249?thread_ts=1732787456.681429&cid=C0816SK4877
+    // TODO it's possible this is only 1 transaction due to already being
+    // approved: https://reown-inc.slack.com/archives/C0816SK4877/p1732813465413249?thread_ts=1732787456.681429&cid=C0816SK4877
     assert_eq!(result.transactions.len(), 2);
     result.transactions[0].gas = U64::from(60000 /* 55437 */); // until Blockchain API estimates this
     result.transactions[1].gas = U64::from(140000 /* 107394 */); // until Blockchain API estimates this
@@ -1473,8 +1473,8 @@ async fn happy_path_full_dependency_on_route_ui_fields() {
         .unwrap();
     println!("route result: {:?}", result);
 
-    // TODO it's possible this is only 1 transaction due to already being approved:
-    // https://reown-inc.slack.com/archives/C0816SK4877/p1732813465413249?thread_ts=1732787456.681429&cid=C0816SK4877
+    // TODO it's possible this is only 1 transaction due to already being
+    // approved: https://reown-inc.slack.com/archives/C0816SK4877/p1732813465413249?thread_ts=1732787456.681429&cid=C0816SK4877
     assert_eq!(result.transactions.len(), 2);
     result.transactions[0].gas = U64::from(60000 /* 55437 */); // until Blockchain API estimates this
     result.transactions[1].gas = U64::from(140000 /* 107394 */); // until Blockchain API estimates this

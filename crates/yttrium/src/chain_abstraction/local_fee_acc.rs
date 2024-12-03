@@ -7,13 +7,18 @@ struct Fee {
     fungible_price_decimals: u8,
 }
 
-// A helper to get the total value of a list of asset amounts in a user's local currency without incurring floating point errors
-// Add many amounts with add(), providing:
-// - the asset amount and unit e.g. 1 ETH with 18 decimals, inputted as 1_000_000_000_000_000_000, Unit(18)
-// - and the price of the asset and its unit e.g. 4000 USD with 2 decimals, inputted as 400000, Unit(2)
-// When amounts have been added with add(), call compute() to get the total amount and its unit. E.g. (amount/10^unit)=4000 USD
-// The local currency exchange rate must the same for all assets (e.g. USD)
-// This works by finding the maximum of the number of decimals for the asset amount and price, and adjusting all entries up to that level of decimals
+// A helper to get the total value of a list of asset amounts in a user's local
+// currency without incurring floating point errors Add many amounts with add(),
+// providing:
+// - the asset amount and unit e.g. 1 ETH with 18 decimals, inputted as
+//   1_000_000_000_000_000_000, Unit(18)
+// - and the price of the asset and its unit e.g. 4000 USD with 2 decimals,
+//   inputted as 400000, Unit(2)
+// When amounts have been added with add(), call compute() to get the total
+// amount and its unit. E.g. (amount/10^unit)=4000 USD The local currency
+// exchange rate must the same for all assets (e.g. USD) This works by finding
+// the maximum of the number of decimals for the asset amount and price, and
+// adjusting all entries up to that level of decimals
 pub struct LocalAmountAcc {
     fees: Vec<Fee>,
 }
@@ -77,10 +82,11 @@ impl Default for LocalAmountAcc {
 
 #[cfg(test)]
 mod tests {
-
-    use crate::chain_abstraction::{amount::{from_float, to_float}, test_helpers::floats_close};
-
     use super::*;
+    use crate::chain_abstraction::{
+        amount::{from_float, to_float},
+        test_helpers::floats_close,
+    };
 
     #[test]
     fn zero_fee() {
