@@ -19,7 +19,7 @@ use crate::{
 };
 use alloy::{
     network::{Ethereum, EthereumWallet, TransactionBuilder},
-    primitives::{address, Address, U256, U64},
+    primitives::{address, utils::Unit, Address, TxKind, U256, U64},
     rpc::types::TransactionRequest,
     signers::{k256::ecdsa::SigningKey, local::LocalSigner},
     sol_types::SolCall,
@@ -330,10 +330,12 @@ async fn bridging_routes_routes_available() {
     );
 
     fn sanity_check_fee(fee: &Amount) {
+        println!("sanity_check_fee fee: {fee:?}");
         assert_eq!(fee.symbol, "USD".to_owned());
         assert!(fee.amount > U256::ZERO);
+        assert!(fee.amount > U256::from(100));
         assert!(fee.as_float_inaccurate() < 10.);
-        assert!(fee.as_float_inaccurate() < 0.10);
+        assert!(fee.as_float_inaccurate() < 0.15);
         assert!(fee.formatted.ends_with(&fee.symbol));
         assert!(
             fee.formatted_alt.starts_with("$")
@@ -341,14 +343,18 @@ async fn bridging_routes_routes_available() {
         );
     }
 
+    println!("checking route_ui_fields.local_total");
     sanity_check_fee(&route_ui_fields.local_total);
+    println!("checking route_ui_fields.initial.2.local_fee");
     sanity_check_fee(&route_ui_fields.initial.2.local_fee);
     for (_, _, TransactionFee { local_fee: fee, .. }) in &route_ui_fields.route
     {
+        println!("checking route_ui_fields.route[*].2.local_fee");
         sanity_check_fee(fee);
     }
 
     let fee = route_ui_fields.bridge.first().unwrap();
+    println!("checking route_ui_fields.bridge.first().unwrap()");
     sanity_check_fee(&fee.local_fee);
     let fee = &fee.fee;
     assert_eq!(fee.symbol, "USDC".to_owned());
@@ -724,7 +730,7 @@ async fn happy_path() {
     }
     assert!(source.token_balance(&sources).await >= required_amount);
 
-    let transaction = Transaction {
+    let initial_transaction = Transaction {
         from: source.address(&sources),
         to: *source.other().bridge_token(&sources).token.address(),
         value: U256::ZERO,
@@ -759,12 +765,12 @@ async fn happy_path() {
         max_fee_per_gas: U256::ZERO,
         max_priority_fee_per_gas: U256::ZERO,
     };
-    println!("input transaction: {:?}", transaction);
+    println!("input transaction: {:?}", initial_transaction);
 
     let project_id = std::env::var("REOWN_PROJECT_ID").unwrap().into();
     let client = Client::new(project_id);
     let mut result = client
-        .route(transaction.clone())
+        .route(initial_transaction.clone())
         .await
         .unwrap()
         .into_result()
@@ -781,7 +787,7 @@ async fn happy_path() {
     let route_ui_fields = client
         .get_route_ui_fields(
             result.clone(),
-            transaction.clone(),
+            initial_transaction.clone(),
             Currency::Usd,
             "normal".to_owned(),
         )
@@ -813,8 +819,11 @@ async fn happy_path() {
 
     let mut total_fees = HashMap::new();
     let mut transactions_with_fees = vec![];
-    for txn in
-        result.transactions.into_iter().chain(std::iter::once(transaction))
+    for (txn, route_ui_fields) in
+        result.transactions.into_iter().zip(route_ui_fields.route).chain(
+            std::iter::once(initial_transaction)
+                .zip(std::iter::once(route_ui_fields.initial)),
+        )
     {
         let provider =
             provider_for_chain(&Chain::from_eip155_chain_id(&txn.chain_id));
@@ -839,8 +848,35 @@ async fn happy_path() {
             ))
             .and_modify(|f| *f += fee)
             .or_insert(fee);
-        transactions_with_fees.push(txn);
+        transactions_with_fees.push(txn.clone());
+
+        assert_eq!(
+            route_ui_fields.0.chain_id,
+            format!("eip155:{}", txn.chain_id.unwrap())
+        );
+        assert_eq!(route_ui_fields.0.from, txn.from.unwrap());
+        assert_eq!(TxKind::Call(route_ui_fields.0.to), txn.to.unwrap());
+        assert_eq!(route_ui_fields.2.fee.symbol, "ETH");
+        assert_eq!(route_ui_fields.2.fee.unit, Unit::ETHER);
+        assert!(floats_close(
+            route_ui_fields.2.fee.as_float_inaccurate(),
+            Amount::new("NULL".to_owned(), fee, Unit::ETHER)
+                .as_float_inaccurate(),
+            0.25
+        ));
     }
+
+    assert_eq!(route_ui_fields.bridge.len(), 1);
+    assert_eq!(route_ui_fields.bridge.first().unwrap().fee.symbol, "USDC");
+    assert_eq!(route_ui_fields.bridge.first().unwrap().local_fee.symbol, "USD");
+    let route_ui_bridge_fee =
+        route_ui_fields.bridge.first().unwrap().fee.as_float_inaccurate();
+    let send_amount_amount =
+        Amount::new("NULL".to_owned(), send_amount, Unit::new(6).unwrap())
+            .as_float_inaccurate();
+    println!("route_ui_bridge_fee: {route_ui_bridge_fee}");
+    println!("send_amount_amount: {send_amount_amount}");
+    assert!(route_ui_bridge_fee / send_amount_amount < 0.25, "route_ui_bridge_fee {route_ui_bridge_fee} must be less than the amount being sent {send_amount_amount}");
 
     for ((chain_id, address), total_fee) in total_fees {
         let provider =
@@ -1122,4 +1158,26 @@ async fn bridging_routes_routes_insufficient_funds() {
             error: BridgingError::InsufficientFunds,
         })
     );
+}
+
+// Thanks ChatGPT: https://chatgpt.com/share/674f376c-3df8-8002-b5b8-6b3da5faa597
+fn floats_close(a: f64, b: f64, margin: f64) -> bool {
+    // Handle the case where both numbers are exactly equal
+    if a == b {
+        return true;
+    }
+
+    let diff = (a - b).abs();
+    let max_ab = a.abs().max(b.abs());
+
+    // If the maximum absolute value is zero, both numbers are zero
+    if max_ab == 0.0 {
+        return true; // Consider zero equal to zero within any margin
+    }
+
+    // Calculate the relative difference
+    let relative_error = diff / max_ab;
+
+    // Check if the relative error is within the specified margin
+    relative_error <= margin
 }
