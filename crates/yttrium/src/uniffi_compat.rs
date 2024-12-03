@@ -26,9 +26,3 @@ uniffi::custom_type!(B256, String, {
     try_lift: |val| Ok(val.parse()?),
     lower: |obj| obj.to_string(),
 });
-
-use erc6492::RpcError;
-uniffi::custom_type!(RpcError, String, {
-    try_lift: |_val| unimplemented!(),
-    lower: |obj| obj.to_string(),
-});

@@ -44,3 +44,4 @@ infra:
 swift:
   make build-ios-bindings
   make CONFIG=debug build-swift-apple-platforms
+  make build-xcframework
