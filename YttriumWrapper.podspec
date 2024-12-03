@@ -1,8 +1,8 @@
 Pod::Spec.new do |s|
   s.name         = 'YttriumWrapper'
-  s.version      = '0.2.13'
+  s.version      = '0.2.22'
   s.summary      = '4337 implementation'
-  s.description  = '4337 implementation '
+  s.description  = '4337 implementation and Chain Abstraction'
   s.homepage     = 'https://reown.com'
   s.license      = { :type => 'MIT', :file => 'LICENSE' }
   s.authors      = 'reown inc.'
@@ -14,14 +14,14 @@ Pod::Spec.new do |s|
   s.swift_version = '5.9'
 
   # Include the Swift source files
-  s.source_files = 'crates/ffi/YttriumCore/Sources/YttriumCore/**/*.{swift,h}'
+  s.source_files = 'platforms/swift/Sources/Yttrium/**/*.{swift,h}'
 
   # Include the vendored framework
   s.prepare_command = <<-SCRIPT
-    curl -L -o RustXcframework.xcframework.zip 'https://github.com/reown-com/yttrium/releases/download/0.2.13/RustXcframework.xcframework.zip'
-    unzip -o RustXcframework.xcframework.zip -d crates/ffi/YttriumCore/
-    rm RustXcframework.xcframework.zip
+    curl -L -o libuniffi_yttrium.xcframework.zip 'https://github.com/reown-com/yttrium/releases/download/0.2.22/libuniffi_yttrium.xcframework.zip'
+    unzip -o libuniffi_yttrium.xcframework.zip -d platforms/swift/
+    rm libuniffi_yttrium.xcframework.zip
   SCRIPT
 
-  s.vendored_frameworks = 'crates/ffi/YttriumCore/RustXcframework.xcframework'
+  s.vendored_frameworks = 'platforms/swift/target/ios/libuniffi_yttrium.xcframework'
 end
