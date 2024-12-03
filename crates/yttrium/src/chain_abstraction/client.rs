@@ -114,53 +114,58 @@ impl Client {
                     }),
                 )
                 .collect::<HashSet<_>>();
-        let mut fungibles = Vec::with_capacity(addresses.len());
         println!("addresses: {addresses:?}");
-        for address in addresses {
-            // TODO: batch these requests when Blockchain API supports it: https://reown-inc.slack.com/archives/C0816SK4877/p1733168173213809
-            let response = self
-                .client
-                .post(self.base_url.join(FUNGIBLE_PRICE_ENDPOINT_PATH).unwrap())
-                .json(&PriceRequestBody {
-                    project_id: self.project_id.clone(),
-                    currency,
-                    addresses: HashSet::from([address]),
-                })
-                .send()
-                .await
-                .map_err(RouteUiFieldsError::Request)?;
-            let prices = if response.status().is_success() {
-                response
-                    .json::<PriceResponseBody>()
+
+        let fungibles_future = futures::future::try_join_all(
+            addresses.into_iter().map(|address| async move {
+                // TODO: batch these requests when Blockchain API supports it: https://reown-inc.slack.com/archives/C0816SK4877/p1733168173213809
+                let response = self
+                    .client
+                    .post(
+                        self.base_url
+                            .join(FUNGIBLE_PRICE_ENDPOINT_PATH)
+                            .unwrap(),
+                    )
+                    .json(&PriceRequestBody {
+                        project_id: self.project_id.clone(),
+                        currency,
+                        addresses: HashSet::from([address]),
+                    })
+                    .send()
                     .await
-                    .map_err(RouteUiFieldsError::Json)
-            } else {
-                Err(RouteUiFieldsError::RequestFailed(
-                    response.status(),
-                    response.text().await,
-                ))
-            }?;
-            fungibles.extend(prices.fungibles);
-        }
+                    .map_err(RouteUiFieldsError::Request)?;
+                let prices = if response.status().is_success() {
+                    response
+                        .json::<PriceResponseBody>()
+                        .await
+                        .map_err(RouteUiFieldsError::Json)
+                } else {
+                    Err(RouteUiFieldsError::RequestFailed(
+                        response.status(),
+                        response.text().await,
+                    ))
+                }?;
+                Ok(prices.fungibles)
+            }),
+        );
 
-        let mut eip1559_fees = HashMap::new();
-        for chain_id in &chains {
-            let estimate = self
-                .get_provider(chain_id.clone())
-                .await
-                .estimate_eip1559_fees(None)
-                .await
-                .unwrap();
-            eip1559_fees.insert(chain_id, estimate);
-        }
+        let estimate_future = futures::future::try_join_all(chains.iter().map(
+            |chain_id| async move {
+                let estimate = self
+                    .get_provider(chain_id.clone())
+                    .await
+                    .estimate_eip1559_fees(None)
+                    .await
+                    .unwrap();
+                Ok((chain_id, estimate))
+            },
+        ));
 
-        async fn estimate_gas_fees(
+        async fn l1_data_fee(
             txn: Transaction,
-            eip1559_fees: &HashMap<&String, Eip1559Estimation>,
             providers: &Client,
-        ) -> (Transaction, Eip1559Estimation, U256) {
-            let eip1559_estimation = *eip1559_fees.get(&txn.chain_id).unwrap();
-            let l1_data_fee = get_l1_data_fee(
+        ) -> Result<U256, RouteUiFieldsError> {
+            Ok(get_l1_data_fee(
                 TransactionRequest::default()
                     .with_from(txn.from)
                     .with_to(txn.to)
@@ -176,13 +181,38 @@ impl Client {
                             .unwrap()
                             .to(),
                     )
-                    .with_max_fee_per_gas(eip1559_estimation.max_fee_per_gas)
-                    .max_priority_fee_per_gas(
-                        eip1559_estimation.max_priority_fee_per_gas,
-                    ),
+                    .with_max_fee_per_gas(100000)
+                    .with_max_priority_fee_per_gas(1),
                 providers.get_provider(txn.chain_id.clone()).await,
             )
-            .await;
+            .await)
+        }
+
+        let route_l1_data_fee_futures = futures::future::try_join_all(
+            route_response
+                .transactions
+                .iter()
+                .map(|txn| l1_data_fee(txn.clone(), self)),
+        );
+        let initial_l1_data_fee_future =
+            l1_data_fee(initial_transaction.clone(), self);
+
+        let (fungibles, eip1559_fees, route_l1_data_fees, initial_l1_data_fee) =
+            tokio::try_join!(
+                fungibles_future,
+                estimate_future,
+                route_l1_data_fee_futures,
+                initial_l1_data_fee_future
+            )?;
+        let fungibles = fungibles.into_iter().flatten().collect::<Vec<_>>();
+        let eip1559_fees = eip1559_fees.into_iter().collect::<HashMap<_, _>>();
+
+        fn estimate_gas_fees(
+            txn: Transaction,
+            eip1559_fees: &HashMap<&String, Eip1559Estimation>,
+            l1_data_fee: U256,
+        ) -> (Transaction, Eip1559Estimation, U256) {
+            let eip1559_estimation = *eip1559_fees.get(&txn.chain_id).unwrap();
             println!("l1_data_fee: {l1_data_fee}");
             let fee = U256::from(eip1559_estimation.max_fee_per_gas)
                 .checked_mul(U256::from(txn.gas))
@@ -194,12 +224,22 @@ impl Client {
 
         let mut estimated_transactions =
             Vec::with_capacity(route_response.transactions.len());
-        for txn in route_response.transactions {
-            estimated_transactions
-                .push(estimate_gas_fees(txn, &eip1559_fees, self).await);
+        for (txn, l1_data_fee) in route_response
+            .transactions
+            .into_iter()
+            .zip(route_l1_data_fees.into_iter())
+        {
+            estimated_transactions.push(estimate_gas_fees(
+                txn,
+                &eip1559_fees,
+                l1_data_fee,
+            ));
         }
-        let estimated_initial_transaction =
-            estimate_gas_fees(initial_transaction, &eip1559_fees, self).await;
+        let estimated_initial_transaction = estimate_gas_fees(
+            initial_transaction,
+            &eip1559_fees,
+            initial_l1_data_fee,
+        );
 
         let mut total_local_fee = LocalAmountAcc::new();
 

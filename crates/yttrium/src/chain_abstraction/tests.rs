@@ -300,6 +300,7 @@ async fn bridging_routes_routes_available() {
 
     let project_id = std::env::var("REOWN_PROJECT_ID").unwrap().into();
     let client = Client::new(project_id);
+    let start = Instant::now();
     let mut result = client
         .route(transaction.clone())
         .await
@@ -308,7 +309,7 @@ async fn bridging_routes_routes_available() {
         .unwrap()
         .into_option()
         .unwrap();
-    println!("route result: {:?}", result);
+    println!("route result in ({:#?}): {:?}", start.elapsed(), result);
 
     assert_eq!(result.transactions.len(), 2);
     result.transactions[0].gas = U64::from(60000 /* 55437 */); // until Blockchain API estimates this

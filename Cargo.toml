@@ -15,6 +15,7 @@ thiserror = "1.0"
 
 # Async
 tokio = { version = "1.17", features = [] }
+futures = "0.3.31"
 
 # Networking
 reqwest = { version = "0.12.5", features = ["json"] }
