@@ -5,7 +5,7 @@ use alloy::{
 };
 use erc6492::RpcError;
 
-#[derive(uniffi::Object)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Object))]
 pub struct Erc6492Client {
     provider: ReqwestProvider<Ethereum>,
 }
