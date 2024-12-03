@@ -56,6 +56,12 @@ public final class ChainAbstractionClient {
                 throw Errors(message: "Request error: \(message)")
             case .RequestFailed(let message):
                 throw Errors(message: "Request failed: \(message)")
+            case .DecodingText(let message):
+                throw Errors(message: "DecodingText failed: \(message.toString())")
+            case .DecodingJson(let message, let text):
+                throw Errors(
+                    message:
+                        "DecodingText failed: \(message.toString()), text: \(message.toString())")
             }
         } catch {
             throw error
@@ -96,6 +102,12 @@ public final class ChainAbstractionClient {
                 throw Errors(message: "Request error: \(message.toString())")
             case .RequestFailed(let message):
                 throw Errors(message: "Request failed: \(message.toString())")
+            case .DecodingText(let message):
+                throw Errors(message: "DecodingText failed: \(message.toString())")
+            case .DecodingJson(let message, let text):
+                throw Errors(
+                    message:
+                        "DecodingText failed: \(message.toString()), text: \(message.toString())")
             }
         } catch {
             throw error
@@ -103,24 +115,24 @@ public final class ChainAbstractionClient {
     }
 
     public func estimateFees(chainId: String) async throws -> Eip1559Estimation {
-           do {
-               // Call the Rust function via ffiClient
-               let estimation = try await ffiClient.estimate_fees(chainId)
+        do {
+            // Call the Rust function via ffiClient
+            let estimation = try await ffiClient.estimate_fees(chainId)
 
-               // Return the estimation directly
-               return Eip1559Estimation(
+            // Return the estimation directly
+            return Eip1559Estimation(
                 maxFeePerGas: estimation.maxFeePerGas.toString(),
                 maxPriorityFeePerGas: estimation.maxPriorityFeePerGas.toString()
-               )
-           } catch let error as FFIError {
-               // Handle FFIError
-               switch error {
-               case .Unknown(let message):
-                   throw Errors(message: "Unknown error: \(message)")
-               }
-           } catch {
-               // Handle other errors
-               throw error
-           }
-       }
+            )
+        } catch let error as FFIError {
+            // Handle FFIError
+            switch error {
+            case .Unknown(let message):
+                throw Errors(message: "Unknown error: \(message)")
+            }
+        } catch {
+            // Handle other errors
+            throw error
+        }
+    }
 }
