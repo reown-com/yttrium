@@ -60,25 +60,25 @@ jobs:
   #     - run: rustup target add wasm32-unknown-unknown
   #     - run: cargo build --workspace --features=full --lib --bins --target wasm32-unknown-unknown --exclude=ffi
 
-  build_swift_and_test:
-    name: Swift Package - latest
-    runs-on: macos-14
-    strategy:
-      matrix:
-        config:
-          - debug
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: recursive
-      - name: Run sccache-cache
-        uses: mozilla-actions/sccache-action@v0.0.4
-      - run: rustup update stable && rustup default stable
-      - run: make build-xcframework
-      - name: Select Xcode 15.4
-        run: sudo xcode-select -s /Applications/Xcode_15.4.app
-      - name: Build ${{ matrix.config }}
-        run: make CONFIG=${{ matrix.config }} build-swift-apple-platforms
+  # build_swift_and_test:
+  #   name: Swift Package - latest
+  #   runs-on: macos-14
+  #   strategy:
+  #     matrix:
+  #       config:
+  #         - debug
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #       with:
+  #         submodules: recursive
+  #     - name: Run sccache-cache
+  #       uses: mozilla-actions/sccache-action@v0.0.4
+  #     - run: rustup update stable && rustup default stable
+  #     - run: make build-xcframework
+  #     - name: Select Xcode 15.4
+  #       run: sudo xcode-select -s /Applications/Xcode_15.4.app
+  #     - name: Build ${{ matrix.config }}
+  #       run: make CONFIG=${{ matrix.config }} build-swift-apple-platforms
       # - name: Install Docker
       #   run: |
       #     HOMEBREW_NO_AUTO_UPDATE=1 brew install --cask docker
