@@ -70,15 +70,15 @@ jobs:
         run: |
           cargo run --features=uniffi/cli --bin uniffi-bindgen generate --library target/aarch64-linux-android/release/libuniffi_yttrium.so --language kotlin --out-dir crates/kotlin-ffi/android/src/main/kotlin/com/reown/yttrium      
       
-      - name: Commit Generated Files
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add .
-          git commit -m "Add generated binaries and bindings for release: $VERSION"
-          git push origin HEAD:$TARGET_BRANCH
+      # - name: Commit Generated Files
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #   run: |
+      #     git config user.name "github-actions[bot]"
+      #     git config user.email "github-actions[bot]@users.noreply.github.com"
+      #     git add .
+      #     git commit -m "Add generated binaries and bindings for release: $VERSION"
+      #     git push origin HEAD:$TARGET_BRANCH
 
   create-github-release:
     needs: build-kotlin-artifacts
