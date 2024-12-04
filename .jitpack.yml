@@ -9,20 +9,13 @@ android:
 
 build:
   script:
-    - cd crates/kotlin-ffi
-    - cargo ndk --target aarch64-linux-android build --release --features uniffi/cli
-    - cargo ndk --target armv7-linux-androideabi build --release --features uniffi/cli
-    - mkdir -p android/src/main/jniLibs/arm64-v8a
-    - mkdir -p android/src/main/jniLibs/armeabi-v7a
-    - cp ../../target/aarch64-linux-android/release/libuniffi_yttrium.so android/src/main/jniLibs/arm64-v8a/
-    - cp ../../target/armv7-linux-androideabi/release/libuniffi_yttrium.so android/src/main/jniLibs/armeabi-v7a/
-    - cargo run --features uniffi/cli --bin uniffi-bindgen generate \
-      --library ../../target/aarch64-linux-android/release/libuniffi_yttrium.so \
-      --language kotlin \
-      --out-dir android/src/main/kotlin/com/reown/yttrium
-    - ls -R android/src/main/kotlin/com/reown/yttrium
-    - cd android
+    - RELEASE_URL="https://github.com/reown-com/yttrium/releases/download/0.2.69/kotlin-artifacts.zip"
+    - curl -L -o kotlin-artifacts.zip $RELEASE_URL
+    - unzip kotlin-artifacts.zip -d binaries/
+    - mkdir -p crates/kotlin-ffi/android/src/main/jniLibs/arm64-v8a
+    - mkdir -p crates/kotlin-ffi/android/src/main/jniLibs/armeabi-v7a
+    - mv binaries/yttrium/libs/arm64-v8a/libuniffi_yttrium.so crates/kotlin-ffi/android/src/main/jniLibs/arm64-v8a/
+    - mv binaries/yttrium/libs/armeabi-v7a/libuniffi_yttrium.so crates/kotlin-ffi/android/src/main/jniLibs/armeabi-v7a/
+    - cd crates/kotlin-ffi/android
     - ./gradlew clean --no-daemon
     - ./gradlew assembleRelease --no-daemon --refresh-dependencies --info
-    - unzip -l build/outputs/aar/android-release.aar
-    

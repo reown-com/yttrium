@@ -17,82 +17,130 @@ permissions:
   contents: write
 
 jobs:
-  # build-kotlin-artifacts:
-  #   runs-on: ubuntu-latest
+  build-kotlin-artifacts:
+    runs-on: ubuntu-latest
 
-  #   strategy:
-  #     matrix:
-  #       target: [aarch64-linux-android, armv7-linux-androideabi]
+    strategy:
+      matrix:
+        target: [aarch64-linux-android, armv7-linux-androideabi]
     
-  #   steps:
-  #     - uses: actions/checkout@v3
+    steps:
+      - uses: actions/checkout@v3
 
-  #     - name: Install Rust toolchain
-  #       uses: actions-rs/toolchain@v1
-  #       with:
-  #         toolchain: stable
-  #         target: ${{ matrix.target }}
-  #         override: true
-  #         components: rust-src
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: ${{ matrix.target }}
+          override: true
+          components: rust-src
 
-  #     - name: Set up Java
-  #       uses: actions/setup-java@v3
-  #       with:
-  #         distribution: 'temurin'
-  #         java-version: '17'
+      - name: Set up Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '17'
       
-  #     - name: Set up Android SDK
-  #       uses: android-actions/setup-android@v3
-  #       with:
-  #         api-level: 35
-  #         build-tools: 35.0.0
-  #         ndk-version: 27.2.12479018
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          api-level: 35
+          build-tools: 35.0.0
+          ndk-version: 27.2.12479018
       
-  #     - name: Install cargo-ndk
-  #       run: |
-  #         cargo install cargo-ndk
-
-  #     - name: Build Rust Library
-  #       run: |
-  #         declare -A abi_map
-  #         abi_map[aarch64-linux-android]="arm64-v8a"
-  #         abi_map[armv7-linux-androideabi]="armeabi-v7a"
-  #         abi_name=${abi_map[${{ matrix.target }}]}
-
-  #         abi_name=${abi_map[${{ matrix.target }}]}
-  #         cargo ndk -t ${{ matrix.target }} build --release --features=uniffi/cli
-  #         cd crates/kotlin-ffi
-  #         mkdir -p android/src/main/jniLibs/$abi_name
-  #         mv ../../target/${{ matrix.target }}/release/libuniffi_yttrium.so android/src/main/jniLibs/$abi_name/
-
-  #     - name: Generate Kotlin bindings (once)
-  #       if: ${{ matrix.target == 'aarch64-linux-android' }}
-  #       run: |
-  #         cd crates/kotlin-ffi
-  #         cargo run --features=uniffi/cli --bin uniffi-bindgen generate --library android/src/main/jniLibs/arm64-v8a/libuniffi_yttrium.so --language kotlin --out-dir crates/kotlin-ffi/android/src/main/kotlin/com/reown/yttrium      
+      - name: Install cargo-ndk
+        run: |
+          cargo install cargo-ndk
       
-      # - name: Commit Generated Files
-      #   env:
-      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build Rust library
+        run: |
+          cargo ndk -t ${{ matrix.target }} build --release --features=uniffi/cli
+        
+        - name: Generate Kotlin bindings (once)
+        if: ${{ matrix.target == 'aarch64-linux-android' }}
+        run: |
+          cargo run --features=uniffi/cli --bin uniffi-bindgen generate --library target/${{ matrix.target }}/release/libuniffi_yttrium.so --language kotlin --out-dir crates/kotlin-ffi/android/src/main/kotlin/com/reown/yttrium
+
+      - name: Commit Generated Files
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add crates/kotlin-ffi/android/src/main/kotlin/com/reown/yttrium
+          git commit -m "Add generated bindings for release: ${{ env.VERSION }}"
+          git push origin HEAD:$TARGET_BRANCH
+
+      # - name: Build Rust Library
       #   run: |
-      #     git config user.name "github-actions[bot]"
-      #     git config user.email "github-actions[bot]@users.noreply.github.com"
-      #     git add .
-      #     git commit -m "Add generated binaries and bindings for release: $VERSION"
-      #     git push origin HEAD:$TARGET_BRANCH
+      #     declare -A abi_map
+      #     abi_map[aarch64-linux-android]="arm64-v8a"
+      #     abi_map[armv7-linux-androideabi]="armeabi-v7a"
+      #     abi_name=${abi_map[${{ matrix.target }}]}
+
+      #     abi_name=${abi_map[${{ matrix.target }}]}
+      #     cargo ndk -t ${{ matrix.target }} build --release --features=uniffi/cli
+      #     cd crates/kotlin-ffi
+      #     mkdir -p android/src/main/jniLibs/$abi_name
+      #     mv ../../target/${{ matrix.target }}/release/libuniffi_yttrium.so android/src/main/jniLibs/$abi_name/
+      
+      - name: Prepare artifacts
+        run: | 
+          # Map Rust targets to Android ABI names
+          declare -A abi_map
+          abi_map[aarch64-linux-android]="arm64-v8a"
+          abi_map[armv7-linux-androideabi]="armeabi-v7a"
+
+          abi_name=${abi_map[${{ matrix.target }}]}
+          if [ -z "$abi_name" ]; then
+            echo "Unknown ABI for target ${{ matrix.target }}"
+            exit 1
+          fi
+
+          mkdir -p yttrium/libs/$abi_name
+          cp target/${{ matrix.target }}/release/libuniffi_yttrium.so yttrium/libs/$abi_name/
+      
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: artifacts
+          path: yttrium/
 
   create-github-release:
-    # needs: build-kotlin-artifacts
+    needs: build-kotlin-artifacts
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: artifacts
+          path: yttrium/
+
+      - name: Create artifacts zip
+        run: |
+          zip -r kotlin-artifacts.zip yttrium/
+
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: 0.2.68 #${{ env.VERSION }}
-          release_name: 0.2.68 #Yttrium ${{ env.VERSION }}
+         tag_name: 0.2.69 #${{ env.VERSION }}
+          release_name: 0.2.69 #Yttrium ${{ env.VERSION }}
           draft: false
-          prerelease: false
+          prerelease: true
+
+      - name: Upload Release Assets
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: kotlin-artifacts.zip
+          asset_name: kotlin-artifacts.zip
+          asset_content_type: application/zip
