@@ -52,6 +52,7 @@ impl Amount {
     }
 }
 
+// Helpful to support badly-designed APIs that return floats
 pub fn from_float(amount: f64, precision: u8) -> (U256, Unit) {
     (
         U256::from(amount * 10_f64.powf(precision as f64)),
@@ -59,6 +60,7 @@ pub fn from_float(amount: f64, precision: u8) -> (U256, Unit) {
     )
 }
 
+// Helpful to display the value or compare it to other floats in test cases
 pub fn to_float(amount: U256, decimals: Unit) -> f64 {
     amount.to::<u128>() as f64 / 10_f64.powf(decimals.get() as f64)
 }

@@ -248,8 +248,15 @@ impl Client {
             total_local_fee: &mut LocalAmountAcc,
             fungible: &FungiblePriceItem,
         ) -> TransactionFee {
+            // `fungible.price` is a float; with obviously floating-point so should have great precision
+            // Set this value to a value that is high enough to capture the desired price movement
+            // Setting it too high may overflow the 77 decimal places (Unit::MAX) of the U256
+            // Some tokens such as ETH only need 2 decimal places because their value is very high (>1000) and price moves are large
+            // Some tokens may be worth e.g. 0.000001 USD per token, so we need to capture more decimal places to even see price movement
+            const FUNGIBLE_PRICE_PRECISION: u8 = 8;
+
             let (fungible_price, fungible_price_decimals) =
-                from_float(fungible.price, fungible.decimals.get());
+                from_float(fungible.price, FUNGIBLE_PRICE_PRECISION);
 
             total_local_fee.add(
                 fee,
