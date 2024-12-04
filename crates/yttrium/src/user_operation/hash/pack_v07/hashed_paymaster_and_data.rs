@@ -1,5 +1,7 @@
-use crate::user_operation::UserOperationV07;
-use alloy::primitives::{keccak256, Bytes, B256};
+use {
+    crate::user_operation::UserOperationV07,
+    alloy::primitives::{keccak256, Bytes, B256},
+};
 
 pub fn get_data(user_operation: &UserOperationV07) -> Bytes {
     if let Some(paymaster) = user_operation.paymaster {

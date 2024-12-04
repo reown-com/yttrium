@@ -1,5 +1,7 @@
-use alloy::primitives::{address, Address, Bytes, U256};
-use serde::{Deserialize, Serialize};
+use {
+    alloy::primitives::{address, Address, Bytes, U256},
+    serde::{Deserialize, Serialize},
+};
 
 pub mod send;
 

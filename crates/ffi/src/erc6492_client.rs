@@ -1,8 +1,10 @@
-use crate::ffi::Erc6492Error;
-use alloy::{
-    network::Ethereum,
-    primitives::{Address, Bytes, B256},
-    providers::ReqwestProvider,
+use {
+    crate::ffi::Erc6492Error,
+    alloy::{
+        network::Ethereum,
+        primitives::{Address, Bytes, B256},
+        providers::ReqwestProvider,
+    },
 };
 
 pub struct Erc6492Client {

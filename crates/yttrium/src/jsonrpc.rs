@@ -1,6 +1,8 @@
-use serde::{Deserialize, Serialize};
-use std::fmt;
-use thiserror::Error;
+use {
+    serde::{Deserialize, Serialize},
+    std::fmt,
+    thiserror::Error,
+};
 
 pub type Response<T> = Result<Option<T>, ErrorPayload<T>>;
 

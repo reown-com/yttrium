@@ -1,5 +1,7 @@
-use super::api::status::{StatusResponseError, StatusResponsePending};
-use reqwest::StatusCode;
+use {
+    super::api::status::{StatusResponseError, StatusResponsePending},
+    reqwest::StatusCode,
+};
 
 #[derive(thiserror::Error, Debug)]
 pub enum RouteError {

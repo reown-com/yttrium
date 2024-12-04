@@ -1,19 +1,21 @@
-use crate::{
-    chain::ChainId,
-    config::Config,
-    entry_point::{
-        get_sender_address::get_sender_address_v07, EntryPointVersion,
-    },
-    smart_accounts::{
-        account_address::AccountAddress,
-        simple_account::{
-            create_account::SimpleAccountCreate, factory::FactoryAddress,
+use {
+    crate::{
+        chain::ChainId,
+        config::Config,
+        entry_point::{
+            get_sender_address::get_sender_address_v07, EntryPointVersion,
+        },
+        smart_accounts::{
+            account_address::AccountAddress,
+            simple_account::{
+                create_account::SimpleAccountCreate, factory::FactoryAddress,
+            },
         },
     },
-};
-use alloy::{
-    network::EthereumWallet, primitives::Address, providers::ProviderBuilder,
-    signers::local::PrivateKeySigner,
+    alloy::{
+        network::EthereumWallet, primitives::Address,
+        providers::ProviderBuilder, signers::local::PrivateKeySigner,
+    },
 };
 
 pub async fn get_sender_address_with_signer(

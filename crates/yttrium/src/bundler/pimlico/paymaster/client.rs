@@ -1,12 +1,16 @@
-use super::models::{
-    SponsorshipResponseV07, SponsorshipResultV07,
-    UserOperationPreSponsorshipV07,
+use {
+    super::models::{
+        SponsorshipResponseV07, SponsorshipResultV07,
+        UserOperationPreSponsorshipV07,
+    },
+    crate::{
+        bundler::config::BundlerConfig,
+        entry_point::EntryPointAddress,
+        jsonrpc::{JSONRPCResponse, Request, Response},
+    },
+    serde_json,
+    tracing::debug,
 };
-use crate::bundler::config::BundlerConfig;
-use crate::entry_point::EntryPointAddress;
-use crate::jsonrpc::{JSONRPCResponse, Request, Response};
-use serde_json;
-use tracing::debug;
 
 pub struct PaymasterClient {
     client: reqwest::Client,
@@ -78,14 +82,14 @@ impl PaymasterClient {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use alloy::primitives::Address;
-    use eyre::ensure;
+    use {super::*, alloy::primitives::Address, eyre::ensure};
 
     pub async fn setup_sponsor_user_operation_v07_paymaster_mock(
     ) -> eyre::Result<PaymasterClient> {
-        use wiremock::matchers::{method, path};
-        use wiremock::{Mock, MockServer, ResponseTemplate};
+        use wiremock::{
+            matchers::{method, path},
+            Mock, MockServer, ResponseTemplate,
+        };
 
         let mock_server = MockServer::start().await;
 

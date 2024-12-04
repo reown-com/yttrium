@@ -1,11 +1,13 @@
-use alloy::{
-    network::TransactionBuilder,
-    primitives::{address, keccak256, Address, U256},
-    rlp::Encodable,
-    rpc::types::TransactionRequest,
-    sol,
+use {
+    alloy::{
+        network::TransactionBuilder,
+        primitives::{address, keccak256, Address, U256},
+        rlp::Encodable,
+        rpc::types::TransactionRequest,
+        sol,
+    },
+    alloy_provider::ReqwestProvider,
 };
-use alloy_provider::ReqwestProvider;
 
 // https://docs.optimism.io/builders/app-developers/transactions/fees#l1-data-fee
 sol! {

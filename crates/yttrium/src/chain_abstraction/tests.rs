@@ -1,49 +1,48 @@
-use crate::{
-    chain_abstraction::l1_data_fee::get_l1_data_fee,
-    test_helpers::use_faucet_gas,
-};
-use crate::{
-    chain_abstraction::{
-        amount::Amount,
-        api::{
-            route::{BridgingError, RouteResponse, RouteResponseError},
-            status::StatusResponse,
-            Transaction,
+use {
+    crate::{
+        chain_abstraction::{
+            amount::Amount,
+            api::{
+                route::{BridgingError, RouteResponse, RouteResponseError},
+                status::StatusResponse,
+                Transaction,
+            },
+            client::{Client, TransactionFee},
+            currency::Currency,
+            l1_data_fee::get_l1_data_fee,
+            test_helpers::floats_close,
         },
-        client::{Client, TransactionFee},
-        currency::Currency,
-        test_helpers::floats_close,
+        erc20::{Token, ERC20},
+        test_helpers::{
+            private_faucet, use_account, use_faucet_gas, BRIDGE_ACCOUNT_1,
+            BRIDGE_ACCOUNT_2, BRIDGE_ACCOUNT_USDC_1557_1,
+            BRIDGE_ACCOUNT_USDC_1557_2,
+        },
     },
-    erc20::{Token, ERC20},
-    test_helpers::{
-        private_faucet, use_account, BRIDGE_ACCOUNT_1, BRIDGE_ACCOUNT_2,
-        BRIDGE_ACCOUNT_USDC_1557_1, BRIDGE_ACCOUNT_USDC_1557_2,
+    alloy::{
+        network::{Ethereum, EthereumWallet, TransactionBuilder},
+        primitives::{address, utils::Unit, Address, TxKind, U256, U64},
+        rpc::types::TransactionRequest,
+        signers::{k256::ecdsa::SigningKey, local::LocalSigner},
+        sol_types::SolCall,
+        transports::http::Http,
     },
-};
-use alloy::{
-    network::{Ethereum, EthereumWallet, TransactionBuilder},
-    primitives::{address, utils::Unit, Address, TxKind, U256, U64},
-    rpc::types::TransactionRequest,
-    signers::{k256::ecdsa::SigningKey, local::LocalSigner},
-    sol_types::SolCall,
-    transports::http::Http,
-};
-use alloy_provider::{
-    fillers::{
-        BlobGasFiller, ChainIdFiller, FillProvider, GasFiller, JoinFill,
-        NonceFiller, WalletFiller,
+    alloy_provider::{
+        fillers::{
+            BlobGasFiller, ChainIdFiller, FillProvider, GasFiller, JoinFill,
+            NonceFiller, WalletFiller,
+        },
+        Identity, Provider, ProviderBuilder, ReqwestProvider, RootProvider,
     },
-    Identity, Provider, ProviderBuilder, ReqwestProvider, RootProvider,
+    serial_test::serial,
+    std::{
+        cmp::max,
+        collections::HashMap,
+        iter,
+        time::{Duration, Instant},
+    },
+    ERC20::ERC20Instance,
 };
-use serial_test::serial;
-use std::{
-    cmp::max,
-    collections::HashMap,
-    iter,
-    time::{Duration, Instant},
-};
-
-use ERC20::ERC20Instance;
 
 const USDC_CONTRACT_OPTIMISM: Address =
     address!("0b2c639c533813f4aa9d7837caf62653d097ff85");

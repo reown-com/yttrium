@@ -1,8 +1,10 @@
-use crate::chain_abstraction::currency::Currency;
-use alloy::primitives::{address, utils::Unit, Address};
-use relay_rpc::domain::ProjectId;
-use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
+use {
+    crate::chain_abstraction::currency::Currency,
+    alloy::primitives::{address, utils::Unit, Address},
+    relay_rpc::domain::ProjectId,
+    serde::{Deserialize, Serialize},
+    std::collections::HashSet,
+};
 
 pub const FUNGIBLE_PRICE_ENDPOINT_PATH: &str = "/v1/fungible/price";
 

@@ -1,29 +1,30 @@
 #[cfg(test)]
 mod tests {
-    use crate::{
-        bundler::{
-            client::BundlerClient,
-            config::BundlerConfig,
-            pimlico::{
-                client::BundlerClient as PimlicoBundlerClient,
-                paymaster::client::PaymasterClient,
+    use {
+        crate::{
+            bundler::{
+                client::BundlerClient,
+                config::BundlerConfig,
+                pimlico::{
+                    client::BundlerClient as PimlicoBundlerClient,
+                    paymaster::client::PaymasterClient,
+                },
             },
+            entry_point::get_sender_address::get_sender_address_v07,
+            smart_accounts::simple_account::{
+                create_account::SimpleAccountCreate, SimpleAccountExecute,
+            },
+            user_operation::UserOperationV07,
         },
-        entry_point::get_sender_address::get_sender_address_v07,
-        smart_accounts::simple_account::{
-            create_account::SimpleAccountCreate, SimpleAccountExecute,
+        alloy::{
+            network::EthereumWallet,
+            primitives::{Address, Bytes, U256},
+            providers::ProviderBuilder,
+            signers::local::{coins_bip39::English, MnemonicBuilder},
         },
-        user_operation::UserOperationV07,
+        std::{str::FromStr, sync::Arc},
+        tokio::sync::Mutex,
     };
-    use alloy::{
-        network::EthereumWallet,
-        primitives::{Address, Bytes, U256},
-        providers::ProviderBuilder,
-        signers::local::{coins_bip39::English, MnemonicBuilder},
-    };
-    use std::str::FromStr;
-    use std::sync::Arc;
-    use tokio::sync::Mutex;
 
     const SIMPLE_ACCOUNT_FACTORY_ADDRESS: &str =
         "0x91E60e0613810449d098b0b5Ec8b51A0FE8c8985";

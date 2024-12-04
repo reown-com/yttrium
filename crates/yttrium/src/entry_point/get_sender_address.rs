@@ -1,11 +1,13 @@
-use crate::smart_accounts::account_address::AccountAddress;
-use alloy::{
-    contract::Error as ContractError,
-    primitives::{Address, Bytes},
-    sol,
-    sol_types::{SolCall, SolError},
+use {
+    crate::smart_accounts::account_address::AccountAddress,
+    alloy::{
+        contract::Error as ContractError,
+        primitives::{Address, Bytes},
+        sol,
+        sol_types::{SolCall, SolError},
+    },
+    std::str::FromStr,
 };
-use std::str::FromStr;
 
 sol!(
     #[allow(missing_docs)]

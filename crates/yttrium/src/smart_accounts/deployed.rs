@@ -1,6 +1,8 @@
-use super::account_address::AccountAddress;
-use alloy::contract::private::{Network, Provider, Transport};
-use core::clone::Clone;
+use {
+    super::account_address::AccountAddress,
+    alloy::contract::private::{Network, Provider, Transport},
+    core::clone::Clone,
+};
 
 pub async fn is_smart_account_deployed<P, T, N>(
     provider: &P,
@@ -23,11 +25,13 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use alloy::{
-        network::EthereumWallet,
-        providers::ProviderBuilder,
-        signers::local::{coins_bip39::English, MnemonicBuilder},
+    use {
+        super::*,
+        alloy::{
+            network::EthereumWallet,
+            providers::ProviderBuilder,
+            signers::local::{coins_bip39::English, MnemonicBuilder},
+        },
     };
 
     const MNEMONIC_PHRASE: &str =
@@ -62,9 +66,10 @@ mod tests {
 
         use crate::smart_accounts::simple_account::factory::FactoryAddress;
         let simple_account_factory_address = FactoryAddress::local_v07();
-        use crate::entry_point::get_sender_address::get_sender_address_v07;
-
-        use crate::smart_accounts::simple_account::create_account::SimpleAccountCreate;
+        use crate::{
+            entry_point::get_sender_address::get_sender_address_v07,
+            smart_accounts::simple_account::create_account::SimpleAccountCreate,
+        };
 
         let factory_data_call = SimpleAccountCreate::new_u64(owner_address, 0);
         let factory_data_value = factory_data_call.encode();

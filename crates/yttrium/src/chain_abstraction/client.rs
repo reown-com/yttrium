@@ -1,47 +1,49 @@
-use super::{
-    amount::Amount,
-    api::{
-        fungible_price::{
-            PriceRequestBody, PriceResponseBody, FUNGIBLE_PRICE_ENDPOINT_PATH,
-            NATIVE_TOKEN_ADDRESS,
+use {
+    super::{
+        amount::Amount,
+        api::{
+            fungible_price::{
+                PriceRequestBody, PriceResponseBody,
+                FUNGIBLE_PRICE_ENDPOINT_PATH, NATIVE_TOKEN_ADDRESS,
+            },
+            route::{
+                RouteQueryParams, RouteRequest, RouteResponse,
+                RouteResponseAvailable, ROUTE_ENDPOINT_PATH,
+            },
+            status::{
+                StatusQueryParams, StatusResponse, StatusResponseCompleted,
+                STATUS_ENDPOINT_PATH,
+            },
+            Transaction,
         },
-        route::{
-            RouteQueryParams, RouteRequest, RouteResponse,
-            RouteResponseAvailable, ROUTE_ENDPOINT_PATH,
-        },
-        status::{
-            StatusQueryParams, StatusResponse, StatusResponseCompleted,
-            STATUS_ENDPOINT_PATH,
-        },
-        Transaction,
+        currency::Currency,
+        error::{RouteError, WaitForSuccessError},
     },
-    currency::Currency,
-    error::{RouteError, WaitForSuccessError},
-};
-use crate::{
-    chain_abstraction::{
-        amount::from_float, api::fungible_price::FungiblePriceItem,
-        error::RouteUiFieldsError, l1_data_fee::get_l1_data_fee,
-        local_fee_acc::LocalAmountAcc,
+    crate::{
+        chain_abstraction::{
+            amount::from_float, api::fungible_price::FungiblePriceItem,
+            error::RouteUiFieldsError, l1_data_fee::get_l1_data_fee,
+            local_fee_acc::LocalAmountAcc,
+        },
+        erc20::ERC20,
     },
-    erc20::ERC20,
+    alloy::{
+        network::{Ethereum, TransactionBuilder},
+        primitives::{Address, U256, U64},
+        rpc::{client::RpcClient, types::TransactionRequest},
+        transports::http::Http,
+    },
+    alloy_provider::{utils::Eip1559Estimation, Provider, ReqwestProvider},
+    relay_rpc::domain::ProjectId,
+    reqwest::{Client as ReqwestClient, Url},
+    std::{
+        collections::{HashMap, HashSet},
+        sync::Arc,
+        time::{Duration, Instant},
+    },
+    tokio::sync::RwLock,
+    tracing::warn,
 };
-use alloy::{
-    network::{Ethereum, TransactionBuilder},
-    primitives::{Address, U256, U64},
-    rpc::{client::RpcClient, types::TransactionRequest},
-    transports::http::Http,
-};
-use alloy_provider::{utils::Eip1559Estimation, Provider, ReqwestProvider};
-use relay_rpc::domain::ProjectId;
-use reqwest::{Client as ReqwestClient, Url};
-use std::{
-    collections::{HashMap, HashSet},
-    sync::Arc,
-    time::{Duration, Instant},
-};
-use tokio::sync::RwLock;
-use tracing::warn;
 
 pub const PROXY_ENDPOINT_PATH: &str = "/v1";
 

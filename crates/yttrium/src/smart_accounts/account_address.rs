@@ -1,5 +1,7 @@
-use alloy::primitives::Address;
-use serde::{Deserialize, Serialize};
+use {
+    alloy::primitives::Address,
+    serde::{Deserialize, Serialize},
+};
 
 #[derive(
     Debug,

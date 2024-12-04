@@ -1,7 +1,7 @@
-use crate::error::YttriumError;
-use alloy::primitives::Address;
-use std::sync::Arc;
-use tokio::sync::Mutex;
+use {
+    crate::error::YttriumError, alloy::primitives::Address, std::sync::Arc,
+    tokio::sync::Mutex,
+};
 
 pub type PrivateKeyFN =
     dyn Fn() -> Result<String, YttriumError> + Send + 'static;

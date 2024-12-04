@@ -1,34 +1,36 @@
-use crate::{
-    bundler::{
-        client::BundlerClient,
-        config::BundlerConfig,
-        pimlico::{
-            client::BundlerClient as PimlicoBundlerClient,
-            paymaster::client::PaymasterClient,
+use {
+    crate::{
+        bundler::{
+            client::BundlerClient,
+            config::BundlerConfig,
+            pimlico::{
+                client::BundlerClient as PimlicoBundlerClient,
+                paymaster::client::PaymasterClient,
+            },
         },
-    },
-    chain::ChainId,
-    config::Config,
-    entry_point::get_sender_address::get_sender_address_v07,
-    signer::sign_user_operation_v07_with_ecdsa,
-    smart_accounts::{
-        nonce::get_nonce,
-        simple_account::{
-            create_account::SimpleAccountCreate, factory::FactoryAddress,
-            SimpleAccountExecute,
+        chain::ChainId,
+        config::Config,
+        entry_point::get_sender_address::get_sender_address_v07,
+        signer::sign_user_operation_v07_with_ecdsa,
+        smart_accounts::{
+            nonce::get_nonce,
+            simple_account::{
+                create_account::SimpleAccountCreate, factory::FactoryAddress,
+                SimpleAccountExecute,
+            },
         },
+        transaction::Transaction,
+        user_operation::UserOperationV07,
     },
-    transaction::Transaction,
-    user_operation::UserOperationV07,
+    alloy::{
+        network::EthereumWallet,
+        primitives::{Address, Bytes, B256, U256},
+        providers::ProviderBuilder,
+        signers::local::PrivateKeySigner,
+    },
+    core::fmt,
+    std::str::FromStr,
 };
-use alloy::{
-    network::EthereumWallet,
-    primitives::{Address, Bytes, B256, U256},
-    providers::ProviderBuilder,
-    signers::local::PrivateKeySigner,
-};
-use core::fmt;
-use std::str::FromStr;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct UserOperationEstimated(UserOperationV07);
@@ -246,34 +248,36 @@ pub async fn send_transaction_with_signer(
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        bundler::{
-            client::BundlerClient,
-            config::BundlerConfig,
-            pimlico::{
-                client::BundlerClient as PimlicoBundlerClient,
-                paymaster::client::PaymasterClient,
+    use {
+        crate::{
+            bundler::{
+                client::BundlerClient,
+                config::BundlerConfig,
+                pimlico::{
+                    client::BundlerClient as PimlicoBundlerClient,
+                    paymaster::client::PaymasterClient,
+                },
             },
-        },
-        entry_point::get_sender_address::get_sender_address_v07,
-        signer::sign_user_operation_v07_with_ecdsa,
-        smart_accounts::{
-            nonce::get_nonce,
-            simple_account::{
-                create_account::SimpleAccountCreate, factory::FactoryAddress,
-                SimpleAccountExecute,
+            entry_point::get_sender_address::get_sender_address_v07,
+            signer::sign_user_operation_v07_with_ecdsa,
+            smart_accounts::{
+                nonce::get_nonce,
+                simple_account::{
+                    create_account::SimpleAccountCreate,
+                    factory::FactoryAddress, SimpleAccountExecute,
+                },
             },
+            transaction::Transaction,
+            user_operation::UserOperationV07,
         },
-        transaction::Transaction,
-        user_operation::UserOperationV07,
+        alloy::{
+            network::EthereumWallet,
+            primitives::{Address, Bytes, B256, U256},
+            providers::ProviderBuilder,
+            signers::local::LocalSigner,
+        },
+        std::str::FromStr,
     };
-    use alloy::{
-        network::EthereumWallet,
-        primitives::{Address, Bytes, B256, U256},
-        providers::ProviderBuilder,
-        signers::local::LocalSigner,
-    };
-    use std::str::FromStr;
 
     async fn send_transaction(transaction: Transaction) -> eyre::Result<B256> {
         let config = crate::config::Config::local();

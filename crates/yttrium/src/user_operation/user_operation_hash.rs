@@ -1,6 +1,8 @@
-use alloy::primitives::B256;
-use serde::{Deserialize, Serialize};
-use std::str::FromStr;
+use {
+    alloy::primitives::B256,
+    serde::{Deserialize, Serialize},
+    std::str::FromStr,
+};
 
 /// User operation hash
 #[derive(

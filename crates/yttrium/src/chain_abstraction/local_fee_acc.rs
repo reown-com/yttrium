@@ -82,10 +82,12 @@ impl Default for LocalAmountAcc {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::chain_abstraction::{
-        amount::{from_float, to_float},
-        test_helpers::floats_close,
+    use {
+        super::*,
+        crate::chain_abstraction::{
+            amount::{from_float, to_float},
+            test_helpers::floats_close,
+        },
     };
 
     #[test]

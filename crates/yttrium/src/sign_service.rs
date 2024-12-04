@@ -1,13 +1,15 @@
-use crate::error::YttriumError;
-use alloy::{
-    primitives::Address,
-    signers::{
-        local::{coins_bip39::English, MnemonicBuilder, PrivateKeySigner},
-        SignerSync,
+use {
+    crate::error::YttriumError,
+    alloy::{
+        primitives::Address,
+        signers::{
+            local::{coins_bip39::English, MnemonicBuilder, PrivateKeySigner},
+            SignerSync,
+        },
     },
+    std::sync::Arc,
+    tokio::sync::Mutex,
 };
-use std::sync::Arc;
-use tokio::sync::Mutex;
 
 pub type SignFN =
     dyn Fn(String) -> Result<String, YttriumError> + Send + 'static;
