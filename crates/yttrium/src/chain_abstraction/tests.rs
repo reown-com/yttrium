@@ -1,4 +1,8 @@
 use crate::{
+    chain_abstraction::l1_data_fee::get_l1_data_fee,
+    test_helpers::use_faucet_gas,
+};
+use crate::{
     chain_abstraction::{
         amount::Amount,
         api::{
@@ -8,14 +12,12 @@ use crate::{
         },
         client::{Client, TransactionFee},
         currency::Currency,
-        l1_data_fee::get_l1_data_fee,
         test_helpers::floats_close,
     },
     erc20::{Token, ERC20},
     test_helpers::{
-        private_faucet, use_account, use_faucet_gas, BRIDGE_ACCOUNT_1,
-        BRIDGE_ACCOUNT_2, BRIDGE_ACCOUNT_USDC_1557_1,
-        BRIDGE_ACCOUNT_USDC_1557_2,
+        private_faucet, use_account, BRIDGE_ACCOUNT_1, BRIDGE_ACCOUNT_2,
+        BRIDGE_ACCOUNT_USDC_1557_1, BRIDGE_ACCOUNT_USDC_1557_2,
     },
 };
 use alloy::{
@@ -40,11 +42,9 @@ use std::{
     iter,
     time::{Duration, Instant},
 };
+
 use ERC20::ERC20Instance;
 
-const CHAIN_ID_OPTIMISM: &str = "eip155:10";
-const CHAIN_ID_BASE: &str = "eip155:8453";
-const CHAIN_ID_ARBITRUM: &str = "eip155:42161";
 const USDC_CONTRACT_OPTIMISM: Address =
     address!("0b2c639c533813f4aa9d7837caf62653d097ff85");
 const USDC_CONTRACT_BASE: Address =
@@ -175,6 +175,114 @@ impl BridgeToken {
             .await
             .unwrap()
             .balance
+    }
+}
+
+const CHAIN_ID_OPTIMISM: &str = "eip155:10";
+const CHAIN_ID_BASE: &str = "eip155:8453";
+const CHAIN_ID_ARBITRUM: &str = "eip155:42161";
+
+async fn estimate_total_fees(
+    _wallet: &EthereumWallet,
+    provider: &ReqwestProvider,
+    txn: TransactionRequest,
+) -> U256 {
+    let gas = txn.gas.unwrap();
+    let max_fee_per_gas = txn.max_fee_per_gas.unwrap();
+
+    let provider_chain_id =
+        format!("eip155:{}", provider.get_chain_id().await.unwrap());
+    let l1_data_fee = if provider_chain_id == CHAIN_ID_BASE
+        || provider_chain_id == CHAIN_ID_OPTIMISM
+    {
+        get_l1_data_fee(txn, provider.clone()).await
+    } else {
+        U256::ZERO
+    };
+    println!("l1_data_fee: {l1_data_fee}");
+
+    U256::from(max_fee_per_gas) * U256::from(gas) + l1_data_fee
+}
+
+async fn send_sponsored_txn(
+    faucet: LocalSigner<SigningKey>,
+    provider: &ReqwestProvider,
+    wallet_lookup: &HashMap<Address, LocalSigner<SigningKey>>,
+    txn: TransactionRequest,
+) {
+    let provider_chain_id =
+        format!("eip155:{}", provider.get_chain_id().await.unwrap());
+    let from_address = txn.from.unwrap();
+    let wallet =
+        EthereumWallet::new(wallet_lookup.get(&from_address).unwrap().clone());
+
+    let txn = txn.with_nonce(
+        provider.get_transaction_count(from_address).await.unwrap(),
+    );
+
+    let gas = provider.estimate_gas(&txn).await.unwrap();
+    let fees = provider.estimate_eip1559_fees(None).await.unwrap();
+    let txn = txn
+        .gas_limit(gas)
+        .max_fee_per_gas(fees.max_fee_per_gas)
+        .max_priority_fee_per_gas(fees.max_priority_fee_per_gas);
+
+    let total_fee = estimate_total_fees(&wallet, provider, txn.clone()).await;
+
+    let balance = provider.get_balance(from_address).await.unwrap();
+    if balance < total_fee {
+        let additional_balance_required = total_fee - balance;
+        println!("additional_balance_required: {additional_balance_required}");
+        println!(
+            "using faucet (2) for {}:{} at {}",
+            provider_chain_id, from_address, additional_balance_required
+        );
+        use_faucet_gas(
+            provider.clone(),
+            faucet.clone(),
+            U256::from(additional_balance_required),
+            from_address,
+            4,
+        )
+        .await;
+        println!("funded");
+    }
+
+    let start = Instant::now();
+    loop {
+        println!("sending txn: {:?}", txn);
+        let txn_sent = ProviderBuilder::new()
+            .with_recommended_fillers()
+            .wallet(wallet.clone())
+            .on_provider(provider)
+            .send_transaction(txn.clone())
+            .await
+            .unwrap()
+            // .with_required_confirmations(3)
+            .with_timeout(Some(Duration::from_secs(15)));
+        println!(
+            "txn hash: {} on chain {provider_chain_id}",
+            txn_sent.tx_hash()
+        );
+        // if provider
+        //     .get_transaction_by_hash(*txn_sent.tx_hash())
+        //     .await
+        //     .unwrap()
+        //     .is_none()
+        // {
+        //     println!("get_transaction_by_hash returned None,
+        // retrying...");     continue;
+        // }
+        let receipt = txn_sent.get_receipt().await;
+        if let Ok(receipt) = receipt {
+            assert!(receipt.status());
+            break;
+        }
+
+        println!("error getting receipt: {:?}", receipt);
+        if start.elapsed() > Duration::from_secs(30) {
+            panic!("timed out");
+        }
     }
 }
 
@@ -511,114 +619,6 @@ async fn happy_path() {
                 Source::Right => {
                     sources.chain_2_address_2_token.token_balance().await
                 }
-            }
-        }
-    }
-
-    async fn estimate_total_fees(
-        _wallet: &EthereumWallet,
-        provider: &ReqwestProvider,
-        txn: TransactionRequest,
-    ) -> U256 {
-        let gas = txn.gas.unwrap();
-        let max_fee_per_gas = txn.max_fee_per_gas.unwrap();
-
-        let provider_chain_id =
-            format!("eip155:{}", provider.get_chain_id().await.unwrap());
-        let l1_data_fee = if provider_chain_id == CHAIN_ID_BASE
-            || provider_chain_id == CHAIN_ID_OPTIMISM
-        {
-            get_l1_data_fee(txn, provider.clone()).await
-        } else {
-            U256::ZERO
-        };
-        println!("l1_data_fee: {l1_data_fee}");
-
-        U256::from(max_fee_per_gas) * U256::from(gas) + l1_data_fee
-    }
-
-    async fn send_sponsored_txn(
-        faucet: LocalSigner<SigningKey>,
-        provider: &ReqwestProvider,
-        wallet_lookup: &HashMap<Address, LocalSigner<SigningKey>>,
-        txn: TransactionRequest,
-    ) {
-        let provider_chain_id =
-            format!("eip155:{}", provider.get_chain_id().await.unwrap());
-        let from_address = txn.from.unwrap();
-        let wallet = EthereumWallet::new(
-            wallet_lookup.get(&from_address).unwrap().clone(),
-        );
-
-        let txn = txn.with_nonce(
-            provider.get_transaction_count(from_address).await.unwrap(),
-        );
-
-        let gas = provider.estimate_gas(&txn).await.unwrap();
-        let fees = provider.estimate_eip1559_fees(None).await.unwrap();
-        let txn = txn
-            .gas_limit(gas)
-            .max_fee_per_gas(fees.max_fee_per_gas)
-            .max_priority_fee_per_gas(fees.max_priority_fee_per_gas);
-
-        let total_fee =
-            estimate_total_fees(&wallet, provider, txn.clone()).await;
-
-        let balance = provider.get_balance(from_address).await.unwrap();
-        if balance < total_fee {
-            let additional_balance_required = total_fee - balance;
-            println!(
-                "additional_balance_required: {additional_balance_required}"
-            );
-            println!(
-                "using faucet (2) for {}:{} at {}",
-                provider_chain_id, from_address, additional_balance_required
-            );
-            use_faucet_gas(
-                provider.clone(),
-                faucet.clone(),
-                U256::from(additional_balance_required),
-                from_address,
-                4,
-            )
-            .await;
-            println!("funded");
-        }
-
-        let start = Instant::now();
-        loop {
-            println!("sending txn: {:?}", txn);
-            let txn_sent = ProviderBuilder::new()
-                .with_recommended_fillers()
-                .wallet(wallet.clone())
-                .on_provider(provider)
-                .send_transaction(txn.clone())
-                .await
-                .unwrap()
-                // .with_required_confirmations(3)
-                .with_timeout(Some(Duration::from_secs(15)));
-            println!(
-                "txn hash: {} on chain {provider_chain_id}",
-                txn_sent.tx_hash()
-            );
-            // if provider
-            //     .get_transaction_by_hash(*txn_sent.tx_hash())
-            //     .await
-            //     .unwrap()
-            //     .is_none()
-            // {
-            //     println!("get_transaction_by_hash returned None,
-            // retrying...");     continue;
-            // }
-            let receipt = txn_sent.get_receipt().await;
-            if let Ok(receipt) = receipt {
-                assert!(receipt.status());
-                break;
-            }
-
-            println!("error getting receipt: {:?}", receipt);
-            if start.elapsed() > Duration::from_secs(30) {
-                panic!("timed out");
             }
         }
     }
@@ -1205,114 +1205,6 @@ async fn happy_path_full_dependency_on_route_ui_fields() {
                 Source::Right => {
                     sources.chain_2_address_2_token.token_balance().await
                 }
-            }
-        }
-    }
-
-    async fn estimate_total_fees(
-        _wallet: &EthereumWallet,
-        provider: &ReqwestProvider,
-        txn: TransactionRequest,
-    ) -> U256 {
-        let gas = txn.gas.unwrap();
-        let max_fee_per_gas = txn.max_fee_per_gas.unwrap();
-
-        let provider_chain_id =
-            format!("eip155:{}", provider.get_chain_id().await.unwrap());
-        let l1_data_fee = if provider_chain_id == CHAIN_ID_BASE
-            || provider_chain_id == CHAIN_ID_OPTIMISM
-        {
-            get_l1_data_fee(txn, provider.clone()).await
-        } else {
-            U256::ZERO
-        };
-        println!("l1_data_fee: {l1_data_fee}");
-
-        U256::from(max_fee_per_gas) * U256::from(gas) + l1_data_fee
-    }
-
-    async fn send_sponsored_txn(
-        faucet: LocalSigner<SigningKey>,
-        provider: &ReqwestProvider,
-        wallet_lookup: &HashMap<Address, LocalSigner<SigningKey>>,
-        txn: TransactionRequest,
-    ) {
-        let provider_chain_id =
-            format!("eip155:{}", provider.get_chain_id().await.unwrap());
-        let from_address = txn.from.unwrap();
-        let wallet = EthereumWallet::new(
-            wallet_lookup.get(&from_address).unwrap().clone(),
-        );
-
-        let txn = txn.with_nonce(
-            provider.get_transaction_count(from_address).await.unwrap(),
-        );
-
-        let gas = provider.estimate_gas(&txn).await.unwrap();
-        let fees = provider.estimate_eip1559_fees(None).await.unwrap();
-        let txn = txn
-            .gas_limit(gas)
-            .max_fee_per_gas(fees.max_fee_per_gas)
-            .max_priority_fee_per_gas(fees.max_priority_fee_per_gas);
-
-        let total_fee =
-            estimate_total_fees(&wallet, provider, txn.clone()).await;
-
-        let balance = provider.get_balance(from_address).await.unwrap();
-        if balance < total_fee {
-            let additional_balance_required = total_fee - balance;
-            println!(
-                "additional_balance_required: {additional_balance_required}"
-            );
-            println!(
-                "using faucet (2) for {}:{} at {}",
-                provider_chain_id, from_address, additional_balance_required
-            );
-            use_faucet_gas(
-                provider.clone(),
-                faucet.clone(),
-                U256::from(additional_balance_required),
-                from_address,
-                4,
-            )
-            .await;
-            println!("funded");
-        }
-
-        let start = Instant::now();
-        loop {
-            println!("sending txn: {:?}", txn);
-            let txn_sent = ProviderBuilder::new()
-                .with_recommended_fillers()
-                .wallet(wallet.clone())
-                .on_provider(provider)
-                .send_transaction(txn.clone())
-                .await
-                .unwrap()
-                // .with_required_confirmations(3)
-                .with_timeout(Some(Duration::from_secs(15)));
-            println!(
-                "txn hash: {} on chain {provider_chain_id}",
-                txn_sent.tx_hash()
-            );
-            // if provider
-            //     .get_transaction_by_hash(*txn_sent.tx_hash())
-            //     .await
-            //     .unwrap()
-            //     .is_none()
-            // {
-            //     println!("get_transaction_by_hash returned None,
-            // retrying...");     continue;
-            // }
-            let receipt = txn_sent.get_receipt().await;
-            if let Ok(receipt) = receipt {
-                assert!(receipt.status());
-                break;
-            }
-
-            println!("error getting receipt: {:?}", receipt);
-            if start.elapsed() > Duration::from_secs(30) {
-                panic!("timed out");
             }
         }
     }
