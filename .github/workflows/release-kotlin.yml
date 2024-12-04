@@ -59,7 +59,6 @@ jobs:
       - name: Generate Kotlin bindings (once)
         if: ${{ matrix.target == 'aarch64-linux-android' }}
         run: |
-          mkdir -p crates/kotlin-ffi/android/src/main/kotlin/com/reown/yttrium
           cargo run --features=uniffi/cli --bin uniffi-bindgen generate --library target/${{ matrix.target }}/release/libuniffi_yttrium.so --language kotlin --out-dir crates/kotlin-ffi/android/src/main/kotlin/com/reown/yttrium
 
       
@@ -69,7 +68,8 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add crates/kotlin-ffi/android/src/main/kotlin/com/reown/yttrium
+          git add crates/kotlin-ffi/android/src/main/kotlin/com/reown/yttrium/uniffi/uniffi_yttrium
+          git add crates/kotlin-ffi/android/src/main/kotlin/com/reown/yttrium/uniffi/yttrium
           if git diff --cached --quiet; then
             echo "No changes to commit."
           else
