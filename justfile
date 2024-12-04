@@ -23,10 +23,10 @@ env-tests:
   if [ ! -z "${PIMLICO_API_KEY}" ] && [ ! -z "${PIMLICO_RPC_URL}" ] && [ ! -z "${PIMLICO_BUNDLER_URL}" ]; then just test-pimlico-api; fi
 
 test-pimlico-api:
-  cargo test --features=test_pimlico_api --lib --bins
+  cargo test --features=test_pimlico_api --lib --bins pimlico
 
 test-blockchain-api:
-  RUST_BACKTRACE=1 cargo test --features=test_blockchain_api --lib --bins
+  RUST_BACKTRACE=1 cargo test --features=test_blockchain_api --lib --bins chain_abstraction::tests
 test-blockchain-api-debug:
   RUST_BACKTRACE=1 cargo test --features=test_blockchain_api --lib --bins chain_abstraction::tests -- --nocapture
 
