@@ -64,3 +64,4 @@ wiremock = "0.6.0"
 # Networking
 reqwest.workspace = true
 alloy = { workspace = true, features = ["node-bindings"] }
+serial_test.workspace = true

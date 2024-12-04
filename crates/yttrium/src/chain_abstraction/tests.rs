@@ -33,6 +33,7 @@ use alloy_provider::{
     },
     Identity, Provider, ProviderBuilder, ReqwestProvider, RootProvider,
 };
+use serial_test::serial;
 use std::{
     cmp::max,
     collections::HashMap,
@@ -387,6 +388,7 @@ async fn bridging_routes_routes_available() {
 }
 
 #[tokio::test]
+#[serial(happy_path)]
 async fn happy_path() {
     let faucet = private_faucet();
     println!("faucet: {}", faucet.address());
@@ -1080,6 +1082,7 @@ async fn happy_path() {
 }
 
 #[tokio::test]
+#[serial(happy_path)]
 async fn happy_path_full_dependency_on_route_ui_fields() {
     let faucet = private_faucet();
     println!("faucet: {}", faucet.address());
