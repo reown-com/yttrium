@@ -54,7 +54,7 @@ jobs:
 
       - name: Build Rust Library
         run: |
-          cargo ndk -t armeabi-v7a -t arm64-v8a build --release --features=uniffi/cli
+          cargo ndk -t ${{ matrix.target }} build --release --features=uniffi/cli
           cd crates/kotlin-ffi
           mkdir -p android/src/main/jniLibs/arm64-v8a
           mkdir -p android/src/main/jniLibs/armeabi-v7a
