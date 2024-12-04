@@ -54,12 +54,12 @@ jobs:
 
       - name: Build Rust Library
         run: |
-          cargo ndk -t ${{ matrix.target }} build --release --features=uniffi/cli
+          cargo ndk -t armeabi-v7a -t arm64-v8a build --release --features=uniffi/cli
           cd crates/kotlin-ffi
           mkdir -p android/src/main/jniLibs/arm64-v8a
           mkdir -p android/src/main/jniLibs/armeabi-v7a
-          mv target/aarch64-linux-android/release/libuniffi_yttrium.so android/src/main/jniLibs/arm64-v8a/
-          mv target/armv7-linux-androideabi/release/libuniffi_yttrium.so android/src/main/jniLibs/armeabi-v7a/
+          mv ../../target/aarch64-linux-android/release/libuniffi_yttrium.so android/src/main/jniLibs/arm64-v8a/
+          mv ../../target/armv7-linux-androideabi/release/libuniffi_yttrium.so android/src/main/jniLibs/armeabi-v7a/
 
       - name: Generate Kotlin bindings (once)
         if: ${{ matrix.target == 'aarch64-linux-android' }}
