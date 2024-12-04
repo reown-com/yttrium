@@ -75,7 +75,7 @@ jobs:
           git commit -m "cAdd generated binaries and bindings for release: $VERSION"
         # git push origin HEAD:$TARGET_BRANCH
 
-  create-github-release:
+  release-kotlin:
     needs: build-kotlin-artifacts
     runs-on: ubuntu-latest
 
