@@ -9,7 +9,7 @@ android:
 
 build:
   script:
-    - RELEASE_URL="https://github.com/reown-com/yttrium/releases/download/0.2.71/kotlin-artifacts.zip"
+    - RELEASE_URL="https://github.com/reown-com/yttrium/releases/download/0.2.72/kotlin-artifacts.zip"
     - curl -L -o kotlin-artifacts.zip $RELEASE_URL
     - unzip kotlin-artifacts.zip -d binaries/
     - mkdir -p crates/kotlin-ffi/android/src/main/jniLibs/arm64-v8a
