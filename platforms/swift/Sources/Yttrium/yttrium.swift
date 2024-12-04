@@ -416,30 +416,6 @@ fileprivate struct FfiConverterUInt64: FfiConverterPrimitive {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
-fileprivate struct FfiConverterBool : FfiConverter {
-    typealias FfiType = Int8
-    typealias SwiftType = Bool
-
-    public static func lift(_ value: Int8) throws -> Bool {
-        return value != 0
-    }
-
-    public static func lower(_ value: Bool) -> Int8 {
-        return value ? 1 : 0
-    }
-
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Bool {
-        return try lift(readInt(&buf))
-    }
-
-    public static func write(_ value: Bool, into buf: inout [UInt8]) {
-        writeInt(&buf, lower(value))
-    }
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
 fileprivate struct FfiConverterString: FfiConverter {
     typealias SwiftType = String
     typealias FfiType = RustBuffer
@@ -587,144 +563,6 @@ public func FfiConverterTypeAccountClient_lift(_ pointer: UnsafeMutableRawPointe
 #endif
 public func FfiConverterTypeAccountClient_lower(_ value: AccountClient) -> UnsafeMutableRawPointer {
     return FfiConverterTypeAccountClient.lower(value)
-}
-
-
-
-
-public protocol Erc6492ClientProtocol : AnyObject {
-    
-    func verifySignature(signature: Bytes, address: Address, messageHash: B256) async throws  -> Bool
-    
-}
-
-open class Erc6492Client:
-    Erc6492ClientProtocol {
-    fileprivate let pointer: UnsafeMutableRawPointer!
-
-    /// Used to instantiate a [FFIObject] without an actual pointer, for fakes in tests, mostly.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
-    public struct NoPointer {
-        public init() {}
-    }
-
-    // TODO: We'd like this to be `private` but for Swifty reasons,
-    // we can't implement `FfiConverter` without making this `required` and we can't
-    // make it `required` without making it `public`.
-    required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
-        self.pointer = pointer
-    }
-
-    // This constructor can be used to instantiate a fake object.
-    // - Parameter noPointer: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
-    //
-    // - Warning:
-    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing [Pointer] the FFI lower functions will crash.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
-    public init(noPointer: NoPointer) {
-        self.pointer = nil
-    }
-
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
-    public func uniffiClonePointer() -> UnsafeMutableRawPointer {
-        return try! rustCall { uniffi_yttrium_fn_clone_erc6492client(self.pointer, $0) }
-    }
-public convenience init(rpcUrl: String) {
-    let pointer =
-        try! rustCall() {
-    uniffi_yttrium_fn_constructor_erc6492client_new(
-        FfiConverterString.lower(rpcUrl),$0
-    )
-}
-    self.init(unsafeFromRawPointer: pointer)
-}
-
-    deinit {
-        guard let pointer = pointer else {
-            return
-        }
-
-        try! rustCall { uniffi_yttrium_fn_free_erc6492client(pointer, $0) }
-    }
-
-    
-
-    
-open func verifySignature(signature: Bytes, address: Address, messageHash: B256)async throws  -> Bool  {
-    return
-        try  await uniffiRustCallAsync(
-            rustFutureFunc: {
-                uniffi_yttrium_fn_method_erc6492client_verify_signature(
-                    self.uniffiClonePointer(),
-                    FfiConverterTypeBytes.lower(signature),FfiConverterTypeAddress.lower(address),FfiConverterTypeB256.lower(messageHash)
-                )
-            },
-            pollFunc: ffi_yttrium_rust_future_poll_i8,
-            completeFunc: ffi_yttrium_rust_future_complete_i8,
-            freeFunc: ffi_yttrium_rust_future_free_i8,
-            liftFunc: FfiConverterBool.lift,
-            errorHandler: FfiConverterTypeErc6492Error.lift
-        )
-}
-    
-
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeErc6492Client: FfiConverter {
-
-    typealias FfiType = UnsafeMutableRawPointer
-    typealias SwiftType = Erc6492Client
-
-    public static func lift(_ pointer: UnsafeMutableRawPointer) throws -> Erc6492Client {
-        return Erc6492Client(unsafeFromRawPointer: pointer)
-    }
-
-    public static func lower(_ value: Erc6492Client) -> UnsafeMutableRawPointer {
-        return value.uniffiClonePointer()
-    }
-
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Erc6492Client {
-        let v: UInt64 = try readInt(&buf)
-        // The Rust code won't compile if a pointer won't fit in a UInt64.
-        // We have to go via `UInt` because that's the thing that's the size of a pointer.
-        let ptr = UnsafeMutableRawPointer(bitPattern: UInt(truncatingIfNeeded: v))
-        if (ptr == nil) {
-            throw UniffiInternalError.unexpectedNullPointer
-        }
-        return try lift(ptr!)
-    }
-
-    public static func write(_ value: Erc6492Client, into buf: inout [UInt8]) {
-        // This fiddling is because `Int` is the thing that's the same size as a pointer.
-        // The Rust code won't compile if a pointer won't fit in a `UInt64`.
-        writeInt(&buf, UInt64(bitPattern: Int64(Int(bitPattern: lower(value)))))
-    }
-}
-
-
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeErc6492Client_lift(_ pointer: UnsafeMutableRawPointer) throws -> Erc6492Client {
-    return try FfiConverterTypeErc6492Client.lift(pointer)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeErc6492Client_lower(_ value: Erc6492Client) -> UnsafeMutableRawPointer {
-    return FfiConverterTypeErc6492Client.lower(value)
 }
 
 
@@ -1688,61 +1526,6 @@ extension BridgingError: Equatable, Hashable {}
 
 
 
-
-public enum Erc6492Error {
-
-    
-    
-    case RpcError(String
-    )
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeErc6492Error: FfiConverterRustBuffer {
-    typealias SwiftType = Erc6492Error
-
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Erc6492Error {
-        let variant: Int32 = try readInt(&buf)
-        switch variant {
-
-        
-
-        
-        case 1: return .RpcError(
-            try FfiConverterString.read(from: &buf)
-            )
-
-         default: throw UniffiInternalError.unexpectedEnumCase
-        }
-    }
-
-    public static func write(_ value: Erc6492Error, into buf: inout [UInt8]) {
-        switch value {
-
-        
-
-        
-        
-        case let .RpcError(v1):
-            writeInt(&buf, Int32(1))
-            FfiConverterString.write(v1, into: &buf)
-            
-        }
-    }
-}
-
-
-extension Erc6492Error: Equatable, Hashable {}
-
-extension Erc6492Error: Foundation.LocalizedError {
-    public var errorDescription: String? {
-        String(reflecting: self)
-    }
-}
-
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
 
@@ -2062,50 +1845,6 @@ public func FfiConverterTypeAddress_lower(_ value: Address) -> RustBuffer {
  * Typealias from the type name used in the UDL file to the builtin type.  This
  * is needed because the UDL type name is used in function/method signatures.
  */
-public typealias B256 = String
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeB256: FfiConverter {
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> B256 {
-        return try FfiConverterString.read(from: &buf)
-    }
-
-    public static func write(_ value: B256, into buf: inout [UInt8]) {
-        return FfiConverterString.write(value, into: &buf)
-    }
-
-    public static func lift(_ value: RustBuffer) throws -> B256 {
-        return try FfiConverterString.lift(value)
-    }
-
-    public static func lower(_ value: B256) -> RustBuffer {
-        return FfiConverterString.lower(value)
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeB256_lift(_ value: RustBuffer) throws -> B256 {
-    return try FfiConverterTypeB256.lift(value)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeB256_lower(_ value: B256) -> RustBuffer {
-    return FfiConverterTypeB256.lower(value)
-}
-
-
-
-/**
- * Typealias from the type name used in the UDL file to the builtin type.  This
- * is needed because the UDL type name is used in function/method signatures.
- */
 public typealias Bytes = String
 
 #if swift(>=5.8)
@@ -2232,52 +1971,6 @@ public func FfiConverterTypeU64_lower(_ value: U64) -> RustBuffer {
     return FfiConverterTypeU64.lower(value)
 }
 
-private let UNIFFI_RUST_FUTURE_POLL_READY: Int8 = 0
-private let UNIFFI_RUST_FUTURE_POLL_MAYBE_READY: Int8 = 1
-
-fileprivate let uniffiContinuationHandleMap = UniffiHandleMap<UnsafeContinuation<Int8, Never>>()
-
-fileprivate func uniffiRustCallAsync<F, T>(
-    rustFutureFunc: () -> UInt64,
-    pollFunc: (UInt64, @escaping UniffiRustFutureContinuationCallback, UInt64) -> (),
-    completeFunc: (UInt64, UnsafeMutablePointer<RustCallStatus>) -> F,
-    freeFunc: (UInt64) -> (),
-    liftFunc: (F) throws -> T,
-    errorHandler: ((RustBuffer) throws -> Swift.Error)?
-) async throws -> T {
-    // Make sure to call uniffiEnsureInitialized() since future creation doesn't have a
-    // RustCallStatus param, so doesn't use makeRustCall()
-    uniffiEnsureInitialized()
-    let rustFuture = rustFutureFunc()
-    defer {
-        freeFunc(rustFuture)
-    }
-    var pollResult: Int8;
-    repeat {
-        pollResult = await withUnsafeContinuation {
-            pollFunc(
-                rustFuture,
-                uniffiFutureContinuationCallback,
-                uniffiContinuationHandleMap.insert(obj: $0)
-            )
-        }
-    } while pollResult != UNIFFI_RUST_FUTURE_POLL_READY
-
-    return try liftFunc(makeRustCall(
-        { completeFunc(rustFuture, $0) },
-        errorHandler: errorHandler
-    ))
-}
-
-// Callback handlers for an async calls.  These are invoked by Rust when the future is ready.  They
-// lift the return value or error and resume the suspended function.
-fileprivate func uniffiFutureContinuationCallback(handle: UInt64, pollResult: Int8) {
-    if let continuation = try? uniffiContinuationHandleMap.remove(handle: handle) {
-        continuation.resume(returning: pollResult)
-    } else {
-        print("uniffiFutureContinuationCallback invalid handle")
-    }
-}
 
 private enum InitializationResult {
     case ok
@@ -2293,12 +1986,6 @@ private let initializationResult: InitializationResult = {
     let scaffolding_contract_version = ffi_yttrium_uniffi_contract_version()
     if bindings_contract_version != scaffolding_contract_version {
         return InitializationResult.contractVersionMismatch
-    }
-    if (uniffi_yttrium_checksum_method_erc6492client_verify_signature() != 43990) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_yttrium_checksum_constructor_erc6492client_new() != 33633) {
-        return InitializationResult.apiChecksumMismatch
     }
 
     return InitializationResult.ok
