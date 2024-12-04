@@ -59,8 +59,10 @@ jobs:
       - name: Generate Kotlin bindings (once)
         if: ${{ matrix.target == 'aarch64-linux-android' }}
         run: |
+          mkdir -p crates/kotlin-ffi/android/src/main/kotlin/com/reown/yttrium
           cargo run --features=uniffi/cli --bin uniffi-bindgen generate --library target/${{ matrix.target }}/release/libuniffi_yttrium.so --language kotlin --out-dir crates/kotlin-ffi/android/src/main/kotlin/com/reown/yttrium
 
+      
       - name: Commit Generated Files
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -68,8 +70,12 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add crates/kotlin-ffi/android/src/main/kotlin/com/reown/yttrium
-          git commit -m "Add generated bindings for release: ${{ env.VERSION }}"
-          git push origin HEAD:$TARGET_BRANCH
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "Add generated bindings for release: ${{ env.VERSION }}"
+            git push origin HEAD:$TARGET_BRANCH
+          fi
       
       - name: Prepare artifacts
         run: | 
