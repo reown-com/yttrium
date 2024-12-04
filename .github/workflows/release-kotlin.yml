@@ -10,7 +10,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  VERSION: ${{ github.event.inputs.version || '0.0.24' }}
+  VERSION: ${{ github.event.inputs.version || '0.2.71' }}
   TARGET_BRANCH: ${{ github.ref_name }}
 
 permissions:
@@ -124,10 +124,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: 0.2.69 #${{ env.VERSION }}
-          release_name: 0.2.69 #Yttrium ${{ env.VERSION }}
+          tag_name: 0.2.71 #${{ env.VERSION }}
+          release_name: 0.2.71 #Yttrium ${{ env.VERSION }}
           draft: false
-          prerelease: true
+          prerelease: false
 
       - name: Upload Release Assets
         uses: actions/upload-release-asset@v1
