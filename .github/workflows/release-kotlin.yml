@@ -63,7 +63,7 @@ jobs:
           cargo ndk -t ${{ matrix.target }} build --release --features=uniffi/cli
           cd crates/kotlin-ffi
           mkdir -p android/src/main/jniLibs/$abi_name
-          mv ../../target/${{ matrix.target }}/release/libuniffi_yttrium.so android/src/main/jniLibs/arm64-v8a/
+          mv ../../target/${{ matrix.target }}/release/libuniffi_yttrium.so android/src/main/jniLibs/$abi_name/
 
       - name: Generate Kotlin bindings (once)
         if: ${{ matrix.target == 'aarch64-linux-android' }}
