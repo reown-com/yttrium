@@ -62,8 +62,8 @@ jobs:
           mkdir -p crates/kotlin-ffi/android/src/main/kotlin/com/reown/yttrium
           cargo run --features=uniffi/cli --bin uniffi-bindgen generate --library target/${{ matrix.target }}/release/libuniffi_yttrium.so --language kotlin --out-dir crates/kotlin-ffi/android/src/main/kotlin/com/reown/yttrium
 
-      
-      - name: Commit Generated Files
+      - name: Commit Generated Files (once)
+        if: ${{ matrix.target == 'aarch64-linux-android' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
