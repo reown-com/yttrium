@@ -20,7 +20,9 @@ build:
       --library ../../target/aarch64-linux-android/release/libuniffi_yttrium.so \
       --language kotlin \
       --out-dir android/src/main/kotlin/com/reown/yttrium
+    - ls -R android/src/main/kotlin/com/reown/yttrium
     - cd android
     - ./gradlew clean --no-daemon
-    - ./gradlew assembleRelease --no-daemon --refresh-dependencies --debug
+    - ./gradlew assembleRelease --no-daemon --refresh-dependencies --info
+    - unzip -l build/outputs/aar/android-release.aar
     
