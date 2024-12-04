@@ -54,20 +54,17 @@ jobs:
 
       - name: Build Rust Library
         run: |
-          cd crates/kotlin-ffi
           cargo ndk -t ${{ matrix.target }} build --release --features=uniffi/cli
+          cd crates/kotlin-ffi
           mkdir -p android/src/main/jniLibs/arm64-v8a
           mkdir -p android/src/main/jniLibs/armeabi-v7a
-          mv target/aarch64-linux-android/release/libuniffi_yttrium.so android/src/main/jniLibs/arm64-v8a/
-          mv target/armv7-linux-androideabi/release/libuniffi_yttrium.so android/src/main/jniLibs/armeabi-v7a/
+          mv ../../target/aarch64-linux-android/release/libuniffi_yttrium.so android/src/main/jniLibs/arm64-v8a/
+          mv ../../target/armv7-linux-androideabi/release/libuniffi_yttrium.so android/src/main/jniLibs/armeabi-v7a/
 
       - name: Generate Kotlin bindings (once)
         if: ${{ matrix.target == 'aarch64-linux-android' }}
         run: |
-          cd crates/kotlin-ffi
-          cargo run --features=uniffi/cli --bin uniffi-bindgen generate \
-            --library target/aarch64-linux-android/release/libuniffi_yttrium.so \
-            --language kotlin --out-dir android/src/main/kotlin/com/reown/yttrium      
+          cargo run --features=uniffi/cli --bin uniffi-bindgen generate --library target/aarch64-linux-android/release/libuniffi_yttrium.so --language kotlin --out-dir crates/kotlin-ffi/android/src/main/kotlin/com/reown/yttrium      
       
       - name: Commit Generated Files
         env:
