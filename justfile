@@ -9,7 +9,7 @@ clean:
 setup:
   git submodule update --init --recursive
 
-devloop: setup clippy fmt test env-tests udeps
+devloop: setup lint test env-tests udeps
   @echo ""
   @echo ""
   @echo "PASS"
@@ -29,6 +29,8 @@ test-blockchain-api:
   RUST_BACKTRACE=1 cargo test --features=test_blockchain_api --lib --bins chain_abstraction::tests
 test-blockchain-api-debug:
   RUST_BACKTRACE=1 cargo test --features=test_blockchain_api --lib --bins chain_abstraction::tests -- --nocapture
+
+lint: fmt clippy
 
 clippy:
   cargo clippy --workspace --features=full --all-targets -- -D warnings
