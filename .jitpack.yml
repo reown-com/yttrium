@@ -7,6 +7,22 @@ android:
     - platform-tools
     - platforms;android-33
 
+before_install:
+    - RELEASE_URL="https://github.com/reown-com/yttrium/releases/download/0.2.72/kotlin-artifacts.zip"
+    - echo "Downloading binaries from $RELEASE_URL"
+    - curl -L -o kotlin-artifacts.zip $RELEASE_URL || echo "Download failed"
+    - ls -l kotlin-artifacts.zip
+    - unzip -l kotlin-artifacts.zip || echo "Unzipping failed"
+    - unzip kotlin-artifacts.zip -d binaries/
+    - ls -R binaries || echo "Extracted files missing"
+    - mkdir -p crates/kotlin-ffi/android/src/main/jniLibs/arm64-v8a
+    - mkdir -p crates/kotlin-ffi/android/src/main/jniLibs/armeabi-v7a
+    - mv binaries/yttrium/libs/arm64-v8a/libuniffi_yttrium.so crates/kotlin-ffi/android/src/main/jniLibs/arm64-v8a/ || echo "File for arm64-v8a missing"
+    - mv binaries/yttrium/libs/armeabi-v7a/libuniffi_yttrium.so crates/kotlin-ffi/android/src/main/jniLibs/armeabi-v7a/ || echo "File for armeabi-v7a missing"
+    - ls crates/kotlin-ffi/android/src/main/jniLibs/arm64-v8a || echo "arm64-v8a .so missing"
+    - ls crates/kotlin-ffi/android/src/main/jniLibs/armeabi-v7a || echo "armeabi-v7a .so missing"
+    - cd crates/kotlin-ffi/android
+
 # build:
 #   script:
 #     - RELEASE_URL="https://github.com/reown-com/yttrium/releases/download/0.2.72/kotlin-artifacts.zip"
