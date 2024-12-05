@@ -8,36 +8,22 @@ android:
     - platforms;android-33
 
 before_install:
-    - RELEASE_URL="https://github.com/reown-com/yttrium/releases/download/0.2.72/kotlin-artifacts.zip"
-    - echo "Downloading binaries from $RELEASE_URL"
-    - curl -L -o kotlin-artifacts.zip $RELEASE_URL || echo "Download failed"
-    - ls -l kotlin-artifacts.zip
-    - unzip -l kotlin-artifacts.zip || echo "Unzipping failed"
+    - RELEASE_URL="https://github.com/reown-com/yttrium/releases/download/0.2.74/kotlin-artifacts.zip"
+    - echo "Fetching binaries from $RELEASE_URL"
+    - curl -L -o kotlin-artifacts.zip $RELEASE_URL || echo "Failed to fetch binaries"
+    - echo "Downloaded zip file:"
+    - ls -l kotlin-artifacts.zip || echo "No zip file found"
+    - echo "Unzipping contents..."
     - unzip kotlin-artifacts.zip -d binaries/
-    - ls -R binaries || echo "Extracted files missing"
+    - echo "Contents of binaries directory:"
+    - ls -R binaries || echo "No files found in binaries directory"
     - mkdir -p crates/kotlin-ffi/android/src/main/jniLibs/arm64-v8a
     - mkdir -p crates/kotlin-ffi/android/src/main/jniLibs/armeabi-v7a
-    - mv binaries/yttrium/libs/arm64-v8a/libuniffi_yttrium.so crates/kotlin-ffi/android/src/main/jniLibs/arm64-v8a/ || echo "File for arm64-v8a missing"
-    - mv binaries/yttrium/libs/armeabi-v7a/libuniffi_yttrium.so crates/kotlin-ffi/android/src/main/jniLibs/armeabi-v7a/ || echo "File for armeabi-v7a missing"
-    - ls crates/kotlin-ffi/android/src/main/jniLibs/arm64-v8a || echo "arm64-v8a .so missing"
-    - ls crates/kotlin-ffi/android/src/main/jniLibs/armeabi-v7a || echo "armeabi-v7a .so missing"
+    - echo "Moving binaries..."
+    - mv binaries/yttrium/libs/arm64-v8a/libuniffi_yttrium.so crates/kotlin-ffi/android/src/main/jniLibs/arm64-v8a/ || echo "Failed to move arm64-v8a .so"
+    - mv binaries/yttrium/libs/armeabi-v7a/libuniffi_yttrium.so crates/kotlin-ffi/android/src/main/jniLibs/armeabi-v7a/ || echo "Failed to move armeabi-v7a .so"
     - cd crates/kotlin-ffi/android
-
-# build:
-#   script:
-#     - RELEASE_URL="https://github.com/reown-com/yttrium/releases/download/0.2.72/kotlin-artifacts.zip"
-#     - echo "Downloading binaries from $RELEASE_URL"
-#     - curl -L -o kotlin-artifacts.zip $RELEASE_URL || echo "Download failed"
-#     - ls -l kotlin-artifacts.zip
-#     - unzip -l kotlin-artifacts.zip || echo "Unzipping failed"
-#     - unzip kotlin-artifacts.zip -d binaries/
-#     - ls -R binaries || echo "Extracted files missing"
-#     - mkdir -p crates/kotlin-ffi/android/src/main/jniLibs/arm64-v8a
-#     - mkdir -p crates/kotlin-ffi/android/src/main/jniLibs/armeabi-v7a
-#     - mv binaries/yttrium/libs/arm64-v8a/libuniffi_yttrium.so crates/kotlin-ffi/android/src/main/jniLibs/arm64-v8a/ || echo "File for arm64-v8a missing"
-#     - mv binaries/yttrium/libs/armeabi-v7a/libuniffi_yttrium.so crates/kotlin-ffi/android/src/main/jniLibs/armeabi-v7a/ || echo "File for armeabi-v7a missing"
-#     - ls crates/kotlin-ffi/android/src/main/jniLibs/arm64-v8a || echo "arm64-v8a .so missing"
-#     - ls crates/kotlin-ffi/android/src/main/jniLibs/armeabi-v7a || echo "armeabi-v7a .so missing"
-#     - cd crates/kotlin-ffi/android
-#     - ./gradlew clean --no-daemon
-#     - ./gradlew assembleRelease --no-daemon --refresh-dependencies --info
+    - ./gradlew clean --no-daemon
+    - ./gradlew assembleRelease --no-daemon --refresh-dependencies --info
+    - echo "Inspecting generated .aar file"
+    - unzip -l build/outputs/aar/android-release.aar || echo "Failed to inspect .aar"
