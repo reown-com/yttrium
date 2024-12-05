@@ -8,7 +8,7 @@ android:
     - platforms;android-33
 
 before_install:
-    - RELEASE_URL="https://github.com/reown-com/yttrium/releases/download/0.2.74/kotlin-artifacts.zip"
+    - RELEASE_URL="https://github.com/reown-com/yttrium/releases/download/0.2.72/kotlin-artifacts.zip"
     - echo "Fetching binaries from $RELEASE_URL"
     - curl -L -o kotlin-artifacts.zip $RELEASE_URL || echo "Failed to fetch binaries"
     - echo "Downloaded zip file:"
