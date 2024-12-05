@@ -8,9 +8,9 @@ android:
     - platforms;android-33
 
 before_install:
-    - echo "VERSION=${{ env.VERSION }}"
-    - RELEASE_URL="https://github.com/reown-com/yttrium/releases/download/${{env.VERSION}}/kotlin-artifacts.zip"
-    - echo "Fetching binaries and bindings from $RELEASE_URL"
+    - VERSION=$(git describe --tags --exact-match 2>/dev/null || echo "unspecified")
+    - echo "VERSION=${VERSION}"
+    - RELEASE_URL="https://github.com/reown-com/yttrium/releases/download/${VERSION}/kotlin-artifacts.zip"
     - curl -L -o kotlin-artifacts.zip $RELEASE_URL || echo "Failed to fetch binaries"
     - echo "Downloaded zip file:"
     - ls -l kotlin-artifacts.zip || echo "No zip file found"
