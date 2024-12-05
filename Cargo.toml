@@ -5,7 +5,6 @@ members = [
   "crates/ffi",
   "crates/kotlin-ffi",
   "crates/yttrium",
-  # "crates/yttrium_dart/rust",
 ]
 resolver = "2"
 
