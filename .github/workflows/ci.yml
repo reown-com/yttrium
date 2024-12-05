@@ -75,10 +75,11 @@ jobs:
         uses: mozilla-actions/sccache-action@v0.0.4
       - run: rustup update stable && rustup default stable
       - run: make build-xcframework
-      - name: Select Xcode 15.4
-        run: sudo xcode-select -s /Applications/Xcode_15.4.app
-      - name: Build ${{ matrix.config }}
-        run: make CONFIG=${{ matrix.config }} build-swift-apple-platforms
+      # So confused on what to run for Swift CI
+      # - name: Select Xcode 15.4
+      #   run: sudo xcode-select -s /Applications/Xcode_15.4.app
+      # - name: Build ${{ matrix.config }}
+      #   run: make CONFIG=${{ matrix.config }} build-swift-apple-platforms
       # - name: Install Docker
       #   run: |
       #     HOMEBREW_NO_AUTO_UPDATE=1 brew install --cask docker
