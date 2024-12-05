@@ -74,7 +74,7 @@ jobs:
       - name: Run sccache-cache
         uses: mozilla-actions/sccache-action@v0.0.4
       - run: rustup update stable && rustup default stable
-      - run: make build-ios-bindings
+      - run: make build-xcframework
       - name: Select Xcode 15.4
         run: sudo xcode-select -s /Applications/Xcode_15.4.app
       - name: Build ${{ matrix.config }}

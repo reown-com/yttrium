@@ -1,5 +1,4 @@
-use crate::user_operation::UserOperationV07;
-use alloy::sol_types::SolValue;
+use {crate::user_operation::UserOperationV07, alloy::sol_types::SolValue};
 
 pub mod combine;
 pub mod hashed_call_data;

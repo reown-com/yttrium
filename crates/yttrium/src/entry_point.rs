@@ -1,7 +1,9 @@
-use crate::chain::ChainId;
-use alloy::{
-    primitives::{address, Address},
-    sol,
+use {
+    crate::chain::ChainId,
+    alloy::{
+        primitives::{address, Address},
+        sol,
+    },
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -149,8 +151,7 @@ impl From<String> for EntryPointVersion {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use eyre;
+    use {super::*, eyre};
 
     #[test]
     fn test_address_type() -> eyre::Result<()> {

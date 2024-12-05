@@ -1,7 +1,9 @@
-use super::Transaction;
-use alloy::primitives::Address;
-use relay_rpc::domain::ProjectId;
-use serde::{Deserialize, Serialize};
+use {
+    super::Transaction,
+    alloy::primitives::{Address, U256},
+    relay_rpc::domain::ProjectId,
+    serde::{Deserialize, Serialize},
+};
 
 pub const ROUTE_ENDPOINT_PATH: &str = "/v1/ca/orchestrator/route";
 
@@ -31,7 +33,8 @@ pub struct FundingMetadata {
     pub chain_id: String,
     pub token_contract: Address,
     pub symbol: String,
-    pub amount: String,
+    pub amount: U256,
+    pub bridging_fee: U256,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -39,6 +42,7 @@ pub struct FundingMetadata {
 #[serde(rename_all = "camelCase")]
 pub struct RouteResponseAvailable {
     pub orchestration_id: String,
+    pub initial_transaction: Transaction,
     pub transactions: Vec<Transaction>,
     pub metadata: Metadata,
 }
@@ -47,8 +51,8 @@ pub struct RouteResponseAvailable {
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
 #[serde(rename_all = "camelCase")]
 pub struct RouteResponseNotRequired {
-    #[serde(rename = "transactions")]
-    _flag: Vec<String>,
+    pub initial_transaction: Transaction,
+    pub transactions: Vec<Transaction>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

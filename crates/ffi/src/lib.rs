@@ -1,8 +1,9 @@
 #![allow(dead_code, improper_ctypes, clippy::unnecessary_cast)]
 
-use self::account_client::FFIAccountClient;
-use self::chain_abstraction_client::FFIChainClient;
-use self::erc6492_client::Erc6492Client;
+use self::{
+    account_client::FFIAccountClient, chain_abstraction_client::FFIChainClient,
+    erc6492_client::Erc6492Client,
+};
 
 pub mod account_client;
 pub mod chain_abstraction_client;
@@ -41,6 +42,8 @@ mod ffi {
     pub enum FFIRouteError {
         Request(String),
         RequestFailed(String),
+        DecodingText(String),
+        DecodingJson(String, String),
     }
 
     #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]

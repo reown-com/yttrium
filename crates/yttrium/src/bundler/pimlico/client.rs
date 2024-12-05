@@ -1,7 +1,9 @@
-use super::gas_price::GasPrice;
-use crate::{
-    bundler::config::BundlerConfig,
-    jsonrpc::{JSONRPCResponse, Request, Response},
+use {
+    super::gas_price::GasPrice,
+    crate::{
+        bundler::config::BundlerConfig,
+        jsonrpc::{JSONRPCResponse, Request, Response},
+    },
 };
 
 pub struct BundlerClient {
@@ -41,15 +43,21 @@ impl BundlerClient {
 
 #[cfg(test)]
 mod tests {
-    use super::super::gas_price::{GasPrice, GasPriceItem};
-    use super::*;
-    use alloy::primitives::U256;
-    use eyre::ensure;
+    use {
+        super::{
+            super::gas_price::{GasPrice, GasPriceItem},
+            *,
+        },
+        alloy::primitives::U256,
+        eyre::ensure,
+    };
 
     pub async fn setup_gas_estimation_bundler_mock(
     ) -> eyre::Result<BundlerClient> {
-        use wiremock::matchers::{method, path};
-        use wiremock::{Mock, MockServer, ResponseTemplate};
+        use wiremock::{
+            matchers::{method, path},
+            Mock, MockServer, ResponseTemplate,
+        };
 
         let mock_server = MockServer::start().await;
 

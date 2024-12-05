@@ -1,5 +1,7 @@
-use alloy::primitives::U256;
-use serde::{Deserialize, Serialize};
+use {
+    alloy::primitives::U256,
+    serde::{Deserialize, Serialize},
+};
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

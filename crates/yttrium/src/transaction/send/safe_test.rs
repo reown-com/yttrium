@@ -1,43 +1,45 @@
-use crate::{
-    bundler::{
-        client::BundlerClient,
-        config::BundlerConfig,
-        models::user_operation_receipt::UserOperationReceipt,
-        pimlico::{
-            client::BundlerClient as PimlicoBundlerClient,
-            paymaster::client::PaymasterClient,
+use {
+    crate::{
+        bundler::{
+            client::BundlerClient,
+            config::BundlerConfig,
+            models::user_operation_receipt::UserOperationReceipt,
+            pimlico::{
+                client::BundlerClient as PimlicoBundlerClient,
+                paymaster::client::PaymasterClient,
+            },
         },
-    },
-    chain::ChainId,
-    config::Config,
-    entry_point::EntryPointVersion,
-    smart_accounts::{
-        account_address::AccountAddress,
-        nonce::get_nonce,
-        safe::{
-            factory_data, get_account_address, get_call_data,
-            get_call_data_with_try, Owners, Safe7579Launchpad, SafeOp,
-            DUMMY_SIGNATURE, SAFE_4337_MODULE_ADDRESS,
-            SAFE_ERC_7579_LAUNCHPAD_ADDRESS, SAFE_PROXY_FACTORY_ADDRESS,
-            SEPOLIA_SAFE_ERC_7579_SINGLETON_ADDRESS,
+        chain::ChainId,
+        config::Config,
+        entry_point::EntryPointVersion,
+        smart_accounts::{
+            account_address::AccountAddress,
+            nonce::get_nonce,
+            safe::{
+                factory_data, get_account_address, get_call_data,
+                get_call_data_with_try, Owners, Safe7579Launchpad, SafeOp,
+                DUMMY_SIGNATURE, SAFE_4337_MODULE_ADDRESS,
+                SAFE_ERC_7579_LAUNCHPAD_ADDRESS, SAFE_PROXY_FACTORY_ADDRESS,
+                SEPOLIA_SAFE_ERC_7579_SINGLETON_ADDRESS,
+            },
         },
+        transaction::Transaction,
+        user_operation::{Authorization, UserOperationV07},
     },
-    transaction::Transaction,
-    user_operation::{Authorization, UserOperationV07},
+    alloy::{
+        dyn_abi::{DynSolValue, Eip712Domain},
+        network::Ethereum,
+        primitives::{aliases::U48, Bytes, Uint, B256, U128, U160, U256},
+        providers::{Provider, ReqwestProvider},
+        signers::{k256::ecdsa::SigningKey, local::LocalSigner, SignerSync},
+        sol_types::{SolCall, SolStruct},
+        transports::Transport,
+    },
+    alloy_provider::Network,
+    core::fmt,
+    serde::{Deserialize, Serialize},
+    std::ops::Not,
 };
-use alloy::{
-    dyn_abi::{DynSolValue, Eip712Domain},
-    network::Ethereum,
-    primitives::{aliases::U48, Bytes, Uint, B256, U128, U160, U256},
-    providers::{Provider, ReqwestProvider},
-    signers::{k256::ecdsa::SigningKey, local::LocalSigner, SignerSync},
-    sol_types::{SolCall, SolStruct},
-    transports::Transport,
-};
-use alloy_provider::Network;
-use core::fmt;
-use serde::{Deserialize, Serialize};
-use std::ops::Not;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct UserOperationEstimated(UserOperationV07);
@@ -441,8 +443,7 @@ where
     })
 }
 
-pub use alloy::primitives::Address;
-pub use alloy::primitives::PrimitiveSignature;
+pub use alloy::primitives::{Address, PrimitiveSignature};
 pub struct OwnerSignature {
     pub owner: Address,
     pub signature: PrimitiveSignature,
@@ -510,21 +511,24 @@ pub async fn do_send_transactions(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::smart_accounts::safe::sign_step_3;
-    use crate::smart_accounts::safe::SignOutputEnum;
-    use crate::{
-        chain::ChainId,
-        smart_accounts::safe::{prepare_sign, sign, PreparedSignature},
-        test_helpers::{self, use_faucet},
-        transaction::Transaction,
-    };
-    use alloy::network::{TransactionBuilder, TransactionBuilder7702};
-    use alloy::rpc::types::TransactionRequest;
-    use alloy::{
-        primitives::{eip191_hash_message, fixed_bytes, U160, U64},
-        providers::{ext::AnvilApi, PendingTransactionConfig},
-        sol,
+    use {
+        super::*,
+        crate::{
+            chain::ChainId,
+            smart_accounts::safe::{
+                prepare_sign, sign, sign_step_3, PreparedSignature,
+                SignOutputEnum,
+            },
+            test_helpers::{self, use_faucet},
+            transaction::Transaction,
+        },
+        alloy::{
+            network::{TransactionBuilder, TransactionBuilder7702},
+            primitives::{eip191_hash_message, fixed_bytes, U160, U64},
+            providers::{ext::AnvilApi, PendingTransactionConfig},
+            rpc::types::TransactionRequest,
+            sol,
+        },
     };
 
     async fn test_send_transaction(

@@ -1,5 +1,7 @@
-use alloy::primitives::utils::Unit;
-use serde::{Deserialize, Serialize};
+use {
+    alloy::primitives::utils::Unit,
+    serde::{Deserialize, Serialize},
+};
 
 // TODO get Blockchain API to use these types?
 

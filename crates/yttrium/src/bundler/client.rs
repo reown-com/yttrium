@@ -1,16 +1,26 @@
-use super::config::BundlerConfig;
-use super::models::estimate_result::EstimateResult;
-use super::models::user_operation_receipt::UserOperationReceipt;
-use crate::entry_point::EntryPointAddress;
-use crate::jsonrpc::{JSONRPCResponse, Request, Response};
-use crate::user_operation::UserOperationV07;
-use alloy::network::Ethereum;
-use alloy::primitives::B256;
-use alloy::transports::{Transport, TransportResult};
-use alloy_provider::{Network, Provider, ReqwestProvider};
-use eyre::Ok;
-use serde_json;
-use tracing::debug;
+use {
+    super::{
+        config::BundlerConfig,
+        models::{
+            estimate_result::EstimateResult,
+            user_operation_receipt::UserOperationReceipt,
+        },
+    },
+    crate::{
+        entry_point::EntryPointAddress,
+        jsonrpc::{JSONRPCResponse, Request, Response},
+        user_operation::UserOperationV07,
+    },
+    alloy::{
+        network::Ethereum,
+        primitives::B256,
+        transports::{Transport, TransportResult},
+    },
+    alloy_provider::{Network, Provider, ReqwestProvider},
+    eyre::Ok,
+    serde_json,
+    tracing::debug,
+};
 
 pub struct BundlerClient {
     client: reqwest::Client,
@@ -113,8 +123,10 @@ impl BundlerClient {
         &self,
         hash: B256,
     ) -> eyre::Result<UserOperationReceipt> {
-        use std::time::{Duration, Instant};
-        use tokio::time::sleep;
+        use {
+            std::time::{Duration, Instant},
+            tokio::time::sleep,
+        };
 
         let polling_interval = Duration::from_millis(2000);
         let timeout = Some(Duration::from_secs(60));
@@ -172,17 +184,21 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::{
-        bundler::models::estimate_result::EstimateResult, entry_point,
+    use {
+        super::*,
+        crate::{
+            bundler::models::estimate_result::EstimateResult, entry_point,
+        },
+        alloy::primitives::{Address, Bytes, U256},
+        eyre::ensure,
     };
-    use alloy::primitives::{Address, Bytes, U256};
-    use eyre::ensure;
 
     pub async fn setup_gas_estimation_bundler_mock(
     ) -> eyre::Result<BundlerClient> {
-        use wiremock::matchers::{method, path};
-        use wiremock::{Mock, MockServer, ResponseTemplate};
+        use wiremock::{
+            matchers::{method, path},
+            Mock, MockServer, ResponseTemplate,
+        };
 
         let mock_server = MockServer::start().await;
 

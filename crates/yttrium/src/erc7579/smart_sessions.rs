@@ -1,10 +1,11 @@
-use alloy::{
-    primitives::{address, Address},
-    sol,
-    sol_types::SolValue,
+use {
+    super::module::{Module, ModuleType},
+    alloy::{
+        primitives::{address, Address},
+        sol,
+        sol_types::SolValue,
+    },
 };
-
-use super::module::{Module, ModuleType};
 
 sol! {
     struct ChainDigest {

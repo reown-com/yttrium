@@ -1,11 +1,12 @@
-use crate::chain::ChainId;
-use crate::entry_point::EntryPointVersion;
-use alloy::{
-    contract::private::{Network, Provider, Transport},
-    primitives::Address,
-    sol,
+use {
+    crate::{chain::ChainId, entry_point::EntryPointVersion},
+    alloy::{
+        contract::private::{Network, Provider, Transport},
+        primitives::Address,
+        sol,
+    },
+    std::marker::PhantomData,
 };
-use std::marker::PhantomData;
 
 pub struct FactoryInstance<T, P, N = alloy::contract::private::Ethereum> {
     address: Address,

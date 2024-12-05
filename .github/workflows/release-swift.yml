@@ -53,12 +53,10 @@ jobs:
         run: | 
           sudo xcode-select -s /Applications/Xcode_15.4.app
 
-      # 6. Build and Package Rust XCFramework
-      - name: Build and Package Rust XCFramework
+      # 6. Build and Package XCFramework
+      - name: Build and Package XCFramework
         run: |
-          make build-ios-bindings-release
-          make zip-rust-xcframework
-          make compute-rust-checksum
+          make build-xcframework
           make generate-package-swift
 
       # 7. Update Podspec with Version and Download URL
@@ -68,10 +66,10 @@ jobs:
           sed -i '' "s/^  s\.version *= *.*/  s.version      = '${VERSION}'/g" YttriumWrapper.podspec
 
           # Construct the download URL
-          DOWNLOAD_URL="https://github.com/reown-com/yttrium/releases/download/${VERSION}/RustXcframework.xcframework.zip"
+          DOWNLOAD_URL="https://github.com/reown-com/yttrium/releases/download/${VERSION}/libuniffi_yttrium.xcframework.zip"
 
           # Replace the download URL in prepare_command
-          sed -i '' "s|curl -L -o RustXcframework.xcframework.zip '.*'|curl -L -o RustXcframework.xcframework.zip '${DOWNLOAD_URL}'|g" YttriumWrapper.podspec
+          sed -i '' "s|curl -L -o libuniffi_yttrium.xcframework.zip '.*'|curl -L -o libuniffi_yttrium.xcframework.zip '${DOWNLOAD_URL}'|g" YttriumWrapper.podspec
 
       # 8. Commit and Push Package.swift and Podspec
       - name: Commit and Push Package.swift and Podspec
@@ -80,7 +78,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add Package.swift crates/ffi/YttriumCore/Sources/YttriumCore/* YttriumWrapper.podspec
+          git add Package.swift platforms/swift/Sources/Yttrium/* YttriumWrapper.podspec
           if git diff --cached --quiet; then
             echo "No changes to commit."
           else
@@ -119,15 +117,15 @@ jobs:
           draft: false
           prerelease: true
 
-      # 11. Upload Rust XCFramework to the Release
-      - name: Upload Rust XCFramework to Release
+      # 11. Upload XCFramework to the Release
+      - name: Upload XCFramework to Release
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./Output/RustXcframework.xcframework.zip
-          asset_name: RustXcframework.xcframework.zip
+          asset_path: ./Output/libuniffi_yttrium.xcframework.zip
+          asset_name: libuniffi_yttrium.xcframework.zip
           asset_content_type: application/zip
 
       # 12. Publish to CocoaPods Trunk
