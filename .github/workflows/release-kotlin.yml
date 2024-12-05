@@ -10,7 +10,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  VERSION: ${{ github.event.inputs.version || '0.2.80' }}
+  VERSION: ${{ github.event.inputs.version || '0.2.81' }}
   TARGET_BRANCH: ${{ github.ref_name }}
 
 permissions:
@@ -47,6 +47,10 @@ jobs:
           api-level: 35
           build-tools: 35.0.0
           ndk-version: 27.2.12479018
+
+      - name: Build with Gradle
+        run: |
+          ./gradlew clean assembleRelease -Pversion=${{ env.VERSION }}
       
       - name: Install cargo-ndk
         run: |
@@ -107,8 +111,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: 0.2.80 #${{ env.VERSION }}
-          release_name: 0.2.80 #Yttrium ${{ env.VERSION }}
+          tag_name: ${{ env.VERSION }}
+          release_name: Yttrium ${{ env.VERSION }}
           draft: false
           prerelease: false
 
