@@ -1,5 +1,7 @@
-use relay_rpc::domain::ProjectId;
-use serde::{Deserialize, Serialize};
+use {
+    relay_rpc::domain::ProjectId,
+    serde::{Deserialize, Serialize},
+};
 
 pub const STATUS_ENDPOINT_PATH: &str = "/v1/ca/orchestrator/status";
 

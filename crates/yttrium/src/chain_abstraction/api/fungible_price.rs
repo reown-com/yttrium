@@ -1,7 +1,10 @@
-use crate::chain_abstraction::currency::Currency;
-use alloy::primitives::{address, map::HashSet, utils::Unit, Address};
-use relay_rpc::domain::ProjectId;
-use serde::{Deserialize, Serialize};
+use {
+    crate::chain_abstraction::currency::Currency,
+    alloy::primitives::{address, utils::Unit, Address},
+    relay_rpc::domain::ProjectId,
+    serde::{Deserialize, Serialize},
+    std::collections::HashSet,
+};
 
 pub const FUNGIBLE_PRICE_ENDPOINT_PATH: &str = "/v1/fungible/price";
 
@@ -31,7 +34,7 @@ pub struct PriceResponseBody {
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct FungiblePriceItem {
-    // pub address: String,
+    pub address: String,
     pub name: String,
     pub symbol: String,
     pub icon_url: String,

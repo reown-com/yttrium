@@ -1,21 +1,23 @@
 // Based off: https://github.com/rhinestonewtf/module-sdk-tutorials/blob/main/src/smart-sessions/permissionless-safe-7702.ts
 
-use crate::{
-    config::Config,
-    erc7579::{
-        ownable_validator::{encode_owners, OWNABLE_VALIDATOR_ADDRESS},
-        policy::get_sudo_policy,
-        smart_sessions::{ActionData, ERC7739Data, Session},
+use {
+    crate::{
+        config::Config,
+        erc7579::{
+            ownable_validator::{encode_owners, OWNABLE_VALIDATOR_ADDRESS},
+            policy::get_sudo_policy,
+            smart_sessions::{ActionData, ERC7739Data, Session},
+        },
+        smart_accounts::safe::Owners,
     },
-    smart_accounts::safe::Owners,
+    alloy::{
+        network::Ethereum,
+        primitives::{address, fixed_bytes, B256},
+        rpc::types::Authorization,
+        signers::local::LocalSigner,
+    },
+    alloy_provider::{Provider, ReqwestProvider},
 };
-use alloy::{
-    network::Ethereum,
-    primitives::{address, fixed_bytes, B256},
-    rpc::types::Authorization,
-    signers::local::LocalSigner,
-};
-use alloy_provider::{Provider, ReqwestProvider};
 
 #[tokio::test]
 async fn test() {

@@ -9,8 +9,7 @@ pub fn combine_and_trim_first_16_bytes(item1: U256, item2: U256) -> B256 {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use alloy::primitives::b256;
+    use {super::*, alloy::primitives::b256};
 
     #[test]
     fn test_combine_and_trim_first_16_bytes() {

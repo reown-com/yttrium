@@ -1,33 +1,11 @@
-use alloy::primitives::{Address, Bytes, U256, U64};
-use serde::{Deserialize, Serialize};
+use {
+    alloy::primitives::{Address, Bytes, U256, U64},
+    serde::{Deserialize, Serialize},
+};
 
 pub mod fungible_price;
 pub mod route;
 pub mod status;
-
-#[cfg(feature = "uniffi")]
-uniffi::custom_type!(Address, String, {
-    try_lift: |val| Ok(val.parse()?),
-    lower: |obj| obj.to_string(),
-});
-
-#[cfg(feature = "uniffi")]
-uniffi::custom_type!(U256, String, {
-    try_lift: |val| Ok(val.parse()?),
-    lower: |obj| obj.to_string(),
-});
-
-#[cfg(feature = "uniffi")]
-uniffi::custom_type!(U64, String, {
-    try_lift: |val| Ok(val.parse()?),
-    lower: |obj| obj.to_string(),
-});
-
-#[cfg(feature = "uniffi")]
-uniffi::custom_type!(Bytes, String, {
-    try_lift: |val| Ok(val.parse()?),
-    lower: |obj| obj.to_string(),
-});
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]

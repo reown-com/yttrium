@@ -15,6 +15,7 @@ thiserror = "1.0"
 
 # Async
 tokio = { version = "1.17", features = [] }
+futures = "0.3.31"
 
 # Networking
 reqwest = { version = "0.12.5", features = ["json"] }
@@ -30,6 +31,8 @@ log = "0.4.20"
 alloy = "0.6.1"
 alloy-provider = "0.6.1"
 erc6492 = { git = "https://github.com/reown-com/erc6492.git", branch = "main" }
+
+serial_test = "3.2.0"
 
 # The values have been configured this way to prevent crashes in Swift debug builds with the default settings.
 [profile.release]

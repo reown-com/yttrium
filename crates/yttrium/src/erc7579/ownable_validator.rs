@@ -1,8 +1,10 @@
-use super::module::{Module, ModuleType};
-use crate::smart_accounts::safe::Owners;
-use alloy::{
-    primitives::{address, Address, Bytes, U256},
-    sol_types::SolValue,
+use {
+    super::module::{Module, ModuleType},
+    crate::smart_accounts::safe::Owners,
+    alloy::{
+        primitives::{address, Address, Bytes, U256},
+        sol_types::SolValue,
+    },
 };
 
 pub const OWNABLE_VALIDATOR_ADDRESS: Address =

@@ -1,12 +1,14 @@
-use crate::{
-    smart_accounts::account_address::AccountAddress,
-    user_operation::{
-        hash::get_user_operation_hash_v07,
-        user_operation_hash::UserOperationHash,
+use {
+    crate::{
+        smart_accounts::account_address::AccountAddress,
+        user_operation::{
+            hash::get_user_operation_hash_v07,
+            user_operation_hash::UserOperationHash,
+        },
     },
+    alloy::primitives::{address, Address, Bytes, U256},
+    serde::{Deserialize, Serialize},
 };
-use alloy::primitives::{address, Address, Bytes, U256};
-use serde::{Deserialize, Serialize};
 
 pub mod hash;
 pub mod user_operation_hash;

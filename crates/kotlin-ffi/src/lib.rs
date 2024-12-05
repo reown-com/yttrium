@@ -1,27 +1,34 @@
 uniffi::setup_scaffolding!();
 
-use alloy::primitives::{Bytes as FFIBytes, U256 as FFIU256, U64 as FFIU64};
-use alloy::providers::Provider;
-use yttrium::chain_abstraction::api::route::RouteResponse;
-use yttrium::chain_abstraction::api::status::{
-    StatusResponse, StatusResponseCompleted,
-};
-use yttrium::chain_abstraction::api::Transaction as CATransaction;
-
-use alloy::{network::Ethereum, providers::ReqwestProvider};
-use relay_rpc::domain::ProjectId;
-use std::time::Duration;
-use yttrium::chain_abstraction::client::Client;
-use yttrium::config::Config;
-use yttrium::transaction::send::safe_test::{
-    Address as FFIAddress, OwnerSignature as YOwnerSignature,
-    PrimitiveSignature,
-};
-use yttrium::{
-    account_client::{AccountClient as YAccountClient, SignerType},
-    private_key_service::PrivateKeyService,
-    sign_service::address_from_string,
-    transaction::Transaction as YTransaction,
+use {
+    alloy::{
+        network::Ethereum,
+        primitives::{Bytes as FFIBytes, U256 as FFIU256, U64 as FFIU64},
+        providers::{Provider, ReqwestProvider},
+    },
+    relay_rpc::domain::ProjectId,
+    std::time::Duration,
+    yttrium::{
+        account_client::{AccountClient as YAccountClient, SignerType},
+        chain_abstraction::{
+            api::{
+                route::RouteResponse,
+                status::{StatusResponse, StatusResponseCompleted},
+                Transaction as CATransaction,
+            },
+            client::Client,
+        },
+        config::Config,
+        private_key_service::PrivateKeyService,
+        sign_service::address_from_string,
+        transaction::{
+            send::safe_test::{
+                Address as FFIAddress, OwnerSignature as YOwnerSignature,
+                PrimitiveSignature,
+            },
+            Transaction as YTransaction,
+        },
+    },
 };
 
 #[derive(uniffi::Record)]

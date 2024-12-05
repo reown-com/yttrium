@@ -44,6 +44,25 @@ impl Amount {
     pub fn zero() -> Self {
         Self::new("UNK".to_string(), U256::from(0), Unit::new(0).unwrap())
     }
+
+    /// Used only for tests. This function is inherently inaccurate and should
+    /// not be used in production.
+    pub fn as_float_inaccurate(&self) -> f64 {
+        to_float(self.amount, self.unit)
+    }
+}
+
+// Helpful to support badly-designed APIs that return floats
+pub fn from_float(amount: f64, precision: u8) -> (U256, Unit) {
+    (
+        U256::from(amount * 10_f64.powf(precision as f64)),
+        Unit::new(precision).unwrap(),
+    )
+}
+
+// Helpful to display the value or compare it to other floats in test cases
+pub fn to_float(amount: U256, decimals: Unit) -> f64 {
+    amount.to::<u128>() as f64 / 10_f64.powf(decimals.get() as f64)
 }
 
 impl Default for Amount {

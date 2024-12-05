@@ -1,7 +1,9 @@
-use alloy::primitives::{
-    address, b256, Address, BlockHash, Bytes, TxHash, B256, U128, U64, U8,
+use {
+    alloy::primitives::{
+        address, b256, Address, BlockHash, Bytes, TxHash, B256, U128, U64, U8,
+    },
+    serde::{Deserialize, Serialize},
 };
-use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

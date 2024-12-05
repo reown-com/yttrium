@@ -1,14 +1,16 @@
-use alloy::{
-    network::{Ethereum, EthereumWallet, TransactionBuilder},
-    primitives::{keccak256, Address, U256},
-    rpc::types::TransactionRequest,
-    signers::{k256::ecdsa::SigningKey, local::LocalSigner},
+use {
+    alloy::{
+        network::{Ethereum, EthereumWallet, TransactionBuilder},
+        primitives::{keccak256, Address, U256},
+        rpc::types::TransactionRequest,
+        signers::{k256::ecdsa::SigningKey, local::LocalSigner},
+    },
+    alloy_provider::{
+        ext::AnvilApi, Provider, ProviderBuilder, ReqwestProvider,
+    },
+    reqwest::IntoUrl,
+    std::time::{Duration, Instant},
 };
-use alloy_provider::{
-    ext::AnvilApi, Provider, ProviderBuilder, ReqwestProvider,
-};
-use reqwest::IntoUrl;
-use std::time::{Duration, Instant};
 
 pub fn private_faucet() -> LocalSigner<SigningKey> {
     use_account(None)
@@ -17,6 +19,8 @@ pub fn private_faucet() -> LocalSigner<SigningKey> {
 // Account index. Must have unique strings.
 pub const BRIDGE_ACCOUNT_1: &str = "bridge_1";
 pub const BRIDGE_ACCOUNT_2: &str = "bridge_2";
+pub const BRIDGE_ACCOUNT_USDC_1557_1: &str = "bridge_3";
+pub const BRIDGE_ACCOUNT_USDC_1557_2: &str = "bridge_4";
 
 pub fn use_account(name: Option<&str>) -> LocalSigner<SigningKey> {
     use alloy::signers::local::{coins_bip39::English, MnemonicBuilder};

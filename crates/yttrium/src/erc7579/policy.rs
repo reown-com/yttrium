@@ -1,5 +1,7 @@
-use super::smart_sessions::PolicyData;
-use alloy::primitives::{address, Address, Bytes};
+use {
+    super::smart_sessions::PolicyData,
+    alloy::primitives::{address, Address, Bytes},
+};
 
 pub const SUDO_POLICY_ADDRESS: Address =
     address!("529Ad04F4D83aAb25144a90267D4a1443B84f5A6");
