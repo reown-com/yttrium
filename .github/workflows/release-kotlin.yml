@@ -1,16 +1,15 @@
 name: Build and Release Yttrium Kotlin
 
 on:
-  push
-  # workflow_dispatch:
-  #   inputs:
-  #     version:
-  #       description: 'Version to release (e.g. 0.0.1)'
-  #       required: true
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g. 0.0.1)'
+        required: true
 
 env:
   CARGO_TERM_COLOR: always
-  VERSION: ${{ github.event.inputs.version || '0.2.82' }}
+  VERSION: ${{ github.event.inputs.version || '0.0.1' }}
   TARGET_BRANCH: ${{ github.ref_name }}
 
 permissions:
