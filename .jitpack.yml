@@ -22,8 +22,8 @@ before_install:
     - echo "Moving binaries..."
     - mv binaries/yttrium/libs/arm64-v8a/libuniffi_yttrium.so crates/kotlin-ffi/android/src/main/jniLibs/arm64-v8a/ || echo "Failed to move arm64-v8a .so"
     - mv binaries/yttrium/libs/armeabi-v7a/libuniffi_yttrium.so crates/kotlin-ffi/android/src/main/jniLibs/armeabi-v7a/ || echo "Failed to move armeabi-v7a .so"
-    - cd crates/kotlin-ffi/android
-    - ./gradlew clean --no-daemon
-    - ./gradlew assembleRelease --no-daemon --refresh-dependencies --info
-    - echo "Inspecting generated .aar file"
-    - unzip -l build/outputs/aar/android-release.aar || echo "Failed to inspect .aar"
+    # - cd crates/kotlin-ffi/android
+    # - ./gradlew clean --no-daemon
+    # - ./gradlew assembleRelease --no-daemon --refresh-dependencies --info
+    # - echo "Inspecting generated .aar file"
+    # - unzip -l build/outputs/aar/android-release.aar || echo "Failed to inspect .aar"

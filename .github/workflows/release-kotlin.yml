@@ -120,8 +120,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: 0.2.78 #${{ env.VERSION }}
-          release_name: 0.2.78 #Yttrium ${{ env.VERSION }}
+          tag_name: 0.2.79 #${{ env.VERSION }}
+          release_name: 0.2.79 #Yttrium ${{ env.VERSION }}
           draft: false
           prerelease: false
 
