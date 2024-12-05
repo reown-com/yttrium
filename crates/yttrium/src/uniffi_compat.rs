@@ -1,11 +1,16 @@
 use {
     crate::chain_abstraction::{amount::Amount, api::route::FundingMetadata},
-    alloy::primitives::{utils::Unit, Address, Bytes, B256, U256, U64},
+    alloy::primitives::{utils::Unit, Address, Bytes, B256, U128, U256, U64},
 };
 
 // TODO use https://mozilla.github.io/uniffi-rs/next/udl/remote_ext_types.html#remote-types when it's available
 
 uniffi::custom_type!(Address, String, {
+    try_lift: |val| Ok(val.parse()?),
+    lower: |obj| obj.to_string(),
+});
+
+uniffi::custom_type!(U128, String, {
     try_lift: |val| Ok(val.parse()?),
     lower: |obj| obj.to_string(),
 });
@@ -35,13 +40,11 @@ uniffi::custom_type!(Unit, u8, {
     lower: |obj| obj.get(),
 });
 
-#[cfg(feature = "uniffi")]
 #[uniffi::export]
 fn funding_metadata_to_amount(value: FundingMetadata) -> Amount {
     value.to_amount()
 }
 
-#[cfg(feature = "uniffi")]
 #[uniffi::export]
 fn funding_metadata_to_bridging_fee_amount(value: FundingMetadata) -> Amount {
     value.to_bridging_fee_amount()

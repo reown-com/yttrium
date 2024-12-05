@@ -1731,6 +1731,72 @@ public func FfiConverterTypeTransaction_lower(_ value: Transaction) -> RustBuffe
     return FfiConverterTypeTransaction.lower(value)
 }
 
+
+public struct TransactionFee {
+    public var fee: Amount
+    public var localFee: Amount
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(fee: Amount, localFee: Amount) {
+        self.fee = fee
+        self.localFee = localFee
+    }
+}
+
+
+
+extension TransactionFee: Equatable, Hashable {
+    public static func ==(lhs: TransactionFee, rhs: TransactionFee) -> Bool {
+        if lhs.fee != rhs.fee {
+            return false
+        }
+        if lhs.localFee != rhs.localFee {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(fee)
+        hasher.combine(localFee)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeTransactionFee: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> TransactionFee {
+        return
+            try TransactionFee(
+                fee: FfiConverterTypeAmount.read(from: &buf), 
+                localFee: FfiConverterTypeAmount.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: TransactionFee, into buf: inout [UInt8]) {
+        FfiConverterTypeAmount.write(value.fee, into: &buf)
+        FfiConverterTypeAmount.write(value.localFee, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTransactionFee_lift(_ buf: RustBuffer) throws -> TransactionFee {
+    return try FfiConverterTypeTransactionFee.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTransactionFee_lower(_ value: TransactionFee) -> RustBuffer {
+    return FfiConverterTypeTransactionFee.lower(value)
+}
+
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
 
@@ -1799,6 +1865,119 @@ public func FfiConverterTypeBridgingError_lower(_ value: BridgingError) -> RustB
 
 
 extension BridgingError: Equatable, Hashable {}
+
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+
+public enum Currency {
+    
+    case usd
+    case eur
+    case gbp
+    case aud
+    case cad
+    case inr
+    case jpy
+    case btc
+    case eth
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeCurrency: FfiConverterRustBuffer {
+    typealias SwiftType = Currency
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Currency {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .usd
+        
+        case 2: return .eur
+        
+        case 3: return .gbp
+        
+        case 4: return .aud
+        
+        case 5: return .cad
+        
+        case 6: return .inr
+        
+        case 7: return .jpy
+        
+        case 8: return .btc
+        
+        case 9: return .eth
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: Currency, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .usd:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .eur:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .gbp:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .aud:
+            writeInt(&buf, Int32(4))
+        
+        
+        case .cad:
+            writeInt(&buf, Int32(5))
+        
+        
+        case .inr:
+            writeInt(&buf, Int32(6))
+        
+        
+        case .jpy:
+            writeInt(&buf, Int32(7))
+        
+        
+        case .btc:
+            writeInt(&buf, Int32(8))
+        
+        
+        case .eth:
+            writeInt(&buf, Int32(9))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCurrency_lift(_ buf: RustBuffer) throws -> Currency {
+    return try FfiConverterTypeCurrency.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCurrency_lower(_ value: Currency) -> RustBuffer {
+    return FfiConverterTypeCurrency.lower(value)
+}
+
+
+
+extension Currency: Equatable, Hashable {}
 
 
 
