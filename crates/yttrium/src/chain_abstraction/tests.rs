@@ -1374,6 +1374,71 @@ async fn happy_path_full_dependency_on_route_ui_fields() {
     result.transactions[0].gas = U64::from(60000 /* 55437 */); // until Blockchain API estimates this
     result.transactions[1].gas = U64::from(140000 /* 107394 */); // until Blockchain API estimates this
 
+    assert_eq!(result.metadata.funding_from.len(), 1);
+    assert_eq!(result.metadata.funding_from.first().unwrap().symbol, "USDC");
+    assert_eq!(
+        result.metadata.funding_from.first().unwrap().decimals,
+        Unit::new(6).unwrap()
+    );
+    assert_eq!(
+        result
+            .metadata
+            .funding_from
+            .first()
+            .unwrap()
+            .clone()
+            .to_amount()
+            .symbol,
+        "USDC"
+    );
+    assert!(result
+        .metadata
+        .funding_from
+        .first()
+        .unwrap()
+        .to_amount()
+        .formatted
+        .ends_with(" USDC"));
+    println!(
+        "{}",
+        result.metadata.funding_from.first().unwrap().to_amount().formatted
+    );
+    assert!(result
+        .metadata
+        .funding_from
+        .first()
+        .unwrap()
+        .to_amount()
+        .formatted
+        .starts_with("1.5"));
+    assert!(result
+        .metadata
+        .funding_from
+        .first()
+        .unwrap()
+        .to_bridging_fee_amount()
+        .formatted
+        .starts_with("0."));
+    assert!(
+        result.metadata.funding_from.first().unwrap().amount <= required_amount
+    );
+    assert!(result.metadata.funding_from.first().unwrap().amount > send_amount);
+    assert!(
+        result.metadata.funding_from.first().unwrap().bridging_fee > U256::ZERO
+    );
+    assert!(
+        result.metadata.funding_from.first().unwrap().bridging_fee
+            < send_amount / U256::from(2)
+    );
+    assert_eq!(
+        result.metadata.funding_from.first().unwrap().chain_id,
+        source.bridge_token(&sources).params.chain.eip155_chain_id()
+    );
+    assert_eq!(
+        &result.metadata.funding_from.first().unwrap().token_contract,
+        source.bridge_token(&sources).token.address()
+    );
+
     let start = Instant::now();
     let route_ui_fields = client
         .get_route_ui_fields(
