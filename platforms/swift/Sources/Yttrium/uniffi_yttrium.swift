@@ -483,6 +483,8 @@ fileprivate struct FfiConverterString: FfiConverter {
 
 public protocol ChainAbstractionClientProtocol : AnyObject {
     
+    func erc20TokenBalance(chainId: String, token: FfiAddress, owner: FfiAddress) async throws  -> Ffiu256
+    
     func estimateFees(chainId: String) async throws  -> Eip1559Estimation
     
     func route(transaction: InitTransaction) async throws  -> RouteResponse
@@ -550,6 +552,23 @@ public convenience init(projectId: String) {
 
     
 
+    
+open func erc20TokenBalance(chainId: String, token: FfiAddress, owner: FfiAddress)async throws  -> Ffiu256  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_uniffi_yttrium_fn_method_chainabstractionclient_erc20_token_balance(
+                    self.uniffiClonePointer(),
+                    FfiConverterString.lower(chainId),FfiConverterTypeFFIAddress.lower(token),FfiConverterTypeFFIAddress.lower(owner)
+                )
+            },
+            pollFunc: ffi_uniffi_yttrium_rust_future_poll_rust_buffer,
+            completeFunc: ffi_uniffi_yttrium_rust_future_complete_rust_buffer,
+            freeFunc: ffi_uniffi_yttrium_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeFFIU256.lift,
+            errorHandler: FfiConverterTypeFFIError.lift
+        )
+}
     
 open func estimateFees(chainId: String)async throws  -> Eip1559Estimation  {
     return
@@ -1756,6 +1775,9 @@ private let initializationResult: InitializationResult = {
     let scaffolding_contract_version = ffi_uniffi_yttrium_uniffi_contract_version()
     if bindings_contract_version != scaffolding_contract_version {
         return InitializationResult.contractVersionMismatch
+    }
+    if (uniffi_uniffi_yttrium_checksum_method_chainabstractionclient_erc20_token_balance() != 32854) {
+        return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_uniffi_yttrium_checksum_method_chainabstractionclient_estimate_fees() != 51281) {
         return InitializationResult.apiChecksumMismatch
