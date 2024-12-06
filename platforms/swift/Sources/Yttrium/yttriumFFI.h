@@ -261,6 +261,36 @@ void*_Nonnull uniffi_yttrium_fn_clone_accountclient(void*_Nonnull ptr, RustCallS
 void uniffi_yttrium_fn_free_accountclient(void*_Nonnull ptr, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_YTTRIUM_FN_CLONE_ERC6492CLIENT
+#define UNIFFI_FFIDEF_UNIFFI_YTTRIUM_FN_CLONE_ERC6492CLIENT
+void*_Nonnull uniffi_yttrium_fn_clone_erc6492client(void*_Nonnull ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_YTTRIUM_FN_FREE_ERC6492CLIENT
+#define UNIFFI_FFIDEF_UNIFFI_YTTRIUM_FN_FREE_ERC6492CLIENT
+void uniffi_yttrium_fn_free_erc6492client(void*_Nonnull ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_YTTRIUM_FN_CONSTRUCTOR_ERC6492CLIENT_NEW
+#define UNIFFI_FFIDEF_UNIFFI_YTTRIUM_FN_CONSTRUCTOR_ERC6492CLIENT_NEW
+void*_Nonnull uniffi_yttrium_fn_constructor_erc6492client_new(RustBuffer rpc_url, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_YTTRIUM_FN_METHOD_ERC6492CLIENT_VERIFY_SIGNATURE
+#define UNIFFI_FFIDEF_UNIFFI_YTTRIUM_FN_METHOD_ERC6492CLIENT_VERIFY_SIGNATURE
+uint64_t uniffi_yttrium_fn_method_erc6492client_verify_signature(void*_Nonnull ptr, RustBuffer signature, RustBuffer address, RustBuffer message_hash
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_YTTRIUM_FN_FUNC_FUNDING_METADATA_TO_AMOUNT
+#define UNIFFI_FFIDEF_UNIFFI_YTTRIUM_FN_FUNC_FUNDING_METADATA_TO_AMOUNT
+RustBuffer uniffi_yttrium_fn_func_funding_metadata_to_amount(RustBuffer value, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_YTTRIUM_FN_FUNC_FUNDING_METADATA_TO_BRIDGING_FEE_AMOUNT
+#define UNIFFI_FFIDEF_UNIFFI_YTTRIUM_FN_FUNC_FUNDING_METADATA_TO_BRIDGING_FEE_AMOUNT
+RustBuffer uniffi_yttrium_fn_func_funding_metadata_to_bridging_fee_amount(RustBuffer value, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_FFI_YTTRIUM_RUSTBUFFER_ALLOC
 #define UNIFFI_FFIDEF_FFI_YTTRIUM_RUSTBUFFER_ALLOC
 RustBuffer ffi_yttrium_rustbuffer_alloc(uint64_t size, RustCallStatus *_Nonnull out_status
@@ -539,6 +569,30 @@ void ffi_yttrium_rust_future_free_void(uint64_t handle
 #ifndef UNIFFI_FFIDEF_FFI_YTTRIUM_RUST_FUTURE_COMPLETE_VOID
 #define UNIFFI_FFIDEF_FFI_YTTRIUM_RUST_FUTURE_COMPLETE_VOID
 void ffi_yttrium_rust_future_complete_void(uint64_t handle, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_YTTRIUM_CHECKSUM_FUNC_FUNDING_METADATA_TO_AMOUNT
+#define UNIFFI_FFIDEF_UNIFFI_YTTRIUM_CHECKSUM_FUNC_FUNDING_METADATA_TO_AMOUNT
+uint16_t uniffi_yttrium_checksum_func_funding_metadata_to_amount(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_YTTRIUM_CHECKSUM_FUNC_FUNDING_METADATA_TO_BRIDGING_FEE_AMOUNT
+#define UNIFFI_FFIDEF_UNIFFI_YTTRIUM_CHECKSUM_FUNC_FUNDING_METADATA_TO_BRIDGING_FEE_AMOUNT
+uint16_t uniffi_yttrium_checksum_func_funding_metadata_to_bridging_fee_amount(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_YTTRIUM_CHECKSUM_METHOD_ERC6492CLIENT_VERIFY_SIGNATURE
+#define UNIFFI_FFIDEF_UNIFFI_YTTRIUM_CHECKSUM_METHOD_ERC6492CLIENT_VERIFY_SIGNATURE
+uint16_t uniffi_yttrium_checksum_method_erc6492client_verify_signature(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_YTTRIUM_CHECKSUM_CONSTRUCTOR_ERC6492CLIENT_NEW
+#define UNIFFI_FFIDEF_UNIFFI_YTTRIUM_CHECKSUM_CONSTRUCTOR_ERC6492CLIENT_NEW
+uint16_t uniffi_yttrium_checksum_constructor_erc6492client_new(void
+    
 );
 #endif
 #ifndef UNIFFI_FFIDEF_FFI_YTTRIUM_UNIFFI_CONTRACT_VERSION

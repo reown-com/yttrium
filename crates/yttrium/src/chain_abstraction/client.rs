@@ -94,7 +94,7 @@ impl Client {
         initial_transaction: Transaction,
         currency: Currency,
         // TODO use this to e.g. modify priority fee
-        _speed: String,
+        // _speed: String,
     ) -> Result<RouteUiFields, RouteUiFieldsError> {
         let chains = route_response
             .transactions
@@ -307,7 +307,11 @@ impl Client {
                     })
                     .unwrap(),
             );
-            route.push((item.0, item.1, fee));
+            route.push(TxnDetails {
+                transaction: item.0,
+                estimate: item.1,
+                fee,
+            });
         }
 
         let initial_fee = compute_amounts(
@@ -325,11 +329,11 @@ impl Client {
                 })
                 .unwrap(),
         );
-        let initial = (
-            estimated_initial_transaction.0,
-            estimated_initial_transaction.1,
-            initial_fee,
-        );
+        let initial = TxnDetails {
+            transaction: estimated_initial_transaction.0,
+            estimate: estimated_initial_transaction.1,
+            fee: initial_fee,
+        };
 
         let mut bridge =
             Vec::with_capacity(route_response.metadata.funding_from.len());
@@ -490,6 +494,7 @@ impl Client {
 }
 
 #[derive(Debug)]
+// #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
 pub struct RouteUiFields {
     pub route: Vec<TxnDetails>,
     pub bridge: Vec<TransactionFee>,
@@ -497,9 +502,16 @@ pub struct RouteUiFields {
     pub local_total: Amount,
 }
 
-pub type TxnDetails = (Transaction, Eip1559Estimation, TransactionFee);
+#[derive(Debug)]
+// #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
+pub struct TxnDetails {
+    pub transaction: Transaction,
+    pub estimate: Eip1559Estimation,
+    pub fee: TransactionFee,
+}
 
 #[derive(Debug)]
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
 pub struct TransactionFee {
     pub fee: Amount,
     pub local_fee: Amount,

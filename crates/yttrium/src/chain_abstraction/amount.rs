@@ -4,6 +4,7 @@ use alloy::primitives::{
 };
 
 #[derive(Debug)]
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
 pub struct Amount {
     pub symbol: String,        // USDC, USD
     pub amount: U256,          // e.g. 40000, 4
