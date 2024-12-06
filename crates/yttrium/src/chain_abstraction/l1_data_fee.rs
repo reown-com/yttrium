@@ -1,11 +1,13 @@
-use alloy::{
-    network::TransactionBuilder,
-    primitives::{address, Address, U256},
-    rlp::Encodable,
-    rpc::types::TransactionRequest,
-    sol,
+use {
+    alloy::{
+        network::TransactionBuilder,
+        primitives::{address, keccak256, Address, U256},
+        rlp::Encodable,
+        rpc::types::TransactionRequest,
+        sol,
+    },
+    alloy_provider::ReqwestProvider,
 };
-use alloy_provider::ReqwestProvider;
 
 // https://docs.optimism.io/builders/app-developers/transactions/fees#l1-data-fee
 sol! {
@@ -31,6 +33,8 @@ pub async fn get_l1_data_fee(
     // let built = txn.build(wallet).await.unwrap();
     // let mut buf = Vec::with_capacity(built.eip2718_encoded_length());
     // built.as_eip1559().unwrap().rlp_encode(&mut buf);
+    println!("l1_data_fee txn: {:?}", txn);
+    println!("l1_data_fee txn hash: {}", hex::encode(keccak256(&buf)));
     let current_l1_fee = match oracle.getL1Fee(buf.into()).call().await {
         Ok(fee) => fee._0,
         Err(e) => {

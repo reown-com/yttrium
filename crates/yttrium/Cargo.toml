@@ -38,6 +38,7 @@ thiserror.workspace = true
 
 # Async
 tokio.workspace = true
+futures.workspace = true
 
 # Serialization
 serde.workspace = true
@@ -63,3 +64,4 @@ wiremock = "0.6.0"
 # Networking
 reqwest.workspace = true
 alloy = { workspace = true, features = ["node-bindings"] }
+serial_test.workspace = true

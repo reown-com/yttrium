@@ -1,5 +1,7 @@
-use crate::user_operation::UserOperationV07;
-use alloy::primitives::{keccak256, B256};
+use {
+    crate::user_operation::UserOperationV07,
+    alloy::primitives::{keccak256, B256},
+};
 
 pub fn get_hashed_call_data(user_operation: &UserOperationV07) -> B256 {
     keccak256(&user_operation.call_data)

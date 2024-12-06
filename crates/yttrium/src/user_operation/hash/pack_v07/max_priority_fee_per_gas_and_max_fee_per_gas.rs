@@ -1,5 +1,4 @@
-use crate::user_operation::UserOperationV07;
-use alloy::primitives::B256;
+use {crate::user_operation::UserOperationV07, alloy::primitives::B256};
 
 pub fn get_max_priority_fee_per_gas_and_max_fee_per_gas(
     user_operation: &UserOperationV07,
@@ -12,8 +11,7 @@ pub fn get_max_priority_fee_per_gas_and_max_fee_per_gas(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use alloy::primitives::fixed_bytes;
+    use {super::*, alloy::primitives::fixed_bytes};
 
     #[test]
     fn test_get_max_priority_fee_per_gas_and_max_fee_per_gas() {

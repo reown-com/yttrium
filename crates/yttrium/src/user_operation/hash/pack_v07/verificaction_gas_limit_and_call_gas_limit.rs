@@ -1,6 +1,7 @@
-use super::combine::combine_and_trim_first_16_bytes;
-use crate::user_operation::UserOperationV07;
-use alloy::primitives::B256;
+use {
+    super::combine::combine_and_trim_first_16_bytes,
+    crate::user_operation::UserOperationV07, alloy::primitives::B256,
+};
 
 pub fn get_verificaction_gas_limit_and_call_gas_limit(
     user_operation: &UserOperationV07,
@@ -13,8 +14,7 @@ pub fn get_verificaction_gas_limit_and_call_gas_limit(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use alloy::primitives::fixed_bytes;
+    use {super::*, alloy::primitives::fixed_bytes};
 
     #[test]
     fn test_get_verificaction_gas_limit_and_call_gas_limit() {

@@ -1,15 +1,19 @@
-use crate::user_operation::UserOperationV07;
-use crate::{error::YttriumError, sign_service::SignService};
-use alloy::{
-    primitives::Address,
-    signers::{
-        local::{coins_bip39::English, MnemonicBuilder, PrivateKeySigner},
-        SignerSync,
+use {
+    crate::{
+        error::YttriumError, sign_service::SignService,
+        user_operation::UserOperationV07,
     },
+    alloy::{
+        primitives::Address,
+        signers::{
+            local::{coins_bip39::English, MnemonicBuilder, PrivateKeySigner},
+            SignerSync,
+        },
+    },
+    eyre,
+    std::sync::Arc,
+    tokio::sync::{Mutex, MutexGuard},
 };
-use eyre;
-use std::sync::Arc;
-use tokio::sync::{Mutex, MutexGuard};
 
 pub struct Signer {
     sign_service: Arc<Mutex<SignService>>,
@@ -228,8 +232,7 @@ pub fn sign_user_operation_v07_with_ecdsa(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use eyre::ensure;
+    use {super::*, eyre::ensure};
 
     pub const ETHERIEUM_MAINNET_CHAIN_ID: u64 = 1;
     pub const MNEMONIC_PHRASE: &str =

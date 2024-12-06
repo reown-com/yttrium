@@ -1,5 +1,7 @@
-use crate::entry_point::{EntryPointConfig, EntryPointVersion};
-use std::fmt;
+use {
+    crate::entry_point::{EntryPointConfig, EntryPointVersion},
+    std::fmt,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ChainId(u64);

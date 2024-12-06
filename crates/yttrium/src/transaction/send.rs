@@ -1,12 +1,17 @@
-use crate::transaction::send::simple_account_test::send_transaction_with_signer;
-use crate::{
-    config::Config, transaction::Transaction, user_operation::UserOperationV07,
-};
-use alloy::primitives::B256;
-use alloy::signers::local::PrivateKeySigner;
-use core::fmt;
-use safe_test::{
-    DoSendTransactionParams, OwnerSignature, PreparedSendTransaction,
+use {
+    crate::{
+        config::Config,
+        transaction::{
+            send::simple_account_test::send_transaction_with_signer,
+            Transaction,
+        },
+        user_operation::UserOperationV07,
+    },
+    alloy::{primitives::B256, signers::local::PrivateKeySigner},
+    core::fmt,
+    safe_test::{
+        DoSendTransactionParams, OwnerSignature, PreparedSendTransaction,
+    },
 };
 
 pub mod safe_test;
@@ -158,39 +163,40 @@ pub async fn do_send_transactions(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::{
-        bundler::{
-            client::BundlerClient,
-            config::BundlerConfig,
-            pimlico::{
-                client::BundlerClient as PimlicoBundlerClient,
-                paymaster::client::PaymasterClient,
+    use {
+        super::*,
+        crate::{
+            bundler::{
+                client::BundlerClient,
+                config::BundlerConfig,
+                pimlico::{
+                    client::BundlerClient as PimlicoBundlerClient,
+                    paymaster::client::PaymasterClient,
+                },
+            },
+            entry_point::get_sender_address::get_sender_address_v07,
+            sign_service::SignService,
+            signer::sign_user_operation_v07_with_ecdsa,
+            smart_accounts::{
+                nonce::get_nonce,
+                simple_account::{
+                    create_account::SimpleAccountCreate,
+                    factory::FactoryAddress, SimpleAccountExecute,
+                },
+            },
+            user_operation::UserOperationV07,
+        },
+        alloy::{
+            network::EthereumWallet,
+            primitives::{Address, Bytes, B256, U256},
+            providers::ProviderBuilder,
+            signers::local::{
+                coins_bip39::English, MnemonicBuilder, PrivateKeySigner,
             },
         },
-        entry_point::get_sender_address::get_sender_address_v07,
-        sign_service::SignService,
-        signer::sign_user_operation_v07_with_ecdsa,
-        smart_accounts::{
-            nonce::get_nonce,
-            simple_account::{
-                create_account::SimpleAccountCreate, factory::FactoryAddress,
-                SimpleAccountExecute,
-            },
-        },
-        user_operation::UserOperationV07,
+        std::{str::FromStr, sync::Arc},
+        tokio::sync::Mutex,
     };
-    use alloy::{
-        network::EthereumWallet,
-        primitives::{Address, Bytes, B256, U256},
-        providers::ProviderBuilder,
-        signers::local::{
-            coins_bip39::English, MnemonicBuilder, PrivateKeySigner,
-        },
-    };
-    use std::str::FromStr;
-    use std::sync::Arc;
-    use tokio::sync::Mutex;
 
     const MNEMONIC_PHRASE: &str =
         "test test test test test test test test test test test junk";

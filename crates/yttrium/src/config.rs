@@ -1,5 +1,4 @@
-use dotenvy::dotenv;
-use std::env;
+use {dotenvy::dotenv, std::env};
 
 const LOCAL_RPC_URL: &str = "http://localhost:8545";
 const LOCAL_BUNDLER_URL: &str = "http://localhost:4337";

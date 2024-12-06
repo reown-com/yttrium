@@ -1,9 +1,11 @@
-use crate::user_operation::{
-    user_operation_hash::UserOperationHash, UserOperationV07,
-};
-use alloy::{
-    primitives::{keccak256, Address, Bytes, B256, U256},
-    sol_types::SolValue,
+use {
+    crate::user_operation::{
+        user_operation_hash::UserOperationHash, UserOperationV07,
+    },
+    alloy::{
+        primitives::{keccak256, Address, Bytes, B256, U256},
+        sol_types::SolValue,
+    },
 };
 
 pub mod pack_v07;

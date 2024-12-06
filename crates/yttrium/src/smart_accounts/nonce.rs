@@ -1,15 +1,17 @@
-use crate::{
-    entry_point::{EntryPoint, EntryPointAddress},
-    smart_accounts::account_address::AccountAddress,
-};
-use alloy::{
-    contract::{
-        private::{Network, Provider, Transport},
-        Error,
+use {
+    crate::{
+        entry_point::{EntryPoint, EntryPointAddress},
+        smart_accounts::account_address::AccountAddress,
     },
-    primitives::{aliases::U192, U256},
+    alloy::{
+        contract::{
+            private::{Network, Provider, Transport},
+            Error,
+        },
+        primitives::{aliases::U192, U256},
+    },
+    core::clone::Clone,
 };
-use core::clone::Clone;
 
 pub async fn get_nonce<P, T, N>(
     provider: &P,

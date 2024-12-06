@@ -8,10 +8,10 @@ import Foundation
 // might be in a separate module, or it might be compiled inline into
 // this module. This is a bit of light hackery to work with both.
 #if canImport(uniffi_yttriumFFI)
-    import uniffi_yttriumFFI
+import uniffi_yttriumFFI
 #endif
 
-private extension RustBuffer {
+fileprivate extension RustBuffer {
     // Allocate a new buffer, copying the contents of a `UInt8` array.
     init(bytes: [UInt8]) {
         let rbuf = bytes.withUnsafeBufferPointer { ptr in
@@ -21,7 +21,7 @@ private extension RustBuffer {
     }
 
     static func empty() -> RustBuffer {
-        RustBuffer(capacity: 0, len: 0, data: nil)
+        RustBuffer(capacity: 0, len:0, data: nil)
     }
 
     static func from(_ ptr: UnsafeBufferPointer<UInt8>) -> RustBuffer {
@@ -35,7 +35,7 @@ private extension RustBuffer {
     }
 }
 
-private extension ForeignBytes {
+fileprivate extension ForeignBytes {
     init(bufferPointer: UnsafeBufferPointer<UInt8>) {
         self.init(len: Int32(bufferPointer.count), data: bufferPointer.baseAddress)
     }
@@ -48,7 +48,7 @@ private extension ForeignBytes {
 // Helper classes/extensions that don't change.
 // Someday, this will be in a library of its own.
 
-private extension Data {
+fileprivate extension Data {
     init(rustBuffer: RustBuffer) {
         self.init(
             bytesNoCopy: rustBuffer.data!,
@@ -72,15 +72,15 @@ private extension Data {
 //
 // Instead, the read() method and these helper functions input a tuple of data
 
-private func createReader(data: Data) -> (data: Data, offset: Data.Index) {
+fileprivate func createReader(data: Data) -> (data: Data, offset: Data.Index) {
     (data: data, offset: 0)
 }
 
 // Reads an integer at the current offset, in big-endian order, and advances
 // the offset on success. Throws if reading the integer would move the
 // offset past the end of the buffer.
-private func readInt<T: FixedWidthInteger>(_ reader: inout (data: Data, offset: Data.Index)) throws -> T {
-    let range = reader.offset ..< reader.offset + MemoryLayout<T>.size
+fileprivate func readInt<T: FixedWidthInteger>(_ reader: inout (data: Data, offset: Data.Index)) throws -> T {
+    let range = reader.offset..<reader.offset + MemoryLayout<T>.size
     guard reader.data.count >= range.upperBound else {
         throw UniffiInternalError.bufferOverflow
     }
@@ -90,38 +90,38 @@ private func readInt<T: FixedWidthInteger>(_ reader: inout (data: Data, offset: 
         return value as! T
     }
     var value: T = 0
-    let _ = withUnsafeMutableBytes(of: &value) { reader.data.copyBytes(to: $0, from: range) }
+    let _ = withUnsafeMutableBytes(of: &value, { reader.data.copyBytes(to: $0, from: range)})
     reader.offset = range.upperBound
     return value.bigEndian
 }
 
 // Reads an arbitrary number of bytes, to be used to read
 // raw bytes, this is useful when lifting strings
-private func readBytes(_ reader: inout (data: Data, offset: Data.Index), count: Int) throws -> [UInt8] {
-    let range = reader.offset ..< (reader.offset + count)
+fileprivate func readBytes(_ reader: inout (data: Data, offset: Data.Index), count: Int) throws -> Array<UInt8> {
+    let range = reader.offset..<(reader.offset+count)
     guard reader.data.count >= range.upperBound else {
         throw UniffiInternalError.bufferOverflow
     }
     var value = [UInt8](repeating: 0, count: count)
-    value.withUnsafeMutableBufferPointer { buffer in
+    value.withUnsafeMutableBufferPointer({ buffer in
         reader.data.copyBytes(to: buffer, from: range)
-    }
+    })
     reader.offset = range.upperBound
     return value
 }
 
 // Reads a float at the current offset.
-private func readFloat(_ reader: inout (data: Data, offset: Data.Index)) throws -> Float {
-    return try Float(bitPattern: readInt(&reader))
+fileprivate func readFloat(_ reader: inout (data: Data, offset: Data.Index)) throws -> Float {
+    return Float(bitPattern: try readInt(&reader))
 }
 
 // Reads a float at the current offset.
-private func readDouble(_ reader: inout (data: Data, offset: Data.Index)) throws -> Double {
-    return try Double(bitPattern: readInt(&reader))
+fileprivate func readDouble(_ reader: inout (data: Data, offset: Data.Index)) throws -> Double {
+    return Double(bitPattern: try readInt(&reader))
 }
 
 // Indicates if the offset has reached the end of the buffer.
-private func hasRemaining(_ reader: (data: Data, offset: Data.Index)) -> Bool {
+fileprivate func hasRemaining(_ reader: (data: Data, offset: Data.Index)) -> Bool {
     return reader.offset < reader.data.count
 }
 
@@ -129,11 +129,11 @@ private func hasRemaining(_ reader: (data: Data, offset: Data.Index)) -> Bool {
 // struct, but we use standalone functions instead in order to make external
 // types work.  See the above discussion on Readers for details.
 
-private func createWriter() -> [UInt8] {
+fileprivate func createWriter() -> [UInt8] {
     return []
 }
 
-private func writeBytes<S>(_ writer: inout [UInt8], _ byteArr: S) where S: Sequence, S.Element == UInt8 {
+fileprivate func writeBytes<S>(_ writer: inout [UInt8], _ byteArr: S) where S: Sequence, S.Element == UInt8 {
     writer.append(contentsOf: byteArr)
 }
 
@@ -141,22 +141,22 @@ private func writeBytes<S>(_ writer: inout [UInt8], _ byteArr: S) where S: Seque
 //
 // Warning: make sure what you are trying to write
 // is in the correct type!
-private func writeInt<T: FixedWidthInteger>(_ writer: inout [UInt8], _ value: T) {
+fileprivate func writeInt<T: FixedWidthInteger>(_ writer: inout [UInt8], _ value: T) {
     var value = value.bigEndian
     withUnsafeBytes(of: &value) { writer.append(contentsOf: $0) }
 }
 
-private func writeFloat(_ writer: inout [UInt8], _ value: Float) {
+fileprivate func writeFloat(_ writer: inout [UInt8], _ value: Float) {
     writeInt(&writer, value.bitPattern)
 }
 
-private func writeDouble(_ writer: inout [UInt8], _ value: Double) {
+fileprivate func writeDouble(_ writer: inout [UInt8], _ value: Double) {
     writeInt(&writer, value.bitPattern)
 }
 
 // Protocol for types that transfer other types across the FFI. This is
 // analogous to the Rust trait of the same name.
-private protocol FfiConverter {
+fileprivate protocol FfiConverter {
     associatedtype FfiType
     associatedtype SwiftType
 
@@ -167,19 +167,19 @@ private protocol FfiConverter {
 }
 
 // Types conforming to `Primitive` pass themselves directly over the FFI.
-private protocol FfiConverterPrimitive: FfiConverter where FfiType == SwiftType {}
+fileprivate protocol FfiConverterPrimitive: FfiConverter where FfiType == SwiftType { }
 
 extension FfiConverterPrimitive {
-    #if swift(>=5.8)
-        @_documentation(visibility: private)
-    #endif
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
     public static func lift(_ value: FfiType) throws -> SwiftType {
         return value
     }
 
-    #if swift(>=5.8)
-        @_documentation(visibility: private)
-    #endif
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
     public static func lower(_ value: SwiftType) -> FfiType {
         return value
     }
@@ -187,12 +187,12 @@ extension FfiConverterPrimitive {
 
 // Types conforming to `FfiConverterRustBuffer` lift and lower into a `RustBuffer`.
 // Used for complex types where it's hard to write a custom lift/lower.
-private protocol FfiConverterRustBuffer: FfiConverter where FfiType == RustBuffer {}
+fileprivate protocol FfiConverterRustBuffer: FfiConverter where FfiType == RustBuffer {}
 
 extension FfiConverterRustBuffer {
-    #if swift(>=5.8)
-        @_documentation(visibility: private)
-    #endif
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
     public static func lift(_ buf: RustBuffer) throws -> SwiftType {
         var reader = createReader(data: Data(rustBuffer: buf))
         let value = try read(from: &reader)
@@ -203,19 +203,18 @@ extension FfiConverterRustBuffer {
         return value
     }
 
-    #if swift(>=5.8)
-        @_documentation(visibility: private)
-    #endif
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
     public static func lower(_ value: SwiftType) -> RustBuffer {
-        var writer = createWriter()
-        write(value, into: &writer)
-        return RustBuffer(bytes: writer)
+          var writer = createWriter()
+          write(value, into: &writer)
+          return RustBuffer(bytes: writer)
     }
 }
-
 // An error type for FFI errors. These errors occur at the UniFFI level, not
 // the library level.
-private enum UniffiInternalError: LocalizedError {
+fileprivate enum UniffiInternalError: LocalizedError {
     case bufferOverflow
     case incompleteData
     case unexpectedOptionalTag
@@ -241,24 +240,24 @@ private enum UniffiInternalError: LocalizedError {
     }
 }
 
-private extension NSLock {
+fileprivate extension NSLock {
     func withLock<T>(f: () throws -> T) rethrows -> T {
-        lock()
+        self.lock()
         defer { self.unlock() }
         return try f()
     }
 }
 
-private let CALL_SUCCESS: Int8 = 0
-private let CALL_ERROR: Int8 = 1
-private let CALL_UNEXPECTED_ERROR: Int8 = 2
-private let CALL_CANCELLED: Int8 = 3
+fileprivate let CALL_SUCCESS: Int8 = 0
+fileprivate let CALL_ERROR: Int8 = 1
+fileprivate let CALL_UNEXPECTED_ERROR: Int8 = 2
+fileprivate let CALL_CANCELLED: Int8 = 3
 
-private extension RustCallStatus {
+fileprivate extension RustCallStatus {
     init() {
         self.init(
             code: CALL_SUCCESS,
-            errorBuf: RustBuffer(
+            errorBuf: RustBuffer.init(
                 capacity: 0,
                 len: 0,
                 data: nil
@@ -274,8 +273,7 @@ private func rustCall<T>(_ callback: (UnsafeMutablePointer<RustCallStatus>) -> T
 
 private func rustCallWithError<T, E: Swift.Error>(
     _ errorHandler: @escaping (RustBuffer) throws -> E,
-    _ callback: (UnsafeMutablePointer<RustCallStatus>) -> T
-) throws -> T {
+    _ callback: (UnsafeMutablePointer<RustCallStatus>) -> T) throws -> T {
     try makeRustCall(callback, errorHandler: errorHandler)
 }
 
@@ -284,7 +282,7 @@ private func makeRustCall<T, E: Swift.Error>(
     errorHandler: ((RustBuffer) throws -> E)?
 ) throws -> T {
     uniffiEnsureInitialized()
-    var callStatus = RustCallStatus()
+    var callStatus = RustCallStatus.init()
     let returnedVal = callback(&callStatus)
     try uniffiCheckCallStatus(callStatus: callStatus, errorHandler: errorHandler)
     return returnedVal
@@ -295,44 +293,44 @@ private func uniffiCheckCallStatus<E: Swift.Error>(
     errorHandler: ((RustBuffer) throws -> E)?
 ) throws {
     switch callStatus.code {
-    case CALL_SUCCESS:
-        return
+        case CALL_SUCCESS:
+            return
 
-    case CALL_ERROR:
-        if let errorHandler = errorHandler {
-            throw try errorHandler(callStatus.errorBuf)
-        } else {
-            callStatus.errorBuf.deallocate()
-            throw UniffiInternalError.unexpectedRustCallError
-        }
+        case CALL_ERROR:
+            if let errorHandler = errorHandler {
+                throw try errorHandler(callStatus.errorBuf)
+            } else {
+                callStatus.errorBuf.deallocate()
+                throw UniffiInternalError.unexpectedRustCallError
+            }
 
-    case CALL_UNEXPECTED_ERROR:
-        // When the rust code sees a panic, it tries to construct a RustBuffer
-        // with the message.  But if that code panics, then it just sends back
-        // an empty buffer.
-        if callStatus.errorBuf.len > 0 {
-            throw try UniffiInternalError.rustPanic(FfiConverterString.lift(callStatus.errorBuf))
-        } else {
-            callStatus.errorBuf.deallocate()
-            throw UniffiInternalError.rustPanic("Rust panic")
-        }
+        case CALL_UNEXPECTED_ERROR:
+            // When the rust code sees a panic, it tries to construct a RustBuffer
+            // with the message.  But if that code panics, then it just sends back
+            // an empty buffer.
+            if callStatus.errorBuf.len > 0 {
+                throw UniffiInternalError.rustPanic(try FfiConverterString.lift(callStatus.errorBuf))
+            } else {
+                callStatus.errorBuf.deallocate()
+                throw UniffiInternalError.rustPanic("Rust panic")
+            }
 
-    case CALL_CANCELLED:
-        fatalError("Cancellation not supported yet")
+        case CALL_CANCELLED:
+            fatalError("Cancellation not supported yet")
 
-    default:
-        throw UniffiInternalError.unexpectedRustCallStatusCode
+        default:
+            throw UniffiInternalError.unexpectedRustCallStatusCode
     }
 }
 
 private func uniffiTraitInterfaceCall<T>(
     callStatus: UnsafeMutablePointer<RustCallStatus>,
     makeCall: () throws -> T,
-    writeReturn: (T) -> Void
+    writeReturn: (T) -> ()
 ) {
     do {
         try writeReturn(makeCall())
-    } catch {
+    } catch let error {
         callStatus.pointee.code = CALL_UNEXPECTED_ERROR
         callStatus.pointee.errorBuf = FfiConverterString.lower(String(describing: error))
     }
@@ -341,7 +339,7 @@ private func uniffiTraitInterfaceCall<T>(
 private func uniffiTraitInterfaceCallWithError<T, E>(
     callStatus: UnsafeMutablePointer<RustCallStatus>,
     makeCall: () throws -> T,
-    writeReturn: (T) -> Void,
+    writeReturn: (T) -> (),
     lowerError: (E) -> RustBuffer
 ) {
     do {
@@ -354,8 +352,7 @@ private func uniffiTraitInterfaceCallWithError<T, E>(
         callStatus.pointee.errorBuf = FfiConverterString.lower(String(describing: error))
     }
 }
-
-private final class UniffiHandleMap<T>: @unchecked Sendable {
+fileprivate final class UniffiHandleMap<T>: @unchecked Sendable {
     // All mutation happens with this lock held, which is why we implement @unchecked Sendable.
     private let lock = NSLock()
     private var map: [UInt64: T] = [:]
@@ -370,7 +367,7 @@ private final class UniffiHandleMap<T>: @unchecked Sendable {
         }
     }
 
-    func get(handle: UInt64) throws -> T {
+     func get(handle: UInt64) throws -> T {
         try lock.withLock {
             guard let obj = map[handle] else {
                 throw UniffiInternalError.unexpectedStaleHandle
@@ -390,16 +387,20 @@ private final class UniffiHandleMap<T>: @unchecked Sendable {
     }
 
     var count: Int {
-        map.count
+        get {
+            map.count
+        }
     }
 }
 
+
 // Public interface members begin here.
 
+
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
-private struct FfiConverterUInt64: FfiConverterPrimitive {
+fileprivate struct FfiConverterUInt64: FfiConverterPrimitive {
     typealias FfiType = UInt64
     typealias SwiftType = UInt64
 
@@ -413,9 +414,9 @@ private struct FfiConverterUInt64: FfiConverterPrimitive {
 }
 
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
-private struct FfiConverterBool: FfiConverter {
+fileprivate struct FfiConverterBool : FfiConverter {
     typealias FfiType = Int8
     typealias SwiftType = Bool
 
@@ -437,9 +438,9 @@ private struct FfiConverterBool: FfiConverter {
 }
 
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
-private struct FfiConverterString: FfiConverter {
+fileprivate struct FfiConverterString: FfiConverter {
     typealias SwiftType = String
     typealias FfiType = RustBuffer
 
@@ -467,7 +468,7 @@ private struct FfiConverterString: FfiConverter {
 
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> String {
         let len: Int32 = try readInt(&buf)
-        return try String(bytes: readBytes(&buf, count: Int(len)), encoding: String.Encoding.utf8)!
+        return String(bytes: try readBytes(&buf, count: Int(len)), encoding: String.Encoding.utf8)!
     }
 
     public static func write(_ value: String, into buf: inout [UInt8]) {
@@ -477,25 +478,29 @@ private struct FfiConverterString: FfiConverter {
     }
 }
 
-public protocol ChainAbstractionClientProtocol: AnyObject {
-    func estimateFees(chainId: String) async throws -> Eip1559Estimation
 
-    func route(transaction: InitTransaction) async throws -> RouteResponse
 
-    func status(orchestrationId: String) async throws -> StatusResponse
 
-    func waitForSuccessWithTimeout(orchestrationId: String, checkIn: UInt64, timeout: UInt64) async throws -> StatusResponseCompleted
+public protocol ChainAbstractionClientProtocol : AnyObject {
+    
+    func estimateFees(chainId: String) async throws  -> Eip1559Estimation
+    
+    func route(transaction: InitTransaction) async throws  -> RouteResponse
+    
+    func status(orchestrationId: String) async throws  -> StatusResponse
+    
+    func waitForSuccessWithTimeout(orchestrationId: String, checkIn: UInt64, timeout: UInt64) async throws  -> StatusResponseCompleted
+    
 }
 
 open class ChainAbstractionClient:
-    ChainAbstractionClientProtocol
-{
+    ChainAbstractionClientProtocol {
     fileprivate let pointer: UnsafeMutableRawPointer!
 
     /// Used to instantiate a [FFIObject] without an actual pointer, for fakes in tests, mostly.
-    #if swift(>=5.8)
-        @_documentation(visibility: private)
-    #endif
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
     public struct NoPointer {
         public init() {}
     }
@@ -503,7 +508,7 @@ open class ChainAbstractionClient:
     // TODO: We'd like this to be `private` but for Swifty reasons,
     // we can't implement `FfiConverter` without making this `required` and we can't
     // make it `required` without making it `public`.
-    public required init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
+    required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
         self.pointer = pointer
     }
 
@@ -512,29 +517,28 @@ open class ChainAbstractionClient:
     //
     // - Warning:
     //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing [Pointer] the FFI lower functions will crash.
-    #if swift(>=5.8)
-        @_documentation(visibility: private)
-    #endif
-    public init(noPointer _: NoPointer) {
-        pointer = nil
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noPointer: NoPointer) {
+        self.pointer = nil
     }
 
-    #if swift(>=5.8)
-        @_documentation(visibility: private)
-    #endif
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
     public func uniffiClonePointer() -> UnsafeMutableRawPointer {
         return try! rustCall { uniffi_uniffi_yttrium_fn_clone_chainabstractionclient(self.pointer, $0) }
     }
-
-    public convenience init(projectId: String) {
-        let pointer =
-            try! rustCall {
-                uniffi_uniffi_yttrium_fn_constructor_chainabstractionclient_new(
-                    FfiConverterString.lower(projectId), $0
-                )
-            }
-        self.init(unsafeFromRawPointer: pointer)
-    }
+public convenience init(projectId: String) {
+    let pointer =
+        try! rustCall() {
+    uniffi_uniffi_yttrium_fn_constructor_chainabstractionclient_new(
+        FfiConverterString.lower(projectId),$0
+    )
+}
+    self.init(unsafeFromRawPointer: pointer)
+}
 
     deinit {
         guard let pointer = pointer else {
@@ -544,79 +548,85 @@ open class ChainAbstractionClient:
         try! rustCall { uniffi_uniffi_yttrium_fn_free_chainabstractionclient(pointer, $0) }
     }
 
-    open func estimateFees(chainId: String) async throws -> Eip1559Estimation {
-        return
-            try await uniffiRustCallAsync(
-                rustFutureFunc: {
-                    uniffi_uniffi_yttrium_fn_method_chainabstractionclient_estimate_fees(
-                        self.uniffiClonePointer(),
-                        FfiConverterString.lower(chainId)
-                    )
-                },
-                pollFunc: ffi_uniffi_yttrium_rust_future_poll_rust_buffer,
-                completeFunc: ffi_uniffi_yttrium_rust_future_complete_rust_buffer,
-                freeFunc: ffi_uniffi_yttrium_rust_future_free_rust_buffer,
-                liftFunc: FfiConverterTypeEip1559Estimation.lift,
-                errorHandler: FfiConverterTypeFFIError.lift
-            )
-    }
+    
 
-    open func route(transaction: InitTransaction) async throws -> RouteResponse {
-        return
-            try await uniffiRustCallAsync(
-                rustFutureFunc: {
-                    uniffi_uniffi_yttrium_fn_method_chainabstractionclient_route(
-                        self.uniffiClonePointer(),
-                        FfiConverterTypeInitTransaction.lower(transaction)
-                    )
-                },
-                pollFunc: ffi_uniffi_yttrium_rust_future_poll_rust_buffer,
-                completeFunc: ffi_uniffi_yttrium_rust_future_complete_rust_buffer,
-                freeFunc: ffi_uniffi_yttrium_rust_future_free_rust_buffer,
-                liftFunc: FfiConverterTypeRouteResponse_lift,
-                errorHandler: FfiConverterTypeFFIError.lift
-            )
-    }
+    
+open func estimateFees(chainId: String)async throws  -> Eip1559Estimation  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_uniffi_yttrium_fn_method_chainabstractionclient_estimate_fees(
+                    self.uniffiClonePointer(),
+                    FfiConverterString.lower(chainId)
+                )
+            },
+            pollFunc: ffi_uniffi_yttrium_rust_future_poll_rust_buffer,
+            completeFunc: ffi_uniffi_yttrium_rust_future_complete_rust_buffer,
+            freeFunc: ffi_uniffi_yttrium_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeEip1559Estimation.lift,
+            errorHandler: FfiConverterTypeFFIError.lift
+        )
+}
+    
+open func route(transaction: InitTransaction)async throws  -> RouteResponse  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_uniffi_yttrium_fn_method_chainabstractionclient_route(
+                    self.uniffiClonePointer(),
+                    FfiConverterTypeInitTransaction.lower(transaction)
+                )
+            },
+            pollFunc: ffi_uniffi_yttrium_rust_future_poll_rust_buffer,
+            completeFunc: ffi_uniffi_yttrium_rust_future_complete_rust_buffer,
+            freeFunc: ffi_uniffi_yttrium_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeRouteResponse_lift,
+            errorHandler: FfiConverterTypeFFIError.lift
+        )
+}
+    
+open func status(orchestrationId: String)async throws  -> StatusResponse  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_uniffi_yttrium_fn_method_chainabstractionclient_status(
+                    self.uniffiClonePointer(),
+                    FfiConverterString.lower(orchestrationId)
+                )
+            },
+            pollFunc: ffi_uniffi_yttrium_rust_future_poll_rust_buffer,
+            completeFunc: ffi_uniffi_yttrium_rust_future_complete_rust_buffer,
+            freeFunc: ffi_uniffi_yttrium_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeStatusResponse_lift,
+            errorHandler: FfiConverterTypeFFIError.lift
+        )
+}
+    
+open func waitForSuccessWithTimeout(orchestrationId: String, checkIn: UInt64, timeout: UInt64)async throws  -> StatusResponseCompleted  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_uniffi_yttrium_fn_method_chainabstractionclient_wait_for_success_with_timeout(
+                    self.uniffiClonePointer(),
+                    FfiConverterString.lower(orchestrationId),FfiConverterUInt64.lower(checkIn),FfiConverterUInt64.lower(timeout)
+                )
+            },
+            pollFunc: ffi_uniffi_yttrium_rust_future_poll_rust_buffer,
+            completeFunc: ffi_uniffi_yttrium_rust_future_complete_rust_buffer,
+            freeFunc: ffi_uniffi_yttrium_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeStatusResponseCompleted_lift,
+            errorHandler: FfiConverterTypeFFIError.lift
+        )
+}
+    
 
-    open func status(orchestrationId: String) async throws -> StatusResponse {
-        return
-            try await uniffiRustCallAsync(
-                rustFutureFunc: {
-                    uniffi_uniffi_yttrium_fn_method_chainabstractionclient_status(
-                        self.uniffiClonePointer(),
-                        FfiConverterString.lower(orchestrationId)
-                    )
-                },
-                pollFunc: ffi_uniffi_yttrium_rust_future_poll_rust_buffer,
-                completeFunc: ffi_uniffi_yttrium_rust_future_complete_rust_buffer,
-                freeFunc: ffi_uniffi_yttrium_rust_future_free_rust_buffer,
-                liftFunc: FfiConverterTypeStatusResponse_lift,
-                errorHandler: FfiConverterTypeFFIError.lift
-            )
-    }
-
-    open func waitForSuccessWithTimeout(orchestrationId: String, checkIn: UInt64, timeout: UInt64) async throws -> StatusResponseCompleted {
-        return
-            try await uniffiRustCallAsync(
-                rustFutureFunc: {
-                    uniffi_uniffi_yttrium_fn_method_chainabstractionclient_wait_for_success_with_timeout(
-                        self.uniffiClonePointer(),
-                        FfiConverterString.lower(orchestrationId), FfiConverterUInt64.lower(checkIn), FfiConverterUInt64.lower(timeout)
-                    )
-                },
-                pollFunc: ffi_uniffi_yttrium_rust_future_poll_rust_buffer,
-                completeFunc: ffi_uniffi_yttrium_rust_future_complete_rust_buffer,
-                freeFunc: ffi_uniffi_yttrium_rust_future_free_rust_buffer,
-                liftFunc: FfiConverterTypeStatusResponseCompleted_lift,
-                errorHandler: FfiConverterTypeFFIError.lift
-            )
-    }
 }
 
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public struct FfiConverterTypeChainAbstractionClient: FfiConverter {
+
     typealias FfiType = UnsafeMutableRawPointer
     typealias SwiftType = ChainAbstractionClient
 
@@ -633,7 +643,7 @@ public struct FfiConverterTypeChainAbstractionClient: FfiConverter {
         // The Rust code won't compile if a pointer won't fit in a UInt64.
         // We have to go via `UInt` because that's the thing that's the size of a pointer.
         let ptr = UnsafeMutableRawPointer(bitPattern: UInt(truncatingIfNeeded: v))
-        if ptr == nil {
+        if (ptr == nil) {
             throw UniffiInternalError.unexpectedNullPointer
         }
         return try lift(ptr!)
@@ -646,45 +656,52 @@ public struct FfiConverterTypeChainAbstractionClient: FfiConverter {
     }
 }
 
+
+
+
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public func FfiConverterTypeChainAbstractionClient_lift(_ pointer: UnsafeMutableRawPointer) throws -> ChainAbstractionClient {
     return try FfiConverterTypeChainAbstractionClient.lift(pointer)
 }
 
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public func FfiConverterTypeChainAbstractionClient_lower(_ value: ChainAbstractionClient) -> UnsafeMutableRawPointer {
     return FfiConverterTypeChainAbstractionClient.lower(value)
 }
 
-public protocol FfiAccountClientProtocol: AnyObject {
-    func chainId() -> UInt64
 
-    func doSendTransactions(signatures: [OwnerSignature], doSendTransactionParams: String) async throws -> String
 
-    func getAddress() async throws -> String
 
-    func prepareSendTransactions(transactions: [FfiTransaction]) async throws -> PreparedSendTransaction
-
-    func sendTransactions(transactions: [FfiTransaction]) async throws -> String
-
-    func signMessageWithMnemonic(message: String, mnemonic: String) throws -> String
-
-    func waitForUserOperationReceipt(userOperationHash: String) async throws -> String
+public protocol FfiAccountClientProtocol : AnyObject {
+    
+    func chainId()  -> UInt64
+    
+    func doSendTransactions(signatures: [OwnerSignature], doSendTransactionParams: String) async throws  -> String
+    
+    func getAddress() async throws  -> String
+    
+    func prepareSendTransactions(transactions: [FfiTransaction]) async throws  -> PreparedSendTransaction
+    
+    func sendTransactions(transactions: [FfiTransaction]) async throws  -> String
+    
+    func signMessageWithMnemonic(message: String, mnemonic: String) throws  -> String
+    
+    func waitForUserOperationReceipt(userOperationHash: String) async throws  -> String
+    
 }
 
 open class FfiAccountClient:
-    FfiAccountClientProtocol
-{
+    FfiAccountClientProtocol {
     fileprivate let pointer: UnsafeMutableRawPointer!
 
     /// Used to instantiate a [FFIObject] without an actual pointer, for fakes in tests, mostly.
-    #if swift(>=5.8)
-        @_documentation(visibility: private)
-    #endif
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
     public struct NoPointer {
         public init() {}
     }
@@ -692,7 +709,7 @@ open class FfiAccountClient:
     // TODO: We'd like this to be `private` but for Swifty reasons,
     // we can't implement `FfiConverter` without making this `required` and we can't
     // make it `required` without making it `public`.
-    public required init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
+    required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
         self.pointer = pointer
     }
 
@@ -701,29 +718,28 @@ open class FfiAccountClient:
     //
     // - Warning:
     //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing [Pointer] the FFI lower functions will crash.
-    #if swift(>=5.8)
-        @_documentation(visibility: private)
-    #endif
-    public init(noPointer _: NoPointer) {
-        pointer = nil
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noPointer: NoPointer) {
+        self.pointer = nil
     }
 
-    #if swift(>=5.8)
-        @_documentation(visibility: private)
-    #endif
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
     public func uniffiClonePointer() -> UnsafeMutableRawPointer {
         return try! rustCall { uniffi_uniffi_yttrium_fn_clone_ffiaccountclient(self.pointer, $0) }
     }
-
-    public convenience init(config: FfiAccountClientConfig) {
-        let pointer =
-            try! rustCall {
-                uniffi_uniffi_yttrium_fn_constructor_ffiaccountclient_new(
-                    FfiConverterTypeFFIAccountClientConfig.lower(config), $0
-                )
-            }
-        self.init(unsafeFromRawPointer: pointer)
-    }
+public convenience init(config: FfiAccountClientConfig) {
+    let pointer =
+        try! rustCall() {
+    uniffi_uniffi_yttrium_fn_constructor_ffiaccountclient_new(
+        FfiConverterTypeFFIAccountClientConfig.lower(config),$0
+    )
+}
+    self.init(unsafeFromRawPointer: pointer)
+}
 
     deinit {
         guard let pointer = pointer else {
@@ -733,109 +749,118 @@ open class FfiAccountClient:
         try! rustCall { uniffi_uniffi_yttrium_fn_free_ffiaccountclient(pointer, $0) }
     }
 
-    open func chainId() -> UInt64 {
-        return try! FfiConverterUInt64.lift(try! rustCall {
-            uniffi_uniffi_yttrium_fn_method_ffiaccountclient_chain_id(self.uniffiClonePointer(), $0)
-        })
-    }
+    
 
-    open func doSendTransactions(signatures: [OwnerSignature], doSendTransactionParams: String) async throws -> String {
-        return
-            try await uniffiRustCallAsync(
-                rustFutureFunc: {
-                    uniffi_uniffi_yttrium_fn_method_ffiaccountclient_do_send_transactions(
-                        self.uniffiClonePointer(),
-                        FfiConverterSequenceTypeOwnerSignature.lower(signatures), FfiConverterString.lower(doSendTransactionParams)
-                    )
-                },
-                pollFunc: ffi_uniffi_yttrium_rust_future_poll_rust_buffer,
-                completeFunc: ffi_uniffi_yttrium_rust_future_complete_rust_buffer,
-                freeFunc: ffi_uniffi_yttrium_rust_future_free_rust_buffer,
-                liftFunc: FfiConverterString.lift,
-                errorHandler: FfiConverterTypeFFIError.lift
-            )
-    }
+    
+open func chainId() -> UInt64  {
+    return try!  FfiConverterUInt64.lift(try! rustCall() {
+    uniffi_uniffi_yttrium_fn_method_ffiaccountclient_chain_id(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+open func doSendTransactions(signatures: [OwnerSignature], doSendTransactionParams: String)async throws  -> String  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_uniffi_yttrium_fn_method_ffiaccountclient_do_send_transactions(
+                    self.uniffiClonePointer(),
+                    FfiConverterSequenceTypeOwnerSignature.lower(signatures),FfiConverterString.lower(doSendTransactionParams)
+                )
+            },
+            pollFunc: ffi_uniffi_yttrium_rust_future_poll_rust_buffer,
+            completeFunc: ffi_uniffi_yttrium_rust_future_complete_rust_buffer,
+            freeFunc: ffi_uniffi_yttrium_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterString.lift,
+            errorHandler: FfiConverterTypeFFIError.lift
+        )
+}
+    
+open func getAddress()async throws  -> String  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_uniffi_yttrium_fn_method_ffiaccountclient_get_address(
+                    self.uniffiClonePointer()
+                    
+                )
+            },
+            pollFunc: ffi_uniffi_yttrium_rust_future_poll_rust_buffer,
+            completeFunc: ffi_uniffi_yttrium_rust_future_complete_rust_buffer,
+            freeFunc: ffi_uniffi_yttrium_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterString.lift,
+            errorHandler: FfiConverterTypeFFIError.lift
+        )
+}
+    
+open func prepareSendTransactions(transactions: [FfiTransaction])async throws  -> PreparedSendTransaction  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_uniffi_yttrium_fn_method_ffiaccountclient_prepare_send_transactions(
+                    self.uniffiClonePointer(),
+                    FfiConverterSequenceTypeFFITransaction.lower(transactions)
+                )
+            },
+            pollFunc: ffi_uniffi_yttrium_rust_future_poll_rust_buffer,
+            completeFunc: ffi_uniffi_yttrium_rust_future_complete_rust_buffer,
+            freeFunc: ffi_uniffi_yttrium_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypePreparedSendTransaction.lift,
+            errorHandler: FfiConverterTypeFFIError.lift
+        )
+}
+    
+open func sendTransactions(transactions: [FfiTransaction])async throws  -> String  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_uniffi_yttrium_fn_method_ffiaccountclient_send_transactions(
+                    self.uniffiClonePointer(),
+                    FfiConverterSequenceTypeFFITransaction.lower(transactions)
+                )
+            },
+            pollFunc: ffi_uniffi_yttrium_rust_future_poll_rust_buffer,
+            completeFunc: ffi_uniffi_yttrium_rust_future_complete_rust_buffer,
+            freeFunc: ffi_uniffi_yttrium_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterString.lift,
+            errorHandler: FfiConverterTypeFFIError.lift
+        )
+}
+    
+open func signMessageWithMnemonic(message: String, mnemonic: String)throws  -> String  {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeFFIError.lift) {
+    uniffi_uniffi_yttrium_fn_method_ffiaccountclient_sign_message_with_mnemonic(self.uniffiClonePointer(),
+        FfiConverterString.lower(message),
+        FfiConverterString.lower(mnemonic),$0
+    )
+})
+}
+    
+open func waitForUserOperationReceipt(userOperationHash: String)async throws  -> String  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_uniffi_yttrium_fn_method_ffiaccountclient_wait_for_user_operation_receipt(
+                    self.uniffiClonePointer(),
+                    FfiConverterString.lower(userOperationHash)
+                )
+            },
+            pollFunc: ffi_uniffi_yttrium_rust_future_poll_rust_buffer,
+            completeFunc: ffi_uniffi_yttrium_rust_future_complete_rust_buffer,
+            freeFunc: ffi_uniffi_yttrium_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterString.lift,
+            errorHandler: FfiConverterTypeFFIError.lift
+        )
+}
+    
 
-    open func getAddress() async throws -> String {
-        return
-            try await uniffiRustCallAsync(
-                rustFutureFunc: {
-                    uniffi_uniffi_yttrium_fn_method_ffiaccountclient_get_address(
-                        self.uniffiClonePointer()
-                    )
-                },
-                pollFunc: ffi_uniffi_yttrium_rust_future_poll_rust_buffer,
-                completeFunc: ffi_uniffi_yttrium_rust_future_complete_rust_buffer,
-                freeFunc: ffi_uniffi_yttrium_rust_future_free_rust_buffer,
-                liftFunc: FfiConverterString.lift,
-                errorHandler: FfiConverterTypeFFIError.lift
-            )
-    }
-
-    open func prepareSendTransactions(transactions: [FfiTransaction]) async throws -> PreparedSendTransaction {
-        return
-            try await uniffiRustCallAsync(
-                rustFutureFunc: {
-                    uniffi_uniffi_yttrium_fn_method_ffiaccountclient_prepare_send_transactions(
-                        self.uniffiClonePointer(),
-                        FfiConverterSequenceTypeFFITransaction.lower(transactions)
-                    )
-                },
-                pollFunc: ffi_uniffi_yttrium_rust_future_poll_rust_buffer,
-                completeFunc: ffi_uniffi_yttrium_rust_future_complete_rust_buffer,
-                freeFunc: ffi_uniffi_yttrium_rust_future_free_rust_buffer,
-                liftFunc: FfiConverterTypePreparedSendTransaction.lift,
-                errorHandler: FfiConverterTypeFFIError.lift
-            )
-    }
-
-    open func sendTransactions(transactions: [FfiTransaction]) async throws -> String {
-        return
-            try await uniffiRustCallAsync(
-                rustFutureFunc: {
-                    uniffi_uniffi_yttrium_fn_method_ffiaccountclient_send_transactions(
-                        self.uniffiClonePointer(),
-                        FfiConverterSequenceTypeFFITransaction.lower(transactions)
-                    )
-                },
-                pollFunc: ffi_uniffi_yttrium_rust_future_poll_rust_buffer,
-                completeFunc: ffi_uniffi_yttrium_rust_future_complete_rust_buffer,
-                freeFunc: ffi_uniffi_yttrium_rust_future_free_rust_buffer,
-                liftFunc: FfiConverterString.lift,
-                errorHandler: FfiConverterTypeFFIError.lift
-            )
-    }
-
-    open func signMessageWithMnemonic(message: String, mnemonic: String) throws -> String {
-        return try FfiConverterString.lift(rustCallWithError(FfiConverterTypeFFIError.lift) {
-            uniffi_uniffi_yttrium_fn_method_ffiaccountclient_sign_message_with_mnemonic(self.uniffiClonePointer(),
-                                                                                        FfiConverterString.lower(message),
-                                                                                        FfiConverterString.lower(mnemonic), $0)
-        })
-    }
-
-    open func waitForUserOperationReceipt(userOperationHash: String) async throws -> String {
-        return
-            try await uniffiRustCallAsync(
-                rustFutureFunc: {
-                    uniffi_uniffi_yttrium_fn_method_ffiaccountclient_wait_for_user_operation_receipt(
-                        self.uniffiClonePointer(),
-                        FfiConverterString.lower(userOperationHash)
-                    )
-                },
-                pollFunc: ffi_uniffi_yttrium_rust_future_poll_rust_buffer,
-                completeFunc: ffi_uniffi_yttrium_rust_future_complete_rust_buffer,
-                freeFunc: ffi_uniffi_yttrium_rust_future_free_rust_buffer,
-                liftFunc: FfiConverterString.lift,
-                errorHandler: FfiConverterTypeFFIError.lift
-            )
-    }
 }
 
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public struct FfiConverterTypeFFIAccountClient: FfiConverter {
+
     typealias FfiType = UnsafeMutableRawPointer
     typealias SwiftType = FfiAccountClient
 
@@ -852,7 +877,7 @@ public struct FfiConverterTypeFFIAccountClient: FfiConverter {
         // The Rust code won't compile if a pointer won't fit in a UInt64.
         // We have to go via `UInt` because that's the thing that's the size of a pointer.
         let ptr = UnsafeMutableRawPointer(bitPattern: UInt(truncatingIfNeeded: v))
-        if ptr == nil {
+        if (ptr == nil) {
             throw UniffiInternalError.unexpectedNullPointer
         }
         return try lift(ptr!)
@@ -865,19 +890,23 @@ public struct FfiConverterTypeFFIAccountClient: FfiConverter {
     }
 }
 
+
+
+
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public func FfiConverterTypeFFIAccountClient_lift(_ pointer: UnsafeMutableRawPointer) throws -> FfiAccountClient {
     return try FfiConverterTypeFFIAccountClient.lift(pointer)
 }
 
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public func FfiConverterTypeFFIAccountClient_lower(_ value: FfiAccountClient) -> UnsafeMutableRawPointer {
     return FfiConverterTypeFFIAccountClient.lower(value)
 }
+
 
 public struct Eip1559Estimation {
     public var maxFeePerGas: String
@@ -891,8 +920,10 @@ public struct Eip1559Estimation {
     }
 }
 
+
+
 extension Eip1559Estimation: Equatable, Hashable {
-    public static func == (lhs: Eip1559Estimation, rhs: Eip1559Estimation) -> Bool {
+    public static func ==(lhs: Eip1559Estimation, rhs: Eip1559Estimation) -> Bool {
         if lhs.maxFeePerGas != rhs.maxFeePerGas {
             return false
         }
@@ -908,16 +939,17 @@ extension Eip1559Estimation: Equatable, Hashable {
     }
 }
 
+
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public struct FfiConverterTypeEip1559Estimation: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Eip1559Estimation {
         return
             try Eip1559Estimation(
-                maxFeePerGas: FfiConverterString.read(from: &buf),
+                maxFeePerGas: FfiConverterString.read(from: &buf), 
                 maxPriorityFeePerGas: FfiConverterString.read(from: &buf)
-            )
+        )
     }
 
     public static func write(_ value: Eip1559Estimation, into buf: inout [UInt8]) {
@@ -926,19 +958,21 @@ public struct FfiConverterTypeEip1559Estimation: FfiConverterRustBuffer {
     }
 }
 
+
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public func FfiConverterTypeEip1559Estimation_lift(_ buf: RustBuffer) throws -> Eip1559Estimation {
     return try FfiConverterTypeEip1559Estimation.lift(buf)
 }
 
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public func FfiConverterTypeEip1559Estimation_lower(_ value: Eip1559Estimation) -> RustBuffer {
     return FfiConverterTypeEip1559Estimation.lower(value)
 }
+
 
 public struct FfiAccountClientConfig {
     public var ownerAddress: String
@@ -960,8 +994,10 @@ public struct FfiAccountClientConfig {
     }
 }
 
+
+
 extension FfiAccountClientConfig: Equatable, Hashable {
-    public static func == (lhs: FfiAccountClientConfig, rhs: FfiAccountClientConfig) -> Bool {
+    public static func ==(lhs: FfiAccountClientConfig, rhs: FfiAccountClientConfig) -> Bool {
         if lhs.ownerAddress != rhs.ownerAddress {
             return false
         }
@@ -993,20 +1029,21 @@ extension FfiAccountClientConfig: Equatable, Hashable {
     }
 }
 
+
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public struct FfiConverterTypeFFIAccountClientConfig: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> FfiAccountClientConfig {
         return
             try FfiAccountClientConfig(
-                ownerAddress: FfiConverterString.read(from: &buf),
-                chainId: FfiConverterUInt64.read(from: &buf),
-                config: FfiConverterTypeConfig.read(from: &buf),
-                signerType: FfiConverterString.read(from: &buf),
-                safe: FfiConverterBool.read(from: &buf),
+                ownerAddress: FfiConverterString.read(from: &buf), 
+                chainId: FfiConverterUInt64.read(from: &buf), 
+                config: FfiConverterTypeConfig.read(from: &buf), 
+                signerType: FfiConverterString.read(from: &buf), 
+                safe: FfiConverterBool.read(from: &buf), 
                 privateKey: FfiConverterString.read(from: &buf)
-            )
+        )
     }
 
     public static func write(_ value: FfiAccountClientConfig, into buf: inout [UInt8]) {
@@ -1019,19 +1056,21 @@ public struct FfiConverterTypeFFIAccountClientConfig: FfiConverterRustBuffer {
     }
 }
 
+
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public func FfiConverterTypeFFIAccountClientConfig_lift(_ buf: RustBuffer) throws -> FfiAccountClientConfig {
     return try FfiConverterTypeFFIAccountClientConfig.lift(buf)
 }
 
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public func FfiConverterTypeFFIAccountClientConfig_lower(_ value: FfiAccountClientConfig) -> RustBuffer {
     return FfiConverterTypeFFIAccountClientConfig.lower(value)
 }
+
 
 public struct FfiTransaction {
     public var to: String
@@ -1047,8 +1086,10 @@ public struct FfiTransaction {
     }
 }
 
+
+
 extension FfiTransaction: Equatable, Hashable {
-    public static func == (lhs: FfiTransaction, rhs: FfiTransaction) -> Bool {
+    public static func ==(lhs: FfiTransaction, rhs: FfiTransaction) -> Bool {
         if lhs.to != rhs.to {
             return false
         }
@@ -1068,17 +1109,18 @@ extension FfiTransaction: Equatable, Hashable {
     }
 }
 
+
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public struct FfiConverterTypeFFITransaction: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> FfiTransaction {
         return
             try FfiTransaction(
-                to: FfiConverterString.read(from: &buf),
-                value: FfiConverterString.read(from: &buf),
+                to: FfiConverterString.read(from: &buf), 
+                value: FfiConverterString.read(from: &buf), 
                 data: FfiConverterString.read(from: &buf)
-            )
+        )
     }
 
     public static func write(_ value: FfiTransaction, into buf: inout [UInt8]) {
@@ -1088,19 +1130,21 @@ public struct FfiConverterTypeFFITransaction: FfiConverterRustBuffer {
     }
 }
 
+
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public func FfiConverterTypeFFITransaction_lift(_ buf: RustBuffer) throws -> FfiTransaction {
     return try FfiConverterTypeFFITransaction.lift(buf)
 }
 
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public func FfiConverterTypeFFITransaction_lower(_ value: FfiTransaction) -> RustBuffer {
     return FfiConverterTypeFFITransaction.lower(value)
 }
+
 
 public struct InitTransaction {
     public var from: FfiAddress
@@ -1130,8 +1174,10 @@ public struct InitTransaction {
     }
 }
 
+
+
 extension InitTransaction: Equatable, Hashable {
-    public static func == (lhs: InitTransaction, rhs: InitTransaction) -> Bool {
+    public static func ==(lhs: InitTransaction, rhs: InitTransaction) -> Bool {
         if lhs.from != rhs.from {
             return false
         }
@@ -1179,24 +1225,25 @@ extension InitTransaction: Equatable, Hashable {
     }
 }
 
+
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public struct FfiConverterTypeInitTransaction: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> InitTransaction {
         return
             try InitTransaction(
-                from: FfiConverterTypeFFIAddress.read(from: &buf),
-                to: FfiConverterTypeFFIAddress.read(from: &buf),
-                value: FfiConverterTypeFFIU256.read(from: &buf),
-                gas: FfiConverterTypeFFIU64.read(from: &buf),
-                gasPrice: FfiConverterTypeFFIU256.read(from: &buf),
-                data: FfiConverterTypeFFIBytes.read(from: &buf),
-                nonce: FfiConverterTypeFFIU64.read(from: &buf),
-                maxFeePerGas: FfiConverterTypeFFIU256.read(from: &buf),
-                maxPriorityFeePerGas: FfiConverterTypeFFIU256.read(from: &buf),
+                from: FfiConverterTypeFFIAddress.read(from: &buf), 
+                to: FfiConverterTypeFFIAddress.read(from: &buf), 
+                value: FfiConverterTypeFFIU256.read(from: &buf), 
+                gas: FfiConverterTypeFFIU64.read(from: &buf), 
+                gasPrice: FfiConverterTypeFFIU256.read(from: &buf), 
+                data: FfiConverterTypeFFIBytes.read(from: &buf), 
+                nonce: FfiConverterTypeFFIU64.read(from: &buf), 
+                maxFeePerGas: FfiConverterTypeFFIU256.read(from: &buf), 
+                maxPriorityFeePerGas: FfiConverterTypeFFIU256.read(from: &buf), 
                 chainId: FfiConverterString.read(from: &buf)
-            )
+        )
     }
 
     public static func write(_ value: InitTransaction, into buf: inout [UInt8]) {
@@ -1213,19 +1260,21 @@ public struct FfiConverterTypeInitTransaction: FfiConverterRustBuffer {
     }
 }
 
+
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public func FfiConverterTypeInitTransaction_lift(_ buf: RustBuffer) throws -> InitTransaction {
     return try FfiConverterTypeInitTransaction.lift(buf)
 }
 
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public func FfiConverterTypeInitTransaction_lower(_ value: InitTransaction) -> RustBuffer {
     return FfiConverterTypeInitTransaction.lower(value)
 }
+
 
 public struct OwnerSignature {
     public var owner: String
@@ -1239,8 +1288,10 @@ public struct OwnerSignature {
     }
 }
 
+
+
 extension OwnerSignature: Equatable, Hashable {
-    public static func == (lhs: OwnerSignature, rhs: OwnerSignature) -> Bool {
+    public static func ==(lhs: OwnerSignature, rhs: OwnerSignature) -> Bool {
         if lhs.owner != rhs.owner {
             return false
         }
@@ -1256,16 +1307,17 @@ extension OwnerSignature: Equatable, Hashable {
     }
 }
 
+
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public struct FfiConverterTypeOwnerSignature: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> OwnerSignature {
         return
             try OwnerSignature(
-                owner: FfiConverterString.read(from: &buf),
+                owner: FfiConverterString.read(from: &buf), 
                 signature: FfiConverterString.read(from: &buf)
-            )
+        )
     }
 
     public static func write(_ value: OwnerSignature, into buf: inout [UInt8]) {
@@ -1274,19 +1326,21 @@ public struct FfiConverterTypeOwnerSignature: FfiConverterRustBuffer {
     }
 }
 
+
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public func FfiConverterTypeOwnerSignature_lift(_ buf: RustBuffer) throws -> OwnerSignature {
     return try FfiConverterTypeOwnerSignature.lift(buf)
 }
 
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public func FfiConverterTypeOwnerSignature_lower(_ value: OwnerSignature) -> RustBuffer {
     return FfiConverterTypeOwnerSignature.lower(value)
 }
+
 
 public struct PreparedSendTransaction {
     public var hash: String
@@ -1300,8 +1354,10 @@ public struct PreparedSendTransaction {
     }
 }
 
+
+
 extension PreparedSendTransaction: Equatable, Hashable {
-    public static func == (lhs: PreparedSendTransaction, rhs: PreparedSendTransaction) -> Bool {
+    public static func ==(lhs: PreparedSendTransaction, rhs: PreparedSendTransaction) -> Bool {
         if lhs.hash != rhs.hash {
             return false
         }
@@ -1317,16 +1373,17 @@ extension PreparedSendTransaction: Equatable, Hashable {
     }
 }
 
+
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public struct FfiConverterTypePreparedSendTransaction: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> PreparedSendTransaction {
         return
             try PreparedSendTransaction(
-                hash: FfiConverterString.read(from: &buf),
+                hash: FfiConverterString.read(from: &buf), 
                 doSendTransactionParams: FfiConverterString.read(from: &buf)
-            )
+        )
     }
 
     public static func write(_ value: PreparedSendTransaction, into buf: inout [UInt8]) {
@@ -1335,27 +1392,33 @@ public struct FfiConverterTypePreparedSendTransaction: FfiConverterRustBuffer {
     }
 }
 
+
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public func FfiConverterTypePreparedSendTransaction_lift(_ buf: RustBuffer) throws -> PreparedSendTransaction {
     return try FfiConverterTypePreparedSendTransaction.lift(buf)
 }
 
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public func FfiConverterTypePreparedSendTransaction_lower(_ value: PreparedSendTransaction) -> RustBuffer {
     return FfiConverterTypePreparedSendTransaction.lower(value)
 }
 
+
 public enum FfiError {
+
+    
+    
     case General(String
     )
 }
 
+
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public struct FfiConverterTypeFFIError: FfiConverterRustBuffer {
     typealias SwiftType = FfiError
@@ -1363,22 +1426,33 @@ public struct FfiConverterTypeFFIError: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> FfiError {
         let variant: Int32 = try readInt(&buf)
         switch variant {
-        case 1: return try .General(
-                FfiConverterString.read(from: &buf)
+
+        
+
+        
+        case 1: return .General(
+            try FfiConverterString.read(from: &buf)
             )
 
-        default: throw UniffiInternalError.unexpectedEnumCase
+         default: throw UniffiInternalError.unexpectedEnumCase
         }
     }
 
     public static func write(_ value: FfiError, into buf: inout [UInt8]) {
         switch value {
+
+        
+
+        
+        
         case let .General(v1):
             writeInt(&buf, Int32(1))
             FfiConverterString.write(v1, into: &buf)
+            
         }
     }
 }
+
 
 extension FfiError: Equatable, Hashable {}
 
@@ -1389,9 +1463,9 @@ extension FfiError: Foundation.LocalizedError {
 }
 
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
-private struct FfiConverterSequenceTypeFFITransaction: FfiConverterRustBuffer {
+fileprivate struct FfiConverterSequenceTypeFFITransaction: FfiConverterRustBuffer {
     typealias SwiftType = [FfiTransaction]
 
     public static func write(_ value: [FfiTransaction], into buf: inout [UInt8]) {
@@ -1407,16 +1481,16 @@ private struct FfiConverterSequenceTypeFFITransaction: FfiConverterRustBuffer {
         var seq = [FfiTransaction]()
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
-            try seq.append(FfiConverterTypeFFITransaction.read(from: &buf))
+            seq.append(try FfiConverterTypeFFITransaction.read(from: &buf))
         }
         return seq
     }
 }
 
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
-private struct FfiConverterSequenceTypeOwnerSignature: FfiConverterRustBuffer {
+fileprivate struct FfiConverterSequenceTypeOwnerSignature: FfiConverterRustBuffer {
     typealias SwiftType = [OwnerSignature]
 
     public static func write(_ value: [OwnerSignature], into buf: inout [UInt8]) {
@@ -1432,11 +1506,20 @@ private struct FfiConverterSequenceTypeOwnerSignature: FfiConverterRustBuffer {
         var seq = [OwnerSignature]()
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
-            try seq.append(FfiConverterTypeOwnerSignature.read(from: &buf))
+            seq.append(try FfiConverterTypeOwnerSignature.read(from: &buf))
         }
         return seq
     }
 }
+
+
+
+
+
+
+
+
+
 
 /**
  * Typealias from the type name used in the UDL file to the builtin type.  This
@@ -1445,7 +1528,7 @@ private struct FfiConverterSequenceTypeOwnerSignature: FfiConverterRustBuffer {
 public typealias FfiAddress = String
 
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public struct FfiConverterTypeFFIAddress: FfiConverter {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> FfiAddress {
@@ -1465,19 +1548,22 @@ public struct FfiConverterTypeFFIAddress: FfiConverter {
     }
 }
 
+
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public func FfiConverterTypeFFIAddress_lift(_ value: RustBuffer) throws -> FfiAddress {
     return try FfiConverterTypeFFIAddress.lift(value)
 }
 
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public func FfiConverterTypeFFIAddress_lower(_ value: FfiAddress) -> RustBuffer {
     return FfiConverterTypeFFIAddress.lower(value)
 }
+
+
 
 /**
  * Typealias from the type name used in the UDL file to the builtin type.  This
@@ -1486,7 +1572,7 @@ public func FfiConverterTypeFFIAddress_lower(_ value: FfiAddress) -> RustBuffer 
 public typealias FfiBytes = String
 
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public struct FfiConverterTypeFFIBytes: FfiConverter {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> FfiBytes {
@@ -1506,19 +1592,22 @@ public struct FfiConverterTypeFFIBytes: FfiConverter {
     }
 }
 
+
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public func FfiConverterTypeFFIBytes_lift(_ value: RustBuffer) throws -> FfiBytes {
     return try FfiConverterTypeFFIBytes.lift(value)
 }
 
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public func FfiConverterTypeFFIBytes_lower(_ value: FfiBytes) -> RustBuffer {
     return FfiConverterTypeFFIBytes.lower(value)
 }
+
+
 
 /**
  * Typealias from the type name used in the UDL file to the builtin type.  This
@@ -1527,7 +1616,7 @@ public func FfiConverterTypeFFIBytes_lower(_ value: FfiBytes) -> RustBuffer {
 public typealias Ffiu256 = String
 
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public struct FfiConverterTypeFFIU256: FfiConverter {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Ffiu256 {
@@ -1547,19 +1636,22 @@ public struct FfiConverterTypeFFIU256: FfiConverter {
     }
 }
 
+
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public func FfiConverterTypeFFIU256_lift(_ value: RustBuffer) throws -> Ffiu256 {
     return try FfiConverterTypeFFIU256.lift(value)
 }
 
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public func FfiConverterTypeFFIU256_lower(_ value: Ffiu256) -> RustBuffer {
     return FfiConverterTypeFFIU256.lower(value)
 }
+
+
 
 /**
  * Typealias from the type name used in the UDL file to the builtin type.  This
@@ -1568,7 +1660,7 @@ public func FfiConverterTypeFFIU256_lower(_ value: Ffiu256) -> RustBuffer {
 public typealias Ffiu64 = String
 
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public struct FfiConverterTypeFFIU64: FfiConverter {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Ffiu64 {
@@ -1588,15 +1680,16 @@ public struct FfiConverterTypeFFIU64: FfiConverter {
     }
 }
 
+
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public func FfiConverterTypeFFIU64_lift(_ value: RustBuffer) throws -> Ffiu64 {
     return try FfiConverterTypeFFIU64.lift(value)
 }
 
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public func FfiConverterTypeFFIU64_lower(_ value: Ffiu64) -> RustBuffer {
     return FfiConverterTypeFFIU64.lower(value)
@@ -1605,13 +1698,13 @@ public func FfiConverterTypeFFIU64_lower(_ value: Ffiu64) -> RustBuffer {
 private let UNIFFI_RUST_FUTURE_POLL_READY: Int8 = 0
 private let UNIFFI_RUST_FUTURE_POLL_MAYBE_READY: Int8 = 1
 
-private let uniffiContinuationHandleMap = UniffiHandleMap<UnsafeContinuation<Int8, Never>>()
+fileprivate let uniffiContinuationHandleMap = UniffiHandleMap<UnsafeContinuation<Int8, Never>>()
 
-private func uniffiRustCallAsync<F, T>(
+fileprivate func uniffiRustCallAsync<F, T>(
     rustFutureFunc: () -> UInt64,
-    pollFunc: (UInt64, @escaping UniffiRustFutureContinuationCallback, UInt64) -> Void,
+    pollFunc: (UInt64, @escaping UniffiRustFutureContinuationCallback, UInt64) -> (),
     completeFunc: (UInt64, UnsafeMutablePointer<RustCallStatus>) -> F,
-    freeFunc: (UInt64) -> Void,
+    freeFunc: (UInt64) -> (),
     liftFunc: (F) throws -> T,
     errorHandler: ((RustBuffer) throws -> Swift.Error)?
 ) async throws -> T {
@@ -1622,7 +1715,7 @@ private func uniffiRustCallAsync<F, T>(
     defer {
         freeFunc(rustFuture)
     }
-    var pollResult: Int8
+    var pollResult: Int8;
     repeat {
         pollResult = await withUnsafeContinuation {
             pollFunc(
@@ -1641,7 +1734,7 @@ private func uniffiRustCallAsync<F, T>(
 
 // Callback handlers for an async calls.  These are invoked by Rust when the future is ready.  They
 // lift the return value or error and resume the suspended function.
-private func uniffiFutureContinuationCallback(handle: UInt64, pollResult: Int8) {
+fileprivate func uniffiFutureContinuationCallback(handle: UInt64, pollResult: Int8) {
     if let continuation = try? uniffiContinuationHandleMap.remove(handle: handle) {
         continuation.resume(returning: pollResult)
     } else {
@@ -1654,7 +1747,6 @@ private enum InitializationResult {
     case contractVersionMismatch
     case apiChecksumMismatch
 }
-
 // Use a global variable to perform the versioning checks. Swift ensures that
 // the code inside is only computed once.
 private let initializationResult: InitializationResult = {
@@ -1665,43 +1757,43 @@ private let initializationResult: InitializationResult = {
     if bindings_contract_version != scaffolding_contract_version {
         return InitializationResult.contractVersionMismatch
     }
-    if uniffi_uniffi_yttrium_checksum_method_chainabstractionclient_estimate_fees() != 51281 {
+    if (uniffi_uniffi_yttrium_checksum_method_chainabstractionclient_estimate_fees() != 51281) {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_uniffi_yttrium_checksum_method_chainabstractionclient_route() != 214 {
+    if (uniffi_uniffi_yttrium_checksum_method_chainabstractionclient_route() != 214) {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_uniffi_yttrium_checksum_method_chainabstractionclient_status() != 15758 {
+    if (uniffi_uniffi_yttrium_checksum_method_chainabstractionclient_status() != 15758) {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_uniffi_yttrium_checksum_method_chainabstractionclient_wait_for_success_with_timeout() != 16595 {
+    if (uniffi_uniffi_yttrium_checksum_method_chainabstractionclient_wait_for_success_with_timeout() != 16595) {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_uniffi_yttrium_checksum_method_ffiaccountclient_chain_id() != 40865 {
+    if (uniffi_uniffi_yttrium_checksum_method_ffiaccountclient_chain_id() != 40865) {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_uniffi_yttrium_checksum_method_ffiaccountclient_do_send_transactions() != 33638 {
+    if (uniffi_uniffi_yttrium_checksum_method_ffiaccountclient_do_send_transactions() != 33638) {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_uniffi_yttrium_checksum_method_ffiaccountclient_get_address() != 38899 {
+    if (uniffi_uniffi_yttrium_checksum_method_ffiaccountclient_get_address() != 38899) {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_uniffi_yttrium_checksum_method_ffiaccountclient_prepare_send_transactions() != 33465 {
+    if (uniffi_uniffi_yttrium_checksum_method_ffiaccountclient_prepare_send_transactions() != 33465) {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_uniffi_yttrium_checksum_method_ffiaccountclient_send_transactions() != 46699 {
+    if (uniffi_uniffi_yttrium_checksum_method_ffiaccountclient_send_transactions() != 46699) {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_uniffi_yttrium_checksum_method_ffiaccountclient_sign_message_with_mnemonic() != 60647 {
+    if (uniffi_uniffi_yttrium_checksum_method_ffiaccountclient_sign_message_with_mnemonic() != 60647) {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_uniffi_yttrium_checksum_method_ffiaccountclient_wait_for_user_operation_receipt() != 13654 {
+    if (uniffi_uniffi_yttrium_checksum_method_ffiaccountclient_wait_for_user_operation_receipt() != 13654) {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_uniffi_yttrium_checksum_constructor_chainabstractionclient_new() != 39164 {
+    if (uniffi_uniffi_yttrium_checksum_constructor_chainabstractionclient_new() != 39164) {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_uniffi_yttrium_checksum_constructor_ffiaccountclient_new() != 64773 {
+    if (uniffi_uniffi_yttrium_checksum_constructor_ffiaccountclient_new() != 64773) {
         return InitializationResult.apiChecksumMismatch
     }
 

@@ -1,28 +1,38 @@
-use crate::bundler::models::user_operation_receipt::UserOperationReceipt;
-use crate::bundler::pimlico::paymaster::client::PaymasterClient;
-use crate::bundler::{client::BundlerClient, config::BundlerConfig};
-use crate::config::Config;
-use crate::private_key_service::PrivateKeyService;
-use crate::sign_service::SignService;
-use crate::smart_accounts::safe::sign_step_3;
-use crate::smart_accounts::safe::SignOutputEnum;
-use crate::smart_accounts::safe::SignStep3Params;
-use crate::smart_accounts::safe::{
-    prepare_sign, sign, Owners, PreparedSignature,
+use {
+    crate::{
+        bundler::{
+            client::BundlerClient, config::BundlerConfig,
+            models::user_operation_receipt::UserOperationReceipt,
+            pimlico::paymaster::client::PaymasterClient,
+        },
+        config::Config,
+        private_key_service::PrivateKeyService,
+        sign_service::SignService,
+        smart_accounts::safe::{
+            prepare_sign, sign, sign_step_3, Owners, PreparedSignature,
+            SignOutputEnum, SignStep3Params,
+        },
+        transaction::{
+            send::{
+                do_send_transactions, prepare_send_transaction,
+                safe_test::{
+                    self, DoSendTransactionParams, OwnerSignature,
+                    PreparedSendTransaction,
+                },
+                send_transactions,
+            },
+            Transaction,
+        },
+    },
+    alloy::{
+        network::Ethereum,
+        primitives::{Address, Bytes, B256, U256, U64},
+        providers::ReqwestProvider,
+        signers::local::PrivateKeySigner,
+    },
+    std::sync::Arc,
+    tokio::sync::Mutex,
 };
-use crate::transaction::send::safe_test::{
-    self, DoSendTransactionParams, OwnerSignature, PreparedSendTransaction,
-};
-use crate::transaction::send::{
-    do_send_transactions, prepare_send_transaction,
-};
-use crate::transaction::{send::send_transactions, Transaction};
-use alloy::network::Ethereum;
-use alloy::primitives::{Address, Bytes, B256, U256, U64};
-use alloy::providers::ReqwestProvider;
-use alloy::signers::local::PrivateKeySigner;
-use std::sync::Arc;
-use tokio::sync::Mutex;
 
 #[derive(Clone)]
 pub enum SignerType {
@@ -351,9 +361,10 @@ pub async fn get_address_with_private_key_signer(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::config::Config;
-    use crate::private_key_service::PrivateKeyService;
+    use {
+        super::*,
+        crate::{config::Config, private_key_service::PrivateKeyService},
+    };
 
     // mnemonic:`"test test test test test test test test test test test junk"`
     // derived at `m/44'/60'/0'/0/0`

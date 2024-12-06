@@ -1,6 +1,8 @@
-use crate::user_operation::UserOperationV07;
-use alloy::primitives::{Address, Bytes, U256};
-use serde::{Deserialize, Serialize};
+use {
+    crate::user_operation::UserOperationV07,
+    alloy::primitives::{Address, Bytes, U256},
+    serde::{Deserialize, Serialize},
+};
 
 #[derive(
     Default,
