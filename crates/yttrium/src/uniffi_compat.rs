@@ -1,6 +1,8 @@
 use {
     crate::chain_abstraction::{amount::Amount, api::route::FundingMetadata},
-    alloy::primitives::{utils::Unit, Address, Bytes, B256, U128, U256, U64},
+    alloy::primitives::{
+        utils::Unit, Address, Bytes, Uint, B256, U128, U256, U64,
+    },
 };
 
 // TODO use https://mozilla.github.io/uniffi-rs/next/udl/remote_ext_types.html#remote-types when it's available
@@ -10,19 +12,25 @@ uniffi::custom_type!(Address, String, {
     lower: |obj| obj.to_string(),
 });
 
+fn uint_to_hex<const BITS: usize, const LIMBS: usize>(
+    obj: Uint<BITS, LIMBS>,
+) -> String {
+    format!("0x{obj:x}")
+}
+
 uniffi::custom_type!(U128, String, {
     try_lift: |val| Ok(val.parse()?),
-    lower: |obj| obj.to_string(),
+    lower: |obj| uint_to_hex(obj),
 });
 
 uniffi::custom_type!(U256, String, {
     try_lift: |val| Ok(val.parse()?),
-    lower: |obj| obj.to_string(),
+    lower: |obj| uint_to_hex(obj),
 });
 
 uniffi::custom_type!(U64, String, {
     try_lift: |val| Ok(val.parse()?),
-    lower: |obj| obj.to_string(),
+    lower: |obj| uint_to_hex(obj),
 });
 
 uniffi::custom_type!(Bytes, String, {
