@@ -31,3 +31,5 @@ Utilities/InstalledSwiftPMConfiguration/config.json
 /crates/kotlin-ffi/bindings/com/reown/kotlin/ffi/yttrium
 /kotlin-bindings
 /yttrium/kotlin-bindings
+.gradle
+/crates/kotlin-ffi/android/build

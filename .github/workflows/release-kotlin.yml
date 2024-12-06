@@ -1,15 +1,15 @@
 name: Build and Release Yttrium Kotlin
 
 on:
-    workflow_dispatch:
-      inputs:
-        version:
-          description: 'Version to release (e.g. 0.0.1)'
-          required: true
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g. 0.0.1)'
+        required: true
 
 env:
   CARGO_TERM_COLOR: always
-  VERSION: ${{ github.event.inputs.version || '0.0.24' }}
+  VERSION: ${{ github.event.inputs.version || '0.0.1' }}
   TARGET_BRANCH: ${{ github.ref_name }}
 
 permissions:
@@ -46,20 +46,24 @@ jobs:
           api-level: 35
           build-tools: 35.0.0
           ndk-version: 27.2.12479018
+
+      - name: Build with Gradle
+        run: |
+          ./gradlew clean assembleRelease -Pversion=${{ env.VERSION }}
       
       - name: Install cargo-ndk
         run: |
           cargo install cargo-ndk
-
+      
       - name: Build Rust library
         run: |
           cargo ndk -t ${{ matrix.target }} build --release --features=uniffi/cli
-
+        
       - name: Generate Kotlin bindings (once)
         if: ${{ matrix.target == 'aarch64-linux-android' }}
         run: |
           cargo run --features=uniffi/cli --bin uniffi-bindgen generate --library target/${{ matrix.target }}/release/libuniffi_yttrium.so --language kotlin --out-dir yttrium/kotlin-bindings      
-
+      
       - name: Prepare artifacts
         run: | 
           # Map Rust targets to Android ABI names
@@ -75,14 +79,14 @@ jobs:
 
           mkdir -p yttrium/libs/$abi_name
           cp target/${{ matrix.target }}/release/libuniffi_yttrium.so yttrium/libs/$abi_name/
-          
+      
       - name: Upload artifacts
         uses: actions/upload-artifact@v3
         with:
           name: artifacts
           path: yttrium/
 
-  release-kotlin-artifacts:
+  create-github-release:
     needs: build-kotlin-artifacts
     runs-on: ubuntu-latest
 
@@ -109,7 +113,7 @@ jobs:
           tag_name: ${{ env.VERSION }}
           release_name: Yttrium ${{ env.VERSION }}
           draft: false
-          prerelease: true
+          prerelease: false
 
       - name: Upload Release Assets
         uses: actions/upload-release-asset@v1

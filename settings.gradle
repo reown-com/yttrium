@@ -1,0 +1,2 @@
+rootProject.name = "Yttrium"
+include(":crates:kotlin-ffi:android")
