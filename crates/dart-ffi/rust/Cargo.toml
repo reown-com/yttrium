@@ -7,7 +7,7 @@ license.workspace = true
 
 [lib]
 name = "yttrium_dart"
-crate-type = ["cdylib"]
+crate-type = ["staticlib", "cdylib"]
 
 [build-dependencies]
 flutter_rust_bridge_codegen = "2.6.0"
@@ -17,27 +17,33 @@ flutter_rust_bridge_codegen = "2.6.0"
 flutter_rust_bridge = "=2.6.0"
 yttrium = { path = "../../yttrium"}
 # uniffi = { git = "https://github.com/mozilla/uniffi-rs", rev = "e796e00ad150f8b14b61a859a2e8c6497b35074e" }
-# openssl = { version = "0.10", features = ["vendored"] }
-# openssl-sys = { version = "0.9.103", features = ["vendored"] }
+openssl = { version = "0.10", features = ["vendored"] }
+openssl-sys = { version = "0.9.103", features = ["vendored"] }
 relay_rpc = { git = "https://github.com/WalletConnect/WalletConnectRust.git" }
-alloy.workspace = true
 
 # Errors
 eyre.workspace = true
+thiserror.workspace = true
+
+alloy.workspace = true
+alloy-provider.workspace = true
+erc6492.workspace = true
 
 # Async
 tokio.workspace = true
+
+# Networking
+reqwest.workspace = true
 
 # Serialization
 serde.workspace = true
 serde_json.workspace = true
 
-# Networking
-reqwest.workspace = true
-
 # Logging
+[target.'cfg(target_os = "ios")'.dependencies]
+oslog.workspace = true
+
 log.workspace = true
-thiserror.workspace = true
 
 # [[bin]]
 # name = "dart_bindgen"
