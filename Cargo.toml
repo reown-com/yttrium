@@ -28,9 +28,9 @@ serde_json = "1.0"
 oslog = "0.2.0"
 log = "0.4.20"
 
-alloy = "0.6.1"
-alloy-provider = "0.6.1"
-erc6492 = { git = "https://github.com/reown-com/erc6492.git", branch = "main" }
+alloy = "0.7.3"
+alloy-provider = "0.7.3"
+erc6492 = { git = "https://github.com/reown-com/erc6492.git", branch = "chore/bump-alloy-v7" }
 
 serial_test = "3.2.0"
 
