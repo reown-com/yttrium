@@ -12,7 +12,7 @@ _pass:
   @echo "PASS"
 
 # Quick config-free checks/tests
-check: setup lint test _pass
+check: setup lint test
 
 # Run this regularly locally, requires some special env vars
 devloop: check env-tests _pass
@@ -42,7 +42,7 @@ test-pimlico-api:
 test-blockchain-api:
   RUST_BACKTRACE=1 cargo test --features=test_blockchain_api --lib --bins chain_abstraction::tests
 test-blockchain-api-debug:
-  RUST_BACKTRACE=1 cargo test --features=test_blockchain_api --lib --bins chain_abstraction::tests -- --nocapture
+  RUST_BACKTRACE=1 cargo test --features=test_blockchain_api --lib --bins chain_abstraction::tests::happy_path_full_dependency_on_route_ui_fields -- --nocapture
 
 lint: fmt clippy
 
