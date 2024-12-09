@@ -2,6 +2,19 @@
 import PackageDescription
 import Foundation
 
+let useLocalRustXcframework = ProcessInfo.processInfo.environment["USE_LOCAL_RUST_XCFRAMEWORK"] == "1"
+
+let yttriumXcframeworkTarget: Target = useLocalRustXcframework ?
+    .binaryTarget(
+        name: "YttriumXCFramework",
+        path: "target/ios/libuniffi_yttrium.xcframework"
+    ) :
+    .binaryTarget(
+        name: "YttriumXCFramework",
+        url: "https://github.com/reown-com/yttrium/releases/download/0.22/libuniffi_yttrium.xcframework.zip",
+        checksum: "72a13f384d71b05b5e3a1fd447938f665c3bb02026d833f0bbb2a63769705973"
+    )
+
 let package = Package(
     name: "Yttrium",
     platforms: [
@@ -14,6 +27,7 @@ let package = Package(
         ),
     ],
     targets: [
+        yttriumXcframeworkTarget,
         .target(
             name: "Yttrium",
             dependencies: ["YttriumXCFramework"],
@@ -22,12 +36,6 @@ let package = Package(
             cSettings: [
                 .headerSearchPath(".")
             ]
-        ),
-        .binaryTarget(
-            name: "YttriumXCFramework",
-            url: "https://github.com/reown-com/yttrium/releases/download/0.2.22/libuniffi_yttrium.xcframework.zip",
-            checksum: "582c820d78325294160af8a359b106ef998a19c50ca400ae7ee181b28bede5bb"
         )
     ]
 )
-
