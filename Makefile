@@ -1,6 +1,11 @@
 CONFIG = debug
 PLATFORM_IOS = iOS Simulator,id=$(call udid_for,iOS 17.5,iPhone \d\+ Pro [^M])
 
+build:
+    # GitHub CodeQL is automatically calling `make build` on PRs
+	# This Makefile is deprecated, but we need to keep this make target for CodeQL to work
+    echo "no-op"
+
 build-swift-apple-platforms:
 	export USE_LOCAL_RUST_XCFRAMEWORK=1; \
 	for platform in "iOS"; do \
