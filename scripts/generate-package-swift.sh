@@ -1,6 +1,7 @@
 #!/bin/bash
 
 set -e
+set -u
 
 # Variables
 : "${VERSION:?Error: VERSION environment variable is not set.}"
@@ -20,11 +21,26 @@ RUST_CHECKSUM=$(swift package compute-checksum Output/$RUST_XCFRAMEWORK_ZIP)
 echo "Rust XCFramework checksum: $RUST_CHECKSUM"
 
 # 3. Generate Package.swift
+# If USE_LOCAL_RUST_XCFRAMEWORK=1 is set in the environment, it will use the local xcframework path
+# Otherwise, it uses the remote URL and checksum.
 echo "Generating Package.swift..."
 cat > Package.swift <<EOF
 // swift-tools-version:5.10
 import PackageDescription
 import Foundation
+
+let useLocalRustXcframework = ProcessInfo.processInfo.environment["USE_LOCAL_RUST_XCFRAMEWORK"] == "1"
+
+let yttriumXcframeworkTarget: Target = useLocalRustXcframework ?
+    .binaryTarget(
+        name: "YttriumXCFramework",
+        path: "$RUST_XCFRAMEWORK_DIR"
+    ) :
+    .binaryTarget(
+        name: "YttriumXCFramework",
+        url: "$REPO_URL/releases/download/$PACKAGE_VERSION/$RUST_XCFRAMEWORK_ZIP",
+        checksum: "$RUST_CHECKSUM"
+    )
 
 let package = Package(
     name: "Yttrium",
@@ -38,6 +54,7 @@ let package = Package(
         ),
     ],
     targets: [
+        yttriumXcframeworkTarget,
         .target(
             name: "Yttrium",
             dependencies: ["YttriumXCFramework"],
@@ -46,15 +63,9 @@ let package = Package(
             cSettings: [
                 .headerSearchPath(".")
             ]
-        ),
-        .binaryTarget(
-            name: "YttriumXCFramework",
-            url: "$REPO_URL/releases/download/$PACKAGE_VERSION/$RUST_XCFRAMEWORK_ZIP",
-            checksum: "$RUST_CHECKSUM"
         )
     ]
 )
-
 EOF
 
 echo "Package.swift generated with Rust XCFramework checksum: $RUST_CHECKSUM"
