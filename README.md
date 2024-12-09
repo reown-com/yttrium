@@ -73,22 +73,17 @@ Planned future support includes:
 
 To contribute to this project, ensure you have the following dependencies installed:
 
+- `just` - `cargo install just`
 - `rustup`
-- `cargo`
-- `rustc`
+- Rust latest stable installed
 - `swiftc` and Xcode
 - `make`
-- `just`
 
 ### Setup
 
-After installing the dependencies, clone the repository and run the following command to set up the project:
+After installing the above dependencies, you can run `just ci` to run the checks that CI does and initialize your repo.
 
-```bash
-make setup
-```
-
-This will fetch the third party dependencies and build the project, including the Swift bindings.
+You must run `just infra` to run a local anvil and a mock alto bundler which is required by some of these tests.
 
 ### Devloop
 
