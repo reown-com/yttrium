@@ -12,7 +12,7 @@ pub mod config;
 pub mod eip7702;
 pub mod entry_point;
 pub mod erc20;
-// pub mod erc6492_client; // disabled while we resolve Swift build issues
+pub mod erc6492_client;
 pub mod erc7579;
 pub mod error;
 pub mod jsonrpc;
@@ -23,6 +23,7 @@ pub mod smart_accounts;
 pub mod test_helpers;
 pub mod transaction;
 pub mod user_operation;
+pub mod utils;
 
 #[cfg(test)]
 pub mod examples;

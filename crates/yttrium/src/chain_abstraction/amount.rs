@@ -4,6 +4,7 @@ use alloy::primitives::{
 };
 
 #[derive(Debug)]
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
 pub struct Amount {
     pub symbol: String,        // USDC, USD
     pub amount: U256,          // e.g. 40000, 4
@@ -24,6 +25,7 @@ impl Amount {
                 // round up
                 amount += U256::from(1);
             }
+            // TODO support other `$` symbols e.g. for Euro; or whatever format the localized currency uses
             if amount.is_zero() && !decimals.is_zero() {
                 "<$0.01".to_owned()
             } else {

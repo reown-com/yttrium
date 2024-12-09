@@ -487,6 +487,8 @@ public protocol ChainAbstractionClientProtocol : AnyObject {
     
     func estimateFees(chainId: String) async throws  -> Eip1559Estimation
     
+    func getRouteUiFields(routeResponse: RouteResponseAvailable, initialTransaction: Transaction, currency: Currency) async throws  -> RouteUiFields
+    
     func route(transaction: InitTransaction) async throws  -> RouteResponse
     
     func status(orchestrationId: String) async throws  -> StatusResponse
@@ -583,6 +585,23 @@ open func estimateFees(chainId: String)async throws  -> Eip1559Estimation  {
             completeFunc: ffi_uniffi_yttrium_rust_future_complete_rust_buffer,
             freeFunc: ffi_uniffi_yttrium_rust_future_free_rust_buffer,
             liftFunc: FfiConverterTypeEip1559Estimation.lift,
+            errorHandler: FfiConverterTypeFFIError.lift
+        )
+}
+    
+open func getRouteUiFields(routeResponse: RouteResponseAvailable, initialTransaction: Transaction, currency: Currency)async throws  -> RouteUiFields  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_uniffi_yttrium_fn_method_chainabstractionclient_get_route_ui_fields(
+                    self.uniffiClonePointer(),
+                    FfiConverterTypeRouteResponseAvailable_lower(routeResponse),FfiConverterTypeTransaction_lower(initialTransaction),FfiConverterTypeCurrency_lower(currency)
+                )
+            },
+            pollFunc: ffi_uniffi_yttrium_rust_future_poll_rust_buffer,
+            completeFunc: ffi_uniffi_yttrium_rust_future_complete_rust_buffer,
+            freeFunc: ffi_uniffi_yttrium_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeRouteUiFields.lift,
             errorHandler: FfiConverterTypeFFIError.lift
         )
 }
@@ -928,12 +947,24 @@ public func FfiConverterTypeFFIAccountClient_lower(_ value: FfiAccountClient) ->
 
 
 public struct Eip1559Estimation {
-    public var maxFeePerGas: String
-    public var maxPriorityFeePerGas: String
+    /**
+     * The base fee per gas.
+     */
+    public var maxFeePerGas: Ffiu128
+    /**
+     * The max priority fee per gas.
+     */
+    public var maxPriorityFeePerGas: Ffiu128
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(maxFeePerGas: String, maxPriorityFeePerGas: String) {
+    public init(
+        /**
+         * The base fee per gas.
+         */maxFeePerGas: Ffiu128, 
+        /**
+         * The max priority fee per gas.
+         */maxPriorityFeePerGas: Ffiu128) {
         self.maxFeePerGas = maxFeePerGas
         self.maxPriorityFeePerGas = maxPriorityFeePerGas
     }
@@ -966,14 +997,14 @@ public struct FfiConverterTypeEip1559Estimation: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Eip1559Estimation {
         return
             try Eip1559Estimation(
-                maxFeePerGas: FfiConverterString.read(from: &buf), 
-                maxPriorityFeePerGas: FfiConverterString.read(from: &buf)
+                maxFeePerGas: FfiConverterTypeFFIU128.read(from: &buf), 
+                maxPriorityFeePerGas: FfiConverterTypeFFIU128.read(from: &buf)
         )
     }
 
     public static func write(_ value: Eip1559Estimation, into buf: inout [UInt8]) {
-        FfiConverterString.write(value.maxFeePerGas, into: &buf)
-        FfiConverterString.write(value.maxPriorityFeePerGas, into: &buf)
+        FfiConverterTypeFFIU128.write(value.maxFeePerGas, into: &buf)
+        FfiConverterTypeFFIU128.write(value.maxPriorityFeePerGas, into: &buf)
     }
 }
 
@@ -1427,6 +1458,162 @@ public func FfiConverterTypePreparedSendTransaction_lower(_ value: PreparedSendT
 }
 
 
+public struct RouteUiFields {
+    public var route: [TxnDetails]
+    public var bridge: [TransactionFee]
+    public var initial: TxnDetails
+    public var localTotal: Amount
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(route: [TxnDetails], bridge: [TransactionFee], initial: TxnDetails, localTotal: Amount) {
+        self.route = route
+        self.bridge = bridge
+        self.initial = initial
+        self.localTotal = localTotal
+    }
+}
+
+
+
+extension RouteUiFields: Equatable, Hashable {
+    public static func ==(lhs: RouteUiFields, rhs: RouteUiFields) -> Bool {
+        if lhs.route != rhs.route {
+            return false
+        }
+        if lhs.bridge != rhs.bridge {
+            return false
+        }
+        if lhs.initial != rhs.initial {
+            return false
+        }
+        if lhs.localTotal != rhs.localTotal {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(route)
+        hasher.combine(bridge)
+        hasher.combine(initial)
+        hasher.combine(localTotal)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeRouteUiFields: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> RouteUiFields {
+        return
+            try RouteUiFields(
+                route: FfiConverterSequenceTypeTxnDetails.read(from: &buf), 
+                bridge: FfiConverterSequenceTypeTransactionFee.read(from: &buf), 
+                initial: FfiConverterTypeTxnDetails.read(from: &buf), 
+                localTotal: FfiConverterTypeAmount.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: RouteUiFields, into buf: inout [UInt8]) {
+        FfiConverterSequenceTypeTxnDetails.write(value.route, into: &buf)
+        FfiConverterSequenceTypeTransactionFee.write(value.bridge, into: &buf)
+        FfiConverterTypeTxnDetails.write(value.initial, into: &buf)
+        FfiConverterTypeAmount.write(value.localTotal, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRouteUiFields_lift(_ buf: RustBuffer) throws -> RouteUiFields {
+    return try FfiConverterTypeRouteUiFields.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRouteUiFields_lower(_ value: RouteUiFields) -> RustBuffer {
+    return FfiConverterTypeRouteUiFields.lower(value)
+}
+
+
+public struct TxnDetails {
+    public var transaction: Transaction
+    public var estimate: Eip1559Estimation
+    public var fee: TransactionFee
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(transaction: Transaction, estimate: Eip1559Estimation, fee: TransactionFee) {
+        self.transaction = transaction
+        self.estimate = estimate
+        self.fee = fee
+    }
+}
+
+
+
+extension TxnDetails: Equatable, Hashable {
+    public static func ==(lhs: TxnDetails, rhs: TxnDetails) -> Bool {
+        if lhs.transaction != rhs.transaction {
+            return false
+        }
+        if lhs.estimate != rhs.estimate {
+            return false
+        }
+        if lhs.fee != rhs.fee {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(transaction)
+        hasher.combine(estimate)
+        hasher.combine(fee)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeTxnDetails: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> TxnDetails {
+        return
+            try TxnDetails(
+                transaction: FfiConverterTypeTransaction.read(from: &buf), 
+                estimate: FfiConverterTypeEip1559Estimation.read(from: &buf), 
+                fee: FfiConverterTypeTransactionFee.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: TxnDetails, into buf: inout [UInt8]) {
+        FfiConverterTypeTransaction.write(value.transaction, into: &buf)
+        FfiConverterTypeEip1559Estimation.write(value.estimate, into: &buf)
+        FfiConverterTypeTransactionFee.write(value.fee, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTxnDetails_lift(_ buf: RustBuffer) throws -> TxnDetails {
+    return try FfiConverterTypeTxnDetails.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTxnDetails_lower(_ value: TxnDetails) -> RustBuffer {
+    return FfiConverterTypeTxnDetails.lower(value)
+}
+
+
 public enum FfiError {
 
     
@@ -1531,6 +1718,66 @@ fileprivate struct FfiConverterSequenceTypeOwnerSignature: FfiConverterRustBuffe
     }
 }
 
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeTxnDetails: FfiConverterRustBuffer {
+    typealias SwiftType = [TxnDetails]
+
+    public static func write(_ value: [TxnDetails], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeTxnDetails.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [TxnDetails] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [TxnDetails]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeTxnDetails.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeTransactionFee: FfiConverterRustBuffer {
+    typealias SwiftType = [TransactionFee]
+
+    public static func write(_ value: [TransactionFee], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeTransactionFee.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [TransactionFee] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [TransactionFee]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeTransactionFee.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1624,6 +1871,50 @@ public func FfiConverterTypeFFIBytes_lift(_ value: RustBuffer) throws -> FfiByte
 #endif
 public func FfiConverterTypeFFIBytes_lower(_ value: FfiBytes) -> RustBuffer {
     return FfiConverterTypeFFIBytes.lower(value)
+}
+
+
+
+/**
+ * Typealias from the type name used in the UDL file to the builtin type.  This
+ * is needed because the UDL type name is used in function/method signatures.
+ */
+public typealias Ffiu128 = String
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeFFIU128: FfiConverter {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Ffiu128 {
+        return try FfiConverterString.read(from: &buf)
+    }
+
+    public static func write(_ value: Ffiu128, into buf: inout [UInt8]) {
+        return FfiConverterString.write(value, into: &buf)
+    }
+
+    public static func lift(_ value: RustBuffer) throws -> Ffiu128 {
+        return try FfiConverterString.lift(value)
+    }
+
+    public static func lower(_ value: Ffiu128) -> RustBuffer {
+        return FfiConverterString.lower(value)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFFIU128_lift(_ value: RustBuffer) throws -> Ffiu128 {
+    return try FfiConverterTypeFFIU128.lift(value)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFFIU128_lower(_ value: Ffiu128) -> RustBuffer {
+    return FfiConverterTypeFFIU128.lower(value)
 }
 
 
@@ -1780,6 +2071,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_uniffi_yttrium_checksum_method_chainabstractionclient_estimate_fees() != 51281) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_uniffi_yttrium_checksum_method_chainabstractionclient_get_route_ui_fields() != 47489) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_uniffi_yttrium_checksum_method_chainabstractionclient_route() != 214) {

@@ -3,7 +3,9 @@ uniffi::setup_scaffolding!();
 use {
     alloy::{
         network::Ethereum,
-        primitives::{Bytes as FFIBytes, U256 as FFIU256, U64 as FFIU64},
+        primitives::{
+            Bytes as FFIBytes, U128 as FFIU128, U256 as FFIU256, U64 as FFIU64,
+        },
         providers::{Provider, ReqwestProvider},
     },
     relay_rpc::domain::ProjectId,
@@ -11,12 +13,15 @@ use {
     yttrium::{
         account_client::{AccountClient as YAccountClient, SignerType},
         chain_abstraction::{
+            self,
+            amount::Amount,
             api::{
-                route::RouteResponse,
+                route::{RouteResponse, RouteResponseAvailable},
                 status::{StatusResponse, StatusResponseCompleted},
                 Transaction as CATransaction,
             },
-            client::Client,
+            client::{Client, TransactionFee},
+            currency::Currency,
         },
         config::Config,
         private_key_service::PrivateKeyService,
@@ -53,12 +58,17 @@ uniffi::custom_type!(FFIAddress, String, {
     lower: |obj| obj.to_string(),
 });
 
-uniffi::custom_type!(FFIU256, String, {
+uniffi::custom_type!(FFIU64, String, {
     try_lift: |val| Ok(val.parse()?),
     lower: |obj| obj.to_string(),
 });
 
-uniffi::custom_type!(FFIU64, String, {
+uniffi::custom_type!(FFIU128, String, {
+    try_lift: |val| Ok(val.parse()?),
+    lower: |obj| obj.to_string(),
+});
+
+uniffi::custom_type!(FFIU256, String, {
     try_lift: |val| Ok(val.parse()?),
     lower: |obj| obj.to_string(),
 });
@@ -67,6 +77,72 @@ uniffi::custom_type!(FFIBytes, String, {
     try_lift: |val| Ok(val.parse()?),
     lower: |obj| obj.to_string(),
 });
+
+#[derive(Debug, uniffi::Record)]
+pub struct RouteUiFields {
+    pub route: Vec<TxnDetails>,
+    pub bridge: Vec<TransactionFee>,
+    pub initial: TxnDetails,
+    pub local_total: Amount,
+}
+
+impl From<yttrium::chain_abstraction::client::RouteUiFields> for RouteUiFields {
+    fn from(source: yttrium::chain_abstraction::client::RouteUiFields) -> Self {
+        Self {
+            route: source.route.into_iter().map(Into::into).collect(),
+            bridge: source.bridge,
+            initial: source.initial.into(),
+            local_total: source.local_total,
+        }
+    }
+}
+
+#[derive(Debug, uniffi::Record)]
+pub struct TxnDetails {
+    pub transaction: CATransaction,
+    pub estimate: Eip1559Estimation,
+    pub fee: TransactionFee,
+}
+
+impl From<yttrium::chain_abstraction::client::TxnDetails> for TxnDetails {
+    fn from(source: yttrium::chain_abstraction::client::TxnDetails) -> Self {
+        Self {
+            transaction: source.transaction,
+            estimate: source.estimate.into(),
+            fee: source.fee,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, uniffi::Record)]
+pub struct Eip1559Estimation {
+    /// The base fee per gas.
+    pub max_fee_per_gas: FFIU128,
+    /// The max priority fee per gas.
+    pub max_priority_fee_per_gas: FFIU128,
+}
+
+impl From<alloy::providers::utils::Eip1559Estimation> for Eip1559Estimation {
+    fn from(source: alloy::providers::utils::Eip1559Estimation) -> Self {
+        Self {
+            max_fee_per_gas: FFIU128::from(source.max_fee_per_gas),
+            max_priority_fee_per_gas: FFIU128::from(
+                source.max_priority_fee_per_gas,
+            ),
+        }
+    }
+}
+
+// uniffi::custom_type!(Eip1559Estimation, FfiEip1559Estimation, {
+//     try_lift: |val| Ok(Eip1559Estimation {
+//         max_fee_per_gas: val.max_fee_per_gas.to(),
+//         max_priority_fee_per_gas: val.max_priority_fee_per_gas.to(),
+//     }),
+//     lower: |obj| FfiEip1559Estimation {
+//         max_fee_per_gas: U128::from(obj.max_fee_per_gas),
+//         max_priority_fee_per_gas: U128::from(obj.max_priority_fee_per_gas),
+//     },
+// });
 
 #[derive(uniffi::Record)]
 pub struct InitTransaction {
@@ -113,12 +189,6 @@ pub struct ChainAbstractionClient {
     client: Client,
 }
 
-#[derive(uniffi::Record)]
-pub struct Eip1559Estimation {
-    pub max_fee_per_gas: String,
-    pub max_priority_fee_per_gas: String,
-}
-
 #[uniffi::export(async_runtime = "tokio")]
 impl ChainAbstractionClient {
     #[uniffi::constructor]
@@ -135,6 +205,19 @@ impl ChainAbstractionClient {
         self.client
             .route(ca_transaction)
             .await
+            .map_err(|e| FFIError::General(e.to_string()))
+    }
+
+    pub async fn get_route_ui_fields(
+        &self,
+        route_response: RouteResponseAvailable,
+        initial_transaction: chain_abstraction::api::Transaction,
+        currency: Currency,
+    ) -> Result<RouteUiFields, FFIError> {
+        self.client
+            .get_route_ui_fields(route_response, initial_transaction, currency)
+            .await
+            .map(Into::into)
             .map_err(|e| FFIError::General(e.to_string()))
     }
 
@@ -178,13 +261,8 @@ impl ChainAbstractionClient {
         provider
             .estimate_eip1559_fees(None)
             .await
+            .map(Into::into)
             .map_err(|e| FFIError::General(e.to_string()))
-            .map(|fees| Eip1559Estimation {
-                max_fee_per_gas: fees.max_fee_per_gas.to_string(),
-                max_priority_fee_per_gas: fees
-                    .max_priority_fee_per_gas
-                    .to_string(),
-            })
     }
 
     pub async fn erc20_token_balance(
