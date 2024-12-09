@@ -1,8 +1,6 @@
 CONFIG = debug
 PLATFORM_IOS = iOS Simulator,id=$(call udid_for,iOS 17.5,iPhone \d\+ Pro [^M])
 
-setup: build-debug-mode build-ios-bindings build-swift-apple-platforms
-
 build-swift-apple-platforms:
 	export USE_LOCAL_RUST_XCFRAMEWORK=1; \
 	for platform in "iOS"; do \
@@ -54,7 +52,7 @@ generate-package-swift:
 	chmod +x scripts/generate-package-swift.sh
 	./scripts/generate-package-swift.sh
 
-.PHONY: build setup build-ios-bindings build-swift-apple-platforms test-swift-apple-platforms fetch-thirdparty setup-thirdparty test format clean local-infra local-infra-forked local-infra-7702
+.PHONY: build build-ios-bindings build-swift-apple-platforms test-swift-apple-platforms fetch-thirdparty setup-thirdparty test format clean local-infra local-infra-forked local-infra-7702
 
 define udid_for
 $(shell xcrun simctl list devices available '$(1)' | grep '$(2)' | sort -r | head -1 | awk -F '[()]' '{ print $$(NF-3) }')
