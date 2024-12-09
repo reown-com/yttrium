@@ -264,6 +264,18 @@ impl ChainAbstractionClient {
             .map(Into::into)
             .map_err(|e| FFIError::General(e.to_string()))
     }
+
+    pub async fn erc20_token_balance(
+        &self,
+        chain_id: String,
+        token: FFIAddress,
+        owner: FFIAddress,
+    ) -> Result<FFIU256, FFIError> {
+        self.client
+            .erc20_token_balance(chain_id, token, owner)
+            .await
+            .map_err(|e| FFIError::General(e.to_string()))
+    }
 }
 
 #[uniffi::export(async_runtime = "tokio")]

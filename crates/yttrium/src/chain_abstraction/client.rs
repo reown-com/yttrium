@@ -481,7 +481,7 @@ impl Client {
     }
 
     pub async fn erc20_token_balance(
-        &'static self,
+        &self,
         chain_id: String,
         token: Address,
         owner: Address,

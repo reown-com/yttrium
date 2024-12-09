@@ -1,0 +1,98 @@
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:8.4.1'
+        classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:1.8.10'
+    }
+}
+
+apply plugin: 'com.android.library'
+apply plugin: 'org.jetbrains.kotlin.android'
+apply plugin: 'maven-publish'
+
+android {
+    namespace "com.reown.yttrium.uniffi"
+
+    compileSdkVersion 34
+
+    defaultConfig {
+        minSdkVersion 21
+        targetSdkVersion 34
+    }
+
+    lintOptions {
+        abortOnError false
+        checkReleaseBuilds false
+    }
+
+    sourceSets {
+        main {
+            jniLibs.srcDirs = ['src/main/jniLibs']
+            java.srcDirs = ['src/main/kotlin']
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+
+     packagingOptions {
+        doNotStrip "*/libuniffi_yttrium.so"
+    }
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11
+    }
+
+    kotlinOptions {
+        jvmTarget = "11"
+    }
+
+    dependencies {
+        implementation 'net.java.dev.jna:jna:5.12.0@aar'
+        implementation 'androidx.core:core-ktx:1.10.1'
+        implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.1'
+        implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.1'
+    }
+}
+
+java {
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(11))
+    }
+}
+
+publishing {
+    publications {
+        release(MavenPublication) {
+            artifact("$buildDir/outputs/aar/${project.name}-release.aar")
+
+            groupId = 'com.github.reown-com'
+            artifactId = 'yttrium'
+            version = project.hasProperty("version") ? project.getProperty("version") : "0.0.1"
+
+            pom {
+                name.set("Yttrium")
+                description.set("An Android library for Yttrium.")
+                url.set("https://github.com/reown-com/Yttrium")
+
+                 scm {
+                        connection.set("scm:git:git://github.com:reown-com/yttrium.git")
+                        developerConnection.set("scm:git:ssh://github.com:reown-com/yttrium.git")
+                        url.set("https://github.com/reown-com/yttrium")
+                    }
+            }
+        }
+    }
+}
+
+tasks.named("publishReleasePublicationToMavenLocal") {
+    dependsOn("assembleRelease")
+}

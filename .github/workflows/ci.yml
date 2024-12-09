@@ -74,29 +74,16 @@ jobs:
       - name: Run sccache-cache
         uses: mozilla-actions/sccache-action@v0.0.4
       - run: rustup update stable && rustup default stable
+      - name: Select Xcode 15.4
+        run: sudo xcode-select -s /Applications/Xcode_15.4.app
+
+      # Build bindings
       - run: make build-xcframework
-      # So confused on what to run for Swift CI
-      # - name: Select Xcode 15.4
-      #   run: sudo xcode-select -s /Applications/Xcode_15.4.app
-      # - name: Build ${{ matrix.config }}
-      #   run: make CONFIG=${{ matrix.config }} build-swift-apple-platforms
-      # - name: Install Docker
-      #   run: |
-      #     HOMEBREW_NO_AUTO_UPDATE=1 brew install --cask docker
-      #     sudo /Applications/Docker.app/Contents/MacOS/Docker --unattended --install-privileged-components
-      #     open -a /Applications/Docker.app --args --unattended --accept-license
-      #     echo "We are waiting for Docker to be up and running. It can take over 2 minutes..."
-      #     while ! /Applications/Docker.app/Contents/Resources/bin/docker info &>/dev/null; do sleep 1; done
-      # - name: Start test infrastructure
-      #   run: docker compose up --debug
-      #   working-directory: test/scripts/forked_state
-      # - name: Wait for local RPC to be ready
-      #   run: while ! curl localhost:8545/health; do sleep 1; done
-      # - name: Wait for local bundler to be ready
-      #   run: while ! curl localhost:4337/health; do sleep 1; done
-      # - name: Wait for local paymaster to be ready
-      #   run: while ! curl localhost:3000/ping; do sleep 1; done
-      # - name: Run ${{ matrix.config }} tests
-      #   run: make CONFIG=${{ matrix.config }} test-swift-apple-platforms
-      - run: git diff crates/ffi
-      - run: if [ -n "$(git diff crates/ffi)" ]; then exit 1; fi
+
+      # Don't think we actually need this check, since bindings will be updated during release
+      # - run: git diff crates/ffi
+      # - run: if [ -n "$(git diff crates/ffi)" ]; then exit 1; fi
+
+      # Test that it compiles
+      - name: Build ${{ matrix.config }}
+        run: make CONFIG=${{ matrix.config }} build-swift-apple-platforms
