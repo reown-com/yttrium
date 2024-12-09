@@ -20,7 +20,7 @@ devloop: check env-tests _pass
 # Devloop, but also runs what CI does
 devloop-full: check env-tests ci-extended _pass
 
-ci-extended: udeps swift
+ci-extended: udeps swift kotlin
 
 # Run all checks that CI does
 ci: check ci-extended _pass
@@ -60,6 +60,8 @@ infra:
   make local-infra-forked
 
 swift:
-  # make build-ios-bindings
-  # make CONFIG=debug build-swift-apple-platforms
   make build-xcframework
+  make CONFIG=debug build-swift-apple-platforms
+
+kotlin:
+  # TODO
