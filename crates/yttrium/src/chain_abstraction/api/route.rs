@@ -1,6 +1,7 @@
 use {
     super::Transaction,
-    alloy::primitives::{Address, U256},
+    crate::chain_abstraction::amount::Amount,
+    alloy::primitives::{utils::Unit, Address, U256},
     relay_rpc::domain::ProjectId,
     serde::{Deserialize, Serialize},
 };
@@ -33,8 +34,34 @@ pub struct FundingMetadata {
     pub chain_id: String,
     pub token_contract: Address,
     pub symbol: String,
+
+    // The amount that was sourced (includes the bridging fee)
     pub amount: U256,
+
+    // The amount taken by the bridge as a fee
     pub bridging_fee: U256,
+
+    #[serde(
+        deserialize_with = "crate::utils::deserialize_unit",
+        serialize_with = "crate::utils::serialize_unit"
+    )]
+    #[serde(default = "default_unit")]
+    pub decimals: Unit,
+}
+
+// TODO remove default when Blockchain API is updated to provide this
+fn default_unit() -> Unit {
+    Unit::new(6).unwrap()
+}
+
+impl FundingMetadata {
+    pub fn to_amount(&self) -> Amount {
+        Amount::new(self.symbol.clone(), self.amount, self.decimals)
+    }
+
+    pub fn to_bridging_fee_amount(&self) -> Amount {
+        Amount::new(self.symbol.clone(), self.bridging_fee, self.decimals)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

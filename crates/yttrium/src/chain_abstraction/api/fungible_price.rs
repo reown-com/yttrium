@@ -40,23 +40,8 @@ pub struct FungiblePriceItem {
     pub icon_url: String,
     pub price: f64,
     #[serde(
-        deserialize_with = "deserialize_unit",
-        serialize_with = "serialize_unit"
+        deserialize_with = "crate::utils::deserialize_unit",
+        serialize_with = "crate::utils::serialize_unit"
     )]
     pub decimals: Unit,
-}
-
-fn deserialize_unit<'de, D>(deserializer: D) -> Result<Unit, D::Error>
-where
-    D: serde::Deserializer<'de>,
-{
-    Unit::new(u8::deserialize(deserializer)?)
-        .ok_or(serde::de::Error::custom("Unit must be less than 77"))
-}
-
-fn serialize_unit<S>(unit: &Unit, serializer: S) -> Result<S::Ok, S::Error>
-where
-    S: serde::Serializer,
-{
-    serializer.serialize_u8(unit.get())
 }

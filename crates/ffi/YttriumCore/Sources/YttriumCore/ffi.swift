@@ -198,8 +198,6 @@ extension __swift_bridge__$Option$FFIRouteResponse {
 public enum FFIRouteError {
     case Request(RustString)
     case RequestFailed(RustString)
-    case DecodingText(RustString)
-    case DecodingJson(RustString, RustString)
 }
 extension FFIRouteError {
     func intoFfiRepr() -> __swift_bridge__$FFIRouteError {
@@ -208,10 +206,6 @@ extension FFIRouteError {
                 return __swift_bridge__$FFIRouteError(tag: __swift_bridge__$FFIRouteError$Request, payload: __swift_bridge__$FFIRouteErrorFields(Request: __swift_bridge__$FFIRouteError$FieldOfRequest(_0: { let rustString = _0.intoRustString(); rustString.isOwned = false; return rustString.ptr }())))
             case FFIRouteError.RequestFailed(let _0):
                 return __swift_bridge__$FFIRouteError(tag: __swift_bridge__$FFIRouteError$RequestFailed, payload: __swift_bridge__$FFIRouteErrorFields(RequestFailed: __swift_bridge__$FFIRouteError$FieldOfRequestFailed(_0: { let rustString = _0.intoRustString(); rustString.isOwned = false; return rustString.ptr }())))
-            case FFIRouteError.DecodingText(let _0):
-                return __swift_bridge__$FFIRouteError(tag: __swift_bridge__$FFIRouteError$DecodingText, payload: __swift_bridge__$FFIRouteErrorFields(DecodingText: __swift_bridge__$FFIRouteError$FieldOfDecodingText(_0: { let rustString = _0.intoRustString(); rustString.isOwned = false; return rustString.ptr }())))
-            case FFIRouteError.DecodingJson(let _0, let _1):
-                return __swift_bridge__$FFIRouteError(tag: __swift_bridge__$FFIRouteError$DecodingJson, payload: __swift_bridge__$FFIRouteErrorFields(DecodingJson: __swift_bridge__$FFIRouteError$FieldOfDecodingJson(_0: { let rustString = _0.intoRustString(); rustString.isOwned = false; return rustString.ptr }(), _1: { let rustString = _1.intoRustString(); rustString.isOwned = false; return rustString.ptr }())))
         }
     }
 }
@@ -222,10 +216,6 @@ extension __swift_bridge__$FFIRouteError {
                 return FFIRouteError.Request(RustString(ptr: self.payload.Request._0))
             case __swift_bridge__$FFIRouteError$RequestFailed:
                 return FFIRouteError.RequestFailed(RustString(ptr: self.payload.RequestFailed._0))
-            case __swift_bridge__$FFIRouteError$DecodingText:
-                return FFIRouteError.DecodingText(RustString(ptr: self.payload.DecodingText._0))
-            case __swift_bridge__$FFIRouteError$DecodingJson:
-                return FFIRouteError.DecodingJson(RustString(ptr: self.payload.DecodingJson._0), RustString(ptr: self.payload.DecodingJson._1))
             default:
                 fatalError("Unreachable")
         }

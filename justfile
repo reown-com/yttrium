@@ -6,13 +6,27 @@ clean:
   rm -rf .build
   git submodule deinit --all
 
-setup:
-  git submodule update --init --recursive
-
-devloop: setup lint test env-tests udeps
+_pass: 
   @echo ""
   @echo ""
   @echo "PASS"
+
+# Quick config-free checks/tests
+check: setup lint test
+
+# Run this regularly locally, requires some special env vars
+devloop: check env-tests _pass
+
+# Devloop, but also runs what CI does
+devloop-full: check env-tests ci-extended _pass
+
+ci-extended: udeps swift kotlin
+
+# Run all checks that CI does
+ci: check ci-extended _pass
+
+setup:
+  git submodule update --init --recursive
 
 test:
   cargo test --features=full --lib --bins
@@ -28,7 +42,7 @@ test-pimlico-api:
 test-blockchain-api:
   RUST_BACKTRACE=1 cargo test --features=test_blockchain_api --lib --bins chain_abstraction::tests
 test-blockchain-api-debug:
-  RUST_BACKTRACE=1 cargo test --features=test_blockchain_api --lib --bins chain_abstraction::tests -- --nocapture
+  RUST_BACKTRACE=1 cargo test --features=test_blockchain_api --lib --bins chain_abstraction::tests::happy_path_full_dependency_on_route_ui_fields -- --nocapture
 
 lint: fmt clippy
 
@@ -46,6 +60,8 @@ infra:
   make local-infra-forked
 
 swift:
-  make build-ios-bindings
-  make CONFIG=debug build-swift-apple-platforms
   make build-xcframework
+  make CONFIG=debug build-swift-apple-platforms
+
+kotlin:
+  # TODO
