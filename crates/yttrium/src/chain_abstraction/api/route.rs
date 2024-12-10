@@ -56,11 +56,11 @@ pub struct FundingMetadata {
 
 impl FundingMetadata {
     pub fn to_amount(&self) -> Amount {
-        Amount::new(self.symbol.clone(), self.amount, self.decimals)
+        Amount::new(self.symbol.clone(), self.amount, Unit::new(self.decimals).unwrap())
     }
 
     pub fn to_bridging_fee_amount(&self) -> Amount {
-        Amount::new(self.symbol.clone(), self.bridging_fee, self.decimals)
+        Amount::new(self.symbol.clone(), self.bridging_fee, Unit::new(self.decimals).unwrap())
     }
 }
 
