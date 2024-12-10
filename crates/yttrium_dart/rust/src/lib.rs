@@ -87,7 +87,7 @@ impl ChainAbstractionClient {
         let client = Client::new(ProjectId::from(project_id.clone()));
         Self { project_id, client }
     }
-    
+
     #[frb]
     pub async fn route(
         &self,
@@ -253,7 +253,7 @@ impl AccountClient {
             .map_err(|e| Error::General(e.to_string()))?,
         })
     }
-    
+
     #[frb]
     pub async fn do_send_transactions(
         &self,
