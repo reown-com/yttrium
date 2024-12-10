@@ -54,15 +54,15 @@ pub struct FundingMetadata {
 //     Unit::new(6).unwrap()
 // }
 
-// impl FundingMetadata {
-//     pub fn to_amount(&self) -> Amount {
-//         Amount::new(self.symbol.clone(), self.amount, self.decimals)
-//     }
+impl FundingMetadata {
+    pub fn to_amount(&self) -> Amount {
+        Amount::new(self.symbol.clone(), self.amount, self.decimals)
+    }
 
-//     pub fn to_bridging_fee_amount(&self) -> Amount {
-//         Amount::new(self.symbol.clone(), self.bridging_fee, self.decimals)
-//     }
-// }
+    pub fn to_bridging_fee_amount(&self) -> Amount {
+        Amount::new(self.symbol.clone(), self.bridging_fee, self.decimals)
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]

@@ -48,12 +48,12 @@ uniffi::custom_type!(B256, String, {
 //     lower: |obj| obj.get(),
 // });
 
-// #[uniffi::export]
-// fn funding_metadata_to_amount(value: FundingMetadata) -> Amount {
-//     value.to_amount()
-// }
+#[uniffi::export]
+fn funding_metadata_to_amount(value: FundingMetadata) -> Amount {
+    value.to_amount()
+}
 
-// #[uniffi::export]
-// fn funding_metadata_to_bridging_fee_amount(value: FundingMetadata) -> Amount {
-//     value.to_bridging_fee_amount()
-// }
+#[uniffi::export]
+fn funding_metadata_to_bridging_fee_amount(value: FundingMetadata) -> Amount {
+    value.to_bridging_fee_amount()
+}
