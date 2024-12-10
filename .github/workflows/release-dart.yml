@@ -92,17 +92,17 @@ jobs:
       - name: Prepare artifacts
         shell: bash
         run: | 
-          mkdir -p yttrium/jniLibs/arm64-v8a
-          mkdir -p yttrium/jniLibs/armeabi-v7a
-          cp target/aarch64-linux-android/release/libyttrium_dart.so yttrium/jniLibs/arm64-v8a/libyttrium_dart.so
-          cp target/armv7-linux-androideabi/release/libyttrium_dart.so yttrium/jniLibs/armeabi-v7a/libyttrium_dart.so
+          mkdir -p jniLibs/arm64-v8a
+          mkdir -p jniLibs/armeabi-v7a
+          cp target/aarch64-linux-android/release/libyttrium_dart.so jniLibs/arm64-v8a/libyttrium_dart.so
+          cp target/armv7-linux-androideabi/release/libyttrium_dart.so jniLibs/armeabi-v7a/libyttrium_dart.so
       
       # Upload artifacts
       - name: Upload artifacts
         uses: actions/upload-artifact@v3
         with:
           name: artifacts
-          path: yttrium/
+          path: jniLibs/
 
   create-github-release:
     needs: build-android-artifacts
@@ -116,11 +116,11 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: artifacts
-          path: yttrium/
+          path: jniLibs/
 
       - name: Create artifacts zip
         run: |
-          zip -r dart-artifacts.zip yttrium/
+          zip -r dart-artifacts.zip jniLibs/
 
       - name: Create Release
         id: create_release
