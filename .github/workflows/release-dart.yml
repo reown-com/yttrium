@@ -127,4 +127,4 @@ jobs:
           asset_content_type: application/zip
 
 # Launch locally
-# act -j build --container-architecture linux/amd64 -P macos-latest-xlarge=-self-hosted --secret-file .github/workflows/.env.secret -W .github/workflows/release_dapp_android_internal.yml
+# act -j build-android-artifacts --container-architecture linux/amd64 -P macos-latest-xlarge=-self-hosted --secret-file .github/workflows/.env.secret -W .github/workflows/release-dart.yml
