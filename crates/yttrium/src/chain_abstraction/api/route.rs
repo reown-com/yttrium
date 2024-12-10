@@ -41,28 +41,28 @@ pub struct FundingMetadata {
     // The amount taken by the bridge as a fee
     pub bridging_fee: U256,
 
-    #[serde(
-        deserialize_with = "crate::utils::deserialize_unit",
-        serialize_with = "crate::utils::serialize_unit"
-    )]
-    #[serde(default = "default_unit")]
-    pub decimals: Unit,
+    // #[serde(
+    //     deserialize_with = "crate::utils::deserialize_unit",
+    //     serialize_with = "crate::utils::serialize_unit"
+    // )]
+    // #[serde(default = "default_unit")]
+    pub decimals: u8,
 }
 
 // TODO remove default when Blockchain API is updated to provide this
-fn default_unit() -> Unit {
-    Unit::new(6).unwrap()
-}
+// fn default_unit() -> Unit {
+//     Unit::new(6).unwrap()
+// }
 
-impl FundingMetadata {
-    pub fn to_amount(&self) -> Amount {
-        Amount::new(self.symbol.clone(), self.amount, self.decimals)
-    }
+// impl FundingMetadata {
+//     pub fn to_amount(&self) -> Amount {
+//         Amount::new(self.symbol.clone(), self.amount, self.decimals)
+//     }
 
-    pub fn to_bridging_fee_amount(&self) -> Amount {
-        Amount::new(self.symbol.clone(), self.bridging_fee, self.decimals)
-    }
-}
+//     pub fn to_bridging_fee_amount(&self) -> Amount {
+//         Amount::new(self.symbol.clone(), self.bridging_fee, self.decimals)
+//     }
+// }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]

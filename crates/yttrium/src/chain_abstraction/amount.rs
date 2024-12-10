@@ -8,7 +8,7 @@ use alloy::primitives::{
 pub struct Amount {
     pub symbol: String,        // USDC, USD
     pub amount: U256,          // e.g. 40000, 4
-    pub unit: Unit,            // 6, 2
+    pub unit: u8,            // 6, 2
     pub formatted: String,     // e.g. 0.04 USDC, $0.04
     pub formatted_alt: String, // e.g. $0.04
 }
@@ -37,7 +37,7 @@ impl Amount {
         Self {
             symbol,
             amount,
-            unit,
+            unit: unit.get(),
             formatted: formatted_symbol,
             formatted_alt,
         }
@@ -50,7 +50,7 @@ impl Amount {
     /// Used only for tests. This function is inherently inaccurate and should
     /// not be used in production.
     pub fn as_float_inaccurate(&self) -> f64 {
-        to_float(self.amount, self.unit)
+        to_float(self.amount, Unit::new(self.unit).unwrap())
     }
 }
 

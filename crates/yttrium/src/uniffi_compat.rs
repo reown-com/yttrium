@@ -43,17 +43,17 @@ uniffi::custom_type!(B256, String, {
     lower: |obj| obj.to_string(),
 });
 
-uniffi::custom_type!(Unit, u8, {
-    try_lift: |val| Ok(Unit::new(val).expect("Unit must be less than 77")),
-    lower: |obj| obj.get(),
-});
+// uniffi::custom_type!(Unit, u8, {
+//     try_lift: |val| Ok(Unit::new(val).expect("Unit must be less than 77")),
+//     lower: |obj| obj.get(),
+// });
 
-#[uniffi::export]
-fn funding_metadata_to_amount(value: FundingMetadata) -> Amount {
-    value.to_amount()
-}
+// #[uniffi::export]
+// fn funding_metadata_to_amount(value: FundingMetadata) -> Amount {
+//     value.to_amount()
+// }
 
-#[uniffi::export]
-fn funding_metadata_to_bridging_fee_amount(value: FundingMetadata) -> Amount {
-    value.to_bridging_fee_amount()
-}
+// #[uniffi::export]
+// fn funding_metadata_to_bridging_fee_amount(value: FundingMetadata) -> Amount {
+//     value.to_bridging_fee_amount()
+// }
