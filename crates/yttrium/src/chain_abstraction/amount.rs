@@ -8,7 +8,7 @@ use alloy::primitives::{
 pub struct Amount {
     pub symbol: String,        // USDC, USD
     pub amount: U256,          // e.g. 40000, 4
-    pub unit: u8,            // 6, 2
+    pub unit: u8,              // 6, 2
     pub formatted: String,     // e.g. 0.04 USDC, $0.04
     pub formatted_alt: String, // e.g. $0.04
 }

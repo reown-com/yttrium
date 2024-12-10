@@ -1,8 +1,6 @@
 use {
     crate::chain_abstraction::{amount::Amount, api::route::FundingMetadata},
-    alloy::primitives::{
-        utils::Unit, Address, Bytes, Uint, B256, U128, U256, U64,
-    },
+    alloy::primitives::{Address, Bytes, Uint, B256, U128, U256, U64},
 };
 
 // TODO use https://mozilla.github.io/uniffi-rs/next/udl/remote_ext_types.html#remote-types when it's available
