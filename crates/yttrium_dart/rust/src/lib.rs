@@ -1,29 +1,34 @@
 mod frb_generated; /* AUTO INJECTED BY flutter_rust_bridge. This line may not be accurate, and you can change it according to your needs. */
-use alloy::primitives::{Bytes, U256, U64};
-use alloy::providers::Provider;
-use alloy::{network::Ethereum, providers::ReqwestProvider};
-
-use flutter_rust_bridge::frb;
-
-use relay_rpc::domain::ProjectId;
-use serde::{Deserialize, Serialize};
-use std::time::Duration;
-
-use yttrium::chain_abstraction::api::route::RouteResponse;
-use yttrium::chain_abstraction::api::status::{
-    StatusResponse, StatusResponseCompleted,
-};
-use yttrium::chain_abstraction::api::Transaction as CATransaction;
-use yttrium::chain_abstraction::client::Client;
-use yttrium::config::Config;
-use yttrium::transaction::send::safe_test::{
-    Address, OwnerSignature as YOwnerSignature, PrimitiveSignature,
-};
-use yttrium::{
-    account_client::{AccountClient as YAccountClient, SignerType},
-    private_key_service::PrivateKeyService,
-    sign_service::address_from_string,
-    transaction::Transaction as YTransaction,
+use {
+    alloy::{
+        network::Ethereum,
+        primitives::{Bytes, U256, U64},
+        providers::{Provider, ReqwestProvider},
+    },
+    flutter_rust_bridge::frb,
+    relay_rpc::domain::ProjectId,
+    serde::{Deserialize, Serialize},
+    std::time::Duration,
+    yttrium::{
+        account_client::{AccountClient as YAccountClient, SignerType},
+        chain_abstraction::{
+            api::{
+                route::RouteResponse,
+                status::{StatusResponse, StatusResponseCompleted},
+                Transaction as CATransaction,
+            },
+            client::Client,
+        },
+        config::Config,
+        private_key_service::PrivateKeyService,
+        sign_service::address_from_string,
+        transaction::{
+            send::safe_test::{
+                Address, OwnerSignature as YOwnerSignature, PrimitiveSignature,
+            },
+            Transaction as YTransaction,
+        },
+    },
 };
 
 #[frb]
