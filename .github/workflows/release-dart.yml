@@ -1,0 +1,130 @@
+name: Build and Release Yttrium Dart
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g. 0.0.1)'
+        required: true
+
+env:
+  CARGO_TERM_COLOR: always
+  VERSION: ${{ github.event.inputs.version || '0.0.1' }}
+  TARGET_BRANCH: ${{ github.ref_name }}
+
+permissions:
+  contents: write
+
+jobs:
+  build-android-artifacts:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        target: [aarch64-linux-android, armv7-linux-androideabi]
+    
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: ${{ matrix.target }}
+          override: true
+          components: rust-src
+
+      - name: Set up Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+      
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          api-level: 35
+          build-tools: 35.0.0
+          ndk-version: 27.2.12479018
+
+      # - name: Build with Gradle
+      #   run: |
+      #     ./gradlew clean assembleRelease -Pversion=${{ env.VERSION }}
+      
+      - name: Install cargo-ndk
+        run: |
+          cargo install cargo-ndk
+      
+      - name: Generate Kotlin bindings (once)
+        working-directory: crates/yttrium_dart
+        run: |
+          flutter_rust_bridge_codegen generate --config-file flutter_rust_bridge.yaml
+
+      - name: Build Rust library
+        working-directory: crates/yttrium_dart/rust
+        run: |
+          cargo ndk -t ${{ matrix.target }} build --release
+      
+      - name: Prepare artifacts
+        run: | 
+          # Map Rust targets to Android ABI names
+          declare -A abi_map
+          abi_map[aarch64-linux-android]="arm64-v8a"
+          abi_map[armv7-linux-androideabi]="armeabi-v7a"
+
+          abi_name=${abi_map[${{ matrix.target }}]}
+          if [ -z "$abi_name" ]; then
+            echo "Unknown ABI for target ${{ matrix.target }}"
+            exit 1
+          fi
+
+          mkdir -p yttrium/jniLibs/$abi_name
+          cp target/${{ matrix.target }}/release/libyttrium_dart.so yttrium/jniLibs/$abi_name/
+      
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: artifacts
+          path: yttrium/
+
+  create-github-release:
+    needs: build-android-artifacts
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: artifacts
+          path: yttrium/
+
+      - name: Create artifacts zip
+        run: |
+          zip -r dart-artifacts.zip yttrium/
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ env.VERSION }}
+          release_name: YttriumDart ${{ env.VERSION }}
+          draft: false
+          prerelease: false
+
+      - name: Upload Release Assets
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: dart-artifacts.zip
+          asset_name: dart-artifacts.zip
+          asset_content_type: application/zip
+
+# Launch locally
+# act -j build --container-architecture linux/amd64 -P macos-latest-xlarge=-self-hosted --secret-file .github/workflows/.env.secret -W .github/workflows/release_dapp_android_internal.yml
