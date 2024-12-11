@@ -30,7 +30,7 @@ log = "0.4.20"
 
 alloy = "0.7.3"
 alloy-provider = "0.7.3"
-erc6492 = { git = "https://github.com/reown-com/erc6492.git", branch = "chore/bump-alloy-v7" }
+erc6492 = { git = "https://github.com/reown-com/erc6492.git", rev = "3e764e1" }
 
 serial_test = "3.2.0"
 
