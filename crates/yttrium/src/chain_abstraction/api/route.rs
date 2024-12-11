@@ -24,7 +24,29 @@ pub struct RouteRequest {
 #[serde(rename_all = "camelCase")]
 pub struct Metadata {
     pub funding_from: Vec<FundingMetadata>,
+    pub initial_transaction: InitialTransactionMetadata,
     pub check_in: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
+#[serde(rename_all = "camelCase")]
+pub struct InitialTransactionMetadata {
+    pub transfer_to: Address,
+    pub amount: U256,
+    pub token_contract: Address,
+    pub symbol: String,
+    pub decimals: u8,
+}
+
+impl InitialTransactionMetadata {
+    pub fn to_amount(&self) -> Amount {
+        Amount::new(
+            self.symbol.clone(),
+            self.amount,
+            Unit::new(self.decimals).unwrap(),
+        )
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
