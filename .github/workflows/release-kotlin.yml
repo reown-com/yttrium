@@ -81,7 +81,7 @@ jobs:
           cp target/${{ matrix.target }}/release/libuniffi_yttrium.so yttrium/libs/$abi_name/
       
       - name: Upload artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: artifacts
           path: yttrium/
@@ -95,7 +95,7 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Download artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: artifacts
           path: yttrium/
