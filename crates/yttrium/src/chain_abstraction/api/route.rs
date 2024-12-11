@@ -39,6 +39,16 @@ pub struct InitialTransactionMetadata {
     pub decimals: u8,
 }
 
+impl InitialTransactionMetadata {
+    pub fn to_amount(&self) -> Amount {
+        Amount::new(
+            self.symbol.clone(),
+            self.amount,
+            Unit::new(self.decimals).unwrap(),
+        )
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
 #[serde(rename_all = "camelCase")]
