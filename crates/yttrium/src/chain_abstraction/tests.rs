@@ -34,6 +34,7 @@ use {
         },
         Identity, Provider, ProviderBuilder, ReqwestProvider, RootProvider,
     },
+    relay_rpc::domain::ProjectId,
     serial_test::serial,
     std::{
         cmp::max,
@@ -97,22 +98,22 @@ impl Chain {
 }
 
 fn provider_for_chain(chain_id: &Chain) -> ReqwestProvider {
-    // let project_id: ProjectId =
-    //     std::env::var("REOWN_PROJECT_ID").unwrap().into();
-    // let url = format!(
-    //     "https://rpc.walletconnect.org/v1?chainId={}&projectId={project_id}",
-    //     chain_id.eip155_chain_id()
-    // )
-    // .parse()
-    // .unwrap();
-    // https://reown-inc.slack.com/archives/C0816SK4877/p1732598903113679?thread_ts=1732562310.770219&cid=C0816SK4877
-    let url = match chain_id {
-        Chain::Base => "https://mainnet.base.org",
-        Chain::Optimism => "https://mainnet.optimism.io",
-        Chain::Arbitrum => "https://arbitrum.gateway.tenderly.co",
-    }
+    let project_id: ProjectId =
+        std::env::var("REOWN_PROJECT_ID").unwrap().into();
+    let url = format!(
+        "https://rpc.walletconnect.org/v1?chainId={}&projectId={project_id}",
+        chain_id.eip155_chain_id()
+    )
     .parse()
     .unwrap();
+    // https://reown-inc.slack.com/archives/C0816SK4877/p1732598903113679?thread_ts=1732562310.770219&cid=C0816SK4877
+    // let url = match chain_id {
+    //     Chain::Base => "https://mainnet.base.org",
+    //     Chain::Optimism => "https://mainnet.optimism.io",
+    //     Chain::Arbitrum => "https://arbitrum.gateway.tenderly.co",
+    // }
+    // .parse()
+    // .unwrap();
     ProviderBuilder::new().on_http(url)
 }
 
