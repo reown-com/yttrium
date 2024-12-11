@@ -17,13 +17,17 @@ check: setup lint test
 # Run this regularly locally, requires some special env vars
 devloop: check env-tests _pass
 
-# Devloop, but also runs what CI does
-devloop-full: check env-tests ci-extended _pass
+# Devloop, but also runs all checks that CI does
+devloop-ci: check env-tests _ci _pass
 
-ci-extended: udeps swift kotlin
+# devloop-ci, but also runs costly tests
+devloop-ci-costly: check env-tests _ci costly-tests _pass
+full: devloop-ci-costly
 
-# Run all checks that CI does
-ci: check ci-extended _pass
+_ci: udeps swift kotlin
+
+# Run all checks that CI does; helpful to autofix and help debug most CI errors
+ci: check _ci _pass
 
 setup:
   git submodule update --init --recursive
@@ -33,8 +37,11 @@ test:
 
 # Runs tests that require environment variables to be set
 env-tests:
-  if [ ! -z "${REOWN_PROJECT_ID}" ]; then just test-blockchain-api; fi
   if [ ! -z "${PIMLICO_API_KEY}" ] && [ ! -z "${PIMLICO_RPC_URL}" ] && [ ! -z "${PIMLICO_BUNDLER_URL}" ]; then just test-pimlico-api; fi
+
+# Runs tests that require some minor cost e.g. mainnet gas or tokens
+costly-tests:
+  if [ ! -z "${REOWN_PROJECT_ID}" ]; then just test-blockchain-api; fi
 
 test-pimlico-api:
   cargo test --features=test_pimlico_api --lib --bins pimlico
