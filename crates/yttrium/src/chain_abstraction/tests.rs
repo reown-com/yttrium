@@ -860,7 +860,7 @@ async fn happy_path() {
             txn.to.unwrap()
         );
         assert_eq!(route_ui_fields.fee.fee.symbol, "ETH");
-        assert_eq!(route_ui_fields.fee.fee.unit, Unit::ETHER);
+        assert_eq!(route_ui_fields.fee.fee.unit, Unit::ETHER.get());
         assert!(floats_close(
             route_ui_fields.fee.fee.as_float_inaccurate(),
             Amount::new("NULL".to_owned(), fee, Unit::ETHER)
@@ -1376,7 +1376,7 @@ async fn happy_path_full_dependency_on_route_ui_fields() {
     assert_eq!(result.metadata.funding_from.first().unwrap().symbol, "USDC");
     assert_eq!(
         result.metadata.funding_from.first().unwrap().decimals,
-        Unit::new(6).unwrap()
+        6
     );
     assert_eq!(
         result

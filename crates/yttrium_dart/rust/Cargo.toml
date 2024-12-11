@@ -15,7 +15,7 @@ flutter_rust_bridge_codegen = "2.6.0"
 
 [dependencies]
 flutter_rust_bridge = "=2.6.0"
-yttrium = { git = "https://github.com/reown-com/yttrium.git", package = "yttrium"}
+yttrium = { path = "../../yttrium" }
 # uniffi = { git = "https://github.com/mozilla/uniffi-rs", rev = "e796e00ad150f8b14b61a859a2e8c6497b35074e" }
 openssl = { version = "0.10", features = ["vendored"] }
 openssl-sys = { version = "0.9.103", features = ["vendored"] }
@@ -26,8 +26,7 @@ eyre.workspace = true
 thiserror.workspace = true
 
 alloy.workspace = true
-alloy-provider = "0.6.1"
-erc6492 = { git = "https://github.com/reown-com/erc6492.git", branch = "main" }
+erc6492.workspace = true
 
 # Async
 tokio.workspace = true
