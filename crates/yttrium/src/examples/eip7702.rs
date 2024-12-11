@@ -4,39 +4,51 @@ use {
     crate::{
         config::Config,
         erc7579::{
-            ownable_validator::{encode_owners, OWNABLE_VALIDATOR_ADDRESS},
+            addresses::{MOCK_ATTESTER_ADDRESS, RHINESTONE_ATTESTER_ADDRESS},
+            ownable_validator::{
+                encode_owners, get_ownable_validator, OWNABLE_VALIDATOR_ADDRESS,
+            },
             policy::get_sudo_policy,
-            smart_sessions::{ActionData, ERC7739Data, Session},
+            smart_sessions::{
+                get_smart_sessions_validator, ActionData, ERC7739Data, Session,
+            },
         },
-        smart_accounts::safe::Owners,
+        smart_accounts::safe::{
+            Owners, SAFE_4337_MODULE_ADDRESS, SAFE_ERC_7579_LAUNCHPAD_ADDRESS,
+            SAFE_L2_SINGLETON_1_4_1,
+        },
+        test_helpers::anvil_faucet,
     },
     alloy::{
-        network::Ethereum,
-        primitives::{address, fixed_bytes, B256},
+        network::{Ethereum, EthereumWallet, TransactionBuilder7702},
+        primitives::{address, fixed_bytes, Address, B256, U256},
         rpc::types::Authorization,
-        signers::local::LocalSigner,
+        signers::{local::LocalSigner, SignerSync},
+        sol,
+        sol_types::SolCall,
     },
-    alloy_provider::{Provider, ReqwestProvider},
+    alloy_provider::{Provider, ProviderBuilder, ReqwestProvider},
+    reqwest::Url,
 };
 
 #[tokio::test]
 async fn test() {
     let config = Config::local();
-    let provider = ReqwestProvider::<Ethereum>::new_http(
-        config.endpoints.rpc.base_url.parse().unwrap(),
-    );
+    let rpc_url = config.endpoints.rpc.base_url.parse::<Url>().unwrap();
+    let provider = ReqwestProvider::<Ethereum>::new_http(rpc_url.clone());
 
     let owner = LocalSigner::random();
-    let _safe_owner = LocalSigner::random();
+    let safe_owner = LocalSigner::random();
+    let owners = Owners { threshold: 1, owners: vec![safe_owner.address()] };
 
     // TODO ownableValidator
     // https://github.com/rhinestonewtf/module-sdk-tutorials/blob/656c52e200329c40ce633485bb8824df6c96ba20/src/smart-sessions/permissionless-safe-7702.ts#L80
     // https://github.com/rhinestonewtf/module-sdk/blob/main/src/module/ownable-validator/installation.ts
-    let _owner_validator = ();
+    let ownable_validator = get_ownable_validator(&owners, None);
 
     let session_owner = LocalSigner::random();
 
-    let _session = Session {
+    let session = Session {
         sessionValidator: OWNABLE_VALIDATOR_ADDRESS,
         sessionValidatorInitData: encode_owners(&Owners {
             threshold: 1,
@@ -55,25 +67,89 @@ async fn test() {
         }],
     };
 
-    let _auth_7702 = Authorization {
+    let smart_sessions = get_smart_sessions_validator(vec![session], None);
+
+    let auth_7702 = Authorization {
         chain_id: provider.get_chain_id().await.unwrap(),
-        address: address!("29fcB43b46531BcA003ddC8FCB67FFE91900C762"), /* TODO make constant */
+        address: SAFE_L2_SINGLETON_1_4_1,
         // TODO should this be `pending` tag? https://github.com/wevm/viem/blob/a49c100a0b2878fbfd9f1c9b43c5cc25de241754/src/experimental/eip7702/actions/signAuthorization.ts#L149
         nonce: provider.get_transaction_count(owner.address()).await.unwrap(),
     };
 
     // Sign the authorization
-    // let sig = owner.sign_hash_sync(&auth_7702.signature_hash())?;
-    // let auth = auth_7702.into_signed(sig);
+    let sig = owner.sign_hash_sync(&auth_7702.signature_hash()).unwrap();
+    let auth = auth_7702.into_signed(sig);
 
-    // let authorization_list = vec![Authorization {
-    //     contract_address: auth.address,
-    //     chain_id: u64::from_be_bytes(
-    //         U64::from(auth.chain_id).to_be_bytes(),
-    //     ),
-    //     nonce: auth.nonce,
-    //     y_parity: auth.y_parity(),
-    //     r: auth.r(),
-    //     s: auth.s(),
-    // }];
+    sol! {
+        #[allow(clippy::too_many_arguments)]
+        #[sol(rpc)]
+        contract SetupContract {
+            function setup(address[] calldata _owners,uint256 _threshold,address to,bytes calldata data,address fallbackHandler,address paymentToken,uint256 payment, address paymentReceiver) external;
+        }
+
+        #[allow(clippy::too_many_arguments)]
+        #[sol(rpc)]
+        contract AddSafe7579Contract {
+            struct ModuleInit {
+                address module;
+                bytes initData;
+            }
+
+            function addSafe7579(address safe7579, ModuleInit[] calldata validators, ModuleInit[] calldata executors, ModuleInit[] calldata fallbacks, ModuleInit[] calldata hooks, address[] calldata attesters, uint8 threshold) external;
+        }
+    };
+
+    let faucet = anvil_faucet(rpc_url).await;
+    let wallet = EthereumWallet::new(faucet);
+    let wallet_provider = ProviderBuilder::new()
+        .with_recommended_fillers()
+        .wallet(wallet)
+        .on_provider(provider.clone());
+    assert!(SetupContract::new(owner.address(), wallet_provider.clone())
+        .setup(
+            owners.owners,
+            U256::from(owners.threshold),
+            SAFE_ERC_7579_LAUNCHPAD_ADDRESS,
+            AddSafe7579Contract::addSafe7579Call {
+                safe7579: SAFE_4337_MODULE_ADDRESS,
+                validators: vec![
+                    AddSafe7579Contract::ModuleInit {
+                        module: ownable_validator.address,
+                        initData: ownable_validator.init_data,
+                    },
+                    AddSafe7579Contract::ModuleInit {
+                        module: smart_sessions.address,
+                        initData: smart_sessions.init_data,
+                    },
+                ],
+                executors: vec![],
+                fallbacks: vec![],
+                hooks: vec![],
+                attesters: vec![
+                    RHINESTONE_ATTESTER_ADDRESS,
+                    MOCK_ATTESTER_ADDRESS,
+                ],
+                threshold: owners.threshold,
+            }
+            .abi_encode()
+            .into(),
+            SAFE_4337_MODULE_ADDRESS,
+            Address::ZERO,
+            U256::ZERO,
+            Address::ZERO,
+        )
+        .map(|mut t| {
+            t.set_authorization_list(vec![auth]);
+            t
+        })
+        .send()
+        .await
+        .unwrap()
+        .get_receipt()
+        .await
+        .unwrap()
+        .status());
+
+    // TODO toSafeSmartAccount & more
+    // https://github.com/rhinestonewtf/module-sdk-tutorials/blob/5592c407865122e04fb234b6a1533712e2f47d39/src/smart-sessions/permissionless-safe-7702.ts#L170
 }
