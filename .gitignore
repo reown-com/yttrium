@@ -33,3 +33,5 @@ Utilities/InstalledSwiftPMConfiguration/config.json
 /yttrium/kotlin-bindings
 .gradle
 /crates/kotlin-ffi/android/build
+
+*.env.secret*
