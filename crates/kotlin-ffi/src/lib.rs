@@ -4,7 +4,8 @@ use {
     alloy::{
         network::Ethereum,
         primitives::{
-            Bytes as FFIBytes, U128 as FFIU128, U256 as FFIU256, U64 as FFIU64,
+            Bytes as FFIBytes, Uint, U128 as FFIU128, U256 as FFIU256,
+            U64 as FFIU64,
         },
         providers::{Provider, ReqwestProvider},
     },
@@ -58,19 +59,25 @@ uniffi::custom_type!(FFIAddress, String, {
     lower: |obj| obj.to_string(),
 });
 
+fn uint_to_hex<const BITS: usize, const LIMBS: usize>(
+    obj: Uint<BITS, LIMBS>,
+) -> String {
+    format!("0x{obj:x}")
+}
+
 uniffi::custom_type!(FFIU64, String, {
     try_lift: |val| Ok(val.parse()?),
-    lower: |obj| obj.to_string(),
+    lower: |obj| uint_to_hex(obj),
 });
 
 uniffi::custom_type!(FFIU128, String, {
     try_lift: |val| Ok(val.parse()?),
-    lower: |obj| obj.to_string(),
+    lower: |obj| uint_to_hex(obj),
 });
 
 uniffi::custom_type!(FFIU256, String, {
     try_lift: |val| Ok(val.parse()?),
-    lower: |obj| obj.to_string(),
+    lower: |obj| uint_to_hex(obj),
 });
 
 uniffi::custom_type!(FFIBytes, String, {
