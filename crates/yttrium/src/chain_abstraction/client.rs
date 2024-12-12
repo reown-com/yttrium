@@ -96,6 +96,10 @@ impl Client {
         // TODO use this to e.g. modify priority fee
         // _speed: String,
     ) -> Result<RouteUiFields, RouteUiFieldsError> {
+        if currency != Currency::Usd {
+            unimplemented!("Only USD currency is supported for now");
+        }
+
         let chains = route_response
             .transactions
             .iter()

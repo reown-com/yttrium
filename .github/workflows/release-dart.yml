@@ -70,11 +70,6 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-gradle-
 
-      # Install cargo-ndk
-      - name: Install cargo-ndk
-        run: |
-          cargo install cargo-ndk
-
       # Install Flutter
       - name: Install Flutter
         uses: subosito/flutter-action@v2
@@ -109,6 +104,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
+      # Install cargo-ndk
+      - name: Install cargo-ndk
+        run: |
+          cargo install cargo-ndk
+
       # Build Native Android libraries
       - name: Build Native Android libraries
         shell: bash
@@ -130,7 +130,7 @@ jobs:
       - name: Upload Android artifacts
         uses: actions/upload-artifact@v3
         with:
-          name: artifacts
+          name: dart-android-artifacts
           path: jniLibs/
 
   build-ios-artifacts:
@@ -164,7 +164,7 @@ jobs:
       - name: Upload iOS artifacts
         uses: actions/upload-artifact@v3
         with:
-          name: artifacts
+          name: dart-ios-artifacts
           path: universal/
 
   create-github-release:
@@ -180,14 +180,14 @@ jobs:
       - name: Download Android artifacts
         uses: actions/download-artifact@v3
         with:
-          name: artifacts
+          name: dart-android-artifacts
           path: jniLibs/
 
       # Download iOS artifacts
       - name: Download iOS artifacts
         uses: actions/download-artifact@v3
         with:
-          name: artifacts
+          name: dart-ios-artifacts
           path: universal/
 
       # Create artifacts zip

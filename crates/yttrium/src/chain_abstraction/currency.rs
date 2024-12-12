@@ -5,7 +5,7 @@ use {
 
 // TODO get Blockchain API to use these types?
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Enum))]
 #[serde(rename_all = "lowercase")]
 pub enum Currency {
