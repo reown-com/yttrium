@@ -5,6 +5,7 @@ pub mod currency;
 pub mod error;
 pub mod l1_data_fee;
 pub mod local_fee_acc;
+pub mod route_ui_fields;
 
 #[cfg(test)]
 mod test_helpers;

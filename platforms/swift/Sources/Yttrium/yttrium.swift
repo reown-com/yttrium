@@ -747,13 +747,13 @@ public func FfiConverterTypeErc6492Client_lower(_ value: Erc6492Client) -> Unsaf
 public struct Amount {
     public var symbol: String
     public var amount: U256
-    public var unit: Unit
+    public var unit: UInt8
     public var formatted: String
     public var formattedAlt: String
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(symbol: String, amount: U256, unit: Unit, formatted: String, formattedAlt: String) {
+    public init(symbol: String, amount: U256, unit: UInt8, formatted: String, formattedAlt: String) {
         self.symbol = symbol
         self.amount = amount
         self.unit = unit
@@ -803,7 +803,7 @@ public struct FfiConverterTypeAmount: FfiConverterRustBuffer {
             try Amount(
                 symbol: FfiConverterString.read(from: &buf), 
                 amount: FfiConverterTypeU256.read(from: &buf), 
-                unit: FfiConverterTypeUnit.read(from: &buf), 
+                unit: FfiConverterUInt8.read(from: &buf), 
                 formatted: FfiConverterString.read(from: &buf), 
                 formattedAlt: FfiConverterString.read(from: &buf)
         )
@@ -812,7 +812,7 @@ public struct FfiConverterTypeAmount: FfiConverterRustBuffer {
     public static func write(_ value: Amount, into buf: inout [UInt8]) {
         FfiConverterString.write(value.symbol, into: &buf)
         FfiConverterTypeU256.write(value.amount, into: &buf)
-        FfiConverterTypeUnit.write(value.unit, into: &buf)
+        FfiConverterUInt8.write(value.unit, into: &buf)
         FfiConverterString.write(value.formatted, into: &buf)
         FfiConverterString.write(value.formattedAlt, into: &buf)
     }
@@ -1038,11 +1038,11 @@ public struct FundingMetadata {
     public var symbol: String
     public var amount: U256
     public var bridgingFee: U256
-    public var decimals: Unit
+    public var decimals: UInt8
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(chainId: String, tokenContract: Address, symbol: String, amount: U256, bridgingFee: U256, decimals: Unit) {
+    public init(chainId: String, tokenContract: Address, symbol: String, amount: U256, bridgingFee: U256, decimals: UInt8) {
         self.chainId = chainId
         self.tokenContract = tokenContract
         self.symbol = symbol
@@ -1100,7 +1100,7 @@ public struct FfiConverterTypeFundingMetadata: FfiConverterRustBuffer {
                 symbol: FfiConverterString.read(from: &buf), 
                 amount: FfiConverterTypeU256.read(from: &buf), 
                 bridgingFee: FfiConverterTypeU256.read(from: &buf), 
-                decimals: FfiConverterTypeUnit.read(from: &buf)
+                decimals: FfiConverterUInt8.read(from: &buf)
         )
     }
 
@@ -1110,7 +1110,7 @@ public struct FfiConverterTypeFundingMetadata: FfiConverterRustBuffer {
         FfiConverterString.write(value.symbol, into: &buf)
         FfiConverterTypeU256.write(value.amount, into: &buf)
         FfiConverterTypeU256.write(value.bridgingFee, into: &buf)
-        FfiConverterTypeUnit.write(value.decimals, into: &buf)
+        FfiConverterUInt8.write(value.decimals, into: &buf)
     }
 }
 
@@ -1130,14 +1130,106 @@ public func FfiConverterTypeFundingMetadata_lower(_ value: FundingMetadata) -> R
 }
 
 
+public struct InitialTransactionMetadata {
+    public var transferTo: Address
+    public var amount: U256
+    public var tokenContract: Address
+    public var symbol: String
+    public var decimals: UInt8
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(transferTo: Address, amount: U256, tokenContract: Address, symbol: String, decimals: UInt8) {
+        self.transferTo = transferTo
+        self.amount = amount
+        self.tokenContract = tokenContract
+        self.symbol = symbol
+        self.decimals = decimals
+    }
+}
+
+
+
+extension InitialTransactionMetadata: Equatable, Hashable {
+    public static func ==(lhs: InitialTransactionMetadata, rhs: InitialTransactionMetadata) -> Bool {
+        if lhs.transferTo != rhs.transferTo {
+            return false
+        }
+        if lhs.amount != rhs.amount {
+            return false
+        }
+        if lhs.tokenContract != rhs.tokenContract {
+            return false
+        }
+        if lhs.symbol != rhs.symbol {
+            return false
+        }
+        if lhs.decimals != rhs.decimals {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(transferTo)
+        hasher.combine(amount)
+        hasher.combine(tokenContract)
+        hasher.combine(symbol)
+        hasher.combine(decimals)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeInitialTransactionMetadata: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> InitialTransactionMetadata {
+        return
+            try InitialTransactionMetadata(
+                transferTo: FfiConverterTypeAddress.read(from: &buf), 
+                amount: FfiConverterTypeU256.read(from: &buf), 
+                tokenContract: FfiConverterTypeAddress.read(from: &buf), 
+                symbol: FfiConverterString.read(from: &buf), 
+                decimals: FfiConverterUInt8.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: InitialTransactionMetadata, into buf: inout [UInt8]) {
+        FfiConverterTypeAddress.write(value.transferTo, into: &buf)
+        FfiConverterTypeU256.write(value.amount, into: &buf)
+        FfiConverterTypeAddress.write(value.tokenContract, into: &buf)
+        FfiConverterString.write(value.symbol, into: &buf)
+        FfiConverterUInt8.write(value.decimals, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeInitialTransactionMetadata_lift(_ buf: RustBuffer) throws -> InitialTransactionMetadata {
+    return try FfiConverterTypeInitialTransactionMetadata.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeInitialTransactionMetadata_lower(_ value: InitialTransactionMetadata) -> RustBuffer {
+    return FfiConverterTypeInitialTransactionMetadata.lower(value)
+}
+
+
 public struct Metadata {
     public var fundingFrom: [FundingMetadata]
+    public var initialTransaction: InitialTransactionMetadata
     public var checkIn: UInt64
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(fundingFrom: [FundingMetadata], checkIn: UInt64) {
+    public init(fundingFrom: [FundingMetadata], initialTransaction: InitialTransactionMetadata, checkIn: UInt64) {
         self.fundingFrom = fundingFrom
+        self.initialTransaction = initialTransaction
         self.checkIn = checkIn
     }
 }
@@ -1149,6 +1241,9 @@ extension Metadata: Equatable, Hashable {
         if lhs.fundingFrom != rhs.fundingFrom {
             return false
         }
+        if lhs.initialTransaction != rhs.initialTransaction {
+            return false
+        }
         if lhs.checkIn != rhs.checkIn {
             return false
         }
@@ -1157,6 +1252,7 @@ extension Metadata: Equatable, Hashable {
 
     public func hash(into hasher: inout Hasher) {
         hasher.combine(fundingFrom)
+        hasher.combine(initialTransaction)
         hasher.combine(checkIn)
     }
 }
@@ -1170,12 +1266,14 @@ public struct FfiConverterTypeMetadata: FfiConverterRustBuffer {
         return
             try Metadata(
                 fundingFrom: FfiConverterSequenceTypeFundingMetadata.read(from: &buf), 
+                initialTransaction: FfiConverterTypeInitialTransactionMetadata.read(from: &buf), 
                 checkIn: FfiConverterUInt64.read(from: &buf)
         )
     }
 
     public static func write(_ value: Metadata, into buf: inout [UInt8]) {
         FfiConverterSequenceTypeFundingMetadata.write(value.fundingFrom, into: &buf)
+        FfiConverterTypeInitialTransactionMetadata.write(value.initialTransaction, into: &buf)
         FfiConverterUInt64.write(value.checkIn, into: &buf)
     }
 }
@@ -2523,50 +2621,6 @@ public func FfiConverterTypeU64_lift(_ value: RustBuffer) throws -> U64 {
 #endif
 public func FfiConverterTypeU64_lower(_ value: U64) -> RustBuffer {
     return FfiConverterTypeU64.lower(value)
-}
-
-
-
-/**
- * Typealias from the type name used in the UDL file to the builtin type.  This
- * is needed because the UDL type name is used in function/method signatures.
- */
-public typealias Unit = UInt8
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeUnit: FfiConverter {
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Unit {
-        return try FfiConverterUInt8.read(from: &buf)
-    }
-
-    public static func write(_ value: Unit, into buf: inout [UInt8]) {
-        return FfiConverterUInt8.write(value, into: &buf)
-    }
-
-    public static func lift(_ value: UInt8) throws -> Unit {
-        return try FfiConverterUInt8.lift(value)
-    }
-
-    public static func lower(_ value: Unit) -> UInt8 {
-        return FfiConverterUInt8.lower(value)
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeUnit_lift(_ value: UInt8) throws -> Unit {
-    return try FfiConverterTypeUnit.lift(value)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeUnit_lower(_ value: Unit) -> UInt8 {
-    return FfiConverterTypeUnit.lower(value)
 }
 
 private let UNIFFI_RUST_FUTURE_POLL_READY: Int8 = 0
