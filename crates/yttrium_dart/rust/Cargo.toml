@@ -48,6 +48,7 @@ log.workspace = true
 # name = "dart_bindgen"
 # path = "dart_bindgen.rs"
 
-# [package.metadata.cargo-udeps.ignore]
-# # These crates are needed for Linux builds, but will give unused deps error when built on macOS
-# normal = ["openssl", "openssl-sys"]
+[package.metadata.cargo-udeps.ignore]
+# These crates are needed for Linux builds, but will give unused deps error when built on macOS
+# TODO this is moved over from kotlin-ffi; do we need these two crates for yttrium_dart?
+normal = ["openssl", "openssl-sys"]
