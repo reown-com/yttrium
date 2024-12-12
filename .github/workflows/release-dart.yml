@@ -128,10 +128,12 @@ jobs:
 
       # Upload Android artifacts
       - name: Upload Android artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: artifacts
-          path: jniLibs/
+          name: android-artifacts
+          path: |
+            jniLibs/arm64-v8a/
+            jniLibs/armeabi-v7a/
 
   build-ios-artifacts:
     needs: install-dependencies
@@ -162,10 +164,10 @@ jobs:
 
       # Upload iOS artifacts
       - name: Upload iOS artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: artifacts
-          path: universal/
+          name: ios-artifacts
+          path: universal/libyttrium_dart_universal.dylib
 
   create-github-release:
     needs: [build-android-artifacts, build-ios-artifacts]
