@@ -457,9 +457,13 @@ impl From<InitTransaction> for CATransaction {
 
 #[cfg(test)]
 mod tests {
-    use alloy::{
-        network::Ethereum,
-        providers::{Provider, ReqwestProvider},
+    use {
+        super::*,
+        alloy::{
+            network::Ethereum,
+            primitives::{address, bytes},
+            providers::{Provider, ReqwestProvider},
+        },
     };
 
     #[tokio::test]
@@ -476,5 +480,53 @@ mod tests {
         let estimate = provider.estimate_eip1559_fees(None).await.unwrap();
 
         println!("estimate: {estimate:?}");
+    }
+
+    #[test]
+    fn test_address_lower() {
+        let ffi_u64 = address!("abababababababababababababababababababab");
+        let u = ::uniffi::FfiConverter::<crate::UniFfiTag>::lower(ffi_u64);
+        let s: String =
+            ::uniffi::FfiConverter::<crate::UniFfiTag>::try_lift(u).unwrap();
+        assert_eq!(s, format!("0xABaBaBaBABabABabAbAbABAbABabababaBaBABaB"));
+    }
+
+    #[test]
+    fn test_u64_lower() {
+        let num = 1234567890;
+        let ffi_u64 = FFIU64::from(num);
+        let u = ::uniffi::FfiConverter::<crate::UniFfiTag>::lower(ffi_u64);
+        let s: String =
+            ::uniffi::FfiConverter::<crate::UniFfiTag>::try_lift(u).unwrap();
+        assert_eq!(s, format!("0x{num:x}"));
+    }
+
+    #[test]
+    fn test_u128_lower() {
+        let num = 1234567890;
+        let ffi_u64 = FFIU128::from(num);
+        let u = ::uniffi::FfiConverter::<crate::UniFfiTag>::lower(ffi_u64);
+        let s: String =
+            ::uniffi::FfiConverter::<crate::UniFfiTag>::try_lift(u).unwrap();
+        assert_eq!(s, format!("0x{num:x}"));
+    }
+
+    #[test]
+    fn test_u256_lower() {
+        let num = 1234567890;
+        let ffi_u64 = FFIU256::from(num);
+        let u = ::uniffi::FfiConverter::<crate::UniFfiTag>::lower(ffi_u64);
+        let s: String =
+            ::uniffi::FfiConverter::<crate::UniFfiTag>::try_lift(u).unwrap();
+        assert_eq!(s, format!("0x{num:x}"));
+    }
+
+    #[test]
+    fn test_bytes_lower() {
+        let ffi_u64 = bytes!("aabbccdd");
+        let u = ::uniffi::FfiConverter::<crate::UniFfiTag>::lower(ffi_u64);
+        let s: String =
+            ::uniffi::FfiConverter::<crate::UniFfiTag>::try_lift(u).unwrap();
+        assert_eq!(s, format!("0xaabbccdd"));
     }
 }
