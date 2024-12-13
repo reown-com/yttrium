@@ -12,8 +12,8 @@ test_pimlico_api = []
 test_blockchain_api = []
 
 [dependencies]
-uniffi = { git = "https://github.com/mozilla/uniffi-rs", rev = "e796e00ad150f8b14b61a859a2e8c6497b35074e", optional = true }
-uniffi_macros = { git = "https://github.com/mozilla/uniffi-rs", optional = true }
+uniffi = { workspace = true, optional = true }
+uniffi_macros = { workspace = true, optional = true }
 # Ethereum
 alloy = { workspace = true, features = [
     "contract",
@@ -23,14 +23,14 @@ alloy = { workspace = true, features = [
     "rpc-types-trace",
     "signer-mnemonic",
     "eip712",
-    "rlp"
+    "rlp",
 ] }
 alloy-provider = { workspace = true, features = ["erc4337-api"] }
 erc6492.workspace = true
-relay_rpc = { git = "https://github.com/WalletConnect/WalletConnectRust.git" }
+relay_rpc.workspace = true
 
 # foundry-block-explorers = "0.2.3"
-getrandom = { version = "0.2", features = ["js"] }
+getrandom = { version = "0.2", features = ["js"], default-features = false }
 
 # Error/Result
 eyre.workspace = true
@@ -45,13 +45,13 @@ serde.workspace = true
 serde_json.workspace = true
 
 # Env vars
-dotenvy = "0.15.7"
+dotenvy = { version = "0.15.7", default-features = false }
 
 # Other
-hex = "0.4.3"
-async-trait = "0.1.83"
-tracing = "0.1.40"
-fastlz-rs = "0.0.3"
+hex = { version = "0.4.3", features = ["std"], default-features = false }
+async-trait = { version = "0.1.83", default-features = false }
+tracing = { version = "0.1.40", default-features = false }
+fastlz-rs = { version = "0.0.3", features = ["std"], default-features = false }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 
@@ -60,7 +60,7 @@ reqwest.workspace = true
 
 [dev-dependencies]
 # mocking
-wiremock = "0.6.0"
+wiremock = { version = "0.6.0", default-features = false }
 
 # Networking
 reqwest.workspace = true

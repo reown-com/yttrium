@@ -16,29 +16,34 @@ license = "Apache-2.0"
 
 [workspace.dependencies]
 # Errors/Result
-eyre = "0.6.12"
-thiserror = "1.0"
+eyre = { version = "0.6.12", features = ["default"], default-features = false }
+thiserror = { version = "1.0", default-features = false }
 
 # Async
-tokio = { version = "1.17", features = [] }
-futures = "0.3.31"
+tokio = { version = "1.17", default-features = false }
+futures = { version = "0.3.31", default-features = false }
 
 # Networking
-reqwest = { version = "0.12.5", features = ["json"] }
+reqwest = { version = "0.12.5", features = ["json"], default-features = false }
 
 # Serialization
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
+serde = { version = "1.0", features = ["derive"], default-features = false }
+serde_json = { version = "1.0", default-features = false }
 
 # Logging
-oslog = "0.2.0"
-log = "0.4.20"
+oslog = { version = "0.2.0", default-features = false }
+log = { version = "0.4.20", default-features = false }
 
-alloy = "0.7.3"
-alloy-provider = "0.7.3"
-erc6492 = { git = "https://github.com/reown-com/erc6492.git", rev = "3e764e1" }
+alloy = { version = "0.7.3", default-features = false }
+alloy-provider = { version = "0.7.3", default-features = false }
+erc6492 = { git = "https://github.com/reown-com/erc6492.git", rev = "3e764e1", default-features = false }
+relay_rpc = { git = "https://github.com/WalletConnect/WalletConnectRust.git", rev = "51e984e", default-features = false }
 
-serial_test = "3.2.0"
+serial_test = { version = "3.2.0", default-features = false }
+
+uniffi_build = { git = "https://github.com/mozilla/uniffi-rs", rev = "e796e00ad150f8b14b61a859a2e8c6497b35074e", default-features = false }
+uniffi = { git = "https://github.com/mozilla/uniffi-rs", rev = "e796e00ad150f8b14b61a859a2e8c6497b35074e", default-features = false }
+uniffi_macros = { git = "https://github.com/mozilla/uniffi-rs", rev = "e796e00ad150f8b14b61a859a2e8c6497b35074e", default-features = false }
 
 # The values have been configured this way to prevent crashes in Swift debug builds with the default settings.
 [profile.release]
