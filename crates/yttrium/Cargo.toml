@@ -51,6 +51,7 @@ dotenvy = "0.15.7"
 hex = "0.4.3"
 async-trait = "0.1.83"
 tracing = "0.1.40"
+fastlz-rs = "0.0.3"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 
