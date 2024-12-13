@@ -17,10 +17,10 @@ use {
             nonce::get_nonce,
             safe::{
                 factory_data, get_account_address, get_call_data,
-                get_call_data_with_try, Owners, Safe7579Launchpad, SafeOp,
-                DUMMY_SIGNATURE, SAFE_4337_MODULE_ADDRESS,
-                SAFE_ERC_7579_LAUNCHPAD_ADDRESS, SAFE_PROXY_FACTORY_ADDRESS,
-                SEPOLIA_SAFE_ERC_7579_SINGLETON_ADDRESS,
+                get_call_data_with_try, init_data, Owners, Safe7579Launchpad,
+                SafeOp, DUMMY_SIGNATURE, SAFE_4337_MODULE_ADDRESS,
+                SAFE_ERC_7579_LAUNCHPAD_ADDRESS, SAFE_PROXY_FACTORY_1_4_1,
+                SAFE_SINGLETON_1_4_1,
             },
         },
         transaction::Transaction,
@@ -245,7 +245,7 @@ where
             .get_storage_at(account_address.into(), Uint::from(0))
             .await?
             == U256::from(U160::from_be_bytes(
-                SEPOLIA_SAFE_ERC_7579_SINGLETON_ADDRESS.into_array(),
+                SAFE_SINGLETON_1_4_1.into_array(),
             )) {
         get_call_data(execution_calldata)
     } else {
@@ -259,20 +259,11 @@ where
         // misleading.
         Safe7579Launchpad::setupSafeCall {
             initData: Safe7579Launchpad::InitData {
-                singleton: SEPOLIA_SAFE_ERC_7579_SINGLETON_ADDRESS,
+                singleton: SAFE_SINGLETON_1_4_1,
                 owners: owners.owners,
                 threshold: U256::from(owners.threshold),
                 setupTo: SAFE_ERC_7579_LAUNCHPAD_ADDRESS,
-                setupData: Safe7579Launchpad::initSafe7579Call {
-                    safe7579: SAFE_4337_MODULE_ADDRESS,
-                    executors: vec![],
-                    fallbacks: vec![],
-                    hooks: vec![],
-                    attesters: vec![],
-                    threshold: 0,
-                }
-                .abi_encode()
-                .into(),
+                setupData: init_data().abi_encode().into(),
                 safe7579: SAFE_4337_MODULE_ADDRESS,
                 callData: get_call_data_with_try(execution_calldata, true),
                 validators: vec![],
@@ -288,7 +279,7 @@ where
     let user_op = UserOperationV07 {
         sender: account_address,
         nonce,
-        factory: deployed.not().then_some(SAFE_PROXY_FACTORY_ADDRESS),
+        factory: deployed.not().then_some(SAFE_PROXY_FACTORY_1_4_1),
         factory_data: deployed.not().then(|| factory_data_value.into()),
         call_data,
         call_gas_limit: U256::ZERO,
@@ -417,12 +408,14 @@ where
         entryPoint: entry_point_address.to_address(),
     };
 
-    let erc7579_launchpad_address = true;
-    let verifying_contract = if erc7579_launchpad_address && !deployed {
-        user_op.sender.into()
-    } else {
-        SAFE_4337_MODULE_ADDRESS
-    };
+    // This is always the Safe 4337 module address now: https://reown-inc.slack.com/archives/C077RPLSZ71/p1733864707609549?thread_ts=1729617897.410709&cid=C077RPLSZ71
+    // let erc7579_launchpad_address = true;
+    // let verifying_contract = if erc7579_launchpad_address && !deployed {
+    //     user_op.sender.into()
+    // } else {
+    //     SAFE_4337_MODULE_ADDRESS
+    // };
+    let verifying_contract = SAFE_4337_MODULE_ADDRESS;
 
     let domain = Eip712Domain {
         chain_id: Some(Uint::from(chain_id)),
@@ -461,6 +454,10 @@ pub async fn encode_send_transactions(
         return Err(eyre::eyre!("Only one signature is supported for now"));
     }
 
+    // Sort signatures by owner address
+    // It's possible the 7579-flavored version of Safe does this automatically for us:
+    // https://github.com/rhinestonewtf/safe7579/compare/80a6c7a3d40dd7334a0fe4463b7112ca8fe5f60a...main#diff-8fa26e5e86315f14488e14d8d719a37dd681cb96410c74a21df54185c43036abR306
+    // But doing it here for now just-in-case
     let mut signatures = signatures;
     signatures.sort_by(|a, b| a.owner.cmp(&b.owner));
     let signature_bytes = signatures
@@ -470,6 +467,9 @@ pub async fn encode_send_transactions(
         .concat();
 
     let signature = DynSolValue::Tuple(vec![
+        // DynSolValue::Address(Address::ZERO),
+        // DynSolValue::Address(OWNABLE_VALIDATOR_ADDRESS),
+        // TODO are these orders potentially swapped? https://github.com/rhinestonewtf/safe7579/compare/80a6c7a3d40dd7334a0fe4463b7112ca8fe5f60a...main#diff-8fa26e5e86315f14488e14d8d719a37dd681cb96410c74a21df54185c43036abL307
         DynSolValue::Uint(Uint::from(valid_after), 48),
         DynSolValue::Uint(Uint::from(valid_until), 48),
         DynSolValue::Bytes(signature_bytes),
@@ -678,9 +678,7 @@ mod tests {
                 .get_storage_at(sender_address.into(), Uint::from(0))
                 .await
                 .unwrap(),
-            U256::from(U160::from_be_bytes(
-                SEPOLIA_SAFE_ERC_7579_SINGLETON_ADDRESS.into_array()
-            ))
+            U256::from(U160::from_be_bytes(SAFE_SINGLETON_1_4_1.into_array()))
         );
 
         let balance =
@@ -709,9 +707,7 @@ mod tests {
                 .get_storage_at(sender_address.into(), Uint::from(0))
                 .await
                 .unwrap(),
-            U256::from(U160::from_be_bytes(
-                SEPOLIA_SAFE_ERC_7579_SINGLETON_ADDRESS.into_array()
-            ))
+            U256::from(U160::from_be_bytes(SAFE_SINGLETON_1_4_1.into_array()))
         );
 
         let balance =
@@ -1123,9 +1119,7 @@ mod tests {
                 .get_storage_at(sender_address.into(), Uint::from(0))
                 .await
                 .unwrap(),
-            U256::from(U160::from_be_bytes(
-                SEPOLIA_SAFE_ERC_7579_SINGLETON_ADDRESS.into_array()
-            ))
+            U256::from(U160::from_be_bytes(SAFE_SINGLETON_1_4_1.into_array()))
         );
 
         let message = "test message";
@@ -1219,9 +1213,7 @@ mod tests {
                 .get_storage_at(sender_address.into(), Uint::from(0))
                 .await
                 .unwrap(),
-            U256::from(U160::from_be_bytes(
-                SEPOLIA_SAFE_ERC_7579_SINGLETON_ADDRESS.into_array()
-            ))
+            U256::from(U160::from_be_bytes(SAFE_SINGLETON_1_4_1.into_array()))
         );
 
         let balance =

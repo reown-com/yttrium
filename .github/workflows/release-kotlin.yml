@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version to release (e.g. 0.0.1)'
+        description: "Version to release (e.g. 0.0.1)"
         required: true
 
 env:
@@ -22,7 +22,7 @@ jobs:
     strategy:
       matrix:
         target: [aarch64-linux-android, armv7-linux-androideabi]
-    
+
     steps:
       - uses: actions/checkout@v3
 
@@ -37,9 +37,9 @@ jobs:
       - name: Set up Java
         uses: actions/setup-java@v3
         with:
-          distribution: 'temurin'
-          java-version: '17'
-      
+          distribution: "temurin"
+          java-version: "17"
+
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
         with:
@@ -50,22 +50,22 @@ jobs:
       - name: Build with Gradle
         run: |
           ./gradlew clean assembleRelease -Pversion=${{ env.VERSION }}
-      
+
       - name: Install cargo-ndk
         run: |
           cargo install cargo-ndk
-      
+
       - name: Build Rust library
         run: |
           cargo ndk -t ${{ matrix.target }} build --release --features=uniffi/cli
-        
+
       - name: Generate Kotlin bindings (once)
         if: ${{ matrix.target == 'aarch64-linux-android' }}
         run: |
-          cargo run --features=uniffi/cli --bin uniffi-bindgen generate --library target/${{ matrix.target }}/release/libuniffi_yttrium.so --language kotlin --out-dir yttrium/kotlin-bindings      
-      
+          cargo run --features=uniffi/cli --bin uniffi-bindgen generate --library target/${{ matrix.target }}/release/libuniffi_yttrium.so --language kotlin --out-dir yttrium/kotlin-bindings
+
       - name: Prepare artifacts
-        run: | 
+        run: |
           # Map Rust targets to Android ABI names
           declare -A abi_map
           abi_map[aarch64-linux-android]="arm64-v8a"
@@ -79,9 +79,9 @@ jobs:
 
           mkdir -p yttrium/libs/$abi_name
           cp target/${{ matrix.target }}/release/libuniffi_yttrium.so yttrium/libs/$abi_name/
-      
+
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
           name: artifacts
           path: yttrium/
@@ -95,7 +95,7 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Download artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v3
         with:
           name: artifacts
           path: yttrium/

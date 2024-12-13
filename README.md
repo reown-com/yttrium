@@ -115,3 +115,35 @@ PIMLICO_API_KEY
 PIMLICO_BUNDLER_URL
 PIMLICO_RPC_URL
 ```
+
+## Justfile targets
+```mermaid
+flowchart TD
+    _pass --> p[PASS]
+    check --> setup
+    check --> lint
+    check --> test
+    devloop --> check
+    devloop --> env-tests
+    %% devloop --> _pass
+    env-tests --> test-pimlico-api
+    costly-tests --> test-blockchain-api
+    lint --> fmt
+    lint --> clippy
+    _ci --> udeps
+    _ci --> swift
+    _ci --> kotlin
+    ci --> check
+    ci --> _ci
+    %% ci --> _pass
+    devloop-ci --> check
+    devloop-ci --> env-tests
+    devloop-ci --> _ci
+    %% devloop-ci --> _pass
+    devloop-ci-costly --> check
+    devloop-ci-costly --> env-tests
+    devloop-ci-costly --> _ci
+    devloop-ci-costly --> costly-tests
+    %% devloop-ci-costly --> _pass
+    infra
+```

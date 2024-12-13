@@ -37,6 +37,12 @@ impl From<&EntryPointAddress> for alloy::primitives::Address {
     }
 }
 
+impl From<alloy::primitives::Address> for EntryPointAddress {
+    fn from(val: alloy::primitives::Address) -> Self {
+        Self::new(val)
+    }
+}
+
 pub const ENTRYPOINT_ADDRESS_V06: Address =
     address!("5FF137D4b0FDCD49DcA30c7CF57E578a026d2789");
 pub const ENTRYPOINT_ADDRESS_V07: Address =

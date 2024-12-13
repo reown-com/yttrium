@@ -2,8 +2,10 @@ use {
     crate::{
         bundler::pimlico::paymaster::client::PaymasterClient,
         entry_point::{
-            EntryPoint, EntryPoint::PackedUserOperation, ENTRYPOINT_ADDRESS_V07,
+            EntryPoint::{self, PackedUserOperation},
+            ENTRYPOINT_ADDRESS_V07,
         },
+        erc7579::addresses::RHINESTONE_ATTESTER_ADDRESS,
         smart_accounts::account_address::AccountAddress,
         transaction::{
             send::safe_test::{
@@ -69,6 +71,16 @@ sol! {
             uint8 threshold
         );
 
+        function addSafe7579(
+            address safe7579,
+            ModuleInit[] calldata validators,
+            ModuleInit[] calldata executors,
+            ModuleInit[] calldata fallbacks,
+            ModuleInit[] calldata hooks,
+            address[] calldata attesters,
+            uint8 threshold
+        );
+
         function setupSafe(InitData calldata initData);
 
         function preValidationSetup(
@@ -118,16 +130,31 @@ sol!(
 
 // https://github.com/WalletConnect/secure-web3modal/blob/f1d16f973a313e598d124a0e4751aee12d5de628/src/core/SmartAccountSdk/utils.ts#L180
 pub const SAFE_ERC_7579_LAUNCHPAD_ADDRESS: Address =
-    address!("EBe001b3D534B9B6E2500FB78E67a1A137f561CE");
+    // address!("EBe001b3D534B9B6E2500FB78E67a1A137f561CE"); // old version
+    address!("7579011aB74c46090561ea277Ba79D510c6C00ff");
 // https://github.com/WalletConnect/secure-web3modal/blob/f1d16f973a313e598d124a0e4751aee12d5de628/src/core/SmartAccountSdk/utils.ts#L181
 // https://docs.pimlico.io/permissionless/how-to/accounts/use-erc7579-account
 // https://docs.safe.global/advanced/erc-7579/tutorials/7579-tutorial
 pub const SAFE_4337_MODULE_ADDRESS: Address =
-    address!("3Fdb5BC686e861480ef99A6E3FaAe03c0b9F32e2");
+    // address!("75cf11467937ce3F2f357CE24ffc3DBF8fD5c226"); // this is the safe 4337 module, not the one for 7579 (https://reown-inc.slack.com/archives/C077RPLSZ71/p1733866031056889?thread_ts=1729617897.410709&cid=C077RPLSZ71): https://github.com/safe-global/safe-modules/blob/d4f59362e9b16291feb88f14090fcf2311686e74/modules/4337/CHANGELOG.md?plain=1#L28
+    address!("7579EE8307284F293B1927136486880611F20002"); // what recent docs use
+                                                          // address!("3Fdb5BC686e861480ef99A6E3FaAe03c0b9F32e2"); // old version
 
-// // https://github.com/pimlicolabs/permissionless.js/blob/b8798c121eecba6a71f96f8ddf8e0ad2e98a3236/packages/permissionless/accounts/safe/toSafeSmartAccount.ts#L436
-pub const SEPOLIA_SAFE_ERC_7579_SINGLETON_ADDRESS: Address =
+// https://github.com/safe-global/safe-smart-account/blob/main/CHANGELOG.md#expected-addresses-with-safe-singleton-factory-2
+pub const SAFE_SINGLETON_1_4_1: Address =
     address!("41675C099F32341bf84BFc5382aF534df5C7461a");
+pub const SAFE_L2_SINGLETON_1_4_1: Address =
+    address!("29fcB43b46531BcA003ddC8FCB67FFE91900C762");
+pub const SAFE_PROXY_FACTORY_1_4_1: Address =
+    address!("4e1DCf7AD4e460CfD30791CCC4F9c8a4f820ec67");
+
+// https://github.com/safe-global/safe-smart-account/blob/main/CHANGELOG.md#expected-addresses-with-safe-singleton-factory-1
+pub const SAFE_SINGLETON_1_5_0: Address =
+    address!("36F86745986cB49C0e8cB38f14e948bb82d8d1A8");
+pub const SAFE_L2_SINGLETON_1_5_0: Address =
+    address!("0200216A26588315deD46e5451388DfC358A5bD4");
+pub const SAFE_PROXY_FACTORY_1_5_0: Address =
+    address!("8b24df6da67319eE9638a798660547D67a29f4ce");
 
 // https://github.com/safe-global/safe-modules-deployments/blob/d6642d90659de19e54bb4a20d646b30bd0a51885/src/assets/safe-4337-module/v0.3.0/safe-4337-module.json#L7
 // https://github.com/pimlicolabs/permissionless.js/blob/b8798c121eecba6a71f96f8ddf8e0ad2e98a3236/packages/permissionless/accounts/safe/toSafeSmartAccount.ts#L432
@@ -144,9 +171,6 @@ pub const SEPOLIA_SAFE_ERC_7579_SINGLETON_ADDRESS: Address =
 const _SAFE_MODULE_SETUP_ADDRESS: Address =
     address!("2dd68b007B46fBe91B9A7c3EDa5A7a1063cB5b47");
 
-pub const SAFE_PROXY_FACTORY_ADDRESS: Address =
-    address!("4e1DCf7AD4e460CfD30791CCC4F9c8a4f820ec67");
-
 pub const DUMMY_SIGNATURE: Bytes = bytes!("000000000000000000000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
 
 // https://github.com/WalletConnect/secure-web3modal/blob/c19a1e7b21c6188261728f4d521a17f94da4f055/src/core/SmartAccountSdk/constants.ts#L10
@@ -158,8 +182,11 @@ pub fn init_data() -> Safe7579Launchpad::initSafe7579Call {
         executors: vec![],
         fallbacks: vec![],
         hooks: vec![],
-        attesters: vec![],
-        threshold: 0,
+        attesters: vec![
+            RHINESTONE_ATTESTER_ADDRESS,
+            // MOCK_ATTESTER_ADDRESS
+        ],
+        threshold: 1,
     }
 }
 
@@ -169,11 +196,29 @@ pub struct Owners {
     pub threshold: u8,
 }
 
+sol! {
+    #[allow(clippy::too_many_arguments)]
+    #[sol(rpc)]
+    contract SetupContract {
+        function setup(
+            address[] calldata _owners,
+            uint256 _threshold,
+            address to,
+            bytes calldata data,
+            address fallbackHandler,
+            address paymentToken,
+            uint256 payment,
+            address paymentReceiver
+        ) external;
+    }
+}
+
 // permissionless -> getInitializerCode
 fn get_initializer_code(owners: Owners) -> Bytes {
+    // let ownable_validator = get_ownable_validator(&owners, None);
     let init_hash = keccak256(
         DynSolValue::Tuple(vec![
-            DynSolValue::Address(SEPOLIA_SAFE_ERC_7579_SINGLETON_ADDRESS),
+            DynSolValue::Address(SAFE_SINGLETON_1_4_1),
             DynSolValue::Array(
                 owners
                     .owners
@@ -185,7 +230,16 @@ fn get_initializer_code(owners: Owners) -> Bytes {
             DynSolValue::Address(SAFE_ERC_7579_LAUNCHPAD_ADDRESS),
             DynSolValue::Bytes(init_data().abi_encode()),
             DynSolValue::Address(SAFE_4337_MODULE_ADDRESS),
-            DynSolValue::Array(vec![]),
+            DynSolValue::Array(vec![
+            //     DynSolValue::CustomStruct {
+            //     name: "ModuleInit".to_owned(),
+            //     prop_names: vec!["module".to_owned(), "initData".to_owned()],
+            //     tuple: vec![
+            //         DynSolValue::Address(ownable_validator.address),
+            //         DynSolValue::Bytes(ownable_validator.init_data.into()),
+            //     ],
+            // }
+            ]),
         ])
         .abi_encode_params(),
     );
@@ -222,7 +276,7 @@ where
     N: Network,
 {
     let creation_code =
-        SafeProxyFactory::new(SAFE_PROXY_FACTORY_ADDRESS, provider)
+        SafeProxyFactory::new(SAFE_PROXY_FACTORY_1_4_1, provider)
             .proxyCreationCode()
             .call()
             .await
@@ -247,7 +301,7 @@ where
         ])
         .abi_encode_packed(),
     );
-    SAFE_PROXY_FACTORY_ADDRESS.create2(salt, keccak256(deployment_code)).into()
+    SAFE_PROXY_FACTORY_1_4_1.create2(salt, keccak256(deployment_code)).into()
 }
 
 pub fn get_call_data(execution_calldata: Vec<Transaction>) -> Bytes {

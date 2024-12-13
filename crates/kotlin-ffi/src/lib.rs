@@ -4,7 +4,8 @@ use {
     alloy::{
         network::Ethereum,
         primitives::{
-            Bytes as FFIBytes, U128 as FFIU128, U256 as FFIU256, U64 as FFIU64,
+            Bytes as FFIBytes, Uint, U128 as FFIU128, U256 as FFIU256,
+            U64 as FFIU64,
         },
         providers::{Provider, ReqwestProvider},
     },
@@ -20,8 +21,9 @@ use {
                 status::{StatusResponse, StatusResponseCompleted},
                 Transaction as CATransaction,
             },
-            client::{Client, TransactionFee},
+            client::Client,
             currency::Currency,
+            route_ui_fields::TransactionFee,
         },
         config::Config,
         private_key_service::PrivateKeyService,
@@ -58,19 +60,25 @@ uniffi::custom_type!(FFIAddress, String, {
     lower: |obj| obj.to_string(),
 });
 
+fn uint_to_hex<const BITS: usize, const LIMBS: usize>(
+    obj: Uint<BITS, LIMBS>,
+) -> String {
+    format!("0x{obj:x}")
+}
+
 uniffi::custom_type!(FFIU64, String, {
     try_lift: |val| Ok(val.parse()?),
-    lower: |obj| obj.to_string(),
+    lower: |obj| uint_to_hex(obj),
 });
 
 uniffi::custom_type!(FFIU128, String, {
     try_lift: |val| Ok(val.parse()?),
-    lower: |obj| obj.to_string(),
+    lower: |obj| uint_to_hex(obj),
 });
 
 uniffi::custom_type!(FFIU256, String, {
     try_lift: |val| Ok(val.parse()?),
-    lower: |obj| obj.to_string(),
+    lower: |obj| uint_to_hex(obj),
 });
 
 uniffi::custom_type!(FFIBytes, String, {
@@ -86,8 +94,12 @@ pub struct RouteUiFields {
     pub local_total: Amount,
 }
 
-impl From<yttrium::chain_abstraction::client::RouteUiFields> for RouteUiFields {
-    fn from(source: yttrium::chain_abstraction::client::RouteUiFields) -> Self {
+impl From<yttrium::chain_abstraction::route_ui_fields::RouteUiFields>
+    for RouteUiFields
+{
+    fn from(
+        source: yttrium::chain_abstraction::route_ui_fields::RouteUiFields,
+    ) -> Self {
         Self {
             route: source.route.into_iter().map(Into::into).collect(),
             bridge: source.bridge,
@@ -104,8 +116,12 @@ pub struct TxnDetails {
     pub fee: TransactionFee,
 }
 
-impl From<yttrium::chain_abstraction::client::TxnDetails> for TxnDetails {
-    fn from(source: yttrium::chain_abstraction::client::TxnDetails) -> Self {
+impl From<yttrium::chain_abstraction::route_ui_fields::TxnDetails>
+    for TxnDetails
+{
+    fn from(
+        source: yttrium::chain_abstraction::route_ui_fields::TxnDetails,
+    ) -> Self {
         Self {
             transaction: source.transaction,
             estimate: source.estimate.into(),
@@ -450,9 +466,13 @@ impl From<InitTransaction> for CATransaction {
 
 #[cfg(test)]
 mod tests {
-    use alloy::{
-        network::Ethereum,
-        providers::{Provider, ReqwestProvider},
+    use {
+        super::*,
+        alloy::{
+            network::Ethereum,
+            primitives::{address, bytes},
+            providers::{Provider, ReqwestProvider},
+        },
     };
 
     #[tokio::test]
@@ -469,5 +489,53 @@ mod tests {
         let estimate = provider.estimate_eip1559_fees(None).await.unwrap();
 
         println!("estimate: {estimate:?}");
+    }
+
+    #[test]
+    fn test_address_lower() {
+        let ffi_u64 = address!("abababababababababababababababababababab");
+        let u = ::uniffi::FfiConverter::<crate::UniFfiTag>::lower(ffi_u64);
+        let s: String =
+            ::uniffi::FfiConverter::<crate::UniFfiTag>::try_lift(u).unwrap();
+        assert_eq!(s, format!("0xABaBaBaBABabABabAbAbABAbABabababaBaBABaB"));
+    }
+
+    #[test]
+    fn test_u64_lower() {
+        let num = 1234567890;
+        let ffi_u64 = FFIU64::from(num);
+        let u = ::uniffi::FfiConverter::<crate::UniFfiTag>::lower(ffi_u64);
+        let s: String =
+            ::uniffi::FfiConverter::<crate::UniFfiTag>::try_lift(u).unwrap();
+        assert_eq!(s, format!("0x{num:x}"));
+    }
+
+    #[test]
+    fn test_u128_lower() {
+        let num = 1234567890;
+        let ffi_u64 = FFIU128::from(num);
+        let u = ::uniffi::FfiConverter::<crate::UniFfiTag>::lower(ffi_u64);
+        let s: String =
+            ::uniffi::FfiConverter::<crate::UniFfiTag>::try_lift(u).unwrap();
+        assert_eq!(s, format!("0x{num:x}"));
+    }
+
+    #[test]
+    fn test_u256_lower() {
+        let num = 1234567890;
+        let ffi_u64 = FFIU256::from(num);
+        let u = ::uniffi::FfiConverter::<crate::UniFfiTag>::lower(ffi_u64);
+        let s: String =
+            ::uniffi::FfiConverter::<crate::UniFfiTag>::try_lift(u).unwrap();
+        assert_eq!(s, format!("0x{num:x}"));
+    }
+
+    #[test]
+    fn test_bytes_lower() {
+        let ffi_u64 = bytes!("aabbccdd");
+        let u = ::uniffi::FfiConverter::<crate::UniFfiTag>::lower(ffi_u64);
+        let s: String =
+            ::uniffi::FfiConverter::<crate::UniFfiTag>::try_lift(u).unwrap();
+        assert_eq!(s, format!("0xaabbccdd"));
     }
 }
