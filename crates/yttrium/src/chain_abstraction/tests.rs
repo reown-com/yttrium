@@ -7,9 +7,10 @@ use {
                 status::StatusResponse,
                 Transaction,
             },
-            client::{Client, TransactionFee, TxnDetails},
+            client::Client,
             currency::Currency,
             l1_data_fee::get_l1_data_fee,
+            route_ui_fields::{TransactionFee, TxnDetails},
             test_helpers::floats_close,
         },
         erc20::{Token, ERC20},
@@ -487,6 +488,18 @@ async fn bridging_routes_routes_available() {
     println!("total_fee: {total_fee}");
     println!("combined_fees: {combined_fees}");
     let error = (total_fee - combined_fees).abs();
+    println!("error: {error}");
+    assert!(error < 0.00000000000001);
+
+    let combined_fees_intermediate_totals = [
+        route_ui_fields.initial.fee.local_fee.as_float_inaccurate(),
+        route_ui_fields.local_route_total.as_float_inaccurate(),
+        route_ui_fields.local_bridge_total.as_float_inaccurate(),
+    ]
+    .iter()
+    .sum::<f64>();
+    println!("combined_fees_intermediate_totals: {combined_fees_intermediate_totals}");
+    let error = (total_fee - combined_fees_intermediate_totals).abs();
     println!("error: {error}");
     assert!(error < 0.00000000000001);
 }
