@@ -1,5 +1,5 @@
 name: yttrium_dart
-description: "A new Flutter plugin project."
+description: "Yttrium is a cross-platform library designed for working with smart accounts, currently focused on the Ethereum ecosystem."
 version: 0.0.1
 # homepage: https://github.com/reown-com/reown_flutter
 # repository: https://github.com/reown-com/reown_flutter/tree/master/packages/reown_walletkit

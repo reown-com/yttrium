@@ -30,4 +30,6 @@ build/
 
 **/*.dylib
 **/*.so
+
 /example
+!/example/example.md
