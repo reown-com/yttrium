@@ -4,10 +4,12 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
 
-// flutter pub run yttrium_dart:generate
+// flutter pub run yttrium_dart:setup
+
+enum _Environment { ios, android }
 
 void main() async {
-  print('Running Yttrium setup script...');
+  print('Running Yttrium setup script. This could take a while...');
   // Locate the package directory
   final packagePath = await _getPackageRoot();
   if (packagePath == null) {
@@ -15,23 +17,41 @@ void main() async {
     exit(1);
   }
 
-  // https://github.com/reown-com/yttrium/releases/download/0.0.1/dart-artifacts.zip
-  const rootPackage = 'https://github.com/reown-com/yttrium';
-  const version = '0.0.2'; // TODO dynamically
-  final url = '$rootPackage/releases/download/$version/dart-artifacts.zip';
+  const version = '0.4.5'; // TODO dynamically
+  await Future.wait([
+    _setupFiles(
+      targetDir: '${packagePath.path}/android/src/main/',
+      version: version,
+      platform: _Environment.android,
+    ),
+    _setupFiles(
+      targetDir: '${packagePath.path}/ios/',
+      version: version,
+      platform: _Environment.ios,
+    ),
+  ]);
   //
-  final androidTargetDir = '${packagePath.path}android/src/main/';
-  final zipFilePath = '${Directory.systemTemp.path}/dart-artifacts.zip';
+  print('✅ Yttrium setup success!');
+}
+
+Future<void> _setupFiles({
+  required String targetDir,
+  required String version,
+  required _Environment platform,
+}) async {
+  final artifactFile = '${platform.name}-artifacts.zip';
+  final releases =
+      'https://github.com/reown-com/yttrium/releases/download/$version/';
+  final downloadUrl = '$releases$artifactFile';
+  final zipFile = '${Directory.systemTemp.path}/$artifactFile';
 
   try {
     // Step 1: Download the ZIP file
-    print('Downloading ZIP file...');
-    final request = await HttpClient().getUrl(Uri.parse(url));
+    final request = await HttpClient().getUrl(Uri.parse(downloadUrl));
     final response = await request.close();
 
     if (response.statusCode == 200) {
-      await response.pipe(File(zipFilePath).openWrite());
-      print('Downloaded ZIP file to $zipFilePath');
+      await response.pipe(File(zipFile).openWrite());
     } else {
       throw Exception(
         'Failed to download file. Status code: ${response.statusCode}',
@@ -39,25 +59,26 @@ void main() async {
     }
 
     // Step 2: Unzip the file using system command
-    print('Unzipping the file...');
-    final result = await Process.run(
-      'unzip',
-      ['-o', zipFilePath, '-d', androidTargetDir],
-    );
-    // jniLibs/arm64-v8a/libyttrium_dart.so
-
-    if (result.exitCode == 0) {
-      print('Unzipped contents to $androidTargetDir');
-    } else {
-      print('Failed to unzip file.');
-      print('Error: ${result.stderr}');
+    final args = platform == _Environment.ios
+        ? [
+            '-o',
+            '-j',
+            zipFile,
+            'universal/libyttrium_dart_universal.dylib',
+            '-d',
+            targetDir,
+          ]
+        : ['-o', zipFile, '-d', targetDir];
+    final result = await Process.run('unzip', args);
+    if (result.exitCode != 0) {
+      print('❌ $platform error: ${result.stderr}');
     }
   } catch (e) {
-    print('An error occurred: $e');
+    print('❌ $platform error: $e');
   } finally {
     // Cleanup temporary file
-    File(zipFilePath).deleteSync();
-    print('Cleaned up temporary files.');
+    File(zipFile).deleteSync();
+    print('Cleaning up unneeded files...');
   }
 }
 
