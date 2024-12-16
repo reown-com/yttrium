@@ -416,8 +416,8 @@ async fn bridging_routes_routes_available() {
     println!("route result in ({:#?}): {:?}", start.elapsed(), result);
 
     assert_eq!(result.transactions.len(), 2);
-    result.transactions[0].gas = U64::from(60000 /* 55437 */); // until Blockchain API estimates this
-    result.transactions[1].gas = U64::from(140000 /* 107394 */); // until Blockchain API estimates this
+    result.transactions[0].gas_limit = U64::from(60000 /* 55437 */); // until Blockchain API estimates this
+    result.transactions[1].gas_limit = U64::from(140000 /* 107394 */); // until Blockchain API estimates this
 
     let start = Instant::now();
     let route_ui_fields = client
@@ -783,8 +783,8 @@ async fn happy_path() {
     // TODO it's possible this is only 1 transaction due to already being
     // approved: https://reown-inc.slack.com/archives/C0816SK4877/p1732813465413249?thread_ts=1732787456.681429&cid=C0816SK4877
     assert_eq!(result.transactions.len(), 2);
-    result.transactions[0].gas = U64::from(60000 /* 55437 */); // until Blockchain API estimates this
-    result.transactions[1].gas = U64::from(140000 /* 107394 */); // until Blockchain API estimates this
+    result.transactions[0].gas_limit = U64::from(60000 /* 55437 */); // until Blockchain API estimates this
+    result.transactions[1].gas_limit = U64::from(140000 /* 107394 */); // until Blockchain API estimates this
 
     let start = Instant::now();
     let route_ui_fields = client
@@ -802,7 +802,7 @@ async fn happy_path() {
             .with_from(txn.from)
             .with_to(txn.to)
             .with_value(txn.value)
-            .with_gas_limit(txn.gas.to())
+            .with_gas_limit(txn.gas_limit.to())
             .with_input(txn.data)
             .with_nonce(txn.nonce.to())
             .with_chain_id(
@@ -1361,8 +1361,8 @@ async fn happy_path_full_dependency_on_route_ui_fields() {
     // TODO it's possible this is only 1 transaction due to already being
     // approved: https://reown-inc.slack.com/archives/C0816SK4877/p1732813465413249?thread_ts=1732787456.681429&cid=C0816SK4877
     assert_eq!(result.transactions.len(), 2);
-    result.transactions[0].gas = U64::from(60000 /* 55437 */); // until Blockchain API estimates this
-    result.transactions[1].gas = U64::from(140000 /* 107394 */); // until Blockchain API estimates this
+    result.transactions[0].gas_limit = U64::from(60000 /* 55437 */); // until Blockchain API estimates this
+    result.transactions[1].gas_limit = U64::from(140000 /* 107394 */); // until Blockchain API estimates this
 
     assert_eq!(result.metadata.funding_from.len(), 1);
     assert_eq!(result.metadata.funding_from.first().unwrap().symbol, "USDC");
@@ -1442,7 +1442,7 @@ async fn happy_path_full_dependency_on_route_ui_fields() {
             .with_from(txn.from)
             .with_to(txn.to)
             .with_value(txn.value)
-            .with_gas_limit(txn.gas.to())
+            .with_gas_limit(txn.gas_limit.to())
             .with_input(txn.data)
             .with_nonce(txn.nonce.to())
             .with_chain_id(

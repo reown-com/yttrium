@@ -14,7 +14,7 @@ pub struct Transaction {
     pub from: Address,
     pub to: Address,
     pub value: U256,
-    pub gas: U64,
+    pub gas_limit: U64,
     pub data: Bytes,
     pub nonce: U64,
     // CAIP-2 chain ID

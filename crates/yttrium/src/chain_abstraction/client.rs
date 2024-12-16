@@ -173,7 +173,7 @@ impl Client {
                     .with_from(txn.from)
                     .with_to(txn.to)
                     .with_value(txn.value)
-                    .with_gas_limit(txn.gas.to())
+                    .with_gas_limit(txn.gas_limit.to())
                     .with_input(txn.data.clone())
                     .with_nonce(txn.nonce.to())
                     .with_chain_id(
@@ -218,7 +218,7 @@ impl Client {
             let eip1559_estimation = *eip1559_fees.get(&txn.chain_id).unwrap();
             println!("l1_data_fee: {l1_data_fee}");
             let fee = U256::from(eip1559_estimation.max_fee_per_gas)
-                .checked_mul(U256::from(txn.gas))
+                .checked_mul(U256::from(txn.gas_limit))
                 .expect("fee overflow")
                 .checked_add(l1_data_fee)
                 .expect("fee overflow in adding");
