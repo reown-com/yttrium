@@ -19,9 +19,17 @@ pub struct Transaction {
     pub nonce: U64,
     // CAIP-2 chain ID
     pub chain_id: String,
+}
 
-    // deprecated
-    pub gas_price: U256,
-    pub max_fee_per_gas: U256,
-    pub max_priority_fee_per_gas: U256,
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
+#[serde(rename_all = "camelCase")]
+pub struct InitialTransaction {
+    pub from: Address,
+    pub to: Address,
+    pub value: U256,
+    pub data: Bytes,
+    pub nonce: U64,
+    // CAIP-2 chain ID
+    pub chain_id: String,
 }

@@ -15,7 +15,7 @@ use {
             api::{
                 route::RouteResponse,
                 status::{StatusResponse, StatusResponseCompleted},
-                Transaction as CATransaction,
+                InitialTransaction, Transaction as CATransaction,
             },
             client::Client,
         },
@@ -37,21 +37,6 @@ pub struct Transaction {
     pub to: String,
     pub value: String,
     pub data: String,
-}
-
-#[frb]
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct InitTransaction {
-    pub from: Address,
-    pub to: Address,
-    pub value: U256,
-    pub gas: U64,
-    pub gas_price: U256,
-    pub data: Bytes,
-    pub nonce: U64,
-    pub max_fee_per_gas: U256,
-    pub max_priority_fee_per_gas: U256,
-    pub chain_id: String,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -96,11 +81,10 @@ impl ChainAbstractionClient {
     #[frb]
     pub async fn route(
         &self,
-        transaction: InitTransaction,
+        initial_transaction: InitialTransaction,
     ) -> Result<RouteResponse, Error> {
-        let ca_transaction = CATransaction::from(transaction);
         self.client
-            .route(ca_transaction)
+            .route(initial_transaction)
             .await
             .map_err(|e| Error::General(e.to_string()))
     }
@@ -331,24 +315,6 @@ impl From<Transaction> for YTransaction {
             transaction.data,
         )
         .unwrap()
-    }
-}
-
-#[frb]
-impl From<InitTransaction> for CATransaction {
-    fn from(source: InitTransaction) -> Self {
-        CATransaction {
-            from: source.from,
-            to: source.to,
-            value: source.value,
-            gas: source.gas,
-            gas_price: source.gas_price,
-            data: source.data,
-            nonce: source.nonce,
-            max_fee_per_gas: source.max_fee_per_gas,
-            max_priority_fee_per_gas: source.max_priority_fee_per_gas,
-            chain_id: source.chain_id,
-        }
     }
 }
 

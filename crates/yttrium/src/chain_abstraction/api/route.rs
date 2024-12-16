@@ -1,5 +1,5 @@
 use {
-    super::Transaction,
+    super::{InitialTransaction, Transaction},
     crate::chain_abstraction::amount::Amount,
     alloy::primitives::{utils::Unit, Address, U256},
     relay_rpc::domain::ProjectId,
@@ -16,7 +16,7 @@ pub struct RouteQueryParams {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RouteRequest {
-    pub transaction: Transaction,
+    pub transaction: InitialTransaction,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

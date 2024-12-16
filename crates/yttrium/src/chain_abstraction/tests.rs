@@ -5,7 +5,7 @@ use {
             api::{
                 route::{BridgingError, RouteResponse, RouteResponseError},
                 status::StatusResponse,
-                Transaction,
+                InitialTransaction, Transaction,
             },
             client::Client,
             currency::Currency,
@@ -380,13 +380,10 @@ async fn bridging_routes_routes_available() {
     }
     assert!(chain_1_address_1_token.token_balance().await >= required_amount);
 
-    let transaction = Transaction {
+    let transaction = InitialTransaction {
         from: source.address(),
         to: *chain_2_address_1_token.token.address(),
         value: U256::ZERO,
-        // gas: U64::ZERO,
-        // https://reown-inc.slack.com/archives/C0816SK4877/p1731962527043399
-        gas: U64::from(50000), // until Blockchain API estimates this
         data: ERC20::transferCall {
             to: destination.address(),
             amount: send_amount,
@@ -402,9 +399,6 @@ async fn bridging_routes_routes_available() {
                 .unwrap()
         }),
         chain_id: chain_2.eip155_chain_id().to_owned(),
-        gas_price: U256::ZERO,
-        max_fee_per_gas: U256::ZERO,
-        max_priority_fee_per_gas: U256::ZERO,
     };
     println!("input transaction: {:?}", transaction);
 
@@ -427,7 +421,7 @@ async fn bridging_routes_routes_available() {
 
     let start = Instant::now();
     let route_ui_fields = client
-        .get_route_ui_fields(result.clone(), transaction.clone(), Currency::Usd)
+        .get_route_ui_fields(result.clone(), Currency::Usd)
         .await
         .unwrap();
     println!(
@@ -743,13 +737,10 @@ async fn happy_path() {
     }
     assert!(source.token_balance(&sources).await >= required_amount);
 
-    let initial_transaction = Transaction {
+    let initial_transaction = InitialTransaction {
         from: source.address(&sources),
         to: *source.other().bridge_token(&sources).token.address(),
         value: U256::ZERO,
-        // gas: U64::ZERO,
-        // https://reown-inc.slack.com/archives/C0816SK4877/p1731962527043399
-        gas: U64::from(50000), // until Blockchain API estimates this
         data: ERC20::transferCall {
             to: source.other().address(&sources),
             amount: send_amount,
@@ -774,9 +765,6 @@ async fn happy_path() {
             .chain
             .eip155_chain_id()
             .to_owned(),
-        gas_price: U256::ZERO,
-        max_fee_per_gas: U256::ZERO,
-        max_priority_fee_per_gas: U256::ZERO,
     };
     println!("input transaction: {:?}", initial_transaction);
 
@@ -800,11 +788,7 @@ async fn happy_path() {
 
     let start = Instant::now();
     let route_ui_fields = client
-        .get_route_ui_fields(
-            result.clone(),
-            initial_transaction.clone(),
-            Currency::Usd,
-        )
+        .get_route_ui_fields(result.clone(), Currency::Usd)
         .await
         .unwrap();
     println!(
@@ -835,7 +819,7 @@ async fn happy_path() {
     let mut transactions_with_fees = vec![];
     for (txn, route_ui_fields) in
         result.transactions.into_iter().zip(route_ui_fields.route).chain(
-            std::iter::once(initial_transaction)
+            std::iter::once(result.initial_transaction)
                 .zip(std::iter::once(route_ui_fields.initial)),
         )
     {
@@ -1331,13 +1315,10 @@ async fn happy_path_full_dependency_on_route_ui_fields() {
     }
     assert!(source.token_balance(&sources).await >= required_amount);
 
-    let initial_transaction = Transaction {
+    let initial_transaction = InitialTransaction {
         from: source.address(&sources),
         to: *source.other().bridge_token(&sources).token.address(),
         value: U256::ZERO,
-        // gas: U64::ZERO,
-        // https://reown-inc.slack.com/archives/C0816SK4877/p1731962527043399
-        gas: U64::from(50000), // until Blockchain API estimates this
         data: ERC20::transferCall {
             to: source.other().address(&sources),
             amount: send_amount,
@@ -1362,9 +1343,6 @@ async fn happy_path_full_dependency_on_route_ui_fields() {
             .chain
             .eip155_chain_id()
             .to_owned(),
-        gas_price: U256::ZERO,
-        max_fee_per_gas: U256::ZERO,
-        max_priority_fee_per_gas: U256::ZERO,
     };
     println!("input transaction: {:?}", initial_transaction);
 
@@ -1450,11 +1428,7 @@ async fn happy_path_full_dependency_on_route_ui_fields() {
 
     let start = Instant::now();
     let route_ui_fields = client
-        .get_route_ui_fields(
-            result.clone(),
-            initial_transaction.clone(),
-            Currency::Usd,
-        )
+        .get_route_ui_fields(result.clone(), Currency::Usd)
         .await
         .unwrap();
     println!(
@@ -1749,11 +1723,10 @@ async fn bridging_routes_routes_insufficient_funds() {
 
     let send_amount = U256::from(1_500_000); // 1.5 USDC (6 decimals)
 
-    let transaction = Transaction {
+    let transaction = InitialTransaction {
         from: account_1.address(),
         to: *chain_1_address_2_token.token.address(),
         value: U256::ZERO,
-        gas: U64::ZERO,
         data: ERC20::transferCall {
             to: account_2.address(),
             amount: send_amount,
@@ -1762,9 +1735,6 @@ async fn bridging_routes_routes_insufficient_funds() {
         .into(),
         nonce: U64::ZERO,
         chain_id: chain_1.eip155_chain_id().to_owned(),
-        gas_price: U256::ZERO,
-        max_fee_per_gas: U256::ZERO,
-        max_priority_fee_per_gas: U256::ZERO,
     };
     println!("input transaction: {:?}", transaction);
 

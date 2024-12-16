@@ -14,12 +14,11 @@ use {
     yttrium::{
         account_client::{AccountClient as YAccountClient, SignerType},
         chain_abstraction::{
-            self,
             amount::Amount,
             api::{
                 route::{RouteResponse, RouteResponseAvailable},
                 status::{StatusResponse, StatusResponseCompleted},
-                Transaction as CATransaction,
+                InitialTransaction, Transaction as CATransaction,
             },
             client::Client,
             currency::Currency,
@@ -161,20 +160,6 @@ impl From<alloy::providers::utils::Eip1559Estimation> for Eip1559Estimation {
 // });
 
 #[derive(uniffi::Record)]
-pub struct InitTransaction {
-    pub from: FFIAddress,
-    pub to: FFIAddress,
-    pub value: FFIU256,
-    pub gas: FFIU64,
-    pub gas_price: FFIU256,
-    pub data: FFIBytes,
-    pub nonce: FFIU64,
-    pub max_fee_per_gas: FFIU256,
-    pub max_priority_fee_per_gas: FFIU256,
-    pub chain_id: String,
-}
-
-#[derive(uniffi::Record)]
 pub struct PreparedSendTransaction {
     pub hash: String,
     pub do_send_transaction_params: String,
@@ -215,11 +200,10 @@ impl ChainAbstractionClient {
 
     pub async fn route(
         &self,
-        transaction: InitTransaction,
+        initial_transaction: InitialTransaction,
     ) -> Result<RouteResponse, FFIError> {
-        let ca_transaction = CATransaction::from(transaction);
         self.client
-            .route(ca_transaction)
+            .route(initial_transaction)
             .await
             .map_err(|e| FFIError::General(e.to_string()))
     }
@@ -227,11 +211,10 @@ impl ChainAbstractionClient {
     pub async fn get_route_ui_fields(
         &self,
         route_response: RouteResponseAvailable,
-        initial_transaction: chain_abstraction::api::Transaction,
         currency: Currency,
     ) -> Result<RouteUiFields, FFIError> {
         self.client
-            .get_route_ui_fields(route_response, initial_transaction, currency)
+            .get_route_ui_fields(route_response, currency)
             .await
             .map(Into::into)
             .map_err(|e| FFIError::General(e.to_string()))
@@ -444,23 +427,6 @@ impl From<FFITransaction> for YTransaction {
             transaction.data,
         )
         .unwrap()
-    }
-}
-
-impl From<InitTransaction> for CATransaction {
-    fn from(source: InitTransaction) -> Self {
-        CATransaction {
-            from: source.from,
-            to: source.to,
-            value: source.value,
-            gas: source.gas,
-            gas_price: source.gas_price,
-            data: source.data,
-            nonce: source.nonce,
-            max_fee_per_gas: source.max_fee_per_gas,
-            max_priority_fee_per_gas: source.max_priority_fee_per_gas,
-            chain_id: source.chain_id,
-        }
     }
 }
 
