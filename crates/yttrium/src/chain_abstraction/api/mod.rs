@@ -29,7 +29,6 @@ pub struct InitialTransaction {
     pub to: Address,
     pub value: U256,
     pub data: Bytes,
-    pub nonce: U64,
     // CAIP-2 chain ID
     pub chain_id: String,
 }

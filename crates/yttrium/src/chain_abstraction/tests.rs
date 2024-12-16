@@ -390,14 +390,6 @@ async fn bridging_routes_routes_available() {
         }
         .abi_encode()
         .into(),
-        nonce: U64::from({
-            let token = chain_2_address_1_token;
-            token
-                .provider
-                .get_transaction_count(token.params.account_address)
-                .await
-                .unwrap()
-        }),
         chain_id: chain_2.eip155_chain_id().to_owned(),
     };
     println!("input transaction: {:?}", transaction);
@@ -747,17 +739,6 @@ async fn happy_path() {
         }
         .abi_encode()
         .into(),
-        nonce: U64::from({
-            let token = match source {
-                Source::Left => &chain_2_address_1_token,
-                Source::Right => &chain_1_address_2_token,
-            };
-            token
-                .provider
-                .get_transaction_count(token.params.account_address)
-                .await
-                .unwrap()
-        }),
         chain_id: source
             .other()
             .bridge_token(&sources)
@@ -1325,17 +1306,6 @@ async fn happy_path_full_dependency_on_route_ui_fields() {
         }
         .abi_encode()
         .into(),
-        nonce: U64::from({
-            let token = match source {
-                Source::Left => &chain_2_address_1_token,
-                Source::Right => &chain_1_address_2_token,
-            };
-            token
-                .provider
-                .get_transaction_count(token.params.account_address)
-                .await
-                .unwrap()
-        }),
         chain_id: source
             .other()
             .bridge_token(&sources)
@@ -1733,7 +1703,6 @@ async fn bridging_routes_routes_insufficient_funds() {
         }
         .abi_encode()
         .into(),
-        nonce: U64::ZERO,
         chain_id: chain_1.eip155_chain_id().to_owned(),
     };
     println!("input transaction: {:?}", transaction);
