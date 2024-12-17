@@ -24,7 +24,7 @@ devloop-ci: check env-tests _ci _pass
 devloop-ci-costly: check env-tests _ci costly-tests _pass
 full: devloop-ci-costly
 
-_ci: udeps swift kotlin
+_ci: udeps swift kotlin flutter
 
 # Run all checks that CI does; helpful to autofix and help debug most CI errors
 ci: check _ci _pass
@@ -72,3 +72,6 @@ swift:
 
 kotlin:
   # TODO
+
+flutter:
+  cd crates/yttrium_dart && flutter_rust_bridge_codegen generate --config-file flutter_rust_bridge.yaml
