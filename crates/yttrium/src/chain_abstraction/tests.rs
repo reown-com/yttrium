@@ -384,7 +384,7 @@ async fn bridging_routes_routes_available() {
         from: source.address(),
         to: *chain_2_address_1_token.token.address(),
         value: U256::ZERO,
-        data: ERC20::transferCall {
+        input: ERC20::transferCall {
             to: destination.address(),
             amount: send_amount,
         }
@@ -733,7 +733,7 @@ async fn happy_path() {
         from: source.address(&sources),
         to: *source.other().bridge_token(&sources).token.address(),
         value: U256::ZERO,
-        data: ERC20::transferCall {
+        input: ERC20::transferCall {
             to: source.other().address(&sources),
             amount: send_amount,
         }
@@ -784,7 +784,7 @@ async fn happy_path() {
             .with_to(txn.to)
             .with_value(txn.value)
             .with_gas_limit(txn.gas_limit.to())
-            .with_input(txn.data)
+            .with_input(txn.input)
             .with_nonce(txn.nonce.to())
             .with_chain_id(
                 txn.chain_id
@@ -1300,7 +1300,7 @@ async fn happy_path_full_dependency_on_route_ui_fields() {
         from: source.address(&sources),
         to: *source.other().bridge_token(&sources).token.address(),
         value: U256::ZERO,
-        data: ERC20::transferCall {
+        input: ERC20::transferCall {
             to: source.other().address(&sources),
             amount: send_amount,
         }
@@ -1407,24 +1407,6 @@ async fn happy_path_full_dependency_on_route_ui_fields() {
         route_ui_fields
     );
 
-    fn map_transaction(txn: Transaction) -> TransactionRequest {
-        TransactionRequest::default()
-            .with_from(txn.from)
-            .with_to(txn.to)
-            .with_value(txn.value)
-            .with_gas_limit(txn.gas_limit.to())
-            .with_input(txn.data)
-            .with_nonce(txn.nonce.to())
-            .with_chain_id(
-                txn.chain_id
-                    .strip_prefix("eip155:")
-                    .unwrap()
-                    .parse::<U64>()
-                    .unwrap()
-                    .to(),
-            )
-    }
-
     // Provide gas for transactions
     let mut prepared_faucet_txns = HashMap::new();
     for txn in route_ui_fields
@@ -1468,10 +1450,8 @@ async fn happy_path_full_dependency_on_route_ui_fields() {
 
     let mut pending_bridge_txn_hashes =
         Vec::with_capacity(route_ui_fields.route.len());
-    for TxnDetails { transaction, estimate, .. } in route_ui_fields.route {
-        let txn = map_transaction(transaction)
-            .with_max_fee_per_gas(estimate.max_fee_per_gas)
-            .with_max_priority_fee_per_gas(estimate.max_priority_fee_per_gas);
+    for TxnDetails { transaction, .. } in route_ui_fields.route {
+        let txn = transaction.into_transaction_request();
         let provider = provider_for_chain(&Chain::from_eip155_chain_id(
             &format!("eip155:{}", txn.chain_id.unwrap()),
         ));
@@ -1553,11 +1533,8 @@ async fn happy_path_full_dependency_on_route_ui_fields() {
         &initial_transaction.chain_id,
     ));
 
-    let original = map_transaction(route_ui_fields.initial.transaction)
-        .max_fee_per_gas(route_ui_fields.initial.estimate.max_fee_per_gas)
-        .max_priority_fee_per_gas(
-            route_ui_fields.initial.estimate.max_priority_fee_per_gas,
-        );
+    let original =
+        route_ui_fields.initial.transaction.into_transaction_request();
 
     let start = Instant::now();
     loop {
@@ -1697,7 +1674,7 @@ async fn bridging_routes_routes_insufficient_funds() {
         from: account_1.address(),
         to: *chain_1_address_2_token.token.address(),
         value: U256::ZERO,
-        data: ERC20::transferCall {
+        input: ERC20::transferCall {
             to: account_2.address(),
             amount: send_amount,
         }

@@ -174,7 +174,7 @@ impl Client {
                     .with_to(txn.to)
                     .with_value(txn.value)
                     .with_gas_limit(txn.gas_limit.to())
-                    .with_input(txn.data.clone())
+                    .with_input(txn.input.clone())
                     .with_nonce(txn.nonce.to())
                     .with_chain_id(
                         txn.chain_id

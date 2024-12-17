@@ -14,15 +14,14 @@ use {
     yttrium::{
         account_client::{AccountClient as YAccountClient, SignerType},
         chain_abstraction::{
-            amount::Amount,
             api::{
                 route::{RouteResponse, RouteResponseAvailable},
                 status::{StatusResponse, StatusResponseCompleted},
-                InitialTransaction, Transaction as CATransaction,
+                InitialTransaction,
             },
             client::Client,
             currency::Currency,
-            route_ui_fields::TransactionFee,
+            route_ui_fields::RouteUiFields,
         },
         config::Config,
         private_key_service::PrivateKeyService,
@@ -85,50 +84,6 @@ uniffi::custom_type!(FFIBytes, String, {
     lower: |obj| obj.to_string(),
 });
 
-#[derive(Debug, uniffi::Record)]
-pub struct RouteUiFields {
-    pub route: Vec<TxnDetails>,
-    pub bridge: Vec<TransactionFee>,
-    pub initial: TxnDetails,
-    pub local_total: Amount,
-}
-
-impl From<yttrium::chain_abstraction::route_ui_fields::RouteUiFields>
-    for RouteUiFields
-{
-    fn from(
-        source: yttrium::chain_abstraction::route_ui_fields::RouteUiFields,
-    ) -> Self {
-        Self {
-            route: source.route.into_iter().map(Into::into).collect(),
-            bridge: source.bridge,
-            initial: source.initial.into(),
-            local_total: source.local_total,
-        }
-    }
-}
-
-#[derive(Debug, uniffi::Record)]
-pub struct TxnDetails {
-    pub transaction: CATransaction,
-    pub estimate: Eip1559Estimation,
-    pub fee: TransactionFee,
-}
-
-impl From<yttrium::chain_abstraction::route_ui_fields::TxnDetails>
-    for TxnDetails
-{
-    fn from(
-        source: yttrium::chain_abstraction::route_ui_fields::TxnDetails,
-    ) -> Self {
-        Self {
-            transaction: source.transaction,
-            estimate: source.estimate.into(),
-            fee: source.fee,
-        }
-    }
-}
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq, uniffi::Record)]
 pub struct Eip1559Estimation {
     /// The base fee per gas.
@@ -147,17 +102,6 @@ impl From<alloy::providers::utils::Eip1559Estimation> for Eip1559Estimation {
         }
     }
 }
-
-// uniffi::custom_type!(Eip1559Estimation, FfiEip1559Estimation, {
-//     try_lift: |val| Ok(Eip1559Estimation {
-//         max_fee_per_gas: val.max_fee_per_gas.to(),
-//         max_priority_fee_per_gas: val.max_priority_fee_per_gas.to(),
-//     }),
-//     lower: |obj| FfiEip1559Estimation {
-//         max_fee_per_gas: U128::from(obj.max_fee_per_gas),
-//         max_priority_fee_per_gas: U128::from(obj.max_priority_fee_per_gas),
-//     },
-// });
 
 #[derive(uniffi::Record)]
 pub struct PreparedSendTransaction {
