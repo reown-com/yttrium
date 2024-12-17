@@ -249,5 +249,5 @@ jobs:
             echo "No changes to commit."
           else
             git commit -m "chore: update Flutter bindings"
-            git push origin HEAD:${{ github.ref_name }}
+            git push origin HEAD:${{ github.head_ref }}
           fi
