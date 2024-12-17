@@ -6,6 +6,9 @@ on:
     branches:
       - main
 
+permissions:
+  contents: write # Needed for Flutter CI which auto-updates bindings
+
 env:
   CARGO_TERM_COLOR: always
 
