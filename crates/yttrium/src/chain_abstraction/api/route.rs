@@ -67,7 +67,6 @@ pub struct FundingMetadata {
     //     deserialize_with = "crate::utils::deserialize_unit",
     //     serialize_with = "crate::utils::serialize_unit"
     // )]
-    // #[serde(default = "default_unit")]
     pub decimals: u8,
 }
 

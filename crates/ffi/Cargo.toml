@@ -1,0 +1,36 @@
+[package]
+name = "ffi"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[lib]
+crate-type = ["staticlib"]
+
+[dependencies]
+# See: https://github.com/kornelski/rust-security-framework/pull/204
+# security-framework = "2.10.0"
+
+swift-bridge = { git = "https://github.com/wooden-worm/swift-bridge.git", branch = "derive_debug_serde", features = [
+    "async",
+] }
+yttrium = { path = "../yttrium" }
+erc6492.workspace = true
+alloy.workspace = true
+
+# Async
+tokio.workspace = true
+
+# Serialization
+serde.workspace = true
+serde_json.workspace = true
+
+# Networking
+reqwest.workspace = true
+
+# Logging
+log.workspace = true
+
+[target.'cfg(target_os = "ios")'.dependencies]
+oslog.workspace = true

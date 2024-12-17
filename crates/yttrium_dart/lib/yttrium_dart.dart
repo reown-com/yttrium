@@ -5,9 +5,14 @@ import 'package:yttrium_dart/generated/frb_generated.dart' as frb;
 import 'package:yttrium_dart/generated/lib.dart';
 
 class YttriumDart implements ChainAbstractionClient {
-  // Future<String?> getPlatformVersion() {
-  //   return YttriumDartPlatform.instance.getPlatformVersion();
-  // }
+  // Singleton instance
+  static final YttriumDart _instance = YttriumDart._internal();
+
+  // Public accessor for the singleton instance
+  static YttriumDart get instance => _instance;
+
+  // Private constructor
+  YttriumDart._internal();
 
   ChainAbstractionClient? _chainAbstractionClient;
 

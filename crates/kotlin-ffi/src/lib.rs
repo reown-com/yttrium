@@ -21,8 +21,9 @@ use {
                 status::{StatusResponse, StatusResponseCompleted},
                 Transaction as CATransaction,
             },
-            client::{Client, TransactionFee},
+            client::Client,
             currency::Currency,
+            route_ui_fields::TransactionFee,
         },
         config::Config,
         private_key_service::PrivateKeyService,
@@ -93,8 +94,12 @@ pub struct RouteUiFields {
     pub local_total: Amount,
 }
 
-impl From<yttrium::chain_abstraction::client::RouteUiFields> for RouteUiFields {
-    fn from(source: yttrium::chain_abstraction::client::RouteUiFields) -> Self {
+impl From<yttrium::chain_abstraction::route_ui_fields::RouteUiFields>
+    for RouteUiFields
+{
+    fn from(
+        source: yttrium::chain_abstraction::route_ui_fields::RouteUiFields,
+    ) -> Self {
         Self {
             route: source.route.into_iter().map(Into::into).collect(),
             bridge: source.bridge,
@@ -111,8 +116,12 @@ pub struct TxnDetails {
     pub fee: TransactionFee,
 }
 
-impl From<yttrium::chain_abstraction::client::TxnDetails> for TxnDetails {
-    fn from(source: yttrium::chain_abstraction::client::TxnDetails) -> Self {
+impl From<yttrium::chain_abstraction::route_ui_fields::TxnDetails>
+    for TxnDetails
+{
+    fn from(
+        source: yttrium::chain_abstraction::route_ui_fields::TxnDetails,
+    ) -> Self {
         Self {
             transaction: source.transaction,
             estimate: source.estimate.into(),
