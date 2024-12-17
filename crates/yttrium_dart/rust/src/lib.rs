@@ -2,7 +2,6 @@ mod frb_generated; /* AUTO INJECTED BY flutter_rust_bridge. This line may not be
 use {
     alloy::{
         network::Ethereum,
-        primitives::{Bytes, U256, U64},
         providers::{Provider, ReqwestProvider},
     },
     flutter_rust_bridge::frb,
@@ -15,7 +14,7 @@ use {
             api::{
                 route::RouteResponse,
                 status::{StatusResponse, StatusResponseCompleted},
-                InitialTransaction, Transaction as CATransaction,
+                InitialTransaction,
             },
             client::Client,
         },
