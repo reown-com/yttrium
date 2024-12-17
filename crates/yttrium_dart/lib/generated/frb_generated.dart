@@ -67,7 +67,7 @@ class YttriumDart extends BaseEntrypoint<YttriumDartApi, YttriumDartApiImpl,
   String get codegenVersion => '2.7.0';
 
   @override
-  int get rustContentHash => 1789961500;
+  int get rustContentHash => 1083921087;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -166,7 +166,7 @@ abstract class YttriumDartApi extends BaseApi {
 
   Future<RouteResponse> crateChainAbstractionClientRoute(
       {required ChainAbstractionClient that,
-      required InitTransaction transaction});
+      required InitialTransaction initialTransaction});
 
   Future<StatusResponse> crateChainAbstractionClientStatus(
       {required ChainAbstractionClient that, required String orchestrationId});
@@ -177,64 +177,6 @@ abstract class YttriumDartApi extends BaseApi {
           required String orchestrationId,
           required BigInt checkIn,
           required BigInt timeout});
-
-  String crateInitTransactionAutoAccessorGetChainId(
-      {required InitTransaction that});
-
-  Bytes crateInitTransactionAutoAccessorGetData(
-      {required InitTransaction that});
-
-  Address crateInitTransactionAutoAccessorGetFrom(
-      {required InitTransaction that});
-
-  U64 crateInitTransactionAutoAccessorGetGas({required InitTransaction that});
-
-  U256 crateInitTransactionAutoAccessorGetGasPrice(
-      {required InitTransaction that});
-
-  U256 crateInitTransactionAutoAccessorGetMaxFeePerGas(
-      {required InitTransaction that});
-
-  U256 crateInitTransactionAutoAccessorGetMaxPriorityFeePerGas(
-      {required InitTransaction that});
-
-  U64 crateInitTransactionAutoAccessorGetNonce({required InitTransaction that});
-
-  Address crateInitTransactionAutoAccessorGetTo(
-      {required InitTransaction that});
-
-  U256 crateInitTransactionAutoAccessorGetValue(
-      {required InitTransaction that});
-
-  void crateInitTransactionAutoAccessorSetChainId(
-      {required InitTransaction that, required String chainId});
-
-  void crateInitTransactionAutoAccessorSetData(
-      {required InitTransaction that, required Bytes data});
-
-  void crateInitTransactionAutoAccessorSetFrom(
-      {required InitTransaction that, required Address from});
-
-  void crateInitTransactionAutoAccessorSetGas(
-      {required InitTransaction that, required U64 gas});
-
-  void crateInitTransactionAutoAccessorSetGasPrice(
-      {required InitTransaction that, required U256 gasPrice});
-
-  void crateInitTransactionAutoAccessorSetMaxFeePerGas(
-      {required InitTransaction that, required U256 maxFeePerGas});
-
-  void crateInitTransactionAutoAccessorSetMaxPriorityFeePerGas(
-      {required InitTransaction that, required U256 maxPriorityFeePerGas});
-
-  void crateInitTransactionAutoAccessorSetNonce(
-      {required InitTransaction that, required U64 nonce});
-
-  void crateInitTransactionAutoAccessorSetTo(
-      {required InitTransaction that, required Address to});
-
-  void crateInitTransactionAutoAccessorSetValue(
-      {required InitTransaction that, required U256 value});
 
   RustArcIncrementStrongCountFnType
       get rust_arc_increment_strong_count_AccountClient;
@@ -254,18 +196,6 @@ abstract class YttriumDartApi extends BaseApi {
   CrossPlatformFinalizerArg
       get rust_arc_decrement_strong_count_AccountClientConfigPtr;
 
-  RustArcIncrementStrongCountFnType get rust_arc_increment_strong_count_Address;
-
-  RustArcDecrementStrongCountFnType get rust_arc_decrement_strong_count_Address;
-
-  CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_AddressPtr;
-
-  RustArcIncrementStrongCountFnType get rust_arc_increment_strong_count_Bytes;
-
-  RustArcDecrementStrongCountFnType get rust_arc_decrement_strong_count_Bytes;
-
-  CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_BytesPtr;
-
   RustArcIncrementStrongCountFnType
       get rust_arc_increment_strong_count_ChainAbstractionClient;
 
@@ -282,13 +212,13 @@ abstract class YttriumDartApi extends BaseApi {
   CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_ConfigPtr;
 
   RustArcIncrementStrongCountFnType
-      get rust_arc_increment_strong_count_InitTransaction;
+      get rust_arc_increment_strong_count_InitialTransaction;
 
   RustArcDecrementStrongCountFnType
-      get rust_arc_decrement_strong_count_InitTransaction;
+      get rust_arc_decrement_strong_count_InitialTransaction;
 
   CrossPlatformFinalizerArg
-      get rust_arc_decrement_strong_count_InitTransactionPtr;
+      get rust_arc_decrement_strong_count_InitialTransactionPtr;
 
   RustArcIncrementStrongCountFnType
       get rust_arc_increment_strong_count_RouteResponse;
@@ -316,18 +246,6 @@ abstract class YttriumDartApi extends BaseApi {
 
   CrossPlatformFinalizerArg
       get rust_arc_decrement_strong_count_StatusResponseCompletedPtr;
-
-  RustArcIncrementStrongCountFnType get rust_arc_increment_strong_count_U256;
-
-  RustArcDecrementStrongCountFnType get rust_arc_decrement_strong_count_U256;
-
-  CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_U256Ptr;
-
-  RustArcIncrementStrongCountFnType get rust_arc_increment_strong_count_U64;
-
-  RustArcDecrementStrongCountFnType get rust_arc_decrement_strong_count_U64;
-
-  CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_U64Ptr;
 }
 
 class YttriumDartApiImpl extends YttriumDartApiImplPlatform
@@ -1109,14 +1027,14 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
   @override
   Future<RouteResponse> crateChainAbstractionClientRoute(
       {required ChainAbstractionClient that,
-      required InitTransaction transaction}) {
+      required InitialTransaction initialTransaction}) {
     return handler.executeNormal(NormalTask(
       callFfi: (port_) {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerChainAbstractionClient(
             that, serializer);
-        sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerInitTransaction(
-            transaction, serializer);
+        sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerInitialTransaction(
+            initialTransaction, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
             funcId: 29, port: port_);
       },
@@ -1126,7 +1044,7 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
         decodeErrorData: sse_decode_error,
       ),
       constMeta: kCrateChainAbstractionClientRouteConstMeta,
-      argValues: [that, transaction],
+      argValues: [that, initialTransaction],
       apiImpl: this,
     ));
   }
@@ -1134,7 +1052,7 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
   TaskConstMeta get kCrateChainAbstractionClientRouteConstMeta =>
       const TaskConstMeta(
         debugName: 'ChainAbstractionClient_route',
-        argNames: ['that', 'transaction'],
+        argNames: ['that', 'initialTransaction'],
       );
 
   @override
@@ -1202,559 +1120,6 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
             argNames: ['that', 'orchestrationId', 'checkIn', 'timeout'],
           );
 
-  @override
-  String crateInitTransactionAutoAccessorGetChainId(
-      {required InitTransaction that}) {
-    return handler.executeSync(SyncTask(
-      callFfi: () {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerInitTransaction(
-            that, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 32)!;
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_String,
-        decodeErrorData: null,
-      ),
-      constMeta: kCrateInitTransactionAutoAccessorGetChainIdConstMeta,
-      argValues: [that],
-      apiImpl: this,
-    ));
-  }
-
-  TaskConstMeta get kCrateInitTransactionAutoAccessorGetChainIdConstMeta =>
-      const TaskConstMeta(
-        debugName: 'InitTransaction_auto_accessor_get_chain_id',
-        argNames: ['that'],
-      );
-
-  @override
-  Bytes crateInitTransactionAutoAccessorGetData(
-      {required InitTransaction that}) {
-    return handler.executeSync(SyncTask(
-      callFfi: () {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerInitTransaction(
-            that, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 33)!;
-      },
-      codec: SseCodec(
-        decodeSuccessData:
-            sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBytes,
-        decodeErrorData: null,
-      ),
-      constMeta: kCrateInitTransactionAutoAccessorGetDataConstMeta,
-      argValues: [that],
-      apiImpl: this,
-    ));
-  }
-
-  TaskConstMeta get kCrateInitTransactionAutoAccessorGetDataConstMeta =>
-      const TaskConstMeta(
-        debugName: 'InitTransaction_auto_accessor_get_data',
-        argNames: ['that'],
-      );
-
-  @override
-  Address crateInitTransactionAutoAccessorGetFrom(
-      {required InitTransaction that}) {
-    return handler.executeSync(SyncTask(
-      callFfi: () {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerInitTransaction(
-            that, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 34)!;
-      },
-      codec: SseCodec(
-        decodeSuccessData:
-            sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAddress,
-        decodeErrorData: null,
-      ),
-      constMeta: kCrateInitTransactionAutoAccessorGetFromConstMeta,
-      argValues: [that],
-      apiImpl: this,
-    ));
-  }
-
-  TaskConstMeta get kCrateInitTransactionAutoAccessorGetFromConstMeta =>
-      const TaskConstMeta(
-        debugName: 'InitTransaction_auto_accessor_get_from',
-        argNames: ['that'],
-      );
-
-  @override
-  U64 crateInitTransactionAutoAccessorGetGas({required InitTransaction that}) {
-    return handler.executeSync(SyncTask(
-      callFfi: () {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerInitTransaction(
-            that, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 35)!;
-      },
-      codec: SseCodec(
-        decodeSuccessData:
-            sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerU64,
-        decodeErrorData: null,
-      ),
-      constMeta: kCrateInitTransactionAutoAccessorGetGasConstMeta,
-      argValues: [that],
-      apiImpl: this,
-    ));
-  }
-
-  TaskConstMeta get kCrateInitTransactionAutoAccessorGetGasConstMeta =>
-      const TaskConstMeta(
-        debugName: 'InitTransaction_auto_accessor_get_gas',
-        argNames: ['that'],
-      );
-
-  @override
-  U256 crateInitTransactionAutoAccessorGetGasPrice(
-      {required InitTransaction that}) {
-    return handler.executeSync(SyncTask(
-      callFfi: () {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerInitTransaction(
-            that, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 36)!;
-      },
-      codec: SseCodec(
-        decodeSuccessData:
-            sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerU256,
-        decodeErrorData: null,
-      ),
-      constMeta: kCrateInitTransactionAutoAccessorGetGasPriceConstMeta,
-      argValues: [that],
-      apiImpl: this,
-    ));
-  }
-
-  TaskConstMeta get kCrateInitTransactionAutoAccessorGetGasPriceConstMeta =>
-      const TaskConstMeta(
-        debugName: 'InitTransaction_auto_accessor_get_gas_price',
-        argNames: ['that'],
-      );
-
-  @override
-  U256 crateInitTransactionAutoAccessorGetMaxFeePerGas(
-      {required InitTransaction that}) {
-    return handler.executeSync(SyncTask(
-      callFfi: () {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerInitTransaction(
-            that, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 37)!;
-      },
-      codec: SseCodec(
-        decodeSuccessData:
-            sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerU256,
-        decodeErrorData: null,
-      ),
-      constMeta: kCrateInitTransactionAutoAccessorGetMaxFeePerGasConstMeta,
-      argValues: [that],
-      apiImpl: this,
-    ));
-  }
-
-  TaskConstMeta get kCrateInitTransactionAutoAccessorGetMaxFeePerGasConstMeta =>
-      const TaskConstMeta(
-        debugName: 'InitTransaction_auto_accessor_get_max_fee_per_gas',
-        argNames: ['that'],
-      );
-
-  @override
-  U256 crateInitTransactionAutoAccessorGetMaxPriorityFeePerGas(
-      {required InitTransaction that}) {
-    return handler.executeSync(SyncTask(
-      callFfi: () {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerInitTransaction(
-            that, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 38)!;
-      },
-      codec: SseCodec(
-        decodeSuccessData:
-            sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerU256,
-        decodeErrorData: null,
-      ),
-      constMeta:
-          kCrateInitTransactionAutoAccessorGetMaxPriorityFeePerGasConstMeta,
-      argValues: [that],
-      apiImpl: this,
-    ));
-  }
-
-  TaskConstMeta
-      get kCrateInitTransactionAutoAccessorGetMaxPriorityFeePerGasConstMeta =>
-          const TaskConstMeta(
-            debugName:
-                'InitTransaction_auto_accessor_get_max_priority_fee_per_gas',
-            argNames: ['that'],
-          );
-
-  @override
-  U64 crateInitTransactionAutoAccessorGetNonce(
-      {required InitTransaction that}) {
-    return handler.executeSync(SyncTask(
-      callFfi: () {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerInitTransaction(
-            that, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 39)!;
-      },
-      codec: SseCodec(
-        decodeSuccessData:
-            sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerU64,
-        decodeErrorData: null,
-      ),
-      constMeta: kCrateInitTransactionAutoAccessorGetNonceConstMeta,
-      argValues: [that],
-      apiImpl: this,
-    ));
-  }
-
-  TaskConstMeta get kCrateInitTransactionAutoAccessorGetNonceConstMeta =>
-      const TaskConstMeta(
-        debugName: 'InitTransaction_auto_accessor_get_nonce',
-        argNames: ['that'],
-      );
-
-  @override
-  Address crateInitTransactionAutoAccessorGetTo(
-      {required InitTransaction that}) {
-    return handler.executeSync(SyncTask(
-      callFfi: () {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerInitTransaction(
-            that, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 40)!;
-      },
-      codec: SseCodec(
-        decodeSuccessData:
-            sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAddress,
-        decodeErrorData: null,
-      ),
-      constMeta: kCrateInitTransactionAutoAccessorGetToConstMeta,
-      argValues: [that],
-      apiImpl: this,
-    ));
-  }
-
-  TaskConstMeta get kCrateInitTransactionAutoAccessorGetToConstMeta =>
-      const TaskConstMeta(
-        debugName: 'InitTransaction_auto_accessor_get_to',
-        argNames: ['that'],
-      );
-
-  @override
-  U256 crateInitTransactionAutoAccessorGetValue(
-      {required InitTransaction that}) {
-    return handler.executeSync(SyncTask(
-      callFfi: () {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerInitTransaction(
-            that, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 41)!;
-      },
-      codec: SseCodec(
-        decodeSuccessData:
-            sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerU256,
-        decodeErrorData: null,
-      ),
-      constMeta: kCrateInitTransactionAutoAccessorGetValueConstMeta,
-      argValues: [that],
-      apiImpl: this,
-    ));
-  }
-
-  TaskConstMeta get kCrateInitTransactionAutoAccessorGetValueConstMeta =>
-      const TaskConstMeta(
-        debugName: 'InitTransaction_auto_accessor_get_value',
-        argNames: ['that'],
-      );
-
-  @override
-  void crateInitTransactionAutoAccessorSetChainId(
-      {required InitTransaction that, required String chainId}) {
-    return handler.executeSync(SyncTask(
-      callFfi: () {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerInitTransaction(
-            that, serializer);
-        sse_encode_String(chainId, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 42)!;
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_unit,
-        decodeErrorData: null,
-      ),
-      constMeta: kCrateInitTransactionAutoAccessorSetChainIdConstMeta,
-      argValues: [that, chainId],
-      apiImpl: this,
-    ));
-  }
-
-  TaskConstMeta get kCrateInitTransactionAutoAccessorSetChainIdConstMeta =>
-      const TaskConstMeta(
-        debugName: 'InitTransaction_auto_accessor_set_chain_id',
-        argNames: ['that', 'chainId'],
-      );
-
-  @override
-  void crateInitTransactionAutoAccessorSetData(
-      {required InitTransaction that, required Bytes data}) {
-    return handler.executeSync(SyncTask(
-      callFfi: () {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerInitTransaction(
-            that, serializer);
-        sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBytes(
-            data, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 43)!;
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_unit,
-        decodeErrorData: null,
-      ),
-      constMeta: kCrateInitTransactionAutoAccessorSetDataConstMeta,
-      argValues: [that, data],
-      apiImpl: this,
-    ));
-  }
-
-  TaskConstMeta get kCrateInitTransactionAutoAccessorSetDataConstMeta =>
-      const TaskConstMeta(
-        debugName: 'InitTransaction_auto_accessor_set_data',
-        argNames: ['that', 'data'],
-      );
-
-  @override
-  void crateInitTransactionAutoAccessorSetFrom(
-      {required InitTransaction that, required Address from}) {
-    return handler.executeSync(SyncTask(
-      callFfi: () {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerInitTransaction(
-            that, serializer);
-        sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAddress(
-            from, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 44)!;
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_unit,
-        decodeErrorData: null,
-      ),
-      constMeta: kCrateInitTransactionAutoAccessorSetFromConstMeta,
-      argValues: [that, from],
-      apiImpl: this,
-    ));
-  }
-
-  TaskConstMeta get kCrateInitTransactionAutoAccessorSetFromConstMeta =>
-      const TaskConstMeta(
-        debugName: 'InitTransaction_auto_accessor_set_from',
-        argNames: ['that', 'from'],
-      );
-
-  @override
-  void crateInitTransactionAutoAccessorSetGas(
-      {required InitTransaction that, required U64 gas}) {
-    return handler.executeSync(SyncTask(
-      callFfi: () {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerInitTransaction(
-            that, serializer);
-        sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerU64(
-            gas, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 45)!;
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_unit,
-        decodeErrorData: null,
-      ),
-      constMeta: kCrateInitTransactionAutoAccessorSetGasConstMeta,
-      argValues: [that, gas],
-      apiImpl: this,
-    ));
-  }
-
-  TaskConstMeta get kCrateInitTransactionAutoAccessorSetGasConstMeta =>
-      const TaskConstMeta(
-        debugName: 'InitTransaction_auto_accessor_set_gas',
-        argNames: ['that', 'gas'],
-      );
-
-  @override
-  void crateInitTransactionAutoAccessorSetGasPrice(
-      {required InitTransaction that, required U256 gasPrice}) {
-    return handler.executeSync(SyncTask(
-      callFfi: () {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerInitTransaction(
-            that, serializer);
-        sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerU256(
-            gasPrice, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 46)!;
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_unit,
-        decodeErrorData: null,
-      ),
-      constMeta: kCrateInitTransactionAutoAccessorSetGasPriceConstMeta,
-      argValues: [that, gasPrice],
-      apiImpl: this,
-    ));
-  }
-
-  TaskConstMeta get kCrateInitTransactionAutoAccessorSetGasPriceConstMeta =>
-      const TaskConstMeta(
-        debugName: 'InitTransaction_auto_accessor_set_gas_price',
-        argNames: ['that', 'gasPrice'],
-      );
-
-  @override
-  void crateInitTransactionAutoAccessorSetMaxFeePerGas(
-      {required InitTransaction that, required U256 maxFeePerGas}) {
-    return handler.executeSync(SyncTask(
-      callFfi: () {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerInitTransaction(
-            that, serializer);
-        sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerU256(
-            maxFeePerGas, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 47)!;
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_unit,
-        decodeErrorData: null,
-      ),
-      constMeta: kCrateInitTransactionAutoAccessorSetMaxFeePerGasConstMeta,
-      argValues: [that, maxFeePerGas],
-      apiImpl: this,
-    ));
-  }
-
-  TaskConstMeta get kCrateInitTransactionAutoAccessorSetMaxFeePerGasConstMeta =>
-      const TaskConstMeta(
-        debugName: 'InitTransaction_auto_accessor_set_max_fee_per_gas',
-        argNames: ['that', 'maxFeePerGas'],
-      );
-
-  @override
-  void crateInitTransactionAutoAccessorSetMaxPriorityFeePerGas(
-      {required InitTransaction that, required U256 maxPriorityFeePerGas}) {
-    return handler.executeSync(SyncTask(
-      callFfi: () {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerInitTransaction(
-            that, serializer);
-        sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerU256(
-            maxPriorityFeePerGas, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 48)!;
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_unit,
-        decodeErrorData: null,
-      ),
-      constMeta:
-          kCrateInitTransactionAutoAccessorSetMaxPriorityFeePerGasConstMeta,
-      argValues: [that, maxPriorityFeePerGas],
-      apiImpl: this,
-    ));
-  }
-
-  TaskConstMeta
-      get kCrateInitTransactionAutoAccessorSetMaxPriorityFeePerGasConstMeta =>
-          const TaskConstMeta(
-            debugName:
-                'InitTransaction_auto_accessor_set_max_priority_fee_per_gas',
-            argNames: ['that', 'maxPriorityFeePerGas'],
-          );
-
-  @override
-  void crateInitTransactionAutoAccessorSetNonce(
-      {required InitTransaction that, required U64 nonce}) {
-    return handler.executeSync(SyncTask(
-      callFfi: () {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerInitTransaction(
-            that, serializer);
-        sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerU64(
-            nonce, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 49)!;
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_unit,
-        decodeErrorData: null,
-      ),
-      constMeta: kCrateInitTransactionAutoAccessorSetNonceConstMeta,
-      argValues: [that, nonce],
-      apiImpl: this,
-    ));
-  }
-
-  TaskConstMeta get kCrateInitTransactionAutoAccessorSetNonceConstMeta =>
-      const TaskConstMeta(
-        debugName: 'InitTransaction_auto_accessor_set_nonce',
-        argNames: ['that', 'nonce'],
-      );
-
-  @override
-  void crateInitTransactionAutoAccessorSetTo(
-      {required InitTransaction that, required Address to}) {
-    return handler.executeSync(SyncTask(
-      callFfi: () {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerInitTransaction(
-            that, serializer);
-        sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAddress(
-            to, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 50)!;
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_unit,
-        decodeErrorData: null,
-      ),
-      constMeta: kCrateInitTransactionAutoAccessorSetToConstMeta,
-      argValues: [that, to],
-      apiImpl: this,
-    ));
-  }
-
-  TaskConstMeta get kCrateInitTransactionAutoAccessorSetToConstMeta =>
-      const TaskConstMeta(
-        debugName: 'InitTransaction_auto_accessor_set_to',
-        argNames: ['that', 'to'],
-      );
-
-  @override
-  void crateInitTransactionAutoAccessorSetValue(
-      {required InitTransaction that, required U256 value}) {
-    return handler.executeSync(SyncTask(
-      callFfi: () {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerInitTransaction(
-            that, serializer);
-        sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerU256(
-            value, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 51)!;
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_unit,
-        decodeErrorData: null,
-      ),
-      constMeta: kCrateInitTransactionAutoAccessorSetValueConstMeta,
-      argValues: [that, value],
-      apiImpl: this,
-    ));
-  }
-
-  TaskConstMeta get kCrateInitTransactionAutoAccessorSetValueConstMeta =>
-      const TaskConstMeta(
-        debugName: 'InitTransaction_auto_accessor_set_value',
-        argNames: ['that', 'value'],
-      );
-
   RustArcIncrementStrongCountFnType
       get rust_arc_increment_strong_count_AccountClient => wire
           .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAccountClient;
@@ -1770,20 +1135,6 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
   RustArcDecrementStrongCountFnType
       get rust_arc_decrement_strong_count_AccountClientConfig => wire
           .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAccountClientConfig;
-
-  RustArcIncrementStrongCountFnType
-      get rust_arc_increment_strong_count_Address => wire
-          .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAddress;
-
-  RustArcDecrementStrongCountFnType
-      get rust_arc_decrement_strong_count_Address => wire
-          .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAddress;
-
-  RustArcIncrementStrongCountFnType get rust_arc_increment_strong_count_Bytes =>
-      wire.rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBytes;
-
-  RustArcDecrementStrongCountFnType get rust_arc_decrement_strong_count_Bytes =>
-      wire.rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBytes;
 
   RustArcIncrementStrongCountFnType
       get rust_arc_increment_strong_count_ChainAbstractionClient => wire
@@ -1802,12 +1153,12 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
           .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerConfig;
 
   RustArcIncrementStrongCountFnType
-      get rust_arc_increment_strong_count_InitTransaction => wire
-          .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerInitTransaction;
+      get rust_arc_increment_strong_count_InitialTransaction => wire
+          .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerInitialTransaction;
 
   RustArcDecrementStrongCountFnType
-      get rust_arc_decrement_strong_count_InitTransaction => wire
-          .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerInitTransaction;
+      get rust_arc_decrement_strong_count_InitialTransaction => wire
+          .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerInitialTransaction;
 
   RustArcIncrementStrongCountFnType
       get rust_arc_increment_strong_count_RouteResponse => wire
@@ -1833,18 +1184,6 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
       get rust_arc_decrement_strong_count_StatusResponseCompleted => wire
           .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerStatusResponseCompleted;
 
-  RustArcIncrementStrongCountFnType get rust_arc_increment_strong_count_U256 =>
-      wire.rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerU256;
-
-  RustArcDecrementStrongCountFnType get rust_arc_decrement_strong_count_U256 =>
-      wire.rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerU256;
-
-  RustArcIncrementStrongCountFnType get rust_arc_increment_strong_count_U64 => wire
-      .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerU64;
-
-  RustArcDecrementStrongCountFnType get rust_arc_decrement_strong_count_U64 => wire
-      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerU64;
-
   @protected
   AccountClient
       dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAccountClient(
@@ -1859,22 +1198,6 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
           dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return AccountClientConfigImpl.frbInternalDcoDecode(raw as List<dynamic>);
-  }
-
-  @protected
-  Address
-      dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAddress(
-          dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return AddressImpl.frbInternalDcoDecode(raw as List<dynamic>);
-  }
-
-  @protected
-  Bytes
-      dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBytes(
-          dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return BytesImpl.frbInternalDcoDecode(raw as List<dynamic>);
   }
 
   @protected
@@ -1895,11 +1218,11 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
   }
 
   @protected
-  InitTransaction
-      dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerInitTransaction(
+  InitialTransaction
+      dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerInitialTransaction(
           dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
-    return InitTransactionImpl.frbInternalDcoDecode(raw as List<dynamic>);
+    return InitialTransactionImpl.frbInternalDcoDecode(raw as List<dynamic>);
   }
 
   @protected
@@ -1928,21 +1251,6 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
   }
 
   @protected
-  U256
-      dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerU256(
-          dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return U256Impl.frbInternalDcoDecode(raw as List<dynamic>);
-  }
-
-  @protected
-  U64 dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerU64(
-      dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return U64Impl.frbInternalDcoDecode(raw as List<dynamic>);
-  }
-
-  @protected
   AccountClient
       dco_decode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAccountClient(
           dynamic raw) {
@@ -1965,14 +1273,6 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return ChainAbstractionClientImpl.frbInternalDcoDecode(
         raw as List<dynamic>);
-  }
-
-  @protected
-  InitTransaction
-      dco_decode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerInitTransaction(
-          dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return InitTransactionImpl.frbInternalDcoDecode(raw as List<dynamic>);
   }
 
   @protected
@@ -2001,14 +1301,6 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
   }
 
   @protected
-  InitTransaction
-      dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerInitTransaction(
-          dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return InitTransactionImpl.frbInternalDcoDecode(raw as List<dynamic>);
-  }
-
-  @protected
   AccountClient
       dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAccountClient(
           dynamic raw) {
@@ -2022,22 +1314,6 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
           dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return AccountClientConfigImpl.frbInternalDcoDecode(raw as List<dynamic>);
-  }
-
-  @protected
-  Address
-      dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAddress(
-          dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return AddressImpl.frbInternalDcoDecode(raw as List<dynamic>);
-  }
-
-  @protected
-  Bytes
-      dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBytes(
-          dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return BytesImpl.frbInternalDcoDecode(raw as List<dynamic>);
   }
 
   @protected
@@ -2058,11 +1334,11 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
   }
 
   @protected
-  InitTransaction
-      dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerInitTransaction(
+  InitialTransaction
+      dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerInitialTransaction(
           dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
-    return InitTransactionImpl.frbInternalDcoDecode(raw as List<dynamic>);
+    return InitialTransactionImpl.frbInternalDcoDecode(raw as List<dynamic>);
   }
 
   @protected
@@ -2088,21 +1364,6 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return StatusResponseCompletedImpl.frbInternalDcoDecode(
         raw as List<dynamic>);
-  }
-
-  @protected
-  U256
-      dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerU256(
-          dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return U256Impl.frbInternalDcoDecode(raw as List<dynamic>);
-  }
-
-  @protected
-  U64 dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerU64(
-      dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return U64Impl.frbInternalDcoDecode(raw as List<dynamic>);
   }
 
   @protected
@@ -2240,24 +1501,6 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
   }
 
   @protected
-  Address
-      sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAddress(
-          SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return AddressImpl.frbInternalSseDecode(
-        sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
-  }
-
-  @protected
-  Bytes
-      sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBytes(
-          SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return BytesImpl.frbInternalSseDecode(
-        sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
-  }
-
-  @protected
   ChainAbstractionClient
       sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerChainAbstractionClient(
           SseDeserializer deserializer) {
@@ -2276,11 +1519,11 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
   }
 
   @protected
-  InitTransaction
-      sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerInitTransaction(
+  InitialTransaction
+      sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerInitialTransaction(
           SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    return InitTransactionImpl.frbInternalSseDecode(
+    return InitialTransactionImpl.frbInternalSseDecode(
         sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
   }
 
@@ -2312,23 +1555,6 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
   }
 
   @protected
-  U256
-      sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerU256(
-          SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return U256Impl.frbInternalSseDecode(
-        sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
-  }
-
-  @protected
-  U64 sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerU64(
-      SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return U64Impl.frbInternalSseDecode(
-        sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
-  }
-
-  @protected
   AccountClient
       sse_decode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAccountClient(
           SseDeserializer deserializer) {
@@ -2352,15 +1578,6 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
           SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return ChainAbstractionClientImpl.frbInternalSseDecode(
-        sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
-  }
-
-  @protected
-  InitTransaction
-      sse_decode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerInitTransaction(
-          SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return InitTransactionImpl.frbInternalSseDecode(
         sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
   }
 
@@ -2392,15 +1609,6 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
   }
 
   @protected
-  InitTransaction
-      sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerInitTransaction(
-          SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return InitTransactionImpl.frbInternalSseDecode(
-        sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
-  }
-
-  @protected
   AccountClient
       sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAccountClient(
           SseDeserializer deserializer) {
@@ -2415,24 +1623,6 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
           SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return AccountClientConfigImpl.frbInternalSseDecode(
-        sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
-  }
-
-  @protected
-  Address
-      sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAddress(
-          SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return AddressImpl.frbInternalSseDecode(
-        sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
-  }
-
-  @protected
-  Bytes
-      sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBytes(
-          SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return BytesImpl.frbInternalSseDecode(
         sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
   }
 
@@ -2455,11 +1645,11 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
   }
 
   @protected
-  InitTransaction
-      sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerInitTransaction(
+  InitialTransaction
+      sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerInitialTransaction(
           SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    return InitTransactionImpl.frbInternalSseDecode(
+    return InitialTransactionImpl.frbInternalSseDecode(
         sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
   }
 
@@ -2487,23 +1677,6 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
           SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return StatusResponseCompletedImpl.frbInternalSseDecode(
-        sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
-  }
-
-  @protected
-  U256
-      sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerU256(
-          SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return U256Impl.frbInternalSseDecode(
-        sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
-  }
-
-  @protected
-  U64 sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerU64(
-      SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return U64Impl.frbInternalSseDecode(
         sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
   }
 
@@ -2655,24 +1828,6 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
 
   @protected
   void
-      sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAddress(
-          Address self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_usize(
-        (self as AddressImpl).frbInternalSseEncode(move: true), serializer);
-  }
-
-  @protected
-  void
-      sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBytes(
-          Bytes self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_usize(
-        (self as BytesImpl).frbInternalSseEncode(move: true), serializer);
-  }
-
-  @protected
-  void
       sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerChainAbstractionClient(
           ChainAbstractionClient self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -2692,11 +1847,11 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
 
   @protected
   void
-      sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerInitTransaction(
-          InitTransaction self, SseSerializer serializer) {
+      sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerInitialTransaction(
+          InitialTransaction self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_usize(
-        (self as InitTransactionImpl).frbInternalSseEncode(move: true),
+        (self as InitialTransactionImpl).frbInternalSseEncode(move: true),
         serializer);
   }
 
@@ -2732,24 +1887,6 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
 
   @protected
   void
-      sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerU256(
-          U256 self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_usize(
-        (self as U256Impl).frbInternalSseEncode(move: true), serializer);
-  }
-
-  @protected
-  void
-      sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerU64(
-          U64 self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_usize(
-        (self as U64Impl).frbInternalSseEncode(move: true), serializer);
-  }
-
-  @protected
-  void
       sse_encode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAccountClient(
           AccountClient self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -2775,16 +1912,6 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_usize(
         (self as ChainAbstractionClientImpl).frbInternalSseEncode(move: false),
-        serializer);
-  }
-
-  @protected
-  void
-      sse_encode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerInitTransaction(
-          InitTransaction self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_usize(
-        (self as InitTransactionImpl).frbInternalSseEncode(move: false),
         serializer);
   }
 
@@ -2820,16 +1947,6 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
 
   @protected
   void
-      sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerInitTransaction(
-          InitTransaction self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_usize(
-        (self as InitTransactionImpl).frbInternalSseEncode(move: false),
-        serializer);
-  }
-
-  @protected
-  void
       sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAccountClient(
           AccountClient self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -2846,24 +1963,6 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
     sse_encode_usize(
         (self as AccountClientConfigImpl).frbInternalSseEncode(move: null),
         serializer);
-  }
-
-  @protected
-  void
-      sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAddress(
-          Address self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_usize(
-        (self as AddressImpl).frbInternalSseEncode(move: null), serializer);
-  }
-
-  @protected
-  void
-      sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBytes(
-          Bytes self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_usize(
-        (self as BytesImpl).frbInternalSseEncode(move: null), serializer);
   }
 
   @protected
@@ -2887,11 +1986,11 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
 
   @protected
   void
-      sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerInitTransaction(
-          InitTransaction self, SseSerializer serializer) {
+      sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerInitialTransaction(
+          InitialTransaction self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_usize(
-        (self as InitTransactionImpl).frbInternalSseEncode(move: null),
+        (self as InitialTransactionImpl).frbInternalSseEncode(move: null),
         serializer);
   }
 
@@ -2923,24 +2022,6 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
     sse_encode_usize(
         (self as StatusResponseCompletedImpl).frbInternalSseEncode(move: null),
         serializer);
-  }
-
-  @protected
-  void
-      sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerU256(
-          U256 self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_usize(
-        (self as U256Impl).frbInternalSseEncode(move: null), serializer);
-  }
-
-  @protected
-  void
-      sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerU64(
-          U64 self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_usize(
-        (self as U64Impl).frbInternalSseEncode(move: null), serializer);
   }
 
   @protected
@@ -3205,46 +2286,6 @@ class AccountClientImpl extends RustOpaque implements AccountClient {
 }
 
 @sealed
-class AddressImpl extends RustOpaque implements Address {
-  // Not to be used by end users
-  AddressImpl.frbInternalDcoDecode(List<dynamic> wire)
-      : super.frbInternalDcoDecode(wire, _kStaticData);
-
-  // Not to be used by end users
-  AddressImpl.frbInternalSseDecode(BigInt ptr, int externalSizeOnNative)
-      : super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
-
-  static final _kStaticData = RustArcStaticData(
-    rustArcIncrementStrongCount:
-        YttriumDart.instance.api.rust_arc_increment_strong_count_Address,
-    rustArcDecrementStrongCount:
-        YttriumDart.instance.api.rust_arc_decrement_strong_count_Address,
-    rustArcDecrementStrongCountPtr:
-        YttriumDart.instance.api.rust_arc_decrement_strong_count_AddressPtr,
-  );
-}
-
-@sealed
-class BytesImpl extends RustOpaque implements Bytes {
-  // Not to be used by end users
-  BytesImpl.frbInternalDcoDecode(List<dynamic> wire)
-      : super.frbInternalDcoDecode(wire, _kStaticData);
-
-  // Not to be used by end users
-  BytesImpl.frbInternalSseDecode(BigInt ptr, int externalSizeOnNative)
-      : super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
-
-  static final _kStaticData = RustArcStaticData(
-    rustArcIncrementStrongCount:
-        YttriumDart.instance.api.rust_arc_increment_strong_count_Bytes,
-    rustArcDecrementStrongCount:
-        YttriumDart.instance.api.rust_arc_decrement_strong_count_Bytes,
-    rustArcDecrementStrongCountPtr:
-        YttriumDart.instance.api.rust_arc_decrement_strong_count_BytesPtr,
-  );
-}
-
-@sealed
 class ChainAbstractionClientImpl extends RustOpaque
     implements ChainAbstractionClient {
   // Not to be used by end users
@@ -3278,9 +2319,10 @@ class ChainAbstractionClientImpl extends RustOpaque
       YttriumDart.instance.api.crateChainAbstractionClientEstimateFees(
           that: this, chainId: chainId);
 
-  Future<RouteResponse> route({required InitTransaction transaction}) =>
+  Future<RouteResponse> route(
+          {required InitialTransaction initialTransaction}) =>
       YttriumDart.instance.api.crateChainAbstractionClientRoute(
-          that: this, transaction: transaction);
+          that: this, initialTransaction: initialTransaction);
 
   Future<StatusResponse> status({required String orchestrationId}) =>
       YttriumDart.instance.api.crateChainAbstractionClientStatus(
@@ -3319,107 +2361,24 @@ class ConfigImpl extends RustOpaque implements Config {
 }
 
 @sealed
-class InitTransactionImpl extends RustOpaque implements InitTransaction {
+class InitialTransactionImpl extends RustOpaque implements InitialTransaction {
   // Not to be used by end users
-  InitTransactionImpl.frbInternalDcoDecode(List<dynamic> wire)
+  InitialTransactionImpl.frbInternalDcoDecode(List<dynamic> wire)
       : super.frbInternalDcoDecode(wire, _kStaticData);
 
   // Not to be used by end users
-  InitTransactionImpl.frbInternalSseDecode(BigInt ptr, int externalSizeOnNative)
+  InitialTransactionImpl.frbInternalSseDecode(
+      BigInt ptr, int externalSizeOnNative)
       : super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
 
   static final _kStaticData = RustArcStaticData(
     rustArcIncrementStrongCount: YttriumDart
-        .instance.api.rust_arc_increment_strong_count_InitTransaction,
+        .instance.api.rust_arc_increment_strong_count_InitialTransaction,
     rustArcDecrementStrongCount: YttriumDart
-        .instance.api.rust_arc_decrement_strong_count_InitTransaction,
+        .instance.api.rust_arc_decrement_strong_count_InitialTransaction,
     rustArcDecrementStrongCountPtr: YttriumDart
-        .instance.api.rust_arc_decrement_strong_count_InitTransactionPtr,
+        .instance.api.rust_arc_decrement_strong_count_InitialTransactionPtr,
   );
-
-  String get chainId =>
-      YttriumDart.instance.api.crateInitTransactionAutoAccessorGetChainId(
-        that: this,
-      );
-
-  Bytes get data =>
-      YttriumDart.instance.api.crateInitTransactionAutoAccessorGetData(
-        that: this,
-      );
-
-  Address get from =>
-      YttriumDart.instance.api.crateInitTransactionAutoAccessorGetFrom(
-        that: this,
-      );
-
-  U64 get gas =>
-      YttriumDart.instance.api.crateInitTransactionAutoAccessorGetGas(
-        that: this,
-      );
-
-  U256 get gasPrice =>
-      YttriumDart.instance.api.crateInitTransactionAutoAccessorGetGasPrice(
-        that: this,
-      );
-
-  U256 get maxFeePerGas =>
-      YttriumDart.instance.api.crateInitTransactionAutoAccessorGetMaxFeePerGas(
-        that: this,
-      );
-
-  U256 get maxPriorityFeePerGas => YttriumDart.instance.api
-          .crateInitTransactionAutoAccessorGetMaxPriorityFeePerGas(
-        that: this,
-      );
-
-  U64 get nonce =>
-      YttriumDart.instance.api.crateInitTransactionAutoAccessorGetNonce(
-        that: this,
-      );
-
-  Address get to =>
-      YttriumDart.instance.api.crateInitTransactionAutoAccessorGetTo(
-        that: this,
-      );
-
-  U256 get value =>
-      YttriumDart.instance.api.crateInitTransactionAutoAccessorGetValue(
-        that: this,
-      );
-
-  set chainId(String chainId) => YttriumDart.instance.api
-      .crateInitTransactionAutoAccessorSetChainId(that: this, chainId: chainId);
-
-  set data(Bytes data) => YttriumDart.instance.api
-      .crateInitTransactionAutoAccessorSetData(that: this, data: data);
-
-  set from(Address from) => YttriumDart.instance.api
-      .crateInitTransactionAutoAccessorSetFrom(that: this, from: from);
-
-  set gas(U64 gas) => YttriumDart.instance.api
-      .crateInitTransactionAutoAccessorSetGas(that: this, gas: gas);
-
-  set gasPrice(U256 gasPrice) =>
-      YttriumDart.instance.api.crateInitTransactionAutoAccessorSetGasPrice(
-          that: this, gasPrice: gasPrice);
-
-  set maxFeePerGas(U256 maxFeePerGas) =>
-      YttriumDart.instance.api.crateInitTransactionAutoAccessorSetMaxFeePerGas(
-          that: this, maxFeePerGas: maxFeePerGas);
-
-  set maxPriorityFeePerGas(U256 maxPriorityFeePerGas) =>
-      YttriumDart.instance.api
-          .crateInitTransactionAutoAccessorSetMaxPriorityFeePerGas(
-              that: this, maxPriorityFeePerGas: maxPriorityFeePerGas);
-
-  set nonce(U64 nonce) => YttriumDart.instance.api
-      .crateInitTransactionAutoAccessorSetNonce(that: this, nonce: nonce);
-
-  set to(Address to) => YttriumDart.instance.api
-      .crateInitTransactionAutoAccessorSetTo(that: this, to: to);
-
-  set value(U256 value) => YttriumDart.instance.api
-      .crateInitTransactionAutoAccessorSetValue(that: this, value: value);
 }
 
 @sealed
@@ -3481,45 +2440,5 @@ class StatusResponseImpl extends RustOpaque implements StatusResponse {
         YttriumDart.instance.api.rust_arc_decrement_strong_count_StatusResponse,
     rustArcDecrementStrongCountPtr: YttriumDart
         .instance.api.rust_arc_decrement_strong_count_StatusResponsePtr,
-  );
-}
-
-@sealed
-class U256Impl extends RustOpaque implements U256 {
-  // Not to be used by end users
-  U256Impl.frbInternalDcoDecode(List<dynamic> wire)
-      : super.frbInternalDcoDecode(wire, _kStaticData);
-
-  // Not to be used by end users
-  U256Impl.frbInternalSseDecode(BigInt ptr, int externalSizeOnNative)
-      : super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
-
-  static final _kStaticData = RustArcStaticData(
-    rustArcIncrementStrongCount:
-        YttriumDart.instance.api.rust_arc_increment_strong_count_U256,
-    rustArcDecrementStrongCount:
-        YttriumDart.instance.api.rust_arc_decrement_strong_count_U256,
-    rustArcDecrementStrongCountPtr:
-        YttriumDart.instance.api.rust_arc_decrement_strong_count_U256Ptr,
-  );
-}
-
-@sealed
-class U64Impl extends RustOpaque implements U64 {
-  // Not to be used by end users
-  U64Impl.frbInternalDcoDecode(List<dynamic> wire)
-      : super.frbInternalDcoDecode(wire, _kStaticData);
-
-  // Not to be used by end users
-  U64Impl.frbInternalSseDecode(BigInt ptr, int externalSizeOnNative)
-      : super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
-
-  static final _kStaticData = RustArcStaticData(
-    rustArcIncrementStrongCount:
-        YttriumDart.instance.api.rust_arc_increment_strong_count_U64,
-    rustArcDecrementStrongCount:
-        YttriumDart.instance.api.rust_arc_decrement_strong_count_U64,
-    rustArcDecrementStrongCountPtr:
-        YttriumDart.instance.api.rust_arc_decrement_strong_count_U64Ptr,
   );
 }

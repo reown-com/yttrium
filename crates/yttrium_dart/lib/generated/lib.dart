@@ -8,8 +8,8 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'lib.freezed.dart';
 
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
-// These functions are ignored (category: IgnoreBecauseNotAllowedOwner): `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
+// These functions are ignored (category: IgnoreBecauseNotAllowedOwner): `from`
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<AccountClient>>
 abstract class AccountClient implements RustOpaqueInterface {
@@ -73,12 +73,6 @@ abstract class AccountClientConfig implements RustOpaqueInterface {
   set signerType(String signerType);
 }
 
-// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<Address>>
-abstract class Address implements RustOpaqueInterface {}
-
-// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<Bytes>>
-abstract class Bytes implements RustOpaqueInterface {}
-
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ChainAbstractionClient>>
 abstract class ChainAbstractionClient implements RustOpaqueInterface {
   String get projectId;
@@ -93,7 +87,7 @@ abstract class ChainAbstractionClient implements RustOpaqueInterface {
       YttriumDart.instance.api
           .crateChainAbstractionClientNew(projectId: projectId);
 
-  Future<RouteResponse> route({required InitTransaction transaction});
+  Future<RouteResponse> route({required InitialTransaction initialTransaction});
 
   Future<StatusResponse> status({required String orchestrationId});
 
@@ -106,48 +100,8 @@ abstract class ChainAbstractionClient implements RustOpaqueInterface {
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<Config>>
 abstract class Config implements RustOpaqueInterface {}
 
-// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<InitTransaction>>
-abstract class InitTransaction implements RustOpaqueInterface {
-  String get chainId;
-
-  Bytes get data;
-
-  Address get from;
-
-  U64 get gas;
-
-  U256 get gasPrice;
-
-  U256 get maxFeePerGas;
-
-  U256 get maxPriorityFeePerGas;
-
-  U64 get nonce;
-
-  Address get to;
-
-  U256 get value;
-
-  set chainId(String chainId);
-
-  set data(Bytes data);
-
-  set from(Address from);
-
-  set gas(U64 gas);
-
-  set gasPrice(U256 gasPrice);
-
-  set maxFeePerGas(U256 maxFeePerGas);
-
-  set maxPriorityFeePerGas(U256 maxPriorityFeePerGas);
-
-  set nonce(U64 nonce);
-
-  set to(Address to);
-
-  set value(U256 value);
-}
+// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<InitialTransaction>>
+abstract class InitialTransaction implements RustOpaqueInterface {}
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<RouteResponse>>
 abstract class RouteResponse implements RustOpaqueInterface {}
@@ -157,12 +111,6 @@ abstract class StatusResponse implements RustOpaqueInterface {}
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<StatusResponseCompleted>>
 abstract class StatusResponseCompleted implements RustOpaqueInterface {}
-
-// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<U256>>
-abstract class U256 implements RustOpaqueInterface {}
-
-// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<U64>>
-abstract class U64 implements RustOpaqueInterface {}
 
 class Eip1559Estimation {
   final String maxFeePerGas;
