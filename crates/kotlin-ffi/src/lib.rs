@@ -14,16 +14,14 @@ use {
     yttrium::{
         account_client::{AccountClient as YAccountClient, SignerType},
         chain_abstraction::{
-            self,
-            amount::Amount,
             api::{
                 route::{RouteResponse, RouteResponseAvailable},
                 status::{StatusResponse, StatusResponseCompleted},
-                Transaction as CATransaction,
+                InitialTransaction,
             },
             client::Client,
             currency::Currency,
-            route_ui_fields::TransactionFee,
+            route_ui_fields::RouteUiFields,
         },
         config::Config,
         private_key_service::PrivateKeyService,
@@ -86,50 +84,6 @@ uniffi::custom_type!(FFIBytes, String, {
     lower: |obj| obj.to_string(),
 });
 
-#[derive(Debug, uniffi::Record)]
-pub struct RouteUiFields {
-    pub route: Vec<TxnDetails>,
-    pub bridge: Vec<TransactionFee>,
-    pub initial: TxnDetails,
-    pub local_total: Amount,
-}
-
-impl From<yttrium::chain_abstraction::route_ui_fields::RouteUiFields>
-    for RouteUiFields
-{
-    fn from(
-        source: yttrium::chain_abstraction::route_ui_fields::RouteUiFields,
-    ) -> Self {
-        Self {
-            route: source.route.into_iter().map(Into::into).collect(),
-            bridge: source.bridge,
-            initial: source.initial.into(),
-            local_total: source.local_total,
-        }
-    }
-}
-
-#[derive(Debug, uniffi::Record)]
-pub struct TxnDetails {
-    pub transaction: CATransaction,
-    pub estimate: Eip1559Estimation,
-    pub fee: TransactionFee,
-}
-
-impl From<yttrium::chain_abstraction::route_ui_fields::TxnDetails>
-    for TxnDetails
-{
-    fn from(
-        source: yttrium::chain_abstraction::route_ui_fields::TxnDetails,
-    ) -> Self {
-        Self {
-            transaction: source.transaction,
-            estimate: source.estimate.into(),
-            fee: source.fee,
-        }
-    }
-}
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq, uniffi::Record)]
 pub struct Eip1559Estimation {
     /// The base fee per gas.
@@ -147,31 +101,6 @@ impl From<alloy::providers::utils::Eip1559Estimation> for Eip1559Estimation {
             ),
         }
     }
-}
-
-// uniffi::custom_type!(Eip1559Estimation, FfiEip1559Estimation, {
-//     try_lift: |val| Ok(Eip1559Estimation {
-//         max_fee_per_gas: val.max_fee_per_gas.to(),
-//         max_priority_fee_per_gas: val.max_priority_fee_per_gas.to(),
-//     }),
-//     lower: |obj| FfiEip1559Estimation {
-//         max_fee_per_gas: U128::from(obj.max_fee_per_gas),
-//         max_priority_fee_per_gas: U128::from(obj.max_priority_fee_per_gas),
-//     },
-// });
-
-#[derive(uniffi::Record)]
-pub struct InitTransaction {
-    pub from: FFIAddress,
-    pub to: FFIAddress,
-    pub value: FFIU256,
-    pub gas: FFIU64,
-    pub gas_price: FFIU256,
-    pub data: FFIBytes,
-    pub nonce: FFIU64,
-    pub max_fee_per_gas: FFIU256,
-    pub max_priority_fee_per_gas: FFIU256,
-    pub chain_id: String,
 }
 
 #[derive(uniffi::Record)]
@@ -215,11 +144,10 @@ impl ChainAbstractionClient {
 
     pub async fn route(
         &self,
-        transaction: InitTransaction,
+        initial_transaction: InitialTransaction,
     ) -> Result<RouteResponse, FFIError> {
-        let ca_transaction = CATransaction::from(transaction);
         self.client
-            .route(ca_transaction)
+            .route(initial_transaction)
             .await
             .map_err(|e| FFIError::General(e.to_string()))
     }
@@ -227,11 +155,10 @@ impl ChainAbstractionClient {
     pub async fn get_route_ui_fields(
         &self,
         route_response: RouteResponseAvailable,
-        initial_transaction: chain_abstraction::api::Transaction,
         currency: Currency,
     ) -> Result<RouteUiFields, FFIError> {
         self.client
-            .get_route_ui_fields(route_response, initial_transaction, currency)
+            .get_route_ui_fields(route_response, currency)
             .await
             .map(Into::into)
             .map_err(|e| FFIError::General(e.to_string()))
@@ -444,23 +371,6 @@ impl From<FFITransaction> for YTransaction {
             transaction.data,
         )
         .unwrap()
-    }
-}
-
-impl From<InitTransaction> for CATransaction {
-    fn from(source: InitTransaction) -> Self {
-        CATransaction {
-            from: source.from,
-            to: source.to,
-            value: source.value,
-            gas: source.gas,
-            gas_price: source.gas_price,
-            data: source.data,
-            nonce: source.nonce,
-            max_fee_per_gas: source.max_fee_per_gas,
-            max_priority_fee_per_gas: source.max_priority_fee_per_gas,
-            chain_id: source.chain_id,
-        }
     }
 }
 

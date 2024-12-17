@@ -13,7 +13,7 @@ use {
                 StatusQueryParams, StatusResponse, StatusResponseCompleted,
                 STATUS_ENDPOINT_PATH,
             },
-            Transaction,
+            InitialTransaction, Transaction,
         },
         currency::Currency,
         error::{RouteError, WaitForSuccessError},
@@ -65,7 +65,7 @@ impl Client {
 
     pub async fn route(
         &self,
-        transaction: Transaction,
+        transaction: InitialTransaction,
     ) -> Result<RouteResponse, RouteError> {
         let response = self
             .client
@@ -89,7 +89,6 @@ impl Client {
     pub async fn get_route_ui_fields(
         &self,
         route_response: RouteResponseAvailable,
-        initial_transaction: Transaction,
         local_currency: Currency,
         // TODO use this to e.g. modify priority fee
         // _speed: String,
@@ -101,7 +100,7 @@ impl Client {
         let chains = route_response
             .transactions
             .iter()
-            .chain(std::iter::once(&initial_transaction))
+            .chain(std::iter::once(&route_response.initial_transaction))
             .map(|t| t.chain_id.clone())
             .collect::<HashSet<_>>();
         println!("chains: {chains:?}");
@@ -174,8 +173,8 @@ impl Client {
                     .with_from(txn.from)
                     .with_to(txn.to)
                     .with_value(txn.value)
-                    .with_gas_limit(txn.gas.to())
-                    .with_input(txn.data.clone())
+                    .with_gas_limit(txn.gas_limit.to())
+                    .with_input(txn.input.clone())
                     .with_nonce(txn.nonce.to())
                     .with_chain_id(
                         txn.chain_id
@@ -199,7 +198,7 @@ impl Client {
                 .map(|txn| l1_data_fee(txn.clone(), self)),
         );
         let initial_l1_data_fee_future =
-            l1_data_fee(initial_transaction.clone(), self);
+            l1_data_fee(route_response.initial_transaction.clone(), self);
 
         let (fungibles, eip1559_fees, route_l1_data_fees, initial_l1_data_fee) =
             tokio::try_join!(
@@ -219,7 +218,7 @@ impl Client {
             let eip1559_estimation = *eip1559_fees.get(&txn.chain_id).unwrap();
             println!("l1_data_fee: {l1_data_fee}");
             let fee = U256::from(eip1559_estimation.max_fee_per_gas)
-                .checked_mul(U256::from(txn.gas))
+                .checked_mul(U256::from(txn.gas_limit))
                 .expect("fee overflow")
                 .checked_add(l1_data_fee)
                 .expect("fee overflow in adding");
@@ -241,7 +240,7 @@ impl Client {
             ));
         }
         let estimated_initial_transaction = estimate_gas_fees(
-            initial_transaction,
+            route_response.initial_transaction.clone(),
             &eip1559_fees,
             initial_l1_data_fee,
         );

@@ -5,7 +5,7 @@ use {
             api::{
                 route::{BridgingError, RouteResponse, RouteResponseError},
                 status::StatusResponse,
-                Transaction,
+                InitialTransaction, Transaction,
             },
             client::Client,
             currency::Currency,
@@ -380,31 +380,17 @@ async fn bridging_routes_routes_available() {
     }
     assert!(chain_1_address_1_token.token_balance().await >= required_amount);
 
-    let transaction = Transaction {
+    let transaction = InitialTransaction {
         from: source.address(),
         to: *chain_2_address_1_token.token.address(),
         value: U256::ZERO,
-        // gas: U64::ZERO,
-        // https://reown-inc.slack.com/archives/C0816SK4877/p1731962527043399
-        gas: U64::from(50000), // until Blockchain API estimates this
-        data: ERC20::transferCall {
+        input: ERC20::transferCall {
             to: destination.address(),
             amount: send_amount,
         }
         .abi_encode()
         .into(),
-        nonce: U64::from({
-            let token = chain_2_address_1_token;
-            token
-                .provider
-                .get_transaction_count(token.params.account_address)
-                .await
-                .unwrap()
-        }),
         chain_id: chain_2.eip155_chain_id().to_owned(),
-        gas_price: U256::ZERO,
-        max_fee_per_gas: U256::ZERO,
-        max_priority_fee_per_gas: U256::ZERO,
     };
     println!("input transaction: {:?}", transaction);
 
@@ -422,12 +408,12 @@ async fn bridging_routes_routes_available() {
     println!("route result in ({:#?}): {:?}", start.elapsed(), result);
 
     assert_eq!(result.transactions.len(), 2);
-    result.transactions[0].gas = U64::from(60000 /* 55437 */); // until Blockchain API estimates this
-    result.transactions[1].gas = U64::from(140000 /* 107394 */); // until Blockchain API estimates this
+    result.transactions[0].gas_limit = U64::from(60000 /* 55437 */); // until Blockchain API estimates this
+    result.transactions[1].gas_limit = U64::from(140000 /* 107394 */); // until Blockchain API estimates this
 
     let start = Instant::now();
     let route_ui_fields = client
-        .get_route_ui_fields(result.clone(), transaction.clone(), Currency::Usd)
+        .get_route_ui_fields(result.clone(), Currency::Usd)
         .await
         .unwrap();
     println!(
@@ -743,30 +729,16 @@ async fn happy_path() {
     }
     assert!(source.token_balance(&sources).await >= required_amount);
 
-    let initial_transaction = Transaction {
+    let initial_transaction = InitialTransaction {
         from: source.address(&sources),
         to: *source.other().bridge_token(&sources).token.address(),
         value: U256::ZERO,
-        // gas: U64::ZERO,
-        // https://reown-inc.slack.com/archives/C0816SK4877/p1731962527043399
-        gas: U64::from(50000), // until Blockchain API estimates this
-        data: ERC20::transferCall {
+        input: ERC20::transferCall {
             to: source.other().address(&sources),
             amount: send_amount,
         }
         .abi_encode()
         .into(),
-        nonce: U64::from({
-            let token = match source {
-                Source::Left => &chain_2_address_1_token,
-                Source::Right => &chain_1_address_2_token,
-            };
-            token
-                .provider
-                .get_transaction_count(token.params.account_address)
-                .await
-                .unwrap()
-        }),
         chain_id: source
             .other()
             .bridge_token(&sources)
@@ -774,9 +746,6 @@ async fn happy_path() {
             .chain
             .eip155_chain_id()
             .to_owned(),
-        gas_price: U256::ZERO,
-        max_fee_per_gas: U256::ZERO,
-        max_priority_fee_per_gas: U256::ZERO,
     };
     println!("input transaction: {:?}", initial_transaction);
 
@@ -795,16 +764,12 @@ async fn happy_path() {
     // TODO it's possible this is only 1 transaction due to already being
     // approved: https://reown-inc.slack.com/archives/C0816SK4877/p1732813465413249?thread_ts=1732787456.681429&cid=C0816SK4877
     assert_eq!(result.transactions.len(), 2);
-    result.transactions[0].gas = U64::from(60000 /* 55437 */); // until Blockchain API estimates this
-    result.transactions[1].gas = U64::from(140000 /* 107394 */); // until Blockchain API estimates this
+    result.transactions[0].gas_limit = U64::from(60000 /* 55437 */); // until Blockchain API estimates this
+    result.transactions[1].gas_limit = U64::from(140000 /* 107394 */); // until Blockchain API estimates this
 
     let start = Instant::now();
     let route_ui_fields = client
-        .get_route_ui_fields(
-            result.clone(),
-            initial_transaction.clone(),
-            Currency::Usd,
-        )
+        .get_route_ui_fields(result.clone(), Currency::Usd)
         .await
         .unwrap();
     println!(
@@ -818,8 +783,8 @@ async fn happy_path() {
             .with_from(txn.from)
             .with_to(txn.to)
             .with_value(txn.value)
-            .with_gas_limit(txn.gas.to())
-            .with_input(txn.data)
+            .with_gas_limit(txn.gas_limit.to())
+            .with_input(txn.input)
             .with_nonce(txn.nonce.to())
             .with_chain_id(
                 txn.chain_id
@@ -835,7 +800,7 @@ async fn happy_path() {
     let mut transactions_with_fees = vec![];
     for (txn, route_ui_fields) in
         result.transactions.into_iter().zip(route_ui_fields.route).chain(
-            std::iter::once(initial_transaction)
+            std::iter::once(result.initial_transaction)
                 .zip(std::iter::once(route_ui_fields.initial)),
         )
     {
@@ -1331,30 +1296,16 @@ async fn happy_path_full_dependency_on_route_ui_fields() {
     }
     assert!(source.token_balance(&sources).await >= required_amount);
 
-    let initial_transaction = Transaction {
+    let initial_transaction = InitialTransaction {
         from: source.address(&sources),
         to: *source.other().bridge_token(&sources).token.address(),
         value: U256::ZERO,
-        // gas: U64::ZERO,
-        // https://reown-inc.slack.com/archives/C0816SK4877/p1731962527043399
-        gas: U64::from(50000), // until Blockchain API estimates this
-        data: ERC20::transferCall {
+        input: ERC20::transferCall {
             to: source.other().address(&sources),
             amount: send_amount,
         }
         .abi_encode()
         .into(),
-        nonce: U64::from({
-            let token = match source {
-                Source::Left => &chain_2_address_1_token,
-                Source::Right => &chain_1_address_2_token,
-            };
-            token
-                .provider
-                .get_transaction_count(token.params.account_address)
-                .await
-                .unwrap()
-        }),
         chain_id: source
             .other()
             .bridge_token(&sources)
@@ -1362,9 +1313,6 @@ async fn happy_path_full_dependency_on_route_ui_fields() {
             .chain
             .eip155_chain_id()
             .to_owned(),
-        gas_price: U256::ZERO,
-        max_fee_per_gas: U256::ZERO,
-        max_priority_fee_per_gas: U256::ZERO,
     };
     println!("input transaction: {:?}", initial_transaction);
 
@@ -1383,8 +1331,8 @@ async fn happy_path_full_dependency_on_route_ui_fields() {
     // TODO it's possible this is only 1 transaction due to already being
     // approved: https://reown-inc.slack.com/archives/C0816SK4877/p1732813465413249?thread_ts=1732787456.681429&cid=C0816SK4877
     assert_eq!(result.transactions.len(), 2);
-    result.transactions[0].gas = U64::from(60000 /* 55437 */); // until Blockchain API estimates this
-    result.transactions[1].gas = U64::from(140000 /* 107394 */); // until Blockchain API estimates this
+    result.transactions[0].gas_limit = U64::from(60000 /* 55437 */); // until Blockchain API estimates this
+    result.transactions[1].gas_limit = U64::from(140000 /* 107394 */); // until Blockchain API estimates this
 
     assert_eq!(result.metadata.funding_from.len(), 1);
     assert_eq!(result.metadata.funding_from.first().unwrap().symbol, "USDC");
@@ -1450,11 +1398,7 @@ async fn happy_path_full_dependency_on_route_ui_fields() {
 
     let start = Instant::now();
     let route_ui_fields = client
-        .get_route_ui_fields(
-            result.clone(),
-            initial_transaction.clone(),
-            Currency::Usd,
-        )
+        .get_route_ui_fields(result.clone(), Currency::Usd)
         .await
         .unwrap();
     println!(
@@ -1462,24 +1406,6 @@ async fn happy_path_full_dependency_on_route_ui_fields() {
         start.elapsed(),
         route_ui_fields
     );
-
-    fn map_transaction(txn: Transaction) -> TransactionRequest {
-        TransactionRequest::default()
-            .with_from(txn.from)
-            .with_to(txn.to)
-            .with_value(txn.value)
-            .with_gas_limit(txn.gas.to())
-            .with_input(txn.data)
-            .with_nonce(txn.nonce.to())
-            .with_chain_id(
-                txn.chain_id
-                    .strip_prefix("eip155:")
-                    .unwrap()
-                    .parse::<U64>()
-                    .unwrap()
-                    .to(),
-            )
-    }
 
     // Provide gas for transactions
     let mut prepared_faucet_txns = HashMap::new();
@@ -1524,10 +1450,8 @@ async fn happy_path_full_dependency_on_route_ui_fields() {
 
     let mut pending_bridge_txn_hashes =
         Vec::with_capacity(route_ui_fields.route.len());
-    for TxnDetails { transaction, estimate, .. } in route_ui_fields.route {
-        let txn = map_transaction(transaction)
-            .with_max_fee_per_gas(estimate.max_fee_per_gas)
-            .with_max_priority_fee_per_gas(estimate.max_priority_fee_per_gas);
+    for TxnDetails { transaction, .. } in route_ui_fields.route {
+        let txn = transaction.into_transaction_request();
         let provider = provider_for_chain(&Chain::from_eip155_chain_id(
             &format!("eip155:{}", txn.chain_id.unwrap()),
         ));
@@ -1609,11 +1533,8 @@ async fn happy_path_full_dependency_on_route_ui_fields() {
         &initial_transaction.chain_id,
     ));
 
-    let original = map_transaction(route_ui_fields.initial.transaction)
-        .max_fee_per_gas(route_ui_fields.initial.estimate.max_fee_per_gas)
-        .max_priority_fee_per_gas(
-            route_ui_fields.initial.estimate.max_priority_fee_per_gas,
-        );
+    let original =
+        route_ui_fields.initial.transaction.into_transaction_request();
 
     let start = Instant::now();
     loop {
@@ -1749,22 +1670,17 @@ async fn bridging_routes_routes_insufficient_funds() {
 
     let send_amount = U256::from(1_500_000); // 1.5 USDC (6 decimals)
 
-    let transaction = Transaction {
+    let transaction = InitialTransaction {
         from: account_1.address(),
         to: *chain_1_address_2_token.token.address(),
         value: U256::ZERO,
-        gas: U64::ZERO,
-        data: ERC20::transferCall {
+        input: ERC20::transferCall {
             to: account_2.address(),
             amount: send_amount,
         }
         .abi_encode()
         .into(),
-        nonce: U64::ZERO,
         chain_id: chain_1.eip155_chain_id().to_owned(),
-        gas_price: U256::ZERO,
-        max_fee_per_gas: U256::ZERO,
-        max_priority_fee_per_gas: U256::ZERO,
     };
     println!("input transaction: {:?}", transaction);
 

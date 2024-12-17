@@ -1,7 +1,9 @@
 use {
     super::{
         amount::Amount,
-        api::{route::RouteResponseAvailable, Transaction},
+        api::{
+            route::RouteResponseAvailable, FeeEstimatedTransaction, Transaction,
+        },
     },
     crate::chain_abstraction::{
         amount::from_float,
@@ -14,7 +16,7 @@ use {
 };
 
 #[derive(Debug)]
-// #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
 pub struct RouteUiFields {
     pub route: Vec<TxnDetails>,
     pub local_route_total: Amount,
@@ -25,10 +27,9 @@ pub struct RouteUiFields {
 }
 
 #[derive(Debug)]
-// #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
 pub struct TxnDetails {
-    pub transaction: Transaction,
-    pub estimate: Eip1559Estimation,
+    pub transaction: FeeEstimatedTransaction,
     pub fee: TransactionFee,
 }
 
@@ -105,7 +106,12 @@ pub fn get_route_ui_fields(
                 })
                 .unwrap(),
         );
-        route.push(TxnDetails { transaction: item.0, estimate: item.1, fee });
+        route.push(TxnDetails {
+            transaction: FeeEstimatedTransaction::from_transaction_and_estimate(
+                item.0, item.1,
+            ),
+            fee,
+        });
     }
 
     let initial_fee = compute_amounts(
@@ -124,8 +130,10 @@ pub fn get_route_ui_fields(
             .unwrap(),
     );
     let initial = TxnDetails {
-        transaction: estimated_initial_transaction.0,
-        estimate: estimated_initial_transaction.1,
+        transaction: FeeEstimatedTransaction::from_transaction_and_estimate(
+            estimated_initial_transaction.0,
+            estimated_initial_transaction.1,
+        ),
         fee: initial_fee,
     };
 
@@ -218,36 +226,27 @@ mod tests {
             from: address!("9CAaB7E1D1ad6eaB4d6a7f479Cb8800da551cbc0"),
             to: token_contract_2,
             value: U256::ZERO,
-            gas: U64::ZERO,
-            gas_price: U256::ZERO,
-            data: bytes!("a9059cbb000000000000000000000000228311b83daf3fc9a0d0a46c0b329942fc8cb2ed00000000000000000000000000000000000000000000000000000000001e8480"),
+            gas_limit: U64::ZERO,
+            input: bytes!("a9059cbb000000000000000000000000228311b83daf3fc9a0d0a46c0b329942fc8cb2ed00000000000000000000000000000000000000000000000000000000001e8480"),
             nonce: U64::ZERO,
-            max_fee_per_gas: U256::ZERO,
-            max_priority_fee_per_gas: U256::ZERO,
             chain_id: chain_id_2.clone(),
         };
         let route_transaction_1 = Transaction {
             from: address!("9CAaB7E1D1ad6eaB4d6a7f479Cb8800da551cbc0"),
             to: token_contract_1,
             value: U256::ZERO,
-            gas: U64::from(0xf9e82),
-            gas_price: U256::from(0xd40606),
-            data: bytes!("095ea7b30000000000000000000000003a23f943181408eac424116af7b7790c94cb97a5000000000000000000000000000000000000000000000000000000000016cd3e"),
+            gas_limit: U64::from(0xf9e82),
+            input: bytes!("095ea7b30000000000000000000000003a23f943181408eac424116af7b7790c94cb97a5000000000000000000000000000000000000000000000000000000000016cd3e"),
             nonce: U64::from(0x29),
-            max_fee_per_gas: U256::ZERO,
-            max_priority_fee_per_gas: U256::ZERO,
             chain_id: chain_id_1.clone(),
         };
         let route_transaction_2 = Transaction {
             from: address!("9CAaB7E1D1ad6eaB4d6a7f479Cb8800da551cbc0"),
             to: address!("3a23F943181408EAC424116Af7b7790c94Cb97a5"),
             value: U256::ZERO,
-            gas: U64::from(0xf9e82),
-            gas_price: U256::from(0xd40606),
-            data: bytes!("0000019b792ebcb9000000000000000000000000000000000000000000000000000000000016cd3e000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000c00000000000000000000000000000000000000000000000000000000000000120000000000000000000000000000000000000000000000000000000000000018000000000000000000000000000000000000000000000000000000000000001e000000000000000000000000000000000000000000000000000000000000010e10000000000000000000000000000000000000000000000000000000000001b3b00000000000000000000000000000000000000000000000000000000000000020000000000000000000000009caab7e1d1ad6eab4d6a7f479cb8800da551cbc00000000000000000000000009caab7e1d1ad6eab4d6a7f479cb8800da551cbc00000000000000000000000000000000000000000000000000000000000000002000000000000000000000000833589fcd6edb6e08f4c7c32d4f71b54bda029130000000000000000000000000b2c639c533813f4aa9d7837caf62653d097ff850000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000016bc5d000000000000000000000000000000000000000000000000000000000000000a000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000675a91e700000000000000000000000000000000000000000000000000000000675ae5edd00dfeeddeadbeef765753be7f7a64d5509974b0d678e1e3149b02f4"),
+            gas_limit: U64::from(0xf9e82),
+            input: bytes!("0000019b792ebcb9000000000000000000000000000000000000000000000000000000000016cd3e000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000c00000000000000000000000000000000000000000000000000000000000000120000000000000000000000000000000000000000000000000000000000000018000000000000000000000000000000000000000000000000000000000000001e000000000000000000000000000000000000000000000000000000000000010e10000000000000000000000000000000000000000000000000000000000001b3b00000000000000000000000000000000000000000000000000000000000000020000000000000000000000009caab7e1d1ad6eab4d6a7f479cb8800da551cbc00000000000000000000000009caab7e1d1ad6eab4d6a7f479cb8800da551cbc00000000000000000000000000000000000000000000000000000000000000002000000000000000000000000833589fcd6edb6e08f4c7c32d4f71b54bda029130000000000000000000000000b2c639c533813f4aa9d7837caf62653d097ff850000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000016bc5d000000000000000000000000000000000000000000000000000000000000000a000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000675a91e700000000000000000000000000000000000000000000000000000000675ae5edd00dfeeddeadbeef765753be7f7a64d5509974b0d678e1e3149b02f4"),
             nonce: U64::from(0x2a),
-            max_fee_per_gas: U256::ZERO,
-            max_priority_fee_per_gas: U256::ZERO,
             chain_id: chain_id_1.clone(),
         };
 
@@ -333,9 +332,30 @@ mod tests {
         );
         println!("fields: {fields:?}");
 
-        assert_eq!(fields.route[0].estimate, chain_1_estimated_fees);
-        assert_eq!(fields.route[1].estimate, chain_1_estimated_fees);
-        assert_eq!(fields.initial.estimate, chain_2_estimated_fees);
+        assert_eq!(
+            fields.route[0].transaction.max_fee_per_gas.to::<u128>(),
+            chain_1_estimated_fees.max_fee_per_gas
+        );
+        assert_eq!(
+            fields.route[0].transaction.max_priority_fee_per_gas.to::<u128>(),
+            chain_1_estimated_fees.max_priority_fee_per_gas
+        );
+        assert_eq!(
+            fields.route[1].transaction.max_fee_per_gas.to::<u128>(),
+            chain_1_estimated_fees.max_fee_per_gas
+        );
+        assert_eq!(
+            fields.route[1].transaction.max_priority_fee_per_gas.to::<u128>(),
+            chain_1_estimated_fees.max_priority_fee_per_gas
+        );
+        assert_eq!(
+            fields.initial.transaction.max_fee_per_gas.to::<u128>(),
+            chain_2_estimated_fees.max_fee_per_gas
+        );
+        assert_eq!(
+            fields.initial.transaction.max_priority_fee_per_gas.to::<u128>(),
+            chain_2_estimated_fees.max_priority_fee_per_gas
+        );
 
         let total_fee = fields.local_total.as_float_inaccurate();
         let combined_fees =
