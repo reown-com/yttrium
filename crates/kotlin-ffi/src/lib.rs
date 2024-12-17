@@ -15,13 +15,13 @@ use {
         account_client::{AccountClient as YAccountClient, SignerType},
         chain_abstraction::{
             api::{
-                route::{RouteResponse, RouteResponseAvailable},
+                prepare::{PrepareResponse, RouteResponseAvailable},
                 status::{StatusResponse, StatusResponseCompleted},
                 InitialTransaction,
             },
             client::Client,
             currency::Currency,
-            route_ui_fields::RouteUiFields,
+            ui_fields::UiFields,
         },
         config::Config,
         private_key_service::PrivateKeyService,
@@ -142,23 +142,23 @@ impl ChainAbstractionClient {
         Self { project_id, client }
     }
 
-    pub async fn route(
+    pub async fn prepare(
         &self,
         initial_transaction: InitialTransaction,
-    ) -> Result<RouteResponse, FFIError> {
+    ) -> Result<PrepareResponse, FFIError> {
         self.client
-            .route(initial_transaction)
+            .prepare(initial_transaction)
             .await
             .map_err(|e| FFIError::General(e.to_string()))
     }
 
-    pub async fn get_route_ui_fields(
+    pub async fn get_ui_fields(
         &self,
         route_response: RouteResponseAvailable,
         currency: Currency,
-    ) -> Result<RouteUiFields, FFIError> {
+    ) -> Result<UiFields, FFIError> {
         self.client
-            .get_route_ui_fields(route_response, currency)
+            .get_ui_fields(route_response, currency)
             .await
             .map(Into::into)
             .map_err(|e| FFIError::General(e.to_string()))

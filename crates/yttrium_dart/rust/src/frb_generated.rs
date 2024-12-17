@@ -785,7 +785,7 @@ flutter_rust_bridge::frb_generated_moi_arc_impl_value!(
     flutter_rust_bridge::for_generated::RustAutoOpaqueInner<InitialTransaction>
 );
 flutter_rust_bridge::frb_generated_moi_arc_impl_value!(
-    flutter_rust_bridge::for_generated::RustAutoOpaqueInner<RouteResponse>
+    flutter_rust_bridge::for_generated::RustAutoOpaqueInner<PrepareResponse>
 );
 flutter_rust_bridge::frb_generated_moi_arc_impl_value!(
     flutter_rust_bridge::for_generated::RustAutoOpaqueInner<StatusResponse>
@@ -866,14 +866,14 @@ impl SseDecode for InitialTransaction {
     }
 }
 
-impl SseDecode for RouteResponse {
+impl SseDecode for PrepareResponse {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(
         deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
     ) -> Self {
         let mut inner = <RustOpaqueMoi<
             flutter_rust_bridge::for_generated::RustAutoOpaqueInner<
-                RouteResponse,
+                PrepareResponse,
             >,
         >>::sse_decode(deserializer);
         return flutter_rust_bridge::for_generated::rust_auto_opaque_decode_owned(inner);
@@ -986,7 +986,9 @@ impl SseDecode
 
 impl SseDecode
     for RustOpaqueMoi<
-        flutter_rust_bridge::for_generated::RustAutoOpaqueInner<RouteResponse>,
+        flutter_rust_bridge::for_generated::RustAutoOpaqueInner<
+            PrepareResponse,
+        >,
     >
 {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -1382,7 +1384,7 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<InitialTransaction>>
 }
 
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<RouteResponse> {
+impl flutter_rust_bridge::IntoDart for FrbWrapper<PrepareResponse> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         flutter_rust_bridge::for_generated::rust_auto_opaque_encode::<
             _,
@@ -1392,14 +1394,14 @@ impl flutter_rust_bridge::IntoDart for FrbWrapper<RouteResponse> {
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<RouteResponse>
+    for FrbWrapper<PrepareResponse>
 {
 }
 
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<RouteResponse>>
-    for RouteResponse
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<PrepareResponse>>
+    for PrepareResponse
 {
-    fn into_into_dart(self) -> FrbWrapper<RouteResponse> {
+    fn into_into_dart(self) -> FrbWrapper<PrepareResponse> {
         self.into()
     }
 }
@@ -1656,7 +1658,7 @@ impl SseEncode for InitialTransaction {
     }
 }
 
-impl SseEncode for RouteResponse {
+impl SseEncode for PrepareResponse {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(
         self,
@@ -1664,7 +1666,7 @@ impl SseEncode for RouteResponse {
     ) {
         <RustOpaqueMoi<
             flutter_rust_bridge::for_generated::RustAutoOpaqueInner<
-                RouteResponse,
+                PrepareResponse,
             >,
         >>::sse_encode(
             flutter_rust_bridge::for_generated::rust_auto_opaque_encode::<
@@ -1804,7 +1806,9 @@ impl SseEncode
 
 impl SseEncode
     for RustOpaqueMoi<
-        flutter_rust_bridge::for_generated::RustAutoOpaqueInner<RouteResponse>,
+        flutter_rust_bridge::for_generated::RustAutoOpaqueInner<
+            PrepareResponse,
+        >,
     >
 {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -2147,23 +2151,23 @@ mod io {
     }
 
     #[no_mangle]
-    pub extern "C" fn frbgen_yttrium_dart_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRouteResponse(
+    pub extern "C" fn frbgen_yttrium_dart_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPrepareResponse(
         ptr: *const std::ffi::c_void,
     ) {
         MoiArc::<
             flutter_rust_bridge::for_generated::RustAutoOpaqueInner<
-                RouteResponse,
+                PrepareResponse,
             >,
         >::increment_strong_count(ptr as _);
     }
 
     #[no_mangle]
-    pub extern "C" fn frbgen_yttrium_dart_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRouteResponse(
+    pub extern "C" fn frbgen_yttrium_dart_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPrepareResponse(
         ptr: *const std::ffi::c_void,
     ) {
         MoiArc::<
             flutter_rust_bridge::for_generated::RustAutoOpaqueInner<
-                RouteResponse,
+                PrepareResponse,
             >,
         >::decrement_strong_count(ptr as _);
     }

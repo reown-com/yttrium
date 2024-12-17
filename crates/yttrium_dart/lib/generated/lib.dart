@@ -87,7 +87,8 @@ abstract class ChainAbstractionClient implements RustOpaqueInterface {
       YttriumDart.instance.api
           .crateChainAbstractionClientNew(projectId: projectId);
 
-  Future<RouteResponse> route({required InitialTransaction initialTransaction});
+  Future<PrepareResponse> route(
+      {required InitialTransaction initialTransaction});
 
   Future<StatusResponse> status({required String orchestrationId});
 
@@ -103,8 +104,8 @@ abstract class Config implements RustOpaqueInterface {}
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<InitialTransaction>>
 abstract class InitialTransaction implements RustOpaqueInterface {}
 
-// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<RouteResponse>>
-abstract class RouteResponse implements RustOpaqueInterface {}
+// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<PrepareResponse>>
+abstract class PrepareResponse implements RustOpaqueInterface {}
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<StatusResponse>>
 abstract class StatusResponse implements RustOpaqueInterface {}

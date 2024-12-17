@@ -1,5 +1,5 @@
 use {
-    crate::chain_abstraction::{amount::Amount, api::route::FundingMetadata},
+    crate::chain_abstraction::{amount::Amount, api::prepare::FundingMetadata},
     alloy::primitives::{Address, Bytes, Uint, B256, U128, U256, U64},
 };
 

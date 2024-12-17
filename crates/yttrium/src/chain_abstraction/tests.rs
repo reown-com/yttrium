@@ -3,15 +3,15 @@ use {
         chain_abstraction::{
             amount::Amount,
             api::{
-                route::{BridgingError, RouteResponse, RouteResponseError},
+                prepare::{BridgingError, PrepareResponse, RouteResponseError},
                 status::StatusResponse,
                 InitialTransaction, Transaction,
             },
             client::Client,
             currency::Currency,
             l1_data_fee::get_l1_data_fee,
-            route_ui_fields::{TransactionFee, TxnDetails},
             test_helpers::floats_close,
+            ui_fields::{TransactionFee, TxnDetails},
         },
         erc20::{Token, ERC20},
         test_helpers::{
@@ -398,7 +398,7 @@ async fn bridging_routes_routes_available() {
     let client = Client::new(project_id);
     let start = Instant::now();
     let mut result = client
-        .route(transaction.clone())
+        .prepare(transaction.clone())
         .await
         .unwrap()
         .into_result()
@@ -412,15 +412,9 @@ async fn bridging_routes_routes_available() {
     result.transactions[1].gas_limit = U64::from(140000 /* 107394 */); // until Blockchain API estimates this
 
     let start = Instant::now();
-    let route_ui_fields = client
-        .get_route_ui_fields(result.clone(), Currency::Usd)
-        .await
-        .unwrap();
-    println!(
-        "output route_ui_fields in ({:#?}): {:?}",
-        start.elapsed(),
-        route_ui_fields
-    );
+    let ui_fields =
+        client.get_ui_fields(result.clone(), Currency::Usd).await.unwrap();
+    println!("output ui_fields in ({:#?}): {:?}", start.elapsed(), ui_fields);
 
     fn sanity_check_fee(fee: &Amount) {
         println!("sanity_check_fee fee: {fee:?}");
@@ -436,19 +430,19 @@ async fn bridging_routes_routes_available() {
         );
     }
 
-    println!("checking route_ui_fields.local_total");
-    sanity_check_fee(&route_ui_fields.local_total);
-    println!("checking route_ui_fields.initial.2.local_fee");
-    sanity_check_fee(&route_ui_fields.initial.fee.local_fee);
+    println!("checking ui_fields.local_total");
+    sanity_check_fee(&ui_fields.local_total);
+    println!("checking ui_fields.initial.2.local_fee");
+    sanity_check_fee(&ui_fields.initial.fee.local_fee);
     for TxnDetails { fee: TransactionFee { local_fee: fee, .. }, .. } in
-        &route_ui_fields.route
+        &ui_fields.route
     {
-        println!("checking route_ui_fields.route[*].2.local_fee");
+        println!("checking ui_fields.route[*].2.local_fee");
         sanity_check_fee(fee);
     }
 
-    let fee = route_ui_fields.bridge.first().unwrap();
-    println!("checking route_ui_fields.bridge.first().unwrap()");
+    let fee = ui_fields.bridge.first().unwrap();
+    println!("checking ui_fields.bridge.first().unwrap()");
     sanity_check_fee(&fee.local_fee);
     let fee = &fee.fee;
     assert_eq!(fee.symbol, "USDC".to_owned());
@@ -456,16 +450,16 @@ async fn bridging_routes_routes_available() {
     assert!(fee.as_float_inaccurate() < 1.);
     assert!(fee.as_float_inaccurate() < 0.20);
 
-    let total_fee = route_ui_fields.local_total.as_float_inaccurate();
+    let total_fee = ui_fields.local_total.as_float_inaccurate();
     let combined_fees =
-        iter::once(route_ui_fields.initial.fee.local_fee.as_float_inaccurate())
+        iter::once(ui_fields.initial.fee.local_fee.as_float_inaccurate())
             .chain(
-                route_ui_fields
+                ui_fields
                     .bridge
                     .iter()
                     .map(|f| f.local_fee.as_float_inaccurate()),
             )
-            .chain(route_ui_fields.route.iter().map(
+            .chain(ui_fields.route.iter().map(
                 |TxnDetails {
                      fee: TransactionFee { local_fee, .. }, ..
                  }| { local_fee.as_float_inaccurate() },
@@ -478,9 +472,9 @@ async fn bridging_routes_routes_available() {
     assert!(error < 0.00000000000001);
 
     let combined_fees_intermediate_totals = [
-        route_ui_fields.initial.fee.local_fee.as_float_inaccurate(),
-        route_ui_fields.local_route_total.as_float_inaccurate(),
-        route_ui_fields.local_bridge_total.as_float_inaccurate(),
+        ui_fields.initial.fee.local_fee.as_float_inaccurate(),
+        ui_fields.local_route_total.as_float_inaccurate(),
+        ui_fields.local_bridge_total.as_float_inaccurate(),
     ]
     .iter()
     .sum::<f64>();
@@ -752,7 +746,7 @@ async fn happy_path() {
     let project_id = std::env::var("REOWN_PROJECT_ID").unwrap().into();
     let client = Client::new(project_id);
     let mut result = client
-        .route(initial_transaction.clone())
+        .prepare(initial_transaction.clone())
         .await
         .unwrap()
         .into_result()
@@ -768,15 +762,9 @@ async fn happy_path() {
     result.transactions[1].gas_limit = U64::from(140000 /* 107394 */); // until Blockchain API estimates this
 
     let start = Instant::now();
-    let route_ui_fields = client
-        .get_route_ui_fields(result.clone(), Currency::Usd)
-        .await
-        .unwrap();
-    println!(
-        "output route_ui_fields in ({:#?}): {:?}",
-        start.elapsed(),
-        route_ui_fields
-    );
+    let ui_fields =
+        client.get_ui_fields(result.clone(), Currency::Usd).await.unwrap();
+    println!("output ui_fields in ({:#?}): {:?}", start.elapsed(), ui_fields);
 
     fn map_transaction(txn: Transaction) -> TransactionRequest {
         TransactionRequest::default()
@@ -798,15 +786,15 @@ async fn happy_path() {
 
     let mut total_fees = HashMap::new();
     let mut transactions_with_fees = vec![];
-    for (txn, route_ui_fields) in
-        result.transactions.into_iter().zip(route_ui_fields.route).chain(
+    for (txn, ui_fields) in
+        result.transactions.into_iter().zip(ui_fields.route).chain(
             std::iter::once(result.initial_transaction)
-                .zip(std::iter::once(route_ui_fields.initial)),
+                .zip(std::iter::once(ui_fields.initial)),
         )
     {
         let provider =
             provider_for_chain(&Chain::from_eip155_chain_id(&txn.chain_id));
-        // TODO use fees from response of route_ui_fields: https://linear.app/reown/issue/RES-140/use-fees-from-response-of-route-ui-fields-for-happy-path-ca-tests
+        // TODO use fees from response of ui_fields: https://linear.app/reown/issue/RES-140/use-fees-from-response-of-route-ui-fields-for-happy-path-ca-tests
         let fees = provider.estimate_eip1559_fees(None).await.unwrap();
         let txn = map_transaction(txn)
             .with_max_fee_per_gas(fees.max_fee_per_gas)
@@ -830,35 +818,32 @@ async fn happy_path() {
         transactions_with_fees.push(txn.clone());
 
         assert_eq!(
-            route_ui_fields.transaction.chain_id,
+            ui_fields.transaction.chain_id,
             format!("eip155:{}", txn.chain_id.unwrap())
         );
-        assert_eq!(route_ui_fields.transaction.from, txn.from.unwrap());
-        assert_eq!(
-            TxKind::Call(route_ui_fields.transaction.to),
-            txn.to.unwrap()
-        );
-        assert_eq!(route_ui_fields.fee.fee.symbol, "ETH");
-        assert_eq!(route_ui_fields.fee.fee.unit, Unit::ETHER.get());
+        assert_eq!(ui_fields.transaction.from, txn.from.unwrap());
+        assert_eq!(TxKind::Call(ui_fields.transaction.to), txn.to.unwrap());
+        assert_eq!(ui_fields.fee.fee.symbol, "ETH");
+        assert_eq!(ui_fields.fee.fee.unit, Unit::ETHER.get());
         assert!(floats_close(
-            route_ui_fields.fee.fee.as_float_inaccurate(),
+            ui_fields.fee.fee.as_float_inaccurate(),
             Amount::new("NULL".to_owned(), fee, Unit::ETHER)
                 .as_float_inaccurate(),
             0.25
         ));
     }
 
-    assert_eq!(route_ui_fields.bridge.len(), 1);
-    assert_eq!(route_ui_fields.bridge.first().unwrap().fee.symbol, "USDC");
-    assert_eq!(route_ui_fields.bridge.first().unwrap().local_fee.symbol, "USD");
-    let route_ui_bridge_fee =
-        route_ui_fields.bridge.first().unwrap().fee.as_float_inaccurate();
+    assert_eq!(ui_fields.bridge.len(), 1);
+    assert_eq!(ui_fields.bridge.first().unwrap().fee.symbol, "USDC");
+    assert_eq!(ui_fields.bridge.first().unwrap().local_fee.symbol, "USD");
+    let ui_bridge_fee =
+        ui_fields.bridge.first().unwrap().fee.as_float_inaccurate();
     let send_amount_amount =
         Amount::new("NULL".to_owned(), send_amount, Unit::new(6).unwrap())
             .as_float_inaccurate();
-    println!("route_ui_bridge_fee: {route_ui_bridge_fee}");
+    println!("ui_bridge_fee: {ui_bridge_fee}");
     println!("send_amount_amount: {send_amount_amount}");
-    assert!(route_ui_bridge_fee / send_amount_amount < 0.25, "route_ui_bridge_fee {route_ui_bridge_fee} must be less than the amount being sent {send_amount_amount}");
+    assert!(ui_bridge_fee / send_amount_amount < 0.25, "ui_bridge_fee {ui_bridge_fee} must be less than the amount being sent {send_amount_amount}");
 
     for ((chain_id, address), total_fee) in total_fees {
         let provider =
@@ -1059,7 +1044,7 @@ async fn happy_path() {
 
 #[tokio::test]
 #[serial(happy_path)]
-async fn happy_path_full_dependency_on_route_ui_fields() {
+async fn happy_path_full_dependency_on_ui_fields() {
     let faucet = private_faucet();
     println!("faucet: {}", faucet.address());
 
@@ -1319,7 +1304,7 @@ async fn happy_path_full_dependency_on_route_ui_fields() {
     let project_id = std::env::var("REOWN_PROJECT_ID").unwrap().into();
     let client = Client::new(project_id);
     let mut result = client
-        .route(initial_transaction.clone())
+        .prepare(initial_transaction.clone())
         .await
         .unwrap()
         .into_result()
@@ -1397,22 +1382,13 @@ async fn happy_path_full_dependency_on_route_ui_fields() {
     );
 
     let start = Instant::now();
-    let route_ui_fields = client
-        .get_route_ui_fields(result.clone(), Currency::Usd)
-        .await
-        .unwrap();
-    println!(
-        "output route_ui_fields in ({:#?}): {:?}",
-        start.elapsed(),
-        route_ui_fields
-    );
+    let ui_fields =
+        client.get_ui_fields(result.clone(), Currency::Usd).await.unwrap();
+    println!("output ui_fields in ({:#?}): {:?}", start.elapsed(), ui_fields);
 
     // Provide gas for transactions
     let mut prepared_faucet_txns = HashMap::new();
-    for txn in route_ui_fields
-        .route
-        .iter()
-        .chain(std::iter::once(&route_ui_fields.initial))
+    for txn in ui_fields.route.iter().chain(std::iter::once(&ui_fields.initial))
     {
         assert_eq!(txn.fee.fee.symbol, "ETH");
         prepared_faucet_txns
@@ -1449,8 +1425,8 @@ async fn happy_path_full_dependency_on_route_ui_fields() {
     let approval_start = Instant::now();
 
     let mut pending_bridge_txn_hashes =
-        Vec::with_capacity(route_ui_fields.route.len());
-    for TxnDetails { transaction, .. } in route_ui_fields.route {
+        Vec::with_capacity(ui_fields.route.len());
+    for TxnDetails { transaction, .. } in ui_fields.route {
         let txn = transaction.into_transaction_request();
         let provider = provider_for_chain(&Chain::from_eip155_chain_id(
             &format!("eip155:{}", txn.chain_id.unwrap()),
@@ -1533,8 +1509,7 @@ async fn happy_path_full_dependency_on_route_ui_fields() {
         &initial_transaction.chain_id,
     ));
 
-    let original =
-        route_ui_fields.initial.transaction.into_transaction_request();
+    let original = ui_fields.initial.transaction.into_transaction_request();
 
     let start = Instant::now();
     loop {
@@ -1686,10 +1661,10 @@ async fn bridging_routes_routes_insufficient_funds() {
 
     let project_id = std::env::var("REOWN_PROJECT_ID").unwrap().into();
     let client = Client::new(project_id);
-    let result = client.route(transaction.clone()).await.unwrap();
+    let result = client.prepare(transaction.clone()).await.unwrap();
     assert_eq!(
         result,
-        RouteResponse::Error(RouteResponseError {
+        PrepareResponse::Error(RouteResponseError {
             error: BridgingError::InsufficientFunds,
         })
     );

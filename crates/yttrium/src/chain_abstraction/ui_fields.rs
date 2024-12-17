@@ -2,7 +2,8 @@ use {
     super::{
         amount::Amount,
         api::{
-            route::RouteResponseAvailable, FeeEstimatedTransaction, Transaction,
+            prepare::RouteResponseAvailable, FeeEstimatedTransaction,
+            Transaction,
         },
     },
     crate::chain_abstraction::{
@@ -17,7 +18,7 @@ use {
 
 #[derive(Debug)]
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
-pub struct RouteUiFields {
+pub struct UiFields {
     pub route: Vec<TxnDetails>,
     pub local_route_total: Amount,
     pub bridge: Vec<TransactionFee>,
@@ -40,12 +41,12 @@ pub struct TransactionFee {
     pub local_fee: Amount,
 }
 
-pub fn get_route_ui_fields(
+pub fn ui_fields(
     route_response: RouteResponseAvailable,
     estimated_transactions: Vec<(Transaction, Eip1559Estimation, U256)>,
     estimated_initial_transaction: (Transaction, Eip1559Estimation, U256),
     fungibles: Vec<FungiblePriceItem>,
-) -> RouteUiFields {
+) -> UiFields {
     let mut total_local_fee = LocalAmountAcc::new();
     let mut local_route_total_acc = LocalAmountAcc::new();
     let mut local_bridge_total_acc = LocalAmountAcc::new();
@@ -171,7 +172,7 @@ pub fn get_route_ui_fields(
         local_route_total_acc.compute();
     let (local_bridge_total_fee, local_bridge_total_fee_unit) =
         local_bridge_total_acc.compute();
-    RouteUiFields {
+    UiFields {
         route,
         local_route_total: Amount::new(
             "USD".to_owned(),
@@ -197,7 +198,7 @@ pub fn get_route_ui_fields(
 mod tests {
     use {
         super::*,
-        crate::chain_abstraction::api::route::{
+        crate::chain_abstraction::api::prepare::{
             FundingMetadata, InitialTransactionMetadata, Metadata,
         },
         alloy::primitives::{address, bytes, utils::Unit, Address, U64},
@@ -250,7 +251,7 @@ mod tests {
             chain_id: chain_id_1.clone(),
         };
 
-        let fields = get_route_ui_fields(
+        let fields = ui_fields(
             RouteResponseAvailable {
                 orchestration_id: "".to_owned(),
                 metadata: Metadata {

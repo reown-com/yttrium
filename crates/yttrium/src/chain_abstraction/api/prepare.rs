@@ -15,7 +15,7 @@ pub struct RouteQueryParams {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct RouteRequest {
+pub struct PrepareRequest {
     pub transaction: InitialTransaction,
 }
 
@@ -148,12 +148,12 @@ pub enum BridgingError {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Enum))]
 #[serde(untagged)]
-pub enum RouteResponse {
+pub enum PrepareResponse {
     Success(RouteResponseSuccess),
     Error(RouteResponseError),
 }
 
-impl RouteResponse {
+impl PrepareResponse {
     pub fn into_result(
         self,
     ) -> Result<RouteResponseSuccess, RouteResponseError> {
