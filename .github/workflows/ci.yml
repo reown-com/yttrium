@@ -155,7 +155,7 @@ jobs:
 
   flutter:
     runs-on: macos-latest-xlarge
-
+    if: github.event_name == 'pull_request'
     steps:
       # Checkout repository
       - name: Checkout repository
@@ -233,4 +233,18 @@ jobs:
           flutter_rust_bridge_codegen generate --config-file flutter_rust_bridge.yaml
 
       - run: git diff crates/yttrium_dart
-      - run: if [ -n "$(git diff crates/yttrium_dart)" ]; then exit 1; fi
+      # - run: if [ -n "$(git diff crates/yttrium_dart)" ]; then exit 1; fi
+
+      - name: Commit and push updated Flutter bindings, if necessary
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add crates/yttrium_dart
+          if git diff --cached --quiet crates/yttrium_dart; then
+            echo "No changes to commit."
+          else
+            git commit -m "chore: update Flutter bindings"
+            git push origin HEAD:$TARGET_BRANCH
+          fi
