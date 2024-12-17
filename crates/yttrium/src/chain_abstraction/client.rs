@@ -5,8 +5,8 @@ use {
                 PriceRequestBody, PriceResponseBody,
                 FUNGIBLE_PRICE_ENDPOINT_PATH, NATIVE_TOKEN_ADDRESS,
             },
-            route::{
-                RouteQueryParams, RouteRequest, RouteResponse,
+            prepare::{
+                PrepareRequest, PrepareResponse, RouteQueryParams,
                 RouteResponseAvailable, ROUTE_ENDPOINT_PATH,
             },
             status::{
@@ -17,12 +17,11 @@ use {
         },
         currency::Currency,
         error::{RouteError, WaitForSuccessError},
-        route_ui_fields::RouteUiFields,
+        ui_fields::UiFields,
     },
     crate::{
         chain_abstraction::{
-            error::RouteUiFieldsError, l1_data_fee::get_l1_data_fee,
-            route_ui_fields,
+            error::RouteUiFieldsError, l1_data_fee::get_l1_data_fee, ui_fields,
         },
         erc20::ERC20,
     },
@@ -63,14 +62,14 @@ impl Client {
         }
     }
 
-    pub async fn route(
+    pub async fn prepare(
         &self,
         transaction: InitialTransaction,
-    ) -> Result<RouteResponse, RouteError> {
+    ) -> Result<PrepareResponse, RouteError> {
         let response = self
             .client
             .post(self.base_url.join(ROUTE_ENDPOINT_PATH).unwrap())
-            .json(&RouteRequest { transaction })
+            .json(&PrepareRequest { transaction })
             .query(&RouteQueryParams { project_id: self.project_id.clone() })
             .send()
             .await
@@ -86,13 +85,13 @@ impl Client {
         }
     }
 
-    pub async fn get_route_ui_fields(
+    pub async fn get_ui_fields(
         &self,
         route_response: RouteResponseAvailable,
         local_currency: Currency,
         // TODO use this to e.g. modify priority fee
         // _speed: String,
-    ) -> Result<RouteUiFields, RouteUiFieldsError> {
+    ) -> Result<UiFields, RouteUiFieldsError> {
         if local_currency != Currency::Usd {
             unimplemented!("Only USD currency is supported for now");
         }
@@ -245,7 +244,7 @@ impl Client {
             initial_l1_data_fee,
         );
 
-        Ok(route_ui_fields::get_route_ui_fields(
+        Ok(ui_fields::ui_fields(
             route_response,
             estimated_transactions,
             estimated_initial_transaction,

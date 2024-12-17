@@ -12,7 +12,7 @@ use {
         account_client::{AccountClient as YAccountClient, SignerType},
         chain_abstraction::{
             api::{
-                route::RouteResponse,
+                prepare::PrepareResponse,
                 status::{StatusResponse, StatusResponseCompleted},
                 InitialTransaction,
             },
@@ -81,9 +81,9 @@ impl ChainAbstractionClient {
     pub async fn route(
         &self,
         initial_transaction: InitialTransaction,
-    ) -> Result<RouteResponse, Error> {
+    ) -> Result<PrepareResponse, Error> {
         self.client
-            .route(initial_transaction)
+            .prepare(initial_transaction)
             .await
             .map_err(|e| Error::General(e.to_string()))
     }
