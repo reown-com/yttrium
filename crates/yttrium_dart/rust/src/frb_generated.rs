@@ -986,7 +986,9 @@ impl SseDecode
 
 impl SseDecode
     for RustOpaqueMoi<
-        flutter_rust_bridge::for_generated::RustAutoOpaqueInner<PrepareResponse>,
+        flutter_rust_bridge::for_generated::RustAutoOpaqueInner<
+            PrepareResponse,
+        >,
     >
 {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -1804,7 +1806,9 @@ impl SseEncode
 
 impl SseEncode
     for RustOpaqueMoi<
-        flutter_rust_bridge::for_generated::RustAutoOpaqueInner<PrepareResponse>,
+        flutter_rust_bridge::for_generated::RustAutoOpaqueInner<
+            PrepareResponse,
+        >,
     >
 {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -2147,7 +2151,7 @@ mod io {
     }
 
     #[no_mangle]
-    pub extern "C" fn frbgen_yttrium_dart_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRouteResponse(
+    pub extern "C" fn frbgen_yttrium_dart_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPrepareResponse(
         ptr: *const std::ffi::c_void,
     ) {
         MoiArc::<
@@ -2158,7 +2162,7 @@ mod io {
     }
 
     #[no_mangle]
-    pub extern "C" fn frbgen_yttrium_dart_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRouteResponse(
+    pub extern "C" fn frbgen_yttrium_dart_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPrepareResponse(
         ptr: *const std::ffi::c_void,
     ) {
         MoiArc::<

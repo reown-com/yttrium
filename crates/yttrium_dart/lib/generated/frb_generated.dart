@@ -164,7 +164,7 @@ abstract class YttriumDartApi extends BaseApi {
   Future<ChainAbstractionClient> crateChainAbstractionClientNew(
       {required String projectId});
 
-  Future<RouteResponse> crateChainAbstractionClientRoute(
+  Future<PrepareResponse> crateChainAbstractionClientRoute(
       {required ChainAbstractionClient that,
       required InitialTransaction initialTransaction});
 
@@ -221,13 +221,13 @@ abstract class YttriumDartApi extends BaseApi {
       get rust_arc_decrement_strong_count_InitialTransactionPtr;
 
   RustArcIncrementStrongCountFnType
-      get rust_arc_increment_strong_count_RouteResponse;
+      get rust_arc_increment_strong_count_PrepareResponse;
 
   RustArcDecrementStrongCountFnType
-      get rust_arc_decrement_strong_count_RouteResponse;
+      get rust_arc_decrement_strong_count_PrepareResponse;
 
   CrossPlatformFinalizerArg
-      get rust_arc_decrement_strong_count_RouteResponsePtr;
+      get rust_arc_decrement_strong_count_PrepareResponsePtr;
 
   RustArcIncrementStrongCountFnType
       get rust_arc_increment_strong_count_StatusResponse;
@@ -1025,7 +1025,7 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
       );
 
   @override
-  Future<RouteResponse> crateChainAbstractionClientRoute(
+  Future<PrepareResponse> crateChainAbstractionClientRoute(
       {required ChainAbstractionClient that,
       required InitialTransaction initialTransaction}) {
     return handler.executeNormal(NormalTask(
@@ -1040,7 +1040,7 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
       },
       codec: SseCodec(
         decodeSuccessData:
-            sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRouteResponse,
+            sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPrepareResponse,
         decodeErrorData: sse_decode_error,
       ),
       constMeta: kCrateChainAbstractionClientRouteConstMeta,
@@ -1161,12 +1161,12 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
           .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerInitialTransaction;
 
   RustArcIncrementStrongCountFnType
-      get rust_arc_increment_strong_count_RouteResponse => wire
-          .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRouteResponse;
+      get rust_arc_increment_strong_count_PrepareResponse => wire
+          .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPrepareResponse;
 
   RustArcDecrementStrongCountFnType
-      get rust_arc_decrement_strong_count_RouteResponse => wire
-          .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRouteResponse;
+      get rust_arc_decrement_strong_count_PrepareResponse => wire
+          .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPrepareResponse;
 
   RustArcIncrementStrongCountFnType
       get rust_arc_increment_strong_count_StatusResponse => wire
@@ -1226,11 +1226,11 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
   }
 
   @protected
-  RouteResponse
-      dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRouteResponse(
+  PrepareResponse
+      dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPrepareResponse(
           dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
-    return RouteResponseImpl.frbInternalDcoDecode(raw as List<dynamic>);
+    return PrepareResponseImpl.frbInternalDcoDecode(raw as List<dynamic>);
   }
 
   @protected
@@ -1342,11 +1342,11 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
   }
 
   @protected
-  RouteResponse
-      dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRouteResponse(
+  PrepareResponse
+      dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPrepareResponse(
           dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
-    return RouteResponseImpl.frbInternalDcoDecode(raw as List<dynamic>);
+    return PrepareResponseImpl.frbInternalDcoDecode(raw as List<dynamic>);
   }
 
   @protected
@@ -1528,11 +1528,11 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
   }
 
   @protected
-  RouteResponse
-      sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRouteResponse(
+  PrepareResponse
+      sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPrepareResponse(
           SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    return RouteResponseImpl.frbInternalSseDecode(
+    return PrepareResponseImpl.frbInternalSseDecode(
         sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
   }
 
@@ -1654,11 +1654,11 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
   }
 
   @protected
-  RouteResponse
-      sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRouteResponse(
+  PrepareResponse
+      sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPrepareResponse(
           SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    return RouteResponseImpl.frbInternalSseDecode(
+    return PrepareResponseImpl.frbInternalSseDecode(
         sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
   }
 
@@ -1857,11 +1857,11 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
 
   @protected
   void
-      sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRouteResponse(
-          RouteResponse self, SseSerializer serializer) {
+      sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPrepareResponse(
+          PrepareResponse self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_usize(
-        (self as RouteResponseImpl).frbInternalSseEncode(move: true),
+        (self as PrepareResponseImpl).frbInternalSseEncode(move: true),
         serializer);
   }
 
@@ -1996,11 +1996,11 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
 
   @protected
   void
-      sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRouteResponse(
-          RouteResponse self, SseSerializer serializer) {
+      sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPrepareResponse(
+          PrepareResponse self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_usize(
-        (self as RouteResponseImpl).frbInternalSseEncode(move: null),
+        (self as PrepareResponseImpl).frbInternalSseEncode(move: null),
         serializer);
   }
 
@@ -2319,7 +2319,7 @@ class ChainAbstractionClientImpl extends RustOpaque
       YttriumDart.instance.api.crateChainAbstractionClientEstimateFees(
           that: this, chainId: chainId);
 
-  Future<RouteResponse> route(
+  Future<PrepareResponse> route(
           {required InitialTransaction initialTransaction}) =>
       YttriumDart.instance.api.crateChainAbstractionClientRoute(
           that: this, initialTransaction: initialTransaction);
@@ -2382,22 +2382,22 @@ class InitialTransactionImpl extends RustOpaque implements InitialTransaction {
 }
 
 @sealed
-class RouteResponseImpl extends RustOpaque implements RouteResponse {
+class PrepareResponseImpl extends RustOpaque implements PrepareResponse {
   // Not to be used by end users
-  RouteResponseImpl.frbInternalDcoDecode(List<dynamic> wire)
+  PrepareResponseImpl.frbInternalDcoDecode(List<dynamic> wire)
       : super.frbInternalDcoDecode(wire, _kStaticData);
 
   // Not to be used by end users
-  RouteResponseImpl.frbInternalSseDecode(BigInt ptr, int externalSizeOnNative)
+  PrepareResponseImpl.frbInternalSseDecode(BigInt ptr, int externalSizeOnNative)
       : super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
 
   static final _kStaticData = RustArcStaticData(
-    rustArcIncrementStrongCount:
-        YttriumDart.instance.api.rust_arc_increment_strong_count_RouteResponse,
-    rustArcDecrementStrongCount:
-        YttriumDart.instance.api.rust_arc_decrement_strong_count_RouteResponse,
+    rustArcIncrementStrongCount: YttriumDart
+        .instance.api.rust_arc_increment_strong_count_PrepareResponse,
+    rustArcDecrementStrongCount: YttriumDart
+        .instance.api.rust_arc_decrement_strong_count_PrepareResponse,
     rustArcDecrementStrongCountPtr: YttriumDart
-        .instance.api.rust_arc_decrement_strong_count_RouteResponsePtr,
+        .instance.api.rust_arc_decrement_strong_count_PrepareResponsePtr,
   );
 }
 
