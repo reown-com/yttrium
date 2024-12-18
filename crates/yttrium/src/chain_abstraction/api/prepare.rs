@@ -96,7 +96,7 @@ impl FundingMetadata {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
 #[serde(rename_all = "camelCase")]
-pub struct RouteResponseAvailable {
+pub struct PrepareResponseAvailable {
     pub orchestration_id: String,
     pub initial_transaction: Transaction,
     pub transactions: Vec<Transaction>,
@@ -106,7 +106,7 @@ pub struct RouteResponseAvailable {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
 #[serde(rename_all = "camelCase")]
-pub struct RouteResponseNotRequired {
+pub struct PrepareResponseNotRequired {
     pub initial_transaction: Transaction,
     pub transactions: Vec<Transaction>,
 }
@@ -114,13 +114,13 @@ pub struct RouteResponseNotRequired {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Enum))]
 #[serde(untagged)]
-pub enum RouteResponseSuccess {
-    Available(RouteResponseAvailable),
-    NotRequired(RouteResponseNotRequired),
+pub enum PrepareResponseSuccess {
+    Available(PrepareResponseAvailable),
+    NotRequired(PrepareResponseNotRequired),
 }
 
-impl RouteResponseSuccess {
-    pub fn into_option(self) -> Option<RouteResponseAvailable> {
+impl PrepareResponseSuccess {
+    pub fn into_option(self) -> Option<PrepareResponseAvailable> {
         match self {
             Self::Available(a) => Some(a),
             Self::NotRequired(_) => None,
@@ -132,7 +132,7 @@ impl RouteResponseSuccess {
 /// response
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
-pub struct RouteResponseError {
+pub struct PrepareResponseError {
     pub error: BridgingError,
 }
 
@@ -149,14 +149,14 @@ pub enum BridgingError {
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Enum))]
 #[serde(untagged)]
 pub enum PrepareResponse {
-    Success(RouteResponseSuccess),
-    Error(RouteResponseError),
+    Success(PrepareResponseSuccess),
+    Error(PrepareResponseError),
 }
 
 impl PrepareResponse {
     pub fn into_result(
         self,
-    ) -> Result<RouteResponseSuccess, RouteResponseError> {
+    ) -> Result<PrepareResponseSuccess, PrepareResponseError> {
         match self {
             Self::Success(success) => Ok(success),
             Self::Error(error) => Err(error),
