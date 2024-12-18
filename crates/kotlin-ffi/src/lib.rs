@@ -26,25 +26,23 @@ use {
         },
         config::Config,
         execution::{
-            send::{
-                safe_test,
-                safe_test::{Address as FFIAddress, OwnerSignature},
-            },
+            send::safe_test::{self, Address as FFIAddress, OwnerSignature},
             Execution,
         },
-        smart_accounts::safe::{SignOutputEnum, SignStep3Params},
+        smart_accounts::{
+            account_address::AccountAddress as FfiAccountAddress,
+            safe::{SignOutputEnum, SignStep3Params},
+        },
     },
 };
 
-#[derive(uniffi::Record)]
-pub struct FFIAccountClientConfig {
-    pub owner_address: String,
-    pub chain_id: u64,
-    pub config: Config,
-}
-
 uniffi::custom_type!(FFIAddress, String, {
     try_lift: |val| Ok(val.parse()?),
+    lower: |obj| obj.to_string(),
+});
+
+uniffi::custom_type!(FfiAccountAddress, String, {
+    try_lift: |val| Ok(val.parse::<FFIAddress>()?.into()),
     lower: |obj| obj.to_string(),
 });
 
@@ -112,7 +110,7 @@ pub enum FFIError {
 
 #[derive(uniffi::Object)]
 pub struct FFIAccountClient {
-    pub owner_address: String,
+    pub owner_address: FfiAccountAddress,
     pub chain_id: u64,
     account_client: YAccountClient,
 }
@@ -213,22 +211,13 @@ impl ChainAbstractionClient {
 #[uniffi::export(async_runtime = "tokio")]
 impl FFIAccountClient {
     #[uniffi::constructor]
-    pub fn new(config: FFIAccountClientConfig) -> Self {
-        let account_client = YAccountClient::new(
-            config
-                .owner_address
-                .parse::<alloy::primitives::Address>()
-                .unwrap()
-                .into(),
-            config.chain_id,
-            config.config,
-        );
-
-        Self {
-            owner_address: config.owner_address.clone(),
-            chain_id: config.chain_id,
-            account_client,
-        }
+    pub fn new(
+        owner: FfiAccountAddress,
+        chain_id: u64,
+        config: Config,
+    ) -> Self {
+        let account_client = YAccountClient::new(owner, chain_id, config);
+        Self { owner_address: owner, chain_id, account_client }
     }
 
     pub fn chain_id(&self) -> u64 {
