@@ -6,14 +6,7 @@ use {
             pimlico::paymaster::client::PaymasterClient,
         },
         config::Config,
-        smart_accounts::{
-            account_address::AccountAddress,
-            safe::{
-                prepare_sign, sign, sign_step_3, Owners, PreparedSignature,
-                SignOutputEnum, SignStep3Params,
-            },
-        },
-        transaction::{
+        execution::{
             send::{
                 do_send_transactions, prepare_send_transaction,
                 safe_test::{
@@ -21,7 +14,14 @@ use {
                     PreparedSendTransaction,
                 },
             },
-            Transaction,
+            Execution,
+        },
+        smart_accounts::{
+            account_address::AccountAddress,
+            safe::{
+                prepare_sign, sign, sign_step_3, Owners, PreparedSignature,
+                SignOutputEnum, SignStep3Params,
+            },
         },
     },
     alloy::{
@@ -96,7 +96,7 @@ impl AccountClient {
 
     pub async fn prepare_send_transactions(
         &self,
-        transactions: Vec<Transaction>,
+        transactions: Vec<Execution>,
     ) -> eyre::Result<PreparedSendTransaction> {
         prepare_send_transaction(
             transactions,

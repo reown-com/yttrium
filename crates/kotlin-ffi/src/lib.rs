@@ -25,17 +25,14 @@ use {
             ui_fields::UiFields,
         },
         config::Config,
-        smart_accounts::safe::{SignOutputEnum, SignStep3Params},
-        transaction::{
+        execution::{
             send::{
                 safe_test,
-                safe_test::{
-                    Address as FFIAddress, OwnerSignature as YOwnerSignature,
-                    PrimitiveSignature,
-                },
+                safe_test::{Address as FFIAddress, OwnerSignature},
             },
-            Transaction as YTransaction,
+            Execution,
         },
+        smart_accounts::safe::{SignOutputEnum, SignStep3Params},
     },
 };
 
@@ -44,13 +41,6 @@ pub struct FFIAccountClientConfig {
     pub owner_address: String,
     pub chain_id: u64,
     pub config: Config,
-}
-
-#[derive(uniffi::Record)]
-pub struct FFITransaction {
-    pub to: String,
-    pub value: String,
-    pub data: String,
 }
 
 uniffi::custom_type!(FFIAddress, String, {
@@ -112,12 +102,6 @@ pub struct FfiPreparedSignature {
 pub struct PreparedSendTransaction {
     pub hash: String,
     pub do_send_transaction_params: String,
-}
-
-#[derive(uniffi::Record)]
-pub struct OwnerSignature {
-    pub owner: String,
-    pub signature: String,
 }
 
 #[derive(Debug, thiserror::Error, uniffi::Error)]
@@ -293,14 +277,11 @@ impl FFIAccountClient {
 
     pub async fn prepare_send_transactions(
         &self,
-        transactions: Vec<FFITransaction>,
+        transactions: Vec<Execution>,
     ) -> Result<PreparedSendTransaction, FFIError> {
-        let ytransactions: Vec<YTransaction> =
-            transactions.into_iter().map(YTransaction::from).collect();
-
         let prepared_send_transaction = self
             .account_client
-            .prepare_send_transactions(ytransactions)
+            .prepare_send_transactions(transactions)
             .await
             .map_err(|e| FFIError::General(e.to_string()))?;
 
@@ -318,26 +299,10 @@ impl FFIAccountClient {
         signatures: Vec<OwnerSignature>,
         do_send_transaction_params: String,
     ) -> Result<String, FFIError> {
-        let mut signatures2: Vec<YOwnerSignature> =
-            Vec::with_capacity(signatures.len());
-
-        for signature in signatures {
-            signatures2.push(YOwnerSignature {
-                owner: signature
-                    .owner
-                    .parse::<FFIAddress>()
-                    .map_err(|e| FFIError::General(e.to_string()))?,
-                signature: signature
-                    .signature
-                    .parse::<PrimitiveSignature>()
-                    .map_err(|e| FFIError::General(e.to_string()))?,
-            });
-        }
-
         Ok(self
             .account_client
             .do_send_transactions(
-                signatures2,
+                signatures,
                 serde_json::from_str(&do_send_transaction_params)
                     .map_err(|e| FFIError::General(e.to_string()))?,
             )
@@ -363,17 +328,6 @@ impl FFIAccountClient {
             .map(serde_json::to_string)
             .collect::<Result<String, serde_json::Error>>()
             .map_err(|e| FFIError::General(e.to_string()))
-    }
-}
-
-impl From<FFITransaction> for YTransaction {
-    fn from(transaction: FFITransaction) -> Self {
-        YTransaction::new_from_strings(
-            transaction.to,
-            transaction.value,
-            transaction.data,
-        )
-        .unwrap()
     }
 }
 

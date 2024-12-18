@@ -6,15 +6,15 @@ use {
             ENTRYPOINT_ADDRESS_V07,
         },
         erc7579::addresses::RHINESTONE_ATTESTER_ADDRESS,
-        smart_accounts::account_address::AccountAddress,
-        transaction::{
+        execution::{
             send::safe_test::{
                 encode_send_transactions, prepare_send_transactions_inner,
                 DoSendTransactionParams, OwnerSignature,
                 PreparedSendTransaction,
             },
-            Transaction,
+            Execution,
         },
+        smart_accounts::account_address::AccountAddress,
         user_operation::hash::pack_v07::{
             combine::combine_and_trim_first_16_bytes,
             hashed_paymaster_and_data::get_data,
@@ -304,12 +304,12 @@ where
     SAFE_PROXY_FACTORY_1_4_1.create2(salt, keccak256(deployment_code)).into()
 }
 
-pub fn get_call_data(execution_calldata: Vec<Transaction>) -> Bytes {
+pub fn get_call_data(execution_calldata: Vec<Execution>) -> Bytes {
     get_call_data_with_try(execution_calldata, false)
 }
 
 pub fn get_call_data_with_try(
-    execution_calldata: Vec<Transaction>,
+    execution_calldata: Vec<Execution>,
     exec_type: bool,
 ) -> Bytes {
     let batch = execution_calldata.len() != 1;
@@ -339,8 +339,8 @@ sol! {
     function executionBatch((address, uint256, bytes)[]);
 }
 
-fn encode_calls(calls: Vec<Transaction>) -> Bytes {
-    fn call(call: Transaction) -> (Address, U256, Bytes) {
+fn encode_calls(calls: Vec<Execution>) -> Bytes {
+    fn call(call: Execution) -> (Address, U256, Bytes) {
         (call.to, call.value, call.data)
     }
 
@@ -522,7 +522,7 @@ mod tests {
     #[test]
     fn single_execution_call_data_value() {
         assert_eq!(
-            encode_calls(vec![Transaction {
+            encode_calls(vec![Execution {
                 to: address!("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
                 value: U256::from(19191919),
                 data: bytes!(""),
@@ -534,7 +534,7 @@ mod tests {
     #[test]
     fn single_execution_call_data_data() {
         assert_eq!(
-            encode_calls(vec![Transaction {
+            encode_calls(vec![Execution {
                 to: address!("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
                 value: U256::ZERO,
                 data: bytes!("7777777777777777"),
@@ -546,11 +546,11 @@ mod tests {
     #[test]
     fn two_execution_call_data() {
         assert_eq!(
-            encode_calls(vec![Transaction {
+            encode_calls(vec![Execution {
                 to: address!("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
                 value: U256::from(19191919),
                 data: bytes!(""),
-            }, Transaction {
+            }, Execution {
                 to: address!("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
                 value: U256::ZERO,
                 data: bytes!("7777777777777777"),
@@ -567,7 +567,7 @@ mod tests {
     #[test]
     fn single_call_data_value() {
         assert_eq!(
-            get_call_data(vec![Transaction {
+            get_call_data(vec![Execution {
                 to: address!("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
                 value: U256::from(19191919),
                 data: bytes!(""),
@@ -579,7 +579,7 @@ mod tests {
     #[test]
     fn single_call_data_data() {
         assert_eq!(
-            get_call_data(vec![Transaction {
+            get_call_data(vec![Execution {
                 to: address!("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
                 value: U256::ZERO,
                 data: bytes!("7777777777777777"),
@@ -591,11 +591,11 @@ mod tests {
     #[test]
     fn two_call_data() {
         assert_eq!(
-            get_call_data(vec![Transaction {
+            get_call_data(vec![Execution {
                 to: address!("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
                 value: U256::from(19191919),
                 data: bytes!(""),
-            }, Transaction {
+            }, Execution {
                 to: address!("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
                 value: U256::ZERO,
                 data: bytes!("7777777777777777"),

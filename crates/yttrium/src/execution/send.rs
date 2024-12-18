@@ -1,7 +1,8 @@
 use {
     crate::{
-        config::Config, smart_accounts::account_address::AccountAddress,
-        transaction::Transaction, user_operation::UserOperationV07,
+        config::Config, execution::Execution,
+        smart_accounts::account_address::AccountAddress,
+        user_operation::UserOperationV07,
     },
     alloy::primitives::B256,
     core::fmt,
@@ -46,7 +47,7 @@ impl fmt::Display for SentUserOperationHash {
 }
 
 pub async fn prepare_send_transaction(
-    transactions: Vec<Transaction>,
+    transactions: Vec<Execution>,
     owner: AccountAddress,
     _chain_id: u64,
     config: Config,

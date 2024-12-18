@@ -23,6 +23,7 @@ use {
                 get_smart_sessions_validator, ActionData, ERC7739Data, Session,
             },
         },
+        execution::Execution,
         smart_accounts::{
             nonce::get_nonce_with_key,
             safe::{
@@ -31,7 +32,6 @@ use {
             },
         },
         test_helpers::anvil_faucet,
-        transaction::Transaction,
         user_operation::{hash::get_user_operation_hash_v07, UserOperationV07},
     },
     alloy::{
@@ -201,7 +201,7 @@ async fn test() {
         nonce,
         factory: None,
         factory_data: None,
-        call_data: get_call_data(vec![Transaction {
+        call_data: get_call_data(vec![Execution {
             to: session.actions[0].actionTarget,
             value: U256::ZERO,
             data: session.actions[0].actionTargetSelector.into(),
