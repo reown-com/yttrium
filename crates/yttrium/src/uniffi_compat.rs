@@ -31,12 +31,12 @@ uniffi::custom_type!(PrimitiveSignature, String, {
 
 uniffi::custom_type!(SafeOp, String, {
     try_lift: |_val| unimplemented!("Does not support lifting SafeOp"),
-    lower: |_obj| "".to_owned(),
+    lower: |_obj| "Does not support lowering SafeOp".to_owned(),
 });
 
 uniffi::custom_type!(Eip712Domain, String, {
     try_lift: |_val| unimplemented!("Does not support lifting Eip712Domain"),
-    lower: |_obj| "".to_owned(),
+    lower: |_obj| "Does not support lowering Eip712Domain".to_owned(),
 });
 
 fn uint_to_hex<const BITS: usize, const LIMBS: usize>(
