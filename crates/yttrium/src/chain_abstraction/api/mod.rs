@@ -35,8 +35,10 @@ pub struct Transaction {
     pub from: Address,
     pub to: Address,
     pub value: U256,
+    #[serde(alias = "data")]
     pub input: Bytes,
 
+    #[serde(alias = "gas")]
     pub gas_limit: U64,
     pub nonce: U64,
 }
