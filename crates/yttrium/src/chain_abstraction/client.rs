@@ -27,42 +27,29 @@ use {
             error::UiFieldsError, l1_data_fee::get_l1_data_fee, ui_fields,
         },
         erc20::ERC20,
+        provider_pool::ProviderPool,
     },
     alloy::{
-        network::{Ethereum, TransactionBuilder},
+        network::TransactionBuilder,
         primitives::{Address, U256, U64},
-        rpc::{client::RpcClient, types::TransactionRequest},
-        transports::http::Http,
+        rpc::types::TransactionRequest,
     },
-    alloy_provider::{utils::Eip1559Estimation, Provider, ReqwestProvider},
+    alloy_provider::{utils::Eip1559Estimation, Provider},
     relay_rpc::domain::ProjectId,
-    reqwest::{Client as ReqwestClient, Url},
     std::{
         collections::{HashMap, HashSet},
-        sync::Arc,
         time::{Duration, Instant},
     },
-    tokio::sync::RwLock,
 };
-
-pub const PROXY_ENDPOINT_PATH: &str = "/v1";
 
 #[derive(Clone)]
 pub struct Client {
-    client: ReqwestClient,
-    providers: Arc<RwLock<HashMap<String, ReqwestProvider>>>,
-    base_url: Url,
-    pub project_id: ProjectId,
+    provider_pool: ProviderPool,
 }
 
 impl Client {
     pub fn new(project_id: ProjectId) -> Self {
-        Self {
-            client: ReqwestClient::new(),
-            providers: Arc::new(RwLock::new(HashMap::new())),
-            base_url: "https://rpc.walletconnect.com".parse().unwrap(),
-            project_id,
-        }
+        Self { provider_pool: ProviderPool::new(project_id) }
     }
 
     pub async fn prepare(
@@ -70,10 +57,18 @@ impl Client {
         transaction: InitialTransaction,
     ) -> Result<PrepareResponse, PrepareError> {
         let response = self
+            .provider_pool
             .client
-            .post(self.base_url.join(ROUTE_ENDPOINT_PATH).unwrap())
+            .post(
+                self.provider_pool
+                    .blockchain_api_base_url
+                    .join(ROUTE_ENDPOINT_PATH)
+                    .unwrap(),
+            )
             .json(&PrepareRequest { transaction })
-            .query(&RouteQueryParams { project_id: self.project_id.clone() })
+            .query(&RouteQueryParams {
+                project_id: self.provider_pool.project_id.clone(),
+            })
             .send()
             .await
             .map_err(PrepareError::Request)?;
@@ -125,14 +120,16 @@ impl Client {
             addresses.into_iter().map(|address| async move {
                 // TODO: batch these requests when Blockchain API supports it: https://reown-inc.slack.com/archives/C0816SK4877/p1733168173213809
                 let response = self
+                    .provider_pool
                     .client
                     .post(
-                        self.base_url
+                        self.provider_pool
+                            .blockchain_api_base_url
                             .join(FUNGIBLE_PRICE_ENDPOINT_PATH)
                             .unwrap(),
                     )
                     .json(&PriceRequestBody {
-                        project_id: self.project_id.clone(),
+                        project_id: self.provider_pool.project_id.clone(),
                         currency: local_currency,
                         addresses: HashSet::from([address]),
                     })
@@ -157,6 +154,7 @@ impl Client {
         let estimate_future = futures::future::try_join_all(chains.iter().map(
             |chain_id| async move {
                 let estimate = self
+                    .provider_pool
                     .get_provider(chain_id.clone())
                     .await
                     .estimate_eip1559_fees(None)
@@ -188,7 +186,10 @@ impl Client {
                     )
                     .with_max_fee_per_gas(100000)
                     .with_max_priority_fee_per_gas(1),
-                providers.get_provider(txn.chain_id.clone()).await,
+                providers
+                    .provider_pool
+                    .get_provider(txn.chain_id.clone())
+                    .await,
             )
             .await)
         }
@@ -292,10 +293,16 @@ impl Client {
         orchestration_id: String,
     ) -> Result<StatusResponse, PrepareError> {
         let response = self
+            .provider_pool
             .client
-            .get(self.base_url.join(STATUS_ENDPOINT_PATH).unwrap())
+            .get(
+                self.provider_pool
+                    .blockchain_api_base_url
+                    .join(STATUS_ENDPOINT_PATH)
+                    .unwrap(),
+            )
             .query(&StatusQueryParams {
-                project_id: self.project_id.clone(),
+                project_id: self.provider_pool.project_id.clone(),
                 orchestration_id,
             })
             .timeout(Duration::from_secs(5))
@@ -383,34 +390,13 @@ impl Client {
     //     // TODO await initial transaction success
     // }
 
-    pub async fn get_provider(&self, chain_id: String) -> ReqwestProvider {
-        let providers = self.providers.read().await;
-        if let Some(provider) = providers.get(&chain_id) {
-            provider.clone()
-        } else {
-            std::mem::drop(providers);
-
-            // TODO use universal version: https://linear.app/reown/issue/RES-142/universal-provider-router
-            let mut url = self.base_url.join(PROXY_ENDPOINT_PATH).unwrap();
-            url.query_pairs_mut()
-                .append_pair("chainId", &chain_id)
-                .append_pair("projectId", self.project_id.as_ref());
-            let provider = ReqwestProvider::<Ethereum>::new(RpcClient::new(
-                Http::with_client(self.client.clone(), url),
-                false,
-            ));
-            self.providers.write().await.insert(chain_id, provider.clone());
-            provider
-        }
-    }
-
     pub async fn erc20_token_balance(
         &self,
         chain_id: String,
         token: Address,
         owner: Address,
     ) -> Result<U256, alloy::contract::Error> {
-        let provider = self.get_provider(chain_id).await;
+        let provider = self.provider_pool.get_provider(chain_id).await;
         let erc20 = ERC20::new(token, provider);
         let balance = erc20.balanceOf(owner).call().await?;
         Ok(balance.balance)

@@ -10,6 +10,7 @@ use {
             U256, U64,
         },
     },
+    relay_rpc::domain::ProjectId,
 };
 
 // TODO use https://mozilla.github.io/uniffi-rs/next/udl/remote_ext_types.html#remote-types when it's available
@@ -18,10 +19,9 @@ uniffi::custom_type!(Address, String, {
     try_lift: |val| Ok(val.parse()?),
     lower: |obj| obj.to_string(),
 });
-
-uniffi::custom_type!(AccountAddress, String, {
-    try_lift: |val| Ok(val.parse::<Address>()?.into()),
-    lower: |obj| obj.to_string(),
+uniffi::custom_type!(AccountAddress, Address, {
+    try_lift: |val| Ok(val.into()),
+    lower: |obj| obj.into(),
 });
 
 uniffi::custom_type!(PrimitiveSignature, String, {
@@ -72,6 +72,11 @@ uniffi::custom_type!(Bytes, String, {
 
 uniffi::custom_type!(B256, String, {
     try_lift: |val| Ok(val.parse()?),
+    lower: |obj| obj.to_string(),
+});
+
+uniffi::custom_type!(ProjectId, String, {
+    try_lift: |val| Ok(val.into()),
     lower: |obj| obj.to_string(),
 });
 

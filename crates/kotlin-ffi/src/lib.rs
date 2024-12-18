@@ -40,10 +40,9 @@ uniffi::custom_type!(FFIAddress, String, {
     try_lift: |val| Ok(val.parse()?),
     lower: |obj| obj.to_string(),
 });
-
-uniffi::custom_type!(FfiAccountAddress, String, {
-    try_lift: |val| Ok(val.parse::<FFIAddress>()?.into()),
-    lower: |obj| obj.to_string(),
+uniffi::custom_type!(FfiAccountAddress, FFIAddress, {
+    try_lift: |val| Ok(val.into()),
+    lower: |obj| obj.into(),
 });
 
 fn uint_to_hex<const BITS: usize, const LIMBS: usize>(

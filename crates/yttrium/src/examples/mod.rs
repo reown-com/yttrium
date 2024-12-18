@@ -1,1 +1,1 @@
-pub mod eip7702;
+pub mod eip7702_smart_sessions;
