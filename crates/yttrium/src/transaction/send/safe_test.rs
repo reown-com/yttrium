@@ -75,15 +75,14 @@ impl fmt::Display for SentUserOperationHash {
 }
 
 pub async fn get_address(
-    owner_address: String,
+    owner_address: AccountAddress,
     config: Config,
 ) -> eyre::Result<AccountAddress> {
     let rpc_url = config.endpoints.rpc.base_url;
     let rpc_url: reqwest::Url = rpc_url.parse()?;
     let provider = ReqwestProvider::<Ethereum>::new_http(rpc_url);
 
-    let owners =
-        Owners { owners: vec![owner_address.parse().unwrap()], threshold: 1 };
+    let owners = Owners { owners: vec![owner_address.into()], threshold: 1 };
 
     Ok(get_account_address(provider, owners).await)
 }

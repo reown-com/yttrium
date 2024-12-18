@@ -37,11 +37,6 @@ abstract class AccountClient implements RustOpaqueInterface {
   Future<PreparedSendTransaction> prepareSendTransactions(
       {required List<Transaction> transactions});
 
-  Future<String> sendTransactions({required List<Transaction> transactions});
-
-  Future<String> signMessageWithMnemonic(
-      {required String message, required String mnemonic});
-
   Future<String> waitForUserOperationReceipt(
       {required String userOperationHash});
 }
@@ -54,23 +49,11 @@ abstract class AccountClientConfig implements RustOpaqueInterface {
 
   String get ownerAddress;
 
-  String get privateKey;
-
-  bool get safe;
-
-  String get signerType;
-
   set chainId(BigInt chainId);
 
   set config(Config config);
 
   set ownerAddress(String ownerAddress);
-
-  set privateKey(String privateKey);
-
-  set safe(bool safe);
-
-  set signerType(String signerType);
 }
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ChainAbstractionClient>>

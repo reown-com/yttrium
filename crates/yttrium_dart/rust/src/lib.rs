@@ -9,7 +9,7 @@ use {
     serde::{Deserialize, Serialize},
     std::time::Duration,
     yttrium::{
-        account_client::{AccountClient as YAccountClient, SignerType},
+        account_client::AccountClient as YAccountClient,
         chain_abstraction::{
             api::{
                 prepare::PrepareResponse,
@@ -19,8 +19,6 @@ use {
             client::Client,
         },
         config::Config,
-        private_key_service::PrivateKeyService,
-        sign_service::address_from_string,
         transaction::{
             send::safe_test::{
                 Address, OwnerSignature as YOwnerSignature, PrimitiveSignature,
@@ -147,9 +145,6 @@ pub struct AccountClientConfig {
     pub owner_address: String,
     pub chain_id: u64,
     pub config: Config,
-    pub signer_type: String,
-    pub safe: bool,
-    pub private_key: String,
 }
 
 #[frb]
@@ -163,25 +158,15 @@ pub struct AccountClient {
 impl AccountClient {
     // #[frb(constructor)]
     pub fn new(config: AccountClientConfig) -> Self {
-        let owner_address = config.owner_address.clone();
-        let signer_type = config.signer_type.clone();
-        let signer = SignerType::from(signer_type).unwrap();
-        let account_client = match signer {
-            SignerType::PrivateKey => {
-                let private_key_fn =
-                    Box::new(move || Ok(config.private_key.clone()));
-                let owner = address_from_string(&owner_address).unwrap();
-                let service = PrivateKeyService::new(private_key_fn, owner);
-                YAccountClient::new_with_private_key_service(
-                    config.owner_address.clone(),
-                    config.chain_id,
-                    config.config,
-                    service,
-                    config.safe,
-                )
-            }
-            SignerType::Native => todo!(),
-        };
+        let account_client = YAccountClient::new(
+            config
+                .owner_address
+                .parse::<alloy::primitives::Address>()
+                .unwrap()
+                .into(),
+            config.chain_id,
+            config.config,
+        );
 
         Self {
             owner_address: config.owner_address.clone(),
@@ -200,23 +185,8 @@ impl AccountClient {
         self.account_client
             .get_address()
             .await
+            .map(|address| address.to_string())
             .map_err(|e| Error::General(e.to_string()))
-    }
-
-    #[frb]
-    pub async fn send_transactions(
-        &self,
-        transactions: Vec<Transaction>,
-    ) -> Result<String, Error> {
-        let ytransactions: Vec<YTransaction> =
-            transactions.into_iter().map(YTransaction::from).collect();
-
-        Ok(self
-            .account_client
-            .send_transactions(ytransactions)
-            .await
-            .map_err(|e| Error::General(e.to_string()))?
-            .to_string())
     }
 
     #[frb]
@@ -274,16 +244,6 @@ impl AccountClient {
             .await
             .map_err(|e| Error::General(e.to_string()))?
             .to_string())
-    }
-
-    pub fn sign_message_with_mnemonic(
-        &self,
-        message: String,
-        mnemonic: String,
-    ) -> Result<String, Error> {
-        self.account_client
-            .sign_message_with_mnemonic(message, mnemonic)
-            .map_err(|e| Error::General(e.to_string()))
     }
 
     #[frb]
