@@ -104,6 +104,24 @@ jobs:
         run: |
           zip -r kotlin-artifacts.zip yttrium/
 
+      - name: Create Git Tag
+        env:
+          VERSION: ${{ env.VERSION }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Ensure we're on the latest commit
+          git fetch origin $TARGET_BRANCH
+          
+          # Get the latest commit hash
+          COMMIT_HASH=$(git rev-parse HEAD)
+          echo "Tagging commit ${COMMIT_HASH} with version ${VERSION}"
+          
+          # Create an annotated tag on the latest commit
+          git tag -a "${VERSION}" -m "Release version ${VERSION}" "${COMMIT_HASH}"
+          
+          # Push the tag to the repository
+          git push origin "${VERSION}"
+      
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1
