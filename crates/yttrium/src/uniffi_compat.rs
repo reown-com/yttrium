@@ -1,6 +1,15 @@
 use {
-    crate::chain_abstraction::{amount::Amount, api::prepare::FundingMetadata},
-    alloy::primitives::{Address, Bytes, Uint, B256, U128, U256, U64},
+    crate::{
+        chain_abstraction::{amount::Amount, api::prepare::FundingMetadata},
+        smart_accounts::{account_address::AccountAddress, safe::SafeOp},
+    },
+    alloy::{
+        dyn_abi::Eip712Domain,
+        primitives::{
+            aliases::U48, Address, Bytes, PrimitiveSignature, Uint, B256, U128,
+            U256, U64,
+        },
+    },
 };
 
 // TODO use https://mozilla.github.io/uniffi-rs/next/udl/remote_ext_types.html#remote-types when it's available
@@ -10,11 +19,41 @@ uniffi::custom_type!(Address, String, {
     lower: |obj| obj.to_string(),
 });
 
+uniffi::custom_type!(AccountAddress, String, {
+    try_lift: |val| Ok(val.parse::<Address>()?.into()),
+    lower: |obj| obj.to_string(),
+});
+
+uniffi::custom_type!(PrimitiveSignature, String, {
+    try_lift: |val| Ok(val.parse()?),
+    lower: |obj| format!("0x{}", hex::encode(obj.as_bytes())),
+});
+
+uniffi::custom_type!(SafeOp, String, {
+    try_lift: |_val| unimplemented!("Does not support lifting SafeOp"),
+    lower: |_obj| "".to_owned(),
+});
+
+uniffi::custom_type!(Eip712Domain, String, {
+    try_lift: |_val| unimplemented!("Does not support lifting Eip712Domain"),
+    lower: |_obj| "".to_owned(),
+});
+
 fn uint_to_hex<const BITS: usize, const LIMBS: usize>(
     obj: Uint<BITS, LIMBS>,
 ) -> String {
     format!("0x{obj:x}")
 }
+
+uniffi::custom_type!(U48, String, {
+    try_lift: |val| Ok(val.parse()?),
+    lower: |obj| uint_to_hex(obj),
+});
+
+uniffi::custom_type!(U64, String, {
+    try_lift: |val| Ok(val.parse()?),
+    lower: |obj| uint_to_hex(obj),
+});
 
 uniffi::custom_type!(U128, String, {
     try_lift: |val| Ok(val.parse()?),
@@ -22,11 +61,6 @@ uniffi::custom_type!(U128, String, {
 });
 
 uniffi::custom_type!(U256, String, {
-    try_lift: |val| Ok(val.parse()?),
-    lower: |obj| uint_to_hex(obj),
-});
-
-uniffi::custom_type!(U64, String, {
     try_lift: |val| Ok(val.parse()?),
     lower: |obj| uint_to_hex(obj),
 });

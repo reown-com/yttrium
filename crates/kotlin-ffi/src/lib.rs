@@ -8,6 +8,7 @@ use {
             U64 as FFIU64,
         },
         providers::{Provider, ReqwestProvider},
+        sol_types::SolStruct,
     },
     relay_rpc::domain::ProjectId,
     std::time::Duration,
@@ -24,10 +25,14 @@ use {
             ui_fields::UiFields,
         },
         config::Config,
+        smart_accounts::safe::{SignOutputEnum, SignStep3Params},
         transaction::{
-            send::safe_test::{
-                Address as FFIAddress, OwnerSignature as YOwnerSignature,
-                PrimitiveSignature,
+            send::{
+                safe_test,
+                safe_test::{
+                    Address as FFIAddress, OwnerSignature as YOwnerSignature,
+                    PrimitiveSignature,
+                },
             },
             Transaction as YTransaction,
         },
@@ -96,6 +101,11 @@ impl From<alloy::providers::utils::Eip1559Estimation> for Eip1559Estimation {
             ),
         }
     }
+}
+
+#[derive(uniffi::Record)]
+pub struct FfiPreparedSignature {
+    pub message_hash: String,
 }
 
 #[derive(uniffi::Record)]
@@ -246,6 +256,38 @@ impl FFIAccountClient {
             .get_address()
             .await
             .map(|address| address.to_string())
+            .map_err(|e| FFIError::General(e.to_string()))
+    }
+
+    pub fn prepare_sign_message(
+        &self,
+        message_hash: String,
+    ) -> FfiPreparedSignature {
+        let res = self
+            .account_client
+            .prepare_sign_message(message_hash.parse().unwrap());
+        let hash = res.safe_message.eip712_signing_hash(&res.domain);
+        FfiPreparedSignature { message_hash: hash.to_string() }
+    }
+
+    pub async fn do_sign_message(
+        &self,
+        signatures: Vec<safe_test::OwnerSignature>,
+    ) -> Result<SignOutputEnum, FFIError> {
+        self.account_client
+            .do_sign_message(signatures)
+            .await
+            .map_err(|e| FFIError::General(e.to_string()))
+    }
+
+    pub async fn finalize_sign_message(
+        &self,
+        signatures: Vec<safe_test::OwnerSignature>,
+        sign_step_3_params: SignStep3Params,
+    ) -> Result<FFIBytes, FFIError> {
+        self.account_client
+            .finalize_sign_message(signatures, sign_step_3_params)
+            .await
             .map_err(|e| FFIError::General(e.to_string()))
     }
 

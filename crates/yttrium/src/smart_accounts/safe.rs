@@ -378,18 +378,21 @@ pub fn prepare_sign(
     PreparedSignature { safe_message, domain }
 }
 
+#[cfg_attr(feature = "uniffi", derive(uniffi::Enum))]
 pub enum SignOutputEnum {
     Signature(Bytes),
     SignOutput(SignOutput),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
 pub struct SignOutput {
     pub to_sign: SignOutputToSign,
     pub sign_step_3_params: SignStep3Params,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
 pub struct SignOutputToSign {
     pub hash: B256,
     pub safe_op: SafeOp,
@@ -397,6 +400,7 @@ pub struct SignOutputToSign {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
 pub struct SignStep3Params {
     pub signature: Bytes,
     pub do_send_transaction_params: DoSendTransactionParams,

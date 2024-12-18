@@ -162,6 +162,7 @@ pub struct PreparedSendTransaction {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
 pub struct DoSendTransactionParams {
     pub user_op: UserOperationV07,
     pub valid_after: U48,
@@ -436,6 +437,7 @@ where
 }
 
 pub use alloy::primitives::{Address, PrimitiveSignature};
+#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
 pub struct OwnerSignature {
     pub owner: Address,
     pub signature: PrimitiveSignature,
