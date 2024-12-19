@@ -154,6 +154,7 @@ pub async fn send_transactions(
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
 pub struct PreparedSendTransaction {
     pub safe_op: SafeOp,
     pub domain: Eip712Domain,

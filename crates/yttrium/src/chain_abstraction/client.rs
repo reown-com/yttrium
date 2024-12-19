@@ -26,6 +26,7 @@ use {
         chain_abstraction::{
             error::UiFieldsError, l1_data_fee::get_l1_data_fee, ui_fields,
         },
+        config::Config,
         erc20::ERC20,
         provider_pool::ProviderPool,
     },
@@ -49,7 +50,7 @@ pub struct Client {
 
 impl Client {
     pub fn new(project_id: ProjectId) -> Self {
-        Self { provider_pool: ProviderPool::new(project_id) }
+        Self { provider_pool: ProviderPool::new(project_id, Config::local()) }
     }
 
     pub async fn prepare(
@@ -155,7 +156,7 @@ impl Client {
             |chain_id| async move {
                 let estimate = self
                     .provider_pool
-                    .get_provider(chain_id.clone())
+                    .get_provider(chain_id)
                     .await
                     .estimate_eip1559_fees(None)
                     .await
@@ -186,10 +187,7 @@ impl Client {
                     )
                     .with_max_fee_per_gas(100000)
                     .with_max_priority_fee_per_gas(1),
-                providers
-                    .provider_pool
-                    .get_provider(txn.chain_id.clone())
-                    .await,
+                providers.provider_pool.get_provider(&txn.chain_id).await,
             )
             .await)
         }
@@ -392,7 +390,7 @@ impl Client {
 
     pub async fn erc20_token_balance(
         &self,
-        chain_id: String,
+        chain_id: &str,
         token: Address,
         owner: Address,
     ) -> Result<U256, alloy::contract::Error> {

@@ -216,6 +216,19 @@ sol! {
     }
 }
 
+sol! {
+    #[allow(clippy::too_many_arguments)]
+    #[sol(rpc)]
+    contract AddSafe7579Contract {
+        struct ModuleInit {
+            address module;
+            bytes initData;
+        }
+
+        function addSafe7579(address safe7579, ModuleInit[] calldata validators, ModuleInit[] calldata executors, ModuleInit[] calldata fallbacks, ModuleInit[] calldata hooks, address[] calldata attesters, uint8 threshold) external;
+    }
+}
+
 // permissionless -> getInitializerCode
 fn get_initializer_code(owners: Owners) -> Bytes {
     // let ownable_validator = get_ownable_validator(&owners, None);

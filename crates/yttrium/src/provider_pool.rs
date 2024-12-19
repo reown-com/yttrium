@@ -1,5 +1,8 @@
 use {
-    crate::blockchain_api::{BLOCKCHAIN_API_URL, PROXY_ENDPOINT_PATH},
+    crate::{
+        blockchain_api::{BLOCKCHAIN_API_URL, PROXY_ENDPOINT_PATH},
+        config::Config,
+    },
     alloy::{
         network::Ethereum, rpc::client::RpcClient, transports::http::Http,
     },
@@ -17,21 +20,24 @@ pub struct ProviderPool {
     pub providers: Arc<RwLock<HashMap<String, ReqwestProvider>>>,
     pub blockchain_api_base_url: Url,
     pub project_id: ProjectId,
+    pub config: Config,
 }
 
 impl ProviderPool {
-    pub fn new(project_id: ProjectId) -> Self {
+    // TODO remove `config` param
+    pub fn new(project_id: ProjectId, config: Config) -> Self {
         Self {
             client: ReqwestClient::new(),
             providers: Arc::new(RwLock::new(HashMap::new())),
             blockchain_api_base_url: BLOCKCHAIN_API_URL.parse().unwrap(),
             project_id,
+            config,
         }
     }
 
-    pub async fn get_provider(&self, chain_id: String) -> ReqwestProvider {
+    pub async fn get_provider(&self, chain_id: &str) -> ReqwestProvider {
         let providers = self.providers.read().await;
-        if let Some(provider) = providers.get(&chain_id) {
+        if let Some(provider) = providers.get(chain_id) {
             provider.clone()
         } else {
             std::mem::drop(providers);
@@ -40,13 +46,16 @@ impl ProviderPool {
             let mut url =
                 self.blockchain_api_base_url.join(PROXY_ENDPOINT_PATH).unwrap();
             url.query_pairs_mut()
-                .append_pair("chainId", &chain_id)
+                .append_pair("chainId", chain_id)
                 .append_pair("projectId", self.project_id.as_ref());
             let provider = ReqwestProvider::<Ethereum>::new(RpcClient::new(
                 Http::with_client(self.client.clone(), url),
                 false,
             ));
-            self.providers.write().await.insert(chain_id, provider.clone());
+            self.providers
+                .write()
+                .await
+                .insert(chain_id.to_owned(), provider.clone());
             provider
         }
     }

@@ -7,8 +7,9 @@ use {
         dyn_abi::Eip712Domain,
         primitives::{
             aliases::U48, Address, Bytes, PrimitiveSignature, Uint, B256, U128,
-            U256, U64,
+            U256, U64, U8,
         },
+        rpc::types::Authorization,
     },
     relay_rpc::domain::ProjectId,
 };
@@ -39,11 +40,21 @@ uniffi::custom_type!(Eip712Domain, String, {
     lower: |_obj| "Does not support lowering Eip712Domain".to_owned(),
 });
 
+uniffi::custom_type!(Authorization, String, {
+    try_lift: |_val| unimplemented!("Does not support lifting Authorization"),
+    lower: |_obj| "Does not support lowering Authorization".to_owned(),
+});
+
 fn uint_to_hex<const BITS: usize, const LIMBS: usize>(
     obj: Uint<BITS, LIMBS>,
 ) -> String {
     format!("0x{obj:x}")
 }
+
+uniffi::custom_type!(U8, String, {
+    try_lift: |val| Ok(val.parse()?),
+    lower: |obj| uint_to_hex(obj),
+});
 
 uniffi::custom_type!(U48, String, {
     try_lift: |val| Ok(val.parse()?),

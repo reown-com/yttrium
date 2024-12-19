@@ -196,7 +196,7 @@ impl ChainAbstractionClient {
 
     pub async fn erc20_token_balance(
         &self,
-        chain_id: String,
+        chain_id: &str,
         token: FFIAddress,
         owner: FFIAddress,
     ) -> Result<FFIU256, FFIError> {
