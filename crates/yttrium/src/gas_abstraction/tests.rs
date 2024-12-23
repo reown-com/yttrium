@@ -3,7 +3,8 @@ use {
         chain_abstraction::api::InitialTransaction,
         config::Config,
         gas_abstraction::{
-            Client as GasAbstractionClient, SignedAuthorization,
+            Client as GasAbstractionClient, PreparedGasAbstraction,
+            SignedAuthorization,
         },
     },
     alloy::{
@@ -17,15 +18,21 @@ use {
 #[tokio::test]
 async fn happy_path() {
     // TODO remove
-    let config = Config::local();
-    let provider = ReqwestProvider::<Ethereum>::new_http(
-        config.endpoints.rpc.base_url.parse().unwrap(),
-    );
-    let chain_id = format!("eip155:{}", provider.get_chain_id().await.unwrap());
+    let (config, chain_id) = {
+        let config = Config::local();
+        let provider = ReqwestProvider::<Ethereum>::new_http(
+            config.endpoints.rpc.base_url.parse().unwrap(),
+        );
+        let chain_id =
+            format!("eip155:{}", provider.get_chain_id().await.unwrap());
+        (config, chain_id)
+    };
 
     // You have a GasAbstractionClient
+    // TODO allow Sponsor EOA as configuration - for non-Anvil usage i.e. TODO Pimlico test case against testnet
     let project_id = std::env::var("REOWN_PROJECT_ID").unwrap().into();
-    let client = GasAbstractionClient::new(project_id, config);
+    let client =
+        GasAbstractionClient::new(project_id, chain_id.clone(), config);
 
     // You have an EOA
     let eoa = LocalSigner::random();
@@ -39,35 +46,42 @@ async fn happy_path() {
             value: U256::ZERO,
             input: Bytes::new(),
         };
+
         let result = client.prepare(txn).await.unwrap();
+        assert!(matches!(
+            result,
+            PreparedGasAbstraction::DeploymentRequired { .. }
+        ));
+        let (auth, prepare_deploy_params) = match result {
+            PreparedGasAbstraction::DeploymentRequired {
+                auth,
+                prepare_deploy_params,
+            } => (auth, prepare_deploy_params),
+            PreparedGasAbstraction::DeploymentNotRequired { .. } => {
+                panic!("unexpected")
+            }
+        };
 
-        assert!(result.auth.is_some());
+        // Display disclaimer info to the user
+        // User approved? Yes
 
-        // Sign the authorization
-        let auth_sig = result.auth.map(|auth| SignedAuthorization {
+        let auth_sig = SignedAuthorization {
             signature: eoa.sign_hash_sync(&auth.auth.signature_hash()).unwrap(),
             auth: auth.auth,
-        });
+        };
+        let prepared_send =
+            client.prepare_deploy(auth_sig, prepare_deploy_params).await;
 
-        // Ask the user for approval and sign the UserOperation
-        let signature = eoa
-            .sign_typed_data_sync(
-                &result.prepared_send_transaction.safe_op,
-                &result.prepared_send_transaction.domain,
-            )
-            .unwrap();
+        // Display fee information to the user: prepare_deploy_result.fees
+        // User approved? Yes
 
-        // Send the UserOperation and get the receipt
-        let receipt = client
-            .send(
-                auth_sig,
-                signature,
-                result.prepared_send_transaction.do_send_transaction_params,
-            )
-            .await;
+        let signature: alloy::signers::Signature =
+            eoa.sign_hash_sync(&prepared_send.hash).unwrap();
+        let receipt = client.send(signature, prepared_send.send_params).await;
         println!("receipt: {:?}", receipt);
     }
 
+    // Second eth_sendTransaction
     {
         // You have an incomming eth_sendTransaction
         let txn = InitialTransaction {
@@ -77,26 +91,26 @@ async fn happy_path() {
             value: U256::ZERO,
             input: Bytes::new(),
         };
+
         let result = client.prepare(txn).await.unwrap();
+        assert!(matches!(
+            result,
+            PreparedGasAbstraction::DeploymentNotRequired { .. }
+        ));
+        let prepared_send = match result {
+            PreparedGasAbstraction::DeploymentNotRequired { prepared_send } => {
+                prepared_send
+            }
+            PreparedGasAbstraction::DeploymentRequired { .. } => {
+                panic!("unexpected")
+            }
+        };
 
-        assert!(result.auth.is_none());
+        // Display fee information to the user: prepare.fees
+        // User approved? Yes
 
-        // Ask the user for approval and sign the UserOperation
-        let signature = eoa
-            .sign_typed_data_sync(
-                &result.prepared_send_transaction.safe_op,
-                &result.prepared_send_transaction.domain,
-            )
-            .unwrap();
-
-        // Send the UserOperation and get the receipt
-        let receipt = client
-            .send(
-                None,
-                signature,
-                result.prepared_send_transaction.do_send_transaction_params,
-            )
-            .await;
+        let signature = eoa.sign_hash_sync(&prepared_send.hash).unwrap();
+        let receipt = client.send(signature, prepared_send.send_params).await;
         println!("receipt: {:?}", receipt);
     }
 

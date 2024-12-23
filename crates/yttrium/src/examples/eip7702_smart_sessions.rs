@@ -66,13 +66,12 @@ async fn test() {
     let ownable_validator = get_ownable_validator(&owners, None);
 
     let session_owner = LocalSigner::random();
+    let session_owners =
+        Owners { threshold: 1, owners: vec![session_owner.address()] };
 
     let session = Session {
-        sessionValidator: OWNABLE_VALIDATOR_ADDRESS, // todo is this wrong???
-        sessionValidatorInitData: encode_owners(&Owners {
-            threshold: 1,
-            owners: vec![session_owner.address()],
-        }),
+        sessionValidator: OWNABLE_VALIDATOR_ADDRESS,
+        sessionValidatorInitData: encode_owners(&session_owners),
         salt: B256::default(),
         userOpPolicies: vec![],
         erc7739Policies: ERC7739Data {
@@ -100,12 +99,12 @@ async fn test() {
     let auth = auth_7702.into_signed(sig);
 
     let faucet = anvil_faucet(rpc_url).await;
-    let wallet = EthereumWallet::new(faucet);
-    let wallet_provider = ProviderBuilder::new()
+    let faucet_wallet = EthereumWallet::new(faucet);
+    let faucet_provider = ProviderBuilder::new()
         .with_recommended_fillers()
-        .wallet(wallet)
+        .wallet(faucet_wallet)
         .on_provider(provider.clone());
-    assert!(SetupContract::new(account.address(), wallet_provider.clone())
+    assert!(SetupContract::new(account.address(), faucet_provider.clone())
         .setup(
             owners.owners,
             U256::from(owners.threshold),
@@ -162,7 +161,7 @@ async fn test() {
     let permission_id = get_permission_id(&session);
     let smart_session_dummy_signature = encode_use_signature(
         permission_id,
-        get_ownable_validator_mock_signature(1),
+        get_ownable_validator_mock_signature(&session_owners),
     );
 
     let pimlico_client = pimlico::client::BundlerClient::new(

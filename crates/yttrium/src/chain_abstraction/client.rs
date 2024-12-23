@@ -26,7 +26,6 @@ use {
         chain_abstraction::{
             error::UiFieldsError, l1_data_fee::get_l1_data_fee, ui_fields,
         },
-        config::Config,
         erc20::ERC20,
         provider_pool::ProviderPool,
     },
@@ -50,7 +49,7 @@ pub struct Client {
 
 impl Client {
     pub fn new(project_id: ProjectId) -> Self {
-        Self { provider_pool: ProviderPool::new(project_id, Config::local()) }
+        Self { provider_pool: ProviderPool::new(project_id) }
     }
 
     pub async fn prepare(

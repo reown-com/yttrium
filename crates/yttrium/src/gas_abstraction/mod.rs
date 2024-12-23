@@ -9,35 +9,37 @@ use {
         chain_abstraction::api::InitialTransaction,
         config::Config,
         entry_point::ENTRYPOINT_ADDRESS_V07,
-        erc7579::addresses::{
-            MOCK_ATTESTER_ADDRESS, RHINESTONE_ATTESTER_ADDRESS,
-        },
-        execution::send::safe_test::{
-            encode_send_transactions, DoSendTransactionParams, OwnerSignature,
-            PreparedSendTransaction,
+        erc7579::{
+            accounts::safe::encode_validator_key,
+            addresses::RHINESTONE_ATTESTER_ADDRESS,
+            ownable_validator::{
+                get_ownable_validator, get_ownable_validator_mock_signature,
+            },
         },
         provider_pool::ProviderPool,
         smart_accounts::{
-            nonce::get_nonce,
+            nonce::get_nonce_with_key,
             safe::{
-                get_call_data, user_operation_to_safe_op, AddSafe7579Contract,
-                Owners, SetupContract, SAFE_4337_MODULE_ADDRESS,
-                SAFE_ERC_7579_LAUNCHPAD_ADDRESS, SAFE_L2_SINGLETON_1_4_1,
+                get_call_data, AddSafe7579Contract, Owners, SetupContract,
+                SAFE_4337_MODULE_ADDRESS, SAFE_ERC_7579_LAUNCHPAD_ADDRESS,
+                SAFE_L2_SINGLETON_1_4_1,
             },
         },
         test_helpers::anvil_faucet,
-        user_operation::UserOperationV07,
+        user_operation::{hash::get_user_operation_hash_v07, UserOperationV07},
     },
     alloy::{
         network::{EthereumWallet, TransactionBuilder7702},
         primitives::{
-            aliases::U48, Address, Bytes, PrimitiveSignature, B256, U256, U64,
+            eip191_hash_message, Address, Bytes, PrimitiveSignature, B256, U256,
         },
         rpc::types::Authorization,
-        sol_types::{SolCall, SolStruct},
+        signers::local::LocalSigner,
+        sol_types::SolCall,
     },
     alloy_provider::{Provider, ProviderBuilder},
     relay_rpc::domain::ProjectId,
+    std::collections::HashMap,
 };
 
 #[cfg(test)]
@@ -55,65 +57,97 @@ pub struct Client {
 #[cfg_attr(feature = "uniffi", uniffi::export(async_runtime = "tokio"))]
 impl Client {
     #[cfg_attr(feature = "uniffi", uniffi::constructor)]
-    // TODO remove `config` param
-    pub fn new(project_id: ProjectId, config: Config) -> Self {
+    // TODO remove `config` param, do similar with_*_overrides pattern
+    // Actually, add these to ProviderPool as other types of providers (e.g. get_bundler())
+    pub fn new(
+        project_id: ProjectId,
+        chain_id: String,
+        config: Config,
+    ) -> Self {
         Self {
-            provider_pool: ProviderPool::new(project_id, config.clone()),
+            provider_pool: ProviderPool::new(project_id).with_rpc_overrides(
+                HashMap::from([(
+                    chain_id,
+                    config.endpoints.rpc.base_url.parse().unwrap(),
+                )]),
+            ),
             config,
         }
     }
 
-    // Or you can make chain-specific clients if you want to do it manually
-    // async fn new(chain_id: Caip10, rpc_url: Url, bundler_url: Url, paymaster_url: Url) -> Self {}
-
-    async fn prepare(
+    // TODO error type
+    pub async fn prepare(
         &self,
         transaction: InitialTransaction,
     ) -> Result<PreparedGasAbstraction, String> {
-        let InitialTransaction { chain_id, from, to, value, input } =
-            transaction;
+        let provider =
+            self.provider_pool.get_provider(&transaction.chain_id).await;
 
-        let provider = self.provider_pool.get_provider(&chain_id).await;
-
-        let code = provider.get_code_at(from).await.unwrap();
+        let code = provider.get_code_at(transaction.from).await.unwrap();
         // TODO check if the code is our contract, or something else
         // If no code, return 7702 txn and UserOp hash to sign
         // If our contract, return UserOp hash to sign
         // If something else then return an error
 
-        let auth = if code.is_empty() {
+        if code.is_empty() {
+            // Else assume it's our account for now
+            // TODO throw error if it's not our account (how?)
+
             let auth = Authorization {
-                chain_id: chain_id
+                chain_id: transaction
+                    .chain_id
                     .strip_prefix("eip155:")
                     .unwrap()
                     .parse()
                     .unwrap(),
                 address: SAFE_L2_SINGLETON_1_4_1,
                 // TODO should this be `pending` tag? https://github.com/wevm/viem/blob/a49c100a0b2878fbfd9f1c9b43c5cc25de241754/src/experimental/eip7702/actions/signAuthorization.ts#L149
-                nonce: provider.get_transaction_count(from).await.unwrap(),
+                nonce: provider
+                    .get_transaction_count(transaction.from)
+                    .await
+                    .unwrap(),
             };
 
-            Some(PreparedGasAbstractionAuthorization {
+            let auth = PreparedGasAbstractionAuthorization {
                 hash: auth.signature_hash(),
                 auth,
+            };
+
+            Ok(PreparedGasAbstraction::DeploymentRequired {
+                auth,
+                prepare_deploy_params: PrepareDeployParams { transaction },
             })
         } else {
-            None
-        };
+            let prepared_send =
+                self.create_sponsored_user_op(transaction).await;
 
-        // Else assume it's our account for now
+            Ok(PreparedGasAbstraction::DeploymentNotRequired { prepared_send })
+        }
+    }
 
-        // TODO with_key if has modules
-        let nonce =
-            get_nonce(&provider, from.into(), &ENTRYPOINT_ADDRESS_V07.into())
-                .await
-                .unwrap();
+    // TODO error type
+    async fn create_sponsored_user_op(
+        &self,
+        transaction: InitialTransaction,
+    ) -> PreparedSend {
+        let InitialTransaction { chain_id, from, to, value, input } =
+            transaction;
 
-        // let permission_id = get_permission_id(&session);
-        // let smart_session_dummy_signature = encode_use_signature(
-        //     permission_id,
-        //     get_ownable_validator_mock_signature(1),
-        // );
+        // TODO don't look this up a second time
+        let provider = self.provider_pool.get_provider(&chain_id).await;
+
+        let owners = Owners { threshold: 1, owners: vec![from] };
+        let ownable_validator = get_ownable_validator(&owners, None);
+        let nonce = get_nonce_with_key(
+            &provider,
+            from.into(),
+            &ENTRYPOINT_ADDRESS_V07.into(),
+            encode_validator_key(ownable_validator.address),
+        )
+        .await
+        .unwrap();
+
+        let mock_signature = get_ownable_validator_mock_signature(&owners);
 
         // TODO refactor to reuse these clients as part of the pool thingie
         let pimlico_client = pimlico::client::BundlerClient::new(
@@ -147,7 +181,7 @@ impl Client {
             paymaster_verification_gas_limit: None,
             paymaster_post_op_gas_limit: None,
             paymaster_data: None,
-            signature: Bytes::new(),
+            signature: mock_signature,
         };
 
         let user_op = {
@@ -178,81 +212,69 @@ impl Client {
             }
         };
 
-        let valid_after = U48::from(0);
-        let valid_until = U48::from(0);
-        let (safe_op, domain) = user_operation_to_safe_op(
+        let message: B256 = get_user_operation_hash_v07(
             &user_op,
-            ENTRYPOINT_ADDRESS_V07,
-            U64::from(
-                chain_id
-                    .strip_prefix("eip155:")
-                    .unwrap()
-                    .parse::<u64>()
-                    .unwrap(),
-            ),
-            valid_after,
-            valid_until,
-        );
-        let hash = safe_op.eip712_signing_hash(&domain);
+            &ENTRYPOINT_ADDRESS_V07,
+            chain_id.strip_prefix("eip155:").unwrap().parse().unwrap(),
+        )
+        .into();
 
-        Ok(PreparedGasAbstraction {
-            auth,
-            prepared_send_transaction: PreparedSendTransaction {
-                safe_op,
-                domain,
-                hash,
-                do_send_transaction_params: DoSendTransactionParams {
-                    user_op,
-                    valid_after,
-                    valid_until,
-                },
-            },
-        })
+        let hash = eip191_hash_message(message);
+
+        PreparedSend {
+            message: message.into(),
+            hash,
+            send_params: SendParams { user_op },
+        }
     }
 
     // TODO error type
-    // TODO check if receipt is actually OK, return error result if not (with the receipt still)
-    async fn send(
+    // When bundlers support sending 7702 natively, this name will be accurate (noting is sent until `send()`)
+    // For now, `prepare_deploy()` also will execute a 7702 txn by itself since this function sponsors the UserOp
+    pub async fn prepare_deploy(
         &self,
         // FIXME can't pass Authorization through FFI
-        auth_sig: Option<SignedAuthorization>,
-        signature: PrimitiveSignature,
-        params: DoSendTransactionParams,
-    ) -> UserOperationReceipt {
-        let account = params.user_op.sender;
-        // TODO put this all inside the UserOperation once it's available
+        auth_sig: SignedAuthorization,
+        params: PrepareDeployParams,
+    ) -> PreparedSend {
+        let account = params.transaction.from;
+        let SignedAuthorization { auth, signature } = auth_sig;
+        let chain_id = auth.chain_id;
+        let auth = auth.into_signed(signature);
 
-        if let Some(SignedAuthorization { auth, signature }) = auth_sig {
-            let chain_id = auth.chain_id;
-            let auth = auth.into_signed(signature);
+        let faucet = anvil_faucet(&self.config.endpoints.rpc.base_url).await;
+        let faucet_wallet = EthereumWallet::new(faucet);
+        let faucet_provider = ProviderBuilder::new()
+            .with_recommended_fillers()
+            .wallet(faucet_wallet)
+            .on_provider(
+                self.provider_pool
+                    .get_provider(&format!("eip155:{chain_id}"))
+                    .await,
+            );
 
-            let faucet =
-                anvil_faucet(&self.config.endpoints.rpc.base_url).await;
-            let wallet = EthereumWallet::new(faucet);
-            let wallet_provider = ProviderBuilder::new()
-                .with_recommended_fillers()
-                .wallet(wallet)
-                .on_provider(
-                    self.provider_pool
-                        .get_provider(&format!("eip155:{chain_id}"))
-                        .await,
-                );
-            let owners = Owners { threshold: 1, owners: vec![account.into()] };
-            assert!(SetupContract::new(
-                account.into(),
-                wallet_provider.clone()
-            )
+        let safe_owners = Owners {
+            threshold: 1,
+            owners: vec![LocalSigner::random().address()],
+        };
+
+        let owners = Owners { threshold: 1, owners: vec![account] };
+
+        let ownable_validator = get_ownable_validator(&owners, None);
+
+        // TODO do this in the UserOp as a factory
+        assert!(SetupContract::new(account, faucet_provider)
             .setup(
-                owners.owners,
-                U256::from(owners.threshold),
+                safe_owners.owners,
+                U256::from(safe_owners.threshold),
                 SAFE_ERC_7579_LAUNCHPAD_ADDRESS,
                 AddSafe7579Contract::addSafe7579Call {
                     safe7579: SAFE_4337_MODULE_ADDRESS,
                     validators: vec![
-                        // AddSafe7579Contract::ModuleInit {
-                        //     module: ownable_validator.address,
-                        //     initData: ownable_validator.init_data,
-                        // },
+                        AddSafe7579Contract::ModuleInit {
+                            module: ownable_validator.address,
+                            initData: ownable_validator.init_data,
+                        },
                         // AddSafe7579Contract::ModuleInit {
                         //     module: smart_sessions.address,
                         //     initData: smart_sessions.init_data,
@@ -263,7 +285,7 @@ impl Client {
                     hooks: vec![],
                     attesters: vec![
                         RHINESTONE_ATTESTER_ADDRESS,
-                        MOCK_ATTESTER_ADDRESS,
+                        // MOCK_ATTESTER_ADDRESS,
                     ],
                     threshold: 1,
                 }
@@ -285,20 +307,22 @@ impl Client {
             .await
             .unwrap()
             .status());
-        }
 
+        self.create_sponsored_user_op(params.transaction).await
+    }
+
+    // TODO error type
+    // TODO check if receipt is actually OK, return error result if not (with the receipt still)
+    pub async fn send(
+        &self,
+        signature: PrimitiveSignature,
+        params: SendParams,
+    ) -> UserOperationReceipt {
         let bundler_client = BundlerClient::new(BundlerConfig::new(
             self.config.endpoints.bundler.base_url.clone(),
         ));
-        let user_op = encode_send_transactions(
-            vec![OwnerSignature {
-                owner: params.user_op.sender.into(),
-                signature,
-            }],
-            params,
-        )
-        .await
-        .unwrap();
+        let signature = signature.as_bytes().into();
+        let user_op = UserOperationV07 { signature, ..params.user_op };
         let hash = bundler_client
             .send_user_operation(ENTRYPOINT_ADDRESS_V07.into(), user_op.clone())
             .await
@@ -316,10 +340,21 @@ impl Client {
 }
 
 #[derive(Clone)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Enum))]
+pub enum PreparedGasAbstraction {
+    DeploymentRequired {
+        auth: PreparedGasAbstractionAuthorization,
+        prepare_deploy_params: PrepareDeployParams,
+    },
+    DeploymentNotRequired {
+        prepared_send: PreparedSend,
+    },
+}
+
+#[derive(Clone)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
-pub struct PreparedGasAbstraction {
-    pub auth: Option<PreparedGasAbstractionAuthorization>,
-    pub prepared_send_transaction: PreparedSendTransaction,
+pub struct PrepareDeployParams {
+    pub transaction: InitialTransaction,
 }
 
 #[derive(Clone)]
@@ -335,4 +370,18 @@ pub struct SignedAuthorization {
     // FIXME cannot pass this through FFI like this
     pub auth: Authorization,
     pub signature: PrimitiveSignature,
+}
+
+#[derive(Clone)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
+pub struct PreparedSend {
+    pub message: Bytes,
+    pub hash: B256,
+    pub send_params: SendParams,
+}
+
+#[derive(Clone)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
+pub struct SendParams {
+    pub user_op: UserOperationV07,
 }
