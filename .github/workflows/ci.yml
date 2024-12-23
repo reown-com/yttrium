@@ -31,6 +31,8 @@ jobs:
       - run: while ! curl localhost:3000/ping; do sleep 1; done
       - run: cargo build --workspace --features=full --all-targets
       - run: cargo test --features=full --lib --bins
+        env:
+          REOWN_PROJECT_ID: ${{ vars.REOWN_PROJECT_ID }}
       - run: cargo clippy --workspace --features=full --all-targets -- -D warnings
       - run: cargo clippy -p yttrium --all-targets -- -D warnings # `-p yttrium` to avoid feature unification; kotlin-ffi enables uniffi feature and we want to test without that
       - run: cargo +nightly fmt --all -- --check

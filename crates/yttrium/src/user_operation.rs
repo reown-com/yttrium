@@ -70,6 +70,7 @@ pub struct UserOperationV07 {
     pub pre_verification_gas: U256,
     pub max_fee_per_gas: U256,
     pub max_priority_fee_per_gas: U256,
+    // TODO separate out these types into a SponsoredUserOperationV07 struct?
     pub paymaster: Option<Address>,
     pub paymaster_verification_gas_limit: Option<U256>,
     pub paymaster_post_op_gas_limit: Option<U256>,

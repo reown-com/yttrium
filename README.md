@@ -117,6 +117,9 @@ PIMLICO_RPC_URL
 ```
 
 ## Justfile targets
+
+There are various `just` targets to use depending on your scenario. This shows approximately what happens for each target, as this diagram may be out-of-date. Take a look at the comments inside `justfile` for more information.
+
 ```mermaid
 flowchart TD
     _pass --> p[PASS]
