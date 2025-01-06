@@ -58,8 +58,9 @@ sol! {
     }
 }
 
+// https://github.com/rhinestonewtf/module-sdk/blob/main/src/module/smart-sessions/constants.ts#L3
 pub const SMART_SESSIONS_ADDRESS: Address =
-    address!("DDFF43A42726df11E34123f747bDce0f755F784d");
+    address!("00000000002B0eCfbD0496EE71e01257dA0E37DE");
 
 // https://github.com/rhinestonewtf/module-sdk/blob/1f2f2c5380614ad07b6e1ccbb5a9ed55374c673c/src/module/smart-sessions/installation.ts#L12
 pub fn get_smart_sessions_validator(
@@ -88,7 +89,7 @@ pub fn get_permission_id(session: &Session) -> B256 {
     )
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum SmartSessionMode {
     Use,
     Enable,
@@ -138,17 +139,7 @@ fn encode_smart_session_signature(
 ) -> Bytes {
     match mode {
         SmartSessionMode::Use => {
-            let signature = signature.abi_encode();
-            let mut compress_state = fastlz_rs::CompressState::new();
-            let compressed = Bytes::from(
-                compress_state
-                    .compress_to_vec(
-                        &signature,
-                        fastlz_rs::CompressionLevel::Level1,
-                    )
-                    .expect("this shouldn't panic"),
-            );
-            (FixedBytes::from(mode.to_u8()), permission_id, compressed)
+            (FixedBytes::from(mode.to_u8()), permission_id, signature)
                 .abi_encode_packed()
                 .into()
         }
