@@ -36,6 +36,7 @@ sol! {
         PolicyData[] userOpPolicies;
         ERC7739Data erc7739Policies;
         ActionData[] actions;
+        bool permitERC4337Paymaster;
     }
 
     // https://github.com/erc7579/smartsessions/blob/b1624f851f56ec67cc677dce129e9caa12fcafd9/contracts/DataTypes.sol#L14
