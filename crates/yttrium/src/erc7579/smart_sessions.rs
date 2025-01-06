@@ -7,6 +7,7 @@ use {
     },
 };
 
+// https://github.com/erc7579/smartsessions/blob/main/contracts/DataTypes.sol
 sol! {
     struct ChainDigest {
         uint64 chainId;
@@ -18,8 +19,16 @@ sol! {
         bytes initData;
     }
 
+    struct ERC7739Context {
+        // we can not use a detailed EIP712Domain struct here.
+        // EIP712 specifies: Protocol designers only need to include the fields that make sense for their signing domain.
+        // Unused fields are left out of the struct type.
+        bytes32 appDomainSeparator;
+        string[] contentNames;
+    }
+
     struct ERC7739Data {
-        string[] allowedERC7739Content;
+        ERC7739Context[] allowedERC7739Content;
         PolicyData[] erc1271Policies;
     }
 
@@ -36,14 +45,15 @@ sol! {
         PolicyData[] userOpPolicies;
         ERC7739Data erc7739Policies;
         ActionData[] actions;
+        // when setting `permitERC4337Paymaster` to true, the length of `userOpPolicies` needs to be at least 1
         bool permitERC4337Paymaster;
     }
 
-    // https://github.com/erc7579/smartsessions/blob/b1624f851f56ec67cc677dce129e9caa12fcafd9/contracts/DataTypes.sol#L14
     struct EnableSession {
         uint8 chainDigestIndex;
         ChainDigest[] hashesAndChainIds;
         Session sessionToEnable;
+        // in order to enable a session, the smart account has to sign a digest. The signature for this is stored here.
         bytes permissionEnableSig;
     }
 
@@ -68,10 +78,23 @@ pub fn get_smart_sessions_validator(
     sessions: &[Session],
     hook: Option<Address>,
 ) -> Module {
+    let use_registry = true;
     Module {
         address: SMART_SESSIONS_ADDRESS,
         module: SMART_SESSIONS_ADDRESS,
-        init_data: sessions.abi_encode_params().into(),
+        init_data: (
+            FixedBytes::from(
+                if use_registry {
+                    SmartSessionMode::Enable
+                } else {
+                    SmartSessionMode::UnsafeEnable
+                }
+                .to_u8(),
+            ),
+            sessions.abi_encode_params(),
+        )
+            .abi_encode_packed()
+            .into(),
         de_init_data: Default::default(),
         additional_context: Default::default(),
         hook,

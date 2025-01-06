@@ -68,13 +68,13 @@ async fn test() {
     let session_owner = LocalSigner::random();
 
     let session = Session {
-        sessionValidator: OWNABLE_VALIDATOR_ADDRESS, // todo is this wrong???
+        sessionValidator: OWNABLE_VALIDATOR_ADDRESS,
         sessionValidatorInitData: encode_owners(&Owners {
             threshold: 1,
             owners: vec![session_owner.address()],
         }),
         salt: B256::default(),
-        userOpPolicies: vec![],
+        userOpPolicies: vec![get_sudo_policy()],
         erc7739Policies: ERC7739Data {
             allowedERC7739Content: vec![],
             erc1271Policies: vec![],
@@ -84,6 +84,7 @@ async fn test() {
             actionTargetSelector: fixed_bytes!("00000000"), /* function selector to be used in the execution, in this case no function selector is used */
             actionPolicies: vec![get_sudo_policy()],
         }],
+        permitERC4337Paymaster: true,
     };
 
     let smart_sessions = get_smart_sessions_validator(&[session.clone()], None);
