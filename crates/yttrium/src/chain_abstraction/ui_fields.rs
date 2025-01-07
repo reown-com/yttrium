@@ -2,7 +2,7 @@ use {
     super::{
         amount::Amount,
         api::{
-            prepare::RouteResponseAvailable, FeeEstimatedTransaction,
+            prepare::PrepareResponseAvailable, FeeEstimatedTransaction,
             Transaction,
         },
     },
@@ -42,7 +42,7 @@ pub struct TransactionFee {
 }
 
 pub fn ui_fields(
-    route_response: RouteResponseAvailable,
+    route_response: PrepareResponseAvailable,
     estimated_transactions: Vec<(Transaction, Eip1559Estimation, U256)>,
     estimated_initial_transaction: (Transaction, Eip1559Estimation, U256),
     fungibles: Vec<FungiblePriceItem>,
@@ -252,7 +252,7 @@ mod tests {
         };
 
         let fields = ui_fields(
-            RouteResponseAvailable {
+            PrepareResponseAvailable {
                 orchestration_id: "".to_owned(),
                 metadata: Metadata {
                     funding_from: vec![FundingMetadata {

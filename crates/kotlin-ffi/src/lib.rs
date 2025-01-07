@@ -16,7 +16,7 @@ use {
         account_client::AccountClient as YAccountClient,
         chain_abstraction::{
             api::{
-                prepare::{PrepareResponse, RouteResponseAvailable},
+                prepare::{PrepareResponse, PrepareResponseAvailable},
                 status::{StatusResponse, StatusResponseCompleted},
                 InitialTransaction,
             },
@@ -141,7 +141,7 @@ impl ChainAbstractionClient {
 
     pub async fn get_ui_fields(
         &self,
-        route_response: RouteResponseAvailable,
+        route_response: PrepareResponseAvailable,
         currency: Currency,
     ) -> Result<UiFields, FFIError> {
         self.client
