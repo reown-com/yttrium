@@ -47,7 +47,7 @@ async fn happy_path() {
             input: Bytes::new(),
         };
 
-        let result = client.prepare(txn).await.unwrap();
+        let result = client.prepare(txn).await;
         assert!(matches!(
             result,
             PreparedGasAbstraction::DeploymentRequired { .. }
@@ -92,7 +92,7 @@ async fn happy_path() {
             input: Bytes::new(),
         };
 
-        let result = client.prepare(txn).await.unwrap();
+        let result = client.prepare(txn).await;
         assert!(matches!(
             result,
             PreparedGasAbstraction::DeploymentNotRequired { .. }

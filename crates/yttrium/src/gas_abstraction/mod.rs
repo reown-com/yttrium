@@ -79,7 +79,7 @@ impl Client {
     pub async fn prepare(
         &self,
         transaction: InitialTransaction,
-    ) -> Result<PreparedGasAbstraction, String> {
+    ) -> PreparedGasAbstraction {
         let provider =
             self.provider_pool.get_provider(&transaction.chain_id).await;
 
@@ -113,15 +113,15 @@ impl Client {
                 auth,
             };
 
-            Ok(PreparedGasAbstraction::DeploymentRequired {
+            PreparedGasAbstraction::DeploymentRequired {
                 auth,
                 prepare_deploy_params: PrepareDeployParams { transaction },
-            })
+            }
         } else {
             let prepared_send =
                 self.create_sponsored_user_op(transaction).await;
 
-            Ok(PreparedGasAbstraction::DeploymentNotRequired { prepared_send })
+            PreparedGasAbstraction::DeploymentNotRequired { prepared_send }
         }
     }
 
