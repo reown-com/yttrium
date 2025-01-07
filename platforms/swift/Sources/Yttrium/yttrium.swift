@@ -986,6 +986,123 @@ public func FfiConverterTypeEndpoints_lower(_ value: Endpoints) -> RustBuffer {
     return FfiConverterTypeEndpoints.lower(value)
 }
 
+public struct FeeEstimatedTransaction {
+    public var chainId: String
+    public var from: Address
+    public var to: Address
+    public var value: U256
+    public var input: Bytes
+    public var gasLimit: U64
+    public var nonce: U64
+    public var maxFeePerGas: U128
+    public var maxPriorityFeePerGas: U128
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(chainId: String, from: Address, to: Address, value: U256, input: Bytes, gasLimit: U64, nonce: U64, maxFeePerGas: U128, maxPriorityFeePerGas: U128) {
+        self.chainId = chainId
+        self.from = from
+        self.to = to
+        self.value = value
+        self.input = input
+        self.gasLimit = gasLimit
+        self.nonce = nonce
+        self.maxFeePerGas = maxFeePerGas
+        self.maxPriorityFeePerGas = maxPriorityFeePerGas
+    }
+}
+
+extension FeeEstimatedTransaction: Equatable, Hashable {
+    public static func == (lhs: FeeEstimatedTransaction, rhs: FeeEstimatedTransaction) -> Bool {
+        if lhs.chainId != rhs.chainId {
+            return false
+        }
+        if lhs.from != rhs.from {
+            return false
+        }
+        if lhs.to != rhs.to {
+            return false
+        }
+        if lhs.value != rhs.value {
+            return false
+        }
+        if lhs.input != rhs.input {
+            return false
+        }
+        if lhs.gasLimit != rhs.gasLimit {
+            return false
+        }
+        if lhs.nonce != rhs.nonce {
+            return false
+        }
+        if lhs.maxFeePerGas != rhs.maxFeePerGas {
+            return false
+        }
+        if lhs.maxPriorityFeePerGas != rhs.maxPriorityFeePerGas {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(chainId)
+        hasher.combine(from)
+        hasher.combine(to)
+        hasher.combine(value)
+        hasher.combine(input)
+        hasher.combine(gasLimit)
+        hasher.combine(nonce)
+        hasher.combine(maxFeePerGas)
+        hasher.combine(maxPriorityFeePerGas)
+    }
+}
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeFeeEstimatedTransaction: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> FeeEstimatedTransaction {
+        return
+            try FeeEstimatedTransaction(
+                chainId: FfiConverterString.read(from: &buf),
+                from: FfiConverterTypeAddress.read(from: &buf),
+                to: FfiConverterTypeAddress.read(from: &buf),
+                value: FfiConverterTypeU256.read(from: &buf),
+                input: FfiConverterTypeBytes.read(from: &buf),
+                gasLimit: FfiConverterTypeU64.read(from: &buf),
+                nonce: FfiConverterTypeU64.read(from: &buf),
+                maxFeePerGas: FfiConverterTypeU128.read(from: &buf),
+                maxPriorityFeePerGas: FfiConverterTypeU128.read(from: &buf)
+            )
+    }
+
+    public static func write(_ value: FeeEstimatedTransaction, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.chainId, into: &buf)
+        FfiConverterTypeAddress.write(value.from, into: &buf)
+        FfiConverterTypeAddress.write(value.to, into: &buf)
+        FfiConverterTypeU256.write(value.value, into: &buf)
+        FfiConverterTypeBytes.write(value.input, into: &buf)
+        FfiConverterTypeU64.write(value.gasLimit, into: &buf)
+        FfiConverterTypeU64.write(value.nonce, into: &buf)
+        FfiConverterTypeU128.write(value.maxFeePerGas, into: &buf)
+        FfiConverterTypeU128.write(value.maxPriorityFeePerGas, into: &buf)
+    }
+}
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFeeEstimatedTransaction_lift(_ buf: RustBuffer) throws -> FeeEstimatedTransaction {
+    return try FfiConverterTypeFeeEstimatedTransaction.lift(buf)
+}
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFeeEstimatedTransaction_lower(_ value: FeeEstimatedTransaction) -> RustBuffer {
+    return FfiConverterTypeFeeEstimatedTransaction.lower(value)
+}
+
 public struct FundingMetadata {
     public var chainId: String
     public var tokenContract: Address
@@ -1077,6 +1194,91 @@ public func FfiConverterTypeFundingMetadata_lift(_ buf: RustBuffer) throws -> Fu
 #endif
 public func FfiConverterTypeFundingMetadata_lower(_ value: FundingMetadata) -> RustBuffer {
     return FfiConverterTypeFundingMetadata.lower(value)
+}
+
+public struct InitialTransaction {
+    public var chainId: String
+    public var from: Address
+    public var to: Address
+    public var value: U256
+    public var input: Bytes
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(chainId: String, from: Address, to: Address, value: U256, input: Bytes) {
+        self.chainId = chainId
+        self.from = from
+        self.to = to
+        self.value = value
+        self.input = input
+    }
+}
+
+extension InitialTransaction: Equatable, Hashable {
+    public static func == (lhs: InitialTransaction, rhs: InitialTransaction) -> Bool {
+        if lhs.chainId != rhs.chainId {
+            return false
+        }
+        if lhs.from != rhs.from {
+            return false
+        }
+        if lhs.to != rhs.to {
+            return false
+        }
+        if lhs.value != rhs.value {
+            return false
+        }
+        if lhs.input != rhs.input {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(chainId)
+        hasher.combine(from)
+        hasher.combine(to)
+        hasher.combine(value)
+        hasher.combine(input)
+    }
+}
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeInitialTransaction: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> InitialTransaction {
+        return
+            try InitialTransaction(
+                chainId: FfiConverterString.read(from: &buf),
+                from: FfiConverterTypeAddress.read(from: &buf),
+                to: FfiConverterTypeAddress.read(from: &buf),
+                value: FfiConverterTypeU256.read(from: &buf),
+                input: FfiConverterTypeBytes.read(from: &buf)
+            )
+    }
+
+    public static func write(_ value: InitialTransaction, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.chainId, into: &buf)
+        FfiConverterTypeAddress.write(value.from, into: &buf)
+        FfiConverterTypeAddress.write(value.to, into: &buf)
+        FfiConverterTypeU256.write(value.value, into: &buf)
+        FfiConverterTypeBytes.write(value.input, into: &buf)
+    }
+}
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+public func FfiConverterTypeInitialTransaction_lift(_ buf: RustBuffer) throws -> InitialTransaction {
+    return try FfiConverterTypeInitialTransaction.lift(buf)
+}
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+public func FfiConverterTypeInitialTransaction_lower(_ value: InitialTransaction) -> RustBuffer {
+    return FfiConverterTypeInitialTransaction.lower(value)
 }
 
 public struct InitialTransactionMetadata {
@@ -1611,35 +1813,32 @@ public func FfiConverterTypeStatusResponsePending_lower(_ value: StatusResponseP
 }
 
 public struct Transaction {
+    public var chainId: String
     public var from: Address
     public var to: Address
     public var value: U256
-    public var gas: U64
-    public var data: Bytes
+    public var input: Bytes
+    public var gasLimit: U64
     public var nonce: U64
-    public var chainId: String
-    public var gasPrice: U256
-    public var maxFeePerGas: U256
-    public var maxPriorityFeePerGas: U256
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(from: Address, to: Address, value: U256, gas: U64, data: Bytes, nonce: U64, chainId: String, gasPrice: U256, maxFeePerGas: U256, maxPriorityFeePerGas: U256) {
+    public init(chainId: String, from: Address, to: Address, value: U256, input: Bytes, gasLimit: U64, nonce: U64) {
+        self.chainId = chainId
         self.from = from
         self.to = to
         self.value = value
-        self.gas = gas
-        self.data = data
+        self.input = input
+        self.gasLimit = gasLimit
         self.nonce = nonce
-        self.chainId = chainId
-        self.gasPrice = gasPrice
-        self.maxFeePerGas = maxFeePerGas
-        self.maxPriorityFeePerGas = maxPriorityFeePerGas
     }
 }
 
 extension Transaction: Equatable, Hashable {
     public static func == (lhs: Transaction, rhs: Transaction) -> Bool {
+        if lhs.chainId != rhs.chainId {
+            return false
+        }
         if lhs.from != rhs.from {
             return false
         }
@@ -1649,41 +1848,26 @@ extension Transaction: Equatable, Hashable {
         if lhs.value != rhs.value {
             return false
         }
-        if lhs.gas != rhs.gas {
+        if lhs.input != rhs.input {
             return false
         }
-        if lhs.data != rhs.data {
+        if lhs.gasLimit != rhs.gasLimit {
             return false
         }
         if lhs.nonce != rhs.nonce {
-            return false
-        }
-        if lhs.chainId != rhs.chainId {
-            return false
-        }
-        if lhs.gasPrice != rhs.gasPrice {
-            return false
-        }
-        if lhs.maxFeePerGas != rhs.maxFeePerGas {
-            return false
-        }
-        if lhs.maxPriorityFeePerGas != rhs.maxPriorityFeePerGas {
             return false
         }
         return true
     }
 
     public func hash(into hasher: inout Hasher) {
+        hasher.combine(chainId)
         hasher.combine(from)
         hasher.combine(to)
         hasher.combine(value)
-        hasher.combine(gas)
-        hasher.combine(data)
+        hasher.combine(input)
+        hasher.combine(gasLimit)
         hasher.combine(nonce)
-        hasher.combine(chainId)
-        hasher.combine(gasPrice)
-        hasher.combine(maxFeePerGas)
-        hasher.combine(maxPriorityFeePerGas)
     }
 }
 
@@ -1694,30 +1878,24 @@ public struct FfiConverterTypeTransaction: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Transaction {
         return
             try Transaction(
+                chainId: FfiConverterString.read(from: &buf),
                 from: FfiConverterTypeAddress.read(from: &buf),
                 to: FfiConverterTypeAddress.read(from: &buf),
                 value: FfiConverterTypeU256.read(from: &buf),
-                gas: FfiConverterTypeU64.read(from: &buf),
-                data: FfiConverterTypeBytes.read(from: &buf),
-                nonce: FfiConverterTypeU64.read(from: &buf),
-                chainId: FfiConverterString.read(from: &buf),
-                gasPrice: FfiConverterTypeU256.read(from: &buf),
-                maxFeePerGas: FfiConverterTypeU256.read(from: &buf),
-                maxPriorityFeePerGas: FfiConverterTypeU256.read(from: &buf)
+                input: FfiConverterTypeBytes.read(from: &buf),
+                gasLimit: FfiConverterTypeU64.read(from: &buf),
+                nonce: FfiConverterTypeU64.read(from: &buf)
             )
     }
 
     public static func write(_ value: Transaction, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.chainId, into: &buf)
         FfiConverterTypeAddress.write(value.from, into: &buf)
         FfiConverterTypeAddress.write(value.to, into: &buf)
         FfiConverterTypeU256.write(value.value, into: &buf)
-        FfiConverterTypeU64.write(value.gas, into: &buf)
-        FfiConverterTypeBytes.write(value.data, into: &buf)
+        FfiConverterTypeBytes.write(value.input, into: &buf)
+        FfiConverterTypeU64.write(value.gasLimit, into: &buf)
         FfiConverterTypeU64.write(value.nonce, into: &buf)
-        FfiConverterString.write(value.chainId, into: &buf)
-        FfiConverterTypeU256.write(value.gasPrice, into: &buf)
-        FfiConverterTypeU256.write(value.maxFeePerGas, into: &buf)
-        FfiConverterTypeU256.write(value.maxPriorityFeePerGas, into: &buf)
     }
 }
 
@@ -1794,6 +1972,160 @@ public func FfiConverterTypeTransactionFee_lift(_ buf: RustBuffer) throws -> Tra
 #endif
 public func FfiConverterTypeTransactionFee_lower(_ value: TransactionFee) -> RustBuffer {
     return FfiConverterTypeTransactionFee.lower(value)
+}
+
+public struct TxnDetails {
+    public var transaction: FeeEstimatedTransaction
+    public var fee: TransactionFee
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(transaction: FeeEstimatedTransaction, fee: TransactionFee) {
+        self.transaction = transaction
+        self.fee = fee
+    }
+}
+
+extension TxnDetails: Equatable, Hashable {
+    public static func == (lhs: TxnDetails, rhs: TxnDetails) -> Bool {
+        if lhs.transaction != rhs.transaction {
+            return false
+        }
+        if lhs.fee != rhs.fee {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(transaction)
+        hasher.combine(fee)
+    }
+}
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeTxnDetails: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> TxnDetails {
+        return
+            try TxnDetails(
+                transaction: FfiConverterTypeFeeEstimatedTransaction.read(from: &buf),
+                fee: FfiConverterTypeTransactionFee.read(from: &buf)
+            )
+    }
+
+    public static func write(_ value: TxnDetails, into buf: inout [UInt8]) {
+        FfiConverterTypeFeeEstimatedTransaction.write(value.transaction, into: &buf)
+        FfiConverterTypeTransactionFee.write(value.fee, into: &buf)
+    }
+}
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTxnDetails_lift(_ buf: RustBuffer) throws -> TxnDetails {
+    return try FfiConverterTypeTxnDetails.lift(buf)
+}
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTxnDetails_lower(_ value: TxnDetails) -> RustBuffer {
+    return FfiConverterTypeTxnDetails.lower(value)
+}
+
+public struct UiFields {
+    public var route: [TxnDetails]
+    public var localRouteTotal: Amount
+    public var bridge: [TransactionFee]
+    public var localBridgeTotal: Amount
+    public var initial: TxnDetails
+    public var localTotal: Amount
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(route: [TxnDetails], localRouteTotal: Amount, bridge: [TransactionFee], localBridgeTotal: Amount, initial: TxnDetails, localTotal: Amount) {
+        self.route = route
+        self.localRouteTotal = localRouteTotal
+        self.bridge = bridge
+        self.localBridgeTotal = localBridgeTotal
+        self.initial = initial
+        self.localTotal = localTotal
+    }
+}
+
+extension UiFields: Equatable, Hashable {
+    public static func == (lhs: UiFields, rhs: UiFields) -> Bool {
+        if lhs.route != rhs.route {
+            return false
+        }
+        if lhs.localRouteTotal != rhs.localRouteTotal {
+            return false
+        }
+        if lhs.bridge != rhs.bridge {
+            return false
+        }
+        if lhs.localBridgeTotal != rhs.localBridgeTotal {
+            return false
+        }
+        if lhs.initial != rhs.initial {
+            return false
+        }
+        if lhs.localTotal != rhs.localTotal {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(route)
+        hasher.combine(localRouteTotal)
+        hasher.combine(bridge)
+        hasher.combine(localBridgeTotal)
+        hasher.combine(initial)
+        hasher.combine(localTotal)
+    }
+}
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeUiFields: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> UiFields {
+        return
+            try UiFields(
+                route: FfiConverterSequenceTypeTxnDetails.read(from: &buf),
+                localRouteTotal: FfiConverterTypeAmount.read(from: &buf),
+                bridge: FfiConverterSequenceTypeTransactionFee.read(from: &buf),
+                localBridgeTotal: FfiConverterTypeAmount.read(from: &buf),
+                initial: FfiConverterTypeTxnDetails.read(from: &buf),
+                localTotal: FfiConverterTypeAmount.read(from: &buf)
+            )
+    }
+
+    public static func write(_ value: UiFields, into buf: inout [UInt8]) {
+        FfiConverterSequenceTypeTxnDetails.write(value.route, into: &buf)
+        FfiConverterTypeAmount.write(value.localRouteTotal, into: &buf)
+        FfiConverterSequenceTypeTransactionFee.write(value.bridge, into: &buf)
+        FfiConverterTypeAmount.write(value.localBridgeTotal, into: &buf)
+        FfiConverterTypeTxnDetails.write(value.initial, into: &buf)
+        FfiConverterTypeAmount.write(value.localTotal, into: &buf)
+    }
+}
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+public func FfiConverterTypeUiFields_lift(_ buf: RustBuffer) throws -> UiFields {
+    return try FfiConverterTypeUiFields.lift(buf)
+}
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+public func FfiConverterTypeUiFields_lower(_ value: UiFields) -> RustBuffer {
+    return FfiConverterTypeUiFields.lower(value)
 }
 
 // Note that we don't yet support `indirect` for enums.
@@ -1990,7 +2322,7 @@ extension Erc6492Error: Foundation.LocalizedError {
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
 
-public enum RouteResponse {
+public enum PrepareResponse {
     case success(RouteResponseSuccess
     )
     case error(RouteResponseError
@@ -2000,10 +2332,10 @@ public enum RouteResponse {
 #if swift(>=5.8)
     @_documentation(visibility: private)
 #endif
-public struct FfiConverterTypeRouteResponse: FfiConverterRustBuffer {
-    typealias SwiftType = RouteResponse
+public struct FfiConverterTypePrepareResponse: FfiConverterRustBuffer {
+    typealias SwiftType = PrepareResponse
 
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> RouteResponse {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> PrepareResponse {
         let variant: Int32 = try readInt(&buf)
         switch variant {
         case 1: return try .success(FfiConverterTypeRouteResponseSuccess.read(from: &buf)
@@ -2016,7 +2348,7 @@ public struct FfiConverterTypeRouteResponse: FfiConverterRustBuffer {
         }
     }
 
-    public static func write(_ value: RouteResponse, into buf: inout [UInt8]) {
+    public static func write(_ value: PrepareResponse, into buf: inout [UInt8]) {
         switch value {
         case let .success(v1):
             writeInt(&buf, Int32(1))
@@ -2032,18 +2364,18 @@ public struct FfiConverterTypeRouteResponse: FfiConverterRustBuffer {
 #if swift(>=5.8)
     @_documentation(visibility: private)
 #endif
-public func FfiConverterTypeRouteResponse_lift(_ buf: RustBuffer) throws -> RouteResponse {
-    return try FfiConverterTypeRouteResponse.lift(buf)
+public func FfiConverterTypePrepareResponse_lift(_ buf: RustBuffer) throws -> PrepareResponse {
+    return try FfiConverterTypePrepareResponse.lift(buf)
 }
 
 #if swift(>=5.8)
     @_documentation(visibility: private)
 #endif
-public func FfiConverterTypeRouteResponse_lower(_ value: RouteResponse) -> RustBuffer {
-    return FfiConverterTypeRouteResponse.lower(value)
+public func FfiConverterTypePrepareResponse_lower(_ value: PrepareResponse) -> RustBuffer {
+    return FfiConverterTypePrepareResponse.lower(value)
 }
 
-extension RouteResponse: Equatable, Hashable {}
+extension PrepareResponse: Equatable, Hashable {}
 
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
@@ -2220,6 +2552,56 @@ private struct FfiConverterSequenceTypeTransaction: FfiConverterRustBuffer {
     }
 }
 
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+private struct FfiConverterSequenceTypeTransactionFee: FfiConverterRustBuffer {
+    typealias SwiftType = [TransactionFee]
+
+    public static func write(_ value: [TransactionFee], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeTransactionFee.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [TransactionFee] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [TransactionFee]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            try seq.append(FfiConverterTypeTransactionFee.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+private struct FfiConverterSequenceTypeTxnDetails: FfiConverterRustBuffer {
+    typealias SwiftType = [TxnDetails]
+
+    public static func write(_ value: [TxnDetails], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeTxnDetails.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [TxnDetails] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [TxnDetails]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            try seq.append(FfiConverterTypeTxnDetails.read(from: &buf))
+        }
+        return seq
+    }
+}
+
 /**
  * Typealias from the type name used in the UDL file to the builtin type.  This
  * is needed because the UDL type name is used in function/method signatures.
@@ -2341,6 +2723,47 @@ public func FfiConverterTypeBytes_lift(_ value: RustBuffer) throws -> Bytes {
 #endif
 public func FfiConverterTypeBytes_lower(_ value: Bytes) -> RustBuffer {
     return FfiConverterTypeBytes.lower(value)
+}
+
+/**
+ * Typealias from the type name used in the UDL file to the builtin type.  This
+ * is needed because the UDL type name is used in function/method signatures.
+ */
+public typealias U128 = String
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeU128: FfiConverter {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> U128 {
+        return try FfiConverterString.read(from: &buf)
+    }
+
+    public static func write(_ value: U128, into buf: inout [UInt8]) {
+        return FfiConverterString.write(value, into: &buf)
+    }
+
+    public static func lift(_ value: RustBuffer) throws -> U128 {
+        return try FfiConverterString.lift(value)
+    }
+
+    public static func lower(_ value: U128) -> RustBuffer {
+        return FfiConverterString.lower(value)
+    }
+}
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+public func FfiConverterTypeU128_lift(_ value: RustBuffer) throws -> U128 {
+    return try FfiConverterTypeU128.lift(value)
+}
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+public func FfiConverterTypeU128_lower(_ value: U128) -> RustBuffer {
+    return FfiConverterTypeU128.lower(value)
 }
 
 /**
