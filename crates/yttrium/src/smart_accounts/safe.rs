@@ -15,17 +15,20 @@ use {
             Execution,
         },
         smart_accounts::account_address::AccountAddress,
-        user_operation::hash::pack_v07::{
-            combine::combine_and_trim_first_16_bytes,
-            hashed_paymaster_and_data::get_data,
+        user_operation::{
+            hash::pack_v07::{
+                combine::combine_and_trim_first_16_bytes,
+                hashed_paymaster_and_data::get_data,
+            },
+            UserOperationV07,
         },
     },
     alloy::{
         dyn_abi::{DynSolValue, Eip712Domain},
         network::Network,
         primitives::{
-            address, bytes, keccak256, Address, Bytes, FixedBytes, Uint, B256,
-            U128, U256,
+            address, aliases::U48, bytes, keccak256, Address, Bytes,
+            FixedBytes, Uint, B256, U128, U256, U64,
         },
         providers::Provider,
         sol,
@@ -210,6 +213,19 @@ sol! {
             uint256 payment,
             address paymentReceiver
         ) external;
+    }
+}
+
+sol! {
+    #[allow(clippy::too_many_arguments)]
+    #[sol(rpc)]
+    contract AddSafe7579Contract {
+        struct ModuleInit {
+            address module;
+            bytes initData;
+        }
+
+        function addSafe7579(address safe7579, ModuleInit[] calldata validators, ModuleInit[] calldata executors, ModuleInit[] calldata fallbacks, ModuleInit[] calldata hooks, address[] calldata attesters, uint8 threshold) external;
     }
 }
 
@@ -508,6 +524,90 @@ pub async fn sign_step_3(
         factory_data,
         sign_step_3_params.signature,
     ))
+}
+
+pub fn user_operation_to_safe_op(
+    user_op: &UserOperationV07,
+    entrypoint: Address,
+    chain_id: U64,
+    valid_after: U48,
+    valid_until: U48,
+) -> (SafeOp, Eip712Domain) {
+    // TODO handle panic
+    fn coerce_u256_to_u128(u: U256) -> U128 {
+        U128::from(u)
+    }
+
+    let safe_op = SafeOp {
+        safe: user_op.sender.into(),
+        callData: user_op.call_data.clone(),
+        nonce: user_op.nonce,
+        initCode: user_op
+            .factory
+            .map(|factory| {
+                factory
+                    .into_iter()
+                    .chain(user_op.factory_data.clone().unwrap())
+                    .collect()
+            })
+            .unwrap_or_default(),
+        maxFeePerGas: u128::from_be_bytes(
+            coerce_u256_to_u128(user_op.max_fee_per_gas).to_be_bytes(),
+        ),
+        maxPriorityFeePerGas: u128::from_be_bytes(
+            coerce_u256_to_u128(user_op.max_priority_fee_per_gas).to_be_bytes(),
+        ),
+        preVerificationGas: user_op.pre_verification_gas,
+        verificationGasLimit: u128::from_be_bytes(
+            coerce_u256_to_u128(user_op.verification_gas_limit).to_be_bytes(),
+        ),
+        callGasLimit: u128::from_be_bytes(
+            coerce_u256_to_u128(user_op.call_gas_limit).to_be_bytes(),
+        ),
+        // signerToSafeSmartAccount -> getPaymasterAndData
+        paymasterAndData: user_op
+            .paymaster
+            .map(|paymaster| {
+                [
+                    paymaster.to_vec(),
+                    coerce_u256_to_u128(
+                        user_op
+                            .paymaster_verification_gas_limit
+                            .unwrap_or(Uint::from(0)),
+                    )
+                    .to_be_bytes_vec(),
+                    coerce_u256_to_u128(
+                        user_op
+                            .paymaster_post_op_gas_limit
+                            .unwrap_or(Uint::from(0)),
+                    )
+                    .to_be_bytes_vec(),
+                    user_op.paymaster_data.clone().unwrap_or_default().to_vec(),
+                ]
+                .concat()
+                .into()
+            })
+            .unwrap_or_default(),
+        validAfter: valid_after,
+        validUntil: valid_until,
+        entryPoint: entrypoint,
+    };
+
+    // This is always the Safe 4337 module address now: https://reown-inc.slack.com/archives/C077RPLSZ71/p1733864707609549?thread_ts=1729617897.410709&cid=C077RPLSZ71
+    // let erc7579_launchpad_address = true;
+    // let verifying_contract = if erc7579_launchpad_address && !deployed {
+    //     user_op.sender.into()
+    // } else {
+    //     SAFE_4337_MODULE_ADDRESS
+    // };
+    let verifying_contract = SAFE_4337_MODULE_ADDRESS;
+
+    let domain = Eip712Domain {
+        chain_id: Some(Uint::from(chain_id)),
+        verifying_contract: Some(verifying_contract),
+        ..Default::default()
+    };
+    (safe_op, domain)
 }
 
 #[cfg(test)]

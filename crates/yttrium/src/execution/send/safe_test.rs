@@ -11,17 +11,17 @@ use {
         },
         chain::ChainId,
         config::Config,
-        entry_point::EntryPointVersion,
+        entry_point::{EntryPointVersion, ENTRYPOINT_ADDRESS_V07},
         execution::Execution,
         smart_accounts::{
             account_address::AccountAddress,
             nonce::get_nonce,
             safe::{
                 factory_data, get_account_address, get_call_data,
-                get_call_data_with_try, init_data, Owners, Safe7579Launchpad,
-                SafeOp, DUMMY_SIGNATURE, SAFE_4337_MODULE_ADDRESS,
-                SAFE_ERC_7579_LAUNCHPAD_ADDRESS, SAFE_PROXY_FACTORY_1_4_1,
-                SAFE_SINGLETON_1_4_1,
+                get_call_data_with_try, init_data, user_operation_to_safe_op,
+                Owners, Safe7579Launchpad, SafeOp, DUMMY_SIGNATURE,
+                SAFE_4337_MODULE_ADDRESS, SAFE_ERC_7579_LAUNCHPAD_ADDRESS,
+                SAFE_PROXY_FACTORY_1_4_1, SAFE_SINGLETON_1_4_1,
             },
         },
         user_operation::{Authorization, UserOperationV07},
@@ -29,7 +29,7 @@ use {
     alloy::{
         dyn_abi::{DynSolValue, Eip712Domain},
         network::Ethereum,
-        primitives::{aliases::U48, Bytes, Uint, B256, U128, U160, U256},
+        primitives::{aliases::U48, Uint, B256, U160, U256},
         providers::{Provider, ReqwestProvider},
         signers::{k256::ecdsa::SigningKey, local::LocalSigner, SignerSync},
         sol_types::{SolCall, SolStruct},
@@ -154,6 +154,7 @@ pub async fn send_transactions(
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
 pub struct PreparedSendTransaction {
     pub safe_op: SafeOp,
     pub domain: Eip712Domain,
@@ -345,83 +346,13 @@ where
 
     let valid_after = U48::from(0);
     let valid_until = U48::from(0);
-
-    // TODO handle panic
-    fn coerce_u256_to_u128(u: U256) -> U128 {
-        U128::from(u)
-    }
-
-    let safe_op = SafeOp {
-        safe: account_address.into(),
-        callData: user_op.call_data.clone(),
-        nonce: user_op.nonce,
-        initCode: deployed
-            .not()
-            .then(|| {
-                [
-                    user_op.clone().factory.unwrap().to_vec().into(),
-                    user_op.clone().factory_data.unwrap(),
-                ]
-                .concat()
-                .into()
-            })
-            .unwrap_or(Bytes::new()),
-        maxFeePerGas: u128::from_be_bytes(
-            coerce_u256_to_u128(user_op.max_fee_per_gas).to_be_bytes(),
-        ),
-        maxPriorityFeePerGas: u128::from_be_bytes(
-            coerce_u256_to_u128(user_op.max_priority_fee_per_gas).to_be_bytes(),
-        ),
-        preVerificationGas: user_op.pre_verification_gas,
-        verificationGasLimit: u128::from_be_bytes(
-            coerce_u256_to_u128(user_op.verification_gas_limit).to_be_bytes(),
-        ),
-        callGasLimit: u128::from_be_bytes(
-            coerce_u256_to_u128(user_op.call_gas_limit).to_be_bytes(),
-        ),
-        // signerToSafeSmartAccount -> getPaymasterAndData
-        paymasterAndData: user_op
-            .paymaster
-            .map(|paymaster| {
-                [
-                    paymaster.to_vec(),
-                    coerce_u256_to_u128(
-                        user_op
-                            .paymaster_verification_gas_limit
-                            .unwrap_or(Uint::from(0)),
-                    )
-                    .to_be_bytes_vec(),
-                    coerce_u256_to_u128(
-                        user_op
-                            .paymaster_post_op_gas_limit
-                            .unwrap_or(Uint::from(0)),
-                    )
-                    .to_be_bytes_vec(),
-                    user_op.paymaster_data.clone().unwrap_or_default().to_vec(),
-                ]
-                .concat()
-                .into()
-            })
-            .unwrap_or_default(),
-        validAfter: valid_after,
-        validUntil: valid_until,
-        entryPoint: entry_point_address.to_address(),
-    };
-
-    // This is always the Safe 4337 module address now: https://reown-inc.slack.com/archives/C077RPLSZ71/p1733864707609549?thread_ts=1729617897.410709&cid=C077RPLSZ71
-    // let erc7579_launchpad_address = true;
-    // let verifying_contract = if erc7579_launchpad_address && !deployed {
-    //     user_op.sender.into()
-    // } else {
-    //     SAFE_4337_MODULE_ADDRESS
-    // };
-    let verifying_contract = SAFE_4337_MODULE_ADDRESS;
-
-    let domain = Eip712Domain {
-        chain_id: Some(Uint::from(chain_id)),
-        verifying_contract: Some(verifying_contract),
-        ..Default::default()
-    };
+    let (safe_op, domain) = user_operation_to_safe_op(
+        &user_op,
+        ENTRYPOINT_ADDRESS_V07,
+        U64::from(chain_id),
+        valid_after,
+        valid_until,
+    );
     let hash = safe_op.eip712_signing_hash(&domain);
 
     Ok(PreparedSendTransaction {
@@ -436,7 +367,9 @@ where
     })
 }
 
+use alloy::primitives::U64;
 pub use alloy::primitives::{Address, PrimitiveSignature};
+#[derive(Clone)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
 pub struct OwnerSignature {
     pub owner: Address,
@@ -525,7 +458,7 @@ mod tests {
         },
         alloy::{
             network::{TransactionBuilder, TransactionBuilder7702},
-            primitives::{eip191_hash_message, fixed_bytes, U160, U64},
+            primitives::{eip191_hash_message, fixed_bytes, Bytes, U160, U64},
             providers::{ext::AnvilApi, PendingTransactionConfig},
             rpc::types::TransactionRequest,
             sol,
@@ -1247,7 +1180,7 @@ mod tests {
         let authority = LocalSigner::random();
         provider.anvil_set_balance(authority.address(), U256::MAX).await?;
 
-        let chain_id = ChainId::ETHEREUM_SEPOLIA.eip155_chain_id();
+        let chain_id = U256::from(ChainId::ETHEREUM_SEPOLIA.eip155_chain_id());
         let auth_7702 = alloy::rpc::types::Authorization {
             chain_id,
             address: contract_address.into(),
@@ -1373,7 +1306,7 @@ mod tests {
             (*contract.address(), call.calldata().to_owned())
         };
 
-        let chain_id = ChainId::ETHEREUM_SEPOLIA.eip155_chain_id();
+        let chain_id = U256::from(ChainId::ETHEREUM_SEPOLIA.eip155_chain_id());
         let auth_7702 = alloy::rpc::types::Authorization {
             chain_id,
             address: contract_address.into(),

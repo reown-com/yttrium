@@ -26,7 +26,10 @@ use {
         },
         config::Config,
         execution::{
-            send::safe_test::{self, Address as FFIAddress, OwnerSignature},
+            send::safe_test::{
+                self, Address as FFIAddress, OwnerSignature,
+                PreparedSendTransaction,
+            },
             Execution,
         },
         smart_accounts::{
@@ -40,10 +43,9 @@ uniffi::custom_type!(FFIAddress, String, {
     try_lift: |val| Ok(val.parse()?),
     lower: |obj| obj.to_string(),
 });
-
-uniffi::custom_type!(FfiAccountAddress, String, {
-    try_lift: |val| Ok(val.parse::<FFIAddress>()?.into()),
-    lower: |obj| obj.to_string(),
+uniffi::custom_type!(FfiAccountAddress, FFIAddress, {
+    try_lift: |val| Ok(val.into()),
+    lower: |obj| obj.into(),
 });
 
 fn uint_to_hex<const BITS: usize, const LIMBS: usize>(
@@ -94,12 +96,6 @@ impl From<alloy::providers::utils::Eip1559Estimation> for Eip1559Estimation {
 #[derive(uniffi::Record)]
 pub struct FfiPreparedSignature {
     pub message_hash: String,
-}
-
-#[derive(uniffi::Record)]
-pub struct PreparedSendTransaction {
-    pub hash: String,
-    pub do_send_transaction_params: String,
 }
 
 #[derive(Debug, thiserror::Error, uniffi::Error)]
@@ -197,7 +193,7 @@ impl ChainAbstractionClient {
 
     pub async fn erc20_token_balance(
         &self,
-        chain_id: String,
+        chain_id: &str,
         token: FFIAddress,
         owner: FFIAddress,
     ) -> Result<FFIU256, FFIError> {
@@ -268,19 +264,10 @@ impl FFIAccountClient {
         &self,
         transactions: Vec<Execution>,
     ) -> Result<PreparedSendTransaction, FFIError> {
-        let prepared_send_transaction = self
-            .account_client
+        self.account_client
             .prepare_send_transactions(transactions)
             .await
-            .map_err(|e| FFIError::General(e.to_string()))?;
-
-        Ok(PreparedSendTransaction {
-            hash: prepared_send_transaction.hash.to_string(),
-            do_send_transaction_params: serde_json::to_string(
-                &prepared_send_transaction.do_send_transaction_params,
-            )
-            .map_err(|e| FFIError::General(e.to_string()))?,
-        })
+            .map_err(|e| FFIError::General(e.to_string()))
     }
 
     pub async fn do_send_transactions(
