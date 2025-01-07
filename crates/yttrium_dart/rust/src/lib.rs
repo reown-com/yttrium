@@ -2,9 +2,7 @@ mod frb_generated; /* AUTO INJECTED BY flutter_rust_bridge. This line may not be
 use {
     alloy::{
         network::Ethereum,
-        primitives::{
-            U128 as FFIU128, U256 as FFIU256,
-        },
+        primitives::{U128 as FFIU128, U256 as FFIU256},
         providers::{Provider, ReqwestProvider},
     },
     flutter_rust_bridge::frb,
