@@ -11,7 +11,7 @@ use {
         entry_point::ENTRYPOINT_ADDRESS_V07,
         erc7579::{
             accounts::safe::encode_validator_key,
-            addresses::{MOCK_ATTESTER_ADDRESS, RHINESTONE_ATTESTER_ADDRESS},
+            addresses::RHINESTONE_ATTESTER_ADDRESS,
             ownable_validator::{
                 encode_owners, get_ownable_validator,
                 get_ownable_validator_mock_signature,
@@ -39,8 +39,9 @@ use {
         primitives::{
             address, eip191_hash_message, fixed_bytes, Address, B256, U256,
         },
+        rlp::Encodable,
         rpc::types::Authorization,
-        signers::{local::LocalSigner, SignerSync},
+        signers::{k256::ecdsa::SigningKey, local::LocalSigner, SignerSync},
         sol,
         sol_types::SolCall,
     },
@@ -49,12 +50,57 @@ use {
 };
 
 #[tokio::test]
-async fn test() {
+#[ignore]
+#[cfg(feature = "test_pimlico_api")]
+async fn test_pimlico() {
+    use {
+        crate::{
+            config::{Endpoint, Endpoints},
+            test_helpers::private_faucet,
+        },
+        std::env,
+    };
+    let config = Config {
+        endpoints: {
+            let api_key = env::var("PIMLICO_API_KEY")
+                .expect("You've not set the PIMLICO_API_KEY");
+
+            let rpc = {
+                let base_url = "https://odyssey.ithaca.xyz".to_owned();
+                Endpoint { api_key: api_key.clone(), base_url }
+            };
+
+            let bundler = {
+                let chain_id = 911867; // Odyssey Testnet
+                let base_url = format!(
+                    "https://api.pimlico.io/v2/{chain_id}/rpc?apikey={api_key}"
+                );
+                Endpoint { api_key: api_key.clone(), base_url }
+            };
+
+            Endpoints { rpc, paymaster: bundler.clone(), bundler }
+        },
+    };
+    let faucet = private_faucet();
+    test_impl(config, faucet).await
+}
+
+#[tokio::test]
+async fn test_local() {
     let config = Config::local();
+    let faucet =
+        anvil_faucet(config.endpoints.rpc.base_url.parse::<Url>().unwrap())
+            .await;
+    test_impl(config, faucet).await
+}
+
+async fn test_impl(config: Config, faucet: LocalSigner<SigningKey>) {
     let rpc_url = config.endpoints.rpc.base_url.parse::<Url>().unwrap();
+    println!("rpc_url: {}", rpc_url);
     let provider = ReqwestProvider::<Ethereum>::new_http(rpc_url.clone());
 
     let chain_id = provider.get_chain_id().await.unwrap();
+    println!("chain_id: {:?}", chain_id);
 
     let account = LocalSigner::random();
     let safe_owner = LocalSigner::random();
@@ -68,13 +114,13 @@ async fn test() {
     let session_owner = LocalSigner::random();
 
     let session = Session {
-        sessionValidator: OWNABLE_VALIDATOR_ADDRESS, // todo is this wrong???
+        sessionValidator: OWNABLE_VALIDATOR_ADDRESS,
         sessionValidatorInitData: encode_owners(&Owners {
             threshold: 1,
             owners: vec![session_owner.address()],
         }),
         salt: B256::default(),
-        userOpPolicies: vec![],
+        userOpPolicies: vec![get_sudo_policy()],
         erc7739Policies: ERC7739Data {
             allowedERC7739Content: vec![],
             erc1271Policies: vec![],
@@ -84,6 +130,7 @@ async fn test() {
             actionTargetSelector: fixed_bytes!("00000000"), /* function selector to be used in the execution, in this case no function selector is used */
             actionPolicies: vec![get_sudo_policy()],
         }],
+        permitERC4337Paymaster: true,
     };
 
     let smart_sessions = get_smart_sessions_validator(&[session.clone()], None);
@@ -118,56 +165,67 @@ async fn test() {
         }
     };
 
-    let faucet = anvil_faucet(rpc_url).await;
+    println!("using faucet: {}", faucet.address());
     let wallet = EthereumWallet::new(faucet);
     let wallet_provider = ProviderBuilder::new()
         .with_recommended_fillers()
         .wallet(wallet)
         .on_provider(provider.clone());
-    assert!(SetupContract::new(account.address(), wallet_provider.clone())
-        .setup(
-            owners.owners,
-            U256::from(owners.threshold),
-            SAFE_ERC_7579_LAUNCHPAD_ADDRESS,
-            AddSafe7579Contract::addSafe7579Call {
-                safe7579: SAFE_4337_MODULE_ADDRESS,
-                validators: vec![
-                    AddSafe7579Contract::ModuleInit {
-                        module: ownable_validator.address,
-                        initData: ownable_validator.init_data,
-                    },
-                    AddSafe7579Contract::ModuleInit {
-                        module: smart_sessions.address,
-                        initData: smart_sessions.init_data,
-                    },
-                ],
-                executors: vec![],
-                fallbacks: vec![],
-                hooks: vec![],
-                attesters: vec![
-                    RHINESTONE_ATTESTER_ADDRESS,
-                    MOCK_ATTESTER_ADDRESS,
-                ],
-                threshold: owners.threshold,
-            }
-            .abi_encode()
-            .into(),
-            SAFE_4337_MODULE_ADDRESS,
-            Address::ZERO,
-            U256::ZERO,
-            Address::ZERO,
-        )
-        .map(|mut t| {
-            t.set_authorization_list(vec![auth]);
-            t
-        })
-        .send()
-        .await
-        .unwrap()
-        .get_receipt()
-        .await
-        .unwrap()
-        .status());
+    let sent_txn =
+        SetupContract::new(account.address(), wallet_provider.clone())
+            .setup(
+                owners.owners,
+                U256::from(owners.threshold),
+                SAFE_ERC_7579_LAUNCHPAD_ADDRESS,
+                AddSafe7579Contract::addSafe7579Call {
+                    safe7579: SAFE_4337_MODULE_ADDRESS,
+                    validators: vec![
+                        AddSafe7579Contract::ModuleInit {
+                            module: ownable_validator.address,
+                            initData: ownable_validator.init_data,
+                        },
+                        AddSafe7579Contract::ModuleInit {
+                            module: smart_sessions.address,
+                            initData: smart_sessions.init_data,
+                        },
+                    ],
+                    executors: vec![],
+                    fallbacks: vec![],
+                    hooks: vec![],
+                    attesters: vec![
+                        RHINESTONE_ATTESTER_ADDRESS,
+                        // MOCK_ATTESTER_ADDRESS,
+                    ],
+                    threshold: 1,
+                }
+                .abi_encode()
+                .into(),
+                SAFE_4337_MODULE_ADDRESS,
+                Address::ZERO,
+                U256::ZERO,
+                Address::ZERO,
+            )
+            .map(|mut t| {
+                println!("t: {:?}", t);
+                println!("t.chain_id: {:?}", t.chain_id);
+                let mut buf = Vec::new();
+                auth.encode(&mut buf);
+                println!("auth: {}", hex::encode(buf));
+                t.set_authorization_list(vec![auth]);
+                // t.set_nonce(1);
+                // t.set_gas_limit(1000000);
+                // t.set_max_fee_per_gas(252);
+                // t.set_max_priority_fee_per_gas(0);
+                // t.set_chain_id(chain_id);
+                t
+            })
+            .send()
+            .await
+            .unwrap();
+    println!("txn hash: {}", sent_txn.tx_hash());
+    let receipt = sent_txn.get_receipt().await.unwrap();
+    println!("receipt: {:?}", receipt);
+    assert!(receipt.status());
 
     let nonce = get_nonce_with_key(
         &provider,

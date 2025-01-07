@@ -7,6 +7,7 @@ use {
     },
 };
 
+// https://github.com/rhinestonewtf/module-sdk/blob/main/src/module/ownable-validator/constants.ts
 pub const OWNABLE_VALIDATOR_ADDRESS: Address =
     address!("2483DA3A338895199E5e538530213157e931Bf06");
 
