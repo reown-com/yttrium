@@ -1180,7 +1180,7 @@ mod tests {
         let authority = LocalSigner::random();
         provider.anvil_set_balance(authority.address(), U256::MAX).await?;
 
-        let chain_id = ChainId::ETHEREUM_SEPOLIA.eip155_chain_id();
+        let chain_id = U256::from(ChainId::ETHEREUM_SEPOLIA.eip155_chain_id());
         let auth_7702 = alloy::rpc::types::Authorization {
             chain_id,
             address: contract_address.into(),
@@ -1306,7 +1306,7 @@ mod tests {
             (*contract.address(), call.calldata().to_owned())
         };
 
-        let chain_id = ChainId::ETHEREUM_SEPOLIA.eip155_chain_id();
+        let chain_id = U256::from(ChainId::ETHEREUM_SEPOLIA.eip155_chain_id());
         let auth_7702 = alloy::rpc::types::Authorization {
             chain_id,
             address: contract_address.into(),

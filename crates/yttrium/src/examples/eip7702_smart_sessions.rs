@@ -135,7 +135,7 @@ async fn test_impl(config: Config, faucet: LocalSigner<SigningKey>) {
     let smart_sessions = get_smart_sessions_validator(&[session.clone()], None);
 
     let auth_7702 = Authorization {
-        chain_id,
+        chain_id: U256::from(chain_id),
         address: SAFE_L2_SINGLETON_1_4_1,
         // TODO should this be `pending` tag? https://github.com/wevm/viem/blob/a49c100a0b2878fbfd9f1c9b43c5cc25de241754/src/experimental/eip7702/actions/signAuthorization.ts#L149
         nonce: provider.get_transaction_count(account.address()).await.unwrap(),
