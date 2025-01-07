@@ -15,13 +15,10 @@ pub mod erc20;
 pub mod erc6492_client;
 pub mod erc7579;
 pub mod error;
+pub mod execution;
 pub mod jsonrpc;
-pub mod private_key_service;
-pub mod sign_service;
-pub mod signer;
 pub mod smart_accounts;
 pub mod test_helpers;
-pub mod transaction;
 pub mod user_operation;
 pub mod utils;
 

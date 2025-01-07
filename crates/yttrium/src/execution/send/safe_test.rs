@@ -12,6 +12,7 @@ use {
         chain::ChainId,
         config::Config,
         entry_point::EntryPointVersion,
+        execution::Execution,
         smart_accounts::{
             account_address::AccountAddress,
             nonce::get_nonce,
@@ -23,7 +24,6 @@ use {
                 SAFE_SINGLETON_1_4_1,
             },
         },
-        transaction::Transaction,
         user_operation::{Authorization, UserOperationV07},
     },
     alloy::{
@@ -75,21 +75,20 @@ impl fmt::Display for SentUserOperationHash {
 }
 
 pub async fn get_address(
-    owner_address: String,
+    owner_address: AccountAddress,
     config: Config,
 ) -> eyre::Result<AccountAddress> {
     let rpc_url = config.endpoints.rpc.base_url;
     let rpc_url: reqwest::Url = rpc_url.parse()?;
     let provider = ReqwestProvider::<Ethereum>::new_http(rpc_url);
 
-    let owners =
-        Owners { owners: vec![owner_address.parse().unwrap()], threshold: 1 };
+    let owners = Owners { owners: vec![owner_address.into()], threshold: 1 };
 
     Ok(get_account_address(provider, owners).await)
 }
 
 pub async fn send_transactions(
-    execution_calldata: Vec<Transaction>,
+    execution_calldata: Vec<Execution>,
     owner: LocalSigner<SigningKey>,
     address: Option<AccountAddress>,
     authorization_list: Option<Vec<Authorization>>,
@@ -163,6 +162,7 @@ pub struct PreparedSendTransaction {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
 pub struct DoSendTransactionParams {
     pub user_op: UserOperationV07,
     pub valid_after: U48,
@@ -170,7 +170,7 @@ pub struct DoSendTransactionParams {
 }
 
 pub async fn prepare_send_transactions(
-    execution_calldata: Vec<Transaction>,
+    execution_calldata: Vec<Execution>,
     owner: Address,
     address: Option<AccountAddress>,
     authorization_list: Option<Vec<Authorization>>,
@@ -206,7 +206,7 @@ pub async fn prepare_send_transactions(
 
 #[allow(clippy::too_many_arguments)]
 pub async fn prepare_send_transactions_inner<P, T, N>(
-    execution_calldata: Vec<Transaction>,
+    execution_calldata: Vec<Execution>,
     owners: Owners,
     address: Option<AccountAddress>,
     authorization_list: Option<Vec<Authorization>>,
@@ -437,6 +437,7 @@ where
 }
 
 pub use alloy::primitives::{Address, PrimitiveSignature};
+#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
 pub struct OwnerSignature {
     pub owner: Address,
     pub signature: PrimitiveSignature,
@@ -515,12 +516,12 @@ mod tests {
         super::*,
         crate::{
             chain::ChainId,
+            execution::Execution,
             smart_accounts::safe::{
                 prepare_sign, sign, sign_step_3, PreparedSignature,
                 SignOutputEnum,
             },
             test_helpers::{self, use_faucet},
-            transaction::Transaction,
         },
         alloy::{
             network::{TransactionBuilder, TransactionBuilder7702},
@@ -558,7 +559,7 @@ mod tests {
         )
         .await;
 
-        let transaction = vec![Transaction {
+        let transaction = vec![Execution {
             to: destination.address(),
             value: Uint::from(1),
             data: Bytes::new(),
@@ -577,7 +578,7 @@ mod tests {
         let balance = provider.get_balance(destination.address()).await?;
         assert_eq!(balance, Uint::from(1));
 
-        let transaction = vec![Transaction {
+        let transaction = vec![Execution {
             to: destination.address(),
             value: Uint::from(1),
             data: Bytes::new(),
@@ -651,7 +652,7 @@ mod tests {
         )
         .await;
 
-        let transaction = vec![Transaction {
+        let transaction = vec![Execution {
             to: destination.address(),
             value: Uint::from(1),
             data: Bytes::new(),
@@ -692,7 +693,7 @@ mod tests {
         )
         .await;
 
-        let transaction = vec![Transaction {
+        let transaction = vec![Execution {
             to: destination.address(),
             value: Uint::from(1),
             data: Bytes::new(),
@@ -735,7 +736,7 @@ mod tests {
         )
         .await;
 
-        let transaction = vec![Transaction {
+        let transaction = vec![Execution {
             to: destination.address(),
             value: Uint::from(1),
             data: Bytes::new(),
@@ -865,12 +866,12 @@ mod tests {
         .await;
 
         let transaction = vec![
-            Transaction {
+            Execution {
                 to: destination1.address(),
                 value: Uint::from(1),
                 data: Bytes::new(),
             },
-            Transaction {
+            Execution {
                 to: destination2.address(),
                 value: Uint::from(2),
                 data: Bytes::new(),
@@ -1096,7 +1097,7 @@ mod tests {
             provider.get_balance(destination.address()).await.unwrap();
         assert_eq!(balance, Uint::from(0));
         let receipt = send_transactions(
-            vec![Transaction {
+            vec![Execution {
                 to: destination.address(),
                 value: Uint::from(1),
                 data: Bytes::new(),
@@ -1198,7 +1199,7 @@ mod tests {
         )
         .await;
 
-        let transaction = vec![Transaction {
+        let transaction = vec![Execution {
             to: destination.address(),
             value: Uint::from(1),
             data: Bytes::new(),
@@ -1290,7 +1291,7 @@ mod tests {
             provider.get_code_at(authority.address()).await?
         );
 
-        let transaction = vec![Transaction {
+        let transaction = vec![Execution {
             to: destination.address(),
             value: Uint::from(1),
             data: Bytes::new(),
@@ -1443,7 +1444,7 @@ mod tests {
             provider.get_code_at(authority.address()).await?
         );
 
-        let transaction: Vec<_> = vec![Transaction {
+        let transaction: Vec<_> = vec![Execution {
             to: destination.address(),
             value: Uint::from(1),
             data: Bytes::new(),
