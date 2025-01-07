@@ -8,7 +8,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'lib.freezed.dart';
 
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`
 // These functions are ignored (category: IgnoreBecauseNotAllowedOwner): `from`
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<AccountClient>>
@@ -56,13 +56,25 @@ abstract class AccountClientConfig implements RustOpaqueInterface {
   set ownerAddress(String ownerAddress);
 }
 
+// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<Address>>
+abstract class Address implements RustOpaqueInterface {}
+
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ChainAbstractionClient>>
 abstract class ChainAbstractionClient implements RustOpaqueInterface {
   String get projectId;
 
   set projectId(String projectId);
 
+  Future<Ffiu256> erc20TokenBalance(
+      {required String chainId,
+      required Address token,
+      required Address owner});
+
   Future<Eip1559Estimation> estimateFees({required String chainId});
+
+  Future<UiFields> getUiFields(
+      {required RouteResponseAvailable routeResponse,
+      required Currency currency});
 
   // HINT: Make it `#[frb(sync)]` to let it become the default constructor of Dart class.
   static Future<ChainAbstractionClient> newInstance(
@@ -70,7 +82,7 @@ abstract class ChainAbstractionClient implements RustOpaqueInterface {
       YttriumDart.instance.api
           .crateChainAbstractionClientNew(projectId: projectId);
 
-  Future<PrepareResponse> route(
+  Future<PrepareResponse> prepare(
       {required InitialTransaction initialTransaction});
 
   Future<StatusResponse> status({required String orchestrationId});
@@ -84,11 +96,34 @@ abstract class ChainAbstractionClient implements RustOpaqueInterface {
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<Config>>
 abstract class Config implements RustOpaqueInterface {}
 
+// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<Currency>>
+abstract class Currency implements RustOpaqueInterface {}
+
+// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<Eip1559Estimation>>
+abstract class Eip1559Estimation implements RustOpaqueInterface {
+  Ffiu128 get maxFeePerGas;
+
+  Ffiu128 get maxPriorityFeePerGas;
+
+  set maxFeePerGas(Ffiu128 maxFeePerGas);
+
+  set maxPriorityFeePerGas(Ffiu128 maxPriorityFeePerGas);
+}
+
+// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<FFIU128>>
+abstract class Ffiu128 implements RustOpaqueInterface {}
+
+// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<FFIU256>>
+abstract class Ffiu256 implements RustOpaqueInterface {}
+
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<InitialTransaction>>
 abstract class InitialTransaction implements RustOpaqueInterface {}
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<PrepareResponse>>
 abstract class PrepareResponse implements RustOpaqueInterface {}
+
+// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<RouteResponseAvailable>>
+abstract class RouteResponseAvailable implements RustOpaqueInterface {}
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<StatusResponse>>
 abstract class StatusResponse implements RustOpaqueInterface {}
@@ -96,26 +131,8 @@ abstract class StatusResponse implements RustOpaqueInterface {}
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<StatusResponseCompleted>>
 abstract class StatusResponseCompleted implements RustOpaqueInterface {}
 
-class Eip1559Estimation {
-  final String maxFeePerGas;
-  final String maxPriorityFeePerGas;
-
-  const Eip1559Estimation({
-    required this.maxFeePerGas,
-    required this.maxPriorityFeePerGas,
-  });
-
-  @override
-  int get hashCode => maxFeePerGas.hashCode ^ maxPriorityFeePerGas.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is Eip1559Estimation &&
-          runtimeType == other.runtimeType &&
-          maxFeePerGas == other.maxFeePerGas &&
-          maxPriorityFeePerGas == other.maxPriorityFeePerGas;
-}
+// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<UiFields>>
+abstract class UiFields implements RustOpaqueInterface {}
 
 @freezed
 sealed class Error with _$Error implements FrbException {

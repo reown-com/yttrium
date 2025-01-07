@@ -69,13 +69,13 @@ class YttriumDart implements ChainAbstractionClient {
   }
 
   @override
-  Future<RouteResponse> route({
+  Future<PrepareResponse> prepare({
     required InitialTransaction initialTransaction,
   }) async {
     if (_chainAbstractionClient == null) {
       throw 'ChainAbstractionClient is not initialized';
     }
-    return await _chainAbstractionClient!.route(
+    return await _chainAbstractionClient!.prepare(
       initialTransaction: initialTransaction,
     );
   }
@@ -103,6 +103,36 @@ class YttriumDart implements ChainAbstractionClient {
       orchestrationId: orchestrationId,
       checkIn: checkIn,
       timeout: timeout,
+    );
+  }
+
+  @override
+  Future<Ffiu256> erc20TokenBalance({
+    required String chainId,
+    required Address token,
+    required Address owner,
+  }) async {
+    if (_chainAbstractionClient == null) {
+      throw 'ChainAbstractionClient is not initialized';
+    }
+    return await _chainAbstractionClient!.erc20TokenBalance(
+      chainId: chainId,
+      token: token,
+      owner: owner,
+    );
+  }
+
+  @override
+  Future<UiFields> getUiFields({
+    required RouteResponseAvailable routeResponse,
+    required Currency currency,
+  }) async {
+    if (_chainAbstractionClient == null) {
+      throw 'ChainAbstractionClient is not initialized';
+    }
+    return await _chainAbstractionClient!.getUiFields(
+      routeResponse: routeResponse,
+      currency: currency,
     );
   }
 

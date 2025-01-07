@@ -2,6 +2,9 @@ mod frb_generated; /* AUTO INJECTED BY flutter_rust_bridge. This line may not be
 use {
     alloy::{
         network::Ethereum,
+        primitives::{
+            U128 as FFIU128, U256 as FFIU256,
+        },
         providers::{Provider, ReqwestProvider},
     },
     flutter_rust_bridge::frb,
@@ -12,11 +15,13 @@ use {
         account_client::AccountClient as YAccountClient,
         chain_abstraction::{
             api::{
-                prepare::PrepareResponse,
+                prepare::{PrepareResponse, RouteResponseAvailable},
                 status::{StatusResponse, StatusResponseCompleted},
                 InitialTransaction,
             },
             client::Client,
+            currency::Currency,
+            ui_fields::UiFields,
         },
         config::Config,
         transaction::{
@@ -29,11 +34,69 @@ use {
 };
 
 #[frb]
+pub struct AccountClientConfig {
+    pub owner_address: String,
+    pub chain_id: u64,
+    pub config: Config,
+}
+
+#[frb]
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Transaction {
     pub to: String,
     pub value: String,
     pub data: String,
+}
+
+// uniffi::custom_type!(FFIAddress, String, {
+//     try_lift: |val| Ok(val.parse()?),
+//     lower: |obj| obj.to_string(),
+// });
+
+// fn uint_to_hex<const BITS: usize, const LIMBS: usize>(
+//     obj: Uint<BITS, LIMBS>,
+// ) -> String {
+//     format!("0x{obj:x}")
+// }
+
+// uniffi::custom_type!(FFIU64, String, {
+//     try_lift: |val| Ok(val.parse()?),
+//     lower: |obj| uint_to_hex(obj),
+// });
+
+// uniffi::custom_type!(FFIU128, String, {
+//     try_lift: |val| Ok(val.parse()?),
+//     lower: |obj| uint_to_hex(obj),
+// });
+
+// uniffi::custom_type!(FFIU256, String, {
+//     try_lift: |val| Ok(val.parse()?),
+//     lower: |obj| uint_to_hex(obj),
+// });
+
+// uniffi::custom_type!(FFIBytes, String, {
+//     try_lift: |val| Ok(val.parse()?),
+//     lower: |obj| obj.to_string(),
+// });
+
+#[frb]
+#[derive(Clone, Debug)]
+pub struct Eip1559Estimation {
+    /// The base fee per gas.
+    pub max_fee_per_gas: FFIU128,
+    /// The max priority fee per gas.
+    pub max_priority_fee_per_gas: FFIU128,
+}
+
+impl From<alloy::providers::utils::Eip1559Estimation> for Eip1559Estimation {
+    fn from(source: alloy::providers::utils::Eip1559Estimation) -> Self {
+        Self {
+            max_fee_per_gas: FFIU128::from(source.max_fee_per_gas),
+            max_priority_fee_per_gas: FFIU128::from(
+                source.max_priority_fee_per_gas,
+            ),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -55,10 +118,10 @@ pub enum Error {
 }
 
 #[frb]
-#[derive(Clone, Debug)]
-pub struct Eip1559Estimation {
-    pub max_fee_per_gas: String,
-    pub max_priority_fee_per_gas: String,
+pub struct AccountClient {
+    pub owner_address: String,
+    pub chain_id: u64,
+    account_client: YAccountClient,
 }
 
 #[frb]
@@ -69,20 +132,33 @@ pub struct ChainAbstractionClient {
 
 #[frb]
 impl ChainAbstractionClient {
-    // #[frb(constructor)]
+    // #[uniffi::constructor]
     pub fn new(project_id: String) -> Self {
         let client = Client::new(ProjectId::from(project_id.clone()));
         Self { project_id, client }
     }
 
     #[frb]
-    pub async fn route(
+    pub async fn prepare(
         &self,
         initial_transaction: InitialTransaction,
     ) -> Result<PrepareResponse, Error> {
         self.client
             .prepare(initial_transaction)
             .await
+            .map_err(|e| Error::General(e.to_string()))
+    }
+
+    #[frb]
+    pub async fn get_ui_fields(
+        &self,
+        route_response: RouteResponseAvailable,
+        currency: Currency,
+    ) -> Result<UiFields, Error> {
+        self.client
+            .get_ui_fields(route_response, currency)
+            .await
+            .map(Into::into)
             .map_err(|e| Error::General(e.to_string()))
     }
 
@@ -126,37 +202,30 @@ impl ChainAbstractionClient {
         .parse()
         .expect("Invalid RPC URL");
         let provider = ReqwestProvider::<Ethereum>::new_http(url);
-        // Ensure async execution
         provider
             .estimate_eip1559_fees(None)
             .await
+            .map(Into::into)
             .map_err(|e| Error::General(e.to_string()))
-            .map(|fees| Eip1559Estimation {
-                max_fee_per_gas: fees.max_fee_per_gas.to_string(),
-                max_priority_fee_per_gas: fees
-                    .max_priority_fee_per_gas
-                    .to_string(),
-            })
+    }
+
+    #[frb]
+    pub async fn erc20_token_balance(
+        &self,
+        chain_id: String,
+        token: Address,
+        owner: Address,
+    ) -> Result<FFIU256, Error> {
+        self.client
+            .erc20_token_balance(chain_id, token, owner)
+            .await
+            .map_err(|e| Error::General(e.to_string()))
     }
 }
 
 #[frb]
-pub struct AccountClientConfig {
-    pub owner_address: String,
-    pub chain_id: u64,
-    pub config: Config,
-}
-
-#[frb]
-pub struct AccountClient {
-    pub owner_address: String,
-    pub chain_id: u64,
-    account_client: YAccountClient,
-}
-
-#[frb]
 impl AccountClient {
-    // #[frb(constructor)]
+    // #[uniffi::constructor]
     pub fn new(config: AccountClientConfig) -> Self {
         let account_client = YAccountClient::new(
             config

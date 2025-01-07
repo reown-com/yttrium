@@ -67,7 +67,7 @@ class YttriumDart extends BaseEntrypoint<YttriumDartApi, YttriumDartApiImpl,
   String get codegenVersion => '2.7.0';
 
   @override
-  int get rustContentHash => -2131914525;
+  int get rustContentHash => -931598552;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -132,13 +132,24 @@ abstract class YttriumDartApi extends BaseApi {
   void crateChainAbstractionClientAutoAccessorSetProjectId(
       {required ChainAbstractionClient that, required String projectId});
 
+  Future<Ffiu256> crateChainAbstractionClientErc20TokenBalance(
+      {required ChainAbstractionClient that,
+      required String chainId,
+      required Address token,
+      required Address owner});
+
   Future<Eip1559Estimation> crateChainAbstractionClientEstimateFees(
       {required ChainAbstractionClient that, required String chainId});
+
+  Future<UiFields> crateChainAbstractionClientGetUiFields(
+      {required ChainAbstractionClient that,
+      required RouteResponseAvailable routeResponse,
+      required Currency currency});
 
   Future<ChainAbstractionClient> crateChainAbstractionClientNew(
       {required String projectId});
 
-  Future<PrepareResponse> crateChainAbstractionClientRoute(
+  Future<PrepareResponse> crateChainAbstractionClientPrepare(
       {required ChainAbstractionClient that,
       required InitialTransaction initialTransaction});
 
@@ -151,6 +162,18 @@ abstract class YttriumDartApi extends BaseApi {
           required String orchestrationId,
           required BigInt checkIn,
           required BigInt timeout});
+
+  Ffiu128 crateEip1559EstimationAutoAccessorGetMaxFeePerGas(
+      {required Eip1559Estimation that});
+
+  Ffiu128 crateEip1559EstimationAutoAccessorGetMaxPriorityFeePerGas(
+      {required Eip1559Estimation that});
+
+  void crateEip1559EstimationAutoAccessorSetMaxFeePerGas(
+      {required Eip1559Estimation that, required Ffiu128 maxFeePerGas});
+
+  void crateEip1559EstimationAutoAccessorSetMaxPriorityFeePerGas(
+      {required Eip1559Estimation that, required Ffiu128 maxPriorityFeePerGas});
 
   RustArcIncrementStrongCountFnType
       get rust_arc_increment_strong_count_AccountClient;
@@ -170,6 +193,12 @@ abstract class YttriumDartApi extends BaseApi {
   CrossPlatformFinalizerArg
       get rust_arc_decrement_strong_count_AccountClientConfigPtr;
 
+  RustArcIncrementStrongCountFnType get rust_arc_increment_strong_count_Address;
+
+  RustArcDecrementStrongCountFnType get rust_arc_decrement_strong_count_Address;
+
+  CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_AddressPtr;
+
   RustArcIncrementStrongCountFnType
       get rust_arc_increment_strong_count_ChainAbstractionClient;
 
@@ -184,6 +213,35 @@ abstract class YttriumDartApi extends BaseApi {
   RustArcDecrementStrongCountFnType get rust_arc_decrement_strong_count_Config;
 
   CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_ConfigPtr;
+
+  RustArcIncrementStrongCountFnType
+      get rust_arc_increment_strong_count_Currency;
+
+  RustArcDecrementStrongCountFnType
+      get rust_arc_decrement_strong_count_Currency;
+
+  CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_CurrencyPtr;
+
+  RustArcIncrementStrongCountFnType
+      get rust_arc_increment_strong_count_Eip1559Estimation;
+
+  RustArcDecrementStrongCountFnType
+      get rust_arc_decrement_strong_count_Eip1559Estimation;
+
+  CrossPlatformFinalizerArg
+      get rust_arc_decrement_strong_count_Eip1559EstimationPtr;
+
+  RustArcIncrementStrongCountFnType get rust_arc_increment_strong_count_Ffiu128;
+
+  RustArcDecrementStrongCountFnType get rust_arc_decrement_strong_count_Ffiu128;
+
+  CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_Ffiu128Ptr;
+
+  RustArcIncrementStrongCountFnType get rust_arc_increment_strong_count_Ffiu256;
+
+  RustArcDecrementStrongCountFnType get rust_arc_decrement_strong_count_Ffiu256;
+
+  CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_Ffiu256Ptr;
 
   RustArcIncrementStrongCountFnType
       get rust_arc_increment_strong_count_InitialTransaction;
@@ -204,6 +262,15 @@ abstract class YttriumDartApi extends BaseApi {
       get rust_arc_decrement_strong_count_PrepareResponsePtr;
 
   RustArcIncrementStrongCountFnType
+      get rust_arc_increment_strong_count_RouteResponseAvailable;
+
+  RustArcDecrementStrongCountFnType
+      get rust_arc_decrement_strong_count_RouteResponseAvailable;
+
+  CrossPlatformFinalizerArg
+      get rust_arc_decrement_strong_count_RouteResponseAvailablePtr;
+
+  RustArcIncrementStrongCountFnType
       get rust_arc_increment_strong_count_StatusResponse;
 
   RustArcDecrementStrongCountFnType
@@ -220,6 +287,14 @@ abstract class YttriumDartApi extends BaseApi {
 
   CrossPlatformFinalizerArg
       get rust_arc_decrement_strong_count_StatusResponseCompletedPtr;
+
+  RustArcIncrementStrongCountFnType
+      get rust_arc_increment_strong_count_UiFields;
+
+  RustArcDecrementStrongCountFnType
+      get rust_arc_decrement_strong_count_UiFields;
+
+  CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_UiFieldsPtr;
 }
 
 class YttriumDartApiImpl extends YttriumDartApiImplPlatform
@@ -722,6 +797,42 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
           );
 
   @override
+  Future<Ffiu256> crateChainAbstractionClientErc20TokenBalance(
+      {required ChainAbstractionClient that,
+      required String chainId,
+      required Address token,
+      required Address owner}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerChainAbstractionClient(
+            that, serializer);
+        sse_encode_String(chainId, serializer);
+        sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAddress(
+            token, serializer);
+        sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAddress(
+            owner, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 19, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData:
+            sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerFFIU256,
+        decodeErrorData: sse_decode_error,
+      ),
+      constMeta: kCrateChainAbstractionClientErc20TokenBalanceConstMeta,
+      argValues: [that, chainId, token, owner],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateChainAbstractionClientErc20TokenBalanceConstMeta =>
+      const TaskConstMeta(
+        debugName: 'ChainAbstractionClient_erc20_token_balance',
+        argNames: ['that', 'chainId', 'token', 'owner'],
+      );
+
+  @override
   Future<Eip1559Estimation> crateChainAbstractionClientEstimateFees(
       {required ChainAbstractionClient that, required String chainId}) {
     return handler.executeNormal(NormalTask(
@@ -731,10 +842,11 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
             that, serializer);
         sse_encode_String(chainId, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 19, port: port_);
+            funcId: 20, port: port_);
       },
       codec: SseCodec(
-        decodeSuccessData: sse_decode_eip_1559_estimation,
+        decodeSuccessData:
+            sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEip1559Estimation,
         decodeErrorData: sse_decode_error,
       ),
       constMeta: kCrateChainAbstractionClientEstimateFeesConstMeta,
@@ -750,6 +862,40 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
       );
 
   @override
+  Future<UiFields> crateChainAbstractionClientGetUiFields(
+      {required ChainAbstractionClient that,
+      required RouteResponseAvailable routeResponse,
+      required Currency currency}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerChainAbstractionClient(
+            that, serializer);
+        sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRouteResponseAvailable(
+            routeResponse, serializer);
+        sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCurrency(
+            currency, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 21, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData:
+            sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerUiFields,
+        decodeErrorData: sse_decode_error,
+      ),
+      constMeta: kCrateChainAbstractionClientGetUiFieldsConstMeta,
+      argValues: [that, routeResponse, currency],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateChainAbstractionClientGetUiFieldsConstMeta =>
+      const TaskConstMeta(
+        debugName: 'ChainAbstractionClient_get_ui_fields',
+        argNames: ['that', 'routeResponse', 'currency'],
+      );
+
+  @override
   Future<ChainAbstractionClient> crateChainAbstractionClientNew(
       {required String projectId}) {
     return handler.executeNormal(NormalTask(
@@ -757,7 +903,7 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_String(projectId, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 20, port: port_);
+            funcId: 22, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData:
@@ -777,7 +923,7 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
       );
 
   @override
-  Future<PrepareResponse> crateChainAbstractionClientRoute(
+  Future<PrepareResponse> crateChainAbstractionClientPrepare(
       {required ChainAbstractionClient that,
       required InitialTransaction initialTransaction}) {
     return handler.executeNormal(NormalTask(
@@ -788,22 +934,22 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
         sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerInitialTransaction(
             initialTransaction, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 21, port: port_);
+            funcId: 23, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData:
             sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPrepareResponse,
         decodeErrorData: sse_decode_error,
       ),
-      constMeta: kCrateChainAbstractionClientRouteConstMeta,
+      constMeta: kCrateChainAbstractionClientPrepareConstMeta,
       argValues: [that, initialTransaction],
       apiImpl: this,
     ));
   }
 
-  TaskConstMeta get kCrateChainAbstractionClientRouteConstMeta =>
+  TaskConstMeta get kCrateChainAbstractionClientPrepareConstMeta =>
       const TaskConstMeta(
-        debugName: 'ChainAbstractionClient_route',
+        debugName: 'ChainAbstractionClient_prepare',
         argNames: ['that', 'initialTransaction'],
       );
 
@@ -817,7 +963,7 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
             that, serializer);
         sse_encode_String(orchestrationId, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 22, port: port_);
+            funcId: 24, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData:
@@ -852,7 +998,7 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
         sse_encode_u_64(checkIn, serializer);
         sse_encode_u_64(timeout, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 23, port: port_);
+            funcId: 25, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData:
@@ -872,6 +1018,125 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
             argNames: ['that', 'orchestrationId', 'checkIn', 'timeout'],
           );
 
+  @override
+  Ffiu128 crateEip1559EstimationAutoAccessorGetMaxFeePerGas(
+      {required Eip1559Estimation that}) {
+    return handler.executeSync(SyncTask(
+      callFfi: () {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEip1559Estimation(
+            that, serializer);
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 26)!;
+      },
+      codec: SseCodec(
+        decodeSuccessData:
+            sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerFFIU128,
+        decodeErrorData: null,
+      ),
+      constMeta: kCrateEip1559EstimationAutoAccessorGetMaxFeePerGasConstMeta,
+      argValues: [that],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta
+      get kCrateEip1559EstimationAutoAccessorGetMaxFeePerGasConstMeta =>
+          const TaskConstMeta(
+            debugName: 'Eip1559Estimation_auto_accessor_get_max_fee_per_gas',
+            argNames: ['that'],
+          );
+
+  @override
+  Ffiu128 crateEip1559EstimationAutoAccessorGetMaxPriorityFeePerGas(
+      {required Eip1559Estimation that}) {
+    return handler.executeSync(SyncTask(
+      callFfi: () {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEip1559Estimation(
+            that, serializer);
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 27)!;
+      },
+      codec: SseCodec(
+        decodeSuccessData:
+            sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerFFIU128,
+        decodeErrorData: null,
+      ),
+      constMeta:
+          kCrateEip1559EstimationAutoAccessorGetMaxPriorityFeePerGasConstMeta,
+      argValues: [that],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta
+      get kCrateEip1559EstimationAutoAccessorGetMaxPriorityFeePerGasConstMeta =>
+          const TaskConstMeta(
+            debugName:
+                'Eip1559Estimation_auto_accessor_get_max_priority_fee_per_gas',
+            argNames: ['that'],
+          );
+
+  @override
+  void crateEip1559EstimationAutoAccessorSetMaxFeePerGas(
+      {required Eip1559Estimation that, required Ffiu128 maxFeePerGas}) {
+    return handler.executeSync(SyncTask(
+      callFfi: () {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEip1559Estimation(
+            that, serializer);
+        sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerFFIU128(
+            maxFeePerGas, serializer);
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 28)!;
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_unit,
+        decodeErrorData: null,
+      ),
+      constMeta: kCrateEip1559EstimationAutoAccessorSetMaxFeePerGasConstMeta,
+      argValues: [that, maxFeePerGas],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta
+      get kCrateEip1559EstimationAutoAccessorSetMaxFeePerGasConstMeta =>
+          const TaskConstMeta(
+            debugName: 'Eip1559Estimation_auto_accessor_set_max_fee_per_gas',
+            argNames: ['that', 'maxFeePerGas'],
+          );
+
+  @override
+  void crateEip1559EstimationAutoAccessorSetMaxPriorityFeePerGas(
+      {required Eip1559Estimation that,
+      required Ffiu128 maxPriorityFeePerGas}) {
+    return handler.executeSync(SyncTask(
+      callFfi: () {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEip1559Estimation(
+            that, serializer);
+        sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerFFIU128(
+            maxPriorityFeePerGas, serializer);
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 29)!;
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_unit,
+        decodeErrorData: null,
+      ),
+      constMeta:
+          kCrateEip1559EstimationAutoAccessorSetMaxPriorityFeePerGasConstMeta,
+      argValues: [that, maxPriorityFeePerGas],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta
+      get kCrateEip1559EstimationAutoAccessorSetMaxPriorityFeePerGasConstMeta =>
+          const TaskConstMeta(
+            debugName:
+                'Eip1559Estimation_auto_accessor_set_max_priority_fee_per_gas',
+            argNames: ['that', 'maxPriorityFeePerGas'],
+          );
+
   RustArcIncrementStrongCountFnType
       get rust_arc_increment_strong_count_AccountClient => wire
           .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAccountClient;
@@ -887,6 +1152,14 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
   RustArcDecrementStrongCountFnType
       get rust_arc_decrement_strong_count_AccountClientConfig => wire
           .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAccountClientConfig;
+
+  RustArcIncrementStrongCountFnType
+      get rust_arc_increment_strong_count_Address => wire
+          .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAddress;
+
+  RustArcDecrementStrongCountFnType
+      get rust_arc_decrement_strong_count_Address => wire
+          .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAddress;
 
   RustArcIncrementStrongCountFnType
       get rust_arc_increment_strong_count_ChainAbstractionClient => wire
@@ -905,6 +1178,38 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
           .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerConfig;
 
   RustArcIncrementStrongCountFnType
+      get rust_arc_increment_strong_count_Currency => wire
+          .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCurrency;
+
+  RustArcDecrementStrongCountFnType
+      get rust_arc_decrement_strong_count_Currency => wire
+          .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCurrency;
+
+  RustArcIncrementStrongCountFnType
+      get rust_arc_increment_strong_count_Eip1559Estimation => wire
+          .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEip1559Estimation;
+
+  RustArcDecrementStrongCountFnType
+      get rust_arc_decrement_strong_count_Eip1559Estimation => wire
+          .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEip1559Estimation;
+
+  RustArcIncrementStrongCountFnType
+      get rust_arc_increment_strong_count_Ffiu128 => wire
+          .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerFFIU128;
+
+  RustArcDecrementStrongCountFnType
+      get rust_arc_decrement_strong_count_Ffiu128 => wire
+          .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerFFIU128;
+
+  RustArcIncrementStrongCountFnType
+      get rust_arc_increment_strong_count_Ffiu256 => wire
+          .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerFFIU256;
+
+  RustArcDecrementStrongCountFnType
+      get rust_arc_decrement_strong_count_Ffiu256 => wire
+          .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerFFIU256;
+
+  RustArcIncrementStrongCountFnType
       get rust_arc_increment_strong_count_InitialTransaction => wire
           .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerInitialTransaction;
 
@@ -919,6 +1224,14 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
   RustArcDecrementStrongCountFnType
       get rust_arc_decrement_strong_count_PrepareResponse => wire
           .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPrepareResponse;
+
+  RustArcIncrementStrongCountFnType
+      get rust_arc_increment_strong_count_RouteResponseAvailable => wire
+          .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRouteResponseAvailable;
+
+  RustArcDecrementStrongCountFnType
+      get rust_arc_decrement_strong_count_RouteResponseAvailable => wire
+          .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRouteResponseAvailable;
 
   RustArcIncrementStrongCountFnType
       get rust_arc_increment_strong_count_StatusResponse => wire
@@ -936,6 +1249,14 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
       get rust_arc_decrement_strong_count_StatusResponseCompleted => wire
           .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerStatusResponseCompleted;
 
+  RustArcIncrementStrongCountFnType
+      get rust_arc_increment_strong_count_UiFields => wire
+          .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerUiFields;
+
+  RustArcDecrementStrongCountFnType
+      get rust_arc_decrement_strong_count_UiFields => wire
+          .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerUiFields;
+
   @protected
   AccountClient
       dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAccountClient(
@@ -950,6 +1271,14 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
           dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return AccountClientConfigImpl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
+  Address
+      dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAddress(
+          dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return AddressImpl.frbInternalDcoDecode(raw as List<dynamic>);
   }
 
   @protected
@@ -970,6 +1299,38 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
   }
 
   @protected
+  Currency
+      dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCurrency(
+          dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return CurrencyImpl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
+  Eip1559Estimation
+      dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEip1559Estimation(
+          dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return Eip1559EstimationImpl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
+  Ffiu128
+      dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerFFIU128(
+          dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return Ffiu128Impl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
+  Ffiu256
+      dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerFFIU256(
+          dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return Ffiu256Impl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
   InitialTransaction
       dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerInitialTransaction(
           dynamic raw) {
@@ -983,6 +1344,15 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
           dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return PrepareResponseImpl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
+  RouteResponseAvailable
+      dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRouteResponseAvailable(
+          dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return RouteResponseAvailableImpl.frbInternalDcoDecode(
+        raw as List<dynamic>);
   }
 
   @protected
@@ -1000,6 +1370,14 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return StatusResponseCompletedImpl.frbInternalDcoDecode(
         raw as List<dynamic>);
+  }
+
+  @protected
+  UiFields
+      dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerUiFields(
+          dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return UiFieldsImpl.frbInternalDcoDecode(raw as List<dynamic>);
   }
 
   @protected
@@ -1028,6 +1406,14 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
   }
 
   @protected
+  Eip1559Estimation
+      dco_decode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEip1559Estimation(
+          dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return Eip1559EstimationImpl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
   AccountClient
       dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAccountClient(
           dynamic raw) {
@@ -1053,6 +1439,14 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
   }
 
   @protected
+  Eip1559Estimation
+      dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEip1559Estimation(
+          dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return Eip1559EstimationImpl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
   AccountClient
       dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAccountClient(
           dynamic raw) {
@@ -1066,6 +1460,14 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
           dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return AccountClientConfigImpl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
+  Address
+      dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAddress(
+          dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return AddressImpl.frbInternalDcoDecode(raw as List<dynamic>);
   }
 
   @protected
@@ -1086,6 +1488,38 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
   }
 
   @protected
+  Currency
+      dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCurrency(
+          dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return CurrencyImpl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
+  Eip1559Estimation
+      dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEip1559Estimation(
+          dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return Eip1559EstimationImpl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
+  Ffiu128
+      dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerFFIU128(
+          dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return Ffiu128Impl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
+  Ffiu256
+      dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerFFIU256(
+          dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return Ffiu256Impl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
   InitialTransaction
       dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerInitialTransaction(
           dynamic raw) {
@@ -1099,6 +1533,15 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
           dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return PrepareResponseImpl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
+  RouteResponseAvailable
+      dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRouteResponseAvailable(
+          dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return RouteResponseAvailableImpl.frbInternalDcoDecode(
+        raw as List<dynamic>);
   }
 
   @protected
@@ -1119,21 +1562,17 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
   }
 
   @protected
-  String dco_decode_String(dynamic raw) {
+  UiFields
+      dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerUiFields(
+          dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
-    return raw as String;
+    return UiFieldsImpl.frbInternalDcoDecode(raw as List<dynamic>);
   }
 
   @protected
-  Eip1559Estimation dco_decode_eip_1559_estimation(dynamic raw) {
+  String dco_decode_String(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 2)
-      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
-    return Eip1559Estimation(
-      maxFeePerGas: dco_decode_String(arr[0]),
-      maxPriorityFeePerGas: dco_decode_String(arr[1]),
-    );
+    return raw as String;
   }
 
   @protected
@@ -1247,6 +1686,15 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
   }
 
   @protected
+  Address
+      sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAddress(
+          SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return AddressImpl.frbInternalSseDecode(
+        sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
+  }
+
+  @protected
   ChainAbstractionClient
       sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerChainAbstractionClient(
           SseDeserializer deserializer) {
@@ -1261,6 +1709,42 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
           SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return ConfigImpl.frbInternalSseDecode(
+        sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
+  }
+
+  @protected
+  Currency
+      sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCurrency(
+          SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return CurrencyImpl.frbInternalSseDecode(
+        sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
+  }
+
+  @protected
+  Eip1559Estimation
+      sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEip1559Estimation(
+          SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return Eip1559EstimationImpl.frbInternalSseDecode(
+        sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
+  }
+
+  @protected
+  Ffiu128
+      sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerFFIU128(
+          SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return Ffiu128Impl.frbInternalSseDecode(
+        sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
+  }
+
+  @protected
+  Ffiu256
+      sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerFFIU256(
+          SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return Ffiu256Impl.frbInternalSseDecode(
         sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
   }
 
@@ -1283,6 +1767,15 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
   }
 
   @protected
+  RouteResponseAvailable
+      sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRouteResponseAvailable(
+          SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return RouteResponseAvailableImpl.frbInternalSseDecode(
+        sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
+  }
+
+  @protected
   StatusResponse
       sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerStatusResponse(
           SseDeserializer deserializer) {
@@ -1297,6 +1790,15 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
           SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return StatusResponseCompletedImpl.frbInternalSseDecode(
+        sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
+  }
+
+  @protected
+  UiFields
+      sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerUiFields(
+          SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return UiFieldsImpl.frbInternalSseDecode(
         sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
   }
 
@@ -1328,6 +1830,15 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
   }
 
   @protected
+  Eip1559Estimation
+      sse_decode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEip1559Estimation(
+          SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return Eip1559EstimationImpl.frbInternalSseDecode(
+        sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
+  }
+
+  @protected
   AccountClient
       sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAccountClient(
           SseDeserializer deserializer) {
@@ -1355,6 +1866,15 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
   }
 
   @protected
+  Eip1559Estimation
+      sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEip1559Estimation(
+          SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return Eip1559EstimationImpl.frbInternalSseDecode(
+        sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
+  }
+
+  @protected
   AccountClient
       sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAccountClient(
           SseDeserializer deserializer) {
@@ -1369,6 +1889,15 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
           SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return AccountClientConfigImpl.frbInternalSseDecode(
+        sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
+  }
+
+  @protected
+  Address
+      sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAddress(
+          SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return AddressImpl.frbInternalSseDecode(
         sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
   }
 
@@ -1391,6 +1920,42 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
   }
 
   @protected
+  Currency
+      sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCurrency(
+          SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return CurrencyImpl.frbInternalSseDecode(
+        sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
+  }
+
+  @protected
+  Eip1559Estimation
+      sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEip1559Estimation(
+          SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return Eip1559EstimationImpl.frbInternalSseDecode(
+        sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
+  }
+
+  @protected
+  Ffiu128
+      sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerFFIU128(
+          SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return Ffiu128Impl.frbInternalSseDecode(
+        sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
+  }
+
+  @protected
+  Ffiu256
+      sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerFFIU256(
+          SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return Ffiu256Impl.frbInternalSseDecode(
+        sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
+  }
+
+  @protected
   InitialTransaction
       sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerInitialTransaction(
           SseDeserializer deserializer) {
@@ -1405,6 +1970,15 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
           SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return PrepareResponseImpl.frbInternalSseDecode(
+        sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
+  }
+
+  @protected
+  RouteResponseAvailable
+      sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRouteResponseAvailable(
+          SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return RouteResponseAvailableImpl.frbInternalSseDecode(
         sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
   }
 
@@ -1427,21 +2001,19 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
   }
 
   @protected
+  UiFields
+      sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerUiFields(
+          SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return UiFieldsImpl.frbInternalSseDecode(
+        sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
+  }
+
+  @protected
   String sse_decode_String(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var inner = sse_decode_list_prim_u_8_strict(deserializer);
     return utf8.decoder.convert(inner);
-  }
-
-  @protected
-  Eip1559Estimation sse_decode_eip_1559_estimation(
-      SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_maxFeePerGas = sse_decode_String(deserializer);
-    var var_maxPriorityFeePerGas = sse_decode_String(deserializer);
-    return Eip1559Estimation(
-        maxFeePerGas: var_maxFeePerGas,
-        maxPriorityFeePerGas: var_maxPriorityFeePerGas);
   }
 
   @protected
@@ -1574,6 +2146,15 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
 
   @protected
   void
+      sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAddress(
+          Address self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+        (self as AddressImpl).frbInternalSseEncode(move: true), serializer);
+  }
+
+  @protected
+  void
       sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerChainAbstractionClient(
           ChainAbstractionClient self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -1589,6 +2170,43 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_usize(
         (self as ConfigImpl).frbInternalSseEncode(move: true), serializer);
+  }
+
+  @protected
+  void
+      sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCurrency(
+          Currency self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+        (self as CurrencyImpl).frbInternalSseEncode(move: true), serializer);
+  }
+
+  @protected
+  void
+      sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEip1559Estimation(
+          Eip1559Estimation self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+        (self as Eip1559EstimationImpl).frbInternalSseEncode(move: true),
+        serializer);
+  }
+
+  @protected
+  void
+      sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerFFIU128(
+          Ffiu128 self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+        (self as Ffiu128Impl).frbInternalSseEncode(move: true), serializer);
+  }
+
+  @protected
+  void
+      sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerFFIU256(
+          Ffiu256 self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+        (self as Ffiu256Impl).frbInternalSseEncode(move: true), serializer);
   }
 
   @protected
@@ -1613,6 +2231,16 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
 
   @protected
   void
+      sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRouteResponseAvailable(
+          RouteResponseAvailable self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+        (self as RouteResponseAvailableImpl).frbInternalSseEncode(move: true),
+        serializer);
+  }
+
+  @protected
+  void
       sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerStatusResponse(
           StatusResponse self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -1629,6 +2257,15 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
     sse_encode_usize(
         (self as StatusResponseCompletedImpl).frbInternalSseEncode(move: true),
         serializer);
+  }
+
+  @protected
+  void
+      sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerUiFields(
+          UiFields self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+        (self as UiFieldsImpl).frbInternalSseEncode(move: true), serializer);
   }
 
   @protected
@@ -1658,6 +2295,16 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_usize(
         (self as ChainAbstractionClientImpl).frbInternalSseEncode(move: false),
+        serializer);
+  }
+
+  @protected
+  void
+      sse_encode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEip1559Estimation(
+          Eip1559Estimation self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+        (self as Eip1559EstimationImpl).frbInternalSseEncode(move: false),
         serializer);
   }
 
@@ -1693,6 +2340,16 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
 
   @protected
   void
+      sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEip1559Estimation(
+          Eip1559Estimation self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+        (self as Eip1559EstimationImpl).frbInternalSseEncode(move: false),
+        serializer);
+  }
+
+  @protected
+  void
       sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAccountClient(
           AccountClient self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -1713,6 +2370,15 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
 
   @protected
   void
+      sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAddress(
+          Address self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+        (self as AddressImpl).frbInternalSseEncode(move: null), serializer);
+  }
+
+  @protected
+  void
       sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerChainAbstractionClient(
           ChainAbstractionClient self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -1728,6 +2394,43 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_usize(
         (self as ConfigImpl).frbInternalSseEncode(move: null), serializer);
+  }
+
+  @protected
+  void
+      sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCurrency(
+          Currency self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+        (self as CurrencyImpl).frbInternalSseEncode(move: null), serializer);
+  }
+
+  @protected
+  void
+      sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEip1559Estimation(
+          Eip1559Estimation self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+        (self as Eip1559EstimationImpl).frbInternalSseEncode(move: null),
+        serializer);
+  }
+
+  @protected
+  void
+      sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerFFIU128(
+          Ffiu128 self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+        (self as Ffiu128Impl).frbInternalSseEncode(move: null), serializer);
+  }
+
+  @protected
+  void
+      sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerFFIU256(
+          Ffiu256 self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+        (self as Ffiu256Impl).frbInternalSseEncode(move: null), serializer);
   }
 
   @protected
@@ -1752,6 +2455,16 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
 
   @protected
   void
+      sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRouteResponseAvailable(
+          RouteResponseAvailable self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+        (self as RouteResponseAvailableImpl).frbInternalSseEncode(move: null),
+        serializer);
+  }
+
+  @protected
+  void
       sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerStatusResponse(
           StatusResponse self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -1771,17 +2484,18 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
   }
 
   @protected
-  void sse_encode_String(String self, SseSerializer serializer) {
+  void
+      sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerUiFields(
+          UiFields self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_list_prim_u_8_strict(utf8.encoder.convert(self), serializer);
+    sse_encode_usize(
+        (self as UiFieldsImpl).frbInternalSseEncode(move: null), serializer);
   }
 
   @protected
-  void sse_encode_eip_1559_estimation(
-      Eip1559Estimation self, SseSerializer serializer) {
+  void sse_encode_String(String self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_String(self.maxFeePerGas, serializer);
-    sse_encode_String(self.maxPriorityFeePerGas, serializer);
+    sse_encode_list_prim_u_8_strict(utf8.encoder.convert(self), serializer);
   }
 
   @protected
@@ -1997,6 +2711,26 @@ class AccountClientImpl extends RustOpaque implements AccountClient {
 }
 
 @sealed
+class AddressImpl extends RustOpaque implements Address {
+  // Not to be used by end users
+  AddressImpl.frbInternalDcoDecode(List<dynamic> wire)
+      : super.frbInternalDcoDecode(wire, _kStaticData);
+
+  // Not to be used by end users
+  AddressImpl.frbInternalSseDecode(BigInt ptr, int externalSizeOnNative)
+      : super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
+
+  static final _kStaticData = RustArcStaticData(
+    rustArcIncrementStrongCount:
+        YttriumDart.instance.api.rust_arc_increment_strong_count_Address,
+    rustArcDecrementStrongCount:
+        YttriumDart.instance.api.rust_arc_decrement_strong_count_Address,
+    rustArcDecrementStrongCountPtr:
+        YttriumDart.instance.api.rust_arc_decrement_strong_count_AddressPtr,
+  );
+}
+
+@sealed
 class ChainAbstractionClientImpl extends RustOpaque
     implements ChainAbstractionClient {
   // Not to be used by end users
@@ -2026,13 +2760,26 @@ class ChainAbstractionClientImpl extends RustOpaque
       .crateChainAbstractionClientAutoAccessorSetProjectId(
           that: this, projectId: projectId);
 
+  Future<Ffiu256> erc20TokenBalance(
+          {required String chainId,
+          required Address token,
+          required Address owner}) =>
+      YttriumDart.instance.api.crateChainAbstractionClientErc20TokenBalance(
+          that: this, chainId: chainId, token: token, owner: owner);
+
   Future<Eip1559Estimation> estimateFees({required String chainId}) =>
       YttriumDart.instance.api.crateChainAbstractionClientEstimateFees(
           that: this, chainId: chainId);
 
-  Future<PrepareResponse> route(
+  Future<UiFields> getUiFields(
+          {required RouteResponseAvailable routeResponse,
+          required Currency currency}) =>
+      YttriumDart.instance.api.crateChainAbstractionClientGetUiFields(
+          that: this, routeResponse: routeResponse, currency: currency);
+
+  Future<PrepareResponse> prepare(
           {required InitialTransaction initialTransaction}) =>
-      YttriumDart.instance.api.crateChainAbstractionClientRoute(
+      YttriumDart.instance.api.crateChainAbstractionClientPrepare(
           that: this, initialTransaction: initialTransaction);
 
   Future<StatusResponse> status({required String orchestrationId}) =>
@@ -2068,6 +2815,106 @@ class ConfigImpl extends RustOpaque implements Config {
         YttriumDart.instance.api.rust_arc_decrement_strong_count_Config,
     rustArcDecrementStrongCountPtr:
         YttriumDart.instance.api.rust_arc_decrement_strong_count_ConfigPtr,
+  );
+}
+
+@sealed
+class CurrencyImpl extends RustOpaque implements Currency {
+  // Not to be used by end users
+  CurrencyImpl.frbInternalDcoDecode(List<dynamic> wire)
+      : super.frbInternalDcoDecode(wire, _kStaticData);
+
+  // Not to be used by end users
+  CurrencyImpl.frbInternalSseDecode(BigInt ptr, int externalSizeOnNative)
+      : super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
+
+  static final _kStaticData = RustArcStaticData(
+    rustArcIncrementStrongCount:
+        YttriumDart.instance.api.rust_arc_increment_strong_count_Currency,
+    rustArcDecrementStrongCount:
+        YttriumDart.instance.api.rust_arc_decrement_strong_count_Currency,
+    rustArcDecrementStrongCountPtr:
+        YttriumDart.instance.api.rust_arc_decrement_strong_count_CurrencyPtr,
+  );
+}
+
+@sealed
+class Eip1559EstimationImpl extends RustOpaque implements Eip1559Estimation {
+  // Not to be used by end users
+  Eip1559EstimationImpl.frbInternalDcoDecode(List<dynamic> wire)
+      : super.frbInternalDcoDecode(wire, _kStaticData);
+
+  // Not to be used by end users
+  Eip1559EstimationImpl.frbInternalSseDecode(
+      BigInt ptr, int externalSizeOnNative)
+      : super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
+
+  static final _kStaticData = RustArcStaticData(
+    rustArcIncrementStrongCount: YttriumDart
+        .instance.api.rust_arc_increment_strong_count_Eip1559Estimation,
+    rustArcDecrementStrongCount: YttriumDart
+        .instance.api.rust_arc_decrement_strong_count_Eip1559Estimation,
+    rustArcDecrementStrongCountPtr: YttriumDart
+        .instance.api.rust_arc_decrement_strong_count_Eip1559EstimationPtr,
+  );
+
+  Ffiu128 get maxFeePerGas => YttriumDart.instance.api
+          .crateEip1559EstimationAutoAccessorGetMaxFeePerGas(
+        that: this,
+      );
+
+  Ffiu128 get maxPriorityFeePerGas => YttriumDart.instance.api
+          .crateEip1559EstimationAutoAccessorGetMaxPriorityFeePerGas(
+        that: this,
+      );
+
+  set maxFeePerGas(Ffiu128 maxFeePerGas) => YttriumDart.instance.api
+      .crateEip1559EstimationAutoAccessorSetMaxFeePerGas(
+          that: this, maxFeePerGas: maxFeePerGas);
+
+  set maxPriorityFeePerGas(Ffiu128 maxPriorityFeePerGas) => YttriumDart
+      .instance.api
+      .crateEip1559EstimationAutoAccessorSetMaxPriorityFeePerGas(
+          that: this, maxPriorityFeePerGas: maxPriorityFeePerGas);
+}
+
+@sealed
+class Ffiu128Impl extends RustOpaque implements Ffiu128 {
+  // Not to be used by end users
+  Ffiu128Impl.frbInternalDcoDecode(List<dynamic> wire)
+      : super.frbInternalDcoDecode(wire, _kStaticData);
+
+  // Not to be used by end users
+  Ffiu128Impl.frbInternalSseDecode(BigInt ptr, int externalSizeOnNative)
+      : super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
+
+  static final _kStaticData = RustArcStaticData(
+    rustArcIncrementStrongCount:
+        YttriumDart.instance.api.rust_arc_increment_strong_count_Ffiu128,
+    rustArcDecrementStrongCount:
+        YttriumDart.instance.api.rust_arc_decrement_strong_count_Ffiu128,
+    rustArcDecrementStrongCountPtr:
+        YttriumDart.instance.api.rust_arc_decrement_strong_count_Ffiu128Ptr,
+  );
+}
+
+@sealed
+class Ffiu256Impl extends RustOpaque implements Ffiu256 {
+  // Not to be used by end users
+  Ffiu256Impl.frbInternalDcoDecode(List<dynamic> wire)
+      : super.frbInternalDcoDecode(wire, _kStaticData);
+
+  // Not to be used by end users
+  Ffiu256Impl.frbInternalSseDecode(BigInt ptr, int externalSizeOnNative)
+      : super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
+
+  static final _kStaticData = RustArcStaticData(
+    rustArcIncrementStrongCount:
+        YttriumDart.instance.api.rust_arc_increment_strong_count_Ffiu256,
+    rustArcDecrementStrongCount:
+        YttriumDart.instance.api.rust_arc_decrement_strong_count_Ffiu256,
+    rustArcDecrementStrongCountPtr:
+        YttriumDart.instance.api.rust_arc_decrement_strong_count_Ffiu256Ptr,
   );
 }
 
@@ -2113,6 +2960,28 @@ class PrepareResponseImpl extends RustOpaque implements PrepareResponse {
 }
 
 @sealed
+class RouteResponseAvailableImpl extends RustOpaque
+    implements RouteResponseAvailable {
+  // Not to be used by end users
+  RouteResponseAvailableImpl.frbInternalDcoDecode(List<dynamic> wire)
+      : super.frbInternalDcoDecode(wire, _kStaticData);
+
+  // Not to be used by end users
+  RouteResponseAvailableImpl.frbInternalSseDecode(
+      BigInt ptr, int externalSizeOnNative)
+      : super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
+
+  static final _kStaticData = RustArcStaticData(
+    rustArcIncrementStrongCount: YttriumDart
+        .instance.api.rust_arc_increment_strong_count_RouteResponseAvailable,
+    rustArcDecrementStrongCount: YttriumDart
+        .instance.api.rust_arc_decrement_strong_count_RouteResponseAvailable,
+    rustArcDecrementStrongCountPtr: YttriumDart
+        .instance.api.rust_arc_decrement_strong_count_RouteResponseAvailablePtr,
+  );
+}
+
+@sealed
 class StatusResponseCompletedImpl extends RustOpaque
     implements StatusResponseCompleted {
   // Not to be used by end users
@@ -2151,5 +3020,25 @@ class StatusResponseImpl extends RustOpaque implements StatusResponse {
         YttriumDart.instance.api.rust_arc_decrement_strong_count_StatusResponse,
     rustArcDecrementStrongCountPtr: YttriumDart
         .instance.api.rust_arc_decrement_strong_count_StatusResponsePtr,
+  );
+}
+
+@sealed
+class UiFieldsImpl extends RustOpaque implements UiFields {
+  // Not to be used by end users
+  UiFieldsImpl.frbInternalDcoDecode(List<dynamic> wire)
+      : super.frbInternalDcoDecode(wire, _kStaticData);
+
+  // Not to be used by end users
+  UiFieldsImpl.frbInternalSseDecode(BigInt ptr, int externalSizeOnNative)
+      : super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
+
+  static final _kStaticData = RustArcStaticData(
+    rustArcIncrementStrongCount:
+        YttriumDart.instance.api.rust_arc_increment_strong_count_UiFields,
+    rustArcDecrementStrongCount:
+        YttriumDart.instance.api.rust_arc_decrement_strong_count_UiFields,
+    rustArcDecrementStrongCountPtr:
+        YttriumDart.instance.api.rust_arc_decrement_strong_count_UiFieldsPtr,
   );
 }
