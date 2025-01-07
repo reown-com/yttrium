@@ -26,7 +26,10 @@ use {
         },
         config::Config,
         execution::{
-            send::safe_test::{self, Address as FFIAddress, OwnerSignature},
+            send::safe_test::{
+                self, Address as FFIAddress, OwnerSignature,
+                PreparedSendTransaction,
+            },
             Execution,
         },
         smart_accounts::{
@@ -93,12 +96,6 @@ impl From<alloy::providers::utils::Eip1559Estimation> for Eip1559Estimation {
 #[derive(uniffi::Record)]
 pub struct FfiPreparedSignature {
     pub message_hash: String,
-}
-
-#[derive(uniffi::Record)]
-pub struct PreparedSendTransaction {
-    pub hash: String,
-    pub do_send_transaction_params: String,
 }
 
 #[derive(Debug, thiserror::Error, uniffi::Error)]
@@ -267,19 +264,10 @@ impl FFIAccountClient {
         &self,
         transactions: Vec<Execution>,
     ) -> Result<PreparedSendTransaction, FFIError> {
-        let prepared_send_transaction = self
-            .account_client
+        self.account_client
             .prepare_send_transactions(transactions)
             .await
-            .map_err(|e| FFIError::General(e.to_string()))?;
-
-        Ok(PreparedSendTransaction {
-            hash: prepared_send_transaction.hash.to_string(),
-            do_send_transaction_params: serde_json::to_string(
-                &prepared_send_transaction.do_send_transaction_params,
-            )
-            .map_err(|e| FFIError::General(e.to_string()))?,
-        })
+            .map_err(|e| FFIError::General(e.to_string()))
     }
 
     pub async fn do_send_transactions(
