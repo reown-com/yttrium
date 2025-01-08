@@ -127,10 +127,9 @@ impl AccountClient {
     ) -> eyre::Result<UserOperationReceipt> {
         println!("Querying for receipts...");
 
-        let bundler_base_url = self.config.clone().endpoints.bundler.base_url;
-
-        let bundler_client =
-            BundlerClient::new(BundlerConfig::new(bundler_base_url.clone()));
+        let bundler_client = BundlerClient::new(BundlerConfig::new(
+            self.config.endpoints.bundler.base_url.parse()?,
+        ));
         let receipt = bundler_client
             .wait_for_user_operation_receipt(user_operation_hash)
             .await?;

@@ -36,8 +36,8 @@ async fn happy_path() {
             LOCAL_RPC_URL.parse().unwrap(),
         )]))
         .with_4337_urls(
-            LOCAL_BUNDLER_URL.to_owned(),
-            LOCAL_PAYMASTER_URL.to_owned(),
+            LOCAL_BUNDLER_URL.parse().unwrap(),
+            LOCAL_PAYMASTER_URL.parse().unwrap(),
         );
 
     // You have an EOA

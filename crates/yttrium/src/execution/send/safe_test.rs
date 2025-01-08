@@ -124,7 +124,7 @@ pub async fn send_transactions(
     println!("Querying for receipts...");
 
     let bundler_client = BundlerClient::new(BundlerConfig::new(
-        config.endpoints.bundler.base_url.clone(),
+        config.endpoints.bundler.base_url.parse()?,
     ));
     let receipt = bundler_client
         .wait_for_user_operation_receipt(user_operation_hash)
@@ -178,7 +178,7 @@ pub async fn prepare_send_transactions(
     config: Config,
 ) -> eyre::Result<PreparedSendTransaction> {
     let pimlico_client = PimlicoBundlerClient::new(BundlerConfig::new(
-        config.endpoints.bundler.base_url.clone(),
+        config.endpoints.bundler.base_url.parse()?,
     ));
 
     let provider = ReqwestProvider::<Ethereum>::new_http(
@@ -186,7 +186,7 @@ pub async fn prepare_send_transactions(
     );
 
     let paymaster_client = PaymasterClient::new(BundlerConfig::new(
-        config.endpoints.paymaster.base_url.clone(),
+        config.endpoints.paymaster.base_url.parse()?,
     ));
 
     let gas_price = pimlico_client.estimate_user_operation_gas_price().await?;
@@ -432,7 +432,7 @@ pub async fn do_send_transactions(
     let entry_point_config = chain.entry_point_config();
     let entry_point_address = entry_point_config.address();
     let bundler_client = BundlerClient::new(BundlerConfig::new(
-        config.endpoints.bundler.base_url.clone(),
+        config.endpoints.bundler.base_url.parse()?,
     ));
     let user_operation_hash = bundler_client
         .send_user_operation(entry_point_address, user_op.clone())

@@ -61,7 +61,7 @@ mod tests {
 
         let mock_server = MockServer::start().await;
 
-        let url = mock_server.uri().to_string();
+        let url = mock_server.uri();
 
         let expected_request_body = serde_json::json!({
             "id": 1,
@@ -102,7 +102,8 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let bundler_client = BundlerClient::new(BundlerConfig::new(url));
+        let bundler_client =
+            BundlerClient::new(BundlerConfig::new(url.parse()?));
 
         Ok(bundler_client)
     }

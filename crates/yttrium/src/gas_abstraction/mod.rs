@@ -1,5 +1,6 @@
 use {
     crate::{
+        blockchain_api::{BLOCKCHAIN_API_URL, BUNDLER_ENDPOINT_PATH},
         bundler::{
             client::BundlerClient,
             config::BundlerConfig,
@@ -51,16 +52,20 @@ mod tests;
 #[cfg_attr(feature = "uniffi", derive(uniffi::Object))]
 pub struct Client {
     provider_pool: ProviderPool,
-    bundler_url: String,
-    paymaster_url: String,
+    bundler_url: Url,
+    paymaster_url: Url,
 }
 
 #[cfg_attr(feature = "uniffi", uniffi::export(async_runtime = "tokio"))]
 impl Client {
     #[cfg_attr(feature = "uniffi", uniffi::constructor)]
     pub fn new(project_id: ProjectId) -> Self {
-        let bundler_url =
-            "https://rpc.walletconnect.org/v1/bundler".to_string();
+        let bundler_url = BLOCKCHAIN_API_URL
+            .parse::<Url>()
+            .unwrap()
+            .join(BUNDLER_ENDPOINT_PATH)
+            .unwrap();
+
         Self {
             provider_pool: ProviderPool::new(project_id),
             paymaster_url: bundler_url.clone(),
@@ -79,11 +84,7 @@ impl Client {
     }
 
     #[cfg(feature = "uniffi")]
-    pub fn with_4337_urls(
-        &self,
-        bundler_url: String,
-        paymaster_url: String,
-    ) -> Self {
+    pub fn with_4337_urls(&self, bundler_url: Url, paymaster_url: Url) -> Self {
         let mut s = self.clone();
         s.bundler_url = bundler_url;
         s.paymaster_url = paymaster_url;
@@ -103,8 +104,8 @@ impl Client {
     // #[cfg(not(feature = "uniffi"))]
     // pub fn set_4337_urls(
     //     &mut self,
-    //     bundler_url: String,
-    //     paymaster_url: String,
+    //     bundler_url: Url,
+    //     paymaster_url: Url,
     // ) {
     //     self.bundler_url = bundler_url;
     //     self.paymaster_url = paymaster_url;
@@ -122,8 +123,8 @@ impl Client {
     // #[cfg(not(feature = "uniffi"))]
     // pub fn with_4337_urls(
     //     mut self,
-    //     bundler_url: String,
-    //     paymaster_url: String,
+    //     bundler_url: Url,
+    //     paymaster_url: Url,
     // ) -> Self {
     //     self.set_4337_urls(bundler_url, paymaster_url);
     //     self

@@ -114,8 +114,7 @@ impl BundlerClient {
         &self,
         hash: B256,
     ) -> eyre::Result<Option<UserOperationReceipt>> {
-        let provider =
-            ReqwestProvider::<Ethereum>::new_http(self.config.url().parse()?);
+        let provider = ReqwestProvider::<Ethereum>::new_http(self.config.url());
         Ok(provider.get_user_operation_receipt(hash).await?)
     }
 
@@ -233,9 +232,8 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let bundler_client = BundlerClient::new(BundlerConfig::new(
-            mock_server.uri().to_string(),
-        ));
+        let bundler_client =
+            BundlerClient::new(BundlerConfig::new(mock_server.uri().parse()?));
 
         Ok(bundler_client)
     }
