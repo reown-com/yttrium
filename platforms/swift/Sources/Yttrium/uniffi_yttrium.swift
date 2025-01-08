@@ -415,30 +415,6 @@ private struct FfiConverterUInt64: FfiConverterPrimitive {
 #if swift(>=5.8)
     @_documentation(visibility: private)
 #endif
-private struct FfiConverterBool: FfiConverter {
-    typealias FfiType = Int8
-    typealias SwiftType = Bool
-
-    public static func lift(_ value: Int8) throws -> Bool {
-        return value != 0
-    }
-
-    public static func lower(_ value: Bool) -> Int8 {
-        return value ? 1 : 0
-    }
-
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Bool {
-        return try lift(readInt(&buf))
-    }
-
-    public static func write(_ value: Bool, into buf: inout [UInt8]) {
-        writeInt(&buf, lower(value))
-    }
-}
-
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
 private struct FfiConverterString: FfiConverter {
     typealias SwiftType = String
     typealias FfiType = RustBuffer
@@ -482,7 +458,7 @@ public protocol ChainAbstractionClientProtocol: AnyObject {
 
     func estimateFees(chainId: String) async throws -> Eip1559Estimation
 
-    func getUiFields(routeResponse: RouteResponseAvailable, currency: Currency) async throws -> UiFields
+    func getUiFields(routeResponse: PrepareResponseAvailable, currency: Currency) async throws -> UiFields
 
     func prepare(initialTransaction: InitialTransaction) async throws -> PrepareResponse
 
@@ -582,13 +558,13 @@ open class ChainAbstractionClient:
             )
     }
 
-    open func getUiFields(routeResponse: RouteResponseAvailable, currency: Currency) async throws -> UiFields {
+    open func getUiFields(routeResponse: PrepareResponseAvailable, currency: Currency) async throws -> UiFields {
         return
             try await uniffiRustCallAsync(
                 rustFutureFunc: {
                     uniffi_uniffi_yttrium_fn_method_chainabstractionclient_get_ui_fields(
                         self.uniffiClonePointer(),
-                        FfiConverterTypeRouteResponseAvailable_lower(routeResponse), FfiConverterTypeCurrency_lower(currency)
+                        FfiConverterTypePrepareResponseAvailable_lower(routeResponse), FfiConverterTypeCurrency_lower(currency)
                     )
                 },
                 pollFunc: ffi_uniffi_yttrium_rust_future_poll_rust_buffer,
@@ -703,13 +679,15 @@ public protocol FfiAccountClientProtocol: AnyObject {
 
     func doSendTransactions(signatures: [OwnerSignature], doSendTransactionParams: String) async throws -> String
 
+    func doSignMessage(signatures: [OwnerSignature]) async throws -> SignOutputEnum
+
+    func finalizeSignMessage(signatures: [OwnerSignature], signStep3Params: SignStep3Params) async throws -> FfiBytes
+
     func getAddress() async throws -> String
 
-    func prepareSendTransactions(transactions: [FfiTransaction]) async throws -> PreparedSendTransaction
+    func prepareSendTransactions(transactions: [Execution]) async throws -> PreparedSendTransaction
 
-    func sendTransactions(transactions: [FfiTransaction]) async throws -> String
-
-    func signMessageWithMnemonic(message: String, mnemonic: String) throws -> String
+    func prepareSignMessage(messageHash: String) -> FfiPreparedSignature
 
     func waitForUserOperationReceipt(userOperationHash: String) async throws -> String
 }
@@ -753,11 +731,13 @@ open class FfiAccountClient:
         return try! rustCall { uniffi_uniffi_yttrium_fn_clone_ffiaccountclient(self.pointer, $0) }
     }
 
-    public convenience init(config: FfiAccountClientConfig) {
+    public convenience init(owner: FfiAccountAddress, chainId: UInt64, config: Config) {
         let pointer =
             try! rustCall {
                 uniffi_uniffi_yttrium_fn_constructor_ffiaccountclient_new(
-                    FfiConverterTypeFFIAccountClientConfig.lower(config), $0
+                    FfiConverterTypeFfiAccountAddress.lower(owner),
+                    FfiConverterUInt64.lower(chainId),
+                    FfiConverterTypeConfig_lower(config), $0
                 )
             }
         self.init(unsafeFromRawPointer: pointer)
@@ -794,6 +774,40 @@ open class FfiAccountClient:
             )
     }
 
+    open func doSignMessage(signatures: [OwnerSignature]) async throws -> SignOutputEnum {
+        return
+            try await uniffiRustCallAsync(
+                rustFutureFunc: {
+                    uniffi_uniffi_yttrium_fn_method_ffiaccountclient_do_sign_message(
+                        self.uniffiClonePointer(),
+                        FfiConverterSequenceTypeOwnerSignature.lower(signatures)
+                    )
+                },
+                pollFunc: ffi_uniffi_yttrium_rust_future_poll_rust_buffer,
+                completeFunc: ffi_uniffi_yttrium_rust_future_complete_rust_buffer,
+                freeFunc: ffi_uniffi_yttrium_rust_future_free_rust_buffer,
+                liftFunc: FfiConverterTypeSignOutputEnum_lift,
+                errorHandler: FfiConverterTypeFFIError.lift
+            )
+    }
+
+    open func finalizeSignMessage(signatures: [OwnerSignature], signStep3Params: SignStep3Params) async throws -> FfiBytes {
+        return
+            try await uniffiRustCallAsync(
+                rustFutureFunc: {
+                    uniffi_uniffi_yttrium_fn_method_ffiaccountclient_finalize_sign_message(
+                        self.uniffiClonePointer(),
+                        FfiConverterSequenceTypeOwnerSignature.lower(signatures), FfiConverterTypeSignStep3Params_lower(signStep3Params)
+                    )
+                },
+                pollFunc: ffi_uniffi_yttrium_rust_future_poll_rust_buffer,
+                completeFunc: ffi_uniffi_yttrium_rust_future_complete_rust_buffer,
+                freeFunc: ffi_uniffi_yttrium_rust_future_free_rust_buffer,
+                liftFunc: FfiConverterTypeFFIBytes.lift,
+                errorHandler: FfiConverterTypeFFIError.lift
+            )
+    }
+
     open func getAddress() async throws -> String {
         return
             try await uniffiRustCallAsync(
@@ -810,45 +824,27 @@ open class FfiAccountClient:
             )
     }
 
-    open func prepareSendTransactions(transactions: [FfiTransaction]) async throws -> PreparedSendTransaction {
+    open func prepareSendTransactions(transactions: [Execution]) async throws -> PreparedSendTransaction {
         return
             try await uniffiRustCallAsync(
                 rustFutureFunc: {
                     uniffi_uniffi_yttrium_fn_method_ffiaccountclient_prepare_send_transactions(
                         self.uniffiClonePointer(),
-                        FfiConverterSequenceTypeFFITransaction.lower(transactions)
+                        FfiConverterSequenceTypeExecution.lower(transactions)
                     )
                 },
                 pollFunc: ffi_uniffi_yttrium_rust_future_poll_rust_buffer,
                 completeFunc: ffi_uniffi_yttrium_rust_future_complete_rust_buffer,
                 freeFunc: ffi_uniffi_yttrium_rust_future_free_rust_buffer,
-                liftFunc: FfiConverterTypePreparedSendTransaction.lift,
+                liftFunc: FfiConverterTypePreparedSendTransaction_lift,
                 errorHandler: FfiConverterTypeFFIError.lift
             )
     }
 
-    open func sendTransactions(transactions: [FfiTransaction]) async throws -> String {
-        return
-            try await uniffiRustCallAsync(
-                rustFutureFunc: {
-                    uniffi_uniffi_yttrium_fn_method_ffiaccountclient_send_transactions(
-                        self.uniffiClonePointer(),
-                        FfiConverterSequenceTypeFFITransaction.lower(transactions)
-                    )
-                },
-                pollFunc: ffi_uniffi_yttrium_rust_future_poll_rust_buffer,
-                completeFunc: ffi_uniffi_yttrium_rust_future_complete_rust_buffer,
-                freeFunc: ffi_uniffi_yttrium_rust_future_free_rust_buffer,
-                liftFunc: FfiConverterString.lift,
-                errorHandler: FfiConverterTypeFFIError.lift
-            )
-    }
-
-    open func signMessageWithMnemonic(message: String, mnemonic: String) throws -> String {
-        return try FfiConverterString.lift(rustCallWithError(FfiConverterTypeFFIError.lift) {
-            uniffi_uniffi_yttrium_fn_method_ffiaccountclient_sign_message_with_mnemonic(self.uniffiClonePointer(),
-                                                                                        FfiConverterString.lower(message),
-                                                                                        FfiConverterString.lower(mnemonic), $0)
+    open func prepareSignMessage(messageHash: String) -> FfiPreparedSignature {
+        return try! FfiConverterTypeFfiPreparedSignature.lift(try! rustCall {
+            uniffi_uniffi_yttrium_fn_method_ffiaccountclient_prepare_sign_message(self.uniffiClonePointer(),
+                                                                                  FfiConverterString.lower(messageHash), $0)
         })
     }
 
@@ -991,288 +987,57 @@ public func FfiConverterTypeEip1559Estimation_lower(_ value: Eip1559Estimation) 
     return FfiConverterTypeEip1559Estimation.lower(value)
 }
 
-public struct FfiAccountClientConfig {
-    public var ownerAddress: String
-    public var chainId: UInt64
-    public var config: Config
-    public var signerType: String
-    public var safe: Bool
-    public var privateKey: String
+public struct FfiPreparedSignature {
+    public var messageHash: String
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(ownerAddress: String, chainId: UInt64, config: Config, signerType: String, safe: Bool, privateKey: String) {
-        self.ownerAddress = ownerAddress
-        self.chainId = chainId
-        self.config = config
-        self.signerType = signerType
-        self.safe = safe
-        self.privateKey = privateKey
+    public init(messageHash: String) {
+        self.messageHash = messageHash
     }
 }
 
-extension FfiAccountClientConfig: Equatable, Hashable {
-    public static func == (lhs: FfiAccountClientConfig, rhs: FfiAccountClientConfig) -> Bool {
-        if lhs.ownerAddress != rhs.ownerAddress {
-            return false
-        }
-        if lhs.chainId != rhs.chainId {
-            return false
-        }
-        if lhs.config != rhs.config {
-            return false
-        }
-        if lhs.signerType != rhs.signerType {
-            return false
-        }
-        if lhs.safe != rhs.safe {
-            return false
-        }
-        if lhs.privateKey != rhs.privateKey {
+extension FfiPreparedSignature: Equatable, Hashable {
+    public static func == (lhs: FfiPreparedSignature, rhs: FfiPreparedSignature) -> Bool {
+        if lhs.messageHash != rhs.messageHash {
             return false
         }
         return true
     }
 
     public func hash(into hasher: inout Hasher) {
-        hasher.combine(ownerAddress)
-        hasher.combine(chainId)
-        hasher.combine(config)
-        hasher.combine(signerType)
-        hasher.combine(safe)
-        hasher.combine(privateKey)
+        hasher.combine(messageHash)
     }
 }
 
 #if swift(>=5.8)
     @_documentation(visibility: private)
 #endif
-public struct FfiConverterTypeFFIAccountClientConfig: FfiConverterRustBuffer {
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> FfiAccountClientConfig {
+public struct FfiConverterTypeFfiPreparedSignature: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> FfiPreparedSignature {
         return
-            try FfiAccountClientConfig(
-                ownerAddress: FfiConverterString.read(from: &buf),
-                chainId: FfiConverterUInt64.read(from: &buf),
-                config: FfiConverterTypeConfig.read(from: &buf),
-                signerType: FfiConverterString.read(from: &buf),
-                safe: FfiConverterBool.read(from: &buf),
-                privateKey: FfiConverterString.read(from: &buf)
+            try FfiPreparedSignature(
+                messageHash: FfiConverterString.read(from: &buf)
             )
     }
 
-    public static func write(_ value: FfiAccountClientConfig, into buf: inout [UInt8]) {
-        FfiConverterString.write(value.ownerAddress, into: &buf)
-        FfiConverterUInt64.write(value.chainId, into: &buf)
-        FfiConverterTypeConfig.write(value.config, into: &buf)
-        FfiConverterString.write(value.signerType, into: &buf)
-        FfiConverterBool.write(value.safe, into: &buf)
-        FfiConverterString.write(value.privateKey, into: &buf)
+    public static func write(_ value: FfiPreparedSignature, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.messageHash, into: &buf)
     }
 }
 
 #if swift(>=5.8)
     @_documentation(visibility: private)
 #endif
-public func FfiConverterTypeFFIAccountClientConfig_lift(_ buf: RustBuffer) throws -> FfiAccountClientConfig {
-    return try FfiConverterTypeFFIAccountClientConfig.lift(buf)
+public func FfiConverterTypeFfiPreparedSignature_lift(_ buf: RustBuffer) throws -> FfiPreparedSignature {
+    return try FfiConverterTypeFfiPreparedSignature.lift(buf)
 }
 
 #if swift(>=5.8)
     @_documentation(visibility: private)
 #endif
-public func FfiConverterTypeFFIAccountClientConfig_lower(_ value: FfiAccountClientConfig) -> RustBuffer {
-    return FfiConverterTypeFFIAccountClientConfig.lower(value)
-}
-
-public struct FfiTransaction {
-    public var to: String
-    public var value: String
-    public var data: String
-
-    // Default memberwise initializers are never public by default, so we
-    // declare one manually.
-    public init(to: String, value: String, data: String) {
-        self.to = to
-        self.value = value
-        self.data = data
-    }
-}
-
-extension FfiTransaction: Equatable, Hashable {
-    public static func == (lhs: FfiTransaction, rhs: FfiTransaction) -> Bool {
-        if lhs.to != rhs.to {
-            return false
-        }
-        if lhs.value != rhs.value {
-            return false
-        }
-        if lhs.data != rhs.data {
-            return false
-        }
-        return true
-    }
-
-    public func hash(into hasher: inout Hasher) {
-        hasher.combine(to)
-        hasher.combine(value)
-        hasher.combine(data)
-    }
-}
-
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeFFITransaction: FfiConverterRustBuffer {
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> FfiTransaction {
-        return
-            try FfiTransaction(
-                to: FfiConverterString.read(from: &buf),
-                value: FfiConverterString.read(from: &buf),
-                data: FfiConverterString.read(from: &buf)
-            )
-    }
-
-    public static func write(_ value: FfiTransaction, into buf: inout [UInt8]) {
-        FfiConverterString.write(value.to, into: &buf)
-        FfiConverterString.write(value.value, into: &buf)
-        FfiConverterString.write(value.data, into: &buf)
-    }
-}
-
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
-public func FfiConverterTypeFFITransaction_lift(_ buf: RustBuffer) throws -> FfiTransaction {
-    return try FfiConverterTypeFFITransaction.lift(buf)
-}
-
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
-public func FfiConverterTypeFFITransaction_lower(_ value: FfiTransaction) -> RustBuffer {
-    return FfiConverterTypeFFITransaction.lower(value)
-}
-
-public struct OwnerSignature {
-    public var owner: String
-    public var signature: String
-
-    // Default memberwise initializers are never public by default, so we
-    // declare one manually.
-    public init(owner: String, signature: String) {
-        self.owner = owner
-        self.signature = signature
-    }
-}
-
-extension OwnerSignature: Equatable, Hashable {
-    public static func == (lhs: OwnerSignature, rhs: OwnerSignature) -> Bool {
-        if lhs.owner != rhs.owner {
-            return false
-        }
-        if lhs.signature != rhs.signature {
-            return false
-        }
-        return true
-    }
-
-    public func hash(into hasher: inout Hasher) {
-        hasher.combine(owner)
-        hasher.combine(signature)
-    }
-}
-
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeOwnerSignature: FfiConverterRustBuffer {
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> OwnerSignature {
-        return
-            try OwnerSignature(
-                owner: FfiConverterString.read(from: &buf),
-                signature: FfiConverterString.read(from: &buf)
-            )
-    }
-
-    public static func write(_ value: OwnerSignature, into buf: inout [UInt8]) {
-        FfiConverterString.write(value.owner, into: &buf)
-        FfiConverterString.write(value.signature, into: &buf)
-    }
-}
-
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
-public func FfiConverterTypeOwnerSignature_lift(_ buf: RustBuffer) throws -> OwnerSignature {
-    return try FfiConverterTypeOwnerSignature.lift(buf)
-}
-
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
-public func FfiConverterTypeOwnerSignature_lower(_ value: OwnerSignature) -> RustBuffer {
-    return FfiConverterTypeOwnerSignature.lower(value)
-}
-
-public struct PreparedSendTransaction {
-    public var hash: String
-    public var doSendTransactionParams: String
-
-    // Default memberwise initializers are never public by default, so we
-    // declare one manually.
-    public init(hash: String, doSendTransactionParams: String) {
-        self.hash = hash
-        self.doSendTransactionParams = doSendTransactionParams
-    }
-}
-
-extension PreparedSendTransaction: Equatable, Hashable {
-    public static func == (lhs: PreparedSendTransaction, rhs: PreparedSendTransaction) -> Bool {
-        if lhs.hash != rhs.hash {
-            return false
-        }
-        if lhs.doSendTransactionParams != rhs.doSendTransactionParams {
-            return false
-        }
-        return true
-    }
-
-    public func hash(into hasher: inout Hasher) {
-        hasher.combine(hash)
-        hasher.combine(doSendTransactionParams)
-    }
-}
-
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
-public struct FfiConverterTypePreparedSendTransaction: FfiConverterRustBuffer {
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> PreparedSendTransaction {
-        return
-            try PreparedSendTransaction(
-                hash: FfiConverterString.read(from: &buf),
-                doSendTransactionParams: FfiConverterString.read(from: &buf)
-            )
-    }
-
-    public static func write(_ value: PreparedSendTransaction, into buf: inout [UInt8]) {
-        FfiConverterString.write(value.hash, into: &buf)
-        FfiConverterString.write(value.doSendTransactionParams, into: &buf)
-    }
-}
-
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
-public func FfiConverterTypePreparedSendTransaction_lift(_ buf: RustBuffer) throws -> PreparedSendTransaction {
-    return try FfiConverterTypePreparedSendTransaction.lift(buf)
-}
-
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
-public func FfiConverterTypePreparedSendTransaction_lower(_ value: PreparedSendTransaction) -> RustBuffer {
-    return FfiConverterTypePreparedSendTransaction.lower(value)
+public func FfiConverterTypeFfiPreparedSignature_lower(_ value: FfiPreparedSignature) -> RustBuffer {
+    return FfiConverterTypeFfiPreparedSignature.lower(value)
 }
 
 public enum FfiError {
@@ -1317,23 +1082,23 @@ extension FfiError: Foundation.LocalizedError {
 #if swift(>=5.8)
     @_documentation(visibility: private)
 #endif
-private struct FfiConverterSequenceTypeFFITransaction: FfiConverterRustBuffer {
-    typealias SwiftType = [FfiTransaction]
+private struct FfiConverterSequenceTypeExecution: FfiConverterRustBuffer {
+    typealias SwiftType = [Execution]
 
-    public static func write(_ value: [FfiTransaction], into buf: inout [UInt8]) {
+    public static func write(_ value: [Execution], into buf: inout [UInt8]) {
         let len = Int32(value.count)
         writeInt(&buf, len)
         for item in value {
-            FfiConverterTypeFFITransaction.write(item, into: &buf)
+            FfiConverterTypeExecution.write(item, into: &buf)
         }
     }
 
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [FfiTransaction] {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [Execution] {
         let len: Int32 = try readInt(&buf)
-        var seq = [FfiTransaction]()
+        var seq = [Execution]()
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
-            try seq.append(FfiConverterTypeFFITransaction.read(from: &buf))
+            try seq.append(FfiConverterTypeExecution.read(from: &buf))
         }
         return seq
     }
@@ -1403,6 +1168,47 @@ public func FfiConverterTypeFFIAddress_lift(_ value: RustBuffer) throws -> FfiAd
 #endif
 public func FfiConverterTypeFFIAddress_lower(_ value: FfiAddress) -> RustBuffer {
     return FfiConverterTypeFFIAddress.lower(value)
+}
+
+/**
+ * Typealias from the type name used in the UDL file to the builtin type.  This
+ * is needed because the UDL type name is used in function/method signatures.
+ */
+public typealias FfiBytes = String
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeFFIBytes: FfiConverter {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> FfiBytes {
+        return try FfiConverterString.read(from: &buf)
+    }
+
+    public static func write(_ value: FfiBytes, into buf: inout [UInt8]) {
+        return FfiConverterString.write(value, into: &buf)
+    }
+
+    public static func lift(_ value: RustBuffer) throws -> FfiBytes {
+        return try FfiConverterString.lift(value)
+    }
+
+    public static func lower(_ value: FfiBytes) -> RustBuffer {
+        return FfiConverterString.lower(value)
+    }
+}
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFFIBytes_lift(_ value: RustBuffer) throws -> FfiBytes {
+    return try FfiConverterTypeFFIBytes.lift(value)
+}
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFFIBytes_lower(_ value: FfiBytes) -> RustBuffer {
+    return FfiConverterTypeFFIBytes.lower(value)
 }
 
 /**
@@ -1487,6 +1293,47 @@ public func FfiConverterTypeFFIU256_lower(_ value: Ffiu256) -> RustBuffer {
     return FfiConverterTypeFFIU256.lower(value)
 }
 
+/**
+ * Typealias from the type name used in the UDL file to the builtin type.  This
+ * is needed because the UDL type name is used in function/method signatures.
+ */
+public typealias FfiAccountAddress = FfiAddress
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeFfiAccountAddress: FfiConverter {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> FfiAccountAddress {
+        return try FfiConverterTypeFFIAddress.read(from: &buf)
+    }
+
+    public static func write(_ value: FfiAccountAddress, into buf: inout [UInt8]) {
+        return FfiConverterTypeFFIAddress.write(value, into: &buf)
+    }
+
+    public static func lift(_ value: RustBuffer) throws -> FfiAccountAddress {
+        return try FfiConverterTypeFFIAddress.lift(value)
+    }
+
+    public static func lower(_ value: FfiAccountAddress) -> RustBuffer {
+        return FfiConverterTypeFFIAddress.lower(value)
+    }
+}
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFfiAccountAddress_lift(_ value: RustBuffer) throws -> FfiAccountAddress {
+    return try FfiConverterTypeFfiAccountAddress.lift(value)
+}
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFfiAccountAddress_lower(_ value: FfiAccountAddress) -> RustBuffer {
+    return FfiConverterTypeFfiAccountAddress.lower(value)
+}
+
 private let UNIFFI_RUST_FUTURE_POLL_READY: Int8 = 0
 private let UNIFFI_RUST_FUTURE_POLL_MAYBE_READY: Int8 = 1
 
@@ -1556,7 +1403,7 @@ private let initializationResult: InitializationResult = {
     if uniffi_uniffi_yttrium_checksum_method_chainabstractionclient_estimate_fees() != 51281 {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_uniffi_yttrium_checksum_method_chainabstractionclient_get_ui_fields() != 21887 {
+    if uniffi_uniffi_yttrium_checksum_method_chainabstractionclient_get_ui_fields() != 19431 {
         return InitializationResult.apiChecksumMismatch
     }
     if uniffi_uniffi_yttrium_checksum_method_chainabstractionclient_prepare() != 47602 {
@@ -1571,19 +1418,22 @@ private let initializationResult: InitializationResult = {
     if uniffi_uniffi_yttrium_checksum_method_ffiaccountclient_chain_id() != 40865 {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_uniffi_yttrium_checksum_method_ffiaccountclient_do_send_transactions() != 33638 {
+    if uniffi_uniffi_yttrium_checksum_method_ffiaccountclient_do_send_transactions() != 18208 {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if uniffi_uniffi_yttrium_checksum_method_ffiaccountclient_do_sign_message() != 64596 {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if uniffi_uniffi_yttrium_checksum_method_ffiaccountclient_finalize_sign_message() != 26642 {
         return InitializationResult.apiChecksumMismatch
     }
     if uniffi_uniffi_yttrium_checksum_method_ffiaccountclient_get_address() != 38899 {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_uniffi_yttrium_checksum_method_ffiaccountclient_prepare_send_transactions() != 33465 {
+    if uniffi_uniffi_yttrium_checksum_method_ffiaccountclient_prepare_send_transactions() != 15158 {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_uniffi_yttrium_checksum_method_ffiaccountclient_send_transactions() != 46699 {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if uniffi_uniffi_yttrium_checksum_method_ffiaccountclient_sign_message_with_mnemonic() != 60647 {
+    if uniffi_uniffi_yttrium_checksum_method_ffiaccountclient_prepare_sign_message() != 40672 {
         return InitializationResult.apiChecksumMismatch
     }
     if uniffi_uniffi_yttrium_checksum_method_ffiaccountclient_wait_for_user_operation_receipt() != 13654 {
@@ -1592,7 +1442,7 @@ private let initializationResult: InitializationResult = {
     if uniffi_uniffi_yttrium_checksum_constructor_chainabstractionclient_new() != 39164 {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_uniffi_yttrium_checksum_constructor_ffiaccountclient_new() != 64773 {
+    if uniffi_uniffi_yttrium_checksum_constructor_ffiaccountclient_new() != 28883 {
         return InitializationResult.apiChecksumMismatch
     }
 
