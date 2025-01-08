@@ -55,6 +55,8 @@ const USDC_CONTRACT_BASE: Address =
 const USDC_CONTRACT_ARBITRUM: Address =
     address!("af88d065e77c8cC2239327C5EDb3A432268e5831");
 
+const TOPOFF: f64 = 1.55; // 50% in the server
+
 #[derive(Debug, Clone, PartialEq, Eq, Copy)]
 enum Chain {
     Base,
@@ -337,7 +339,7 @@ async fn bridging_routes_routes_available() {
     let send_amount = U256::from(1_500_000); // 1.5 USDC (6 decimals)
 
     // let required_amount =
-    //     U256::from((send_amount.to::<u128>() as f64 * 1.05) as u128);
+    //     U256::from((send_amount.to::<u128>() as f64 * TOPOFF) as u128);
     let required_amount = {
         let erc20_topup_value = send_amount;
         // Multiply the topup value by the bridging percent multiplier and get
@@ -355,7 +357,7 @@ async fn bridging_routes_routes_available() {
     println!("required_amount: {required_amount}");
 
     if current_balance < required_amount {
-        assert!(required_amount < U256::from(2000000));
+        assert!(required_amount < U256::from(4000000));
         println!(
                 "using token faucet {} on chain {} for amount {current_balance} on token {:?} ({}). Send tokens to faucet at: {}",
                 faucet.address(),
@@ -682,7 +684,7 @@ async fn happy_path() {
 
     let send_amount = U256::from(1_500_000); // 1.5 USDC (6 decimals)
     let required_amount =
-        U256::from((send_amount.to::<u128>() as f64 * 1.05) as u128);
+        U256::from((send_amount.to::<u128>() as f64 * TOPOFF) as u128);
 
     let chain_1_balance = chain_1_address_1_token.token_balance().await;
     let chain_2_balance = chain_2_address_2_token.token_balance().await;
@@ -698,7 +700,7 @@ async fn happy_path() {
     println!("source: {:?}", source);
 
     if faucet_required {
-        assert!(required_amount < U256::from(2000000));
+        assert!(required_amount < U256::from(4000000));
         println!(
             "using token faucet {} on chain {} for amount {required_amount} on token {:?} ({}). Send tokens to faucet at: {}",
             faucet.address(),
@@ -845,7 +847,7 @@ async fn happy_path() {
             .as_float_inaccurate();
     println!("ui_bridge_fee: {ui_bridge_fee}");
     println!("send_amount_amount: {send_amount_amount}");
-    assert!(ui_bridge_fee / send_amount_amount < 0.25, "ui_bridge_fee {ui_bridge_fee} must be less than the amount being sent {send_amount_amount}");
+    assert!(ui_bridge_fee / send_amount_amount < 0.05, "ui_bridge_fee {ui_bridge_fee} must be less than the amount being sent {send_amount_amount}");
 
     for ((chain_id, address), total_fee) in total_fees {
         let provider =
@@ -1240,7 +1242,7 @@ async fn happy_path_full_dependency_on_ui_fields() {
 
     let send_amount = U256::from(1_500_000); // 1.5 USDC (6 decimals)
     let required_amount =
-        U256::from((send_amount.to::<u128>() as f64 * 1.05) as u128);
+        U256::from((send_amount.to::<u128>() as f64 * TOPOFF) as u128);
 
     let chain_1_balance = chain_1_address_1_token.token_balance().await;
     let chain_2_balance = chain_2_address_2_token.token_balance().await;
@@ -1256,7 +1258,7 @@ async fn happy_path_full_dependency_on_ui_fields() {
     println!("source: {:?}", source);
 
     if faucet_required {
-        assert!(required_amount < U256::from(2000000));
+        assert!(required_amount < U256::from(4000000));
         println!(
             "using token faucet {} on chain {} for amount {required_amount} on token {:?} ({}). Send tokens to faucet at: {}",
             faucet.address(),
@@ -1354,7 +1356,7 @@ async fn happy_path_full_dependency_on_ui_fields() {
         .unwrap()
         .to_amount()
         .formatted
-        .starts_with("1.5"));
+        .starts_with("2.26"));
     assert!(result
         .metadata
         .funding_from

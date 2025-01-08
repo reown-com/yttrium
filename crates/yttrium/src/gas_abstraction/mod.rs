@@ -7,7 +7,6 @@ use {
             pimlico::{self, paymaster::client::PaymasterClient},
         },
         chain_abstraction::api::InitialTransaction,
-        config::Config,
         entry_point::ENTRYPOINT_ADDRESS_V07,
         erc7579::{
             accounts::safe::encode_validator_key,
@@ -34,11 +33,12 @@ use {
             eip191_hash_message, Address, Bytes, PrimitiveSignature, B256, U256,
         },
         rpc::types::Authorization,
-        signers::local::LocalSigner,
+        signers::local::{LocalSigner, PrivateKeySigner},
         sol_types::SolCall,
     },
     alloy_provider::{Provider, ProviderBuilder},
     relay_rpc::domain::ProjectId,
+    reqwest::Url,
     std::collections::HashMap,
 };
 
@@ -51,29 +51,83 @@ mod tests;
 #[cfg_attr(feature = "uniffi", derive(uniffi::Object))]
 pub struct Client {
     provider_pool: ProviderPool,
-    config: Config,
+    bundler_url: String,
+    paymaster_url: String,
 }
 
 #[cfg_attr(feature = "uniffi", uniffi::export(async_runtime = "tokio"))]
 impl Client {
     #[cfg_attr(feature = "uniffi", uniffi::constructor)]
-    // TODO remove `config` param, do similar with_*_overrides pattern
-    // Actually, add these to ProviderPool as other types of providers (e.g. get_bundler())
-    pub fn new(
-        project_id: ProjectId,
-        chain_id: String,
-        config: Config,
-    ) -> Self {
+    pub fn new(project_id: ProjectId) -> Self {
+        let bundler_url =
+            "https://rpc.walletconnect.org/v1/bundler".to_string();
         Self {
-            provider_pool: ProviderPool::new(project_id).with_rpc_overrides(
-                HashMap::from([(
-                    chain_id,
-                    config.endpoints.rpc.base_url.parse().unwrap(),
-                )]),
-            ),
-            config,
+            provider_pool: ProviderPool::new(project_id),
+            paymaster_url: bundler_url.clone(),
+            bundler_url,
         }
     }
+
+    #[cfg(feature = "uniffi")]
+    pub fn with_rpc_overrides(
+        &self,
+        rpc_overrides: HashMap<String, Url>,
+    ) -> Self {
+        let mut s = self.clone();
+        s.provider_pool.set_rpc_overrides(rpc_overrides);
+        s
+    }
+
+    #[cfg(feature = "uniffi")]
+    pub fn with_4337_urls(
+        &self,
+        bundler_url: String,
+        paymaster_url: String,
+    ) -> Self {
+        let mut s = self.clone();
+        s.bundler_url = bundler_url;
+        s.paymaster_url = paymaster_url;
+        s
+    }
+
+    // The above builder-pattern implementations are inefficient when used by regular Rust code.
+    // The below functions are standard Rust efficient, however UniFFI doesn't like them even though they are feature flagged.
+    // Not sure what the solution is, but for now we will use the sub-optimal implementations from Rust.
+    // Consider making a separate Client that wraps this in uniffi_compat?
+
+    // #[cfg(not(feature = "uniffi"))]
+    // pub fn set_rpc_overrides(&mut self, rpc_overrides: HashMap<String, Url>) {
+    //     self.provider_pool.set_rpc_overrides(rpc_overrides);
+    // }
+
+    // #[cfg(not(feature = "uniffi"))]
+    // pub fn set_4337_urls(
+    //     &mut self,
+    //     bundler_url: String,
+    //     paymaster_url: String,
+    // ) {
+    //     self.bundler_url = bundler_url;
+    //     self.paymaster_url = paymaster_url;
+    // }
+
+    // #[cfg(not(feature = "uniffi"))]
+    // pub fn with_rpc_overrides(
+    //     mut self,
+    //     rpc_overrides: HashMap<String, Url>,
+    // ) -> Self {
+    //     self.set_rpc_overrides(rpc_overrides);
+    //     self
+    // }
+
+    // #[cfg(not(feature = "uniffi"))]
+    // pub fn with_4337_urls(
+    //     mut self,
+    //     bundler_url: String,
+    //     paymaster_url: String,
+    // ) -> Self {
+    //     self.set_4337_urls(bundler_url, paymaster_url);
+    //     self
+    // }
 
     // TODO error type
     pub async fn prepare(
@@ -151,10 +205,10 @@ impl Client {
 
         // TODO refactor to reuse these clients as part of the pool thingie
         let pimlico_client = pimlico::client::BundlerClient::new(
-            BundlerConfig::new(self.config.endpoints.bundler.base_url.clone()),
+            BundlerConfig::new(self.bundler_url.clone()),
         );
         let paymaster_client = PaymasterClient::new(BundlerConfig::new(
-            self.config.endpoints.paymaster.base_url.clone(),
+            self.paymaster_url.clone(),
         ));
 
         let gas_price = pimlico_client
@@ -229,29 +283,35 @@ impl Client {
     }
 
     // TODO error type
-    // When bundlers support sending 7702 natively, this name will be accurate (noting is sent until `send()`)
+    // When bundlers support sending 7702 natively, this name will be accurate (nothing is sent until `send()`)
     // For now, `prepare_deploy()` also will execute a 7702 txn by itself since this function sponsors the UserOp
     pub async fn prepare_deploy(
         &self,
-        // FIXME can't pass Authorization through FFI
-        auth_sig: SignedAuthorization,
+        auth_sig: SignedAuthorization, // TODO replace this with the alloy type with the same name; and deal with the UniFFI conversion separately
         params: PrepareDeployParams,
+        // TODO remove this `sponsor` param once 4337 supports sponsoring 7702 txns
+        // Pass None to use anvil faucet
+        sponsor: Option<PrivateKeySigner>,
     ) -> PreparedSend {
         let account = params.transaction.from;
         let SignedAuthorization { auth, signature } = auth_sig;
         let chain_id = auth.chain_id;
         let auth = auth.into_signed(signature);
 
-        let faucet = anvil_faucet(&self.config.endpoints.rpc.base_url).await;
-        let faucet_wallet = EthereumWallet::new(faucet);
-        let faucet_provider = ProviderBuilder::new()
+        let provider = self
+            .provider_pool
+            .get_provider(&format!("eip155:{chain_id}"))
+            .await;
+        let sponsor = if let Some(sponsor) = sponsor {
+            sponsor
+        } else {
+            anvil_faucet(&provider).await
+        };
+        let sponsor_wallet = EthereumWallet::new(sponsor);
+        let sponsor_provider = ProviderBuilder::new()
             .with_recommended_fillers()
-            .wallet(faucet_wallet)
-            .on_provider(
-                self.provider_pool
-                    .get_provider(&format!("eip155:{chain_id}"))
-                    .await,
-            );
+            .wallet(sponsor_wallet)
+            .on_provider(provider);
 
         let safe_owners = Owners {
             threshold: 1,
@@ -263,7 +323,7 @@ impl Client {
         let ownable_validator = get_ownable_validator(&owners, None);
 
         // TODO do this in the UserOp as a factory
-        assert!(SetupContract::new(account, faucet_provider)
+        assert!(SetupContract::new(account, sponsor_provider)
             .setup(
                 safe_owners.owners,
                 U256::from(safe_owners.threshold),
@@ -318,9 +378,8 @@ impl Client {
         signature: PrimitiveSignature,
         params: SendParams,
     ) -> UserOperationReceipt {
-        let bundler_client = BundlerClient::new(BundlerConfig::new(
-            self.config.endpoints.bundler.base_url.clone(),
-        ));
+        let bundler_client =
+            BundlerClient::new(BundlerConfig::new(self.bundler_url.clone()));
         let signature = signature.as_bytes().into();
         let user_op = UserOperationV07 { signature, ..params.user_op };
         let hash = bundler_client

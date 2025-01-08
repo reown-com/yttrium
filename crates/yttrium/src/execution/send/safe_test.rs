@@ -528,7 +528,10 @@ mod tests {
     }
 
     async fn anvil_faucet(config: Config) -> LocalSigner<SigningKey> {
-        test_helpers::anvil_faucet(config.endpoints.rpc.base_url).await
+        test_helpers::anvil_faucet(&ReqwestProvider::new_http(
+            config.endpoints.rpc.base_url.parse().unwrap(),
+        ))
+        .await
     }
 
     #[tokio::test]

@@ -7,7 +7,7 @@ use {
             config::BundlerConfig,
             pimlico::{self, paymaster::client::PaymasterClient},
         },
-        config::Config,
+        config::{LOCAL_BUNDLER_URL, LOCAL_PAYMASTER_URL, LOCAL_RPC_URL},
         entry_point::ENTRYPOINT_ADDRESS_V07,
         erc7579::{
             accounts::safe::encode_validator_key,
@@ -46,59 +46,52 @@ use {
         sol_types::SolCall,
     },
     alloy_provider::{Provider, ProviderBuilder, ReqwestProvider},
-    reqwest::Url,
+    std::time::Duration,
 };
 
 #[tokio::test]
 #[ignore]
 #[cfg(feature = "test_pimlico_api")]
 async fn test_pimlico() {
-    use {
-        crate::{
-            config::{Endpoint, Endpoints},
-            test_helpers::private_faucet,
-        },
-        std::env,
-    };
-    let config = Config {
-        endpoints: {
-            let api_key = env::var("PIMLICO_API_KEY")
-                .expect("You've not set the PIMLICO_API_KEY");
+    use {crate::test_helpers::private_faucet, std::env};
 
-            let rpc = {
-                let base_url = "https://odyssey.ithaca.xyz".to_owned();
-                Endpoint { api_key: api_key.clone(), base_url }
-            };
+    let rpc = "https://odyssey.ithaca.xyz";
 
-            let bundler = {
-                let chain_id = 911867; // Odyssey Testnet
-                let base_url = format!(
-                    "https://api.pimlico.io/v2/{chain_id}/rpc?apikey={api_key}"
-                );
-                Endpoint { api_key: api_key.clone(), base_url }
-            };
+    let pimlico_api_key = env::var("PIMLICO_API_KEY")
+        .expect("You've not set the PIMLICO_API_KEY");
 
-            Endpoints { rpc, paymaster: bundler.clone(), bundler }
-        },
-    };
+    let chain_id = 911867; // Odyssey Testnet
+    let bundler_url = format!(
+        "https://api.pimlico.io/v2/{chain_id}/rpc?apikey={pimlico_api_key}"
+    );
+
+    let provider = ReqwestProvider::<Ethereum>::new_http(rpc.parse().unwrap());
     let faucet = private_faucet();
-    test_impl(config, faucet).await
+
+    test_impl(provider, faucet, bundler_url.clone(), bundler_url).await
 }
 
 #[tokio::test]
 async fn test_local() {
-    let config = Config::local();
-    let faucet =
-        anvil_faucet(config.endpoints.rpc.base_url.parse::<Url>().unwrap())
-            .await;
-    test_impl(config, faucet).await
+    let provider =
+        ReqwestProvider::<Ethereum>::new_http(LOCAL_RPC_URL.parse().unwrap());
+    let faucet = anvil_faucet(&provider).await;
+
+    test_impl(
+        provider,
+        faucet,
+        LOCAL_BUNDLER_URL.to_owned(),
+        LOCAL_PAYMASTER_URL.to_owned(),
+    )
+    .await
 }
 
-async fn test_impl(config: Config, faucet: LocalSigner<SigningKey>) {
-    let rpc_url = config.endpoints.rpc.base_url.parse::<Url>().unwrap();
-    println!("rpc_url: {}", rpc_url);
-    let provider = ReqwestProvider::<Ethereum>::new_http(rpc_url.clone());
-
+async fn test_impl(
+    provider: ReqwestProvider,
+    faucet: LocalSigner<SigningKey>,
+    bundler_url: String,
+    paymaster_url: String,
+) {
     let chain_id = provider.get_chain_id().await.unwrap();
     println!("chain_id: {:?}", chain_id);
 
@@ -146,11 +139,36 @@ async fn test_impl(config: Config, faucet: LocalSigner<SigningKey>) {
     let auth = auth_7702.into_signed(sig);
 
     println!("using faucet: {}", faucet.address());
+    println!("faucet private key: {}", hex::encode(faucet.to_bytes()));
     let faucet_wallet = EthereumWallet::new(faucet);
     let faucet_provider = ProviderBuilder::new()
         .with_recommended_fillers()
         .wallet(faucet_wallet)
         .on_provider(provider.clone());
+
+    println!("account address: {}", account.address());
+    // let mut buf = Vec::new();
+    // auth.encode(&mut buf);
+    // println!("auth: {}", hex::encode(buf));
+    // let sent_txn = faucet_provider
+    //     .send_transaction(
+    //         TransactionRequest::default()
+    //             .with_to(account.address())
+    //             .with_input(Bytes::new())
+    //             .with_authorization_list(vec![auth]),
+    //     )
+    //     .await
+    //     .unwrap();
+    // println!("txn hash: {}", sent_txn.tx_hash());
+    // let receipt = sent_txn
+    //     .with_timeout(Some(Duration::from_secs(20)))
+    //     .get_receipt()
+    //     .await
+    //     .unwrap();
+    // println!("receipt: {:?}", receipt);
+    // assert!(receipt.status());
+    // return;
+
     let sent_txn =
         SetupContract::new(account.address(), faucet_provider.clone())
             .setup(
@@ -203,7 +221,11 @@ async fn test_impl(config: Config, faucet: LocalSigner<SigningKey>) {
             .await
             .unwrap();
     println!("txn hash: {}", sent_txn.tx_hash());
-    let receipt = sent_txn.get_receipt().await.unwrap();
+    let receipt = sent_txn
+        .with_timeout(Some(Duration::from_secs(20)))
+        .get_receipt()
+        .await
+        .unwrap();
     println!("receipt: {:?}", receipt);
     assert!(receipt.status());
 
@@ -223,14 +245,11 @@ async fn test_impl(config: Config, faucet: LocalSigner<SigningKey>) {
     );
 
     let pimlico_client = pimlico::client::BundlerClient::new(
-        BundlerConfig::new(config.endpoints.bundler.base_url.clone()),
+        BundlerConfig::new(bundler_url.clone()),
     );
-    let bundler_client = BundlerClient::new(BundlerConfig::new(
-        config.endpoints.bundler.base_url.clone(),
-    ));
-    let paymaster_client = PaymasterClient::new(BundlerConfig::new(
-        config.endpoints.paymaster.base_url.clone(),
-    ));
+    let bundler_client = BundlerClient::new(BundlerConfig::new(bundler_url));
+    let paymaster_client =
+        PaymasterClient::new(BundlerConfig::new(paymaster_url));
 
     let gas_price =
         pimlico_client.estimate_user_operation_gas_price().await.unwrap().fast;

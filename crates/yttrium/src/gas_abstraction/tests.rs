@@ -1,7 +1,7 @@
 use {
     crate::{
         chain_abstraction::api::InitialTransaction,
-        config::Config,
+        config::{LOCAL_BUNDLER_URL, LOCAL_PAYMASTER_URL, LOCAL_RPC_URL},
         gas_abstraction::{
             Client as GasAbstractionClient, PreparedGasAbstraction,
             SignedAuthorization,
@@ -13,26 +13,32 @@ use {
         signers::{local::LocalSigner, SignerSync},
     },
     alloy_provider::{Provider, ReqwestProvider},
+    std::collections::HashMap,
 };
 
 #[tokio::test]
 async fn happy_path() {
-    // TODO remove
-    let (config, chain_id) = {
-        let config = Config::local();
-        let provider = ReqwestProvider::<Ethereum>::new_http(
-            config.endpoints.rpc.base_url.parse().unwrap(),
-        );
-        let chain_id =
-            format!("eip155:{}", provider.get_chain_id().await.unwrap());
-        (config, chain_id)
-    };
+    let chain_id = format!(
+        "eip155:{}",
+        ReqwestProvider::<Ethereum>::new_http(LOCAL_RPC_URL.parse().unwrap(),)
+            .get_chain_id()
+            .await
+            .unwrap()
+    );
 
     // You have a GasAbstractionClient
     // TODO allow Sponsor EOA as configuration - for non-Anvil usage i.e. TODO Pimlico test case against testnet
-    let project_id = std::env::var("REOWN_PROJECT_ID").unwrap().into();
-    let client =
-        GasAbstractionClient::new(project_id, chain_id.clone(), config);
+    // let project_id = std::env::var("REOWN_PROJECT_ID").unwrap().into();
+    let project_id = "".into();
+    let client = GasAbstractionClient::new(project_id)
+        .with_rpc_overrides(HashMap::from([(
+            chain_id.clone(),
+            LOCAL_RPC_URL.parse().unwrap(),
+        )]))
+        .with_4337_urls(
+            LOCAL_BUNDLER_URL.to_owned(),
+            LOCAL_PAYMASTER_URL.to_owned(),
+        );
 
     // You have an EOA
     let eoa = LocalSigner::random();
@@ -70,7 +76,7 @@ async fn happy_path() {
             auth: auth.auth,
         };
         let prepared_send =
-            client.prepare_deploy(auth_sig, prepare_deploy_params).await;
+            client.prepare_deploy(auth_sig, prepare_deploy_params, None).await;
 
         // Display fee information to the user: prepare_deploy_result.fees
         // User approved? Yes

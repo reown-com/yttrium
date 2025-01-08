@@ -107,6 +107,7 @@ sol! {
 
 sol!(
     #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+    #[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
     struct SafeOp {
         address safe;
         uint256 nonce;
