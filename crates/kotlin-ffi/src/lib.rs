@@ -27,8 +27,8 @@ use {
         config::Config,
         execution::{
             send::safe_test::{
-                self, Address as FFIAddress, OwnerSignature,
-                PreparedSendTransaction, DoSendTransactionParams
+                self, Address as FFIAddress, DoSendTransactionParams,
+                OwnerSignature, PreparedSendTransaction,
             },
             Execution,
         },
@@ -277,10 +277,7 @@ impl FFIAccountClient {
     ) -> Result<String, FFIError> {
         Ok(self
             .account_client
-            .do_send_transactions(
-                signatures,
-                do_send_transaction_params,
-            )
+            .do_send_transactions(signatures, do_send_transaction_params)
             .await
             .map_err(|e| FFIError::General(e.to_string()))?
             .to_string())
