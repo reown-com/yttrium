@@ -677,7 +677,7 @@ public func FfiConverterTypeChainAbstractionClient_lower(_ value: ChainAbstracti
 public protocol FfiAccountClientProtocol: AnyObject {
     func chainId() -> UInt64
 
-    func doSendTransactions(signatures: [OwnerSignature], doSendTransactionParams: String) async throws -> String
+    func doSendTransactions(signatures: [OwnerSignature], doSendTransactionParams: DoSendTransactionParams) async throws -> String
 
     func doSignMessage(signatures: [OwnerSignature]) async throws -> SignOutputEnum
 
@@ -757,13 +757,13 @@ open class FfiAccountClient:
         })
     }
 
-    open func doSendTransactions(signatures: [OwnerSignature], doSendTransactionParams: String) async throws -> String {
+    open func doSendTransactions(signatures: [OwnerSignature], doSendTransactionParams: DoSendTransactionParams) async throws -> String {
         return
             try await uniffiRustCallAsync(
                 rustFutureFunc: {
                     uniffi_uniffi_yttrium_fn_method_ffiaccountclient_do_send_transactions(
                         self.uniffiClonePointer(),
-                        FfiConverterSequenceTypeOwnerSignature.lower(signatures), FfiConverterString.lower(doSendTransactionParams)
+                        FfiConverterSequenceTypeOwnerSignature.lower(signatures), FfiConverterTypeDoSendTransactionParams_lower(doSendTransactionParams)
                     )
                 },
                 pollFunc: ffi_uniffi_yttrium_rust_future_poll_rust_buffer,
@@ -1418,7 +1418,7 @@ private let initializationResult: InitializationResult = {
     if uniffi_uniffi_yttrium_checksum_method_ffiaccountclient_chain_id() != 40865 {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_uniffi_yttrium_checksum_method_ffiaccountclient_do_send_transactions() != 18208 {
+    if uniffi_uniffi_yttrium_checksum_method_ffiaccountclient_do_send_transactions() != 24124 {
         return InitializationResult.apiChecksumMismatch
     }
     if uniffi_uniffi_yttrium_checksum_method_ffiaccountclient_do_sign_message() != 64596 {

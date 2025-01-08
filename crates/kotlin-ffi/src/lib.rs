@@ -28,7 +28,7 @@ use {
         execution::{
             send::safe_test::{
                 self, Address as FFIAddress, OwnerSignature,
-                PreparedSendTransaction,
+                PreparedSendTransaction, DoSendTransactionParams
             },
             Execution,
         },
@@ -273,14 +273,13 @@ impl FFIAccountClient {
     pub async fn do_send_transactions(
         &self,
         signatures: Vec<OwnerSignature>,
-        do_send_transaction_params: String,
+        do_send_transaction_params: DoSendTransactionParams,
     ) -> Result<String, FFIError> {
         Ok(self
             .account_client
             .do_send_transactions(
                 signatures,
-                serde_json::from_str(&do_send_transaction_params)
-                    .map_err(|e| FFIError::General(e.to_string()))?,
+                do_send_transaction_params,
             )
             .await
             .map_err(|e| FFIError::General(e.to_string()))?
