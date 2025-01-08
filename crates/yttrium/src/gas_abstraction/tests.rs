@@ -53,7 +53,7 @@ async fn happy_path() {
             input: Bytes::new(),
         };
 
-        let result = client.prepare(txn).await;
+        let result = client.prepare(txn).await.unwrap();
         assert!(matches!(
             result,
             PreparedGasAbstraction::DeploymentRequired { .. }
@@ -75,8 +75,10 @@ async fn happy_path() {
             signature: eoa.sign_hash_sync(&auth.auth.signature_hash()).unwrap(),
             auth: auth.auth,
         };
-        let prepared_send =
-            client.prepare_deploy(auth_sig, prepare_deploy_params, None).await;
+        let prepared_send = client
+            .prepare_deploy(auth_sig, prepare_deploy_params, None)
+            .await
+            .unwrap();
 
         // Display fee information to the user: prepare_deploy_result.fees
         // User approved? Yes
@@ -98,7 +100,7 @@ async fn happy_path() {
             input: Bytes::new(),
         };
 
-        let result = client.prepare(txn).await;
+        let result = client.prepare(txn).await.unwrap();
         assert!(matches!(
             result,
             PreparedGasAbstraction::DeploymentNotRequired { .. }

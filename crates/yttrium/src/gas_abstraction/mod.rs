@@ -38,10 +38,15 @@ use {
         sol_types::SolCall,
     },
     alloy_provider::{Provider, ProviderBuilder},
+    error::{
+        CreateSponsoredUserOpError, PrepareDeployError, PrepareError, SendError,
+    },
     relay_rpc::domain::ProjectId,
     reqwest::Url,
-    std::collections::HashMap,
+    std::{collections::HashMap, time::Duration},
 };
+
+pub mod error;
 
 #[cfg(test)]
 mod tests;
@@ -134,11 +139,14 @@ impl Client {
     pub async fn prepare(
         &self,
         transaction: InitialTransaction,
-    ) -> PreparedGasAbstraction {
+    ) -> Result<PreparedGasAbstraction, PrepareError> {
         let provider =
             self.provider_pool.get_provider(&transaction.chain_id).await;
 
-        let code = provider.get_code_at(transaction.from).await.unwrap();
+        let code = provider
+            .get_code_at(transaction.from)
+            .await
+            .map_err(PrepareError::CheckingAccountCode)?;
         // TODO check if the code is our contract, or something else
         // If no code, return 7702 txn and UserOp hash to sign
         // If our contract, return UserOp hash to sign
@@ -160,7 +168,7 @@ impl Client {
                 nonce: provider
                     .get_transaction_count(transaction.from)
                     .await
-                    .unwrap(),
+                    .map_err(PrepareError::GettingNonce)?,
             };
 
             let auth = PreparedGasAbstractionAuthorization {
@@ -168,15 +176,17 @@ impl Client {
                 auth,
             };
 
-            PreparedGasAbstraction::DeploymentRequired {
+            Ok(PreparedGasAbstraction::DeploymentRequired {
                 auth,
                 prepare_deploy_params: PrepareDeployParams { transaction },
-            }
+            })
         } else {
-            let prepared_send =
-                self.create_sponsored_user_op(transaction).await;
+            let prepared_send = self
+                .create_sponsored_user_op(transaction)
+                .await
+                .map_err(PrepareError::CreatingSponsoredUserOp)?;
 
-            PreparedGasAbstraction::DeploymentNotRequired { prepared_send }
+            Ok(PreparedGasAbstraction::DeploymentNotRequired { prepared_send })
         }
     }
 
@@ -184,7 +194,7 @@ impl Client {
     async fn create_sponsored_user_op(
         &self,
         transaction: InitialTransaction,
-    ) -> PreparedSend {
+    ) -> Result<PreparedSend, CreateSponsoredUserOpError> {
         let InitialTransaction { chain_id, from, to, value, input } =
             transaction;
 
@@ -200,7 +210,7 @@ impl Client {
             encode_validator_key(ownable_validator.address),
         )
         .await
-        .unwrap();
+        .map_err(CreateSponsoredUserOpError::GettingNonce)?;
 
         let mock_signature = get_ownable_validator_mock_signature(&owners);
 
@@ -215,7 +225,7 @@ impl Client {
         let gas_price = pimlico_client
             .estimate_user_operation_gas_price()
             .await
-            .unwrap()
+            .map_err(CreateSponsoredUserOpError::GettingUserOperationGasPrice)?
             .fast;
         let user_op = UserOperationV07 {
             sender: from.into(),
@@ -247,7 +257,7 @@ impl Client {
                     None,
                 )
                 .await
-                .unwrap();
+                .map_err(CreateSponsoredUserOpError::SponsoringUserOperation)?;
 
             UserOperationV07 {
                 call_gas_limit: sponsor_user_op_result.call_gas_limit,
@@ -276,11 +286,11 @@ impl Client {
 
         let hash = eip191_hash_message(message);
 
-        PreparedSend {
+        Ok(PreparedSend {
             message: message.into(),
             hash,
             send_params: SendParams { user_op },
-        }
+        })
     }
 
     // TODO error type
@@ -293,7 +303,7 @@ impl Client {
         // TODO remove this `sponsor` param once 4337 supports sponsoring 7702 txns
         // Pass None to use anvil faucet
         sponsor: Option<PrivateKeySigner>,
-    ) -> PreparedSend {
+    ) -> Result<PreparedSend, PrepareDeployError> {
         let account = params.transaction.from;
         let SignedAuthorization { auth, signature } = auth_sig;
         let chain_id = auth.chain_id;
@@ -324,7 +334,7 @@ impl Client {
         let ownable_validator = get_ownable_validator(&owners, None);
 
         // TODO do this in the UserOp as a factory
-        assert!(SetupContract::new(account, sponsor_provider)
+        let receipt = SetupContract::new(account, sponsor_provider)
             .setup(
                 safe_owners.owners,
                 U256::from(safe_owners.threshold),
@@ -363,13 +373,21 @@ impl Client {
             })
             .send()
             .await
-            .unwrap()
+            .map_err(PrepareDeployError::SendingDelegationTransaction)?
+            .with_timeout(Some(Duration::from_secs(30)))
             .get_receipt()
             .await
-            .unwrap()
-            .status());
+            .map_err(PrepareDeployError::GettingDelegationTransactionReceipt)?;
 
-        self.create_sponsored_user_op(params.transaction).await
+        if !receipt.status() {
+            return Err(PrepareDeployError::DelegationTransactionFailed(
+                receipt,
+            ));
+        }
+
+        self.create_sponsored_user_op(params.transaction)
+            .await
+            .map_err(PrepareDeployError::CreatingSponsoredUserOp)
     }
 
     // TODO error type
@@ -378,7 +396,7 @@ impl Client {
         &self,
         signature: PrimitiveSignature,
         params: SendParams,
-    ) -> UserOperationReceipt {
+    ) -> Result<UserOperationReceipt, SendError> {
         let bundler_client =
             BundlerClient::new(BundlerConfig::new(self.bundler_url.clone()));
         let signature = signature.as_bytes().into();
@@ -386,9 +404,12 @@ impl Client {
         let hash = bundler_client
             .send_user_operation(ENTRYPOINT_ADDRESS_V07.into(), user_op.clone())
             .await
-            .unwrap();
+            .map_err(SendError::SendingUserOperation)?;
 
-        bundler_client.wait_for_user_operation_receipt(hash).await.unwrap()
+        bundler_client
+            .wait_for_user_operation_receipt(hash)
+            .await
+            .map_err(SendError::WaitingForUserOperationReceipt)
     }
 
     // Signature creation

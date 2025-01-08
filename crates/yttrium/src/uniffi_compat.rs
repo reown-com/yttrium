@@ -4,14 +4,18 @@ use {
         smart_accounts::account_address::AccountAddress,
     },
     alloy::{
+        contract::Error as AlloyError,
         dyn_abi::Eip712Domain,
         primitives::{
             aliases::U48, Address, Bytes, PrimitiveSignature, Uint, B256, U128,
             U256, U64, U8,
         },
-        rpc::types::Authorization,
+        rpc::types::{Authorization, TransactionReceipt},
         signers::local::PrivateKeySigner,
+        transports::{self, TransportErrorKind},
     },
+    alloy_provider::PendingTransactionError,
+    eyre::Report as EyreError,
     relay_rpc::domain::ProjectId,
     reqwest::Url,
 };
@@ -95,6 +99,29 @@ uniffi::custom_type!(ProjectId, String, {
 
 uniffi::custom_type!(Url, String, {
     try_lift: |val| Ok(val.parse()?),
+    lower: |obj| obj.to_string(),
+});
+
+pub type RpcError = transports::RpcError<TransportErrorKind>;
+
+uniffi::custom_type!(RpcError, String, {
+    try_lift: |_val| unimplemented!("Does not support lifting RpcError"),
+    lower: |obj| obj.to_string(),
+});
+uniffi::custom_type!(EyreError, String, {
+    try_lift: |_val| unimplemented!("Does not support lifting EyreError"),
+    lower: |obj| obj.to_string(),
+});
+uniffi::custom_type!(AlloyError, String, {
+    try_lift: |_val| unimplemented!("Does not support lifting AlloyError"),
+    lower: |obj| obj.to_string(),
+});
+uniffi::custom_type!(TransactionReceipt, String, {
+    try_lift: |_val| unimplemented!("Does not support lifting TransactionReceipt"),
+    lower: |obj| serde_json::to_string(&obj).unwrap(),
+});
+uniffi::custom_type!(PendingTransactionError, String, {
+    try_lift: |_val| unimplemented!("Does not support lifting PendingTransactionError"),
     lower: |obj| obj.to_string(),
 });
 
