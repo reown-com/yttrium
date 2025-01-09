@@ -334,6 +334,7 @@ impl Client {
         let ownable_validator = get_ownable_validator(&owners, None);
 
         // TODO do this in the UserOp as a factory
+        // https://linear.app/reown/issue/WK-474/blocked-7702-refactor-to-run-init-transaction-as-the-factory-of-the
         let receipt = SetupContract::new(account, sponsor_provider)
             .setup(
                 safe_owners.owners,
