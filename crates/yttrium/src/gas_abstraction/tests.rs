@@ -20,7 +20,7 @@ use {
 async fn happy_path() {
     let chain_id = format!(
         "eip155:{}",
-        ReqwestProvider::<Ethereum>::new_http(LOCAL_RPC_URL.parse().unwrap(),)
+        ReqwestProvider::<Ethereum>::new_http(LOCAL_RPC_URL.parse().unwrap())
             .get_chain_id()
             .await
             .unwrap()
