@@ -7,6 +7,7 @@ build:
 	cargo build
 
 build-swift-apple-platforms:
+	export USE_LOCAL_RUST_XCFRAMEWORK=1; \
 	for platform in "iOS"; do \
 		xcodebuild \
 			-skipMacroValidation \
