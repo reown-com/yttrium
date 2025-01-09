@@ -261,6 +261,41 @@ void*_Nonnull uniffi_yttrium_fn_clone_accountclient(void*_Nonnull ptr, RustCallS
 void uniffi_yttrium_fn_free_accountclient(void*_Nonnull ptr, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_YTTRIUM_FN_CLONE_CLIENT
+#define UNIFFI_FFIDEF_UNIFFI_YTTRIUM_FN_CLONE_CLIENT
+void*_Nonnull uniffi_yttrium_fn_clone_client(void*_Nonnull ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_YTTRIUM_FN_FREE_CLIENT
+#define UNIFFI_FFIDEF_UNIFFI_YTTRIUM_FN_FREE_CLIENT
+void uniffi_yttrium_fn_free_client(void*_Nonnull ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_YTTRIUM_FN_CONSTRUCTOR_CLIENT_NEW
+#define UNIFFI_FFIDEF_UNIFFI_YTTRIUM_FN_CONSTRUCTOR_CLIENT_NEW
+void*_Nonnull uniffi_yttrium_fn_constructor_client_new(RustBuffer project_id, RustBuffer chain_id, RustBuffer config, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_YTTRIUM_FN_METHOD_CLIENT_CREATE_SPONSORED_USER_OP
+#define UNIFFI_FFIDEF_UNIFFI_YTTRIUM_FN_METHOD_CLIENT_CREATE_SPONSORED_USER_OP
+uint64_t uniffi_yttrium_fn_method_client_create_sponsored_user_op(void*_Nonnull ptr, RustBuffer transaction
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_YTTRIUM_FN_METHOD_CLIENT_PREPARE
+#define UNIFFI_FFIDEF_UNIFFI_YTTRIUM_FN_METHOD_CLIENT_PREPARE
+uint64_t uniffi_yttrium_fn_method_client_prepare(void*_Nonnull ptr, RustBuffer transaction
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_YTTRIUM_FN_METHOD_CLIENT_PREPARE_DEPLOY
+#define UNIFFI_FFIDEF_UNIFFI_YTTRIUM_FN_METHOD_CLIENT_PREPARE_DEPLOY
+uint64_t uniffi_yttrium_fn_method_client_prepare_deploy(void*_Nonnull ptr, RustBuffer auth_sig, RustBuffer params
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_YTTRIUM_FN_METHOD_CLIENT_SEND
+#define UNIFFI_FFIDEF_UNIFFI_YTTRIUM_FN_METHOD_CLIENT_SEND
+uint64_t uniffi_yttrium_fn_method_client_send(void*_Nonnull ptr, RustBuffer signature, RustBuffer params
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_YTTRIUM_FN_CLONE_ERC6492CLIENT
 #define UNIFFI_FFIDEF_UNIFFI_YTTRIUM_FN_CLONE_ERC6492CLIENT
 void*_Nonnull uniffi_yttrium_fn_clone_erc6492client(void*_Nonnull ptr, RustCallStatus *_Nonnull out_status
@@ -583,9 +618,39 @@ uint16_t uniffi_yttrium_checksum_func_funding_metadata_to_bridging_fee_amount(vo
     
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_YTTRIUM_CHECKSUM_METHOD_CLIENT_CREATE_SPONSORED_USER_OP
+#define UNIFFI_FFIDEF_UNIFFI_YTTRIUM_CHECKSUM_METHOD_CLIENT_CREATE_SPONSORED_USER_OP
+uint16_t uniffi_yttrium_checksum_method_client_create_sponsored_user_op(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_YTTRIUM_CHECKSUM_METHOD_CLIENT_PREPARE
+#define UNIFFI_FFIDEF_UNIFFI_YTTRIUM_CHECKSUM_METHOD_CLIENT_PREPARE
+uint16_t uniffi_yttrium_checksum_method_client_prepare(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_YTTRIUM_CHECKSUM_METHOD_CLIENT_PREPARE_DEPLOY
+#define UNIFFI_FFIDEF_UNIFFI_YTTRIUM_CHECKSUM_METHOD_CLIENT_PREPARE_DEPLOY
+uint16_t uniffi_yttrium_checksum_method_client_prepare_deploy(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_YTTRIUM_CHECKSUM_METHOD_CLIENT_SEND
+#define UNIFFI_FFIDEF_UNIFFI_YTTRIUM_CHECKSUM_METHOD_CLIENT_SEND
+uint16_t uniffi_yttrium_checksum_method_client_send(void
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_YTTRIUM_CHECKSUM_METHOD_ERC6492CLIENT_VERIFY_SIGNATURE
 #define UNIFFI_FFIDEF_UNIFFI_YTTRIUM_CHECKSUM_METHOD_ERC6492CLIENT_VERIFY_SIGNATURE
 uint16_t uniffi_yttrium_checksum_method_erc6492client_verify_signature(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_YTTRIUM_CHECKSUM_CONSTRUCTOR_CLIENT_NEW
+#define UNIFFI_FFIDEF_UNIFFI_YTTRIUM_CHECKSUM_CONSTRUCTOR_CLIENT_NEW
+uint16_t uniffi_yttrium_checksum_constructor_client_new(void
     
 );
 #endif
