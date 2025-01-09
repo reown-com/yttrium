@@ -128,7 +128,7 @@ impl BundlerClient {
         };
 
         let polling_interval = Duration::from_millis(2000);
-        let timeout = Some(Duration::from_secs(60));
+        let timeout = Some(Duration::from_secs(30));
 
         let start_time = Instant::now();
 
