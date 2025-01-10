@@ -143,7 +143,6 @@ impl ChainAbstractionClient {
         self.client
             .get_ui_fields(route_response, currency)
             .await
-            .map(Into::into)
             .map_err(|e| FFIError::General(e.to_string()))
     }
 
