@@ -6,26 +6,29 @@ use {
             ENTRYPOINT_ADDRESS_V07,
         },
         erc7579::addresses::RHINESTONE_ATTESTER_ADDRESS,
-        smart_accounts::account_address::AccountAddress,
-        transaction::{
+        execution::{
             send::safe_test::{
                 encode_send_transactions, prepare_send_transactions_inner,
                 DoSendTransactionParams, OwnerSignature,
                 PreparedSendTransaction,
             },
-            Transaction,
+            Execution,
         },
-        user_operation::hash::pack_v07::{
-            combine::combine_and_trim_first_16_bytes,
-            hashed_paymaster_and_data::get_data,
+        smart_accounts::account_address::AccountAddress,
+        user_operation::{
+            hash::pack_v07::{
+                combine::combine_and_trim_first_16_bytes,
+                hashed_paymaster_and_data::get_data,
+            },
+            UserOperationV07,
         },
     },
     alloy::{
         dyn_abi::{DynSolValue, Eip712Domain},
         network::Network,
         primitives::{
-            address, bytes, keccak256, Address, Bytes, FixedBytes, Uint, B256,
-            U128, U256,
+            address, aliases::U48, bytes, keccak256, Address, Bytes,
+            FixedBytes, Uint, B256, U128, U256, U64,
         },
         providers::Provider,
         sol,
@@ -213,6 +216,19 @@ sol! {
     }
 }
 
+sol! {
+    #[allow(clippy::too_many_arguments)]
+    #[sol(rpc)]
+    contract AddSafe7579Contract {
+        struct ModuleInit {
+            address module;
+            bytes initData;
+        }
+
+        function addSafe7579(address safe7579, ModuleInit[] calldata validators, ModuleInit[] calldata executors, ModuleInit[] calldata fallbacks, ModuleInit[] calldata hooks, address[] calldata attesters, uint8 threshold) external;
+    }
+}
+
 // permissionless -> getInitializerCode
 fn get_initializer_code(owners: Owners) -> Bytes {
     // let ownable_validator = get_ownable_validator(&owners, None);
@@ -304,12 +320,12 @@ where
     SAFE_PROXY_FACTORY_1_4_1.create2(salt, keccak256(deployment_code)).into()
 }
 
-pub fn get_call_data(execution_calldata: Vec<Transaction>) -> Bytes {
+pub fn get_call_data(execution_calldata: Vec<Execution>) -> Bytes {
     get_call_data_with_try(execution_calldata, false)
 }
 
 pub fn get_call_data_with_try(
-    execution_calldata: Vec<Transaction>,
+    execution_calldata: Vec<Execution>,
     exec_type: bool,
 ) -> Bytes {
     let batch = execution_calldata.len() != 1;
@@ -339,8 +355,8 @@ sol! {
     function executionBatch((address, uint256, bytes)[]);
 }
 
-fn encode_calls(calls: Vec<Transaction>) -> Bytes {
-    fn call(call: Transaction) -> (Address, U256, Bytes) {
+fn encode_calls(calls: Vec<Execution>) -> Bytes {
+    fn call(call: Execution) -> (Address, U256, Bytes) {
         (call.to, call.value, call.data)
     }
 
@@ -378,18 +394,21 @@ pub fn prepare_sign(
     PreparedSignature { safe_message, domain }
 }
 
+#[cfg_attr(feature = "uniffi", derive(uniffi::Enum))]
 pub enum SignOutputEnum {
     Signature(Bytes),
     SignOutput(SignOutput),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
 pub struct SignOutput {
     pub to_sign: SignOutputToSign,
     pub sign_step_3_params: SignStep3Params,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
 pub struct SignOutputToSign {
     pub hash: B256,
     pub safe_op: SafeOp,
@@ -397,6 +416,7 @@ pub struct SignOutputToSign {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
 pub struct SignStep3Params {
     pub signature: Bytes,
     pub do_send_transaction_params: DoSendTransactionParams,
@@ -506,6 +526,90 @@ pub async fn sign_step_3(
     ))
 }
 
+pub fn user_operation_to_safe_op(
+    user_op: &UserOperationV07,
+    entrypoint: Address,
+    chain_id: U64,
+    valid_after: U48,
+    valid_until: U48,
+) -> (SafeOp, Eip712Domain) {
+    // TODO handle panic
+    fn coerce_u256_to_u128(u: U256) -> U128 {
+        U128::from(u)
+    }
+
+    let safe_op = SafeOp {
+        safe: user_op.sender.into(),
+        callData: user_op.call_data.clone(),
+        nonce: user_op.nonce,
+        initCode: user_op
+            .factory
+            .map(|factory| {
+                factory
+                    .into_iter()
+                    .chain(user_op.factory_data.clone().unwrap())
+                    .collect()
+            })
+            .unwrap_or_default(),
+        maxFeePerGas: u128::from_be_bytes(
+            coerce_u256_to_u128(user_op.max_fee_per_gas).to_be_bytes(),
+        ),
+        maxPriorityFeePerGas: u128::from_be_bytes(
+            coerce_u256_to_u128(user_op.max_priority_fee_per_gas).to_be_bytes(),
+        ),
+        preVerificationGas: user_op.pre_verification_gas,
+        verificationGasLimit: u128::from_be_bytes(
+            coerce_u256_to_u128(user_op.verification_gas_limit).to_be_bytes(),
+        ),
+        callGasLimit: u128::from_be_bytes(
+            coerce_u256_to_u128(user_op.call_gas_limit).to_be_bytes(),
+        ),
+        // signerToSafeSmartAccount -> getPaymasterAndData
+        paymasterAndData: user_op
+            .paymaster
+            .map(|paymaster| {
+                [
+                    paymaster.to_vec(),
+                    coerce_u256_to_u128(
+                        user_op
+                            .paymaster_verification_gas_limit
+                            .unwrap_or(Uint::from(0)),
+                    )
+                    .to_be_bytes_vec(),
+                    coerce_u256_to_u128(
+                        user_op
+                            .paymaster_post_op_gas_limit
+                            .unwrap_or(Uint::from(0)),
+                    )
+                    .to_be_bytes_vec(),
+                    user_op.paymaster_data.clone().unwrap_or_default().to_vec(),
+                ]
+                .concat()
+                .into()
+            })
+            .unwrap_or_default(),
+        validAfter: valid_after,
+        validUntil: valid_until,
+        entryPoint: entrypoint,
+    };
+
+    // This is always the Safe 4337 module address now: https://reown-inc.slack.com/archives/C077RPLSZ71/p1733864707609549?thread_ts=1729617897.410709&cid=C077RPLSZ71
+    // let erc7579_launchpad_address = true;
+    // let verifying_contract = if erc7579_launchpad_address && !deployed {
+    //     user_op.sender.into()
+    // } else {
+    //     SAFE_4337_MODULE_ADDRESS
+    // };
+    let verifying_contract = SAFE_4337_MODULE_ADDRESS;
+
+    let domain = Eip712Domain {
+        chain_id: Some(Uint::from(chain_id)),
+        verifying_contract: Some(verifying_contract),
+        ..Default::default()
+    };
+    (safe_op, domain)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -518,7 +622,7 @@ mod tests {
     #[test]
     fn single_execution_call_data_value() {
         assert_eq!(
-            encode_calls(vec![Transaction {
+            encode_calls(vec![Execution {
                 to: address!("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
                 value: U256::from(19191919),
                 data: bytes!(""),
@@ -530,7 +634,7 @@ mod tests {
     #[test]
     fn single_execution_call_data_data() {
         assert_eq!(
-            encode_calls(vec![Transaction {
+            encode_calls(vec![Execution {
                 to: address!("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
                 value: U256::ZERO,
                 data: bytes!("7777777777777777"),
@@ -542,11 +646,11 @@ mod tests {
     #[test]
     fn two_execution_call_data() {
         assert_eq!(
-            encode_calls(vec![Transaction {
+            encode_calls(vec![Execution {
                 to: address!("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
                 value: U256::from(19191919),
                 data: bytes!(""),
-            }, Transaction {
+            }, Execution {
                 to: address!("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
                 value: U256::ZERO,
                 data: bytes!("7777777777777777"),
@@ -563,7 +667,7 @@ mod tests {
     #[test]
     fn single_call_data_value() {
         assert_eq!(
-            get_call_data(vec![Transaction {
+            get_call_data(vec![Execution {
                 to: address!("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
                 value: U256::from(19191919),
                 data: bytes!(""),
@@ -575,7 +679,7 @@ mod tests {
     #[test]
     fn single_call_data_data() {
         assert_eq!(
-            get_call_data(vec![Transaction {
+            get_call_data(vec![Execution {
                 to: address!("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
                 value: U256::ZERO,
                 data: bytes!("7777777777777777"),
@@ -587,11 +691,11 @@ mod tests {
     #[test]
     fn two_call_data() {
         assert_eq!(
-            get_call_data(vec![Transaction {
+            get_call_data(vec![Execution {
                 to: address!("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
                 value: U256::from(19191919),
                 data: bytes!(""),
-            }, Transaction {
+            }, Execution {
                 to: address!("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
                 value: U256::ZERO,
                 data: bytes!("7777777777777777"),

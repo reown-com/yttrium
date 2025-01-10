@@ -3,7 +3,9 @@ use {
         chain_abstraction::{
             amount::Amount,
             api::{
-                prepare::{BridgingError, PrepareResponse, RouteResponseError},
+                prepare::{
+                    BridgingError, PrepareResponse, PrepareResponseError,
+                },
                 status::StatusResponse,
                 InitialTransaction, Transaction,
             },
@@ -1664,7 +1666,7 @@ async fn bridging_routes_routes_insufficient_funds() {
     let result = client.prepare(transaction.clone()).await.unwrap();
     assert_eq!(
         result,
-        PrepareResponse::Error(RouteResponseError {
+        PrepareResponse::Error(PrepareResponseError {
             error: BridgingError::InsufficientFunds,
         })
     );

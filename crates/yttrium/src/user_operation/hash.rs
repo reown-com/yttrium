@@ -17,18 +17,13 @@ pub fn get_user_operation_hash_v07(
 ) -> UserOperationHash {
     let packed_user_operation = {
         let packed = pack_v07::pack_user_operation_v07(user_operation);
-        println!("packed: {:?}", packed);
         keccak256(packed)
     };
-    println!("packed_user_operation: {:?}", packed_user_operation);
 
     let chain_id = U256::from(chain_id);
 
     let values = (packed_user_operation, entry_point, chain_id);
     let abi_encoded = values.abi_encode();
-    let abi_encoded_packed = values.abi_encode_packed();
-    println!("abi_encoded: {:?}", abi_encoded.clone());
-    println!("abi_encoded_packed: {:?}", abi_encoded_packed.clone());
     assert_eq!(values.sol_name(), "(bytes32,address,uint256)");
 
     let encoded: Bytes = abi_encoded.into();

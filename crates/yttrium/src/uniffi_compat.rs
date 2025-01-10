@@ -1,6 +1,17 @@
 use {
-    crate::chain_abstraction::{amount::Amount, api::prepare::FundingMetadata},
-    alloy::primitives::{Address, Bytes, Uint, B256, U128, U256, U64},
+    crate::{
+        chain_abstraction::{amount::Amount, api::prepare::FundingMetadata},
+        smart_accounts::{account_address::AccountAddress, safe::SafeOp},
+    },
+    alloy::{
+        dyn_abi::Eip712Domain,
+        primitives::{
+            aliases::U48, Address, Bytes, PrimitiveSignature, Uint, B256, U128,
+            U256, U64, U8,
+        },
+        rpc::types::Authorization,
+    },
+    relay_rpc::domain::ProjectId,
 };
 
 // TODO use https://mozilla.github.io/uniffi-rs/next/udl/remote_ext_types.html#remote-types when it's available
@@ -9,12 +20,51 @@ uniffi::custom_type!(Address, String, {
     try_lift: |val| Ok(val.parse()?),
     lower: |obj| obj.to_string(),
 });
+uniffi::custom_type!(AccountAddress, Address, {
+    try_lift: |val| Ok(val.into()),
+    lower: |obj| obj.into(),
+});
+
+uniffi::custom_type!(PrimitiveSignature, String, {
+    try_lift: |val| Ok(val.parse()?),
+    lower: |obj| format!("0x{}", hex::encode(obj.as_bytes())),
+});
+
+uniffi::custom_type!(SafeOp, String, {
+    try_lift: |_val| unimplemented!("Does not support lifting SafeOp"),
+    lower: |_obj| "Does not support lowering SafeOp".to_owned(),
+});
+
+uniffi::custom_type!(Eip712Domain, String, {
+    try_lift: |_val| unimplemented!("Does not support lifting Eip712Domain"),
+    lower: |_obj| "Does not support lowering Eip712Domain".to_owned(),
+});
+
+uniffi::custom_type!(Authorization, String, {
+    try_lift: |_val| unimplemented!("Does not support lifting Authorization"),
+    lower: |_obj| "Does not support lowering Authorization".to_owned(),
+});
 
 fn uint_to_hex<const BITS: usize, const LIMBS: usize>(
     obj: Uint<BITS, LIMBS>,
 ) -> String {
     format!("0x{obj:x}")
 }
+
+uniffi::custom_type!(U8, String, {
+    try_lift: |val| Ok(val.parse()?),
+    lower: |obj| uint_to_hex(obj),
+});
+
+uniffi::custom_type!(U48, String, {
+    try_lift: |val| Ok(val.parse()?),
+    lower: |obj| uint_to_hex(obj),
+});
+
+uniffi::custom_type!(U64, String, {
+    try_lift: |val| Ok(val.parse()?),
+    lower: |obj| uint_to_hex(obj),
+});
 
 uniffi::custom_type!(U128, String, {
     try_lift: |val| Ok(val.parse()?),
@@ -26,11 +76,6 @@ uniffi::custom_type!(U256, String, {
     lower: |obj| uint_to_hex(obj),
 });
 
-uniffi::custom_type!(U64, String, {
-    try_lift: |val| Ok(val.parse()?),
-    lower: |obj| uint_to_hex(obj),
-});
-
 uniffi::custom_type!(Bytes, String, {
     try_lift: |val| Ok(val.parse()?),
     lower: |obj| obj.to_string(),
@@ -38,6 +83,11 @@ uniffi::custom_type!(Bytes, String, {
 
 uniffi::custom_type!(B256, String, {
     try_lift: |val| Ok(val.parse()?),
+    lower: |obj| obj.to_string(),
+});
+
+uniffi::custom_type!(ProjectId, String, {
+    try_lift: |val| Ok(val.into()),
     lower: |obj| obj.to_string(),
 });
 

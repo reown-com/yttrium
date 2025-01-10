@@ -11,7 +11,7 @@ use {
         entry_point::ENTRYPOINT_ADDRESS_V07,
         erc7579::{
             accounts::safe::encode_validator_key,
-            addresses::{MOCK_ATTESTER_ADDRESS, RHINESTONE_ATTESTER_ADDRESS},
+            addresses::RHINESTONE_ATTESTER_ADDRESS,
             ownable_validator::{
                 encode_owners, get_ownable_validator,
                 get_ownable_validator_mock_signature,
@@ -23,15 +23,16 @@ use {
                 get_smart_sessions_validator, ActionData, ERC7739Data, Session,
             },
         },
+        execution::Execution,
         smart_accounts::{
             nonce::get_nonce_with_key,
             safe::{
-                get_call_data, Owners, SAFE_4337_MODULE_ADDRESS,
-                SAFE_ERC_7579_LAUNCHPAD_ADDRESS, SAFE_L2_SINGLETON_1_4_1,
+                get_call_data, AddSafe7579Contract, Owners, SetupContract,
+                SAFE_4337_MODULE_ADDRESS, SAFE_ERC_7579_LAUNCHPAD_ADDRESS,
+                SAFE_L2_SINGLETON_1_4_1,
             },
         },
         test_helpers::anvil_faucet,
-        transaction::Transaction,
         user_operation::{hash::get_user_operation_hash_v07, UserOperationV07},
     },
     alloy::{
@@ -39,9 +40,9 @@ use {
         primitives::{
             address, eip191_hash_message, fixed_bytes, Address, B256, U256,
         },
+        rlp::Encodable,
         rpc::types::Authorization,
-        signers::{local::LocalSigner, SignerSync},
-        sol,
+        signers::{k256::ecdsa::SigningKey, local::LocalSigner, SignerSync},
         sol_types::SolCall,
     },
     alloy_provider::{Provider, ProviderBuilder, ReqwestProvider},
@@ -49,12 +50,57 @@ use {
 };
 
 #[tokio::test]
-async fn test() {
+#[ignore]
+#[cfg(feature = "test_pimlico_api")]
+async fn test_pimlico() {
+    use {
+        crate::{
+            config::{Endpoint, Endpoints},
+            test_helpers::private_faucet,
+        },
+        std::env,
+    };
+    let config = Config {
+        endpoints: {
+            let api_key = env::var("PIMLICO_API_KEY")
+                .expect("You've not set the PIMLICO_API_KEY");
+
+            let rpc = {
+                let base_url = "https://odyssey.ithaca.xyz".to_owned();
+                Endpoint { api_key: api_key.clone(), base_url }
+            };
+
+            let bundler = {
+                let chain_id = 911867; // Odyssey Testnet
+                let base_url = format!(
+                    "https://api.pimlico.io/v2/{chain_id}/rpc?apikey={api_key}"
+                );
+                Endpoint { api_key: api_key.clone(), base_url }
+            };
+
+            Endpoints { rpc, paymaster: bundler.clone(), bundler }
+        },
+    };
+    let faucet = private_faucet();
+    test_impl(config, faucet).await
+}
+
+#[tokio::test]
+async fn test_local() {
     let config = Config::local();
+    let faucet =
+        anvil_faucet(config.endpoints.rpc.base_url.parse::<Url>().unwrap())
+            .await;
+    test_impl(config, faucet).await
+}
+
+async fn test_impl(config: Config, faucet: LocalSigner<SigningKey>) {
     let rpc_url = config.endpoints.rpc.base_url.parse::<Url>().unwrap();
+    println!("rpc_url: {}", rpc_url);
     let provider = ReqwestProvider::<Ethereum>::new_http(rpc_url.clone());
 
     let chain_id = provider.get_chain_id().await.unwrap();
+    println!("chain_id: {:?}", chain_id);
 
     let account = LocalSigner::random();
     let safe_owner = LocalSigner::random();
@@ -66,15 +112,14 @@ async fn test() {
     let ownable_validator = get_ownable_validator(&owners, None);
 
     let session_owner = LocalSigner::random();
+    let session_owners =
+        Owners { threshold: 1, owners: vec![session_owner.address()] };
 
     let session = Session {
-        sessionValidator: OWNABLE_VALIDATOR_ADDRESS, // todo is this wrong???
-        sessionValidatorInitData: encode_owners(&Owners {
-            threshold: 1,
-            owners: vec![session_owner.address()],
-        }),
+        sessionValidator: OWNABLE_VALIDATOR_ADDRESS,
+        sessionValidatorInitData: encode_owners(&session_owners),
         salt: B256::default(),
-        userOpPolicies: vec![],
+        userOpPolicies: vec![get_sudo_policy()],
         erc7739Policies: ERC7739Data {
             allowedERC7739Content: vec![],
             erc1271Policies: vec![],
@@ -84,12 +129,13 @@ async fn test() {
             actionTargetSelector: fixed_bytes!("00000000"), /* function selector to be used in the execution, in this case no function selector is used */
             actionPolicies: vec![get_sudo_policy()],
         }],
+        permitERC4337Paymaster: true,
     };
 
     let smart_sessions = get_smart_sessions_validator(&[session.clone()], None);
 
     let auth_7702 = Authorization {
-        chain_id,
+        chain_id: U256::from(chain_id),
         address: SAFE_L2_SINGLETON_1_4_1,
         // TODO should this be `pending` tag? https://github.com/wevm/viem/blob/a49c100a0b2878fbfd9f1c9b43c5cc25de241754/src/experimental/eip7702/actions/signAuthorization.ts#L149
         nonce: provider.get_transaction_count(account.address()).await.unwrap(),
@@ -99,75 +145,67 @@ async fn test() {
     let sig = account.sign_hash_sync(&auth_7702.signature_hash()).unwrap();
     let auth = auth_7702.into_signed(sig);
 
-    sol! {
-        #[allow(clippy::too_many_arguments)]
-        #[sol(rpc)]
-        contract SetupContract {
-            function setup(address[] calldata _owners,uint256 _threshold,address to,bytes calldata data,address fallbackHandler,address paymentToken,uint256 payment, address paymentReceiver) external;
-        }
-
-        #[allow(clippy::too_many_arguments)]
-        #[sol(rpc)]
-        contract AddSafe7579Contract {
-            struct ModuleInit {
-                address module;
-                bytes initData;
-            }
-
-            function addSafe7579(address safe7579, ModuleInit[] calldata validators, ModuleInit[] calldata executors, ModuleInit[] calldata fallbacks, ModuleInit[] calldata hooks, address[] calldata attesters, uint8 threshold) external;
-        }
-    };
-
-    let faucet = anvil_faucet(rpc_url).await;
-    let wallet = EthereumWallet::new(faucet);
-    let wallet_provider = ProviderBuilder::new()
+    println!("using faucet: {}", faucet.address());
+    let faucet_wallet = EthereumWallet::new(faucet);
+    let faucet_provider = ProviderBuilder::new()
         .with_recommended_fillers()
-        .wallet(wallet)
+        .wallet(faucet_wallet)
         .on_provider(provider.clone());
-    assert!(SetupContract::new(account.address(), wallet_provider.clone())
-        .setup(
-            owners.owners,
-            U256::from(owners.threshold),
-            SAFE_ERC_7579_LAUNCHPAD_ADDRESS,
-            AddSafe7579Contract::addSafe7579Call {
-                safe7579: SAFE_4337_MODULE_ADDRESS,
-                validators: vec![
-                    AddSafe7579Contract::ModuleInit {
-                        module: ownable_validator.address,
-                        initData: ownable_validator.init_data,
-                    },
-                    AddSafe7579Contract::ModuleInit {
-                        module: smart_sessions.address,
-                        initData: smart_sessions.init_data,
-                    },
-                ],
-                executors: vec![],
-                fallbacks: vec![],
-                hooks: vec![],
-                attesters: vec![
-                    RHINESTONE_ATTESTER_ADDRESS,
-                    MOCK_ATTESTER_ADDRESS,
-                ],
-                threshold: owners.threshold,
-            }
-            .abi_encode()
-            .into(),
-            SAFE_4337_MODULE_ADDRESS,
-            Address::ZERO,
-            U256::ZERO,
-            Address::ZERO,
-        )
-        .map(|mut t| {
-            t.set_authorization_list(vec![auth]);
-            t
-        })
-        .send()
-        .await
-        .unwrap()
-        .get_receipt()
-        .await
-        .unwrap()
-        .status());
+    let sent_txn =
+        SetupContract::new(account.address(), faucet_provider.clone())
+            .setup(
+                owners.owners,
+                U256::from(owners.threshold),
+                SAFE_ERC_7579_LAUNCHPAD_ADDRESS,
+                AddSafe7579Contract::addSafe7579Call {
+                    safe7579: SAFE_4337_MODULE_ADDRESS,
+                    validators: vec![
+                        AddSafe7579Contract::ModuleInit {
+                            module: ownable_validator.address,
+                            initData: ownable_validator.init_data,
+                        },
+                        AddSafe7579Contract::ModuleInit {
+                            module: smart_sessions.address,
+                            initData: smart_sessions.init_data,
+                        },
+                    ],
+                    executors: vec![],
+                    fallbacks: vec![],
+                    hooks: vec![],
+                    attesters: vec![
+                        RHINESTONE_ATTESTER_ADDRESS,
+                        // MOCK_ATTESTER_ADDRESS,
+                    ],
+                    threshold: 1,
+                }
+                .abi_encode()
+                .into(),
+                SAFE_4337_MODULE_ADDRESS,
+                Address::ZERO,
+                U256::ZERO,
+                Address::ZERO,
+            )
+            .map(|mut t| {
+                println!("t: {:?}", t);
+                println!("t.chain_id: {:?}", t.chain_id);
+                let mut buf = Vec::new();
+                auth.encode(&mut buf);
+                println!("auth: {}", hex::encode(buf));
+                t.set_authorization_list(vec![auth]);
+                // t.set_nonce(1);
+                // t.set_gas_limit(1000000);
+                // t.set_max_fee_per_gas(252);
+                // t.set_max_priority_fee_per_gas(0);
+                // t.set_chain_id(chain_id);
+                t
+            })
+            .send()
+            .await
+            .unwrap();
+    println!("txn hash: {}", sent_txn.tx_hash());
+    let receipt = sent_txn.get_receipt().await.unwrap();
+    println!("receipt: {:?}", receipt);
+    assert!(receipt.status());
 
     let nonce = get_nonce_with_key(
         &provider,
@@ -181,7 +219,7 @@ async fn test() {
     let permission_id = get_permission_id(&session);
     let smart_session_dummy_signature = encode_use_signature(
         permission_id,
-        get_ownable_validator_mock_signature(1),
+        get_ownable_validator_mock_signature(&session_owners),
     );
 
     let pimlico_client = pimlico::client::BundlerClient::new(
@@ -201,7 +239,7 @@ async fn test() {
         nonce,
         factory: None,
         factory_data: None,
-        call_data: get_call_data(vec![Transaction {
+        call_data: get_call_data(vec![Execution {
             to: session.actions[0].actionTarget,
             value: U256::ZERO,
             data: session.actions[0].actionTargetSelector.into(),

@@ -57,6 +57,7 @@ pub struct Authorization {
     Deserialize,
 )]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
 pub struct UserOperationV07 {
     #[serde(serialize_with = "as_checksum_addr")]
     pub sender: AccountAddress,
@@ -69,6 +70,7 @@ pub struct UserOperationV07 {
     pub pre_verification_gas: U256,
     pub max_fee_per_gas: U256,
     pub max_priority_fee_per_gas: U256,
+    // TODO separate out these types into a SponsoredUserOperationV07 struct?
     pub paymaster: Option<Address>,
     pub paymaster_verification_gas_limit: Option<U256>,
     pub paymaster_post_op_gas_limit: Option<U256>,

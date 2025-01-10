@@ -6,6 +6,7 @@ use {
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
 #[serde(rename_all = "camelCase")]
 pub struct TransactionReceipt {
     pub transaction_hash: TxHash,
@@ -25,6 +26,7 @@ pub struct TransactionReceipt {
 
 // TODO replace with alloy's UserOperationReceipt
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
 #[serde(rename_all = "camelCase")]
 pub struct UserOperationReceipt {
     pub user_op_hash: B256,
@@ -41,6 +43,7 @@ pub struct UserOperationReceipt {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
 #[serde(rename_all = "camelCase")]
 pub struct TransactionLog {
     pub address: Address,

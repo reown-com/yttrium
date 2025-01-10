@@ -6,8 +6,8 @@ use {
                 FUNGIBLE_PRICE_ENDPOINT_PATH, NATIVE_TOKEN_ADDRESS,
             },
             prepare::{
-                PrepareRequest, PrepareResponse, RouteQueryParams,
-                RouteResponseAvailable, ROUTE_ENDPOINT_PATH,
+                PrepareRequest, PrepareResponse, PrepareResponseAvailable,
+                PrepareResponseSuccess, RouteQueryParams, ROUTE_ENDPOINT_PATH,
             },
             status::{
                 StatusQueryParams, StatusResponse, StatusResponseCompleted,
@@ -16,90 +16,88 @@ use {
             InitialTransaction, Transaction,
         },
         currency::Currency,
-        error::{RouteError, WaitForSuccessError},
+        error::{
+            PrepareDetailedError, PrepareDetailedResponse,
+            PrepareDetailedResponseSuccess, PrepareError, WaitForSuccessError,
+        },
         ui_fields::UiFields,
     },
     crate::{
         chain_abstraction::{
-            error::RouteUiFieldsError, l1_data_fee::get_l1_data_fee, ui_fields,
+            error::UiFieldsError, l1_data_fee::get_l1_data_fee, ui_fields,
         },
         erc20::ERC20,
+        provider_pool::ProviderPool,
     },
     alloy::{
-        network::{Ethereum, TransactionBuilder},
+        network::TransactionBuilder,
         primitives::{Address, U256, U64},
-        rpc::{client::RpcClient, types::TransactionRequest},
-        transports::http::Http,
+        rpc::types::TransactionRequest,
     },
-    alloy_provider::{utils::Eip1559Estimation, Provider, ReqwestProvider},
+    alloy_provider::{utils::Eip1559Estimation, Provider},
     relay_rpc::domain::ProjectId,
-    reqwest::{Client as ReqwestClient, Url},
     std::{
         collections::{HashMap, HashSet},
-        sync::Arc,
         time::{Duration, Instant},
     },
-    tokio::sync::RwLock,
 };
-
-pub const PROXY_ENDPOINT_PATH: &str = "/v1";
 
 #[derive(Clone)]
 pub struct Client {
-    client: ReqwestClient,
-    providers: Arc<RwLock<HashMap<String, ReqwestProvider>>>,
-    base_url: Url,
-    pub project_id: ProjectId,
+    provider_pool: ProviderPool,
 }
 
 impl Client {
     pub fn new(project_id: ProjectId) -> Self {
-        Self {
-            client: ReqwestClient::new(),
-            providers: Arc::new(RwLock::new(HashMap::new())),
-            base_url: "https://rpc.walletconnect.com".parse().unwrap(),
-            project_id,
-        }
+        Self { provider_pool: ProviderPool::new(project_id) }
     }
 
     pub async fn prepare(
         &self,
         transaction: InitialTransaction,
-    ) -> Result<PrepareResponse, RouteError> {
+    ) -> Result<PrepareResponse, PrepareError> {
         let response = self
+            .provider_pool
             .client
-            .post(self.base_url.join(ROUTE_ENDPOINT_PATH).unwrap())
+            .post(
+                self.provider_pool
+                    .blockchain_api_base_url
+                    .join(ROUTE_ENDPOINT_PATH)
+                    .unwrap(),
+            )
             .json(&PrepareRequest { transaction })
-            .query(&RouteQueryParams { project_id: self.project_id.clone() })
+            .query(&RouteQueryParams {
+                project_id: self.provider_pool.project_id.clone(),
+            })
             .send()
             .await
-            .map_err(RouteError::Request)?;
+            .map_err(PrepareError::Request)?;
         let status = response.status();
         if status.is_success() {
             let text =
-                response.text().await.map_err(RouteError::DecodingText)?;
+                response.text().await.map_err(PrepareError::DecodingText)?;
             serde_json::from_str(&text)
-                .map_err(|e| RouteError::DecodingJson(e, text))
+                .map_err(|e| PrepareError::DecodingJson(e, text))
         } else {
-            Err(RouteError::RequestFailed(response.text().await))
+            Err(PrepareError::RequestFailed(response.text().await))
         }
     }
 
     pub async fn get_ui_fields(
         &self,
-        route_response: RouteResponseAvailable,
+        prepare_response: PrepareResponseAvailable,
         local_currency: Currency,
         // TODO use this to e.g. modify priority fee
         // _speed: String,
-    ) -> Result<UiFields, RouteUiFieldsError> {
+    ) -> Result<UiFields, UiFieldsError> {
         if local_currency != Currency::Usd {
             unimplemented!("Only USD currency is supported for now");
         }
 
-        let chains = route_response
+        let chains = prepare_response
             .transactions
             .iter()
-            .chain(std::iter::once(&route_response.initial_transaction))
+            .chain(std::iter::once(&prepare_response.initial_transaction))
             .map(|t| t.chain_id.clone())
             .collect::<HashSet<_>>();
         println!("chains: {chains:?}");
@@ -111,7 +109,7 @@ impl Client {
                 .iter()
                 .map(|t| format!("{}:{}", t, NATIVE_TOKEN_ADDRESS))
                 .chain(
-                    route_response.metadata.funding_from.iter().map(|f| {
+                    prepare_response.metadata.funding_from.iter().map(|f| {
                         format!("{}:{}", f.chain_id, f.token_contract)
                     }),
                 )
@@ -122,27 +120,29 @@ impl Client {
             addresses.into_iter().map(|address| async move {
                 // TODO: batch these requests when Blockchain API supports it: https://reown-inc.slack.com/archives/C0816SK4877/p1733168173213809
                 let response = self
+                    .provider_pool
                     .client
                     .post(
-                        self.base_url
+                        self.provider_pool
+                            .blockchain_api_base_url
                             .join(FUNGIBLE_PRICE_ENDPOINT_PATH)
                             .unwrap(),
                     )
                     .json(&PriceRequestBody {
-                        project_id: self.project_id.clone(),
+                        project_id: self.provider_pool.project_id.clone(),
                         currency: local_currency,
                         addresses: HashSet::from([address]),
                     })
                     .send()
                     .await
-                    .map_err(RouteUiFieldsError::Request)?;
+                    .map_err(UiFieldsError::Request)?;
                 let prices = if response.status().is_success() {
                     response
                         .json::<PriceResponseBody>()
                         .await
-                        .map_err(RouteUiFieldsError::Json)
+                        .map_err(UiFieldsError::Json)
                 } else {
-                    Err(RouteUiFieldsError::RequestFailed(
+                    Err(UiFieldsError::RequestFailed(
                         response.status(),
                         response.text().await,
                     ))
@@ -154,7 +154,8 @@ impl Client {
         let estimate_future = futures::future::try_join_all(chains.iter().map(
             |chain_id| async move {
                 let estimate = self
-                    .get_provider(chain_id.clone())
+                    .provider_pool
+                    .get_provider(chain_id)
                     .await
                     .estimate_eip1559_fees(None)
                     .await
@@ -166,7 +167,7 @@ impl Client {
         async fn l1_data_fee(
             txn: Transaction,
             providers: &Client,
-        ) -> Result<U256, RouteUiFieldsError> {
+        ) -> Result<U256, UiFieldsError> {
             Ok(get_l1_data_fee(
                 TransactionRequest::default()
                     .with_from(txn.from)
@@ -185,19 +186,19 @@ impl Client {
                     )
                     .with_max_fee_per_gas(100000)
                     .with_max_priority_fee_per_gas(1),
-                providers.get_provider(txn.chain_id.clone()).await,
+                providers.provider_pool.get_provider(&txn.chain_id).await,
             )
             .await)
         }
 
         let route_l1_data_fee_futures = futures::future::try_join_all(
-            route_response
+            prepare_response
                 .transactions
                 .iter()
                 .map(|txn| l1_data_fee(txn.clone(), self)),
         );
         let initial_l1_data_fee_future =
-            l1_data_fee(route_response.initial_transaction.clone(), self);
+            l1_data_fee(prepare_response.initial_transaction.clone(), self);
 
         let (fungibles, eip1559_fees, route_l1_data_fees, initial_l1_data_fee) =
             tokio::try_join!(
@@ -225,8 +226,8 @@ impl Client {
         }
 
         let mut estimated_transactions =
-            Vec::with_capacity(route_response.transactions.len());
-        for (txn, l1_data_fee) in route_response
+            Vec::with_capacity(prepare_response.transactions.len());
+        for (txn, l1_data_fee) in prepare_response
             .clone()
             .transactions
             .into_iter()
@@ -239,44 +240,82 @@ impl Client {
             ));
         }
         let estimated_initial_transaction = estimate_gas_fees(
-            route_response.initial_transaction.clone(),
+            prepare_response.initial_transaction.clone(),
             &eip1559_fees,
             initial_l1_data_fee,
         );
 
         Ok(ui_fields::ui_fields(
-            route_response,
+            prepare_response,
             estimated_transactions,
             estimated_initial_transaction,
             fungibles,
         ))
     }
 
+    // TODO test
+    pub async fn prepare_detailed(
+        &self,
+        transaction: InitialTransaction,
+        local_currency: Currency,
+        // TODO use this to e.g. modify priority fee
+        // _speed: String,
+    ) -> Result<PrepareDetailedResponse, PrepareDetailedError> {
+        let response = self
+            .prepare(transaction)
+            .await
+            .map_err(PrepareDetailedError::Prepare)?;
+        match response {
+            PrepareResponse::Success(response) => {
+                Ok(PrepareDetailedResponse::Success(match response {
+                    PrepareResponseSuccess::Available(response) => {
+                        let res = self
+                            .get_ui_fields(response, local_currency)
+                            .await
+                            .map_err(PrepareDetailedError::UiFields)?;
+                        PrepareDetailedResponseSuccess::Available(res)
+                    }
+                    PrepareResponseSuccess::NotRequired(e) => {
+                        PrepareDetailedResponseSuccess::NotRequired(e)
+                    }
+                }))
+            }
+            PrepareResponse::Error(e) => Ok(PrepareDetailedResponse::Error(e)),
+        }
+    }
+
+    // TODO don't use "prepare" error type here. Maybe rename to generic request error?
     pub async fn status(
         &self,
         orchestration_id: String,
-    ) -> Result<StatusResponse, RouteError> {
+    ) -> Result<StatusResponse, PrepareError> {
         let response = self
+            .provider_pool
             .client
-            .get(self.base_url.join(STATUS_ENDPOINT_PATH).unwrap())
+            .get(
+                self.provider_pool
+                    .blockchain_api_base_url
+                    .join(STATUS_ENDPOINT_PATH)
+                    .unwrap(),
+            )
             .query(&StatusQueryParams {
-                project_id: self.project_id.clone(),
+                project_id: self.provider_pool.project_id.clone(),
                 orchestration_id,
             })
             .timeout(Duration::from_secs(5))
             .send()
             .await
-            .map_err(RouteError::Request)?
+            .map_err(PrepareError::Request)?
             .error_for_status()
-            .map_err(RouteError::Request)?;
+            .map_err(PrepareError::Request)?;
         let status = response.status();
         if status.is_success() {
             let text =
-                response.text().await.map_err(RouteError::DecodingText)?;
+                response.text().await.map_err(PrepareError::DecodingText)?;
             serde_json::from_str(&text)
-                .map_err(|e| RouteError::DecodingJson(e, text))
+                .map_err(|e| PrepareError::DecodingJson(e, text))
         } else {
-            Err(RouteError::RequestFailed(response.text().await))
+            Err(PrepareError::RequestFailed(response.text().await))
         }
     }
 
@@ -329,7 +368,7 @@ impl Client {
                     }
                 },
                 Err(e) => {
-                    (WaitForSuccessError::RouteError(e), Duration::from_secs(1))
+                    (WaitForSuccessError::Prepare(e), Duration::from_secs(1))
                     // TODO exponential back-off: 0ms, 500ms, 1s
                 }
             };
@@ -340,34 +379,21 @@ impl Client {
         }
     }
 
-    pub async fn get_provider(&self, chain_id: String) -> ReqwestProvider {
-        let providers = self.providers.read().await;
-        if let Some(provider) = providers.get(&chain_id) {
-            provider.clone()
-        } else {
-            std::mem::drop(providers);
-
-            // TODO use universal version: https://linear.app/reown/issue/RES-142/universal-provider-router
-            let mut url = self.base_url.join(PROXY_ENDPOINT_PATH).unwrap();
-            url.query_pairs_mut()
-                .append_pair("chainId", &chain_id)
-                .append_pair("projectId", self.project_id.as_ref());
-            let provider = ReqwestProvider::<Ethereum>::new(RpcClient::new(
-                Http::with_client(self.client.clone(), url),
-                false,
-            ));
-            self.providers.write().await.insert(chain_id, provider.clone());
-            provider
-        }
-    }
+    // pub async fn send() {
+    //     // TODO input signed txns
+    //     // TODO send route first, etc. (possibly in parallel)
+    //     // TODO wait_for_success
+    //     // TODO send initial transaction
+    //     // TODO await initial transaction success
+    // }
 
     pub async fn erc20_token_balance(
         &self,
-        chain_id: String,
+        chain_id: &str,
         token: Address,
         owner: Address,
     ) -> Result<U256, alloy::contract::Error> {
-        let provider = self.get_provider(chain_id).await;
+        let provider = self.provider_pool.get_provider(chain_id).await;
         let erc20 = ERC20::new(token, provider);
         let balance = erc20.balanceOf(owner).call().await?;
         Ok(balance.balance)
