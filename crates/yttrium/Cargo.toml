@@ -6,14 +6,21 @@ rust-version.workspace = true
 license.workspace = true
 
 [features]
-full = ["uniffi"]
+full = ["uniffi", "frb"]
 uniffi = ["dep:uniffi", "dep:uniffi_macros"]
+frb = ["dep:flutter_rust_bridge_codegen", "dep:flutter_rust_bridge"]
 test_pimlico_api = []
 test_blockchain_api = []
 
+[build-dependencies]
+flutter_rust_bridge_codegen = { workspace = true, optional = true }
+
 [dependencies]
+flutter_rust_bridge = { workspace = true, optional = true }
+
 uniffi = { workspace = true, optional = true }
 uniffi_macros = { workspace = true, optional = true }
+
 # Ethereum
 alloy = { workspace = true, features = [
     "contract",
@@ -51,7 +58,7 @@ dotenvy = { version = "0.15.7", default-features = false }
 hex = { version = "0.4.3", features = ["std"], default-features = false }
 async-trait = { version = "0.1.83", default-features = false }
 tracing = { version = "0.1.40", default-features = false }
-# fastlz-rs = { version = "0.0.3", features = ["std"], default-features = false }
+fastlz-rs = { version = "0.0.3", features = ["std"], default-features = false }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 
