@@ -77,7 +77,7 @@ impl Client {
         }
     }
 
-    #[cfg(feature = "uniffi")]
+    // #[cfg(feature = "uniffi")]
     pub fn with_rpc_overrides(
         &self,
         rpc_overrides: HashMap<String, Url>,
@@ -87,7 +87,7 @@ impl Client {
         s
     }
 
-    #[cfg(feature = "uniffi")]
+    // #[cfg(feature = "uniffi")]
     pub fn with_4337_urls(&self, bundler_url: Url, paymaster_url: Url) -> Self {
         let mut s = self.clone();
         s.bundler_url = bundler_url;
