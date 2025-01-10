@@ -273,7 +273,7 @@ impl Client {
         // TODO use this to e.g. modify priority fee
         // _speed: String,
     ) -> Result<PrepareDetailedResponse, PrepareDetailedError> {
-        let response: PrepareResponse = self
+        let response = self
             .prepare(chain_id, from, call)
             .await
             .map_err(PrepareDetailedError::Prepare)?;
