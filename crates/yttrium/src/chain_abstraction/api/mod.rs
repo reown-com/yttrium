@@ -15,19 +15,6 @@ pub mod status;
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
 #[serde(rename_all = "camelCase")]
-pub struct InitialTransaction {
-    // CAIP-2 chain ID
-    pub chain_id: String,
-
-    pub from: Address,
-    pub to: Address,
-    pub value: U256,
-    pub input: Bytes,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
-#[serde(rename_all = "camelCase")]
 pub struct Transaction {
     // CAIP-2 chain ID
     pub chain_id: String,

@@ -1,6 +1,6 @@
 use {
     crate::{
-        chain_abstraction::api::InitialTransaction,
+        call::Call,
         config::{LOCAL_BUNDLER_URL, LOCAL_PAYMASTER_URL, LOCAL_RPC_URL},
         gas_abstraction::{
             Client as GasAbstractionClient, PreparedGasAbstraction,
@@ -42,18 +42,17 @@ async fn happy_path() {
 
     // You have an EOA
     let eoa = LocalSigner::random();
+    let from = eoa.address();
 
     {
         // You have an incomming eth_sendTransaction
-        let txn = InitialTransaction {
-            chain_id: chain_id.clone(),
-            from: eoa.address(),
+        let txn = vec![Call {
             to: LocalSigner::random().address(),
             value: U256::ZERO,
             input: Bytes::new(),
-        };
+        }];
 
-        let result = client.prepare(txn).await.unwrap();
+        let result = client.prepare(chain_id.clone(), from, txn).await.unwrap();
         assert!(matches!(
             result,
             PreparedGasAbstraction::DeploymentRequired { .. }
@@ -92,15 +91,52 @@ async fn happy_path() {
     // Second eth_sendTransaction
     {
         // You have an incomming eth_sendTransaction
-        let txn = InitialTransaction {
-            chain_id,
-            from: eoa.address(),
+        let calls = vec![Call {
             to: LocalSigner::random().address(),
             value: U256::ZERO,
             input: Bytes::new(),
+        }];
+
+        let result =
+            client.prepare(chain_id.clone(), from, calls).await.unwrap();
+        assert!(matches!(
+            result,
+            PreparedGasAbstraction::DeploymentNotRequired { .. }
+        ));
+        let prepared_send = match result {
+            PreparedGasAbstraction::DeploymentNotRequired { prepared_send } => {
+                prepared_send
+            }
+            PreparedGasAbstraction::DeploymentRequired { .. } => {
+                panic!("unexpected")
+            }
         };
 
-        let result = client.prepare(txn).await.unwrap();
+        // Display fee information to the user: prepare.fees
+        // User approved? Yes
+
+        let signature = eoa.sign_hash_sync(&prepared_send.hash).unwrap();
+        let receipt = client.send(signature, prepared_send.send_params).await;
+        println!("receipt: {:?}", receipt);
+    }
+
+    // Third eth_sendTransaction (2 calls)
+    {
+        // You have an incomming eth_sendTransaction
+        let calls = vec![
+            Call {
+                to: LocalSigner::random().address(),
+                value: U256::ZERO,
+                input: Bytes::new(),
+            },
+            Call {
+                to: LocalSigner::random().address(),
+                value: U256::ZERO,
+                input: Bytes::new(),
+            },
+        ];
+
+        let result = client.prepare(chain_id, from, calls).await.unwrap();
         assert!(matches!(
             result,
             PreparedGasAbstraction::DeploymentNotRequired { .. }

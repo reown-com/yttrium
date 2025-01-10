@@ -14,24 +14,23 @@ use {
     std::time::Duration,
     yttrium::{
         account_client::AccountClient as YAccountClient,
+        call::{
+            send::safe_test::{
+                self, DoSendTransactionParams, OwnerSignature,
+                PreparedSendTransaction,
+            },
+            Call,
+        },
         chain_abstraction::{
             api::{
                 prepare::{PrepareResponse, PrepareResponseAvailable},
                 status::{StatusResponse, StatusResponseCompleted},
-                InitialTransaction,
             },
             client::Client,
             currency::Currency,
             ui_fields::UiFields,
         },
         config::Config,
-        execution::{
-            send::safe_test::{
-                self, DoSendTransactionParams, OwnerSignature,
-                PreparedSendTransaction,
-            },
-            Execution,
-        },
         smart_accounts::{
             account_address::AccountAddress as FfiAccountAddress,
             safe::{SignOutputEnum, SignStep3Params},
@@ -127,10 +126,12 @@ impl ChainAbstractionClient {
 
     pub async fn prepare(
         &self,
-        initial_transaction: InitialTransaction,
+        chain_id: String,
+        from: FFIAddress,
+        call: Call,
     ) -> Result<PrepareResponse, FFIError> {
         self.client
-            .prepare(initial_transaction)
+            .prepare(chain_id, from, call)
             .await
             .map_err(|e| FFIError::General(e.to_string()))
     }
@@ -261,7 +262,7 @@ impl FFIAccountClient {
 
     pub async fn prepare_send_transactions(
         &self,
-        transactions: Vec<Execution>,
+        transactions: Vec<Call>,
     ) -> Result<PreparedSendTransaction, FFIError> {
         self.account_client
             .prepare_send_transactions(transactions)

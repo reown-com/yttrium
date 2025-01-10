@@ -10,28 +10,17 @@ use {
     std::time::Duration,
     yttrium::{
         account_client::AccountClient as YAccountClient,
+        call::{send::safe_test::OwnerSignature as YOwnerSignature, Call},
         chain_abstraction::{
             api::{
                 prepare::PrepareResponse,
                 status::{StatusResponse, StatusResponseCompleted},
-                InitialTransaction,
             },
             client::Client,
         },
         config::Config,
-        execution::{
-            send::safe_test::OwnerSignature as YOwnerSignature,
-            Execution as YTransaction,
-        },
     },
 };
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct Transaction {
-    pub to: String,
-    pub value: String,
-    pub data: String,
-}
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PreparedSendTransaction {
@@ -71,10 +60,12 @@ impl ChainAbstractionClient {
 
     pub async fn route(
         &self,
-        initial_transaction: InitialTransaction,
+        chain_id: String,
+        from: Address,
+        call: Call,
     ) -> Result<PrepareResponse, Error> {
         self.client
-            .prepare(initial_transaction)
+            .prepare(chain_id, from, call)
             .await
             .map_err(|e| Error::General(e.to_string()))
     }
@@ -177,10 +168,10 @@ impl AccountClient {
 
     pub async fn prepare_send_transactions(
         &self,
-        transactions: Vec<Transaction>,
+        transactions: Vec<Call>,
     ) -> Result<PreparedSendTransaction, Error> {
-        let ytransactions: Vec<YTransaction> =
-            transactions.into_iter().map(YTransaction::from).collect();
+        let ytransactions: Vec<Call> =
+            transactions.into_iter().map(Call::from).collect();
 
         let prepared_send_transaction = self
             .account_client
@@ -245,17 +236,6 @@ impl AccountClient {
             .map(serde_json::to_string)
             .collect::<Result<String, serde_json::Error>>()
             .map_err(|e| Error::General(e.to_string()))
-    }
-}
-
-impl From<Transaction> for YTransaction {
-    fn from(transaction: Transaction) -> Self {
-        YTransaction::new_from_strings(
-            transaction.to,
-            transaction.value,
-            transaction.data,
-        )
-        .unwrap()
     }
 }
 

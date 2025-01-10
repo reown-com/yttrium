@@ -1,5 +1,6 @@
 use {
     crate::{
+        call::Call,
         chain_abstraction::{
             amount::Amount,
             api::{
@@ -7,7 +8,7 @@ use {
                     BridgingError, PrepareResponse, PrepareResponseError,
                 },
                 status::StatusResponse,
-                InitialTransaction, Transaction,
+                Transaction,
             },
             client::Client,
             currency::Currency,
@@ -384,8 +385,7 @@ async fn bridging_routes_routes_available() {
     }
     assert!(chain_1_address_1_token.token_balance().await >= required_amount);
 
-    let transaction = InitialTransaction {
-        from: source.address(),
+    let transaction = Call {
         to: *chain_2_address_1_token.token.address(),
         value: U256::ZERO,
         input: ERC20::transferCall {
@@ -394,7 +394,6 @@ async fn bridging_routes_routes_available() {
         }
         .abi_encode()
         .into(),
-        chain_id: chain_2.eip155_chain_id().to_owned(),
     };
     println!("input transaction: {:?}", transaction);
 
@@ -402,7 +401,11 @@ async fn bridging_routes_routes_available() {
     let client = Client::new(project_id);
     let start = Instant::now();
     let mut result = client
-        .prepare(transaction.clone())
+        .prepare(
+            chain_2.eip155_chain_id().to_owned(),
+            source.address(),
+            transaction.clone(),
+        )
         .await
         .unwrap()
         .into_result()
@@ -727,8 +730,7 @@ async fn happy_path() {
     }
     assert!(source.token_balance(&sources).await >= required_amount);
 
-    let initial_transaction = InitialTransaction {
-        from: source.address(&sources),
+    let initial_transaction = Call {
         to: *source.other().bridge_token(&sources).token.address(),
         value: U256::ZERO,
         input: ERC20::transferCall {
@@ -737,20 +739,23 @@ async fn happy_path() {
         }
         .abi_encode()
         .into(),
-        chain_id: source
-            .other()
-            .bridge_token(&sources)
-            .params
-            .chain
-            .eip155_chain_id()
-            .to_owned(),
     };
     println!("input transaction: {:?}", initial_transaction);
 
     let project_id = std::env::var("REOWN_PROJECT_ID").unwrap().into();
     let client = Client::new(project_id);
     let mut result = client
-        .prepare(initial_transaction.clone())
+        .prepare(
+            source
+                .other()
+                .bridge_token(&sources)
+                .params
+                .chain
+                .eip155_chain_id()
+                .to_owned(),
+            source.address(&sources),
+            initial_transaction.clone(),
+        )
         .await
         .unwrap()
         .into_result()
@@ -1285,8 +1290,7 @@ async fn happy_path_full_dependency_on_ui_fields() {
     }
     assert!(source.token_balance(&sources).await >= required_amount);
 
-    let initial_transaction = InitialTransaction {
-        from: source.address(&sources),
+    let initial_transaction = Call {
         to: *source.other().bridge_token(&sources).token.address(),
         value: U256::ZERO,
         input: ERC20::transferCall {
@@ -1295,20 +1299,25 @@ async fn happy_path_full_dependency_on_ui_fields() {
         }
         .abi_encode()
         .into(),
-        chain_id: source
-            .other()
-            .bridge_token(&sources)
-            .params
-            .chain
-            .eip155_chain_id()
-            .to_owned(),
     };
     println!("input transaction: {:?}", initial_transaction);
+
+    let initial_transaction_chain_id = source
+        .other()
+        .bridge_token(&sources)
+        .params
+        .chain
+        .eip155_chain_id()
+        .to_owned();
 
     let project_id = std::env::var("REOWN_PROJECT_ID").unwrap().into();
     let client = Client::new(project_id);
     let mut result = client
-        .prepare(initial_transaction.clone())
+        .prepare(
+            initial_transaction_chain_id.clone(),
+            source.address(&sources),
+            initial_transaction.clone(),
+        )
         .await
         .unwrap()
         .into_result()
@@ -1510,7 +1519,7 @@ async fn happy_path_full_dependency_on_ui_fields() {
     println!("confirmed receipts in {:?}", approval_start.elapsed());
 
     let provider = provider_for_chain(&Chain::from_eip155_chain_id(
-        &initial_transaction.chain_id,
+        &initial_transaction_chain_id,
     ));
 
     let original = ui_fields.initial.transaction.into_transaction_request();
@@ -1649,8 +1658,7 @@ async fn bridging_routes_routes_insufficient_funds() {
 
     let send_amount = U256::from(1_500_000); // 1.5 USDC (6 decimals)
 
-    let transaction = InitialTransaction {
-        from: account_1.address(),
+    let transaction = Call {
         to: *chain_1_address_2_token.token.address(),
         value: U256::ZERO,
         input: ERC20::transferCall {
@@ -1659,13 +1667,19 @@ async fn bridging_routes_routes_insufficient_funds() {
         }
         .abi_encode()
         .into(),
-        chain_id: chain_1.eip155_chain_id().to_owned(),
     };
     println!("input transaction: {:?}", transaction);
 
     let project_id = std::env::var("REOWN_PROJECT_ID").unwrap().into();
     let client = Client::new(project_id);
-    let result = client.prepare(transaction.clone()).await.unwrap();
+    let result = client
+        .prepare(
+            chain_1.eip155_chain_id().to_owned(),
+            account_1.address(),
+            transaction.clone(),
+        )
+        .await
+        .unwrap();
     assert_eq!(
         result,
         PrepareResponse::Error(PrepareResponseError {

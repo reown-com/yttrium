@@ -1,6 +1,5 @@
 [workspace]
 members = [
-  "crates/cli",
   "crates/kotlin-ffi",
   "crates/yttrium",
   "crates/yttrium_dart/rust",

@@ -6,14 +6,15 @@ use {
                 FUNGIBLE_PRICE_ENDPOINT_PATH, NATIVE_TOKEN_ADDRESS,
             },
             prepare::{
-                PrepareRequest, PrepareResponse, PrepareResponseAvailable,
+                CallOrCalls, PrepareRequest, PrepareRequestTransaction,
+                PrepareResponse, PrepareResponseAvailable,
                 PrepareResponseSuccess, RouteQueryParams, ROUTE_ENDPOINT_PATH,
             },
             status::{
                 StatusQueryParams, StatusResponse, StatusResponseCompleted,
                 STATUS_ENDPOINT_PATH,
             },
-            InitialTransaction, Transaction,
+            Transaction,
         },
         currency::Currency,
         error::{
@@ -23,6 +24,7 @@ use {
         ui_fields::UiFields,
     },
     crate::{
+        call::Call,
         chain_abstraction::{
             error::UiFieldsError, l1_data_fee::get_l1_data_fee, ui_fields,
         },
@@ -54,7 +56,9 @@ impl Client {
 
     pub async fn prepare(
         &self,
-        transaction: InitialTransaction,
+        chain_id: String,
+        from: Address,
+        call: Call,
     ) -> Result<PrepareResponse, PrepareError> {
         let response = self
             .provider_pool
@@ -65,7 +69,13 @@ impl Client {
                     .join(ROUTE_ENDPOINT_PATH)
                     .unwrap(),
             )
-            .json(&PrepareRequest { transaction })
+            .json(&PrepareRequest {
+                transaction: PrepareRequestTransaction {
+                    chain_id,
+                    from,
+                    calls: CallOrCalls::Call { call },
+                },
+            })
             .query(&RouteQueryParams {
                 project_id: self.provider_pool.project_id.clone(),
             })
@@ -256,13 +266,15 @@ impl Client {
     // TODO test
     pub async fn prepare_detailed(
         &self,
-        transaction: InitialTransaction,
+        chain_id: String,
+        from: Address,
+        call: Call,
         local_currency: Currency,
         // TODO use this to e.g. modify priority fee
         // _speed: String,
     ) -> Result<PrepareDetailedResponse, PrepareDetailedError> {
-        let response = self
-            .prepare(transaction)
+        let response: PrepareResponse = self
+            .prepare(chain_id, from, call)
             .await
             .map_err(PrepareDetailedError::Prepare)?;
         match response {

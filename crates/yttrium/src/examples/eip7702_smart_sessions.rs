@@ -7,6 +7,7 @@ use {
             config::BundlerConfig,
             pimlico::{self, paymaster::client::PaymasterClient},
         },
+        call::Call,
         config::{LOCAL_BUNDLER_URL, LOCAL_PAYMASTER_URL, LOCAL_RPC_URL},
         entry_point::ENTRYPOINT_ADDRESS_V07,
         erc7579::{
@@ -23,7 +24,6 @@ use {
                 get_smart_sessions_validator, ActionData, ERC7739Data, Session,
             },
         },
-        execution::Execution,
         smart_accounts::{
             nonce::get_nonce_with_key,
             safe::{
@@ -264,10 +264,10 @@ async fn test_impl(
         nonce,
         factory: None,
         factory_data: None,
-        call_data: get_call_data(vec![Execution {
+        call_data: get_call_data(vec![Call {
             to: session.actions[0].actionTarget,
             value: U256::ZERO,
-            data: session.actions[0].actionTargetSelector.into(),
+            input: session.actions[0].actionTargetSelector.into(),
         }]),
         call_gas_limit: U256::ZERO,
         verification_gas_limit: U256::ZERO,

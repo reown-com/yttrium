@@ -1,6 +1,6 @@
 use {
     crate::{
-        config::Config, execution::Execution,
+        call::Call, config::Config,
         smart_accounts::account_address::AccountAddress,
         user_operation::UserOperationV07,
     },
@@ -47,7 +47,7 @@ impl fmt::Display for SentUserOperationHash {
 }
 
 pub async fn prepare_send_transaction(
-    transactions: Vec<Execution>,
+    transactions: Vec<Call>,
     owner: AccountAddress,
     _chain_id: u64,
     config: Config,

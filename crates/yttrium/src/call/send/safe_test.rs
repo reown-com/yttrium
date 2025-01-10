@@ -8,10 +8,10 @@ use {
                 paymaster::client::PaymasterClient,
             },
         },
+        call::Call,
         chain::ChainId,
         config::Config,
         entry_point::{EntryPointVersion, ENTRYPOINT_ADDRESS_V07},
-        execution::Execution,
         smart_accounts::{
             account_address::AccountAddress,
             nonce::get_nonce,
@@ -91,7 +91,7 @@ pub async fn get_address(
 }
 
 pub async fn send_transactions(
-    execution_calldata: Vec<Execution>,
+    execution_calldata: Vec<Call>,
     owner: LocalSigner<SigningKey>,
     address: Option<AccountAddress>,
     authorization_list: Option<Vec<Authorization>>,
@@ -174,7 +174,7 @@ pub struct DoSendTransactionParams {
 }
 
 pub async fn prepare_send_transactions(
-    execution_calldata: Vec<Execution>,
+    execution_calldata: Vec<Call>,
     owner: Address,
     address: Option<AccountAddress>,
     authorization_list: Option<Vec<Authorization>>,
@@ -210,7 +210,7 @@ pub async fn prepare_send_transactions(
 
 #[allow(clippy::too_many_arguments)]
 pub async fn prepare_send_transactions_inner<P, T, N>(
-    execution_calldata: Vec<Execution>,
+    execution_calldata: Vec<Call>,
     owners: Owners,
     address: Option<AccountAddress>,
     authorization_list: Option<Vec<Authorization>>,
@@ -449,8 +449,8 @@ mod tests {
     use {
         super::*,
         crate::{
+            call::Call,
             chain::ChainId,
-            execution::Execution,
             smart_accounts::safe::{
                 prepare_sign, sign, sign_step_3, PreparedSignature,
                 SignOutputEnum,
@@ -493,10 +493,10 @@ mod tests {
         )
         .await;
 
-        let transaction = vec![Execution {
+        let transaction = vec![Call {
             to: destination.address(),
             value: Uint::from(1),
-            data: Bytes::new(),
+            input: Bytes::new(),
         }];
 
         let receipt = send_transactions(
@@ -512,10 +512,10 @@ mod tests {
         let balance = provider.get_balance(destination.address()).await?;
         assert_eq!(balance, Uint::from(1));
 
-        let transaction = vec![Execution {
+        let transaction = vec![Call {
             to: destination.address(),
             value: Uint::from(1),
-            data: Bytes::new(),
+            input: Bytes::new(),
         }];
 
         let receipt =
@@ -589,10 +589,10 @@ mod tests {
         )
         .await;
 
-        let transaction = vec![Execution {
+        let transaction = vec![Call {
             to: destination.address(),
             value: Uint::from(1),
-            data: Bytes::new(),
+            input: Bytes::new(),
         }];
 
         let receipt = send_transactions(
@@ -630,10 +630,10 @@ mod tests {
         )
         .await;
 
-        let transaction = vec![Execution {
+        let transaction = vec![Call {
             to: destination.address(),
             value: Uint::from(1),
-            data: Bytes::new(),
+            input: Bytes::new(),
         }];
 
         let receipt = send_transactions(transaction, owner, None, None, config)
@@ -673,10 +673,10 @@ mod tests {
         )
         .await;
 
-        let transaction = vec![Execution {
+        let transaction = vec![Call {
             to: destination.address(),
             value: Uint::from(1),
-            data: Bytes::new(),
+            input: Bytes::new(),
         }];
 
         let receipt = send_transactions(
@@ -803,15 +803,15 @@ mod tests {
         .await;
 
         let transaction = vec![
-            Execution {
+            Call {
                 to: destination1.address(),
                 value: Uint::from(1),
-                data: Bytes::new(),
+                input: Bytes::new(),
             },
-            Execution {
+            Call {
                 to: destination2.address(),
                 value: Uint::from(2),
-                data: Bytes::new(),
+                input: Bytes::new(),
             },
         ];
 
@@ -1034,10 +1034,10 @@ mod tests {
             provider.get_balance(destination.address()).await.unwrap();
         assert_eq!(balance, Uint::from(0));
         let receipt = send_transactions(
-            vec![Execution {
+            vec![Call {
                 to: destination.address(),
                 value: Uint::from(1),
-                data: Bytes::new(),
+                input: Bytes::new(),
             }],
             owner.clone(),
             None,
@@ -1136,10 +1136,10 @@ mod tests {
         )
         .await;
 
-        let transaction = vec![Execution {
+        let transaction = vec![Call {
             to: destination.address(),
             value: Uint::from(1),
-            data: Bytes::new(),
+            input: Bytes::new(),
         }];
 
         let receipt = send_transactions(transaction, owner, None, None, config)
@@ -1228,10 +1228,10 @@ mod tests {
             provider.get_code_at(authority.address()).await?
         );
 
-        let transaction = vec![Execution {
+        let transaction = vec![Call {
             to: destination.address(),
             value: Uint::from(1),
-            data: Bytes::new(),
+            input: Bytes::new(),
         }];
 
         let receipt = send_transactions(
@@ -1381,10 +1381,10 @@ mod tests {
             provider.get_code_at(authority.address()).await?
         );
 
-        let transaction: Vec<_> = vec![Execution {
+        let transaction = vec![Call {
             to: destination.address(),
             value: Uint::from(1),
-            data: Bytes::new(),
+            input: Bytes::new(),
         }];
 
         let receipt = send_transactions(

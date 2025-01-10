@@ -6,7 +6,8 @@ use {
             config::BundlerConfig,
             pimlico::{self, paymaster::client::PaymasterClient},
         },
-        chain_abstraction::{amount::Amount, api::InitialTransaction},
+        call::Call,
+        chain_abstraction::amount::Amount,
         entry_point::ENTRYPOINT_ADDRESS_V07,
         erc7579::{
             accounts::safe::encode_validator_key,
@@ -137,13 +138,14 @@ impl Client {
     // TODO error type
     pub async fn prepare(
         &self,
-        transaction: InitialTransaction,
+        chain_id: String,
+        from: Address,
+        calls: Vec<Call>,
     ) -> Result<PreparedGasAbstraction, PrepareError> {
-        let provider =
-            self.provider_pool.get_provider(&transaction.chain_id).await;
+        let provider = self.provider_pool.get_provider(&chain_id).await;
 
         let code = provider
-            .get_code_at(transaction.from)
+            .get_code_at(from)
             .await
             .map_err(PrepareError::CheckingAccountCode)?;
         // TODO check if the code is our contract, or something else
@@ -156,8 +158,7 @@ impl Client {
             // TODO throw error if it's not our account (how?)
 
             let auth = Authorization {
-                chain_id: transaction
-                    .chain_id
+                chain_id: chain_id
                     .strip_prefix("eip155:")
                     .unwrap()
                     .parse()
@@ -165,7 +166,7 @@ impl Client {
                 address: SAFE_L2_SINGLETON_1_4_1,
                 // TODO should this be `pending` tag? https://github.com/wevm/viem/blob/a49c100a0b2878fbfd9f1c9b43c5cc25de241754/src/experimental/eip7702/actions/signAuthorization.ts#L149
                 nonce: provider
-                    .get_transaction_count(transaction.from)
+                    .get_transaction_count(from)
                     .await
                     .map_err(PrepareError::GettingNonce)?,
             };
@@ -177,11 +178,15 @@ impl Client {
 
             Ok(PreparedGasAbstraction::DeploymentRequired {
                 auth,
-                prepare_deploy_params: PrepareDeployParams { transaction },
+                prepare_deploy_params: PrepareDeployParams {
+                    chain_id,
+                    from,
+                    calls,
+                },
             })
         } else {
             let prepared_send = self
-                .create_sponsored_user_op(transaction)
+                .create_sponsored_user_op(chain_id, from, calls)
                 .await
                 .map_err(PrepareError::CreatingSponsoredUserOp)?;
 
@@ -192,11 +197,10 @@ impl Client {
     // TODO error type
     async fn create_sponsored_user_op(
         &self,
-        transaction: InitialTransaction,
+        chain_id: String,
+        from: Address,
+        calls: Vec<Call>,
     ) -> Result<PreparedSend, CreateSponsoredUserOpError> {
-        let InitialTransaction { chain_id, from, to, value, input } =
-            transaction;
-
         // TODO don't look this up a second time
         let provider = self.provider_pool.get_provider(&chain_id).await;
 
@@ -231,11 +235,7 @@ impl Client {
             nonce,
             factory: None,
             factory_data: None,
-            call_data: get_call_data(vec![crate::execution::Execution {
-                to,
-                value,
-                data: input,
-            }]),
+            call_data: get_call_data(calls),
             call_gas_limit: U256::ZERO,
             verification_gas_limit: U256::ZERO,
             pre_verification_gas: U256::ZERO,
@@ -320,7 +320,7 @@ impl Client {
         // Pass None to use anvil faucet
         sponsor: Option<PrivateKeySigner>,
     ) -> Result<PreparedSend, PrepareDeployError> {
-        let account = params.transaction.from;
+        let account = params.from;
         let SignedAuthorization { auth, signature } = auth_sig;
         let chain_id = auth.chain_id;
         let auth = auth.into_signed(signature);
@@ -402,9 +402,13 @@ impl Client {
             ));
         }
 
-        self.create_sponsored_user_op(params.transaction)
-            .await
-            .map_err(PrepareDeployError::CreatingSponsoredUserOp)
+        self.create_sponsored_user_op(
+            params.chain_id,
+            params.from,
+            params.calls,
+        )
+        .await
+        .map_err(PrepareDeployError::CreatingSponsoredUserOp)
     }
 
     // TODO error type
@@ -451,7 +455,9 @@ pub enum PreparedGasAbstraction {
 #[derive(Clone)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
 pub struct PrepareDeployParams {
-    pub transaction: InitialTransaction,
+    pub chain_id: String,
+    pub from: Address,
+    pub calls: Vec<Call>,
 }
 
 #[derive(Clone)]

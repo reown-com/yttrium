@@ -4,8 +4,7 @@ use {
             client::BundlerClient, config::BundlerConfig,
             pimlico::paymaster::client::PaymasterClient,
         },
-        config::Config,
-        execution::{
+        call::{
             send::{
                 do_send_transactions, prepare_send_transaction,
                 safe_test::{
@@ -13,8 +12,9 @@ use {
                     PreparedSendTransaction,
                 },
             },
-            Execution,
+            Call,
         },
+        config::Config,
         smart_accounts::{
             account_address::AccountAddress,
             safe::{
@@ -96,7 +96,7 @@ impl AccountClient {
 
     pub async fn prepare_send_transactions(
         &self,
-        transactions: Vec<Execution>,
+        transactions: Vec<Call>,
     ) -> eyre::Result<PreparedSendTransaction> {
         prepare_send_transaction(
             transactions,
