@@ -2,7 +2,7 @@ use {
     crate::{
         call::Call,
         config::{LOCAL_BUNDLER_URL, LOCAL_PAYMASTER_URL, LOCAL_RPC_URL},
-        gas_abstraction::{
+        transaction_sponsorship::{
             Client as GasAbstractionClient, PreparedGasAbstraction,
             SignedAuthorization,
         },

@@ -17,11 +17,11 @@ pub mod erc20;
 pub mod erc6492_client;
 pub mod erc7579;
 pub mod error;
-pub mod gas_abstraction;
 pub mod jsonrpc;
 pub mod provider_pool;
 pub mod smart_accounts;
 pub mod test_helpers;
+pub mod transaction_sponsorship;
 pub mod user_operation;
 pub mod utils;
 
