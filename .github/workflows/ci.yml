@@ -49,7 +49,7 @@ jobs:
       - run: rustup update stable && rustup default stable
       - run: rustup toolchain install nightly -c rustfmt
       - run: git submodule update --init --recursive
-      - run: cargo install cargo-udeps
+      - run: cargo install cargo-udeps --locked
       - run: cargo +nightly udeps --workspace
 
   # build_wasm:
