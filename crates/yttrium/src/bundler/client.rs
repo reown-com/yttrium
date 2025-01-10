@@ -111,6 +111,9 @@ impl BundlerClient {
     ) -> eyre::Result<Option<UserOperationReceipt>> {
         let provider = ReqwestProvider::<Ethereum>::new_http(self.config.url());
         let receipt = provider.get_user_operation_receipt(hash).await?;
+
+        // For some reason Pimlico bundler doesn't include these fields
+        // Workaround by injecting them in
         let value = receipt.map(|mut value| {
             if let Some(value) = value.as_object_mut() {
                 if let Some(receipt) = value.get_mut("receipt") {
