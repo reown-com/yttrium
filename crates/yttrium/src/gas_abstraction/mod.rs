@@ -6,7 +6,7 @@ use {
             config::BundlerConfig,
             pimlico::{self, paymaster::client::PaymasterClient},
         },
-        chain_abstraction::api::InitialTransaction,
+        chain_abstraction::{amount::Amount, api::InitialTransaction},
         entry_point::ENTRYPOINT_ADDRESS_V07,
         erc7579::{
             accounts::safe::encode_validator_key,
@@ -285,10 +285,27 @@ impl Client {
 
         let hash = eip191_hash_message(message);
 
+        let fees = {
+            let total_gas = user_op.call_gas_limit
+                + user_op.verification_gas_limit
+                + user_op.pre_verification_gas
+                + user_op.paymaster_verification_gas_limit.unwrap_or_default()
+                + user_op.paymaster_post_op_gas_limit.unwrap_or_default();
+            let gas_fee = total_gas * gas_price.max_fee_per_gas;
+
+            // TODO calculate local_total and local_total_sponsored based on Zerion cost API
+            PreparedSendFees {
+                gas_fee,
+                local_total: Amount::zero(),
+                local_total_sponsored: Amount::zero(),
+            }
+        };
+
         Ok(PreparedSend {
             message: message.into(),
             hash,
             send_params: SendParams { user_op },
+            fees,
         })
     }
 
@@ -420,7 +437,6 @@ impl Client {
     // async fn create_smart_session(?) -> ?;
 }
 
-#[derive(Clone)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Enum))]
 pub enum PreparedGasAbstraction {
     DeploymentRequired {
@@ -453,12 +469,19 @@ pub struct SignedAuthorization {
     pub signature: PrimitiveSignature,
 }
 
-#[derive(Clone)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
 pub struct PreparedSend {
     pub message: Bytes,
     pub hash: B256,
     pub send_params: SendParams,
+    pub fees: PreparedSendFees,
+}
+
+#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
+pub struct PreparedSendFees {
+    pub gas_fee: U256,
+    pub local_total: Amount,
+    pub local_total_sponsored: Amount,
 }
 
 #[derive(Clone)]

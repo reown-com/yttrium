@@ -6,10 +6,11 @@ use alloy::primitives::{
 #[derive(Debug)]
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
 pub struct Amount {
-    pub symbol: String,        // USDC, USD
-    pub amount: U256,          // e.g. 40000, 4
-    pub unit: u8,              // 6, 2
-    pub formatted: String,     // e.g. 0.04 USDC, $0.04
+    pub symbol: String,    // USDC, USD
+    pub amount: U256,      // e.g. 40000, 4
+    pub unit: u8,          // 6, 2
+    pub formatted: String, // e.g. 0.04 USDC, $0.04
+    /// Special case that assumes the currency is USD and `unit` is at least 2 decimals
     pub formatted_alt: String, // e.g. $0.04
 }
 
@@ -18,11 +19,12 @@ impl Amount {
         let formatted = ParseUnits::U256(amount).format_units(unit);
         let formatted_symbol = format!("{formatted} {symbol}");
         let formatted_alt = {
-            let unit_offset = U256::from(10).pow(U256::from(unit.get() - 2));
+            let unit_offset =
+                U256::from(10).pow(U256::from(unit.get().saturating_sub(2)));
             let decimals = amount % unit_offset;
             let mut amount = amount / unit_offset;
-            if decimals > unit_offset / U256::from(2) {
-                // round up
+            if decimals >= unit_offset / U256::from(2) {
+                // round up if at least half-way
                 amount += U256::from(1);
             }
             // TODO support other `$` symbols e.g. for Euro; or whatever format the localized currency uses
