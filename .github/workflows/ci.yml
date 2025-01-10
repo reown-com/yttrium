@@ -130,7 +130,8 @@ jobs:
 
       - name: Install cargo-ndk
         run: |
-          cargo install cargo-ndk
+          # --locked to bypass this pipeline error: https://github.com/reown-com/yttrium/actions/runs/12717232881/job/35453267940?pr=110
+          cargo install cargo-ndk --locked
 
       - name: Build Rust library
         run: |
