@@ -96,10 +96,10 @@ impl AccountClient {
 
     pub async fn prepare_send_transactions(
         &self,
-        transactions: Vec<Call>,
+        calls: Vec<Call>,
     ) -> eyre::Result<PreparedSendTransaction> {
         prepare_send_transaction(
-            transactions,
+            calls,
             self.owner,
             self.chain_id,
             self.config.clone(),

@@ -174,7 +174,7 @@ pub struct DoSendTransactionParams {
 }
 
 pub async fn prepare_send_transactions(
-    execution_calldata: Vec<Call>,
+    calls: Vec<Call>,
     owner: Address,
     address: Option<AccountAddress>,
     authorization_list: Option<Vec<Authorization>>,
@@ -196,7 +196,7 @@ pub async fn prepare_send_transactions(
     assert!(gas_price.fast.max_fee_per_gas > U256::from(1));
 
     prepare_send_transactions_inner(
-        execution_calldata,
+        calls,
         Owners { owners: vec![owner], threshold: 1 },
         address,
         authorization_list,
@@ -210,7 +210,7 @@ pub async fn prepare_send_transactions(
 
 #[allow(clippy::too_many_arguments)]
 pub async fn prepare_send_transactions_inner<P, T, N>(
-    execution_calldata: Vec<Call>,
+    calls: Vec<Call>,
     owners: Owners,
     address: Option<AccountAddress>,
     authorization_list: Option<Vec<Authorization>>,
@@ -251,7 +251,7 @@ where
             == U256::from(U160::from_be_bytes(
                 SAFE_SINGLETON_1_4_1.into_array(),
             )) {
-        get_call_data(execution_calldata)
+        get_call_data(calls)
     } else {
         // Note about using `try` mode for get_call_data & needing to check
         // storage above. This is due to an issue in the Safe7579Launchpad
@@ -269,7 +269,7 @@ where
                 setupTo: SAFE_ERC_7579_LAUNCHPAD_ADDRESS,
                 setupData: init_data().abi_encode().into(),
                 safe7579: SAFE_4337_MODULE_ADDRESS,
-                callData: get_call_data_with_try(execution_calldata, true),
+                callData: get_call_data_with_try(calls, true),
                 validators: vec![],
             },
         }

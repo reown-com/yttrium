@@ -47,13 +47,13 @@ impl fmt::Display for SentUserOperationHash {
 }
 
 pub async fn prepare_send_transaction(
-    transactions: Vec<Call>,
+    calls: Vec<Call>,
     owner: AccountAddress,
     _chain_id: u64,
     config: Config,
 ) -> eyre::Result<PreparedSendTransaction> {
     let user_operation_hash = safe_test::prepare_send_transactions(
-        transactions,
+        calls,
         owner.into(),
         None,
         None,
