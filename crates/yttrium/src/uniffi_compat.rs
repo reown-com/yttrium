@@ -10,7 +10,7 @@ use {
             aliases::U48, Address, Bytes, PrimitiveSignature, Uint, B256, U128,
             U256, U64, U8,
         },
-        rpc::types::{Authorization, TransactionReceipt},
+        rpc::types::{Authorization, TransactionReceipt, UserOperationReceipt},
         signers::local::PrivateKeySigner,
         transports::{self, TransportErrorKind},
     },
@@ -72,9 +72,10 @@ uniffi::custom_type!(U128, String, {
     lower: |obj| uint_to_hex(obj),
 });
 
-uniffi::custom_type!(u128, U128, {
-    try_lift: |val| Ok(val.to()),
-    lower: |obj| U128::from(obj),
+type U128Primitive = u128;
+uniffi::custom_type!(U128Primitive, String, {
+    try_lift: |val| Ok(val.parse::<U128>()?.to()),
+    lower: |obj| uint_to_hex(U128::from(obj)),
 });
 
 uniffi::custom_type!(U256, String, {
@@ -118,6 +119,10 @@ uniffi::custom_type!(AlloyError, String, {
 });
 uniffi::custom_type!(TransactionReceipt, String, {
     try_lift: |_val| unimplemented!("Does not support lifting TransactionReceipt"),
+    lower: |obj| serde_json::to_string(&obj).unwrap(),
+});
+uniffi::custom_type!(UserOperationReceipt, String, {
+    try_lift: |_val| unimplemented!("Does not support lifting UserOperationReceipt"),
     lower: |obj| serde_json::to_string(&obj).unwrap(),
 });
 uniffi::custom_type!(PendingTransactionError, String, {

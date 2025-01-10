@@ -2,7 +2,6 @@ use {
     crate::{
         bundler::{
             client::BundlerClient, config::BundlerConfig,
-            models::user_operation_receipt::UserOperationReceipt,
             pimlico::paymaster::client::PaymasterClient,
         },
         config::Config,
@@ -28,6 +27,7 @@ use {
         network::Ethereum,
         primitives::{Bytes, B256, U256, U64},
         providers::ReqwestProvider,
+        rpc::types::UserOperationReceipt,
     },
 };
 

@@ -2,6 +2,7 @@ mod frb_generated; /* AUTO INJECTED BY flutter_rust_bridge. This line may not be
 use {
     alloy::{
         network::Ethereum,
+        primitives::{Address, PrimitiveSignature},
         providers::{Provider, ReqwestProvider},
     },
     flutter_rust_bridge::frb,
@@ -20,9 +21,7 @@ use {
         },
         config::Config,
         execution::{
-            send::safe_test::{
-                Address, OwnerSignature as YOwnerSignature, PrimitiveSignature,
-            },
+            send::safe_test::OwnerSignature as YOwnerSignature,
             Execution as YTransaction,
         },
     },

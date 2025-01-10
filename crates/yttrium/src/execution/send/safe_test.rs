@@ -3,7 +3,6 @@ use {
         bundler::{
             client::BundlerClient,
             config::BundlerConfig,
-            models::user_operation_receipt::UserOperationReceipt,
             pimlico::{
                 client::BundlerClient as PimlicoBundlerClient,
                 paymaster::client::PaymasterClient,
@@ -29,8 +28,12 @@ use {
     alloy::{
         dyn_abi::{DynSolValue, Eip712Domain},
         network::Ethereum,
-        primitives::{aliases::U48, Uint, B256, U160, U256},
+        primitives::{
+            aliases::U48, Address, PrimitiveSignature, Uint, B256, U160, U256,
+            U64,
+        },
         providers::{Provider, ReqwestProvider},
+        rpc::types::UserOperationReceipt,
         signers::{k256::ecdsa::SigningKey, local::LocalSigner, SignerSync},
         sol_types::{SolCall, SolStruct},
         transports::Transport,
@@ -367,8 +370,6 @@ where
     })
 }
 
-use alloy::primitives::U64;
-pub use alloy::primitives::{Address, PrimitiveSignature};
 #[derive(Clone)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
 pub struct OwnerSignature {

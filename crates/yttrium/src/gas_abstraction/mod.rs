@@ -4,7 +4,6 @@ use {
         bundler::{
             client::BundlerClient,
             config::BundlerConfig,
-            models::user_operation_receipt::UserOperationReceipt,
             pimlico::{self, paymaster::client::PaymasterClient},
         },
         chain_abstraction::api::InitialTransaction,
@@ -33,7 +32,7 @@ use {
         primitives::{
             eip191_hash_message, Address, Bytes, PrimitiveSignature, B256, U256,
         },
-        rpc::types::Authorization,
+        rpc::types::{Authorization, UserOperationReceipt},
         signers::local::{LocalSigner, PrivateKeySigner},
         sol_types::SolCall,
     },

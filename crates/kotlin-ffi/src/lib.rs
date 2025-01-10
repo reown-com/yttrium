@@ -4,8 +4,8 @@ use {
     alloy::{
         network::Ethereum,
         primitives::{
-            Bytes as FFIBytes, Uint, U128 as FFIU128, U256 as FFIU256,
-            U64 as FFIU64,
+            Address as FFIAddress, Bytes as FFIBytes, Uint, U128 as FFIU128,
+            U256 as FFIU256, U64 as FFIU64,
         },
         providers::{Provider, ReqwestProvider},
         sol_types::SolStruct,
@@ -26,10 +26,7 @@ use {
         },
         config::Config,
         execution::{
-            send::safe_test::{
-                self, Address as FFIAddress, OwnerSignature,
-                PreparedSendTransaction,
-            },
+            send::safe_test::{self, OwnerSignature, PreparedSendTransaction},
             Execution,
         },
         smart_accounts::{
