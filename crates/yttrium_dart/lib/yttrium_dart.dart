@@ -69,7 +69,7 @@ class YttriumDart implements ChainAbstractionClient {
   }
 
   @override
-  Future<RouteResponse> route({
+  Future<PrepareResponse> route({
     required InitialTransaction initialTransaction,
   }) async {
     if (_chainAbstractionClient == null) {

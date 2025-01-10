@@ -31,7 +31,7 @@ build-xcframework:
 	sh scripts/build-xcframework.sh
 
 set-up-local-swift-package:
-	sh scripts/set-up-local-package.sh
+	sh scripts/set-up-local-swift-package.sh
 
 clean:
 	cd crates/account/src/contracts && yarn clean && cd ../../../../
