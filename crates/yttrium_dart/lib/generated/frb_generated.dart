@@ -72,7 +72,7 @@ class YttriumDart extends BaseEntrypoint<YttriumDartApi, YttriumDartApiImpl,
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
     stem: 'yttrium_dart',
-    ioDirectory: 'rust/target/uniffi-release/',
+    ioDirectory: 'rust/target/release/',
     webPrefix: 'pkg/',
   );
 }
