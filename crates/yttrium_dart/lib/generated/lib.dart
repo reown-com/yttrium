@@ -8,8 +8,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'lib.freezed.dart';
 
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
-// These functions are ignored (category: IgnoreBecauseNotAllowedOwner): `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<AccountClient>>
 abstract class AccountClient implements RustOpaqueInterface {
@@ -35,7 +34,7 @@ abstract class AccountClient implements RustOpaqueInterface {
       YttriumDart.instance.api.crateAccountClientNew(config: config);
 
   Future<PreparedSendTransaction> prepareSendTransactions(
-      {required List<Transaction> transactions});
+      {required List<Call> transactions});
 
   Future<String> waitForUserOperationReceipt(
       {required String userOperationHash});
@@ -56,6 +55,12 @@ abstract class AccountClientConfig implements RustOpaqueInterface {
   set ownerAddress(String ownerAddress);
 }
 
+// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<Address>>
+abstract class Address implements RustOpaqueInterface {}
+
+// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<Call>>
+abstract class Call implements RustOpaqueInterface {}
+
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ChainAbstractionClient>>
 abstract class ChainAbstractionClient implements RustOpaqueInterface {
   String get projectId;
@@ -71,7 +76,7 @@ abstract class ChainAbstractionClient implements RustOpaqueInterface {
           .crateChainAbstractionClientNew(projectId: projectId);
 
   Future<PrepareResponse> route(
-      {required InitialTransaction initialTransaction});
+      {required String chainId, required Address from, required Call call});
 
   Future<StatusResponse> status({required String orchestrationId});
 
@@ -83,9 +88,6 @@ abstract class ChainAbstractionClient implements RustOpaqueInterface {
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<Config>>
 abstract class Config implements RustOpaqueInterface {}
-
-// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<InitialTransaction>>
-abstract class InitialTransaction implements RustOpaqueInterface {}
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<PrepareResponse>>
 abstract class PrepareResponse implements RustOpaqueInterface {}
@@ -166,28 +168,4 @@ class PreparedSendTransaction {
           runtimeType == other.runtimeType &&
           hash == other.hash &&
           doSendTransactionParams == other.doSendTransactionParams;
-}
-
-class Transaction {
-  final String to;
-  final String value;
-  final String data;
-
-  const Transaction({
-    required this.to,
-    required this.value,
-    required this.data,
-  });
-
-  @override
-  int get hashCode => to.hashCode ^ value.hashCode ^ data.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is Transaction &&
-          runtimeType == other.runtimeType &&
-          to == other.to &&
-          value == other.value &&
-          data == other.data;
 }

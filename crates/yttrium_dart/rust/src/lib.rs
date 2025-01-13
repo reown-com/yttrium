@@ -2,39 +2,25 @@ mod frb_generated; /* AUTO INJECTED BY flutter_rust_bridge. This line may not be
 use {
     alloy::{
         network::Ethereum,
+        primitives::{Address, PrimitiveSignature},
         providers::{Provider, ReqwestProvider},
     },
-    flutter_rust_bridge::frb,
     relay_rpc::domain::ProjectId,
     serde::{Deserialize, Serialize},
     std::time::Duration,
     yttrium::{
         account_client::AccountClient as YAccountClient,
+        call::{send::safe_test::OwnerSignature as YOwnerSignature, Call},
         chain_abstraction::{
             api::{
                 prepare::PrepareResponse,
                 status::{StatusResponse, StatusResponseCompleted},
-                InitialTransaction,
             },
             client::Client,
         },
         config::Config,
-        execution::{
-            send::safe_test::{
-                Address, OwnerSignature as YOwnerSignature, PrimitiveSignature,
-            },
-            Execution as YTransaction,
-        },
     },
 };
-
-#[frb]
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct Transaction {
-    pub to: String,
-    pub value: String,
-    pub data: String,
-}
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PreparedSendTransaction {
@@ -54,20 +40,17 @@ pub enum Error {
     General(String),
 }
 
-#[frb]
 #[derive(Clone, Debug)]
 pub struct Eip1559Estimation {
     pub max_fee_per_gas: String,
     pub max_priority_fee_per_gas: String,
 }
 
-#[frb]
 pub struct ChainAbstractionClient {
     pub project_id: String,
     client: Client,
 }
 
-#[frb]
 impl ChainAbstractionClient {
     // #[frb(constructor)]
     pub fn new(project_id: String) -> Self {
@@ -75,18 +58,18 @@ impl ChainAbstractionClient {
         Self { project_id, client }
     }
 
-    #[frb]
     pub async fn route(
         &self,
-        initial_transaction: InitialTransaction,
+        chain_id: String,
+        from: Address,
+        call: Call,
     ) -> Result<PrepareResponse, Error> {
         self.client
-            .prepare(initial_transaction)
+            .prepare(chain_id, from, call)
             .await
             .map_err(|e| Error::General(e.to_string()))
     }
 
-    #[frb]
     pub async fn status(
         &self,
         orchestration_id: String,
@@ -97,7 +80,6 @@ impl ChainAbstractionClient {
             .map_err(|e| Error::General(e.to_string()))
     }
 
-    #[frb]
     pub async fn wait_for_success_with_timeout(
         &self,
         orchestration_id: String,
@@ -114,7 +96,6 @@ impl ChainAbstractionClient {
             .map_err(|e| Error::General(e.to_string()))
     }
 
-    #[frb]
     pub async fn estimate_fees(
         &self,
         chain_id: String,
@@ -140,21 +121,18 @@ impl ChainAbstractionClient {
     }
 }
 
-#[frb]
 pub struct AccountClientConfig {
     pub owner_address: String,
     pub chain_id: u64,
     pub config: Config,
 }
 
-#[frb]
 pub struct AccountClient {
     pub owner_address: String,
     pub chain_id: u64,
     account_client: YAccountClient,
 }
 
-#[frb]
 impl AccountClient {
     // #[frb(constructor)]
     pub fn new(config: AccountClientConfig) -> Self {
@@ -180,7 +158,6 @@ impl AccountClient {
     }
 
     // Async method for fetching address
-    #[frb]
     pub async fn get_address(&self) -> Result<String, Error> {
         self.account_client
             .get_address()
@@ -189,13 +166,12 @@ impl AccountClient {
             .map_err(|e| Error::General(e.to_string()))
     }
 
-    #[frb]
     pub async fn prepare_send_transactions(
         &self,
-        transactions: Vec<Transaction>,
+        transactions: Vec<Call>,
     ) -> Result<PreparedSendTransaction, Error> {
-        let ytransactions: Vec<YTransaction> =
-            transactions.into_iter().map(YTransaction::from).collect();
+        let ytransactions: Vec<Call> =
+            transactions.into_iter().map(Call::from).collect();
 
         let prepared_send_transaction = self
             .account_client
@@ -212,7 +188,6 @@ impl AccountClient {
         })
     }
 
-    #[frb]
     pub async fn do_send_transactions(
         &self,
         signatures: Vec<OwnerSignature>,
@@ -246,7 +221,6 @@ impl AccountClient {
             .to_string())
     }
 
-    #[frb]
     pub async fn wait_for_user_operation_receipt(
         &self,
         user_operation_hash: String,
@@ -262,18 +236,6 @@ impl AccountClient {
             .map(serde_json::to_string)
             .collect::<Result<String, serde_json::Error>>()
             .map_err(|e| Error::General(e.to_string()))
-    }
-}
-
-#[frb]
-impl From<Transaction> for YTransaction {
-    fn from(transaction: Transaction) -> Self {
-        YTransaction::new_from_strings(
-            transaction.to,
-            transaction.value,
-            transaction.data,
-        )
-        .unwrap()
     }
 }
 

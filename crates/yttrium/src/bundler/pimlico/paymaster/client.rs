@@ -120,7 +120,8 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let bundler_client = PaymasterClient::new(BundlerConfig::new(url));
+        let bundler_client =
+            PaymasterClient::new(BundlerConfig::new(url.parse()?));
 
         Ok(bundler_client)
     }
