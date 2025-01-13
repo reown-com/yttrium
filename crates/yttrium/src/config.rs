@@ -1,8 +1,8 @@
 use {dotenvy::dotenv, std::env};
 
-const LOCAL_RPC_URL: &str = "http://localhost:8545";
-const LOCAL_BUNDLER_URL: &str = "http://localhost:4337";
-const LOCAL_PAYMASTER_URL: &str = "http://localhost:3000";
+pub const LOCAL_RPC_URL: &str = "http://localhost:8545";
+pub const LOCAL_BUNDLER_URL: &str = "http://localhost:4337";
+pub const LOCAL_PAYMASTER_URL: &str = "http://localhost:3000";
 
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]

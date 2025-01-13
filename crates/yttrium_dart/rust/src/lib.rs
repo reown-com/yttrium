@@ -9,16 +9,15 @@ use {
         providers::{Provider, ReqwestProvider},
         sol_types::SolStruct,
     },
-    flutter_rust_bridge::frb,
     relay_rpc::domain::ProjectId,
     std::time::Duration,
     yttrium::{
         account_client::AccountClient as YAccountClient,
+        call::{send::safe_test::OwnerSignature as YOwnerSignature, Call},
         chain_abstraction::{
             api::{
                 prepare::{PrepareResponse, PrepareResponseAvailable},
                 status::{StatusResponse, StatusResponseCompleted},
-                InitialTransaction,
             },
             client::Client,
             currency::Currency,
@@ -112,13 +111,11 @@ pub struct FFIAccountClient {
     account_client: YAccountClient,
 }
 
-#[frb]
 pub struct ChainAbstractionClient {
     pub project_id: String,
     client: Client,
 }
 
-#[frb]
 impl ChainAbstractionClient {
     // #[uniffi::constructor]
     pub fn new(project_id: String) -> Self {
@@ -132,7 +129,7 @@ impl ChainAbstractionClient {
         initial_transaction: InitialTransaction,
     ) -> Result<PrepareResponse, FFIError> {
         self.client
-            .prepare(initial_transaction)
+            .prepare(chain_id, from, call)
             .await
             .map_err(|e| FFIError::General(e.to_string()))
     }
@@ -150,7 +147,6 @@ impl ChainAbstractionClient {
             .map_err(|e| FFIError::General(e.to_string()))
     }
 
-    #[frb]
     pub async fn status(
         &self,
         orchestration_id: String,
@@ -161,7 +157,6 @@ impl ChainAbstractionClient {
             .map_err(|e| FFIError::General(e.to_string()))
     }
 
-    #[frb]
     pub async fn wait_for_success_with_timeout(
         &self,
         orchestration_id: String,
@@ -178,7 +173,6 @@ impl ChainAbstractionClient {
             .map_err(|e| FFIError::General(e.to_string()))
     }
 
-    #[frb]
     pub async fn estimate_fees(
         &self,
         chain_id: String,
@@ -276,7 +270,6 @@ impl FFIAccountClient {
             .map_err(|e| FFIError::General(e.to_string()))
     }
 
-    #[frb]
     pub async fn prepare_send_transactions(
         &self,
         transactions: Vec<Execution>,
@@ -287,7 +280,6 @@ impl FFIAccountClient {
             .map_err(|e| FFIError::General(e.to_string()))
     }
 
-    #[frb]
     pub async fn do_send_transactions(
         &self,
         signatures: Vec<OwnerSignature>,
@@ -301,7 +293,6 @@ impl FFIAccountClient {
             .to_string())
     }
 
-    #[frb]
     pub async fn wait_for_user_operation_receipt(
         &self,
         user_operation_hash: String,

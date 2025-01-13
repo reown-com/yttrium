@@ -1,6 +1,6 @@
 use {
     crate::{
-        config::Config, execution::Execution,
+        call::Call, config::Config,
         smart_accounts::account_address::AccountAddress,
         user_operation::UserOperationV07,
     },
@@ -47,13 +47,13 @@ impl fmt::Display for SentUserOperationHash {
 }
 
 pub async fn prepare_send_transaction(
-    transactions: Vec<Execution>,
+    calls: Vec<Call>,
     owner: AccountAddress,
     _chain_id: u64,
     config: Config,
 ) -> eyre::Result<PreparedSendTransaction> {
     let user_operation_hash = safe_test::prepare_send_transactions(
-        transactions,
+        calls,
         owner.into(),
         None,
         None,

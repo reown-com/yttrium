@@ -1,11 +1,5 @@
 use {
-    super::{
-        config::BundlerConfig,
-        models::{
-            estimate_result::EstimateResult,
-            user_operation_receipt::UserOperationReceipt,
-        },
-    },
+    super::{config::BundlerConfig, models::estimate_result::EstimateResult},
     crate::{
         entry_point::EntryPointAddress,
         jsonrpc::{JSONRPCResponse, Request, Response},
@@ -14,11 +8,12 @@ use {
     alloy::{
         network::Ethereum,
         primitives::B256,
+        rpc::types::UserOperationReceipt,
         transports::{Transport, TransportResult},
     },
     alloy_provider::{Network, Provider, ReqwestProvider},
     eyre::Ok,
-    serde_json,
+    serde_json::{self, Value},
     tracing::debug,
 };
 
@@ -114,9 +109,33 @@ impl BundlerClient {
         &self,
         hash: B256,
     ) -> eyre::Result<Option<UserOperationReceipt>> {
-        let provider =
-            ReqwestProvider::<Ethereum>::new_http(self.config.url().parse()?);
-        Ok(provider.get_user_operation_receipt(hash).await?)
+        let provider = ReqwestProvider::<Ethereum>::new_http(self.config.url());
+        let receipt = provider.get_user_operation_receipt(hash).await?;
+
+        // For some reason Pimlico bundler doesn't include these fields
+        // Workaround by injecting them in
+        let value = receipt.map(|mut value| {
+            if let Some(value) = value.as_object_mut() {
+                if let Some(receipt) = value.get_mut("receipt") {
+                    if let Some(receipt) = receipt.as_object_mut() {
+                        receipt.insert(
+                            "type".to_owned(),
+                            serde_json::Value::String("0x0".to_owned()),
+                        );
+                    }
+                }
+                value.insert(
+                    "reason".to_owned(),
+                    serde_json::Value::String("".to_owned()),
+                );
+            }
+            value
+        });
+        if let Some(value) = value {
+            Ok(serde_json::from_value(value)?)
+        } else {
+            Ok(None)
+        }
     }
 
     pub async fn wait_for_user_operation_receipt(
@@ -129,7 +148,7 @@ impl BundlerClient {
         };
 
         let polling_interval = Duration::from_millis(2000);
-        let timeout = Some(Duration::from_secs(60));
+        let timeout = Some(Duration::from_secs(30));
 
         let start_time = Instant::now();
 
@@ -161,7 +180,7 @@ pub trait CustomErc4337Api<N, T>: Send + Sync {
     async fn get_user_operation_receipt(
         &self,
         user_op_hash: B256,
-    ) -> TransportResult<Option<UserOperationReceipt>>;
+    ) -> TransportResult<Option<Value>>;
 }
 
 #[cfg_attr(target_arch = "wasm32", async_trait::async_trait(?Send))]
@@ -175,7 +194,7 @@ where
     async fn get_user_operation_receipt(
         &self,
         user_op_hash: B256,
-    ) -> TransportResult<Option<UserOperationReceipt>> {
+    ) -> TransportResult<Option<Value>> {
         self.client()
             .request("eth_getUserOperationReceipt", (user_op_hash,))
             .await
@@ -233,9 +252,8 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let bundler_client = BundlerClient::new(BundlerConfig::new(
-            mock_server.uri().to_string(),
-        ));
+        let bundler_client =
+            BundlerClient::new(BundlerConfig::new(mock_server.uri().parse()?));
 
         Ok(bundler_client)
     }
