@@ -10,61 +10,18 @@ part 'lib.freezed.dart';
 
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`
 
-// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ChainAbstractionClient>>
-abstract class ChainAbstractionClient implements RustOpaqueInterface {
-  String get projectId;
+// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<AccountAddress>>
+abstract class AccountAddress implements RustOpaqueInterface {}
 
-  set projectId(String projectId);
-
-  Future<String> erc20TokenBalance(
-      {required String chainId,
-      required FfiAddress token,
-      required FfiAddress owner});
-
-  Future<Eip1559Estimation> estimateFees({required String chainId});
-
-  Future<UiFields> getUiFields(
-      {required PrepareResponseAvailable routeResponse,
-      required Currency currency});
-
-  // HINT: Make it `#[frb(sync)]` to let it become the default constructor of Dart class.
-  static Future<ChainAbstractionClient> newInstance(
-          {required String projectId}) =>
-      YttriumDart.instance.api
-          .crateChainAbstractionClientNew(projectId: projectId);
-
-  Future<PrepareResponse> prepare(
-      {required InitialTransaction initialTransaction});
-
-  Future<StatusResponse> status({required String orchestrationId});
-
-  Future<StatusResponseCompleted> waitForSuccessWithTimeout(
-      {required String orchestrationId,
-      required BigInt checkIn,
-      required BigInt timeout});
-}
-
-// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<Config>>
-abstract class Config implements RustOpaqueInterface {}
-
-// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<Currency>>
-abstract class Currency implements RustOpaqueInterface {}
-
-// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<DoSendTransactionParams>>
-abstract class DoSendTransactionParams implements RustOpaqueInterface {}
-
-// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<Execution>>
-abstract class Execution implements RustOpaqueInterface {}
-
-// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<FFIAccountClient>>
-abstract class FfiAccountClient implements RustOpaqueInterface {
+// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<AccountClient>>
+abstract class AccountClient implements RustOpaqueInterface {
   BigInt get chainId;
 
-  FfiAccountAddress get ownerAddress;
+  AccountAddress get ownerAddress;
 
   set chainId(BigInt chainId);
 
-  set ownerAddress(FfiAccountAddress ownerAddress);
+  set ownerAddress(AccountAddress ownerAddress);
 
   Future<String> doSendTransactions(
       {required List<OwnerSignature> signatures,
@@ -82,31 +39,70 @@ abstract class FfiAccountClient implements RustOpaqueInterface {
   Future<BigInt> getChainId();
 
   // HINT: Make it `#[frb(sync)]` to let it become the default constructor of Dart class.
-  static Future<FfiAccountClient> newInstance(
-          {required FfiAccountAddress owner,
+  static Future<AccountClient> newInstance(
+          {required AccountAddress owner,
           required BigInt chainId,
           required Config config}) =>
-      YttriumDart.instance.api.crateFfiAccountClientNew(
+      YttriumDart.instance.api.crateAccountClientNew(
           owner: owner, chainId: chainId, config: config);
 
   Future<PreparedSendTransaction> prepareSendTransactions(
-      {required List<Execution> transactions});
+      {required List<Call> transactions});
 
-  Future<FfiPreparedSignature> prepareSignMessage(
-      {required String messageHash});
+  Future<PreparedSignature> prepareSignMessage({required String messageHash});
 
   Future<String> waitForUserOperationReceipt(
       {required String userOperationHash});
 }
 
-// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<FFIAddress>>
-abstract class FfiAddress implements RustOpaqueInterface {}
+// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<Address>>
+abstract class Address implements RustOpaqueInterface {}
 
-// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<FfiAccountAddress>>
-abstract class FfiAccountAddress implements RustOpaqueInterface {}
+// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<Call>>
+abstract class Call implements RustOpaqueInterface {}
 
-// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<InitialTransaction>>
-abstract class InitialTransaction implements RustOpaqueInterface {}
+// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ChainAbstractionClient>>
+abstract class ChainAbstractionClient implements RustOpaqueInterface {
+  String get projectId;
+
+  set projectId(String projectId);
+
+  Future<String> erc20TokenBalance(
+      {required String chainId,
+      required Address token,
+      required Address owner});
+
+  Future<Eip1559Estimation> estimateFees({required String chainId});
+
+  Future<UiFields> getUiFields(
+      {required PrepareResponseAvailable routeResponse,
+      required Currency currency});
+
+  // HINT: Make it `#[frb(sync)]` to let it become the default constructor of Dart class.
+  static Future<ChainAbstractionClient> newInstance(
+          {required String projectId}) =>
+      YttriumDart.instance.api
+          .crateChainAbstractionClientNew(projectId: projectId);
+
+  Future<PrepareResponse> prepare(
+      {required String chainId, required Address from, required Call call});
+
+  Future<StatusResponse> status({required String orchestrationId});
+
+  Future<StatusResponseCompleted> waitForSuccessWithTimeout(
+      {required String orchestrationId,
+      required BigInt checkIn,
+      required BigInt timeout});
+}
+
+// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<Config>>
+abstract class Config implements RustOpaqueInterface {}
+
+// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<Currency>>
+abstract class Currency implements RustOpaqueInterface {}
+
+// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<DoSendTransactionParams>>
+abstract class DoSendTransactionParams implements RustOpaqueInterface {}
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<OwnerSignature>>
 abstract class OwnerSignature implements RustOpaqueInterface {}
@@ -163,18 +159,18 @@ class Eip1559Estimation {
 }
 
 @freezed
-sealed class FFIError with _$FFIError implements FrbException {
-  const FFIError._();
+sealed class Error with _$Error implements FrbException {
+  const Error._();
 
-  const factory FFIError.general(
+  const factory Error.general(
     String field0,
-  ) = FFIError_General;
+  ) = Error_General;
 }
 
-class FfiPreparedSignature {
+class PreparedSignature {
   final String messageHash;
 
-  const FfiPreparedSignature({
+  const PreparedSignature({
     required this.messageHash,
   });
 
@@ -184,7 +180,7 @@ class FfiPreparedSignature {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is FfiPreparedSignature &&
+      other is PreparedSignature &&
           runtimeType == other.runtimeType &&
           messageHash == other.messageHash;
 }

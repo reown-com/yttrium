@@ -2,18 +2,22 @@ mod frb_generated; /* AUTO INJECTED BY flutter_rust_bridge. This line may not be
 use {
     alloy::{
         network::Ethereum,
-        // primitives::{
-        //     Bytes as FFIBytes, Uint, U128 as FFIU128, U256 as FFIU256,
-        //     U64 as FFIU64,
-        // },
+        primitives::Address,
         providers::{Provider, ReqwestProvider},
         sol_types::SolStruct,
     },
+    flutter_rust_bridge::frb,
     relay_rpc::domain::ProjectId,
     std::time::Duration,
     yttrium::{
         account_client::AccountClient as YAccountClient,
-        call::{send::safe_test::OwnerSignature as YOwnerSignature, Call},
+        call::{
+            send::safe_test::{
+                self, DoSendTransactionParams, OwnerSignature,
+                PreparedSendTransaction,
+            },
+            Call,
+        },
         chain_abstraction::{
             api::{
                 prepare::{PrepareResponse, PrepareResponseAvailable},
@@ -24,15 +28,8 @@ use {
             ui_fields::UiFields,
         },
         config::Config,
-        execution::{
-            send::safe_test::{
-                self, Address as FFIAddress, DoSendTransactionParams,
-                OwnerSignature, PreparedSendTransaction,
-            },
-            Execution,
-        },
         smart_accounts::{
-            account_address::AccountAddress as FfiAccountAddress,
+            account_address::AccountAddress,
             safe::{SignOutputEnum, SignStep3Params},
         },
     },
@@ -42,7 +39,7 @@ use {
 //     try_lift: |val| Ok(val.parse()?),
 //     lower: |obj| obj.to_string(),
 // });
-// uniffi::custom_type!(FfiAccountAddress, FFIAddress, {
+// uniffi::custom_type!(AccountAddress, FFIAddress, {
 //     try_lift: |val| Ok(val.into()),
 //     lower: |obj| obj.into(),
 // });
@@ -73,6 +70,25 @@ use {
 //     lower: |obj| obj.to_string(),
 // });
 
+// #[frb]
+// #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+// pub struct Call {
+//     pub to: String,
+//     pub value: String,
+//     pub input: Vec<u8>,
+// }
+
+// #[frb]
+// impl From<yttrium::call::Call> for Call {
+//     fn from(source: yttrium::call::Call) -> Self {
+//         Self {
+//             to: source.to.to_string(),
+//             value: source.value.to_string(),
+//             input: source.input.to_vec(),
+//         }
+//     }
+// }
+
 #[frb]
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Eip1559Estimation {
@@ -93,29 +109,31 @@ impl From<alloy::providers::utils::Eip1559Estimation> for Eip1559Estimation {
 }
 
 #[derive(Clone, Debug)]
-pub struct FfiPreparedSignature {
+pub struct PreparedSignature {
     pub message_hash: String,
 }
 
 #[frb]
 #[derive(Debug, thiserror::Error)]
-pub enum FFIError {
+pub enum Error {
     #[error("General {0}")]
     General(String),
 }
 
 #[frb]
-pub struct FFIAccountClient {
-    pub owner_address: FfiAccountAddress,
+pub struct AccountClient {
+    pub owner_address: AccountAddress,
     pub chain_id: u64,
     account_client: YAccountClient,
 }
 
+#[frb]
 pub struct ChainAbstractionClient {
     pub project_id: String,
     client: Client,
 }
 
+#[frb]
 impl ChainAbstractionClient {
     // #[uniffi::constructor]
     pub fn new(project_id: String) -> Self {
@@ -126,43 +144,46 @@ impl ChainAbstractionClient {
     #[frb]
     pub async fn prepare(
         &self,
-        initial_transaction: InitialTransaction,
-    ) -> Result<PrepareResponse, FFIError> {
+        chain_id: String,
+        from: Address,
+        call: Call,
+    ) -> Result<PrepareResponse, Error> {
         self.client
             .prepare(chain_id, from, call)
             .await
-            .map_err(|e| FFIError::General(e.to_string()))
+            .map_err(|e| Error::General(e.to_string()))
     }
-    
+
     #[frb]
     pub async fn get_ui_fields(
         &self,
         route_response: PrepareResponseAvailable,
         currency: Currency,
-    ) -> Result<UiFields, FFIError> {
+    ) -> Result<UiFields, Error> {
         self.client
             .get_ui_fields(route_response, currency)
             .await
-            .map(Into::into)
-            .map_err(|e| FFIError::General(e.to_string()))
+            .map_err(|e| Error::General(e.to_string()))
     }
 
+    #[frb]
     pub async fn status(
         &self,
         orchestration_id: String,
-    ) -> Result<StatusResponse, FFIError> {
+    ) -> Result<StatusResponse, Error> {
         self.client
             .status(orchestration_id)
             .await
-            .map_err(|e| FFIError::General(e.to_string()))
+            .map_err(|e| Error::General(e.to_string()))
     }
 
+    #[frb]
     pub async fn wait_for_success_with_timeout(
         &self,
         orchestration_id: String,
         check_in: u64,
         timeout: u64,
-    ) -> Result<StatusResponseCompleted, FFIError> {
+    ) -> Result<StatusResponseCompleted, Error> {
         self.client
             .wait_for_success_with_timeout(
                 orchestration_id,
@@ -170,13 +191,14 @@ impl ChainAbstractionClient {
                 Duration::from_secs(timeout),
             )
             .await
-            .map_err(|e| FFIError::General(e.to_string()))
+            .map_err(|e| Error::General(e.to_string()))
     }
 
+    #[frb]
     pub async fn estimate_fees(
         &self,
         chain_id: String,
-    ) -> Result<Eip1559Estimation, FFIError> {
+    ) -> Result<Eip1559Estimation, Error> {
         let url = format!(
             "https://rpc.walletconnect.com/v1?chainId={chain_id}&projectId={}",
             self.project_id
@@ -188,30 +210,29 @@ impl ChainAbstractionClient {
             .estimate_eip1559_fees(None)
             .await
             .map(Into::into)
-            .map_err(|e| FFIError::General(e.to_string()))
+            .map_err(|e| Error::General(e.to_string()))
     }
 
     #[frb]
     pub async fn erc20_token_balance(
         &self,
         chain_id: &str,
-        token: FFIAddress,
-        owner: FFIAddress,
-    ) -> Result<String, FFIError> {
+        token: Address,
+        owner: Address,
+    ) -> Result<String, Error> {
         self.client
             .erc20_token_balance(chain_id, token, owner)
             .await
             .map(|balance| balance.to_string())
-            .map_err(|e| FFIError::General(e.to_string()))
+            .map_err(|e| Error::General(e.to_string()))
     }
 }
 
 #[frb]
-impl FFIAccountClient {
-    
-    #[frb]
+impl AccountClient {
+    // #[uniffi::constructor]
     pub fn new(
-        owner: FfiAccountAddress,
+        owner: AccountAddress,
         chain_id: u64,
         config: Config,
     ) -> Self {
@@ -224,37 +245,36 @@ impl FFIAccountClient {
         self.chain_id
     }
 
-    // Async method for fetching address
     #[frb]
-    pub async fn get_address(&self) -> Result<String, FFIError> {
+    pub async fn get_address(&self) -> Result<String, Error> {
         self.account_client
             .get_address()
             .await
             .map(|address| address.to_string())
-            .map_err(|e| FFIError::General(e.to_string()))
+            .map_err(|e| Error::General(e.to_string()))
     }
 
     #[frb]
     pub fn prepare_sign_message(
         &self,
         message_hash: String,
-    ) -> FfiPreparedSignature {
+    ) -> PreparedSignature {
         let res = self
             .account_client
             .prepare_sign_message(message_hash.parse().unwrap());
         let hash = res.safe_message.eip712_signing_hash(&res.domain);
-        FfiPreparedSignature { message_hash: hash.to_string() }
+        PreparedSignature { message_hash: hash.to_string() }
     }
 
     #[frb]
     pub async fn do_sign_message(
         &self,
         signatures: Vec<safe_test::OwnerSignature>,
-    ) -> Result<SignOutputEnum, FFIError> {
+    ) -> Result<SignOutputEnum, Error> {
         self.account_client
             .do_sign_message(signatures)
             .await
-            .map_err(|e| FFIError::General(e.to_string()))
+            .map_err(|e| Error::General(e.to_string()))
     }
 
     #[frb]
@@ -262,45 +282,48 @@ impl FFIAccountClient {
         &self,
         signatures: Vec<safe_test::OwnerSignature>,
         sign_step_3_params: SignStep3Params,
-    ) -> Result<Vec<u8>, FFIError> {
+    ) -> Result<Vec<u8>, Error> {
         self.account_client
             .finalize_sign_message(signatures, sign_step_3_params)
             .await
             .map(|bytes| bytes.to_vec()) // Convert Bytes to Vec<u8>
-            .map_err(|e| FFIError::General(e.to_string()))
+            .map_err(|e| Error::General(e.to_string()))
     }
 
+    #[frb]
     pub async fn prepare_send_transactions(
         &self,
-        transactions: Vec<Execution>,
-    ) -> Result<PreparedSendTransaction, FFIError> {
+        transactions: Vec<Call>,
+    ) -> Result<PreparedSendTransaction, Error> {
         self.account_client
             .prepare_send_transactions(transactions)
             .await
-            .map_err(|e| FFIError::General(e.to_string()))
+            .map_err(|e| Error::General(e.to_string()))
     }
 
+    #[frb]
     pub async fn do_send_transactions(
         &self,
         signatures: Vec<OwnerSignature>,
         do_send_transaction_params: DoSendTransactionParams,
-    ) -> Result<String, FFIError> {
+    ) -> Result<String, Error> {
         Ok(self
             .account_client
             .do_send_transactions(signatures, do_send_transaction_params)
             .await
-            .map_err(|e| FFIError::General(e.to_string()))?
+            .map_err(|e| Error::General(e.to_string()))?
             .to_string())
     }
 
+    #[frb]
     pub async fn wait_for_user_operation_receipt(
         &self,
         user_operation_hash: String,
-    ) -> Result<String, FFIError> {
+    ) -> Result<String, Error> {
         self.account_client
             .wait_for_user_operation_receipt(
                 user_operation_hash.parse().map_err(|e| {
-                    FFIError::General(format!(
+                    Error::General(format!(
                         "Parsing user_operation_hash: {e}"
                     ))
                 })?,
@@ -309,18 +332,20 @@ impl FFIAccountClient {
             .iter()
             .map(serde_json::to_string)
             .collect::<Result<String, serde_json::Error>>()
-            .map_err(|e| FFIError::General(e.to_string()))
+            .map_err(|e| Error::General(e.to_string()))
     }
 }
 
 #[cfg(test)]
 mod tests {
-    // use super::*;
-    use alloy::{
-        hex,
-        network::Ethereum,
-        primitives::{address, bytes},
-        providers::{Provider, ReqwestProvider},
+    use {
+        // super::*,
+        alloy::{
+            hex,
+            network::Ethereum,
+            primitives::{address, bytes},
+            providers::{Provider, ReqwestProvider},
+        },
     };
 
     #[tokio::test]
@@ -329,7 +354,7 @@ mod tests {
         let chain_id = "eip155:42161";
         let project_id = std::env::var("REOWN_PROJECT_ID").unwrap();
         let url = format!(
-           "https://rpc.walletconnect.com/v1?chainId={chain_id}&projectId={project_id}")
+            "https://rpc.walletconnect.com/v1?chainId={chain_id}&projectId={project_id}")
         .parse()
         .expect("Invalid RPC URL");
         let provider = ReqwestProvider::<Ethereum>::new_http(url);
@@ -358,7 +383,7 @@ mod tests {
     #[test]
     fn test_u64_lower() {
         let num = 1234567890;
-
+        
         // Convert number to hex string
         let num_hex = format!("0x{:x}", num);
         assert_eq!(num_hex, "0x499602d2");
@@ -366,8 +391,8 @@ mod tests {
 
     #[test]
     fn test_u128_lower() {
-        let num: u128 = 1234567890;
-
+        let num = 1234567890;
+        
         // Convert number to hex string
         let num_hex = format!("0x{:x}", num);
         assert_eq!(num_hex, "0x499602d2");
@@ -375,10 +400,8 @@ mod tests {
 
     #[test]
     fn test_u256_lower() {
-        use alloy::primitives::U256;
-
-        let num = U256::from(1234567890);
-
+        let num = 1234567890;
+        
         // Convert U256 to hex string
         let num_hex = format!("0x{:x}", num);
         assert_eq!(num_hex, "0x499602d2");
@@ -386,10 +409,10 @@ mod tests {
 
     #[test]
     fn test_bytes_lower() {
-        let byte_data = bytes!("aabbccdd");
-
+        let ffi_u64 = bytes!("aabbccdd");
+        
         // Convert byte data to hex string
-        let byte_hex = format!("0x{}", hex::encode(byte_data));
+        let byte_hex = format!("0x{}", hex::encode(ffi_u64));
         assert_eq!(byte_hex, "0xaabbccdd");
     }
 }
