@@ -68,18 +68,6 @@ class YttriumDart implements ChainAbstractionClient {
     );
   }
 
-  // @override
-  // Future<PrepareResponse> prepare({
-  //   required InitialTransaction initialTransaction,
-  // }) async {
-  //   if (_chainAbstractionClient == null) {
-  //     throw 'ChainAbstractionClient is not initialized';
-  //   }
-  //   return await _chainAbstractionClient!.prepare(
-  //     initialTransaction: initialTransaction,
-  //   );
-  // }
-
   @override
   Future<PrepareResponse> prepare({
     required String chainId,
