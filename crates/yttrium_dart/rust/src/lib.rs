@@ -103,7 +103,9 @@ impl From<alloy::providers::utils::Eip1559Estimation> for Eip1559Estimation {
     fn from(source: alloy::providers::utils::Eip1559Estimation) -> Self {
         Self {
             max_fee_per_gas: source.max_fee_per_gas.to_string(),
-            max_priority_fee_per_gas: source.max_priority_fee_per_gas.to_string(),
+            max_priority_fee_per_gas: source
+                .max_priority_fee_per_gas
+                .to_string(),
         }
     }
 }
@@ -231,11 +233,7 @@ impl ChainAbstractionClient {
 // #[frb]
 impl AccountClient {
     // #[uniffi::constructor]
-    pub fn new(
-        owner: AccountAddress,
-        chain_id: u64,
-        config: Config,
-    ) -> Self {
+    pub fn new(owner: AccountAddress, chain_id: u64, config: Config) -> Self {
         let account_client = YAccountClient::new(owner, chain_id, config);
         Self { owner_address: owner, chain_id, account_client }
     }
@@ -323,9 +321,7 @@ impl AccountClient {
         self.account_client
             .wait_for_user_operation_receipt(
                 user_operation_hash.parse().map_err(|e| {
-                    Error::General(format!(
-                        "Parsing user_operation_hash: {e}"
-                    ))
+                    Error::General(format!("Parsing user_operation_hash: {e}"))
                 })?,
             )
             .await
@@ -364,7 +360,8 @@ mod tests {
         println!("estimate: {estimate:?}");
         // Simulate sending the data to Dart (convert U128 values to strings)
         let max_fee_per_gas = estimate.max_fee_per_gas.to_string();
-        let max_priority_fee_per_gas = estimate.max_priority_fee_per_gas.to_string();
+        let max_priority_fee_per_gas =
+            estimate.max_priority_fee_per_gas.to_string();
 
         println!("Max fee per gas: {max_fee_per_gas}, Max priority fee per gas: {max_priority_fee_per_gas}");
     }
@@ -383,7 +380,7 @@ mod tests {
     #[test]
     fn test_u64_lower() {
         let num = 1234567890;
-        
+
         // Convert number to hex string
         let num_hex = format!("0x{:x}", num);
         assert_eq!(num_hex, "0x499602d2");
@@ -392,7 +389,7 @@ mod tests {
     #[test]
     fn test_u128_lower() {
         let num = 1234567890;
-        
+
         // Convert number to hex string
         let num_hex = format!("0x{:x}", num);
         assert_eq!(num_hex, "0x499602d2");
@@ -401,7 +398,7 @@ mod tests {
     #[test]
     fn test_u256_lower() {
         let num = 1234567890;
-        
+
         // Convert U256 to hex string
         let num_hex = format!("0x{:x}", num);
         assert_eq!(num_hex, "0x499602d2");
@@ -410,7 +407,7 @@ mod tests {
     #[test]
     fn test_bytes_lower() {
         let ffi_u64 = bytes!("aabbccdd");
-        
+
         // Convert byte data to hex string
         let byte_hex = format!("0x{}", hex::encode(ffi_u64));
         assert_eq!(byte_hex, "0xaabbccdd");
