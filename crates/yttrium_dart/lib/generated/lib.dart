@@ -8,7 +8,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'lib.freezed.dart';
 
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `from`
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<AccountAddress>>
 abstract class AccountAddress implements RustOpaqueInterface {}
@@ -142,9 +142,6 @@ class Eip1559Estimation {
     required this.maxFeePerGas,
     required this.maxPriorityFeePerGas,
   });
-
-  static Future<Eip1559Estimation> from({required Eip1559Estimation source}) =>
-      YttriumDart.instance.api.crateEip1559EstimationFrom(source: source);
 
   @override
   int get hashCode => maxFeePerGas.hashCode ^ maxPriorityFeePerGas.hashCode;

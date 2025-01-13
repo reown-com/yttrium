@@ -42,7 +42,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.7.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 141920255;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1472352670;
 
 // Section: executor
 
@@ -572,21 +572,6 @@ let decode_indices_ = flutter_rust_bridge::for_generated::lockable_compute_decod
         let api_that_guard = api_that_guard.unwrap();
  let output_ok = crate::ChainAbstractionClient::wait_for_success_with_timeout(&*api_that_guard, api_orchestration_id, api_check_in, api_timeout).await?;   Ok(output_ok)
                     })().await)
-                } })
-}
-fn wire__crate__eip_1559_estimation_from_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "eip_1559_estimation_from", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { 
-            let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
-            let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_source = <crate::Eip1559Estimation>::sse_decode(&mut deserializer);deserializer.end(); move |context|  {
-                    transform_result_sse::<_, ()>((move ||  {
-                         let output_ok = Result::<_,()>::Ok(crate::Eip1559Estimation::from(api_source))?;   Ok(output_ok)
-                    })())
                 } })
 }
 
@@ -1308,7 +1293,6 @@ fn pde_ffi_dispatcher_primary_impl(
 20 => wire__crate__ChainAbstractionClient_prepare_impl(port, ptr, rust_vec_len, data_len),
 21 => wire__crate__ChainAbstractionClient_status_impl(port, ptr, rust_vec_len, data_len),
 22 => wire__crate__ChainAbstractionClient_wait_for_success_with_timeout_impl(port, ptr, rust_vec_len, data_len),
-23 => wire__crate__eip_1559_estimation_from_impl(port, ptr, rust_vec_len, data_len),
                         _ => unreachable!(),
                     }
 }

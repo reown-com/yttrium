@@ -67,7 +67,7 @@ class YttriumDart extends BaseEntrypoint<YttriumDartApi, YttriumDartApiImpl,
   String get codegenVersion => '2.7.0';
 
   @override
-  int get rustContentHash => 141920255;
+  int get rustContentHash => -1472352670;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -159,9 +159,6 @@ abstract class YttriumDartApi extends BaseApi {
           required String orchestrationId,
           required BigInt checkIn,
           required BigInt timeout});
-
-  Future<Eip1559Estimation> crateEip1559EstimationFrom(
-      {required Eip1559Estimation source});
 
   RustArcIncrementStrongCountFnType
       get rust_arc_increment_strong_count_AccountAddress;
@@ -969,31 +966,6 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
             argNames: ['that', 'orchestrationId', 'checkIn', 'timeout'],
           );
 
-  @override
-  Future<Eip1559Estimation> crateEip1559EstimationFrom(
-      {required Eip1559Estimation source}) {
-    return handler.executeNormal(NormalTask(
-      callFfi: (port_) {
-        final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_box_autoadd_eip_1559_estimation(source, serializer);
-        pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 23, port: port_);
-      },
-      codec: SseCodec(
-        decodeSuccessData: sse_decode_eip_1559_estimation,
-        decodeErrorData: null,
-      ),
-      constMeta: kCrateEip1559EstimationFromConstMeta,
-      argValues: [source],
-      apiImpl: this,
-    ));
-  }
-
-  TaskConstMeta get kCrateEip1559EstimationFromConstMeta => const TaskConstMeta(
-        debugName: 'eip_1559_estimation_from',
-        argNames: ['source'],
-      );
-
   RustArcIncrementStrongCountFnType
       get rust_arc_increment_strong_count_AccountAddress => wire
           .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAccountAddress;
@@ -1451,12 +1423,6 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
   }
 
   @protected
-  Eip1559Estimation dco_decode_box_autoadd_eip_1559_estimation(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_eip_1559_estimation(raw);
-  }
-
-  @protected
   Eip1559Estimation dco_decode_eip_1559_estimation(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -1891,13 +1857,6 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
     // Codec=Sse (Serialization based), see doc to use other codecs
     var inner = sse_decode_list_prim_u_8_strict(deserializer);
     return utf8.decoder.convert(inner);
-  }
-
-  @protected
-  Eip1559Estimation sse_decode_box_autoadd_eip_1559_estimation(
-      SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_eip_1559_estimation(deserializer));
   }
 
   @protected
@@ -2381,13 +2340,6 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
   void sse_encode_String(String self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_list_prim_u_8_strict(utf8.encoder.convert(self), serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_eip_1559_estimation(
-      Eip1559Estimation self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_eip_1559_estimation(self, serializer);
   }
 
   @protected

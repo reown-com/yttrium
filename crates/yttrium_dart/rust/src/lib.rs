@@ -6,7 +6,7 @@ use {
         providers::{Provider, ReqwestProvider},
         sol_types::SolStruct,
     },
-    flutter_rust_bridge::frb,
+    // flutter_rust_bridge::frb,
     relay_rpc::domain::ProjectId,
     std::time::Duration,
     yttrium::{
@@ -70,7 +70,7 @@ use {
 //     lower: |obj| obj.to_string(),
 // });
 
-// #[frb]
+// // #[frb]
 // #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 // pub struct Call {
 //     pub to: String,
@@ -78,7 +78,7 @@ use {
 //     pub input: Vec<u8>,
 // }
 
-// #[frb]
+// // #[frb]
 // impl From<yttrium::call::Call> for Call {
 //     fn from(source: yttrium::call::Call) -> Self {
 //         Self {
@@ -89,7 +89,7 @@ use {
 //     }
 // }
 
-#[frb]
+// #[frb]
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Eip1559Estimation {
     /// The base fee per gas as a String.
@@ -98,7 +98,7 @@ pub struct Eip1559Estimation {
     pub max_priority_fee_per_gas: String,
 }
 
-#[frb]
+// #[frb]
 impl From<alloy::providers::utils::Eip1559Estimation> for Eip1559Estimation {
     fn from(source: alloy::providers::utils::Eip1559Estimation) -> Self {
         Self {
@@ -113,27 +113,27 @@ pub struct PreparedSignature {
     pub message_hash: String,
 }
 
-#[frb]
+// #[frb]
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error("General {0}")]
     General(String),
 }
 
-#[frb]
+// #[frb]
 pub struct AccountClient {
     pub owner_address: AccountAddress,
     pub chain_id: u64,
     account_client: YAccountClient,
 }
 
-#[frb]
+// #[frb]
 pub struct ChainAbstractionClient {
     pub project_id: String,
     client: Client,
 }
 
-#[frb]
+// #[frb]
 impl ChainAbstractionClient {
     // #[uniffi::constructor]
     pub fn new(project_id: String) -> Self {
@@ -141,7 +141,7 @@ impl ChainAbstractionClient {
         Self { project_id, client }
     }
 
-    #[frb]
+    // #[frb]
     pub async fn prepare(
         &self,
         chain_id: String,
@@ -154,7 +154,7 @@ impl ChainAbstractionClient {
             .map_err(|e| Error::General(e.to_string()))
     }
 
-    #[frb]
+    // #[frb]
     pub async fn get_ui_fields(
         &self,
         route_response: PrepareResponseAvailable,
@@ -166,7 +166,7 @@ impl ChainAbstractionClient {
             .map_err(|e| Error::General(e.to_string()))
     }
 
-    #[frb]
+    // #[frb]
     pub async fn status(
         &self,
         orchestration_id: String,
@@ -177,7 +177,7 @@ impl ChainAbstractionClient {
             .map_err(|e| Error::General(e.to_string()))
     }
 
-    #[frb]
+    // #[frb]
     pub async fn wait_for_success_with_timeout(
         &self,
         orchestration_id: String,
@@ -194,7 +194,7 @@ impl ChainAbstractionClient {
             .map_err(|e| Error::General(e.to_string()))
     }
 
-    #[frb]
+    // #[frb]
     pub async fn estimate_fees(
         &self,
         chain_id: String,
@@ -213,7 +213,7 @@ impl ChainAbstractionClient {
             .map_err(|e| Error::General(e.to_string()))
     }
 
-    #[frb]
+    // #[frb]
     pub async fn erc20_token_balance(
         &self,
         chain_id: &str,
@@ -228,7 +228,7 @@ impl ChainAbstractionClient {
     }
 }
 
-#[frb]
+// #[frb]
 impl AccountClient {
     // #[uniffi::constructor]
     pub fn new(
@@ -240,12 +240,12 @@ impl AccountClient {
         Self { owner_address: owner, chain_id, account_client }
     }
 
-    #[frb]
+    // #[frb]
     pub fn get_chain_id(&self) -> u64 {
         self.chain_id
     }
 
-    #[frb]
+    // #[frb]
     pub async fn get_address(&self) -> Result<String, Error> {
         self.account_client
             .get_address()
@@ -254,7 +254,7 @@ impl AccountClient {
             .map_err(|e| Error::General(e.to_string()))
     }
 
-    #[frb]
+    // #[frb]
     pub fn prepare_sign_message(
         &self,
         message_hash: String,
@@ -266,7 +266,7 @@ impl AccountClient {
         PreparedSignature { message_hash: hash.to_string() }
     }
 
-    #[frb]
+    // #[frb]
     pub async fn do_sign_message(
         &self,
         signatures: Vec<safe_test::OwnerSignature>,
@@ -277,7 +277,7 @@ impl AccountClient {
             .map_err(|e| Error::General(e.to_string()))
     }
 
-    #[frb]
+    // #[frb]
     pub async fn finalize_sign_message(
         &self,
         signatures: Vec<safe_test::OwnerSignature>,
@@ -290,7 +290,7 @@ impl AccountClient {
             .map_err(|e| Error::General(e.to_string()))
     }
 
-    #[frb]
+    // #[frb]
     pub async fn prepare_send_transactions(
         &self,
         transactions: Vec<Call>,
@@ -301,7 +301,7 @@ impl AccountClient {
             .map_err(|e| Error::General(e.to_string()))
     }
 
-    #[frb]
+    // #[frb]
     pub async fn do_send_transactions(
         &self,
         signatures: Vec<OwnerSignature>,
@@ -315,7 +315,7 @@ impl AccountClient {
             .to_string())
     }
 
-    #[frb]
+    // #[frb]
     pub async fn wait_for_user_operation_receipt(
         &self,
         user_operation_hash: String,

@@ -275,9 +275,6 @@ abstract class YttriumDartApiImplPlatform extends BaseApiImpl<YttriumDartWire> {
   String dco_decode_String(dynamic raw);
 
   @protected
-  Eip1559Estimation dco_decode_box_autoadd_eip_1559_estimation(dynamic raw);
-
-  @protected
   Eip1559Estimation dco_decode_eip_1559_estimation(dynamic raw);
 
   @protected
@@ -503,10 +500,6 @@ abstract class YttriumDartApiImplPlatform extends BaseApiImpl<YttriumDartWire> {
 
   @protected
   String sse_decode_String(SseDeserializer deserializer);
-
-  @protected
-  Eip1559Estimation sse_decode_box_autoadd_eip_1559_estimation(
-      SseDeserializer deserializer);
 
   @protected
   Eip1559Estimation sse_decode_eip_1559_estimation(
@@ -741,10 +734,6 @@ abstract class YttriumDartApiImplPlatform extends BaseApiImpl<YttriumDartWire> {
 
   @protected
   void sse_encode_String(String self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_box_autoadd_eip_1559_estimation(
-      Eip1559Estimation self, SseSerializer serializer);
 
   @protected
   void sse_encode_eip_1559_estimation(
