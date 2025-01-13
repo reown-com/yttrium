@@ -43,20 +43,128 @@ uniffi_build = { git = "https://github.com/mozilla/uniffi-rs", rev = "e796e00ad1
 uniffi = { git = "https://github.com/mozilla/uniffi-rs", rev = "e796e00ad150f8b14b61a859a2e8c6497b35074e", default-features = false, features = ["tokio"] }
 uniffi_macros = { git = "https://github.com/mozilla/uniffi-rs", rev = "e796e00ad150f8b14b61a859a2e8c6497b35074e", default-features = false }
 
+# For building release-optimized binaries for UniFFI bindings
+[profile.uniffi-release]
+inherits = "uniffi-release-v1"
+
+# TODO: consider more profiles for Kotlin vs Swift, and for Flutter, etc.
+
+[profile.uniffi-release-v1]
 # The values have been configured this way to prevent crashes in Swift debug builds with the default settings.
-[profile.release]
+inherits = "release"
 debug = true
 lto = true
 opt-level = 0
-
-
 codegen-units = 1
 # panic = "abort"
 # strip = true - it removes kotlin-bindings
 
+# What we should aim for short-term
+[profile.uniffi-release-next]
+inherits = "profile7"
+# profile7-nightly-stdopt
 
-# [profile.dev]
-# debug = 0
+[profile.uniffi-release-iter1]
+inherits = "release"
+debug = true
+lto = true
+opt-level = 3
+codegen-units = 1
+
+[profile.uniffi-release-iter2]
+inherits = "release"
+lto = true
+opt-level = 3
+codegen-units = 1
+
+[profile.uniffi-release-iter3] # same as profile7
+inherits = "release"
+lto = true
+opt-level = 3
+codegen-units = 1
+strip = true
+
+[profile.uniffi-release-iter4]
+inherits = "release"
+lto = true
+opt-level = 3
+codegen-units = 1
+strip = true
+# profile7-nightly
+
+[profile.uniffi-release-iter5]
+inherits = "release"
+lto = true
+opt-level = 3
+codegen-units = 1
+strip = true
+# profile7-nightly-stdopt
+
+[profile.profile1]
+inherits = "release"
+debug = true
+opt-level = 0
+
+[profile.profile2]
+inherits = "release"
+opt-level = 0
+
+[profile.profile21]
+inherits = "release"
+opt-level = 1
+
+[profile.profile22]
+inherits = "release"
+opt-level = 2
+
+[profile.profile3]
+inherits = "release"
+opt-level = 3
+
+[profile.profile4]
+inherits = "release"
+opt-level = "z"
+
+[profile.profile5]
+inherits = "release"
+opt-level = 3
+codegen-units = 1
+
+[profile.profile6]
+inherits = "release"
+opt-level = 3
+codegen-units = 1
+lto = true
+
+[profile.profile7]
+inherits = "release"
+opt-level = 3
+codegen-units = 1
+lto = true
+strip = true
+
+[profile.profile8]
+inherits = "release"
+opt-level = 3
+codegen-units = 1
+lto = true
+panic = "abort"
+
+[profile.profile9]
+inherits = "release"
+opt-level = 3
+codegen-units = 1
+lto = true
+strip = true
+panic = "abort"
+
+# Optimise libstd: https://github.com/johnthagen/min-sized-rust?tab=readme-ov-file#optimize-libstd-with-build-std
+# Compress the binary (not library?): https://github.com/johnthagen/min-sized-rust?tab=readme-ov-file#compress-the-binary
+
+# Questions:
+# What flags cause crash in prod Swift?
+# Can we use strip=true? Kotlin previously removed
+# Can we use panic=abort? I think for now we shouldn't due to incomplete error handling coverage, but we should in the future
 
 # [patch."https://github.com/reown-com/erc6492.git"]
 # erc6492 = { path = "../erc6492-rs" }
