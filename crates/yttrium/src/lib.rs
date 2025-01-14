@@ -5,7 +5,6 @@ pub mod uniffi_compat;
 
 pub mod account_client;
 pub mod blockchain_api;
-#[cfg(not(target_arch = "wasm32"))]
 pub mod bundler;
 pub mod call;
 pub mod chain;
