@@ -8,7 +8,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'lib.freezed.dart';
 
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `from`
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<Address>>
 abstract class Address implements RustOpaqueInterface {}
@@ -42,9 +42,9 @@ abstract class ChainAbstractionClient implements RustOpaqueInterface {
   Future<PrepareResponse> prepare(
       {required String chainId, required Address from, required Call call});
 
-  Future<FFIStatusResponse> status({required String orchestrationId});
+  Future<StatusResponse> status({required String orchestrationId});
 
-  Future<FFIStatusResponseCompleted> waitForSuccessWithTimeout(
+  Future<StatusResponseCompleted> waitForSuccessWithTimeout(
       {required String orchestrationId,
       required BigInt checkIn,
       required BigInt timeout});
@@ -123,6 +123,12 @@ abstract class SignOutputEnum implements RustOpaqueInterface {}
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<SignStep3Params>>
 abstract class SignStep3Params implements RustOpaqueInterface {}
 
+// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<StatusResponse>>
+abstract class StatusResponse implements RustOpaqueInterface {}
+
+// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<StatusResponseCompleted>>
+abstract class StatusResponseCompleted implements RustOpaqueInterface {}
+
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<UiFields>>
 abstract class UiFields implements RustOpaqueInterface {}
 
@@ -175,102 +181,4 @@ class FfiPreparedSignature {
       other is FfiPreparedSignature &&
           runtimeType == other.runtimeType &&
           messageHash == other.messageHash;
-}
-
-class FFIStatusResponse {
-  final String status;
-  final FFIStatusResponseData? data;
-
-  const FFIStatusResponse({
-    required this.status,
-    this.data,
-  });
-
-  @override
-  int get hashCode => status.hashCode ^ data.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is FFIStatusResponse &&
-          runtimeType == other.runtimeType &&
-          status == other.status &&
-          data == other.data;
-}
-
-class FFIStatusResponseCompleted {
-  final BigInt createdAt;
-
-  const FFIStatusResponseCompleted({
-    required this.createdAt,
-  });
-
-  @override
-  int get hashCode => createdAt.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is FFIStatusResponseCompleted &&
-          runtimeType == other.runtimeType &&
-          createdAt == other.createdAt;
-}
-
-@freezed
-sealed class FFIStatusResponseData with _$FFIStatusResponseData {
-  const FFIStatusResponseData._();
-
-  const factory FFIStatusResponseData.pending(
-    FFIStatusResponsePending field0,
-  ) = FFIStatusResponseData_Pending;
-  const factory FFIStatusResponseData.completed(
-    FFIStatusResponseCompleted field0,
-  ) = FFIStatusResponseData_Completed;
-  const factory FFIStatusResponseData.error(
-    FFIStatusResponseError field0,
-  ) = FFIStatusResponseData_Error;
-}
-
-class FFIStatusResponseError {
-  final BigInt createdAt;
-  final String error;
-
-  const FFIStatusResponseError({
-    required this.createdAt,
-    required this.error,
-  });
-
-  @override
-  int get hashCode => createdAt.hashCode ^ error.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is FFIStatusResponseError &&
-          runtimeType == other.runtimeType &&
-          createdAt == other.createdAt &&
-          error == other.error;
-}
-
-class FFIStatusResponsePending {
-  final BigInt createdAt;
-
-  /// Polling interval in ms for the client
-  final BigInt checkIn;
-
-  const FFIStatusResponsePending({
-    required this.createdAt,
-    required this.checkIn,
-  });
-
-  @override
-  int get hashCode => createdAt.hashCode ^ checkIn.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is FFIStatusResponsePending &&
-          runtimeType == other.runtimeType &&
-          createdAt == other.createdAt &&
-          checkIn == other.checkIn;
 }

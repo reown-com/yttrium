@@ -628,6 +628,14 @@ flutter_rust_bridge::frb_generated_moi_arc_impl_value!(
     flutter_rust_bridge::for_generated::RustAutoOpaqueInner<SignStep3Params>
 );
 flutter_rust_bridge::frb_generated_moi_arc_impl_value!(
+    flutter_rust_bridge::for_generated::RustAutoOpaqueInner<StatusResponse>
+);
+flutter_rust_bridge::frb_generated_moi_arc_impl_value!(
+    flutter_rust_bridge::for_generated::RustAutoOpaqueInner<
+        StatusResponseCompleted,
+    >
+);
+flutter_rust_bridge::frb_generated_moi_arc_impl_value!(
     flutter_rust_bridge::for_generated::RustAutoOpaqueInner<UiFields>
 );
 
@@ -815,6 +823,34 @@ impl SseDecode for SignStep3Params {
         let mut inner = <RustOpaqueMoi<
             flutter_rust_bridge::for_generated::RustAutoOpaqueInner<
                 SignStep3Params,
+            >,
+        >>::sse_decode(deserializer);
+        return flutter_rust_bridge::for_generated::rust_auto_opaque_decode_owned(inner);
+    }
+}
+
+impl SseDecode for StatusResponse {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        let mut inner = <RustOpaqueMoi<
+            flutter_rust_bridge::for_generated::RustAutoOpaqueInner<
+                StatusResponse,
+            >,
+        >>::sse_decode(deserializer);
+        return flutter_rust_bridge::for_generated::rust_auto_opaque_decode_owned(inner);
+    }
+}
+
+impl SseDecode for StatusResponseCompleted {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        let mut inner = <RustOpaqueMoi<
+            flutter_rust_bridge::for_generated::RustAutoOpaqueInner<
+                StatusResponseCompleted,
             >,
         >>::sse_decode(deserializer);
         return flutter_rust_bridge::for_generated::rust_auto_opaque_decode_owned(inner);
@@ -1047,6 +1083,36 @@ impl SseDecode
 
 impl SseDecode
     for RustOpaqueMoi<
+        flutter_rust_bridge::for_generated::RustAutoOpaqueInner<StatusResponse>,
+    >
+{
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        let mut inner = <usize>::sse_decode(deserializer);
+        return decode_rust_opaque_moi(inner);
+    }
+}
+
+impl SseDecode
+    for RustOpaqueMoi<
+        flutter_rust_bridge::for_generated::RustAutoOpaqueInner<
+            StatusResponseCompleted,
+        >,
+    >
+{
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        let mut inner = <usize>::sse_decode(deserializer);
+        return decode_rust_opaque_moi(inner);
+    }
+}
+
+impl SseDecode
+    for RustOpaqueMoi<
         flutter_rust_bridge::for_generated::RustAutoOpaqueInner<UiFields>,
     >
 {
@@ -1111,87 +1177,6 @@ impl SseDecode for crate::FfiPreparedSignature {
     }
 }
 
-impl SseDecode for crate::FFIStatusResponse {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(
-        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
-    ) -> Self {
-        let mut var_status = <String>::sse_decode(deserializer);
-        let mut var_data =
-            <Option<crate::FFIStatusResponseData>>::sse_decode(deserializer);
-        return crate::FFIStatusResponse { status: var_status, data: var_data };
-    }
-}
-
-impl SseDecode for crate::FFIStatusResponseCompleted {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(
-        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
-    ) -> Self {
-        let mut var_createdAt = <u64>::sse_decode(deserializer);
-        return crate::FFIStatusResponseCompleted { created_at: var_createdAt };
-    }
-}
-
-impl SseDecode for crate::FFIStatusResponseData {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(
-        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
-    ) -> Self {
-        let mut tag_ = <i32>::sse_decode(deserializer);
-        match tag_ {
-            0 => {
-                let mut var_field0 =
-                    <crate::FFIStatusResponsePending>::sse_decode(deserializer);
-                return crate::FFIStatusResponseData::Pending(var_field0);
-            }
-            1 => {
-                let mut var_field0 =
-                    <crate::FFIStatusResponseCompleted>::sse_decode(
-                        deserializer,
-                    );
-                return crate::FFIStatusResponseData::Completed(var_field0);
-            }
-            2 => {
-                let mut var_field0 =
-                    <crate::FFIStatusResponseError>::sse_decode(deserializer);
-                return crate::FFIStatusResponseData::Error(var_field0);
-            }
-            _ => {
-                unimplemented!("");
-            }
-        }
-    }
-}
-
-impl SseDecode for crate::FFIStatusResponseError {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(
-        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
-    ) -> Self {
-        let mut var_createdAt = <u64>::sse_decode(deserializer);
-        let mut var_error = <String>::sse_decode(deserializer);
-        return crate::FFIStatusResponseError {
-            created_at: var_createdAt,
-            error: var_error,
-        };
-    }
-}
-
-impl SseDecode for crate::FFIStatusResponsePending {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(
-        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
-    ) -> Self {
-        let mut var_createdAt = <u64>::sse_decode(deserializer);
-        let mut var_checkIn = <u64>::sse_decode(deserializer);
-        return crate::FFIStatusResponsePending {
-            created_at: var_createdAt,
-            check_in: var_checkIn,
-        };
-    }
-}
-
 impl SseDecode for Vec<Call> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(
@@ -1231,21 +1216,6 @@ impl SseDecode for Vec<u8> {
             ans_.push(<u8>::sse_decode(deserializer));
         }
         return ans_;
-    }
-}
-
-impl SseDecode for Option<crate::FFIStatusResponseData> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(
-        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
-    ) -> Self {
-        if (<bool>::sse_decode(deserializer)) {
-            return Some(<crate::FFIStatusResponseData>::sse_decode(
-                deserializer,
-            ));
-        } else {
-            return None;
-        }
     }
 }
 
@@ -1666,6 +1636,52 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<SignStep3Params>>
 }
 
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<StatusResponse> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        flutter_rust_bridge::for_generated::rust_auto_opaque_encode::<
+            _,
+            MoiArc<_>,
+        >(self.0)
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<StatusResponse>
+{
+}
+
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<StatusResponse>>
+    for StatusResponse
+{
+    fn into_into_dart(self) -> FrbWrapper<StatusResponse> {
+        self.into()
+    }
+}
+
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<StatusResponseCompleted> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        flutter_rust_bridge::for_generated::rust_auto_opaque_encode::<
+            _,
+            MoiArc<_>,
+        >(self.0)
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<StatusResponseCompleted>
+{
+}
+
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<StatusResponseCompleted>>
+    for StatusResponseCompleted
+{
+    fn into_into_dart(self) -> FrbWrapper<StatusResponseCompleted> {
+        self.into()
+    }
+}
+
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for FrbWrapper<UiFields> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         flutter_rust_bridge::for_generated::rust_auto_opaque_encode::<
@@ -1743,116 +1759,6 @@ impl flutter_rust_bridge::IntoIntoDart<crate::FfiPreparedSignature>
     for crate::FfiPreparedSignature
 {
     fn into_into_dart(self) -> crate::FfiPreparedSignature {
-        self
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::FFIStatusResponse {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.status.into_into_dart().into_dart(),
-            self.data.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::FFIStatusResponse
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<crate::FFIStatusResponse>
-    for crate::FFIStatusResponse
-{
-    fn into_into_dart(self) -> crate::FFIStatusResponse {
-        self
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::FFIStatusResponseCompleted {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [self.created_at.into_into_dart().into_dart()].into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::FFIStatusResponseCompleted
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<crate::FFIStatusResponseCompleted>
-    for crate::FFIStatusResponseCompleted
-{
-    fn into_into_dart(self) -> crate::FFIStatusResponseCompleted {
-        self
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::FFIStatusResponseData {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        match self {
-            crate::FFIStatusResponseData::Pending(field0) => {
-                [0.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::FFIStatusResponseData::Completed(field0) => {
-                [1.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::FFIStatusResponseData::Error(field0) => {
-                [2.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            _ => {
-                unimplemented!("");
-            }
-        }
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::FFIStatusResponseData
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<crate::FFIStatusResponseData>
-    for crate::FFIStatusResponseData
-{
-    fn into_into_dart(self) -> crate::FFIStatusResponseData {
-        self
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::FFIStatusResponseError {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.created_at.into_into_dart().into_dart(),
-            self.error.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::FFIStatusResponseError
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<crate::FFIStatusResponseError>
-    for crate::FFIStatusResponseError
-{
-    fn into_into_dart(self) -> crate::FFIStatusResponseError {
-        self
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::FFIStatusResponsePending {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.created_at.into_into_dart().into_dart(),
-            self.check_in.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::FFIStatusResponsePending
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<crate::FFIStatusResponsePending>
-    for crate::FFIStatusResponsePending
-{
-    fn into_into_dart(self) -> crate::FFIStatusResponsePending {
         self
     }
 }
@@ -2129,6 +2035,46 @@ impl SseEncode for SignStep3Params {
     }
 }
 
+impl SseEncode for StatusResponse {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(
+        self,
+        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
+    ) {
+        <RustOpaqueMoi<
+            flutter_rust_bridge::for_generated::RustAutoOpaqueInner<
+                StatusResponse,
+            >,
+        >>::sse_encode(
+            flutter_rust_bridge::for_generated::rust_auto_opaque_encode::<
+                _,
+                MoiArc<_>,
+            >(self),
+            serializer,
+        );
+    }
+}
+
+impl SseEncode for StatusResponseCompleted {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(
+        self,
+        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
+    ) {
+        <RustOpaqueMoi<
+            flutter_rust_bridge::for_generated::RustAutoOpaqueInner<
+                StatusResponseCompleted,
+            >,
+        >>::sse_encode(
+            flutter_rust_bridge::for_generated::rust_auto_opaque_encode::<
+                _,
+                MoiArc<_>,
+            >(self),
+            serializer,
+        );
+    }
+}
+
 impl SseEncode for UiFields {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(
@@ -2389,6 +2335,40 @@ impl SseEncode
 
 impl SseEncode
     for RustOpaqueMoi<
+        flutter_rust_bridge::for_generated::RustAutoOpaqueInner<StatusResponse>,
+    >
+{
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(
+        self,
+        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
+    ) {
+        let (ptr, size) = self.sse_encode_raw();
+        <usize>::sse_encode(ptr, serializer);
+        <i32>::sse_encode(size, serializer);
+    }
+}
+
+impl SseEncode
+    for RustOpaqueMoi<
+        flutter_rust_bridge::for_generated::RustAutoOpaqueInner<
+            StatusResponseCompleted,
+        >,
+    >
+{
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(
+        self,
+        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
+    ) {
+        let (ptr, size) = self.sse_encode_raw();
+        <usize>::sse_encode(ptr, serializer);
+        <i32>::sse_encode(size, serializer);
+    }
+}
+
+impl SseEncode
+    for RustOpaqueMoi<
         flutter_rust_bridge::for_generated::RustAutoOpaqueInner<UiFields>,
     >
 {
@@ -2452,81 +2432,6 @@ impl SseEncode for crate::FfiPreparedSignature {
     }
 }
 
-impl SseEncode for crate::FFIStatusResponse {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(
-        self,
-        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
-    ) {
-        <String>::sse_encode(self.status, serializer);
-        <Option<crate::FFIStatusResponseData>>::sse_encode(
-            self.data, serializer,
-        );
-    }
-}
-
-impl SseEncode for crate::FFIStatusResponseCompleted {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(
-        self,
-        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
-    ) {
-        <u64>::sse_encode(self.created_at, serializer);
-    }
-}
-
-impl SseEncode for crate::FFIStatusResponseData {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(
-        self,
-        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
-    ) {
-        match self {
-            crate::FFIStatusResponseData::Pending(field0) => {
-                <i32>::sse_encode(0, serializer);
-                <crate::FFIStatusResponsePending>::sse_encode(
-                    field0, serializer,
-                );
-            }
-            crate::FFIStatusResponseData::Completed(field0) => {
-                <i32>::sse_encode(1, serializer);
-                <crate::FFIStatusResponseCompleted>::sse_encode(
-                    field0, serializer,
-                );
-            }
-            crate::FFIStatusResponseData::Error(field0) => {
-                <i32>::sse_encode(2, serializer);
-                <crate::FFIStatusResponseError>::sse_encode(field0, serializer);
-            }
-            _ => {
-                unimplemented!("");
-            }
-        }
-    }
-}
-
-impl SseEncode for crate::FFIStatusResponseError {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(
-        self,
-        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
-    ) {
-        <u64>::sse_encode(self.created_at, serializer);
-        <String>::sse_encode(self.error, serializer);
-    }
-}
-
-impl SseEncode for crate::FFIStatusResponsePending {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(
-        self,
-        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
-    ) {
-        <u64>::sse_encode(self.created_at, serializer);
-        <u64>::sse_encode(self.check_in, serializer);
-    }
-}
-
 impl SseEncode for Vec<Call> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(
@@ -2562,19 +2467,6 @@ impl SseEncode for Vec<u8> {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
             <u8>::sse_encode(item, serializer);
-        }
-    }
-}
-
-impl SseEncode for Option<crate::FFIStatusResponseData> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(
-        self,
-        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
-    ) {
-        <bool>::sse_encode(self.is_some(), serializer);
-        if let Some(value) = self {
-            <crate::FFIStatusResponseData>::sse_encode(value, serializer);
         }
     }
 }
@@ -2939,6 +2831,50 @@ mod io {
         MoiArc::<
             flutter_rust_bridge::for_generated::RustAutoOpaqueInner<
                 SignStep3Params,
+            >,
+        >::decrement_strong_count(ptr as _);
+    }
+
+    #[no_mangle]
+    pub extern "C" fn frbgen_yttrium_dart_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerStatusResponse(
+        ptr: *const std::ffi::c_void,
+    ) {
+        MoiArc::<
+            flutter_rust_bridge::for_generated::RustAutoOpaqueInner<
+                StatusResponse,
+            >,
+        >::increment_strong_count(ptr as _);
+    }
+
+    #[no_mangle]
+    pub extern "C" fn frbgen_yttrium_dart_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerStatusResponse(
+        ptr: *const std::ffi::c_void,
+    ) {
+        MoiArc::<
+            flutter_rust_bridge::for_generated::RustAutoOpaqueInner<
+                StatusResponse,
+            >,
+        >::decrement_strong_count(ptr as _);
+    }
+
+    #[no_mangle]
+    pub extern "C" fn frbgen_yttrium_dart_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerStatusResponseCompleted(
+        ptr: *const std::ffi::c_void,
+    ) {
+        MoiArc::<
+            flutter_rust_bridge::for_generated::RustAutoOpaqueInner<
+                StatusResponseCompleted,
+            >,
+        >::increment_strong_count(ptr as _);
+    }
+
+    #[no_mangle]
+    pub extern "C" fn frbgen_yttrium_dart_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerStatusResponseCompleted(
+        ptr: *const std::ffi::c_void,
+    ) {
+        MoiArc::<
+            flutter_rust_bridge::for_generated::RustAutoOpaqueInner<
+                StatusResponseCompleted,
             >,
         >::decrement_strong_count(ptr as _);
     }

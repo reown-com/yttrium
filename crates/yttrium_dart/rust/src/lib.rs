@@ -22,12 +22,7 @@ use {
         chain_abstraction::{
             api::{
                 prepare::{PrepareResponse, PrepareResponseAvailable},
-                status::{
-                    StatusResponse as CoreStatusResponse,
-                    StatusResponseCompleted as CoreStatusResponseCompleted,
-                    // StatusResponseError as CoreStatusResponseError,
-                    // StatusResponsePending as CoreStatusResponsePending,
-                },
+                status::{StatusResponse, StatusResponseCompleted},
             },
             client::Client,
             currency::Currency,
@@ -94,68 +89,6 @@ use {
 //         }
 //     }
 // }
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct FFIStatusResponsePending {
-    pub created_at: u64,
-    /// Polling interval in ms for the client
-    pub check_in: u64,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct FFIStatusResponseCompleted {
-    pub created_at: u64,
-}
-
-/// Convert from `CoreStatusResponse` to `FFIStatusResponse`
-impl From<CoreStatusResponseCompleted> for FFIStatusResponseCompleted {
-    fn from(source: CoreStatusResponseCompleted) -> Self {
-        Self {
-            created_at: source.created_at
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct FFIStatusResponseError {
-    pub created_at: u64,
-    pub error: String,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct FFIStatusResponse {
-    pub status: String, // "PENDING", "COMPLETED", or "ERROR"
-    pub data: Option<FFIStatusResponseData>,
-}
-
-/// Convert from `CoreStatusResponse` to `FFIStatusResponse`
-impl From<CoreStatusResponse> for FFIStatusResponse {
-    fn from(source: CoreStatusResponse) -> Self {
-        match source {
-            CoreStatusResponse::Pending(data) => FFIStatusResponse {
-                status: "PENDING".to_string(),
-                data: Some(FFIStatusResponseData::Pending(FFIStatusResponsePending { created_at: (data.created_at), check_in: (data.check_in) })),
-            },
-            CoreStatusResponse::Completed(data) => FFIStatusResponse {
-                status: "COMPLETED".to_string(),
-                data: Some(FFIStatusResponseData::Completed(FFIStatusResponseCompleted { created_at: (data.created_at) })),
-            },
-            CoreStatusResponse::Error(data) => FFIStatusResponse {
-                status: "ERROR".to_string(),
-                data: Some(FFIStatusResponseData::Error(FFIStatusResponseError { created_at: (data.created_at), error: (data.error) })),
-            },
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(tag = "type")]
-pub enum FFIStatusResponseData {
-    Pending(FFIStatusResponsePending),
-    Completed(FFIStatusResponseCompleted),
-    Error(FFIStatusResponseError),
-}
-
 
 // #[frb]
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -241,7 +174,7 @@ impl ChainAbstractionClient {
     pub async fn status(
         &self,
         orchestration_id: String,
-    ) -> Result<FFIStatusResponse, FFIError> {
+    ) -> Result<StatusResponse, FFIError> {
         self.client
             .status(orchestration_id)
             .await
@@ -255,7 +188,7 @@ impl ChainAbstractionClient {
         orchestration_id: String,
         check_in: u64,
         timeout: u64,
-    ) -> Result<FFIStatusResponseCompleted, FFIError> {
+    ) -> Result<StatusResponseCompleted, FFIError> {
         self.client
             .wait_for_success_with_timeout(
                 orchestration_id,
@@ -425,7 +358,7 @@ mod tests {
         let chain_id = "eip155:42161";
         let project_id = std::env::var("REOWN_PROJECT_ID").unwrap();
         let url = format!(
-           "https://rpc.walletconnect.com/v1?chainId={chain_id}&projectId={project_id}")
+            "https://rpc.walletconnect.com/v1?chainId={chain_id}&projectId={project_id}")
         .parse()
         .expect("Invalid RPC URL");
         let provider = ReqwestProvider::<Ethereum>::new_http(url);

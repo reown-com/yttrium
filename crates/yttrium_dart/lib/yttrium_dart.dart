@@ -115,7 +115,7 @@ class YttriumDart implements ChainAbstractionClient {
   }
 
   @override
-  Future<FFIStatusResponse> status({required String orchestrationId}) async {
+  Future<StatusResponse> status({required String orchestrationId}) async {
     if (_chainAbstractionClient == null) {
       throw 'ChainAbstractionClient is not initialized';
     }
@@ -125,7 +125,7 @@ class YttriumDart implements ChainAbstractionClient {
   }
 
   @override
-  Future<FFIStatusResponseCompleted> waitForSuccessWithTimeout({
+  Future<StatusResponseCompleted> waitForSuccessWithTimeout({
     required String orchestrationId,
     required BigInt checkIn,
     required BigInt timeout,

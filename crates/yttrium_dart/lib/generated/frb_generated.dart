@@ -107,10 +107,10 @@ abstract class YttriumDartApi extends BaseApi {
       required Address from,
       required Call call});
 
-  Future<FFIStatusResponse> crateChainAbstractionClientStatus(
+  Future<StatusResponse> crateChainAbstractionClientStatus(
       {required ChainAbstractionClient that, required String orchestrationId});
 
-  Future<FFIStatusResponseCompleted>
+  Future<StatusResponseCompleted>
       crateChainAbstractionClientWaitForSuccessWithTimeout(
           {required ChainAbstractionClient that,
           required String orchestrationId,
@@ -279,6 +279,24 @@ abstract class YttriumDartApi extends BaseApi {
 
   CrossPlatformFinalizerArg
       get rust_arc_decrement_strong_count_SignStep3ParamsPtr;
+
+  RustArcIncrementStrongCountFnType
+      get rust_arc_increment_strong_count_StatusResponse;
+
+  RustArcDecrementStrongCountFnType
+      get rust_arc_decrement_strong_count_StatusResponse;
+
+  CrossPlatformFinalizerArg
+      get rust_arc_decrement_strong_count_StatusResponsePtr;
+
+  RustArcIncrementStrongCountFnType
+      get rust_arc_increment_strong_count_StatusResponseCompleted;
+
+  RustArcDecrementStrongCountFnType
+      get rust_arc_decrement_strong_count_StatusResponseCompleted;
+
+  CrossPlatformFinalizerArg
+      get rust_arc_decrement_strong_count_StatusResponseCompletedPtr;
 
   RustArcIncrementStrongCountFnType
       get rust_arc_increment_strong_count_UiFields;
@@ -514,7 +532,7 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
       );
 
   @override
-  Future<FFIStatusResponse> crateChainAbstractionClientStatus(
+  Future<StatusResponse> crateChainAbstractionClientStatus(
       {required ChainAbstractionClient that, required String orchestrationId}) {
     return handler.executeNormal(NormalTask(
       callFfi: (port_) {
@@ -526,7 +544,8 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
             funcId: 8, port: port_);
       },
       codec: SseCodec(
-        decodeSuccessData: sse_decode_ffi_status_response,
+        decodeSuccessData:
+            sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerStatusResponse,
         decodeErrorData: sse_decode_ffi_error,
       ),
       constMeta: kCrateChainAbstractionClientStatusConstMeta,
@@ -542,7 +561,7 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
       );
 
   @override
-  Future<FFIStatusResponseCompleted>
+  Future<StatusResponseCompleted>
       crateChainAbstractionClientWaitForSuccessWithTimeout(
           {required ChainAbstractionClient that,
           required String orchestrationId,
@@ -560,7 +579,8 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
             funcId: 9, port: port_);
       },
       codec: SseCodec(
-        decodeSuccessData: sse_decode_ffi_status_response_completed,
+        decodeSuccessData:
+            sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerStatusResponseCompleted,
         decodeErrorData: sse_decode_ffi_error,
       ),
       constMeta: kCrateChainAbstractionClientWaitForSuccessWithTimeoutConstMeta,
@@ -1068,6 +1088,22 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
           .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSignStep3Params;
 
   RustArcIncrementStrongCountFnType
+      get rust_arc_increment_strong_count_StatusResponse => wire
+          .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerStatusResponse;
+
+  RustArcDecrementStrongCountFnType
+      get rust_arc_decrement_strong_count_StatusResponse => wire
+          .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerStatusResponse;
+
+  RustArcIncrementStrongCountFnType
+      get rust_arc_increment_strong_count_StatusResponseCompleted => wire
+          .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerStatusResponseCompleted;
+
+  RustArcDecrementStrongCountFnType
+      get rust_arc_decrement_strong_count_StatusResponseCompleted => wire
+          .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerStatusResponseCompleted;
+
+  RustArcIncrementStrongCountFnType
       get rust_arc_increment_strong_count_UiFields => wire
           .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerUiFields;
 
@@ -1189,6 +1225,23 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
           dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return SignStep3ParamsImpl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
+  StatusResponse
+      dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerStatusResponse(
+          dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return StatusResponseImpl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
+  StatusResponseCompleted
+      dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerStatusResponseCompleted(
+          dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return StatusResponseCompletedImpl.frbInternalDcoDecode(
+        raw as List<dynamic>);
   }
 
   @protected
@@ -1350,6 +1403,23 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
   }
 
   @protected
+  StatusResponse
+      dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerStatusResponse(
+          dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return StatusResponseImpl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
+  StatusResponseCompleted
+      dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerStatusResponseCompleted(
+          dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return StatusResponseCompletedImpl.frbInternalDcoDecode(
+        raw as List<dynamic>);
+  }
+
+  @protected
   UiFields
       dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerUiFields(
           dynamic raw) {
@@ -1361,34 +1431,6 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
   String dco_decode_String(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as String;
-  }
-
-  @protected
-  FFIStatusResponseCompleted
-      dco_decode_box_autoadd_ffi_status_response_completed(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_ffi_status_response_completed(raw);
-  }
-
-  @protected
-  FFIStatusResponseData dco_decode_box_autoadd_ffi_status_response_data(
-      dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_ffi_status_response_data(raw);
-  }
-
-  @protected
-  FFIStatusResponseError dco_decode_box_autoadd_ffi_status_response_error(
-      dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_ffi_status_response_error(raw);
-  }
-
-  @protected
-  FFIStatusResponsePending dco_decode_box_autoadd_ffi_status_response_pending(
-      dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_ffi_status_response_pending(raw);
   }
 
   @protected
@@ -1428,75 +1470,6 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
   }
 
   @protected
-  FFIStatusResponse dco_decode_ffi_status_response(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 2)
-      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
-    return FFIStatusResponse(
-      status: dco_decode_String(arr[0]),
-      data: dco_decode_opt_box_autoadd_ffi_status_response_data(arr[1]),
-    );
-  }
-
-  @protected
-  FFIStatusResponseCompleted dco_decode_ffi_status_response_completed(
-      dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 1)
-      throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
-    return FFIStatusResponseCompleted(
-      createdAt: dco_decode_u_64(arr[0]),
-    );
-  }
-
-  @protected
-  FFIStatusResponseData dco_decode_ffi_status_response_data(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    switch (raw[0]) {
-      case 0:
-        return FFIStatusResponseData_Pending(
-          dco_decode_box_autoadd_ffi_status_response_pending(raw[1]),
-        );
-      case 1:
-        return FFIStatusResponseData_Completed(
-          dco_decode_box_autoadd_ffi_status_response_completed(raw[1]),
-        );
-      case 2:
-        return FFIStatusResponseData_Error(
-          dco_decode_box_autoadd_ffi_status_response_error(raw[1]),
-        );
-      default:
-        throw Exception('unreachable');
-    }
-  }
-
-  @protected
-  FFIStatusResponseError dco_decode_ffi_status_response_error(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 2)
-      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
-    return FFIStatusResponseError(
-      createdAt: dco_decode_u_64(arr[0]),
-      error: dco_decode_String(arr[1]),
-    );
-  }
-
-  @protected
-  FFIStatusResponsePending dco_decode_ffi_status_response_pending(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 2)
-      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
-    return FFIStatusResponsePending(
-      createdAt: dco_decode_u_64(arr[0]),
-      checkIn: dco_decode_u_64(arr[1]),
-    );
-  }
-
-  @protected
   List<Call>
       dco_decode_list_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCall(
           dynamic raw) {
@@ -1522,15 +1495,6 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as Uint8List;
-  }
-
-  @protected
-  FFIStatusResponseData? dco_decode_opt_box_autoadd_ffi_status_response_data(
-      dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return raw == null
-        ? null
-        : dco_decode_box_autoadd_ffi_status_response_data(raw);
   }
 
   @protected
@@ -1680,6 +1644,24 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
           SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return SignStep3ParamsImpl.frbInternalSseDecode(
+        sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
+  }
+
+  @protected
+  StatusResponse
+      sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerStatusResponse(
+          SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return StatusResponseImpl.frbInternalSseDecode(
+        sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
+  }
+
+  @protected
+  StatusResponseCompleted
+      sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerStatusResponseCompleted(
+          SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return StatusResponseCompletedImpl.frbInternalSseDecode(
         sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
   }
 
@@ -1855,6 +1837,24 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
   }
 
   @protected
+  StatusResponse
+      sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerStatusResponse(
+          SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return StatusResponseImpl.frbInternalSseDecode(
+        sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
+  }
+
+  @protected
+  StatusResponseCompleted
+      sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerStatusResponseCompleted(
+          SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return StatusResponseCompletedImpl.frbInternalSseDecode(
+        sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
+  }
+
+  @protected
   UiFields
       sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerUiFields(
           SseDeserializer deserializer) {
@@ -1868,35 +1868,6 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
     // Codec=Sse (Serialization based), see doc to use other codecs
     var inner = sse_decode_list_prim_u_8_strict(deserializer);
     return utf8.decoder.convert(inner);
-  }
-
-  @protected
-  FFIStatusResponseCompleted
-      sse_decode_box_autoadd_ffi_status_response_completed(
-          SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_ffi_status_response_completed(deserializer));
-  }
-
-  @protected
-  FFIStatusResponseData sse_decode_box_autoadd_ffi_status_response_data(
-      SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_ffi_status_response_data(deserializer));
-  }
-
-  @protected
-  FFIStatusResponseError sse_decode_box_autoadd_ffi_status_response_error(
-      SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_ffi_status_response_error(deserializer));
-  }
-
-  @protected
-  FFIStatusResponsePending sse_decode_box_autoadd_ffi_status_response_pending(
-      SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_ffi_status_response_pending(deserializer));
   }
 
   @protected
@@ -1930,67 +1901,6 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_messageHash = sse_decode_String(deserializer);
     return FfiPreparedSignature(messageHash: var_messageHash);
-  }
-
-  @protected
-  FFIStatusResponse sse_decode_ffi_status_response(
-      SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_status = sse_decode_String(deserializer);
-    var var_data =
-        sse_decode_opt_box_autoadd_ffi_status_response_data(deserializer);
-    return FFIStatusResponse(status: var_status, data: var_data);
-  }
-
-  @protected
-  FFIStatusResponseCompleted sse_decode_ffi_status_response_completed(
-      SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_createdAt = sse_decode_u_64(deserializer);
-    return FFIStatusResponseCompleted(createdAt: var_createdAt);
-  }
-
-  @protected
-  FFIStatusResponseData sse_decode_ffi_status_response_data(
-      SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-
-    var tag_ = sse_decode_i_32(deserializer);
-    switch (tag_) {
-      case 0:
-        var var_field0 =
-            sse_decode_box_autoadd_ffi_status_response_pending(deserializer);
-        return FFIStatusResponseData_Pending(var_field0);
-      case 1:
-        var var_field0 =
-            sse_decode_box_autoadd_ffi_status_response_completed(deserializer);
-        return FFIStatusResponseData_Completed(var_field0);
-      case 2:
-        var var_field0 =
-            sse_decode_box_autoadd_ffi_status_response_error(deserializer);
-        return FFIStatusResponseData_Error(var_field0);
-      default:
-        throw UnimplementedError('');
-    }
-  }
-
-  @protected
-  FFIStatusResponseError sse_decode_ffi_status_response_error(
-      SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_createdAt = sse_decode_u_64(deserializer);
-    var var_error = sse_decode_String(deserializer);
-    return FFIStatusResponseError(createdAt: var_createdAt, error: var_error);
-  }
-
-  @protected
-  FFIStatusResponsePending sse_decode_ffi_status_response_pending(
-      SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_createdAt = sse_decode_u_64(deserializer);
-    var var_checkIn = sse_decode_u_64(deserializer);
-    return FFIStatusResponsePending(
-        createdAt: var_createdAt, checkIn: var_checkIn);
   }
 
   @protected
@@ -2030,18 +1940,6 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
     // Codec=Sse (Serialization based), see doc to use other codecs
     var len_ = sse_decode_i_32(deserializer);
     return deserializer.buffer.getUint8List(len_);
-  }
-
-  @protected
-  FFIStatusResponseData? sse_decode_opt_box_autoadd_ffi_status_response_data(
-      SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-
-    if (sse_decode_bool(deserializer)) {
-      return (sse_decode_box_autoadd_ffi_status_response_data(deserializer));
-    } else {
-      return null;
-    }
   }
 
   @protected
@@ -2212,6 +2110,26 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_usize(
         (self as SignStep3ParamsImpl).frbInternalSseEncode(move: true),
+        serializer);
+  }
+
+  @protected
+  void
+      sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerStatusResponse(
+          StatusResponse self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+        (self as StatusResponseImpl).frbInternalSseEncode(move: true),
+        serializer);
+  }
+
+  @protected
+  void
+      sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerStatusResponseCompleted(
+          StatusResponseCompleted self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+        (self as StatusResponseCompletedImpl).frbInternalSseEncode(move: true),
         serializer);
   }
 
@@ -2402,6 +2320,26 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
 
   @protected
   void
+      sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerStatusResponse(
+          StatusResponse self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+        (self as StatusResponseImpl).frbInternalSseEncode(move: null),
+        serializer);
+  }
+
+  @protected
+  void
+      sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerStatusResponseCompleted(
+          StatusResponseCompleted self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+        (self as StatusResponseCompletedImpl).frbInternalSseEncode(move: null),
+        serializer);
+  }
+
+  @protected
+  void
       sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerUiFields(
           UiFields self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -2413,34 +2351,6 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
   void sse_encode_String(String self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_list_prim_u_8_strict(utf8.encoder.convert(self), serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_ffi_status_response_completed(
-      FFIStatusResponseCompleted self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_ffi_status_response_completed(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_ffi_status_response_data(
-      FFIStatusResponseData self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_ffi_status_response_data(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_ffi_status_response_error(
-      FFIStatusResponseError self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_ffi_status_response_error(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_ffi_status_response_pending(
-      FFIStatusResponsePending self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_ffi_status_response_pending(self, serializer);
   }
 
   @protected
@@ -2466,55 +2376,6 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
       FfiPreparedSignature self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.messageHash, serializer);
-  }
-
-  @protected
-  void sse_encode_ffi_status_response(
-      FFIStatusResponse self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_String(self.status, serializer);
-    sse_encode_opt_box_autoadd_ffi_status_response_data(self.data, serializer);
-  }
-
-  @protected
-  void sse_encode_ffi_status_response_completed(
-      FFIStatusResponseCompleted self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_u_64(self.createdAt, serializer);
-  }
-
-  @protected
-  void sse_encode_ffi_status_response_data(
-      FFIStatusResponseData self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    switch (self) {
-      case FFIStatusResponseData_Pending(field0: final field0):
-        sse_encode_i_32(0, serializer);
-        sse_encode_box_autoadd_ffi_status_response_pending(field0, serializer);
-      case FFIStatusResponseData_Completed(field0: final field0):
-        sse_encode_i_32(1, serializer);
-        sse_encode_box_autoadd_ffi_status_response_completed(
-            field0, serializer);
-      case FFIStatusResponseData_Error(field0: final field0):
-        sse_encode_i_32(2, serializer);
-        sse_encode_box_autoadd_ffi_status_response_error(field0, serializer);
-    }
-  }
-
-  @protected
-  void sse_encode_ffi_status_response_error(
-      FFIStatusResponseError self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_u_64(self.createdAt, serializer);
-    sse_encode_String(self.error, serializer);
-  }
-
-  @protected
-  void sse_encode_ffi_status_response_pending(
-      FFIStatusResponsePending self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_u_64(self.createdAt, serializer);
-    sse_encode_u_64(self.checkIn, serializer);
   }
 
   @protected
@@ -2547,17 +2408,6 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self.length, serializer);
     serializer.buffer.putUint8List(self);
-  }
-
-  @protected
-  void sse_encode_opt_box_autoadd_ffi_status_response_data(
-      FFIStatusResponseData? self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-
-    sse_encode_bool(self != null, serializer);
-    if (self != null) {
-      sse_encode_box_autoadd_ffi_status_response_data(self, serializer);
-    }
   }
 
   @protected
@@ -2690,11 +2540,11 @@ class ChainAbstractionClientImpl extends RustOpaque
       YttriumDart.instance.api.crateChainAbstractionClientPrepare(
           that: this, chainId: chainId, from: from, call: call);
 
-  Future<FFIStatusResponse> status({required String orchestrationId}) =>
+  Future<StatusResponse> status({required String orchestrationId}) =>
       YttriumDart.instance.api.crateChainAbstractionClientStatus(
           that: this, orchestrationId: orchestrationId);
 
-  Future<FFIStatusResponseCompleted> waitForSuccessWithTimeout(
+  Future<StatusResponseCompleted> waitForSuccessWithTimeout(
           {required String orchestrationId,
           required BigInt checkIn,
           required BigInt timeout}) =>
@@ -2993,6 +2843,48 @@ class SignStep3ParamsImpl extends RustOpaque implements SignStep3Params {
         .instance.api.rust_arc_decrement_strong_count_SignStep3Params,
     rustArcDecrementStrongCountPtr: YttriumDart
         .instance.api.rust_arc_decrement_strong_count_SignStep3ParamsPtr,
+  );
+}
+
+@sealed
+class StatusResponseCompletedImpl extends RustOpaque
+    implements StatusResponseCompleted {
+  // Not to be used by end users
+  StatusResponseCompletedImpl.frbInternalDcoDecode(List<dynamic> wire)
+      : super.frbInternalDcoDecode(wire, _kStaticData);
+
+  // Not to be used by end users
+  StatusResponseCompletedImpl.frbInternalSseDecode(
+      BigInt ptr, int externalSizeOnNative)
+      : super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
+
+  static final _kStaticData = RustArcStaticData(
+    rustArcIncrementStrongCount: YttriumDart
+        .instance.api.rust_arc_increment_strong_count_StatusResponseCompleted,
+    rustArcDecrementStrongCount: YttriumDart
+        .instance.api.rust_arc_decrement_strong_count_StatusResponseCompleted,
+    rustArcDecrementStrongCountPtr: YttriumDart.instance.api
+        .rust_arc_decrement_strong_count_StatusResponseCompletedPtr,
+  );
+}
+
+@sealed
+class StatusResponseImpl extends RustOpaque implements StatusResponse {
+  // Not to be used by end users
+  StatusResponseImpl.frbInternalDcoDecode(List<dynamic> wire)
+      : super.frbInternalDcoDecode(wire, _kStaticData);
+
+  // Not to be used by end users
+  StatusResponseImpl.frbInternalSseDecode(BigInt ptr, int externalSizeOnNative)
+      : super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
+
+  static final _kStaticData = RustArcStaticData(
+    rustArcIncrementStrongCount:
+        YttriumDart.instance.api.rust_arc_increment_strong_count_StatusResponse,
+    rustArcDecrementStrongCount:
+        YttriumDart.instance.api.rust_arc_decrement_strong_count_StatusResponse,
+    rustArcDecrementStrongCountPtr: YttriumDart
+        .instance.api.rust_arc_decrement_strong_count_StatusResponsePtr,
   );
 }
 
