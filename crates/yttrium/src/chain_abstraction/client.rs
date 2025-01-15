@@ -43,17 +43,23 @@ use {
         time::{Duration, Instant},
     },
 };
+use wasm_bindgen::prelude::*;
 
 #[derive(Clone)]
+#[wasm_bindgen(getter_with_clone)]
 pub struct Client {
     provider_pool: ProviderPool,
 }
 
+#[wasm_bindgen]
 impl Client {
+
+    #[wasm_bindgen(constructor)]
     pub fn new(project_id: ProjectId) -> Self {
         Self { provider_pool: ProviderPool::new(project_id) }
     }
 
+    #[wasm_bindgen]
     pub async fn prepare(
         &self,
         chain_id: String,
