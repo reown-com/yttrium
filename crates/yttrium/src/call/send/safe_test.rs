@@ -3,16 +3,15 @@ use {
         bundler::{
             client::BundlerClient,
             config::BundlerConfig,
-            models::user_operation_receipt::UserOperationReceipt,
             pimlico::{
                 client::BundlerClient as PimlicoBundlerClient,
                 paymaster::client::PaymasterClient,
             },
         },
+        call::Call,
         chain::ChainId,
         config::Config,
         entry_point::{EntryPointVersion, ENTRYPOINT_ADDRESS_V07},
-        execution::Execution,
         smart_accounts::{
             account_address::AccountAddress,
             nonce::get_nonce,
@@ -29,8 +28,12 @@ use {
     alloy::{
         dyn_abi::{DynSolValue, Eip712Domain},
         network::Ethereum,
-        primitives::{aliases::U48, Uint, B256, U160, U256},
+        primitives::{
+            aliases::U48, Address, PrimitiveSignature, Uint, B256, U160, U256,
+            U64,
+        },
         providers::{Provider, ReqwestProvider},
+        rpc::types::UserOperationReceipt,
         signers::{k256::ecdsa::SigningKey, local::LocalSigner, SignerSync},
         sol_types::{SolCall, SolStruct},
         transports::Transport,
@@ -88,7 +91,7 @@ pub async fn get_address(
 }
 
 pub async fn send_transactions(
-    execution_calldata: Vec<Execution>,
+    execution_calldata: Vec<Call>,
     owner: LocalSigner<SigningKey>,
     address: Option<AccountAddress>,
     authorization_list: Option<Vec<Authorization>>,
@@ -124,7 +127,7 @@ pub async fn send_transactions(
     println!("Querying for receipts...");
 
     let bundler_client = BundlerClient::new(BundlerConfig::new(
-        config.endpoints.bundler.base_url.clone(),
+        config.endpoints.bundler.base_url.parse()?,
     ));
     let receipt = bundler_client
         .wait_for_user_operation_receipt(user_operation_hash)
@@ -171,14 +174,14 @@ pub struct DoSendTransactionParams {
 }
 
 pub async fn prepare_send_transactions(
-    execution_calldata: Vec<Execution>,
+    calls: Vec<Call>,
     owner: Address,
     address: Option<AccountAddress>,
     authorization_list: Option<Vec<Authorization>>,
     config: Config,
 ) -> eyre::Result<PreparedSendTransaction> {
     let pimlico_client = PimlicoBundlerClient::new(BundlerConfig::new(
-        config.endpoints.bundler.base_url.clone(),
+        config.endpoints.bundler.base_url.parse()?,
     ));
 
     let provider = ReqwestProvider::<Ethereum>::new_http(
@@ -186,14 +189,14 @@ pub async fn prepare_send_transactions(
     );
 
     let paymaster_client = PaymasterClient::new(BundlerConfig::new(
-        config.endpoints.paymaster.base_url.clone(),
+        config.endpoints.paymaster.base_url.parse()?,
     ));
 
     let gas_price = pimlico_client.estimate_user_operation_gas_price().await?;
     assert!(gas_price.fast.max_fee_per_gas > U256::from(1));
 
     prepare_send_transactions_inner(
-        execution_calldata,
+        calls,
         Owners { owners: vec![owner], threshold: 1 },
         address,
         authorization_list,
@@ -207,7 +210,7 @@ pub async fn prepare_send_transactions(
 
 #[allow(clippy::too_many_arguments)]
 pub async fn prepare_send_transactions_inner<P, T, N>(
-    execution_calldata: Vec<Execution>,
+    calls: Vec<Call>,
     owners: Owners,
     address: Option<AccountAddress>,
     authorization_list: Option<Vec<Authorization>>,
@@ -248,7 +251,7 @@ where
             == U256::from(U160::from_be_bytes(
                 SAFE_SINGLETON_1_4_1.into_array(),
             )) {
-        get_call_data(execution_calldata)
+        get_call_data(calls)
     } else {
         // Note about using `try` mode for get_call_data & needing to check
         // storage above. This is due to an issue in the Safe7579Launchpad
@@ -266,7 +269,7 @@ where
                 setupTo: SAFE_ERC_7579_LAUNCHPAD_ADDRESS,
                 setupData: init_data().abi_encode().into(),
                 safe7579: SAFE_4337_MODULE_ADDRESS,
-                callData: get_call_data_with_try(execution_calldata, true),
+                callData: get_call_data_with_try(calls, true),
                 validators: vec![],
             },
         }
@@ -367,8 +370,6 @@ where
     })
 }
 
-use alloy::primitives::U64;
-pub use alloy::primitives::{Address, PrimitiveSignature};
 #[derive(Clone)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
 pub struct OwnerSignature {
@@ -432,7 +433,7 @@ pub async fn do_send_transactions(
     let entry_point_config = chain.entry_point_config();
     let entry_point_address = entry_point_config.address();
     let bundler_client = BundlerClient::new(BundlerConfig::new(
-        config.endpoints.bundler.base_url.clone(),
+        config.endpoints.bundler.base_url.parse()?,
     ));
     let user_operation_hash = bundler_client
         .send_user_operation(entry_point_address, user_op.clone())
@@ -448,8 +449,8 @@ mod tests {
     use {
         super::*,
         crate::{
+            call::Call,
             chain::ChainId,
-            execution::Execution,
             smart_accounts::safe::{
                 prepare_sign, sign, sign_step_3, PreparedSignature,
                 SignOutputEnum,
@@ -492,10 +493,10 @@ mod tests {
         )
         .await;
 
-        let transaction = vec![Execution {
+        let transaction = vec![Call {
             to: destination.address(),
             value: Uint::from(1),
-            data: Bytes::new(),
+            input: Bytes::new(),
         }];
 
         let receipt = send_transactions(
@@ -511,10 +512,10 @@ mod tests {
         let balance = provider.get_balance(destination.address()).await?;
         assert_eq!(balance, Uint::from(1));
 
-        let transaction = vec![Execution {
+        let transaction = vec![Call {
             to: destination.address(),
             value: Uint::from(1),
-            data: Bytes::new(),
+            input: Bytes::new(),
         }];
 
         let receipt =
@@ -528,7 +529,10 @@ mod tests {
     }
 
     async fn anvil_faucet(config: Config) -> LocalSigner<SigningKey> {
-        test_helpers::anvil_faucet(config.endpoints.rpc.base_url).await
+        test_helpers::anvil_faucet(&ReqwestProvider::new_http(
+            config.endpoints.rpc.base_url.parse().unwrap(),
+        ))
+        .await
     }
 
     #[tokio::test]
@@ -585,10 +589,10 @@ mod tests {
         )
         .await;
 
-        let transaction = vec![Execution {
+        let transaction = vec![Call {
             to: destination.address(),
             value: Uint::from(1),
-            data: Bytes::new(),
+            input: Bytes::new(),
         }];
 
         let receipt = send_transactions(
@@ -626,10 +630,10 @@ mod tests {
         )
         .await;
 
-        let transaction = vec![Execution {
+        let transaction = vec![Call {
             to: destination.address(),
             value: Uint::from(1),
-            data: Bytes::new(),
+            input: Bytes::new(),
         }];
 
         let receipt = send_transactions(transaction, owner, None, None, config)
@@ -669,10 +673,10 @@ mod tests {
         )
         .await;
 
-        let transaction = vec![Execution {
+        let transaction = vec![Call {
             to: destination.address(),
             value: Uint::from(1),
-            data: Bytes::new(),
+            input: Bytes::new(),
         }];
 
         let receipt = send_transactions(
@@ -799,15 +803,15 @@ mod tests {
         .await;
 
         let transaction = vec![
-            Execution {
+            Call {
                 to: destination1.address(),
                 value: Uint::from(1),
-                data: Bytes::new(),
+                input: Bytes::new(),
             },
-            Execution {
+            Call {
                 to: destination2.address(),
                 value: Uint::from(2),
-                data: Bytes::new(),
+                input: Bytes::new(),
             },
         ];
 
@@ -1030,10 +1034,10 @@ mod tests {
             provider.get_balance(destination.address()).await.unwrap();
         assert_eq!(balance, Uint::from(0));
         let receipt = send_transactions(
-            vec![Execution {
+            vec![Call {
                 to: destination.address(),
                 value: Uint::from(1),
-                data: Bytes::new(),
+                input: Bytes::new(),
             }],
             owner.clone(),
             None,
@@ -1132,10 +1136,10 @@ mod tests {
         )
         .await;
 
-        let transaction = vec![Execution {
+        let transaction = vec![Call {
             to: destination.address(),
             value: Uint::from(1),
-            data: Bytes::new(),
+            input: Bytes::new(),
         }];
 
         let receipt = send_transactions(transaction, owner, None, None, config)
@@ -1224,10 +1228,10 @@ mod tests {
             provider.get_code_at(authority.address()).await?
         );
 
-        let transaction = vec![Execution {
+        let transaction = vec![Call {
             to: destination.address(),
             value: Uint::from(1),
-            data: Bytes::new(),
+            input: Bytes::new(),
         }];
 
         let receipt = send_transactions(
@@ -1377,10 +1381,10 @@ mod tests {
             provider.get_code_at(authority.address()).await?
         );
 
-        let transaction: Vec<_> = vec![Execution {
+        let transaction = vec![Call {
             to: destination.address(),
             value: Uint::from(1),
-            data: Bytes::new(),
+            input: Bytes::new(),
         }];
 
         let receipt = send_transactions(

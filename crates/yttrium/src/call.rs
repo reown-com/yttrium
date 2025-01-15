@@ -7,45 +7,46 @@ pub mod send;
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
-pub struct Execution {
+#[serde(rename_all = "camelCase")]
+pub struct Call {
     pub to: Address,
     pub value: U256,
-    pub data: Bytes,
+    pub input: Bytes,
 }
 
-impl Execution {
-    pub fn new(to: Address, value: U256, data: Bytes) -> Self {
-        Self { to, value, data }
+impl Call {
+    pub fn new(to: Address, value: U256, input: Bytes) -> Self {
+        Self { to, value, input }
     }
 
     pub fn new_from_strings(
         to: String,
         value: String,
-        data: String,
+        input: String,
     ) -> eyre::Result<Self> {
         let to = to.parse()?;
         let value = value.parse()?;
-        let data = data.parse()?;
-        Ok(Self { to, value, data })
+        let input = input.parse()?;
+        Ok(Self { to, value, input })
     }
 }
 
-impl std::fmt::Display for Execution {
+impl std::fmt::Display for Call {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "Transaction(to: {}, value: {}, data: {})",
-            self.to, self.value, self.data
+            "Transaction(to: {}, value: {}, input: {})",
+            self.to, self.value, self.input
         )
     }
 }
 
-impl Execution {
+impl Call {
     pub fn mock() -> Self {
         Self {
             to: address!("d8dA6BF26964aF9D7eEd9e03E53415D37aA96045"),
             value: U256::ZERO,
-            data: "0x68656c6c6f".parse().unwrap(),
+            input: "0x68656c6c6f".parse().unwrap(),
         }
     }
 }
@@ -56,9 +57,9 @@ mod tests {
 
     #[test]
     fn test_new_from_strings() -> eyre::Result<()> {
-        let expected_transaction = Execution::mock();
+        let expected_transaction = Call::mock();
 
-        let transaction = Execution::new_from_strings(
+        let transaction = Call::new_from_strings(
             "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045".to_string(),
             "0".to_string(),
             "0x68656c6c6f".to_string(),

@@ -1,6 +1,6 @@
 services:
   anvil:
-    image: ghcr.io/foundry-rs/foundry:nightly-f922a340dae8e347d573fc6a403694bcb7fea106
+    image: ghcr.io/foundry-rs/foundry:nightly-5e72c69e8414ec7b535eedb357e9b6db3e312b62
     restart: unless-stopped
     ports: ["8545:8545"]
     entrypoint: [ "anvil", "--fork-url", "https://gateway.tenderly.co/public/sepolia", "--host", "0.0.0.0", "--block-time", "0.1", "--gas-price", "1", "--silent", "--hardfork", "prague" ]

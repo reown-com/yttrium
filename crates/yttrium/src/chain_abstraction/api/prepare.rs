@@ -1,6 +1,6 @@
 use {
-    super::{InitialTransaction, Transaction},
-    crate::chain_abstraction::amount::Amount,
+    super::Transaction,
+    crate::{call::Call, chain_abstraction::amount::Amount},
     alloy::primitives::{utils::Unit, Address, U256},
     relay_rpc::domain::ProjectId,
     serde::{Deserialize, Serialize},
@@ -16,7 +16,38 @@ pub struct RouteQueryParams {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PrepareRequest {
-    pub transaction: InitialTransaction,
+    pub transaction: PrepareRequestTransaction,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PrepareRequestTransaction {
+    pub chain_id: String,
+    pub from: Address,
+    #[serde(flatten)]
+    pub calls: CallOrCalls,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum CallOrCalls {
+    Call {
+        #[serde(flatten)]
+        call: Call,
+    },
+    // Don't use this yet until Blockchain API upgrades
+    Calls {
+        calls: Vec<Call>,
+    },
+}
+
+impl CallOrCalls {
+    pub fn into_calls(self) -> Vec<Call> {
+        match self {
+            Self::Call { call } => vec![call],
+            Self::Calls { calls } => calls,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -161,5 +192,99 @@ impl PrepareResponse {
             Self::Success(success) => Ok(success),
             Self::Error(error) => Err(error),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use {super::*, alloy::primitives::Bytes};
+
+    #[test]
+    fn deserializes_current_request_body() {
+        let chain_id = "eip155:1";
+        let from = Address::ZERO;
+        let to = Address::ZERO;
+        let value = U256::from(0);
+        let input = Bytes::new();
+        let json = serde_json::json!({
+            "transaction": {
+                "chainId": chain_id,
+                "from": from,
+                "to": to,
+                "value": value,
+                "input": input,
+            }
+        });
+        let result = serde_json::from_value::<PrepareRequest>(json).unwrap();
+        assert_eq!(result.transaction.chain_id, chain_id);
+        assert_eq!(result.transaction.from, from);
+        assert!(matches!(result.transaction.calls, CallOrCalls::Call { .. }));
+        let calls = result.transaction.calls.into_calls();
+        assert_eq!(calls.len(), 1);
+        assert_eq!(calls[0].to, to);
+        assert_eq!(calls[0].value, value);
+        assert_eq!(calls[0].input, input);
+    }
+
+    #[test]
+    fn deserializes_single_call() {
+        let chain_id = "eip155:1";
+        let from = Address::ZERO;
+        let to = Address::ZERO;
+        let value = U256::from(0);
+        let input = Bytes::new();
+        let json = serde_json::json!({
+            "transaction": {
+                "chainId": chain_id,
+                "from": from,
+                "calls": [{
+                    "to": to,
+                    "value": value,
+                    "input": input,
+                }]
+            }
+        });
+        let result = serde_json::from_value::<PrepareRequest>(json).unwrap();
+        assert_eq!(result.transaction.chain_id, chain_id);
+        assert_eq!(result.transaction.from, from);
+        assert!(matches!(result.transaction.calls, CallOrCalls::Calls { .. }));
+        let calls = result.transaction.calls.into_calls();
+        assert_eq!(calls.len(), 1);
+        assert_eq!(calls[0].to, to);
+        assert_eq!(calls[0].value, value);
+        assert_eq!(calls[0].input, input);
+    }
+
+    #[test]
+    fn deserializes_multiple_calls() {
+        let chain_id = "eip155:1";
+        let from = Address::ZERO;
+        let to = Address::ZERO;
+        let value = U256::from(0);
+        let input = Bytes::new();
+        let json = serde_json::json!({
+            "transaction": {
+                "chainId": chain_id,
+                "from": from,
+                "calls": [{
+                    "to": to,
+                    "value": value,
+                    "input": input,
+                }, {
+                    "to": to,
+                    "value": value,
+                    "input": input,
+                }]
+            }
+        });
+        let result = serde_json::from_value::<PrepareRequest>(json).unwrap();
+        assert_eq!(result.transaction.chain_id, chain_id);
+        assert_eq!(result.transaction.from, from);
+        assert!(matches!(result.transaction.calls, CallOrCalls::Calls { .. }));
+        let calls = result.transaction.calls.into_calls();
+        assert_eq!(calls.len(), 2);
+        assert_eq!(calls[0].to, to);
+        assert_eq!(calls[0].value, value);
+        assert_eq!(calls[0].input, input);
     }
 }

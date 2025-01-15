@@ -1,19 +1,19 @@
 use {
     crate::{
         bundler::pimlico::paymaster::client::PaymasterClient,
-        entry_point::{
-            EntryPoint::{self, PackedUserOperation},
-            ENTRYPOINT_ADDRESS_V07,
-        },
-        erc7579::addresses::RHINESTONE_ATTESTER_ADDRESS,
-        execution::{
+        call::{
             send::safe_test::{
                 encode_send_transactions, prepare_send_transactions_inner,
                 DoSendTransactionParams, OwnerSignature,
                 PreparedSendTransaction,
             },
-            Execution,
+            Call,
         },
+        entry_point::{
+            EntryPoint::{self, PackedUserOperation},
+            ENTRYPOINT_ADDRESS_V07,
+        },
+        erc7579::addresses::RHINESTONE_ATTESTER_ADDRESS,
         smart_accounts::account_address::AccountAddress,
         user_operation::{
             hash::pack_v07::{
@@ -107,6 +107,7 @@ sol! {
 
 sol!(
     #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+    #[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
     struct SafeOp {
         address safe;
         uint256 nonce;
@@ -320,15 +321,12 @@ where
     SAFE_PROXY_FACTORY_1_4_1.create2(salt, keccak256(deployment_code)).into()
 }
 
-pub fn get_call_data(execution_calldata: Vec<Execution>) -> Bytes {
-    get_call_data_with_try(execution_calldata, false)
+pub fn get_call_data(calls: Vec<Call>) -> Bytes {
+    get_call_data_with_try(calls, false)
 }
 
-pub fn get_call_data_with_try(
-    execution_calldata: Vec<Execution>,
-    exec_type: bool,
-) -> Bytes {
-    let batch = execution_calldata.len() != 1;
+pub fn get_call_data_with_try(calls: Vec<Call>, exec_type: bool) -> Bytes {
+    let batch = calls.len() != 1;
     let selector = [0u8; 4];
     let context = [0u8; 22];
 
@@ -341,11 +339,9 @@ pub fn get_call_data_with_try(
     ])
     .abi_encode_packed();
 
-    let execution_calldata = encode_calls(execution_calldata);
-
     Safe7579::executeCall {
         mode: FixedBytes::from_slice(&mode),
-        executionCalldata: execution_calldata,
+        executionCalldata: encode_calls(calls),
     }
     .abi_encode()
     .into()
@@ -355,9 +351,9 @@ sol! {
     function executionBatch((address, uint256, bytes)[]);
 }
 
-fn encode_calls(calls: Vec<Execution>) -> Bytes {
-    fn call(call: Execution) -> (Address, U256, Bytes) {
-        (call.to, call.value, call.data)
+fn encode_calls(calls: Vec<Call>) -> Bytes {
+    fn call(call: Call) -> (Address, U256, Bytes) {
+        (call.to, call.value, call.input)
     }
 
     let tuples = calls.into_iter().map(call).collect::<Vec<_>>();
@@ -622,10 +618,10 @@ mod tests {
     #[test]
     fn single_execution_call_data_value() {
         assert_eq!(
-            encode_calls(vec![Execution {
+            encode_calls(vec![Call {
                 to: address!("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
                 value: U256::from(19191919),
-                data: bytes!(""),
+                input: bytes!(""),
             }]),
             bytes!("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa000000000000000000000000000000000000000000000000000000000124d86f")
         );
@@ -634,10 +630,10 @@ mod tests {
     #[test]
     fn single_execution_call_data_data() {
         assert_eq!(
-            encode_calls(vec![Execution {
+            encode_calls(vec![Call {
                 to: address!("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
                 value: U256::ZERO,
-                data: bytes!("7777777777777777"),
+                input: bytes!("7777777777777777"),
             }]),
             bytes!("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa00000000000000000000000000000000000000000000000000000000000000007777777777777777")
         );
@@ -646,14 +642,14 @@ mod tests {
     #[test]
     fn two_execution_call_data() {
         assert_eq!(
-            encode_calls(vec![Execution {
+            encode_calls(vec![Call {
                 to: address!("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
                 value: U256::from(19191919),
-                data: bytes!(""),
-            }, Execution {
+                input: bytes!(""),
+            }, Call {
                 to: address!("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
                 value: U256::ZERO,
-                data: bytes!("7777777777777777"),
+                input: bytes!("7777777777777777"),
             }]),
             bytes!("00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000c0000000000000000000000000aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa000000000000000000000000000000000000000000000000000000000124d86f00000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000000000000000000000000000000aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000087777777777777777000000000000000000000000000000000000000000000000")
         );
@@ -667,10 +663,10 @@ mod tests {
     #[test]
     fn single_call_data_value() {
         assert_eq!(
-            get_call_data(vec![Execution {
+            get_call_data(vec![Call {
                 to: address!("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
                 value: U256::from(19191919),
-                data: bytes!(""),
+                input: bytes!(""),
             }]),
             bytes!("e9ae5c53000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000034aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa000000000000000000000000000000000000000000000000000000000124d86f000000000000000000000000")
         );
@@ -679,10 +675,10 @@ mod tests {
     #[test]
     fn single_call_data_data() {
         assert_eq!(
-            get_call_data(vec![Execution {
+            get_call_data(vec![Call {
                 to: address!("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
                 value: U256::ZERO,
-                data: bytes!("7777777777777777"),
+                input: bytes!("7777777777777777"),
             }]),
             bytes!("e9ae5c5300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000003caaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa0000000000000000000000000000000000000000000000000000000000000000777777777777777700000000")
         );
@@ -691,14 +687,14 @@ mod tests {
     #[test]
     fn two_call_data() {
         assert_eq!(
-            get_call_data(vec![Execution {
+            get_call_data(vec![Call {
                 to: address!("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
                 value: U256::from(19191919),
-                data: bytes!(""),
-            }, Execution {
+                input: bytes!(""),
+            }, Call {
                 to: address!("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
                 value: U256::ZERO,
-                data: bytes!("7777777777777777"),
+                input: bytes!("7777777777777777"),
             }]),
             bytes!("e9ae5c530100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000001a000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000c0000000000000000000000000aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa000000000000000000000000000000000000000000000000000000000124d86f00000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000000000000000000000000000000aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000087777777777777777000000000000000000000000000000000000000000000000")
         );

@@ -4,8 +4,8 @@ use {
     alloy::{
         network::Ethereum,
         primitives::{
-            Bytes as FFIBytes, Uint, U128 as FFIU128, U256 as FFIU256,
-            U64 as FFIU64,
+            Address as FFIAddress, Bytes as FFIBytes, Uint, U128 as FFIU128,
+            U256 as FFIU256, U64 as FFIU64,
         },
         providers::{Provider, ReqwestProvider},
         sol_types::SolStruct,
@@ -14,24 +14,23 @@ use {
     std::time::Duration,
     yttrium::{
         account_client::AccountClient as YAccountClient,
+        call::{
+            send::safe_test::{
+                self, DoSendTransactionParams, OwnerSignature,
+                PreparedSendTransaction,
+            },
+            Call,
+        },
         chain_abstraction::{
             api::{
                 prepare::{PrepareResponse, PrepareResponseAvailable},
                 status::{StatusResponse, StatusResponseCompleted},
-                InitialTransaction,
             },
             client::Client,
             currency::Currency,
             ui_fields::UiFields,
         },
         config::Config,
-        execution::{
-            send::safe_test::{
-                self, Address as FFIAddress, DoSendTransactionParams,
-                OwnerSignature, PreparedSendTransaction,
-            },
-            Execution,
-        },
         smart_accounts::{
             account_address::AccountAddress as FfiAccountAddress,
             safe::{SignOutputEnum, SignStep3Params},
@@ -127,10 +126,12 @@ impl ChainAbstractionClient {
 
     pub async fn prepare(
         &self,
-        initial_transaction: InitialTransaction,
+        chain_id: String,
+        from: FFIAddress,
+        call: Call,
     ) -> Result<PrepareResponse, FFIError> {
         self.client
-            .prepare(initial_transaction)
+            .prepare(chain_id, from, call)
             .await
             .map_err(|e| FFIError::General(e.to_string()))
     }
@@ -143,7 +144,6 @@ impl ChainAbstractionClient {
         self.client
             .get_ui_fields(route_response, currency)
             .await
-            .map(Into::into)
             .map_err(|e| FFIError::General(e.to_string()))
     }
 
@@ -262,7 +262,7 @@ impl FFIAccountClient {
 
     pub async fn prepare_send_transactions(
         &self,
-        transactions: Vec<Execution>,
+        transactions: Vec<Call>,
     ) -> Result<PreparedSendTransaction, FFIError> {
         self.account_client
             .prepare_send_transactions(transactions)

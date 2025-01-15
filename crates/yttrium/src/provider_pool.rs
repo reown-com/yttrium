@@ -42,6 +42,10 @@ impl ProviderPool {
         self
     }
 
+    pub fn set_rpc_overrides(&mut self, rpc_overrides: HashMap<String, Url>) {
+        self.rpc_overrides = rpc_overrides;
+    }
+
     pub async fn get_provider(&self, chain_id: &str) -> ReqwestProvider {
         let providers = self.providers.read().await;
         if let Some(provider) = providers.get(chain_id) {
@@ -55,6 +59,7 @@ impl ProviderPool {
                 rpc_override
             } else {
                 // TODO use universal version: https://linear.app/reown/issue/RES-142/universal-provider-router
+                // TODO i.e. checking if chain is supported ahead of time? - but if we support "all" chains then maybe this is a moot point
                 let mut url = self
                     .blockchain_api_base_url
                     .join(PROXY_ENDPOINT_PATH)

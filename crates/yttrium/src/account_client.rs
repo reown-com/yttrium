@@ -2,11 +2,9 @@ use {
     crate::{
         bundler::{
             client::BundlerClient, config::BundlerConfig,
-            models::user_operation_receipt::UserOperationReceipt,
             pimlico::paymaster::client::PaymasterClient,
         },
-        config::Config,
-        execution::{
+        call::{
             send::{
                 do_send_transactions, prepare_send_transaction,
                 safe_test::{
@@ -14,8 +12,9 @@ use {
                     PreparedSendTransaction,
                 },
             },
-            Execution,
+            Call,
         },
+        config::Config,
         smart_accounts::{
             account_address::AccountAddress,
             safe::{
@@ -28,6 +27,7 @@ use {
         network::Ethereum,
         primitives::{Bytes, B256, U256, U64},
         providers::ReqwestProvider,
+        rpc::types::UserOperationReceipt,
     },
 };
 
@@ -96,10 +96,10 @@ impl AccountClient {
 
     pub async fn prepare_send_transactions(
         &self,
-        transactions: Vec<Execution>,
+        calls: Vec<Call>,
     ) -> eyre::Result<PreparedSendTransaction> {
         prepare_send_transaction(
-            transactions,
+            calls,
             self.owner,
             self.chain_id,
             self.config.clone(),
@@ -127,10 +127,9 @@ impl AccountClient {
     ) -> eyre::Result<UserOperationReceipt> {
         println!("Querying for receipts...");
 
-        let bundler_base_url = self.config.clone().endpoints.bundler.base_url;
-
-        let bundler_client =
-            BundlerClient::new(BundlerConfig::new(bundler_base_url.clone()));
+        let bundler_client = BundlerClient::new(BundlerConfig::new(
+            self.config.endpoints.bundler.base_url.parse()?,
+        ));
         let receipt = bundler_client
             .wait_for_user_operation_receipt(user_operation_hash)
             .await?;

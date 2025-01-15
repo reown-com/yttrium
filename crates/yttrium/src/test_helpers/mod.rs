@@ -1,6 +1,6 @@
 use {
     alloy::{
-        network::{Ethereum, EthereumWallet, TransactionBuilder},
+        network::{EthereumWallet, TransactionBuilder},
         primitives::{keccak256, Address, U256},
         rpc::types::TransactionRequest,
         signers::{k256::ecdsa::SigningKey, local::LocalSigner},
@@ -8,7 +8,6 @@ use {
     alloy_provider::{
         ext::AnvilApi, Provider, ProviderBuilder, ReqwestProvider,
     },
-    reqwest::IntoUrl,
     std::time::{Duration, Instant},
 };
 
@@ -40,10 +39,10 @@ pub fn use_account(name: Option<&str>) -> LocalSigner<SigningKey> {
     builder.build().unwrap()
 }
 
-pub async fn anvil_faucet<T: IntoUrl>(url: T) -> LocalSigner<SigningKey> {
+pub async fn anvil_faucet(
+    provider: &ReqwestProvider,
+) -> LocalSigner<SigningKey> {
     let faucet = LocalSigner::random();
-    let provider =
-        ReqwestProvider::<Ethereum>::new_http(url.into_url().unwrap());
     provider.anvil_set_balance(faucet.address(), U256::MAX).await.unwrap();
     faucet
 }

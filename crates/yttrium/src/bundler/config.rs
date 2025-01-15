@@ -1,13 +1,15 @@
+use reqwest::Url;
+
 pub struct BundlerConfig {
-    url: String,
+    url: Url,
 }
 
 impl BundlerConfig {
-    pub fn new(url: String) -> Self {
+    pub fn new(url: Url) -> Self {
         BundlerConfig { url }
     }
 
-    pub fn url(&self) -> String {
+    pub fn url(&self) -> Url {
         self.url.clone()
     }
 }

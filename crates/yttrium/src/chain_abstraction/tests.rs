@@ -1,5 +1,6 @@
 use {
     crate::{
+        call::Call,
         chain_abstraction::{
             amount::Amount,
             api::{
@@ -7,7 +8,7 @@ use {
                     BridgingError, PrepareResponse, PrepareResponseError,
                 },
                 status::StatusResponse,
-                InitialTransaction, Transaction,
+                Transaction,
             },
             client::Client,
             currency::Currency,
@@ -54,6 +55,8 @@ const USDC_CONTRACT_BASE: Address =
     address!("833589fCD6eDb6E08f4c7C32D4f71b54bdA02913");
 const USDC_CONTRACT_ARBITRUM: Address =
     address!("af88d065e77c8cC2239327C5EDb3A432268e5831");
+
+const TOPOFF: f64 = 1.55; // 50% in the server
 
 #[derive(Debug, Clone, PartialEq, Eq, Copy)]
 enum Chain {
@@ -337,7 +340,7 @@ async fn bridging_routes_routes_available() {
     let send_amount = U256::from(1_500_000); // 1.5 USDC (6 decimals)
 
     // let required_amount =
-    //     U256::from((send_amount.to::<u128>() as f64 * 1.05) as u128);
+    //     U256::from((send_amount.to::<u128>() as f64 * TOPOFF) as u128);
     let required_amount = {
         let erc20_topup_value = send_amount;
         // Multiply the topup value by the bridging percent multiplier and get
@@ -355,7 +358,7 @@ async fn bridging_routes_routes_available() {
     println!("required_amount: {required_amount}");
 
     if current_balance < required_amount {
-        assert!(required_amount < U256::from(2000000));
+        assert!(required_amount < U256::from(4000000));
         println!(
                 "using token faucet {} on chain {} for amount {current_balance} on token {:?} ({}). Send tokens to faucet at: {}",
                 faucet.address(),
@@ -382,8 +385,7 @@ async fn bridging_routes_routes_available() {
     }
     assert!(chain_1_address_1_token.token_balance().await >= required_amount);
 
-    let transaction = InitialTransaction {
-        from: source.address(),
+    let transaction = Call {
         to: *chain_2_address_1_token.token.address(),
         value: U256::ZERO,
         input: ERC20::transferCall {
@@ -392,7 +394,6 @@ async fn bridging_routes_routes_available() {
         }
         .abi_encode()
         .into(),
-        chain_id: chain_2.eip155_chain_id().to_owned(),
     };
     println!("input transaction: {:?}", transaction);
 
@@ -400,7 +401,11 @@ async fn bridging_routes_routes_available() {
     let client = Client::new(project_id);
     let start = Instant::now();
     let mut result = client
-        .prepare(transaction.clone())
+        .prepare(
+            chain_2.eip155_chain_id().to_owned(),
+            source.address(),
+            transaction.clone(),
+        )
         .await
         .unwrap()
         .into_result()
@@ -682,7 +687,7 @@ async fn happy_path() {
 
     let send_amount = U256::from(1_500_000); // 1.5 USDC (6 decimals)
     let required_amount =
-        U256::from((send_amount.to::<u128>() as f64 * 1.05) as u128);
+        U256::from((send_amount.to::<u128>() as f64 * TOPOFF) as u128);
 
     let chain_1_balance = chain_1_address_1_token.token_balance().await;
     let chain_2_balance = chain_2_address_2_token.token_balance().await;
@@ -698,7 +703,7 @@ async fn happy_path() {
     println!("source: {:?}", source);
 
     if faucet_required {
-        assert!(required_amount < U256::from(2000000));
+        assert!(required_amount < U256::from(4000000));
         println!(
             "using token faucet {} on chain {} for amount {required_amount} on token {:?} ({}). Send tokens to faucet at: {}",
             faucet.address(),
@@ -725,8 +730,7 @@ async fn happy_path() {
     }
     assert!(source.token_balance(&sources).await >= required_amount);
 
-    let initial_transaction = InitialTransaction {
-        from: source.address(&sources),
+    let initial_transaction = Call {
         to: *source.other().bridge_token(&sources).token.address(),
         value: U256::ZERO,
         input: ERC20::transferCall {
@@ -735,20 +739,23 @@ async fn happy_path() {
         }
         .abi_encode()
         .into(),
-        chain_id: source
-            .other()
-            .bridge_token(&sources)
-            .params
-            .chain
-            .eip155_chain_id()
-            .to_owned(),
     };
     println!("input transaction: {:?}", initial_transaction);
 
     let project_id = std::env::var("REOWN_PROJECT_ID").unwrap().into();
     let client = Client::new(project_id);
     let mut result = client
-        .prepare(initial_transaction.clone())
+        .prepare(
+            source
+                .other()
+                .bridge_token(&sources)
+                .params
+                .chain
+                .eip155_chain_id()
+                .to_owned(),
+            source.address(&sources),
+            initial_transaction.clone(),
+        )
         .await
         .unwrap()
         .into_result()
@@ -845,7 +852,7 @@ async fn happy_path() {
             .as_float_inaccurate();
     println!("ui_bridge_fee: {ui_bridge_fee}");
     println!("send_amount_amount: {send_amount_amount}");
-    assert!(ui_bridge_fee / send_amount_amount < 0.25, "ui_bridge_fee {ui_bridge_fee} must be less than the amount being sent {send_amount_amount}");
+    assert!(ui_bridge_fee / send_amount_amount < 0.05, "ui_bridge_fee {ui_bridge_fee} must be less than the amount being sent {send_amount_amount}");
 
     for ((chain_id, address), total_fee) in total_fees {
         let provider =
@@ -1240,7 +1247,7 @@ async fn happy_path_full_dependency_on_ui_fields() {
 
     let send_amount = U256::from(1_500_000); // 1.5 USDC (6 decimals)
     let required_amount =
-        U256::from((send_amount.to::<u128>() as f64 * 1.05) as u128);
+        U256::from((send_amount.to::<u128>() as f64 * TOPOFF) as u128);
 
     let chain_1_balance = chain_1_address_1_token.token_balance().await;
     let chain_2_balance = chain_2_address_2_token.token_balance().await;
@@ -1256,7 +1263,7 @@ async fn happy_path_full_dependency_on_ui_fields() {
     println!("source: {:?}", source);
 
     if faucet_required {
-        assert!(required_amount < U256::from(2000000));
+        assert!(required_amount < U256::from(4000000));
         println!(
             "using token faucet {} on chain {} for amount {required_amount} on token {:?} ({}). Send tokens to faucet at: {}",
             faucet.address(),
@@ -1283,8 +1290,7 @@ async fn happy_path_full_dependency_on_ui_fields() {
     }
     assert!(source.token_balance(&sources).await >= required_amount);
 
-    let initial_transaction = InitialTransaction {
-        from: source.address(&sources),
+    let initial_transaction = Call {
         to: *source.other().bridge_token(&sources).token.address(),
         value: U256::ZERO,
         input: ERC20::transferCall {
@@ -1293,20 +1299,25 @@ async fn happy_path_full_dependency_on_ui_fields() {
         }
         .abi_encode()
         .into(),
-        chain_id: source
-            .other()
-            .bridge_token(&sources)
-            .params
-            .chain
-            .eip155_chain_id()
-            .to_owned(),
     };
     println!("input transaction: {:?}", initial_transaction);
+
+    let initial_transaction_chain_id = source
+        .other()
+        .bridge_token(&sources)
+        .params
+        .chain
+        .eip155_chain_id()
+        .to_owned();
 
     let project_id = std::env::var("REOWN_PROJECT_ID").unwrap().into();
     let client = Client::new(project_id);
     let mut result = client
-        .prepare(initial_transaction.clone())
+        .prepare(
+            initial_transaction_chain_id.clone(),
+            source.address(&sources),
+            initial_transaction.clone(),
+        )
         .await
         .unwrap()
         .into_result()
@@ -1354,7 +1365,7 @@ async fn happy_path_full_dependency_on_ui_fields() {
         .unwrap()
         .to_amount()
         .formatted
-        .starts_with("1.5"));
+        .starts_with("2.26"));
     assert!(result
         .metadata
         .funding_from
@@ -1508,7 +1519,7 @@ async fn happy_path_full_dependency_on_ui_fields() {
     println!("confirmed receipts in {:?}", approval_start.elapsed());
 
     let provider = provider_for_chain(&Chain::from_eip155_chain_id(
-        &initial_transaction.chain_id,
+        &initial_transaction_chain_id,
     ));
 
     let original = ui_fields.initial.transaction.into_transaction_request();
@@ -1647,8 +1658,7 @@ async fn bridging_routes_routes_insufficient_funds() {
 
     let send_amount = U256::from(1_500_000); // 1.5 USDC (6 decimals)
 
-    let transaction = InitialTransaction {
-        from: account_1.address(),
+    let transaction = Call {
         to: *chain_1_address_2_token.token.address(),
         value: U256::ZERO,
         input: ERC20::transferCall {
@@ -1657,13 +1667,19 @@ async fn bridging_routes_routes_insufficient_funds() {
         }
         .abi_encode()
         .into(),
-        chain_id: chain_1.eip155_chain_id().to_owned(),
     };
     println!("input transaction: {:?}", transaction);
 
     let project_id = std::env::var("REOWN_PROJECT_ID").unwrap().into();
     let client = Client::new(project_id);
-    let result = client.prepare(transaction.clone()).await.unwrap();
+    let result = client
+        .prepare(
+            chain_1.eip155_chain_id().to_owned(),
+            account_1.address(),
+            transaction.clone(),
+        )
+        .await
+        .unwrap();
     assert_eq!(
         result,
         PrepareResponse::Error(PrepareResponseError {
