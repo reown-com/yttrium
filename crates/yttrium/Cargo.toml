@@ -5,6 +5,9 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 
+[lib]
+crate-type = ["cdylib"]
+
 [features]
 full = ["uniffi"]
 uniffi = ["dep:uniffi", "dep:uniffi_macros"]
@@ -28,6 +31,7 @@ alloy = { workspace = true, features = [
 alloy-provider = { workspace = true, features = ["erc4337-api"] }
 erc6492.workspace = true
 relay_rpc.workspace = true
+wasm-bindgen = "0.2"
 
 # foundry-block-explorers = "0.2.3"
 getrandom = { version = "0.2", features = ["js"], default-features = false }
