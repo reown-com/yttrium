@@ -8,52 +8,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'lib.freezed.dart';
 
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `from`
-
-// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<AccountAddress>>
-abstract class AccountAddress implements RustOpaqueInterface {}
-
-// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<AccountClient>>
-abstract class AccountClient implements RustOpaqueInterface {
-  BigInt get chainId;
-
-  AccountAddress get ownerAddress;
-
-  set chainId(BigInt chainId);
-
-  set ownerAddress(AccountAddress ownerAddress);
-
-  Future<String> doSendTransactions(
-      {required List<OwnerSignature> signatures,
-      required DoSendTransactionParams doSendTransactionParams});
-
-  Future<SignOutputEnum> doSignMessage(
-      {required List<OwnerSignature> signatures});
-
-  Future<Uint8List> finalizeSignMessage(
-      {required List<OwnerSignature> signatures,
-      required SignStep3Params signStep3Params});
-
-  Future<String> getAddress();
-
-  Future<BigInt> getChainId();
-
-  // HINT: Make it `#[frb(sync)]` to let it become the default constructor of Dart class.
-  static Future<AccountClient> newInstance(
-          {required AccountAddress owner,
-          required BigInt chainId,
-          required Config config}) =>
-      YttriumDart.instance.api.crateAccountClientNew(
-          owner: owner, chainId: chainId, config: config);
-
-  Future<PreparedSendTransaction> prepareSendTransactions(
-      {required List<Call> transactions});
-
-  Future<PreparedSignature> prepareSignMessage({required String messageHash});
-
-  Future<String> waitForUserOperationReceipt(
-      {required String userOperationHash});
-}
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<Address>>
 abstract class Address implements RustOpaqueInterface {}
@@ -87,9 +42,9 @@ abstract class ChainAbstractionClient implements RustOpaqueInterface {
   Future<PrepareResponse> prepare(
       {required String chainId, required Address from, required Call call});
 
-  Future<StatusResponse> status({required String orchestrationId});
+  Future<FFIStatusResponse> status({required String orchestrationId});
 
-  Future<StatusResponseCompleted> waitForSuccessWithTimeout(
+  Future<FFIStatusResponseCompleted> waitForSuccessWithTimeout(
       {required String orchestrationId,
       required BigInt checkIn,
       required BigInt timeout});
@@ -103,6 +58,52 @@ abstract class Currency implements RustOpaqueInterface {}
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<DoSendTransactionParams>>
 abstract class DoSendTransactionParams implements RustOpaqueInterface {}
+
+// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<FFIAccountClient>>
+abstract class FfiAccountClient implements RustOpaqueInterface {
+  BigInt get chainId;
+
+  FfiAccountAddress get ownerAddress;
+
+  set chainId(BigInt chainId);
+
+  set ownerAddress(FfiAccountAddress ownerAddress);
+
+  Future<String> doSendTransactions(
+      {required List<OwnerSignature> signatures,
+      required DoSendTransactionParams doSendTransactionParams});
+
+  Future<SignOutputEnum> doSignMessage(
+      {required List<OwnerSignature> signatures});
+
+  Future<Uint8List> finalizeSignMessage(
+      {required List<OwnerSignature> signatures,
+      required SignStep3Params signStep3Params});
+
+  Future<String> getAddress();
+
+  Future<BigInt> getChainId();
+
+  // HINT: Make it `#[frb(sync)]` to let it become the default constructor of Dart class.
+  static Future<FfiAccountClient> newInstance(
+          {required FfiAccountAddress owner,
+          required BigInt chainId,
+          required Config config}) =>
+      YttriumDart.instance.api.crateFfiAccountClientNew(
+          owner: owner, chainId: chainId, config: config);
+
+  Future<PreparedSendTransaction> prepareSendTransactions(
+      {required List<Call> transactions});
+
+  Future<FfiPreparedSignature> prepareSignMessage(
+      {required String messageHash});
+
+  Future<String> waitForUserOperationReceipt(
+      {required String userOperationHash});
+}
+
+// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<FfiAccountAddress>>
+abstract class FfiAccountAddress implements RustOpaqueInterface {}
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<OwnerSignature>>
 abstract class OwnerSignature implements RustOpaqueInterface {}
@@ -121,12 +122,6 @@ abstract class SignOutputEnum implements RustOpaqueInterface {}
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<SignStep3Params>>
 abstract class SignStep3Params implements RustOpaqueInterface {}
-
-// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<StatusResponse>>
-abstract class StatusResponse implements RustOpaqueInterface {}
-
-// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<StatusResponseCompleted>>
-abstract class StatusResponseCompleted implements RustOpaqueInterface {}
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<UiFields>>
 abstract class UiFields implements RustOpaqueInterface {}
@@ -156,18 +151,18 @@ class Eip1559Estimation {
 }
 
 @freezed
-sealed class Error with _$Error implements FrbException {
-  const Error._();
+sealed class FFIError with _$FFIError implements FrbException {
+  const FFIError._();
 
-  const factory Error.general(
+  const factory FFIError.general(
     String field0,
-  ) = Error_General;
+  ) = FFIError_General;
 }
 
-class PreparedSignature {
+class FfiPreparedSignature {
   final String messageHash;
 
-  const PreparedSignature({
+  const FfiPreparedSignature({
     required this.messageHash,
   });
 
@@ -177,7 +172,105 @@ class PreparedSignature {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is PreparedSignature &&
+      other is FfiPreparedSignature &&
           runtimeType == other.runtimeType &&
           messageHash == other.messageHash;
+}
+
+class FFIStatusResponse {
+  final String status;
+  final FFIStatusResponseData? data;
+
+  const FFIStatusResponse({
+    required this.status,
+    this.data,
+  });
+
+  @override
+  int get hashCode => status.hashCode ^ data.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is FFIStatusResponse &&
+          runtimeType == other.runtimeType &&
+          status == other.status &&
+          data == other.data;
+}
+
+class FFIStatusResponseCompleted {
+  final BigInt createdAt;
+
+  const FFIStatusResponseCompleted({
+    required this.createdAt,
+  });
+
+  @override
+  int get hashCode => createdAt.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is FFIStatusResponseCompleted &&
+          runtimeType == other.runtimeType &&
+          createdAt == other.createdAt;
+}
+
+@freezed
+sealed class FFIStatusResponseData with _$FFIStatusResponseData {
+  const FFIStatusResponseData._();
+
+  const factory FFIStatusResponseData.pending(
+    FFIStatusResponsePending field0,
+  ) = FFIStatusResponseData_Pending;
+  const factory FFIStatusResponseData.completed(
+    FFIStatusResponseCompleted field0,
+  ) = FFIStatusResponseData_Completed;
+  const factory FFIStatusResponseData.error(
+    FFIStatusResponseError field0,
+  ) = FFIStatusResponseData_Error;
+}
+
+class FFIStatusResponseError {
+  final BigInt createdAt;
+  final String error;
+
+  const FFIStatusResponseError({
+    required this.createdAt,
+    required this.error,
+  });
+
+  @override
+  int get hashCode => createdAt.hashCode ^ error.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is FFIStatusResponseError &&
+          runtimeType == other.runtimeType &&
+          createdAt == other.createdAt &&
+          error == other.error;
+}
+
+class FFIStatusResponsePending {
+  final BigInt createdAt;
+
+  /// Polling interval in ms for the client
+  final BigInt checkIn;
+
+  const FFIStatusResponsePending({
+    required this.createdAt,
+    required this.checkIn,
+  });
+
+  @override
+  int get hashCode => createdAt.hashCode ^ checkIn.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is FFIStatusResponsePending &&
+          runtimeType == other.runtimeType &&
+          createdAt == other.createdAt &&
+          checkIn == other.checkIn;
 }
