@@ -68,7 +68,7 @@ jobs:
       - name: Strip binaries
         run: |
             NDK_PATH=$HOME/Library/Android/sdk/ndk/27.2.12479018
-            $NDK_PATH/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-strip target/${{ matrix.target }}/uniffi-release-next/libuniffi_yttrium.so
+            $NDK_PATH/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip target/${{ matrix.target }}/uniffi-release-next/libuniffi_yttrium.so
 
       - name: Prepare artifacts
         run: |
