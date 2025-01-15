@@ -393,6 +393,7 @@ pub fn prepare_sign(
 #[cfg_attr(feature = "uniffi", derive(uniffi::Enum))]
 pub enum SignOutputEnum {
     Signature(Bytes),
+    // renamed to `Object` to avoid conflicts: https://github.com/mozilla/uniffi-rs/issues/2402
     SignOutput(SignOutputObject),
 }
 
