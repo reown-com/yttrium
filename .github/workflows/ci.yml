@@ -31,7 +31,7 @@ jobs:
       - run: while ! curl localhost:4337/health; do sleep 1; done
       - run: while ! curl localhost:3000/ping; do sleep 1; done
       - run: cargo build --workspace --features=full --all-targets
-      - run: cargo build -p yttrium --lib --target wasm32-unknown-unknown
+      - run: cargo build -p yttrium --features=wasm --lib --target wasm32-unknown-unknown
       - run: cargo test --features=full --lib --bins
         env:
           REOWN_PROJECT_ID: ${{ vars.REOWN_PROJECT_ID }}

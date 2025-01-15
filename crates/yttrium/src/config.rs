@@ -1,18 +1,20 @@
 use {dotenvy::dotenv, std::env};
-use wasm_bindgen::prelude::*;
 
 pub const LOCAL_RPC_URL: &str = "http://localhost:8545";
 pub const LOCAL_BUNDLER_URL: &str = "http://localhost:4337";
 pub const LOCAL_PAYMASTER_URL: &str = "http://localhost:3000";
 
 #[derive(Clone, Debug, PartialEq)]
-#[wasm_bindgen(getter_with_clone)]
+#[cfg_attr(
+    feature = "wasm",
+    wasm_bindgen::prelude::wasm_bindgen(getter_with_clone)
+)]
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
 pub struct Config {
     pub endpoints: Endpoints,
 }
 
-#[wasm_bindgen]
+#[cfg_attr(feature = "wasm", wasm_bindgen::prelude::wasm_bindgen)]
 impl Config {
     pub fn local() -> Self {
         Config { endpoints: Endpoints::local() }
@@ -23,7 +25,10 @@ impl Config {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-#[wasm_bindgen(getter_with_clone)]
+#[cfg_attr(
+    feature = "wasm",
+    wasm_bindgen::prelude::wasm_bindgen(getter_with_clone)
+)]
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
 pub struct Endpoints {
     pub rpc: Endpoint,
@@ -31,11 +36,17 @@ pub struct Endpoints {
     pub paymaster: Endpoint,
 }
 
-#[wasm_bindgen]
+#[cfg_attr(feature = "wasm", wasm_bindgen::prelude::wasm_bindgen)]
 impl Endpoints {
-
-    #[wasm_bindgen(constructor)]
-    pub fn new(rpc: Endpoint, bundler: Endpoint, paymaster: Endpoint) -> Endpoints {
+    #[cfg_attr(
+        feature = "wasm",
+        wasm_bindgen::prelude::wasm_bindgen(constructor)
+    )]
+    pub fn new(
+        rpc: Endpoint,
+        bundler: Endpoint,
+        paymaster: Endpoint,
+    ) -> Endpoints {
         Endpoints { rpc, bundler, paymaster }
     }
 
@@ -90,17 +101,22 @@ impl Endpoints {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-#[wasm_bindgen(getter_with_clone)]
+#[cfg_attr(
+    feature = "wasm",
+    wasm_bindgen::prelude::wasm_bindgen(getter_with_clone)
+)]
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
 pub struct Endpoint {
     pub base_url: String,
     pub api_key: String,
 }
 
-#[wasm_bindgen]
+#[cfg_attr(feature = "wasm", wasm_bindgen::prelude::wasm_bindgen)]
 impl Endpoint {
-
-    #[wasm_bindgen(constructor)]
+    #[cfg_attr(
+        feature = "wasm",
+        wasm_bindgen::prelude::wasm_bindgen(constructor)
+    )]
     pub fn new(base_url: String, api_key: String) -> Endpoint {
         Endpoint { base_url, api_key }
     }
@@ -118,7 +134,7 @@ impl Endpoint {
             api_key: "".to_string(),
         }
     }
-    
+
     pub fn local_paymaster() -> Self {
         Endpoint {
             base_url: LOCAL_PAYMASTER_URL.to_string(),
