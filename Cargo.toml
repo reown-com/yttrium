@@ -61,7 +61,7 @@ codegen-units = 1
 
 # What we should aim for short-term
 [profile.uniffi-release-next]
-inherits = "profile7"
+inherits = "profile8"
 # profile7-nightly-stdopt
 
 [profile.uniffi-release-iter1]
