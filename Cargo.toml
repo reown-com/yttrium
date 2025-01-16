@@ -47,6 +47,10 @@ uniffi_macros = { git = "https://github.com/mozilla/uniffi-rs", rev = "e796e00ad
 [profile.uniffi-release]
 inherits = "uniffi-release-v1"
 
+[profile.uniffi-release-v2] # Simply turns off debugging
+inherits = "uniffi-release-v1"
+debug = false
+
 # TODO: consider more profiles for Kotlin vs Swift, and for Flutter, etc.
 
 [profile.uniffi-release-v1]
@@ -64,14 +68,14 @@ codegen-units = 1
 inherits = "profile8"
 # profile7-nightly-stdopt
 
-[profile.uniffi-release-iter1]
+[profile.uniffi-release-iter1] # first iteration, changes opt-level to 3
 inherits = "release"
 debug = true
 lto = true
 opt-level = 3
 codegen-units = 1
 
-[profile.uniffi-release-iter2]
+[profile.uniffi-release-iter2] # same as profile6
 inherits = "release"
 lto = true
 opt-level = 3

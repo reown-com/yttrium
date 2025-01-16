@@ -53,6 +53,12 @@ use {
     std::time::Duration,
 };
 
+// Odyssey onramp
+// cast send 0x9228665c0D8f9Fc36843572bE50B716B81e042BA \
+//     --value 0.00001ether \
+//     --mnemonic $FAUCET_MNEMONIC \
+//     --rpc-url https://gateway.tenderly.co/public/sepolia
+
 #[tokio::test]
 #[ignore]
 #[cfg(feature = "test_pimlico_api")]

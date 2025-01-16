@@ -71,4 +71,4 @@ swift:
   make CONFIG=debug build-swift-apple-platforms
 
 kotlin:
-  # TODO
+  cargo ndk -t armeabi-v7a -t arm64-v8a build --profile=uniffi-release --features=uniffi/cli
