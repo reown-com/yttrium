@@ -58,12 +58,17 @@ jobs:
 
       - name: Build Rust library
         run: |
-          cargo ndk -t ${{ matrix.target }} build --profile=uniffi-release --features=uniffi/cli
+          cargo ndk -t ${{ matrix.target }} build --profile=uniffi-release-next --features=uniffi/cli
 
       - name: Generate Kotlin bindings (once)
         if: ${{ matrix.target == 'aarch64-linux-android' }}
         run: |
-          cargo run --features=uniffi/cli --bin uniffi-bindgen generate --library target/${{ matrix.target }}/uniffi-release/libuniffi_yttrium.so --language kotlin --out-dir yttrium/kotlin-bindings
+          cargo run --features=uniffi/cli --bin uniffi-bindgen generate --library target/${{ matrix.target }}/uniffi-release-next/libuniffi_yttrium.so --language kotlin --out-dir yttrium/kotlin-bindings
+
+      - name: Strip binaries
+        run: |
+            NDK_PATH=$ANDROID_HOME/ndk/27.2.12479018
+            $NDK_PATH/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip target/${{ matrix.target }}/uniffi-release-next/libuniffi_yttrium.so
 
       - name: Prepare artifacts
         run: |
@@ -79,7 +84,7 @@ jobs:
           fi
 
           mkdir -p yttrium/libs/$abi_name
-          cp target/${{ matrix.target }}/uniffi-release/libuniffi_yttrium.so yttrium/libs/$abi_name/
+          cp target/${{ matrix.target }}/uniffi-release-next/libuniffi_yttrium.so yttrium/libs/$abi_name/
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v3
