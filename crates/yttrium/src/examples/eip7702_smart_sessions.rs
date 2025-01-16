@@ -54,17 +54,15 @@ use {
 };
 
 #[tokio::test]
-#[ignore]
+#[serial_test::serial(odyssey)]
 #[cfg(feature = "test_pimlico_api")]
 async fn test_pimlico() {
     use {crate::test_helpers::private_faucet, std::env};
 
+    let chain_id = 911867; // Odyssey Testnet
     let rpc = "https://odyssey.ithaca.xyz".parse().unwrap();
-
     let pimlico_api_key = env::var("PIMLICO_API_KEY")
         .expect("You've not set the PIMLICO_API_KEY");
-
-    let chain_id = 911867; // Odyssey Testnet
     let bundler_url = format!(
         "https://api.pimlico.io/v2/{chain_id}/rpc?apikey={pimlico_api_key}"
     )
@@ -73,7 +71,6 @@ async fn test_pimlico() {
 
     let provider = ReqwestProvider::<Ethereum>::new_http(rpc);
     let faucet = private_faucet();
-
     test_impl(provider, faucet, bundler_url.clone(), bundler_url).await
 }
 
