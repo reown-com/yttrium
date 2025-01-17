@@ -64,6 +64,9 @@ codegen-units = 1
 inherits = "profile8"
 # profile7-nightly-stdopt
 
+[profile.uniffi-release-kotlin]
+inherits = "profile11"
+
 [profile.uniffi-release-iter1]
 inherits = "release"
 debug = true
@@ -164,6 +167,13 @@ opt-level = "z"
 codegen-units = 1
 lto = true
 strip = true
+panic = "abort"
+
+[profile.profile11]
+inherits = "release"
+opt-level = "z"
+codegen-units = 1
+lto = true
 panic = "abort"
 
 # Optimise libstd: https://github.com/johnthagen/min-sized-rust?tab=readme-ov-file#optimize-libstd-with-build-std
