@@ -23,7 +23,7 @@ before_install:
     - mkdir -p crates/kotlin-ffi/android/src/main/jniLibs/armeabi-v7a
     - mkdir -p crates/kotlin-ffi/android/src/main/kotlin/com/reown/yttrium
     - echo "Moving binaries and bindings"
-    - mv binaries/yttrium/libs/arm64-v8a/libuniffi_yttrium.so crates/kotlin-ffi/android/src/main/jniLibs/arm64-v8a/ || echo "Failed to move arm64-v8a .so"
-    - mv binaries/yttrium/libs/armeabi-v7a/libuniffi_yttrium.so crates/kotlin-ffi/android/src/main/jniLibs/armeabi-v7a/ || echo "Failed to move armeabi-v7a .so"
+    - mv binaries/yttrium/libs/arm64-v8a/libuniffi_yttrium.so crates/kotlin-ffi/android/src/main/jniLibs/arm64-v8a/ || echo "Failed to move arm64-v8a.so"
+    - mv binaries/yttrium/libs/armeabi-v7a/libuniffi_yttrium.so crates/kotlin-ffi/android/src/main/jniLibs/armeabi-v7a/ || echo "Failed to move armeabi-v7a.so"
     - mv binaries/yttrium/kotlin-bindings/uniffi/uniffi_yttrium/uniffi_yttrium.kt crates/kotlin-ffi/android/src/main/kotlin/com/reown/yttrium/ || echo "Failed to move uniffi_yttrium.kt"
     - mv binaries/yttrium/kotlin-bindings/uniffi/yttrium/yttrium.kt crates/kotlin-ffi/android/src/main/kotlin/com/reown/yttrium/ || echo "Failed to move yttrium.kt"

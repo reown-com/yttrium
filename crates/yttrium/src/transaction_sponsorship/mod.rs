@@ -329,6 +329,7 @@ impl Client {
             .provider_pool
             .get_provider(&format!("eip155:{chain_id}"))
             .await;
+
         let sponsor = if let Some(sponsor) = sponsor {
             sponsor
         } else {
