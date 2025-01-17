@@ -82,8 +82,7 @@ async fn happy_path() {
         // Display fee information to the user: prepare_deploy_result.fees
         // User approved? Yes
 
-        let signature: alloy::signers::Signature =
-            eoa.sign_hash_sync(&prepared_send.hash).unwrap();
+        let signature = eoa.sign_hash_sync(&prepared_send.hash).unwrap();
         let receipt = client.send(signature, prepared_send.send_params).await;
         println!("receipt: {:?}", receipt);
     }

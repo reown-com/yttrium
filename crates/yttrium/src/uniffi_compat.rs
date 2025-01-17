@@ -172,7 +172,7 @@ pub struct FfiAuthorization {
 mod tests {
     use {
         super::*,
-        alloy::primitives::{address, bytes},
+        alloy::primitives::{address, bytes, U32},
     };
 
     #[test]
@@ -221,5 +221,33 @@ mod tests {
         let s: String =
             ::uniffi::FfiConverter::<crate::UniFfiTag>::try_lift(u).unwrap();
         assert_eq!(s, format!("0xaabbccdd"));
+    }
+
+    #[test]
+    fn test_u32_raise() {
+        let s = "0x1";
+        let n = s.parse::<U32>().unwrap();
+        assert_eq!(n, Uint::from(1));
+    }
+
+    #[test]
+    fn test_u64_raise() {
+        let s = "0x1";
+        let n = s.parse::<U64>().unwrap();
+        assert_eq!(n, Uint::from(1));
+    }
+
+    #[test]
+    fn test_u128_raise() {
+        let s = "0x1";
+        let n = s.parse::<U128>().unwrap();
+        assert_eq!(n, Uint::from(1));
+    }
+
+    #[test]
+    fn test_u256_raise() {
+        let s = "0x1";
+        let n = s.parse::<U256>().unwrap();
+        assert_eq!(n, Uint::from(1));
     }
 }
