@@ -116,14 +116,12 @@ impl Client {
         };
 
 
-        let encoded_data = transfer::TransferCall::new(to, usdc_amount).encode();
-
+        let encoded_data = transferCall::new((to, usdc_amount)).abi_encode();
 
         Call {
             to: usdc_address,
             value: U256::ZERO, 
-            // input: encoded_data.into(),
-            input: Bytes::new(),
+            input: encoded_data.into(),
         }
     }
 
