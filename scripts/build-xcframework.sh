@@ -18,7 +18,11 @@ build_rust_libraries() {
   export RUSTFLAGS="-C linker=$CC_aarch64_apple_ios -C link-arg=-miphoneos-version-min=13.0"
 
   # Build
-  cargo build --lib --profile=uniffi-release --target aarch64-apple-ios
+cargo build \
+  --lib --profile=uniffi-release \
+  --target aarch64-apple-ios \
+  -p kotlin-ffi \
+  -p yttrium
 
   # Unset environment variables
   unset CC_aarch64_apple_ios
@@ -36,7 +40,11 @@ build_rust_libraries() {
   export RUSTFLAGS="-C linker=$CC_x86_64_apple_ios -C link-arg=-mios-simulator-version-min=13.0"
 
   # Build
-  cargo build --lib --profile=uniffi-release --target x86_64-apple-ios
+  cargo build \
+  --lib --profile=uniffi-release \
+  --target x86_64-apple-ios \
+  -p kotlin-ffi \
+  -p yttrium
 
   # Unset environment variables
   unset CC_x86_64_apple_ios
@@ -54,7 +62,11 @@ build_rust_libraries() {
   export RUSTFLAGS="-C linker=$CC_aarch64_apple_ios_sim -C link-arg=-mios-simulator-version-min=13.0"
 
   # Build
-  cargo build --lib --profile=uniffi-release --target aarch64-apple-ios-sim
+  cargo build \
+  --lib --profile=uniffi-release \
+  --target aarch64-apple-ios-sim \
+  -p kotlin-ffi \
+  -p yttrium
 
   # Unset environment variables
   unset CC_aarch64_apple_ios_sim

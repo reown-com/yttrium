@@ -45,7 +45,7 @@ uniffi_macros = { git = "https://github.com/mozilla/uniffi-rs", rev = "e796e00ad
 
 # For building release-optimized binaries for UniFFI bindings
 [profile.uniffi-release]
-inherits = "uniffi-release-v1"
+inherits = "profile9"
 
 [profile.uniffi-release-v2] # Simply turns off debugging
 inherits = "uniffi-release-v1"
