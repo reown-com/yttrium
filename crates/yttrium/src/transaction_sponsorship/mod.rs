@@ -108,6 +108,8 @@ impl Client {
                 .expect("invalid USDC address for Optimism"),
             "eip155:42161" => Address::from_hex("0xaf88d065e77c8cC2239327C5EDb3A432268e5831")
                 .expect("invalid USDC address for Arbitrum"),
+            "eip155:11155111" => Address::from_hex("0xf08A50178dfcDe18524640EA6618a1f965821715")
+                .expect("invalid USDC address for Sepolia"),
             "eip155:8453" => Address::from_hex("0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913")
                 .expect("invalid USDC address for Base"),
             _ => {
@@ -115,7 +117,7 @@ impl Client {
             }
         };
 
-
+        
         let encoded_data = transferCall::new((to, usdc_amount)).abi_encode();
 
         Call {
