@@ -1,4 +1,5 @@
 #!/bin/bash
+set -eo pipefail
 
 rm -rf crates/kotlin-ffi/android/src/main/jniLibs/arm64-v8a/
 rm -rf crates/kotlin-ffi/android/src/main/jniLibs/armeabi-v7a/
