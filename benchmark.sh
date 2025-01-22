@@ -64,10 +64,8 @@ echo "config,yttrium_bg.wasm.web,yttrium_bg.wasm.nodejs" > $output
 ./build-wasm.sh
 echo "wasm/normal,$(cat benchmark/build-wasm/web/yttrium_bg.wasm.size),$(cat benchmark/build-wasm/nodejs/yttrium_bg.wasm.size)" >> $output
 
-WASM_FLAGS="--release" ./build-wasm.sh
-echo "wasm/release,$(cat benchmark/build-wasm/web/yttrium_bg.wasm.size),$(cat benchmark/build-wasm/nodejs/yttrium_bg.wasm.size)" >> $output
+# WASM_FLAGS="--release" ./build-wasm.sh
+# echo "wasm/release,$(cat benchmark/build-wasm/web/yttrium_bg.wasm.size),$(cat benchmark/build-wasm/nodejs/yttrium_bg.wasm.size)" >> $output
 
-WASM_FLAGS="--dev" ./build-wasm.sh
-echo "wasm/dev,$(cat benchmark/build-wasm/web/yttrium_bg.wasm.size),$(cat benchmark/build-wasm/nodejs/yttrium_bg.wasm.size)" >> $output
-
-# TODO more WASM?
+# WASM_FLAGS="--dev" ./build-wasm.sh
+# echo "wasm/dev,$(cat benchmark/build-wasm/web/yttrium_bg.wasm.size),$(cat benchmark/build-wasm/nodejs/yttrium_bg.wasm.size)" >> $output

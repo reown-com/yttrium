@@ -43,6 +43,38 @@ wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
 tsify-next = "0.5.4"
 
+# Used by WASM ONLY, since wasm-pack doesn't support custom profiles
+# https://github.com/rustwasm/wasm-pack/issues/1461
+[profile.release]
+lto = true # Seems to make it slightly larger actually
+opt-level = 'z'
+codegen-units = 1
+strip = true
+
+# Default according to https://doc.rust-lang.org/cargo/reference/profiles.html#release
+# We would inherit from the real release profile, but wasm-pack needs to use this above and we need to customize it
+[profile.release-base]
+opt-level = 3
+debug = false
+# split-debuginfo = '...'  # Platform-specific.
+strip = "none"
+debug-assertions = false
+overflow-checks = false
+lto = false
+panic = 'unwind'
+incremental = false
+codegen-units = 16
+rpath = false
+
+[profile.kotlin-release-next]
+inherits = "profile10-nostrip"
+
+[profile.swift-release-next]
+inherits = "profile9"
+
+# [profile.wasm-release-next]
+# inherits = "profile10-nostrip"
+
 # For building release-optimized binaries for UniFFI bindings
 [profile.uniffi-release]
 inherits = "uniffi-release-v1"
@@ -55,7 +87,7 @@ debug = false
 
 [profile.uniffi-release-v1]
 # The values have been configured this way to prevent crashes in Swift debug builds with the default settings.
-inherits = "release"
+inherits = "release-base"
 debug = true
 lto = true
 opt-level = 0
@@ -72,27 +104,27 @@ inherits = "profile8"
 inherits = "profile11"
 
 [profile.uniffi-release-iter1] # first iteration, changes opt-level to 3
-inherits = "release"
+inherits = "release-base"
 debug = true
 lto = true
 opt-level = 3
 codegen-units = 1
 
 [profile.uniffi-release-iter2] # same as profile6
-inherits = "release"
+inherits = "release-base"
 lto = true
 opt-level = 3
 codegen-units = 1
 
 [profile.uniffi-release-iter3] # same as profile7
-inherits = "release"
+inherits = "release-base"
 lto = true
 opt-level = 3
 codegen-units = 1
 strip = true
 
 [profile.uniffi-release-iter4]
-inherits = "release"
+inherits = "release-base"
 lto = true
 opt-level = 3
 codegen-units = 1
@@ -100,7 +132,7 @@ strip = true
 # profile7-nightly
 
 [profile.uniffi-release-iter5]
-inherits = "release"
+inherits = "release-base"
 lto = true
 opt-level = 3
 codegen-units = 1
@@ -108,57 +140,57 @@ strip = true
 # profile7-nightly-stdopt
 
 [profile.profile1]
-inherits = "release"
+inherits = "release-base"
 debug = true
 opt-level = 0
 
 [profile.profile2]
-inherits = "release"
+inherits = "release-base"
 opt-level = 0
 
 [profile.profile21]
-inherits = "release"
+inherits = "release-base"
 opt-level = 1
 
 [profile.profile22]
-inherits = "release"
+inherits = "release-base"
 opt-level = 2
 
 [profile.profile3]
-inherits = "release"
+inherits = "release-base"
 opt-level = 3
 
 [profile.profile4]
-inherits = "release"
+inherits = "release-base"
 opt-level = "z"
 
 [profile.profile5]
-inherits = "release"
+inherits = "release-base"
 opt-level = 3
 codegen-units = 1
 
 [profile.profile6]
-inherits = "release"
+inherits = "release-base"
 opt-level = 3
 codegen-units = 1
 lto = true
 
 [profile.profile7]
-inherits = "release"
+inherits = "release-base"
 opt-level = 3
 codegen-units = 1
 lto = true
 strip = true
 
 [profile.profile8]
-inherits = "release"
+inherits = "release-base"
 opt-level = 3
 codegen-units = 1
 lto = true
 panic = "abort"
 
 [profile.profile9]
-inherits = "release"
+inherits = "release-base"
 opt-level = 3
 codegen-units = 1
 lto = true
@@ -166,7 +198,7 @@ strip = true
 panic = "abort"
 
 [profile.profile10]
-inherits = "release"
+inherits = "release-base"
 opt-level = "z"
 codegen-units = 1
 lto = true
@@ -174,11 +206,15 @@ strip = true
 panic = "abort"
 
 [profile.profile11]
-inherits = "release"
+inherits = "release-base"
 opt-level = "z"
 codegen-units = 1
 lto = true
 panic = "abort"
+
+[profile.profile10-nostrip]
+inherits = "profile10"
+strip = false
 
 # Optimise libstd: https://github.com/johnthagen/min-sized-rust?tab=readme-ov-file#optimize-libstd-with-build-std
 # Compress the binary (not library?): https://github.com/johnthagen/min-sized-rust?tab=readme-ov-file#compress-the-binary
