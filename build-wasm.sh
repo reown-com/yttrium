@@ -3,13 +3,11 @@ set -eo pipefail
 
 WASM_FLAGS="${WASM_FLAGS:-}"
 
+cd crates/yttrium
 wasm-pack build --target web $WASM_FLAGS
+mkdir -p ../../benchmark/build-wasm/web/
+stat -f%z pkg/yttrium_bg.wasm > ../../benchmark/build-wasm/web/yttrium_bg.wasm.size
+
 wasm-pack build --target nodejs $WASM_FLAGS
-
-# mkdir -p benchmark/build-wasm/web/
-# mkdir -p benchmark/build-wasm/web/
-# stat -f%z crates/kotlin-ffi/android/src/main/jniLibs/arm64-v8a/libuniffi_yttrium.so > benchmark/build-kotlin/$PROFILE/arm64-v8a/libuniffi_yttrium.so.size
-# stat -f%z crates/kotlin-ffi/android/src/main/jniLibs/armeabi-v7a/libuniffi_yttrium.so > benchmark/build-kotlin/$PROFILE/armeabi-v7a/libuniffi_yttrium.so.size
-
-# echo "benchmark/build-wasm/$PROFILE/arm64-v8a/libuniffi_yttrium.so.txt: $(cat benchmark/build-kotlin/$PROFILE/arm64-v8a/libuniffi_yttrium.so.size)"
-# echo "benchmark/build-wasm/$PROFILE/armeabi-v7a/libuniffi_yttrium.so.txt: $(cat benchmark/build-kotlin/$PROFILE/armeabi-v7a/libuniffi_yttrium.so.size)"
+mkdir -p ../../benchmark/build-wasm/nodejs/
+stat -f%z pkg/yttrium_bg.wasm > ../../benchmark/build-wasm/nodejs/yttrium_bg.wasm.size
