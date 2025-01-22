@@ -39,12 +39,9 @@ use {
 };
 
 uniffi::custom_type!(FFIAddress, String, {
+    remote,
     try_lift: |val| Ok(val.parse()?),
     lower: |obj| obj.to_string(),
-});
-uniffi::custom_type!(FfiAccountAddress, FFIAddress, {
-    try_lift: |val| Ok(val.into()),
-    lower: |obj| obj.into(),
 });
 
 fn uint_to_hex<const BITS: usize, const LIMBS: usize>(
@@ -54,21 +51,25 @@ fn uint_to_hex<const BITS: usize, const LIMBS: usize>(
 }
 
 uniffi::custom_type!(FFIU64, String, {
+    remote,
     try_lift: |val| Ok(val.parse()?),
     lower: |obj| uint_to_hex(obj),
 });
 
 uniffi::custom_type!(FFIU128, String, {
+    remote,
     try_lift: |val| Ok(val.parse()?),
     lower: |obj| uint_to_hex(obj),
 });
 
 uniffi::custom_type!(FFIU256, String, {
+    remote,
     try_lift: |val| Ok(val.parse()?),
     lower: |obj| uint_to_hex(obj),
 });
 
 uniffi::custom_type!(FFIBytes, String, {
+    remote,
     try_lift: |val| Ok(val.parse()?),
     lower: |obj| obj.to_string(),
 });
