@@ -54,6 +54,7 @@ strip = true
 # Default according to https://doc.rust-lang.org/cargo/reference/profiles.html#release
 # We would inherit from the real release profile, but wasm-pack needs to use this above and we need to customize it
 [profile.release-base]
+inherits = "release"
 opt-level = 3
 debug = false
 # split-debuginfo = '...'  # Platform-specific.
