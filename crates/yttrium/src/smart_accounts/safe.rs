@@ -393,12 +393,13 @@ pub fn prepare_sign(
 #[cfg_attr(feature = "uniffi", derive(uniffi::Enum))]
 pub enum SignOutputEnum {
     Signature(Bytes),
-    SignOutput(SignOutput),
+    // renamed to `Object` to avoid conflicts: https://github.com/mozilla/uniffi-rs/issues/2402
+    SignOutput(SignOutputObject),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
-pub struct SignOutput {
+pub struct SignOutputObject {
     pub to_sign: SignOutputToSign,
     pub sign_step_3_params: SignStep3Params,
 }
@@ -461,7 +462,7 @@ where
         )
         .await?;
 
-        Ok(SignOutputEnum::SignOutput(SignOutput {
+        Ok(SignOutputEnum::SignOutput(SignOutputObject {
             to_sign: SignOutputToSign { hash, safe_op, domain },
             sign_step_3_params: SignStep3Params {
                 signature,

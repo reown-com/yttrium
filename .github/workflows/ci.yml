@@ -111,12 +111,12 @@ jobs:
 
       - name: Build Rust library
         run: |
-          cargo ndk -t ${{ matrix.target }} build --release --features=uniffi/cli
+          cargo ndk -t ${{ matrix.target }} build --profile=uniffi-release --features=uniffi/cli
 
       - name: Generate Kotlin bindings (once)
         if: ${{ matrix.target == 'aarch64-linux-android' }}
         run: |
-          cargo run --features=uniffi/cli --bin uniffi-bindgen generate --library target/${{ matrix.target }}/release/libuniffi_yttrium.so --language kotlin --out-dir yttrium/kotlin-bindings
+          cargo run --features=uniffi/cli --bin uniffi-bindgen generate --library target/${{ matrix.target }}/uniffi-release/libuniffi_yttrium.so --language kotlin --out-dir yttrium/kotlin-bindings
 
       - name: Prepare artifacts
         run: |
@@ -132,7 +132,7 @@ jobs:
           fi
 
           mkdir -p yttrium/libs/$abi_name
-          cp target/${{ matrix.target }}/release/libuniffi_yttrium.so yttrium/libs/$abi_name/
+          cp target/${{ matrix.target }}/uniffi-release/libuniffi_yttrium.so yttrium/libs/$abi_name/
 
 
   flutter:
