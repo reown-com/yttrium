@@ -36,3 +36,4 @@ Utilities/InstalledSwiftPMConfiguration/config.json
 
 *.env.secret*
 benchmark-profile-output-sizes.csv
+benchmark.csv

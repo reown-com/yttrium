@@ -23,6 +23,7 @@ use {
 // TODO use https://mozilla.github.io/uniffi-rs/next/udl/remote_ext_types.html#remote-types when it's available
 
 uniffi::custom_type!(Address, String, {
+    remote,
     try_lift: |val| Ok(val.parse()?),
     lower: |obj| obj.to_string(),
 });
@@ -32,16 +33,19 @@ uniffi::custom_type!(AccountAddress, Address, {
 });
 
 uniffi::custom_type!(PrivateKeySigner, String, {
+    remote,
     try_lift: |val| Ok(val.parse()?),
     lower: |obj| hex::encode(obj.to_bytes()),
 });
 
 uniffi::custom_type!(PrimitiveSignature, String, {
+    remote,
     try_lift: |val| Ok(val.parse()?),
     lower: |obj| format!("0x{}", hex::encode(obj.as_bytes())),
 });
 
 uniffi::custom_type!(Eip712Domain, String, {
+    remote,
     try_lift: |_val| unimplemented!("Does not support lifting Eip712Domain"),
     lower: |_obj| "Does not support lowering Eip712Domain".to_owned(),
 });
@@ -53,52 +57,62 @@ fn uint_to_hex<const BITS: usize, const LIMBS: usize>(
 }
 
 uniffi::custom_type!(U8, String, {
+    remote,
     try_lift: |val| Ok(val.parse()?),
     lower: |obj| uint_to_hex(obj),
 });
 
 uniffi::custom_type!(U48, String, {
+    remote,
     try_lift: |val| Ok(val.parse()?),
     lower: |obj| uint_to_hex(obj),
 });
 
 uniffi::custom_type!(U64, String, {
+    remote,
     try_lift: |val| Ok(val.parse()?),
     lower: |obj| uint_to_hex(obj),
 });
 
 uniffi::custom_type!(U128, String, {
+    remote,
     try_lift: |val| Ok(val.parse()?),
     lower: |obj| uint_to_hex(obj),
 });
 
 type U128Primitive = u128;
 uniffi::custom_type!(U128Primitive, String, {
+    remote,
     try_lift: |val| Ok(val.parse::<U128>()?.to()),
     lower: |obj| uint_to_hex(U128::from(obj)),
 });
 
 uniffi::custom_type!(U256, String, {
+    remote,
     try_lift: |val| Ok(val.parse()?),
     lower: |obj| uint_to_hex(obj),
 });
 
 uniffi::custom_type!(Bytes, String, {
+    remote,
     try_lift: |val| Ok(val.parse()?),
     lower: |obj| obj.to_string(),
 });
 
 uniffi::custom_type!(B256, String, {
+    remote,
     try_lift: |val| Ok(val.parse()?),
     lower: |obj| obj.to_string(),
 });
 
 uniffi::custom_type!(ProjectId, String, {
+    remote,
     try_lift: |val| Ok(val.into()),
     lower: |obj| obj.to_string(),
 });
 
 uniffi::custom_type!(Url, String, {
+    remote,
     try_lift: |val| Ok(val.parse()?),
     lower: |obj| obj.to_string(),
 });
@@ -106,26 +120,32 @@ uniffi::custom_type!(Url, String, {
 pub type RpcError = transports::RpcError<TransportErrorKind>;
 
 uniffi::custom_type!(RpcError, String, {
+    remote,
     try_lift: |_val| unimplemented!("Does not support lifting RpcError"),
     lower: |obj| obj.to_string(),
 });
 uniffi::custom_type!(EyreError, String, {
+    remote,
     try_lift: |_val| unimplemented!("Does not support lifting EyreError"),
     lower: |obj| obj.to_string(),
 });
 uniffi::custom_type!(AlloyError, String, {
+    remote,
     try_lift: |_val| unimplemented!("Does not support lifting AlloyError"),
     lower: |obj| obj.to_string(),
 });
 uniffi::custom_type!(TransactionReceipt, String, {
+    remote,
     try_lift: |_val| unimplemented!("Does not support lifting TransactionReceipt"),
     lower: |obj| serde_json::to_string(&obj).unwrap(),
 });
 uniffi::custom_type!(UserOperationReceipt, String, {
+    remote,
     try_lift: |_val| unimplemented!("Does not support lifting UserOperationReceipt"),
     lower: |obj| serde_json::to_string(&obj).unwrap(),
 });
 uniffi::custom_type!(PendingTransactionError, String, {
+    remote,
     try_lift: |_val| unimplemented!("Does not support lifting PendingTransactionError"),
     lower: |obj| obj.to_string(),
 });
@@ -146,6 +166,7 @@ fn funding_metadata_to_bridging_fee_amount(value: FundingMetadata) -> Amount {
 }
 
 uniffi::custom_type!(Authorization, FfiAuthorization, {
+    remote,
     try_lift: |val| Ok(Authorization {
         chain_id: val.chain_id,
         address: val.address,

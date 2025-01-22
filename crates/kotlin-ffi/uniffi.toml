@@ -3,5 +3,5 @@ android = true
 android_cleaner = true
 # omit_checksums = true
 
-# [bindings.swift]
+[bindings.swift]
 # omit_checksums = true
