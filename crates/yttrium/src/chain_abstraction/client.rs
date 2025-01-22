@@ -301,25 +301,30 @@ impl Client {
         &self,
         orchestration_id: String,
     ) -> Result<StatusResponse, PrepareError> {
-        let response = self
-            .provider_pool
-            .client
-            .get(
-                self.provider_pool
-                    .blockchain_api_base_url
-                    .join(STATUS_ENDPOINT_PATH)
-                    .unwrap(),
-            )
-            .query(&StatusQueryParams {
-                project_id: self.provider_pool.project_id.clone(),
-                orchestration_id,
-            })
-            .timeout(Duration::from_secs(5))
-            .send()
-            .await
-            .map_err(PrepareError::Request)?
-            .error_for_status()
-            .map_err(PrepareError::Request)?;
+        let response = {
+            let req = self
+                .provider_pool
+                .client
+                .get(
+                    self.provider_pool
+                        .blockchain_api_base_url
+                        .join(STATUS_ENDPOINT_PATH)
+                        .unwrap(),
+                )
+                .query(&StatusQueryParams {
+                    project_id: self.provider_pool.project_id.clone(),
+                    orchestration_id,
+                });
+            // https://github.com/seanmonstar/reqwest/pull/1760
+            #[cfg(not(target_arch = "wasm32"))]
+            let req = req.timeout(Duration::from_secs(5));
+            req
+        }
+        .send()
+        .await
+        .map_err(PrepareError::Request)?
+        .error_for_status()
+        .map_err(PrepareError::Request)?;
         let status = response.status();
         if status.is_success() {
             let text =

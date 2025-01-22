@@ -1,3 +1,5 @@
+#[cfg(feature = "wasm")]
+use wasm_bindgen::prelude::*;
 use {
     alloy::{
         network::TransactionBuilder,
@@ -14,18 +16,58 @@ pub mod status;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
+#[cfg_attr(feature = "wasm", wasm_bindgen(getter_with_clone))]
 #[serde(rename_all = "camelCase")]
 pub struct Transaction {
     // CAIP-2 chain ID
     pub chain_id: String,
 
+    #[cfg_attr(feature = "wasm", wasm_bindgen(skip))]
     pub from: Address,
+    #[cfg_attr(feature = "wasm", wasm_bindgen(skip))]
     pub to: Address,
+    #[cfg_attr(feature = "wasm", wasm_bindgen(skip))]
     pub value: U256,
+    #[cfg_attr(feature = "wasm", wasm_bindgen(skip))]
     pub input: Bytes,
 
+    #[cfg_attr(feature = "wasm", wasm_bindgen(skip))]
     pub gas_limit: U64,
+    #[cfg_attr(feature = "wasm", wasm_bindgen(skip))]
     pub nonce: U64,
+}
+
+#[cfg_attr(feature = "wasm", wasm_bindgen)]
+impl Transaction {
+    #[cfg_attr(feature = "wasm", wasm_bindgen(getter))]
+    pub fn from(&self) -> String {
+        self.from.to_string()
+    }
+
+    #[cfg_attr(feature = "wasm", wasm_bindgen(getter))]
+    pub fn to(&self) -> String {
+        self.to.to_string()
+    }
+
+    #[cfg_attr(feature = "wasm", wasm_bindgen(getter))]
+    pub fn value(&self) -> String {
+        self.value.to_string()
+    }
+
+    #[cfg_attr(feature = "wasm", wasm_bindgen(getter))]
+    pub fn input(&self) -> String {
+        self.input.to_string()
+    }
+
+    #[cfg_attr(feature = "wasm", wasm_bindgen(getter))]
+    pub fn nonce(&self) -> String {
+        format!("0x{:x}", self.nonce)
+    }
+
+    #[cfg_attr(feature = "wasm", wasm_bindgen(getter))]
+    pub fn gas_limit(&self) -> String {
+        format!("0x{:x}", self.gas_limit)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

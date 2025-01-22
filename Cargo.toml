@@ -1,9 +1,5 @@
 [workspace]
-members = [
-  "crates/kotlin-ffi",
-  "crates/yttrium",
-  "crates/yttrium_dart/rust",
-]
+members = ["crates/kotlin-ffi", "crates/yttrium", "crates/yttrium_dart/rust"]
 resolver = "2"
 
 [workspace.package]
@@ -42,6 +38,10 @@ serial_test = { version = "3.2.0", default-features = false }
 uniffi_build = { git = "https://github.com/mozilla/uniffi-rs", rev = "7cb2532", default-features = false }
 uniffi = { git = "https://github.com/mozilla/uniffi-rs", rev = "7cb2532", default-features = false, features = ["tokio"] }
 uniffi_macros = { git = "https://github.com/mozilla/uniffi-rs", rev = "7cb2532", default-features = false }
+
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+tsify-next = "0.5.4"
 
 # For building release-optimized binaries for UniFFI bindings
 [profile.uniffi-release]

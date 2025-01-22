@@ -3,9 +3,11 @@ uniffi::setup_scaffolding!();
 #[cfg(feature = "uniffi")]
 pub mod uniffi_compat;
 
+#[cfg(feature = "wasm")]
+pub mod wasm_compat;
+
 pub mod account_client;
 pub mod blockchain_api;
-#[cfg(not(target_arch = "wasm32"))]
 pub mod bundler;
 pub mod call;
 pub mod chain;

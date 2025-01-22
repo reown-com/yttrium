@@ -55,7 +55,7 @@ lint: fmt clippy
 
 clippy:
   cargo clippy --workspace --features=full --all-targets -- -D warnings
-  # cargo clippy --workspace --features=full --lib --bins --target wasm32-unknown-unknown --exclude=ffi -- -D warnings
+  cargo clippy -p yttrium --lib --target wasm32-unknown-unknown -- -D warnings
 
 fmt:
   cargo +nightly fmt --all
