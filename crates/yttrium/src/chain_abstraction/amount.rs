@@ -1,9 +1,12 @@
-use alloy::primitives::{
-    utils::{ParseUnits, Unit},
-    U256,
+use {
+    alloy::primitives::{
+        utils::{ParseUnits, Unit},
+        U256,
+    },
+    serde::{Deserialize, Serialize},
 };
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
 pub struct Amount {
     pub symbol: String,    // USDC, USD

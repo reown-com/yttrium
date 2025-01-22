@@ -5,15 +5,24 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 
+[lib]
+crate-type = ["lib", "cdylib"]
+
 [features]
-full = ["uniffi"]
+full = ["uniffi", "wasm"]
 uniffi = ["dep:uniffi", "dep:uniffi_macros"]
+wasm = ["dep:wasm-bindgen", "dep:wasm-bindgen-futures", "alloy/wasm-bindgen", "dep:tsify-next"]
 test_pimlico_api = []
 test_blockchain_api = []
 
 [dependencies]
 uniffi = { workspace = true, optional = true }
 uniffi_macros = { workspace = true, optional = true }
+
+wasm-bindgen = { workspace = true, optional = true }
+wasm-bindgen-futures = { workspace = true, optional = true }
+tsify-next = { workspace = true, optional = true, features = ["js"] }
+
 # Ethereum
 alloy = { workspace = true, features = [
     "contract",

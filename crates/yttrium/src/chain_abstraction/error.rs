@@ -7,6 +7,7 @@ use {
         ui_fields::UiFields,
     },
     reqwest::StatusCode,
+    serde::{Deserialize, Serialize},
 };
 
 #[derive(thiserror::Error, Debug)]
@@ -28,6 +29,13 @@ pub enum PrepareError {
     DecodingJson(serde_json::Error, String),
 }
 
+#[cfg(feature = "wasm")]
+impl From<PrepareError> for wasm_bindgen::prelude::JsValue {
+    fn from(error: PrepareError) -> Self {
+        wasm_bindgen::prelude::JsValue::from_str(&error.to_string())
+    }
+}
+
 #[derive(thiserror::Error, Debug)]
 pub enum UiFieldsError {
     /// Retryable error
@@ -43,6 +51,13 @@ pub enum UiFieldsError {
     Json(reqwest::Error),
 }
 
+#[cfg(feature = "wasm")]
+impl From<UiFieldsError> for wasm_bindgen::prelude::JsValue {
+    fn from(error: UiFieldsError) -> Self {
+        wasm_bindgen::prelude::JsValue::from_str(&error.to_string())
+    }
+}
+
 #[derive(thiserror::Error, Debug)]
 pub enum PrepareDetailedError {
     #[error("Prepare Error: {0}")]
@@ -52,14 +67,27 @@ pub enum PrepareDetailedError {
     UiFields(UiFieldsError),
 }
 
-#[derive(Debug)]
+#[cfg(feature = "wasm")]
+impl From<PrepareDetailedError> for wasm_bindgen::prelude::JsValue {
+    fn from(error: PrepareDetailedError) -> Self {
+        wasm_bindgen::prelude::JsValue::from_str(&error.to_string())
+    }
+}
+
+// TODO this response type shouldn't be in `error` module
+#[derive(Debug, Serialize, Deserialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Enum))]
+#[cfg_attr(
+    feature = "wasm",
+    derive(tsify_next::Tsify),
+    tsify(into_wasm_abi, from_wasm_abi)
+)]
 pub enum PrepareDetailedResponse {
     Success(PrepareDetailedResponseSuccess),
     Error(PrepareResponseError),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Enum))]
 pub enum PrepareDetailedResponseSuccess {
     Available(UiFields),
@@ -96,4 +124,11 @@ pub enum WaitForSuccessError {
 
     #[error("StatusResponsePending: {0:?}")]
     StatusResponsePending(StatusResponsePending),
+}
+
+#[cfg(feature = "wasm")]
+impl From<WaitForSuccessError> for wasm_bindgen::prelude::JsValue {
+    fn from(error: WaitForSuccessError) -> Self {
+        wasm_bindgen::prelude::JsValue::from_str(&error.to_string())
+    }
 }
