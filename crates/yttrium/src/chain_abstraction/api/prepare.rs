@@ -12,6 +12,8 @@ pub const ROUTE_ENDPOINT_PATH: &str = "/v1/ca/orchestrator/route";
 #[serde(rename_all = "camelCase")]
 pub struct RouteQueryParams {
     pub project_id: ProjectId,
+    #[serde(default)]
+    pub sdk_versions: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -286,5 +288,28 @@ mod tests {
         assert_eq!(calls[0].to, to);
         assert_eq!(calls[0].value, value);
         assert_eq!(calls[0].input, input);
+    }
+
+    #[test]
+    fn route_query_params_parse_deserialization() {
+        let json =
+            serde_json::from_value::<RouteQueryParams>(serde_json::json!({
+                "projectId": "project_id",
+                "sdkVersions": "yttrium-1234567",
+            }))
+            .unwrap();
+        assert_eq!(json.project_id, "project_id".into());
+        assert_eq!(json.sdk_versions, "yttrium-1234567");
+    }
+
+    #[test]
+    fn route_query_params_parse_backwards_compat() {
+        let json =
+            serde_json::from_value::<RouteQueryParams>(serde_json::json!({
+                "projectId": "project_id",
+            }))
+            .unwrap();
+        assert_eq!(json.project_id, "project_id".into());
+        assert_eq!(json.sdk_versions, "");
     }
 }

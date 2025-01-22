@@ -24,6 +24,7 @@ pub mod test_helpers;
 pub mod transaction_sponsorship;
 pub mod user_operation;
 pub mod utils;
+pub mod version;
 
 #[cfg(test)]
 pub mod examples;

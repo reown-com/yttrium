@@ -30,6 +30,7 @@ use {
         },
         erc20::ERC20,
         provider_pool::ProviderPool,
+        version::format_sdk_version,
     },
     alloy::{
         network::TransactionBuilder,
@@ -78,6 +79,7 @@ impl Client {
             })
             .query(&RouteQueryParams {
                 project_id: self.provider_pool.project_id.clone(),
+                sdk_versions: format_sdk_version(),
             })
             .send()
             .await
@@ -142,6 +144,7 @@ impl Client {
                         project_id: self.provider_pool.project_id.clone(),
                         currency: local_currency,
                         addresses: HashSet::from([address]),
+                        sdk_versions: format_sdk_version(),
                     })
                     .send()
                     .await
