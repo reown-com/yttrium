@@ -2,7 +2,7 @@
 set -eo pipefail
 
 output="benchmark.csv"
-echo "config,libuniffi_yttrium.so.arm64-v8a,libuniffi_yttrium.so.armeabi-v7a" > $output
+echo "config,libuniffi_yttrium.so.arm64-v8a,libuniffi_yttrium.so.armeabi-v7a,yttrium_bg.wasm.web,yttrium_bg.wasm.nodejs" > $output
 
 export ENABLE_STRIP="false"
 
@@ -44,13 +44,13 @@ export CARGO_RUSTFLAGS="-Zlocation-detail=none -Zfmt-debug=none"
 
 export CARGO_NDK_FLAGS="-Z build-std=std,panic_abort -Z build-std-features=optimize_for_size,panic_immediate_abort"
 
-TARGET_DIR="target/kotlin-build/$PROFILE/stdo-dld-nfd-pia" ./build-kotlin.sh
-echo "kotlin/$PROFILE/stdo-nld-nfd-pia,$(cat benchmark/build-kotlin/$PROFILE/arm64-v8a/libuniffi_yttrium.so.size),$(cat benchmark/build-kotlin/$PROFILE/armeabi-v7a/libuniffi_yttrium.so.size)" >> benchmark.csv
+# TARGET_DIR="target/kotlin-build/$PROFILE/stdo-dld-nfd-pia" ./build-kotlin.sh
+# echo "kotlin/$PROFILE/stdo-nld-nfd-pia,$(cat benchmark/build-kotlin/$PROFILE/arm64-v8a/libuniffi_yttrium.so.size),$(cat benchmark/build-kotlin/$PROFILE/armeabi-v7a/libuniffi_yttrium.so.size)" >> benchmark.csv
 
 export UNIFFI_OMIT_CHECKSUMS="true"
 
-TARGET_DIR="target/kotlin-build/$PROFILE/stdo-dld-nfd-pia-nuc" ./build-kotlin.sh
-echo "kotlin/$PROFILE/stdo-nld-nfd-pia-nuc,$(cat benchmark/build-kotlin/$PROFILE/arm64-v8a/libuniffi_yttrium.so.size),$(cat benchmark/build-kotlin/$PROFILE/armeabi-v7a/libuniffi_yttrium.so.size)" >> benchmark.csv
+# TARGET_DIR="target/kotlin-build/$PROFILE/stdo-dld-nfd-pia-nuc" ./build-kotlin.sh
+# echo "kotlin/$PROFILE/stdo-nld-nfd-pia-nuc,$(cat benchmark/build-kotlin/$PROFILE/arm64-v8a/libuniffi_yttrium.so.size),$(cat benchmark/build-kotlin/$PROFILE/armeabi-v7a/libuniffi_yttrium.so.size)" >> benchmark.csv
 
 
 echo "Building Swift"
@@ -58,8 +58,14 @@ echo "Building Swift"
 
 
 echo "Building WASM"
+output="benchmark-wasm.csv"
+echo "config,yttrium_bg.wasm.web,yttrium_bg.wasm.nodejs" > $output
 
-# ./build-wasm.sh
-# WASM_FLAGS="--dev" ./build-wasm.sh
+./build-wasm.sh
+echo "wasm/normal,$(cat benchmark/build-wasm/web/yttrium_bg.wasm.size),$(cat benchmark/build-wasm/nodejs/yttrium_bg.wasm.size)" >> $output
+
 # WASM_FLAGS="--release" ./build-wasm.sh
-# TODO more WASM?
+# echo "wasm/release,$(cat benchmark/build-wasm/web/yttrium_bg.wasm.size),$(cat benchmark/build-wasm/nodejs/yttrium_bg.wasm.size)" >> $output
+
+# WASM_FLAGS="--dev" ./build-wasm.sh
+# echo "wasm/dev,$(cat benchmark/build-wasm/web/yttrium_bg.wasm.size),$(cat benchmark/build-wasm/nodejs/yttrium_bg.wasm.size)" >> $output

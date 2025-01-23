@@ -73,3 +73,6 @@ wiremock = { version = "0.6.0", default-features = false }
 reqwest.workspace = true
 alloy = { workspace = true, features = ["node-bindings"] }
 serial_test.workspace = true
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = ['-Oz']
