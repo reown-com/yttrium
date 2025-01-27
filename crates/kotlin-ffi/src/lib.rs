@@ -1,5 +1,19 @@
 uniffi::setup_scaffolding!();
 
+#[cfg(feature = "account_client")]
+use {
+    alloy::sol_types::SolStruct,
+    yttrium::account_client::AccountClient as YAccountClient,
+    yttrium::{
+        call::send::safe_test::{
+            self, DoSendTransactionParams, OwnerSignature,
+            PreparedSendTransaction,
+        },
+        config::Config,
+        smart_accounts::account_address::AccountAddress as FfiAccountAddress,
+        smart_accounts::safe::{SignOutputEnum, SignStep3Params},
+    },
+};
 use {
     alloy::{
         network::Ethereum,
@@ -8,19 +22,11 @@ use {
             U256 as FFIU256, U64 as FFIU64,
         },
         providers::{Provider, ReqwestProvider},
-        sol_types::SolStruct,
     },
     relay_rpc::domain::ProjectId,
     std::time::Duration,
     yttrium::{
-        account_client::AccountClient as YAccountClient,
-        call::{
-            send::safe_test::{
-                self, DoSendTransactionParams, OwnerSignature,
-                PreparedSendTransaction,
-            },
-            Call,
-        },
+        call::Call,
         chain_abstraction::{
             api::{
                 prepare::{PrepareResponse, PrepareResponseAvailable},
@@ -29,11 +35,6 @@ use {
             client::Client,
             currency::Currency,
             ui_fields::UiFields,
-        },
-        config::Config,
-        smart_accounts::{
-            account_address::AccountAddress as FfiAccountAddress,
-            safe::{SignOutputEnum, SignStep3Params},
         },
     },
 };
@@ -104,6 +105,7 @@ pub enum FFIError {
     General(String),
 }
 
+#[cfg(feature = "account_client")]
 #[derive(uniffi::Object)]
 pub struct FFIAccountClient {
     pub owner_address: FfiAccountAddress,
@@ -205,6 +207,7 @@ impl ChainAbstractionClient {
     }
 }
 
+#[cfg(feature = "account_client")]
 #[uniffi::export(async_runtime = "tokio")]
 impl FFIAccountClient {
     #[uniffi::constructor]

@@ -7,6 +7,9 @@ edition = "2021"
 name = "uniffi_yttrium"
 crate-type = ["staticlib", "cdylib"]
 
+[features]
+account_client = ["yttrium/account_client"]
+
 [build-dependencies]
 uniffi_build.workspace = true
 

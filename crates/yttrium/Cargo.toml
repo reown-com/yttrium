@@ -9,9 +9,27 @@ license.workspace = true
 crate-type = ["lib", "cdylib"]
 
 [features]
-full = ["uniffi", "wasm"]
+default = ["erc6492_client", "chain_abstraction_client"]
+full = ["all_platforms", "all_clients"]
+
+# Features enabling FFI bindings for different platforms
+all_platforms = ["uniffi", "wasm"]
 uniffi = ["dep:uniffi", "dep:uniffi_macros"]
-wasm = ["dep:wasm-bindgen", "dep:wasm-bindgen-futures", "alloy/wasm-bindgen", "dep:tsify-next"]
+wasm = [
+    "dep:wasm-bindgen",
+    "dep:wasm-bindgen-futures",
+    "alloy/wasm-bindgen",
+    "dep:tsify-next",
+]
+
+# Features contributing to bundle size, that you might not need
+all_clients = ["account_client", "erc6492_client", "chain_abstraction_client", "transaction_sponsorship_client"]
+account_client = []
+erc6492_client = []
+chain_abstraction_client = []
+transaction_sponsorship_client = []
+
+# Features enabling test coverage
 test_pimlico_api = []
 test_blockchain_api = []
 
