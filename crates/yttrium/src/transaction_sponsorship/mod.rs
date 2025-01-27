@@ -29,7 +29,15 @@ use {
         user_operation::{hash::get_user_operation_hash_v07, UserOperationV07},
     },
     alloy::{
-        hex::FromHex, network::{EthereumWallet, TransactionBuilder7702}, primitives::{eip191_hash_message, Address, Bytes, PrimitiveSignature, B256, U256}, rpc::types::{Authorization, UserOperationReceipt}, signers::local::{LocalSigner, PrivateKeySigner}, sol_types::SolCall, sol
+        hex::FromHex,
+        network::{EthereumWallet, TransactionBuilder7702},
+        primitives::{
+            eip191_hash_message, Address, Bytes, PrimitiveSignature, B256, U256,
+        },
+        rpc::types::{Authorization, UserOperationReceipt},
+        signers::local::{LocalSigner, PrivateKeySigner},
+        sol,
+        sol_types::SolCall,
     },
     alloy_provider::{Provider, ProviderBuilder},
     error::{
@@ -46,7 +54,6 @@ sol! {
     pragma solidity ^0.8.0;
     function transfer(address recipient, uint256 amount) external returns (bool);
 }
-
 
 #[cfg(test)]
 mod tests;
@@ -102,29 +109,31 @@ impl Client {
         to: Address,
         usdc_amount: U256,
     ) -> Call {
-
         let usdc_address = match chain_id {
-            "eip155:10" => Address::from_hex("0x0b2c639c533813f4aa9d7837caf62653d097ff85")
-                .expect("invalid USDC address for Optimism"),
-            "eip155:42161" => Address::from_hex("0xaf88d065e77c8cC2239327C5EDb3A432268e5831")
-                .expect("invalid USDC address for Arbitrum"),
-            "eip155:11155111" => Address::from_hex("0xf08A50178dfcDe18524640EA6618a1f965821715")
-                .expect("invalid USDC address for Sepolia"),
-            "eip155:8453" => Address::from_hex("0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913")
-                .expect("invalid USDC address for Base"),
+            "eip155:10" => {
+                Address::from_hex("0x0b2c639c533813f4aa9d7837caf62653d097ff85")
+                    .expect("invalid USDC address for Optimism")
+            }
+            "eip155:42161" => {
+                Address::from_hex("0xaf88d065e77c8cC2239327C5EDb3A432268e5831")
+                    .expect("invalid USDC address for Arbitrum")
+            }
+            "eip155:11155111" => {
+                Address::from_hex("0xf08A50178dfcDe18524640EA6618a1f965821715")
+                    .expect("invalid USDC address for Sepolia")
+            }
+            "eip155:8453" => {
+                Address::from_hex("0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913")
+                    .expect("invalid USDC address for Base")
+            }
             _ => {
                 panic!("Unsupported chain_id: {chain_id}");
             }
         };
 
-        
         let encoded_data = transferCall::new((to, usdc_amount)).abi_encode();
 
-        Call {
-            to: usdc_address,
-            value: U256::ZERO, 
-            input: encoded_data.into(),
-        }
+        Call { to: usdc_address, value: U256::ZERO, input: encoded_data.into() }
     }
 
     // The above builder-pattern implementations are inefficient when used by regular Rust code.
