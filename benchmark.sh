@@ -2,7 +2,7 @@
 set -eo pipefail
 
 output="benchmark.csv"
-echo "config,libuniffi_yttrium.so.arm64-v8a,libuniffi_yttrium.so.armeabi-v7a,yttrium_bg.wasm.web,yttrium_bg.wasm.nodejs" > $output
+echo "config,libuniffi_yttrium.so.arm64-v8a,libuniffi_yttrium.so.armeabi-v7a" > $output
 
 export ENABLE_STRIP="false"
 
@@ -61,7 +61,8 @@ echo "Building WASM"
 output="benchmark-wasm.csv"
 echo "config,yttrium_bg.wasm.web,yttrium_bg.wasm.nodejs" > $output
 
-./build-wasm.sh
+# ./build-wasm.sh
+WASM_FLAGS="--profiling" ./build-wasm.sh
 echo "wasm/normal,$(cat benchmark/build-wasm/web/yttrium_bg.wasm.size),$(cat benchmark/build-wasm/nodejs/yttrium_bg.wasm.size)" >> $output
 
 # WASM_FLAGS="--release" ./build-wasm.sh

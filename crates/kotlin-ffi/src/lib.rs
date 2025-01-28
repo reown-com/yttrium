@@ -1,5 +1,9 @@
 uniffi::setup_scaffolding!();
 
+use alloy::primitives::{
+    Address as FFIAddress, Bytes as FFIBytes, Uint, U128 as FFIU128,
+    U256 as FFIU256, U64 as FFIU64,
+};
 #[cfg(feature = "account_client")]
 use {
     alloy::sol_types::SolStruct,
@@ -14,30 +18,32 @@ use {
         smart_accounts::safe::{SignOutputEnum, SignStep3Params},
     },
 };
+#[cfg(feature = "chain_abstraction_client")]
 use {
-    alloy::{
-        network::Ethereum,
-        primitives::{
-            Address as FFIAddress, Bytes as FFIBytes, Uint, U128 as FFIU128,
-            U256 as FFIU256, U64 as FFIU64,
-        },
-        providers::{Provider, ReqwestProvider},
-    },
     relay_rpc::domain::ProjectId,
     std::time::Duration,
-    yttrium::{
-        call::Call,
-        chain_abstraction::{
-            api::{
-                prepare::{PrepareResponse, PrepareResponseAvailable},
-                status::{StatusResponse, StatusResponseCompleted},
-            },
-            client::Client,
-            currency::Currency,
-            ui_fields::UiFields,
+    yttrium::call::Call,
+    yttrium::chain_abstraction::{
+        
+        api::{
+            prepare::{PrepareResponse, PrepareResponseAvailable},
+            status::{StatusResponse, StatusResponseCompleted},
         },
+        client::Client,
+        currency::Currency,
+        ui_fields::UiFields,
+    },
+    alloy::{
+        network::Ethereum,
+        providers::{Provider, ReqwestProvider},
     },
 };
+
+// Force import of this crate to ensure that the code is actually generated
+#[allow(unused_imports)]
+#[allow(clippy::single_component_path_imports)]
+use yttrium;
+// extern crate yttrium; // This might work too, but I haven't tested
 
 uniffi::custom_type!(FFIAddress, String, {
     remote,
@@ -113,12 +119,14 @@ pub struct FFIAccountClient {
     account_client: YAccountClient,
 }
 
+#[cfg(feature = "chain_abstraction_client")]
 #[derive(uniffi::Object)]
 pub struct ChainAbstractionClient {
     pub project_id: String,
     client: Client,
 }
 
+#[cfg(feature = "chain_abstraction_client")]
 #[uniffi::export(async_runtime = "tokio")]
 impl ChainAbstractionClient {
     #[uniffi::constructor]

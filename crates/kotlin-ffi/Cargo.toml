@@ -8,7 +8,9 @@ name = "uniffi_yttrium"
 crate-type = ["staticlib", "cdylib"]
 
 [features]
+default = ["chain_abstraction_client"]
 account_client = ["yttrium/account_client"]
+chain_abstraction_client = ["yttrium/chain_abstraction_client"]
 
 [build-dependencies]
 uniffi_build.workspace = true
