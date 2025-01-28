@@ -4,7 +4,7 @@ set -e
 set -u
 
 PACKAGE_NAME="uniffi_yttrium"
-fat_simulator_lib_dir="target/ios-simulator-fat/uniffi-release"
+fat_simulator_lib_dir="target/ios-simulator-fat/uniffi-release-swift"
 swift_package_dir="platforms/swift/Sources/Yttrium"
 
 build_rust_libraries() {
@@ -18,7 +18,11 @@ build_rust_libraries() {
   export RUSTFLAGS="-C linker=$CC_aarch64_apple_ios -C link-arg=-miphoneos-version-min=13.0"
 
   # Build
-  cargo build --lib --profile=uniffi-release --target aarch64-apple-ios
+  cargo build \
+    --lib --profile=uniffi-release-swift \
+    --target aarch64-apple-ios \
+    -p kotlin-ffi \
+    -p yttrium
 
   # Unset environment variables
   unset CC_aarch64_apple_ios
@@ -35,8 +39,11 @@ build_rust_libraries() {
   export CARGO_TARGET_X86_64_APPLE_IOS_LINKER="$CC_x86_64_apple_ios"
   export RUSTFLAGS="-C linker=$CC_x86_64_apple_ios -C link-arg=-mios-simulator-version-min=13.0"
 
-  # Build
-  cargo build --lib --profile=uniffi-release --target x86_64-apple-ios
+  cargo build \
+    --lib --profile=uniffi-release-swift \
+    --target x86_64-apple-ios \
+    -p kotlin-ffi \
+    -p yttrium
 
   # Unset environment variables
   unset CC_x86_64_apple_ios
@@ -53,8 +60,11 @@ build_rust_libraries() {
   export CARGO_TARGET_AARCH64_APPLE_IOS_SIM_LINKER="$CC_aarch64_apple_ios_sim"
   export RUSTFLAGS="-C linker=$CC_aarch64_apple_ios_sim -C link-arg=-mios-simulator-version-min=13.0"
 
-  # Build
-  cargo build --lib --profile=uniffi-release --target aarch64-apple-ios-sim
+  cargo build \
+    --lib --profile=uniffi-release-swift \
+    --target aarch64-apple-ios-sim \
+    -p kotlin-ffi \
+    -p yttrium
 
   # Unset environment variables
   unset CC_aarch64_apple_ios_sim
@@ -66,7 +76,7 @@ build_rust_libraries() {
 generate_ffi() {
   echo "Generating framework module mapping and FFI bindings..."
   cargo run --features uniffi/cli --bin uniffi-bindgen generate \
-      --library target/aarch64-apple-ios/uniffi-release/lib$1.dylib \
+      --library "target/aarch64-apple-ios/uniffi-release-swift/lib$1.dylib" \
       --language swift \
       --out-dir target/uniffi-xcframework-staging
 
@@ -85,8 +95,8 @@ create_fat_simulator_lib() {
   echo "Creating a fat library for x86_64 and aarch64 simulators..."
   mkdir -p "$fat_simulator_lib_dir"
   lipo -create \
-      target/x86_64-apple-ios/uniffi-release/lib$1.a \
-      target/aarch64-apple-ios-sim/uniffi-release/lib$1.a \
+      "target/x86_64-apple-ios/uniffi-release-swift/lib$1.a" \
+      "target/aarch64-apple-ios-sim/uniffi-release-swift/lib$1.a" \
       -output "$fat_simulator_lib_dir/lib$1.a"
 }
 
@@ -95,9 +105,9 @@ build_xcframework() {
   rm -rf target/ios
   mkdir -p target/ios
   xcodebuild -create-xcframework \
-      -library target/aarch64-apple-ios/uniffi-release/lib$1.a -headers target/uniffi-xcframework-staging \
+      -library "target/aarch64-apple-ios/uniffi-release-swift/lib$1.a" -headers target/uniffi-xcframework-staging \
       -library "$fat_simulator_lib_dir/lib$1.a" -headers target/uniffi-xcframework-staging \
-      -output target/ios/lib$1.xcframework
+      -output "target/ios/lib$1.xcframework"
 }
 
 # Add the necessary Rust targets
