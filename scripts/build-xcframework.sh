@@ -19,7 +19,7 @@ build_rust_libraries() {
 
   # Build
 cargo build \
-  --lib --profile=uniffi-release \
+  --lib --profile=uniffi-release-swift \
   --target aarch64-apple-ios \
   -p kotlin-ffi \
   -p yttrium
@@ -41,7 +41,7 @@ cargo build \
 
   # Build
   cargo build \
-  --lib --profile=uniffi-release \
+  --lib --profile=uniffi-release-swift \
   --target x86_64-apple-ios \
   -p kotlin-ffi \
   -p yttrium
@@ -63,7 +63,7 @@ cargo build \
 
   # Build
   cargo build \
-  --lib --profile=uniffi-release \
+  --lib --profile=uniffi-release-swift \
   --target aarch64-apple-ios-sim \
   -p kotlin-ffi \
   -p yttrium
