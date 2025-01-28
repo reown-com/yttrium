@@ -4,6 +4,10 @@ use alloy::primitives::{
     Address as FFIAddress, Bytes as FFIBytes, Uint, U128 as FFIU128,
     U256 as FFIU256, U64 as FFIU64,
 };
+// Force import of this crate to ensure that the code is actually generated
+#[allow(unused_imports)]
+#[allow(clippy::single_component_path_imports)]
+use yttrium;
 #[cfg(feature = "account_client")]
 use {
     alloy::sol_types::SolStruct,
@@ -20,11 +24,14 @@ use {
 };
 #[cfg(feature = "chain_abstraction_client")]
 use {
+    alloy::{
+        network::Ethereum,
+        providers::{Provider, ReqwestProvider},
+    },
     relay_rpc::domain::ProjectId,
     std::time::Duration,
     yttrium::call::Call,
     yttrium::chain_abstraction::{
-        
         api::{
             prepare::{PrepareResponse, PrepareResponseAvailable},
             status::{StatusResponse, StatusResponseCompleted},
@@ -33,16 +40,7 @@ use {
         currency::Currency,
         ui_fields::UiFields,
     },
-    alloy::{
-        network::Ethereum,
-        providers::{Provider, ReqwestProvider},
-    },
 };
-
-// Force import of this crate to ensure that the code is actually generated
-#[allow(unused_imports)]
-#[allow(clippy::single_component_path_imports)]
-use yttrium;
 // extern crate yttrium; // This might work too, but I haven't tested
 
 uniffi::custom_type!(FFIAddress, String, {
