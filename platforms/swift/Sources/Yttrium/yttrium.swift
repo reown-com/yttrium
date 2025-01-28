@@ -623,6 +623,8 @@ public protocol ClientProtocol: AnyObject {
     
     func prepareDeploy(authSig: SignedAuthorization, params: PrepareDeployParams, sponsor: PrivateKeySigner?) async throws  -> PreparedSend
     
+    func prepareUsdcTransferCall(chainId: String, to: Address, usdcAmount: U256)  -> Call
+    
     func send(signature: PrimitiveSignature, params: SendParams) async throws  -> UserOperationReceipt
     
     func with4337Urls(bundlerUrl: Url, paymasterUrl: Url)  -> Client
@@ -740,6 +742,16 @@ open func prepareDeploy(authSig: SignedAuthorization, params: PrepareDeployParam
             liftFunc: FfiConverterTypePreparedSend_lift,
             errorHandler: FfiConverterTypePrepareDeployError.lift
         )
+}
+    
+open func prepareUsdcTransferCall(chainId: String, to: Address, usdcAmount: U256) -> Call  {
+    return try!  FfiConverterTypeCall_lift(try! rustCall() {
+    uniffi_yttrium_fn_method_client_prepare_usdc_transfer_call(self.uniffiClonePointer(),
+        FfiConverterString.lower(chainId),
+        FfiConverterTypeAddress_lower(to),
+        FfiConverterTypeU256_lower(usdcAmount),$0
+    )
+})
 }
     
 open func send(signature: PrimitiveSignature, params: SendParams)async throws  -> UserOperationReceipt  {
@@ -6296,6 +6308,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_yttrium_checksum_method_client_prepare_deploy() != 5197) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_method_client_prepare_usdc_transfer_call() != 31001) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_yttrium_checksum_method_client_send() != 10480) {

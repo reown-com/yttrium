@@ -291,6 +291,11 @@ uint64_t uniffi_yttrium_fn_method_client_prepare(void*_Nonnull ptr, RustBuffer c
 uint64_t uniffi_yttrium_fn_method_client_prepare_deploy(void*_Nonnull ptr, RustBuffer auth_sig, RustBuffer params, RustBuffer sponsor
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_YTTRIUM_FN_METHOD_CLIENT_PREPARE_USDC_TRANSFER_CALL
+#define UNIFFI_FFIDEF_UNIFFI_YTTRIUM_FN_METHOD_CLIENT_PREPARE_USDC_TRANSFER_CALL
+RustBuffer uniffi_yttrium_fn_method_client_prepare_usdc_transfer_call(void*_Nonnull ptr, RustBuffer chain_id, RustBuffer to, RustBuffer usdc_amount, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_YTTRIUM_FN_METHOD_CLIENT_SEND
 #define UNIFFI_FFIDEF_UNIFFI_YTTRIUM_FN_METHOD_CLIENT_SEND
 uint64_t uniffi_yttrium_fn_method_client_send(void*_Nonnull ptr, RustBuffer signature, RustBuffer params
@@ -643,6 +648,12 @@ uint16_t uniffi_yttrium_checksum_method_client_prepare(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_YTTRIUM_CHECKSUM_METHOD_CLIENT_PREPARE_DEPLOY
 #define UNIFFI_FFIDEF_UNIFFI_YTTRIUM_CHECKSUM_METHOD_CLIENT_PREPARE_DEPLOY
 uint16_t uniffi_yttrium_checksum_method_client_prepare_deploy(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_YTTRIUM_CHECKSUM_METHOD_CLIENT_PREPARE_USDC_TRANSFER_CALL
+#define UNIFFI_FFIDEF_UNIFFI_YTTRIUM_CHECKSUM_METHOD_CLIENT_PREPARE_USDC_TRANSFER_CALL
+uint16_t uniffi_yttrium_checksum_method_client_prepare_usdc_transfer_call(void
     
 );
 #endif
