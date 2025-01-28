@@ -104,6 +104,9 @@ inherits = "profile8"
 [profile.uniffi-release-kotlin]
 inherits = "profile11"
 
+[profile.uniffi-release-swift]
+inherits = "profile9"
+
 [profile.uniffi-release-iter1] # first iteration, changes opt-level to 3
 inherits = "release-base"
 debug = true
