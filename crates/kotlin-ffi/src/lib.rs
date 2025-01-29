@@ -1,8 +1,8 @@
 uniffi::setup_scaffolding!();
 
 use alloy::primitives::{
-    Address as FFIAddress, Bytes as FFIBytes, Uint, U128 as FFIU128,
-    U256 as FFIU256, U64 as FFIU64,
+    ruint::aliases::U256, Address as FFIAddress, Bytes as FFIBytes, Uint,
+    U128 as FFIU128, U256 as FFIU256, U64 as FFIU64,
 };
 // Force import of this crate to ensure that the code is actually generated
 #[allow(unused_imports)]
@@ -27,6 +27,8 @@ use {
     alloy::{
         network::Ethereum,
         providers::{Provider, ReqwestProvider},
+        sol,
+        sol_types::SolCall,
     },
     relay_rpc::domain::ProjectId,
     std::time::Duration,
@@ -42,6 +44,11 @@ use {
     },
 };
 // extern crate yttrium; // This might work too, but I haven't tested
+
+sol! {
+    pragma solidity ^0.8.0;
+    function transfer(address recipient, uint256 amount) external returns (bool);
+}
 
 uniffi::custom_type!(FFIAddress, String, {
     remote,
@@ -198,6 +205,21 @@ impl ChainAbstractionClient {
             .await
             .map(Into::into)
             .map_err(|e| FFIError::General(e.to_string()))
+    }
+
+    pub fn prepare_erc20_transfer_call(
+        &self,
+        erc20_address: FFIAddress,
+        to: FFIAddress,
+        amount: U256,
+    ) -> Call {
+        let encoded_data = transferCall::new((to, amount)).abi_encode();
+
+        Call {
+            to: erc20_address,
+            value: U256::ZERO,
+            input: encoded_data.into(),
+        }
     }
 
     pub async fn erc20_token_balance(
