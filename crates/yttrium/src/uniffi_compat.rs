@@ -1,8 +1,7 @@
+#[cfg(feature = "chain_abstraction_client")]
+use crate::chain_abstraction::{amount::Amount, api::prepare::FundingMetadata};
 use {
-    crate::{
-        chain_abstraction::{amount::Amount, api::prepare::FundingMetadata},
-        smart_accounts::account_address::AccountAddress,
-    },
+    crate::smart_accounts::account_address::AccountAddress,
     alloy::{
         contract::Error as AlloyError,
         dyn_abi::Eip712Domain,
@@ -155,11 +154,13 @@ uniffi::custom_type!(PendingTransactionError, String, {
 //     lower: |obj| obj.get(),
 // });
 
+#[cfg(feature = "chain_abstraction_client")]
 #[uniffi::export]
 fn funding_metadata_to_amount(value: FundingMetadata) -> Amount {
     value.to_amount()
 }
 
+#[cfg(feature = "chain_abstraction_client")]
 #[uniffi::export]
 fn funding_metadata_to_bridging_fee_amount(value: FundingMetadata) -> Amount {
     value.to_bridging_fee_amount()

@@ -23,7 +23,7 @@ else
     sed -i '' 's/^omit_checksums = true/# omit_checksums = true/' crates/kotlin-ffi/uniffi.toml
 fi
 
-RUSTFLAGS="$CARGO_RUSTFLAGS" cargo $CARGO_FLAGS ndk -t armeabi-v7a -t arm64-v8a build --profile=$PROFILE --features=uniffi/cli --target-dir=$TARGET_DIR $CARGO_NDK_FLAGS
+RUSTFLAGS="$CARGO_RUSTFLAGS" cargo $CARGO_FLAGS ndk -t armeabi-v7a -t arm64-v8a build -p kotlin-ffi --profile=$PROFILE --features=uniffi/cli --target-dir=$TARGET_DIR $CARGO_NDK_FLAGS
 cargo run --features=uniffi/cli --bin uniffi-bindgen generate --library $TARGET_DIR/aarch64-linux-android/$PROFILE/libuniffi_yttrium.so --language kotlin --out-dir yttrium/kotlin-bindings
 
 sed -i '' 's/^omit_checksums = true/# omit_checksums = true/' crates/kotlin-ffi/uniffi.toml
@@ -35,8 +35,8 @@ mkdir -p crates/kotlin-ffi/android/src/main/kotlin/com/reown/yttrium
 echo "Moving binaries and bindings"
 mv $TARGET_DIR/aarch64-linux-android/$PROFILE/libuniffi_yttrium.so crates/kotlin-ffi/android/src/main/jniLibs/arm64-v8a/
 mv $TARGET_DIR/armv7-linux-androideabi/$PROFILE/libuniffi_yttrium.so crates/kotlin-ffi/android/src/main/jniLibs/armeabi-v7a/
-mv yttrium/kotlin-bindings/uniffi/uniffi_yttrium/uniffi_yttrium.kt crates/kotlin-ffi/android/src/main/kotlin/com/reown/yttrium/
-mv yttrium/kotlin-bindings/uniffi/yttrium/yttrium.kt crates/kotlin-ffi/android/src/main/kotlin/com/reown/yttrium/
+# mv yttrium/kotlin-bindings/uniffi/uniffi_yttrium/uniffi_yttrium.kt crates/kotlin-ffi/android/src/main/kotlin/com/reown/yttrium/
+# mv yttrium/kotlin-bindings/uniffi/yttrium/yttrium.kt crates/kotlin-ffi/android/src/main/kotlin/com/reown/yttrium/
 
 if [ "$ENABLE_STRIP" == "true" ]; then
     echo "Stripping binaries"

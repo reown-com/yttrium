@@ -1,3 +1,4 @@
+#[cfg(feature = "chain_abstraction_client")]
 use {
     crate::{
         call::Call,
@@ -20,11 +21,13 @@ use {
     wasm_bindgen::prelude::*,
 };
 
+#[cfg(feature = "chain_abstraction_client")]
 #[wasm_bindgen(getter_with_clone)]
 pub struct Client {
     inner: InnerClient,
 }
 
+#[cfg(feature = "chain_abstraction_client")]
 #[wasm_bindgen]
 impl Client {
     #[wasm_bindgen(constructor)]

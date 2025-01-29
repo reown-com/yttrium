@@ -8,52 +8,8 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'lib.freezed.dart';
 
+// These types are ignored because they are not used by any `pub` functions: `PreparedSignature`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `from`
-
-// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<AccountAddress>>
-abstract class AccountAddress implements RustOpaqueInterface {}
-
-// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<AccountClient>>
-abstract class AccountClient implements RustOpaqueInterface {
-  BigInt get chainId;
-
-  AccountAddress get ownerAddress;
-
-  set chainId(BigInt chainId);
-
-  set ownerAddress(AccountAddress ownerAddress);
-
-  Future<String> doSendTransactions(
-      {required List<OwnerSignature> signatures,
-      required DoSendTransactionParams doSendTransactionParams});
-
-  Future<SignOutputEnum> doSignMessage(
-      {required List<OwnerSignature> signatures});
-
-  Future<Uint8List> finalizeSignMessage(
-      {required List<OwnerSignature> signatures,
-      required SignStep3Params signStep3Params});
-
-  Future<String> getAddress();
-
-  Future<BigInt> getChainId();
-
-  // HINT: Make it `#[frb(sync)]` to let it become the default constructor of Dart class.
-  static Future<AccountClient> newInstance(
-          {required AccountAddress owner,
-          required BigInt chainId,
-          required Config config}) =>
-      YttriumDart.instance.api.crateAccountClientNew(
-          owner: owner, chainId: chainId, config: config);
-
-  Future<PreparedSendTransaction> prepareSendTransactions(
-      {required List<Call> transactions});
-
-  Future<PreparedSignature> prepareSignMessage({required String messageHash});
-
-  Future<String> waitForUserOperationReceipt(
-      {required String userOperationHash});
-}
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<Address>>
 abstract class Address implements RustOpaqueInterface {}
@@ -95,32 +51,14 @@ abstract class ChainAbstractionClient implements RustOpaqueInterface {
       required BigInt timeout});
 }
 
-// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<Config>>
-abstract class Config implements RustOpaqueInterface {}
-
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<Currency>>
 abstract class Currency implements RustOpaqueInterface {}
-
-// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<DoSendTransactionParams>>
-abstract class DoSendTransactionParams implements RustOpaqueInterface {}
-
-// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<OwnerSignature>>
-abstract class OwnerSignature implements RustOpaqueInterface {}
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<PrepareResponse>>
 abstract class PrepareResponse implements RustOpaqueInterface {}
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<PrepareResponseAvailable>>
 abstract class PrepareResponseAvailable implements RustOpaqueInterface {}
-
-// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<PreparedSendTransaction>>
-abstract class PreparedSendTransaction implements RustOpaqueInterface {}
-
-// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<SignOutputEnum>>
-abstract class SignOutputEnum implements RustOpaqueInterface {}
-
-// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<SignStep3Params>>
-abstract class SignStep3Params implements RustOpaqueInterface {}
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<StatusResponse>>
 abstract class StatusResponse implements RustOpaqueInterface {}
@@ -162,22 +100,4 @@ sealed class Error with _$Error implements FrbException {
   const factory Error.general(
     String field0,
   ) = Error_General;
-}
-
-class PreparedSignature {
-  final String messageHash;
-
-  const PreparedSignature({
-    required this.messageHash,
-  });
-
-  @override
-  int get hashCode => messageHash.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is PreparedSignature &&
-          runtimeType == other.runtimeType &&
-          messageHash == other.messageHash;
 }
