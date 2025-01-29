@@ -9,6 +9,7 @@ use {
         },
         providers::{Provider, ReqwestProvider},
         sol_types::SolStruct,
+        sol
     },
     relay_rpc::domain::ProjectId,
     std::time::Duration,
@@ -37,6 +38,11 @@ use {
         },
     },
 };
+
+sol! {
+    pragma solidity ^0.8.0;
+    function transfer(address recipient, uint256 amount) external returns (bool);
+}
 
 uniffi::custom_type!(FFIAddress, String, {
     remote,
@@ -190,6 +196,21 @@ impl ChainAbstractionClient {
             .await
             .map(Into::into)
             .map_err(|e| FFIError::General(e.to_string()))
+    }
+
+    pub fn prepare_erc20_transfer_call(
+        &self,
+        erc20_address: FFIAddress,
+        to: FFIAddress,
+        amount: U256,
+    ) -> Call {
+        let encoded_data = transferCall::new((to, amount)).abi_encode();
+        
+        Call {
+            to: erc20_address,
+            value: U256::ZERO,
+            input: encoded_data.into(),
+        }
     }
 
     pub async fn erc20_token_balance(
