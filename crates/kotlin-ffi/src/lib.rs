@@ -4,8 +4,8 @@ use alloy::{
     hex,
     primitives::{
         ruint::aliases::U256, Address as FFIAddress, Bytes as FFIBytes,
-        PrimitiveSignature as FFIPrimitiveSignature, Uint, U128 as FFIU128, U256 as FFIU256,
-        U64 as FFIU64,
+        PrimitiveSignature as FFIPrimitiveSignature, Uint, U128 as FFIU128,
+        U256 as FFIU256, U64 as FFIU64,
     },
 };
 // Force import of this crate to ensure that the code is actually generated
