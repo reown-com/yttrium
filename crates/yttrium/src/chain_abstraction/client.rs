@@ -49,7 +49,6 @@ pub struct Client {
     provider_pool: ProviderPool,
 }
 
-
 impl Client {
     pub fn new(project_id: ProjectId) -> Self {
         Self { provider_pool: ProviderPool::new(project_id) }

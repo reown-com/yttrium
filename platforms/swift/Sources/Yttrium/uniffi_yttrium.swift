@@ -467,6 +467,8 @@ public protocol ChainAbstractionClientProtocol: AnyObject {
     
     func prepare(chainId: String, from: FfiAddress, call: Call) async throws  -> PrepareResponse
     
+    func prepareErc20TransferCall(erc20Address: FfiAddress, to: FfiAddress, amount: Ffiu256)  -> Call
+    
     func status(orchestrationId: String) async throws  -> StatusResponse
     
     func waitForSuccessWithTimeout(orchestrationId: String, checkIn: UInt64, timeout: UInt64) async throws  -> StatusResponseCompleted
@@ -599,6 +601,16 @@ open func prepare(chainId: String, from: FfiAddress, call: Call)async throws  ->
             liftFunc: FfiConverterTypePrepareResponse_lift,
             errorHandler: FfiConverterTypeFFIError.lift
         )
+}
+    
+open func prepareErc20TransferCall(erc20Address: FfiAddress, to: FfiAddress, amount: Ffiu256) -> Call  {
+    return try!  FfiConverterTypeCall_lift(try! rustCall() {
+    uniffi_uniffi_yttrium_fn_method_chainabstractionclient_prepare_erc20_transfer_call(self.uniffiClonePointer(),
+        FfiConverterTypeFFIAddress_lower(erc20Address),
+        FfiConverterTypeFFIAddress_lower(to),
+        FfiConverterTypeFFIU256_lower(amount),$0
+    )
+})
 }
     
 open func status(orchestrationId: String)async throws  -> StatusResponse  {
@@ -1511,6 +1523,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_uniffi_yttrium_checksum_method_chainabstractionclient_prepare() != 48357) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_uniffi_yttrium_checksum_method_chainabstractionclient_prepare_erc20_transfer_call() != 58309) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_uniffi_yttrium_checksum_method_chainabstractionclient_status() != 15758) {

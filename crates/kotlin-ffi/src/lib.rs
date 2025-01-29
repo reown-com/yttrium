@@ -4,12 +4,12 @@ use {
     alloy::{
         network::Ethereum,
         primitives::{
-            Address as FFIAddress, Bytes as FFIBytes, Uint, U128 as FFIU128,
-            U256 as FFIU256, U64 as FFIU64,
+            ruint::aliases::U256, Address as FFIAddress, Bytes as FFIBytes,
+            Uint, U128 as FFIU128, U256 as FFIU256, U64 as FFIU64,
         },
         providers::{Provider, ReqwestProvider},
-        sol_types::SolStruct,
-        sol
+        sol,
+        sol_types::{SolCall, SolStruct},
     },
     relay_rpc::domain::ProjectId,
     std::time::Duration,
@@ -205,7 +205,7 @@ impl ChainAbstractionClient {
         amount: U256,
     ) -> Call {
         let encoded_data = transferCall::new((to, amount)).abi_encode();
-        
+
         Call {
             to: erc20_address,
             value: U256::ZERO,
