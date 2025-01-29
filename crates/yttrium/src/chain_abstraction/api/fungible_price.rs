@@ -23,6 +23,8 @@ pub struct PriceRequestBody {
     pub project_id: ProjectId,
     pub currency: Currency,
     pub addresses: HashSet<String>,
+    #[serde(default)]
+    pub sdk_versions: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
@@ -44,4 +46,40 @@ pub struct FungiblePriceItem {
         serialize_with = "crate::utils::serialize_unit"
     )]
     pub decimals: Unit,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn price_request_body_parse_deserialization() {
+        let json =
+            serde_json::from_value::<PriceRequestBody>(serde_json::json!({
+                "projectId": "project_id",
+                "currency": "usd",
+                "addresses": [],
+                "sdkVersions": "yttrium-1234567",
+            }))
+            .unwrap();
+        assert_eq!(json.project_id, "project_id".into());
+        assert_eq!(json.currency, Currency::Usd);
+        assert_eq!(json.addresses, HashSet::new());
+        assert_eq!(json.sdk_versions, "yttrium-1234567");
+    }
+
+    #[test]
+    fn price_request_body_parse_backwards_compat() {
+        let json =
+            serde_json::from_value::<PriceRequestBody>(serde_json::json!({
+                "projectId": "project_id",
+                "currency": "usd",
+                "addresses": [],
+            }))
+            .unwrap();
+        assert_eq!(json.project_id, "project_id".into());
+        assert_eq!(json.currency, Currency::Usd);
+        assert_eq!(json.addresses, HashSet::new());
+        assert_eq!(json.sdk_versions, "");
+    }
 }
