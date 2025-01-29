@@ -35,6 +35,8 @@ use {
         network::TransactionBuilder,
         primitives::{Address, U256, U64},
         rpc::types::TransactionRequest,
+        sol,
+        sol_types::SolCall
     },
     alloy_provider::{utils::Eip1559Estimation, Provider},
     relay_rpc::domain::ProjectId,
@@ -44,9 +46,15 @@ use {
     },
 };
 
+
 #[derive(Clone)]
 pub struct Client {
     provider_pool: ProviderPool,
+}
+
+sol! {
+    pragma solidity ^0.8.0;
+    function transfer(address recipient, uint256 amount) external returns (bool);
 }
 
 impl Client {
@@ -347,6 +355,21 @@ impl Client {
             Duration::from_secs(30),
         )
         .await
+    }
+
+    pub fn prepare_erc20_transfer_call(
+        &self,
+        erc20_address: Address,
+        to: Address,
+        amount: U256,
+    ) -> Call {
+        let encoded_data = transferCall::new((to, amount)).abi_encode();
+        
+        Call {
+            to: erc20_address,
+            value: U256::ZERO,
+            input: encoded_data.into(),
+        }
     }
 
     /// Waits for the orchestration to complete, polling the status endpoint at
