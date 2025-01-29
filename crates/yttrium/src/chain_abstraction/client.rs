@@ -32,9 +32,10 @@ use {
         provider_pool::ProviderPool,
     },
     alloy::{
+        consensus::{SignableTransaction, TxEnvelope},
         network::TransactionBuilder,
-        primitives::{Address, U256, U64},
-        rpc::types::TransactionRequest,
+        primitives::{Address, PrimitiveSignature, U256, U64},
+        rpc::types::{TransactionReceipt, TransactionRequest},
     },
     alloy_provider::{utils::Eip1559Estimation, Provider},
     relay_rpc::domain::ProjectId,
@@ -396,13 +397,66 @@ impl Client {
         }
     }
 
-    // pub async fn send() {
-    //     // TODO input signed txns
-    //     // TODO send route first, etc. (possibly in parallel)
-    //     // TODO wait_for_success
-    //     // TODO send initial transaction
-    //     // TODO await initial transaction success
-    // }
+    pub async fn execute(
+        &self,
+        ui_fields: UiFields,
+        route_txn_sigs: Vec<PrimitiveSignature>,
+        initial_txn_sig: PrimitiveSignature,
+    ) -> ExecuteDetails {
+        assert_eq!(
+            ui_fields.route.len(),
+            route_txn_sigs.len(),
+            "route_txn_sigs length must match route length"
+        );
+        for (txn, sig) in
+            ui_fields.route.into_iter().zip(route_txn_sigs.into_iter())
+        {
+            let provider = self
+                .provider_pool
+                .get_provider(&txn.transaction.chain_id)
+                .await;
+            let signed = txn.transaction.into_eip1559().into_signed(sig);
+            assert!(provider
+                .send_tx_envelope(TxEnvelope::Eip1559(signed))
+                .await
+                .unwrap()
+                .with_timeout(Some(Duration::from_secs(15)))
+                .get_receipt()
+                .await
+                .unwrap()
+                .status());
+        }
+
+        let _success = self
+            .wait_for_success(
+                ui_fields.route_response.orchestration_id,
+                Duration::from_millis(
+                    ui_fields.route_response.metadata.check_in,
+                ),
+            )
+            .await
+            .unwrap();
+
+        let provider = self
+            .provider_pool
+            .get_provider(&ui_fields.initial.transaction.chain_id)
+            .await;
+        let signed = ui_fields
+            .initial
+            .transaction
+            .into_eip1559()
+            .into_signed(initial_txn_sig);
+        let initial_txn_receipt = provider
+            .send_tx_envelope(TxEnvelope::Eip1559(signed))
+            .await
+            .unwrap()
+            .with_timeout(Some(Duration::from_secs(15)))
+            .get_receipt()
+            .await
+            .unwrap();
+
+        ExecuteDetails { initial_txn_receipt }
+    }
 
     pub async fn erc20_token_balance(
         &self,
@@ -415,4 +469,9 @@ impl Client {
         let balance = erc20.balanceOf(owner).call().await?;
         Ok(balance.balance)
     }
+}
+
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
+pub struct ExecuteDetails {
+    pub initial_txn_receipt: TransactionReceipt,
 }

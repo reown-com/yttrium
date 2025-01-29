@@ -1,8 +1,12 @@
 uniffi::setup_scaffolding!();
 
-use alloy::primitives::{
-    ruint::aliases::U256, Address as FFIAddress, Bytes as FFIBytes, Uint,
-    U128 as FFIU128, U256 as FFIU256, U64 as FFIU64,
+use alloy::{
+    hex,
+    primitives::{
+        ruint::aliases::U256, Address as FFIAddress, Bytes as FFIBytes,
+        PrimitiveSignature, Uint, U128 as FFIU128, U256 as FFIU256,
+        U64 as FFIU64,
+    },
 };
 // Force import of this crate to ensure that the code is actually generated
 #[allow(unused_imports)]
@@ -33,6 +37,7 @@ use {
     relay_rpc::domain::ProjectId,
     std::time::Duration,
     yttrium::call::Call,
+    yttrium::chain_abstraction::client::ExecuteDetails,
     yttrium::chain_abstraction::{
         api::{
             prepare::{PrepareResponse, PrepareResponseAvailable},
@@ -54,6 +59,12 @@ uniffi::custom_type!(FFIAddress, String, {
     remote,
     try_lift: |val| Ok(val.parse()?),
     lower: |obj| obj.to_string(),
+});
+
+uniffi::custom_type!(PrimitiveSignature, String, {
+    remote,
+    try_lift: |val| Ok(val.parse()?),
+    lower: |obj| format!("0x{}", hex::encode(obj.as_bytes())),
 });
 
 fn uint_to_hex<const BITS: usize, const LIMBS: usize>(
@@ -187,6 +198,15 @@ impl ChainAbstractionClient {
             )
             .await
             .map_err(|e| FFIError::General(e.to_string()))
+    }
+
+    pub async fn execute(
+        &self,
+        ui_fields: UiFields,
+        route_txn_sigs: Vec<PrimitiveSignature>,
+        initial_txn_sig: PrimitiveSignature,
+    ) -> ExecuteDetails {
+        self.client.execute(ui_fields, route_txn_sigs, initial_txn_sig).await
     }
 
     pub async fn estimate_fees(
