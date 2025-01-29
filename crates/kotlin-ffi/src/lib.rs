@@ -4,7 +4,7 @@ use alloy::{
     hex,
     primitives::{
         ruint::aliases::U256, Address as FFIAddress, Bytes as FFIBytes,
-        PrimitiveSignature, Uint, U128 as FFIU128, U256 as FFIU256,
+        PrimitiveSignature as FFIPrimitiveSignature, Uint, U128 as FFIU128, U256 as FFIU256,
         U64 as FFIU64,
     },
 };
@@ -61,7 +61,7 @@ uniffi::custom_type!(FFIAddress, String, {
     lower: |obj| obj.to_string(),
 });
 
-uniffi::custom_type!(PrimitiveSignature, String, {
+uniffi::custom_type!(FFIPrimitiveSignature, String, {
     remote,
     try_lift: |val| Ok(val.parse()?),
     lower: |obj| format!("0x{}", hex::encode(obj.as_bytes())),
@@ -203,8 +203,8 @@ impl ChainAbstractionClient {
     pub async fn execute(
         &self,
         ui_fields: UiFields,
-        route_txn_sigs: Vec<PrimitiveSignature>,
-        initial_txn_sig: PrimitiveSignature,
+        route_txn_sigs: Vec<FFIPrimitiveSignature>,
+        initial_txn_sig: FFIPrimitiveSignature,
     ) -> ExecuteDetails {
         self.client.execute(ui_fields, route_txn_sigs, initial_txn_sig).await
     }
