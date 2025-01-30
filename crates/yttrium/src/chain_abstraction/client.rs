@@ -454,6 +454,7 @@ impl Client {
             .get_receipt()
             .await
             .unwrap();
+        assert!(initial_txn_receipt.status());
 
         ExecuteDetails { initial_txn_receipt }
     }
