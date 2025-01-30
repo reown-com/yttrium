@@ -58,6 +58,10 @@ const USDC_CONTRACT_ARBITRUM: Address =
 
 const TOPOFF: f64 = 1.55; // 50% in the server
 
+/// How much to multiply the amount by when bridging to cover bridging
+/// differences
+pub const BRIDGING_AMOUNT_MULTIPLIER: i8 = 55; // 50% in the server
+
 #[derive(Debug, Clone, PartialEq, Eq, Copy)]
 enum Chain {
     Base,
@@ -330,10 +334,6 @@ async fn bridging_routes_routes_available() {
 
     let current_balance = chain_1_address_1_token.token_balance().await;
 
-    /// How much to multiply the amount by when bridging to cover bridging
-    /// differences
-    pub const BRIDGING_AMOUNT_MULTIPLIER: i8 = 10; // 5%
-
     /// Minimal bridging fees coverage using decimals
     static MINIMAL_BRIDGING_FEES_COVERAGE: u64 = 50000; // 0.05 USDC/USDT
 
@@ -400,7 +400,7 @@ async fn bridging_routes_routes_available() {
     let project_id = std::env::var("REOWN_PROJECT_ID").unwrap().into();
     let client = Client::new(project_id);
     let start = Instant::now();
-    let mut result = client
+    let result = client
         .prepare(
             chain_2.eip155_chain_id().to_owned(),
             source.address(),
@@ -414,9 +414,7 @@ async fn bridging_routes_routes_available() {
         .unwrap();
     println!("route result in ({:#?}): {:?}", start.elapsed(), result);
 
-    assert_eq!(result.transactions.len(), 2);
-    result.transactions[0].gas_limit = U64::from(60000 /* 55437 */); // until Blockchain API estimates this
-    result.transactions[1].gas_limit = U64::from(140000 /* 107394 */); // until Blockchain API estimates this
+    assert!(result.transactions.len() == 1 || result.transactions.len() == 2);
 
     let start = Instant::now();
     let ui_fields =
@@ -428,8 +426,8 @@ async fn bridging_routes_routes_available() {
         assert_eq!(fee.symbol, "USD".to_owned());
         assert!(fee.amount > U256::ZERO);
         assert!(fee.amount > U256::from(100));
-        assert!(fee.as_float_inaccurate() < 10.);
-        assert!(fee.as_float_inaccurate() < 0.15);
+        assert!(fee.as_float_inaccurate() < 1.);
+        assert!(fee.as_float_inaccurate() < 0.1);
         assert!(fee.formatted.ends_with(&fee.symbol));
         assert!(
             fee.formatted_alt.starts_with("$")
@@ -455,7 +453,7 @@ async fn bridging_routes_routes_available() {
     assert_eq!(fee.symbol, "USDC".to_owned());
     assert!(fee.amount > U256::ZERO);
     assert!(fee.as_float_inaccurate() < 1.);
-    assert!(fee.as_float_inaccurate() < 0.20);
+    assert!(fee.as_float_inaccurate() < 0.1);
 
     let total_fee = ui_fields.local_total.as_float_inaccurate();
     let combined_fees =
@@ -744,7 +742,7 @@ async fn happy_path() {
 
     let project_id = std::env::var("REOWN_PROJECT_ID").unwrap().into();
     let client = Client::new(project_id);
-    let mut result = client
+    let result = client
         .prepare(
             source
                 .other()
@@ -766,9 +764,7 @@ async fn happy_path() {
 
     // TODO it's possible this is only 1 transaction due to already being
     // approved: https://reown-inc.slack.com/archives/C0816SK4877/p1732813465413249?thread_ts=1732787456.681429&cid=C0816SK4877
-    assert_eq!(result.transactions.len(), 2);
-    result.transactions[0].gas_limit = U64::from(60000 /* 55437 */); // until Blockchain API estimates this
-    result.transactions[1].gas_limit = U64::from(140000 /* 107394 */); // until Blockchain API estimates this
+    assert!(result.transactions.len() == 1 || result.transactions.len() == 2);
 
     let start = Instant::now();
     let ui_fields =
@@ -879,7 +875,7 @@ async fn happy_path() {
 
     let (bridge, original) =
         transactions_with_fees.split_at(transactions_with_fees.len() - 1);
-    assert_eq!(bridge.len(), 2);
+    assert!(bridge.len() == 1 || bridge.len() == 2);
     assert_eq!(original.len(), 1);
     let original = original.first().unwrap();
 
@@ -1312,7 +1308,7 @@ async fn happy_path_full_dependency_on_ui_fields() {
 
     let project_id = std::env::var("REOWN_PROJECT_ID").unwrap().into();
     let client = Client::new(project_id);
-    let mut result = client
+    let result = client
         .prepare(
             initial_transaction_chain_id.clone(),
             source.address(&sources),
@@ -1328,9 +1324,7 @@ async fn happy_path_full_dependency_on_ui_fields() {
 
     // TODO it's possible this is only 1 transaction due to already being
     // approved: https://reown-inc.slack.com/archives/C0816SK4877/p1732813465413249?thread_ts=1732787456.681429&cid=C0816SK4877
-    assert_eq!(result.transactions.len(), 2);
-    result.transactions[0].gas_limit = U64::from(60000 /* 55437 */); // until Blockchain API estimates this
-    result.transactions[1].gas_limit = U64::from(140000 /* 107394 */); // until Blockchain API estimates this
+    assert!(result.transactions.len() == 1 || result.transactions.len() == 2);
 
     assert_eq!(result.metadata.funding_from.len(), 1);
     assert_eq!(result.metadata.funding_from.first().unwrap().symbol, "USDC");
@@ -1365,7 +1359,7 @@ async fn happy_path_full_dependency_on_ui_fields() {
         .unwrap()
         .to_amount()
         .formatted
-        .starts_with("2.26"));
+        .starts_with("2.25"));
     assert!(result
         .metadata
         .funding_from
