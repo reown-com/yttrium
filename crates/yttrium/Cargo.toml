@@ -20,10 +20,17 @@ wasm = [
     "dep:wasm-bindgen-futures",
     "alloy/wasm-bindgen",
     "dep:tsify-next",
+    # "getrandom/wasm_js", # for getrandom v0.3.*
+    "getrandom/js",
 ]
 
 # Features contributing to bundle size, that you might not need
-all_clients = ["account_client", "erc6492_client", "chain_abstraction_client", "transaction_sponsorship_client"]
+all_clients = [
+    "account_client",
+    "erc6492_client",
+    "chain_abstraction_client",
+    "transaction_sponsorship_client",
+]
 account_client = []
 erc6492_client = []
 chain_abstraction_client = []
@@ -57,7 +64,7 @@ erc6492.workspace = true
 relay_rpc.workspace = true
 
 # foundry-block-explorers = "0.2.3"
-getrandom = { version = "0.2", features = ["js"], default-features = false }
+getrandom = { version = "0.2", default-features = false }
 
 # Error/Result
 eyre.workspace = true

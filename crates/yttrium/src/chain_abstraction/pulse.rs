@@ -12,28 +12,29 @@ const PULSE_ENDPOINT: &str = "http://localhost:8080/analytics";
 
 pub fn pulse(
     http_client: Client,
-    execute_analytics: ExecuteAnalytics,
+    props: ExecuteAnalytics,
     project_id: ProjectId,
 ) {
+    let event_id = generate_event_id();
     let timestamp = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
         .as_millis();
-    let analytics = Event { event_id: "".to_owned(), timestamp };
+    let analytics = Event { event_id, timestamp, props };
     info!("pulse analytics: {analytics:?}");
+
+    let query = Query {
+        project_id,
+        sdk_type: SDK_TYPE,
+        sdk_version: SDK_VERSION,
+        sdk_platform: SDK_PLATFORM,
+    };
+
+    let fut =
+        http_client.post(PULSE_ENDPOINT).query(&query).json(&analytics).send();
+
     spawn(async move {
-        match http_client
-            .post(PULSE_ENDPOINT)
-            .query(&Query {
-                project_id,
-                sdk_type: SDK_TYPE,
-                sdk_version: SDK_VERSION,
-                sdk_platform: SDK_PLATFORM,
-            })
-            .json(&execute_analytics)
-            .send()
-            .await
-        {
+        match fut.await {
             Ok(response) => {
                 if response.status().is_success() {
                     info!("successfully sent execute() analytics");
@@ -49,9 +50,11 @@ pub fn pulse(
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Event {
     pub event_id: String,
     pub timestamp: u128,
+    pub props: ExecuteAnalytics,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -69,3 +72,11 @@ pub struct Query {
 const SDK_TYPE: &str = "events_sdk";
 const SDK_VERSION: &str = "0.0.0";
 const SDK_PLATFORM: &str = "rust";
+
+fn generate_event_id() -> String {
+    let mut buf = [0u8; 16];
+    if let Err(e) = getrandom::getrandom(&mut buf) {
+        warn!("error: getrandom::fill(x16): {e}");
+    }
+    hex::encode(buf)
+}
