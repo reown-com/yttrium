@@ -26,32 +26,47 @@ use {
     crate::{
         call::Call,
         chain_abstraction::{
-            error::UiFieldsError, l1_data_fee::get_l1_data_fee, ui_fields,
+            error::UiFieldsError, l1_data_fee::get_l1_data_fee, pulse::pulse,
+            ui_fields,
         },
         erc20::ERC20,
         provider_pool::ProviderPool,
     },
     alloy::{
+        consensus::{SignableTransaction, TxEnvelope},
         network::TransactionBuilder,
-        primitives::{Address, U256, U64},
-        rpc::types::TransactionRequest,
+        primitives::{Address, PrimitiveSignature, B256, U256, U64},
+        rpc::types::{TransactionReceipt, TransactionRequest},
     },
     alloy_provider::{utils::Eip1559Estimation, Provider},
     relay_rpc::domain::ProjectId,
+    reqwest::Client as ReqwestClient,
+    serde::{Deserialize, Serialize},
     std::{
         collections::{HashMap, HashSet},
-        time::{Duration, Instant},
+        time::{Duration, Instant, SystemTime, UNIX_EPOCH},
     },
+    thiserror::Error,
 };
 
 #[derive(Clone)]
 pub struct Client {
     provider_pool: ProviderPool,
+    http_client: ReqwestClient,
+    project_id: ProjectId,
 }
 
 impl Client {
     pub fn new(project_id: ProjectId) -> Self {
-        Self { provider_pool: ProviderPool::new(project_id) }
+        let client = ReqwestClient::new();
+        Self {
+            provider_pool: ProviderPool::new(
+                project_id.clone(),
+                client.clone(),
+            ),
+            http_client: client,
+            project_id,
+        }
     }
 
     pub async fn prepare(
@@ -396,13 +411,110 @@ impl Client {
         }
     }
 
-    // pub async fn send() {
-    //     // TODO input signed txns
-    //     // TODO send route first, etc. (possibly in parallel)
-    //     // TODO wait_for_success
-    //     // TODO send initial transaction
-    //     // TODO await initial transaction success
-    // }
+    pub async fn execute(
+        &self,
+        ui_fields: UiFields,
+        route_txn_sigs: Vec<PrimitiveSignature>,
+        initial_txn_sig: PrimitiveSignature,
+    ) -> ExecuteDetails {
+        assert_eq!(
+            ui_fields.route.len(),
+            route_txn_sigs.len(),
+            "route_txn_sigs length must match route length"
+        );
+
+        let start = Instant::now();
+        let start_time = SystemTime::now();
+
+        let route_start = start;
+        let mut route_latencies = Vec::with_capacity(ui_fields.route.len());
+        for (txn, sig) in
+            ui_fields.route.into_iter().zip(route_txn_sigs.into_iter())
+        {
+            let route_i_start = Instant::now();
+            let provider = self
+                .provider_pool
+                .get_provider(&txn.transaction.chain_id)
+                .await;
+            let signed = txn.transaction.into_eip1559().into_signed(sig);
+            assert!(provider
+                .send_tx_envelope(TxEnvelope::Eip1559(signed))
+                .await
+                .unwrap()
+                .with_timeout(Some(Duration::from_secs(15)))
+                .get_receipt()
+                .await
+                .unwrap()
+                .status());
+            route_latencies.push(route_i_start.elapsed());
+        }
+        let route_latency = route_start.elapsed();
+
+        let status_start = Instant::now();
+        let _success = self
+            .wait_for_success(
+                ui_fields.route_response.orchestration_id,
+                Duration::from_millis(
+                    ui_fields.route_response.metadata.check_in,
+                ),
+            )
+            .await
+            .unwrap();
+        let status_latency = status_start.elapsed();
+
+        let initial_txn_start = Instant::now();
+        let provider = self
+            .provider_pool
+            .get_provider(&ui_fields.initial.transaction.chain_id)
+            .await;
+        let signed = ui_fields
+            .initial
+            .transaction
+            .into_eip1559()
+            .into_signed(initial_txn_sig);
+        let initial_txn_receipt = provider
+            .send_tx_envelope(TxEnvelope::Eip1559(signed))
+            .await
+            .unwrap()
+            .with_timeout(Some(Duration::from_secs(15)))
+            .get_receipt()
+            .await
+            .unwrap();
+        let initial_latency = initial_txn_start.elapsed();
+        assert!(initial_txn_receipt.status());
+
+        let details = ExecuteDetails {
+            initial_txn_hash: initial_txn_receipt.transaction_hash,
+            initial_txn_receipt,
+        };
+
+        let latency = start.elapsed();
+
+        pulse(
+            self.http_client.clone(),
+            ExecuteAnalytics {
+                error: None,
+                start: start_time
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_millis(),
+                route_latency,
+                route_latencies,
+                route_txn_hashes: vec![],
+                status_latency,
+                initial_latency,
+                latency,
+                initial_txn_hash: details.initial_txn_hash,
+                end: SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_millis(),
+            },
+            self.project_id.clone(),
+        );
+
+        details
+    }
 
     pub async fn erc20_token_balance(
         &self,
@@ -416,3 +528,37 @@ impl Client {
         Ok(balance.balance)
     }
 }
+
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ExecuteDetails {
+    pub initial_txn_receipt: TransactionReceipt,
+    pub initial_txn_hash: B256,
+}
+
+#[derive(Debug, Error)]
+pub enum ExecuteError {
+    #[error("Route error: {0}")]
+    RouteError(String),
+    #[error("Status error: {0}")]
+    StatusError(String),
+    #[error("Initial error: {0}")]
+    InitialError(String),
+}
+
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ExecuteAnalytics {
+    pub error: Option<String>,
+    pub start: u128,
+    pub route_latency: Duration,
+    pub route_latencies: Vec<Duration>,
+    pub route_txn_hashes: Vec<B256>,
+    pub status_latency: Duration,
+    pub initial_latency: Duration,
+    pub initial_txn_hash: B256,
+    pub latency: Duration,
+    pub end: u128,
+}
+
+// TODO test non-happy paths: txn failures
