@@ -79,7 +79,10 @@ impl Client {
             .unwrap();
 
         Self {
-            provider_pool: ProviderPool::new(project_id),
+            provider_pool: ProviderPool::new(
+                project_id,
+                reqwest::Client::new(),
+            ),
             paymaster_url: bundler_url.clone(),
             bundler_url,
         }

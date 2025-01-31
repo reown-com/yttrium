@@ -64,7 +64,7 @@ eyre.workspace = true
 thiserror.workspace = true
 
 # Async
-tokio.workspace = true
+tokio = { workspace = true, features = ["rt"] }
 futures.workspace = true
 
 # Serialization

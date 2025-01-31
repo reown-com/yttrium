@@ -21,9 +21,9 @@ pub struct ProviderPool {
 }
 
 impl ProviderPool {
-    pub fn new(project_id: ProjectId) -> Self {
+    pub fn new(project_id: ProjectId, client: ReqwestClient) -> Self {
         Self {
-            client: ReqwestClient::new(),
+            client,
             providers: Arc::new(RwLock::new(HashMap::new())),
             blockchain_api_base_url: BLOCKCHAIN_API_URL.parse().unwrap(),
             project_id,
