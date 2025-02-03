@@ -181,14 +181,14 @@ impl Client {
                     })
                     .send()
                     .await
-                    .map_err(UiFieldsError::Request)?;
+                    .map_err(UiFieldsError::FungiblesRequest)?;
                 let prices = if response.status().is_success() {
                     response
                         .json::<PriceResponseBody>()
                         .await
-                        .map_err(UiFieldsError::Json)
+                        .map_err(UiFieldsError::FungiblesJson)
                 } else {
-                    Err(UiFieldsError::RequestFailed(
+                    Err(UiFieldsError::FungiblesRequestFailed(
                         response.status(),
                         response.text().await,
                     ))
@@ -199,14 +199,13 @@ impl Client {
 
         let estimate_future = futures::future::try_join_all(chains.iter().map(
             |chain_id| async move {
-                let estimate = self
-                    .provider_pool
+                self.provider_pool
                     .get_provider(chain_id)
                     .await
                     .estimate_eip1559_fees(None)
                     .await
-                    .unwrap(); // TODO remove this unwrap()
-                Ok((chain_id, estimate))
+                    .map_err(UiFieldsError::Eip1559Estimation)
+                    .map(|estimate| (chain_id, estimate))
             },
         ));
 

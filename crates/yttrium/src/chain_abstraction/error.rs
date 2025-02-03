@@ -61,16 +61,20 @@ pub enum StatusError {
 #[cfg_attr(feature = "wasm", derive(derive_jserror::JsError))]
 pub enum UiFieldsError {
     /// Retryable error
-    #[error("HTTP request: {0}")]
-    Request(reqwest::Error),
+    #[error("Fungibles HTTP request: {0}")]
+    FungiblesRequest(reqwest::Error),
 
     /// Retryable error
-    #[error("HTTP request failed: {0}")]
-    RequestFailed(StatusCode, Result<String, reqwest::Error>),
+    #[error("Fungibles HTTP request failed: {0}")]
+    FungiblesRequestFailed(StatusCode, Result<String, reqwest::Error>),
 
     /// Retryable error
-    #[error("Json request: {0}")]
-    Json(reqwest::Error),
+    #[error("Fungibles Json request: {0}")]
+    FungiblesJson(reqwest::Error),
+
+    /// Retryable error
+    #[error("Eip1559Estimation: {0}")]
+    Eip1559Estimation(RpcError<TransportErrorKind>),
 }
 
 #[derive(thiserror::Error, Debug)]
