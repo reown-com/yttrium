@@ -4,7 +4,7 @@ use {
     reqwest::Client,
     serde::{Deserialize, Serialize},
     std::time::Duration,
-    tracing::{info, warn},
+    tracing::{debug, info, warn},
     uuid::Uuid,
 };
 
@@ -21,7 +21,7 @@ pub fn pulse(
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default();
     let analytics = Event { event_id, timestamp, props };
-    info!("pulse analytics: {analytics:?}");
+    debug!("pulse analytics: {analytics:?}");
 
     let query = Query {
         project_id,
