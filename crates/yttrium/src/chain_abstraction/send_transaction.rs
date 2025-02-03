@@ -2,7 +2,7 @@ use {
     super::{api::FeeEstimatedTransaction, error::SendTransactionError},
     crate::{
         provider_pool::ProviderPool,
-        serde::{duration_millis, option_duration_millis},
+        serde::{duration_millis, option_duration_millis, systemtime_millis},
     },
     alloy::{
         consensus::{SignableTransaction, TxEnvelope},
@@ -11,7 +11,7 @@ use {
     },
     alloy_provider::Provider,
     serde::{Deserialize, Serialize},
-    std::time::{Duration, Instant, SystemTime, UNIX_EPOCH},
+    std::time::{Duration, Instant, SystemTime},
 };
 
 pub async fn send_transaction(
@@ -23,8 +23,7 @@ pub async fn send_transaction(
     (SendTransactionError, TransactionAnalytics),
 > {
     let start = Instant::now();
-    let start_time =
-        SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default();
+    let start_time = SystemTime::now();
 
     let provider = provider_pool.get_provider(&txn.chain_id).await;
     let signed = txn.into_eip1559().into_signed(sig);
@@ -43,9 +42,7 @@ pub async fn send_transaction(
                 send_latency,
                 receipt_latency: None,
                 latency: start.elapsed(),
-                end: SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .unwrap_or_default(),
+                end: SystemTime::now(),
             },
         )
     })?;
@@ -63,7 +60,7 @@ pub async fn send_transaction(
         send_latency,
         receipt_latency: Some(receipt_latency),
         latency: start.elapsed(),
-        end: SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default(),
+        end: SystemTime::now(),
     };
 
     let receipt = receipt_result.map_err(|e| {
@@ -102,10 +99,10 @@ pub async fn send_transaction(
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TransactionAnalytics {
     pub txn_hash: B256,
-    #[serde(with = "duration_millis")]
-    pub start: Duration,
-    #[serde(with = "duration_millis")]
-    pub end: Duration,
+    #[serde(with = "systemtime_millis")]
+    pub start: SystemTime,
+    #[serde(with = "systemtime_millis")]
+    pub end: SystemTime,
     #[serde(with = "duration_millis")]
     pub latency: Duration,
     #[serde(with = "duration_millis")]

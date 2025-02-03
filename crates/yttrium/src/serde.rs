@@ -19,6 +19,32 @@ pub mod duration_millis {
     }
 }
 
+pub mod systemtime_millis {
+    use {
+        super::duration_millis,
+        serde::{de, ser},
+        std::time::{SystemTime, UNIX_EPOCH},
+    };
+
+    pub fn serialize<S>(
+        dt: &SystemTime,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error>
+    where
+        S: ser::Serializer,
+    {
+        let dt = dt.duration_since(UNIX_EPOCH).unwrap_or_default();
+        duration_millis::serialize(&dt, serializer)
+    }
+
+    pub fn deserialize<'de, D>(d: D) -> Result<SystemTime, D::Error>
+    where
+        D: de::Deserializer<'de>,
+    {
+        duration_millis::deserialize(d).map(|dt| UNIX_EPOCH + dt)
+    }
+}
+
 pub mod option_duration_millis {
     use {
         serde::{de, ser, Deserialize},

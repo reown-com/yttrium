@@ -33,7 +33,7 @@ use {
         },
         erc20::ERC20,
         provider_pool::ProviderPool,
-        serde::{duration_millis, option_duration_millis},
+        serde::{duration_millis, option_duration_millis, systemtime_millis},
     },
     alloy::{
         network::TransactionBuilder,
@@ -46,7 +46,7 @@ use {
     serde::{Deserialize, Serialize},
     std::{
         collections::{HashMap, HashSet},
-        time::{Duration, Instant, SystemTime, UNIX_EPOCH},
+        time::{Duration, Instant, SystemTime},
     },
 };
 
@@ -499,17 +499,13 @@ impl Client {
                         ExecuteError::Route(e),
                         ExecuteAnalytics {
                             error: None,
-                            start: start_time
-                                .duration_since(UNIX_EPOCH)
-                                .unwrap_or_default(),
+                            start: start_time,
                             route_latency,
                             route,
                             status_latency: None,
                             initial_txn: None,
                             latency,
-                            end: SystemTime::now()
-                                .duration_since(UNIX_EPOCH)
-                                .unwrap_or_default(),
+                            end: SystemTime::now(),
                         },
                     ));
                 }
@@ -531,17 +527,13 @@ impl Client {
                     ExecuteError::Bridge(e),
                     ExecuteAnalytics {
                         error: None,
-                        start: start_time
-                            .duration_since(UNIX_EPOCH)
-                            .unwrap_or_default(),
+                        start: start_time,
                         route_latency,
                         route: route.clone(),
                         status_latency: Some(status_latency), // TODO refactor to avoid potentially forgetting to set this to Some() (also in subsequent ones)
                         initial_txn: None,
                         latency,
-                        end: SystemTime::now()
-                            .duration_since(UNIX_EPOCH)
-                            .unwrap_or_default(),
+                        end: SystemTime::now(),
                     },
                 )
             })?;
@@ -559,17 +551,13 @@ impl Client {
                 ExecuteError::Route(e),
                 ExecuteAnalytics {
                     error: None,
-                    start: start_time
-                        .duration_since(UNIX_EPOCH)
-                        .unwrap_or_default(),
+                    start: start_time,
                     route_latency,
                     route: route.clone(),
                     status_latency: Some(status_latency),
                     initial_txn: Some(analytics),
                     latency,
-                    end: SystemTime::now()
-                        .duration_since(UNIX_EPOCH)
-                        .unwrap_or_default(),
+                    end: SystemTime::now(),
                 },
             )
         })?;
@@ -583,15 +571,13 @@ impl Client {
 
         let analytics = ExecuteAnalytics {
             error: None,
-            start: start_time.duration_since(UNIX_EPOCH).unwrap_or_default(),
+            start: start_time,
             route_latency,
             route,
             status_latency: Some(status_latency),
             initial_txn: Some(initial_txn_analytics),
             latency,
-            end: SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap_or_default(),
+            end: SystemTime::now(),
         };
 
         Ok((details, analytics))
@@ -626,8 +612,8 @@ pub struct ExecuteDetails {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ExecuteAnalytics {
     pub error: Option<String>,
-    #[serde(with = "duration_millis")]
-    pub start: Duration,
+    #[serde(with = "systemtime_millis")]
+    pub start: SystemTime,
     #[serde(with = "duration_millis")]
     pub route_latency: Duration,
     pub route: Vec<TransactionAnalytics>,
@@ -636,8 +622,8 @@ pub struct ExecuteAnalytics {
     pub initial_txn: Option<TransactionAnalytics>,
     #[serde(with = "duration_millis")]
     pub latency: Duration,
-    #[serde(with = "duration_millis")]
-    pub end: Duration,
+    #[serde(with = "systemtime_millis")]
+    pub end: SystemTime,
 }
 
 // TODO test non-happy paths: txn failures
