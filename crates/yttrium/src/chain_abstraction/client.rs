@@ -479,6 +479,8 @@ impl Client {
         let start = Instant::now();
         let start_time = SystemTime::now();
 
+        let orchestration_id = ui_fields.route_response.orchestration_id;
+
         let route_start = start;
         let mut route = Vec::with_capacity(ui_fields.route.len());
         for (txn, sig) in
@@ -498,6 +500,7 @@ impl Client {
                     return Err((
                         ExecuteError::Route(e),
                         ExecuteAnalytics {
+                            orchestration_id: orchestration_id.clone(),
                             error: None,
                             start: start_time,
                             route_latency,
@@ -516,7 +519,7 @@ impl Client {
         let status_start = Instant::now();
         let _success = self
             .wait_for_success(
-                ui_fields.route_response.orchestration_id,
+                orchestration_id.clone(),
                 ui_fields.route_response.metadata.check_in,
             )
             .await
@@ -526,6 +529,7 @@ impl Client {
                 (
                     ExecuteError::Bridge(e),
                     ExecuteAnalytics {
+                        orchestration_id: orchestration_id.clone(),
                         error: None,
                         start: start_time,
                         route_latency,
@@ -550,6 +554,7 @@ impl Client {
             (
                 ExecuteError::Route(e),
                 ExecuteAnalytics {
+                    orchestration_id: orchestration_id.clone(),
                     error: None,
                     start: start_time,
                     route_latency,
@@ -570,6 +575,7 @@ impl Client {
         let latency = start.elapsed();
 
         let analytics = ExecuteAnalytics {
+            orchestration_id,
             error: None,
             start: start_time,
             route_latency,
@@ -610,7 +616,9 @@ pub struct ExecuteDetails {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ExecuteAnalytics {
+    pub orchestration_id: String,
     pub error: Option<String>,
     #[serde(with = "systemtime_millis")]
     pub start: SystemTime,
