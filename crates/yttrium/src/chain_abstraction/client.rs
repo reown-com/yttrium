@@ -213,7 +213,7 @@ impl Client {
             txn: Transaction,
             providers: &Client,
         ) -> Result<U256, UiFieldsError> {
-            Ok(get_l1_data_fee(
+            get_l1_data_fee(
                 TransactionRequest::default()
                     .with_from(txn.from)
                     .with_to(txn.to)
@@ -233,7 +233,8 @@ impl Client {
                     .with_max_priority_fee_per_gas(1),
                 providers.provider_pool.get_provider(&txn.chain_id).await,
             )
-            .await)
+            .await
+            .map_err(UiFieldsError::L1DataFee)
         }
 
         let route_l1_data_fee_futures = futures::future::try_join_all(

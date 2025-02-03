@@ -75,7 +75,15 @@ pub enum UiFieldsError {
     /// Retryable error
     #[error("Eip1559Estimation: {0}")]
     Eip1559Estimation(RpcError<TransportErrorKind>),
+
+    /// Retryable error
+    #[error("L1DataFee: {0}")]
+    L1DataFee(L1DataFeeError),
 }
+
+#[derive(thiserror::Error, Debug)]
+#[cfg_attr(feature = "wasm", derive(derive_jserror::JsError))]
+pub enum L1DataFeeError {}
 
 #[derive(thiserror::Error, Debug)]
 pub enum PrepareDetailedError {
