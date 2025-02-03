@@ -8,15 +8,16 @@ use {
                 status::{StatusResponse, StatusResponseCompleted},
             },
             client::Client as InnerClient,
+            client::ExecuteDetails,
             currency::Currency,
             error::{
-                PrepareDetailedResponse, PrepareError, UiFieldsError,
+                PrepareDetailedResponse, StatusError, UiFieldsError,
                 WaitForSuccessError,
             },
             ui_fields::UiFields,
         },
     },
-    alloy::primitives::Address,
+    alloy::primitives::{Address, PrimitiveSignature},
     std::time::Duration,
     wasm_bindgen::prelude::*,
 };
@@ -86,7 +87,7 @@ impl Client {
     pub async fn status(
         &self,
         orchestration_id: String,
-    ) -> Result<StatusResponse, PrepareError> {
+    ) -> Result<StatusResponse, StatusError> {
         self.inner.status(orchestration_id).await
     }
 
@@ -117,6 +118,28 @@ impl Client {
                 Duration::from_millis(timeout_ms),
             )
             .await
+    }
+
+    #[wasm_bindgen]
+    pub async fn execute(
+        &self,
+        ui_fields: UiFields,
+        route_txn_sigs: Vec<String>,
+        initial_txn_sig: String,
+    ) -> Result<ExecuteDetails, JsValue> {
+        self.inner
+            .execute(
+                ui_fields,
+                route_txn_sigs
+                    .iter()
+                    .map(|s| s.parse::<PrimitiveSignature>().unwrap())
+                    .collect(),
+                initial_txn_sig
+                    .parse::<PrimitiveSignature>()
+                    .map_err(|e| e.to_string())?,
+            )
+            .await
+            .map_err(Into::into)
     }
 
     pub async fn erc20_token_balance(

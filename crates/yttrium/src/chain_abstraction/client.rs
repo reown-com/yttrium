@@ -19,7 +19,8 @@ use {
         currency::Currency,
         error::{
             PrepareDetailedError, PrepareDetailedResponse,
-            PrepareDetailedResponseSuccess, PrepareError, WaitForSuccessError,
+            PrepareDetailedResponseSuccess, PrepareError, StatusError,
+            WaitForSuccessError,
         },
         ui_fields::UiFields,
     },
@@ -334,11 +335,10 @@ impl Client {
         }
     }
 
-    // TODO don't use "prepare" error type here. Maybe rename to generic request error?
     pub async fn status(
         &self,
         orchestration_id: String,
-    ) -> Result<StatusResponse, PrepareError> {
+    ) -> Result<StatusResponse, StatusError> {
         let response = {
             let req = self
                 .provider_pool
@@ -360,19 +360,19 @@ impl Client {
         }
         .send()
         .await
-        .map_err(PrepareError::Request)?
+        .map_err(StatusError::Request)?
         .error_for_status()
-        .map_err(PrepareError::Request)?;
+        .map_err(StatusError::Request)?;
         let status = response.status();
         if status.is_success() {
             let text =
-                response.text().await.map_err(PrepareError::DecodingText)?;
+                response.text().await.map_err(StatusError::DecodingText)?;
             serde_json::from_str(&text)
-                .map_err(|e| PrepareError::DecodingJson(e, text))
+                .map_err(|e| StatusError::DecodingJson(e, text))
         } else {
             match response.text().await {
-                Ok(text) => Err(PrepareError::RequestFailed(text)),
-                Err(e) => Err(PrepareError::RequestFailedText(e)),
+                Ok(text) => Err(StatusError::RequestFailed(text)),
+                Err(e) => Err(StatusError::RequestFailedText(e)),
             }
         }
     }
@@ -426,8 +426,8 @@ impl Client {
                     }
                 },
                 Err(e) => {
-                    (WaitForSuccessError::Prepare(e), Duration::from_secs(1))
-                    // TODO exponential back-off: 0ms, 500ms, 1s
+                    (WaitForSuccessError::Status(e), Duration::from_secs(1))
+                    // TODO exponential back-off (server-side): 0ms, 500ms, 1s
                 }
             };
             if start.elapsed() > timeout {
@@ -615,6 +615,12 @@ impl Client {
 
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(
+    feature = "wasm",
+    derive(tsify_next::Tsify),
+    tsify(into_wasm_abi, from_wasm_abi)
+)]
+#[serde(rename_all = "camelCase")]
 pub struct ExecuteDetails {
     pub initial_txn_receipt: TransactionReceipt,
     pub initial_txn_hash: B256,
@@ -629,6 +635,13 @@ pub enum ExecuteError {
     Bridge(WaitForSuccessError),
     #[error("Initial: {0}")]
     Initial(SendTransactionError),
+}
+
+#[cfg(feature = "wasm")]
+impl From<ExecuteError> for wasm_bindgen::prelude::JsValue {
+    fn from(error: ExecuteError) -> Self {
+        wasm_bindgen::prelude::JsValue::from_str(&error.to_string())
+    }
 }
 
 async fn send_transaction(

@@ -11,7 +11,6 @@ use {
 };
 
 #[derive(thiserror::Error, Debug)]
-#[cfg_attr(feature = "uniffi", derive(uniffi::Error))]
 pub enum PrepareError {
     /// Retryable error
     #[error("HTTP request: {0}")]
@@ -35,6 +34,35 @@ pub enum PrepareError {
 #[cfg(feature = "wasm")]
 impl From<PrepareError> for wasm_bindgen::prelude::JsValue {
     fn from(error: PrepareError) -> Self {
+        wasm_bindgen::prelude::JsValue::from_str(&error.to_string())
+    }
+}
+
+#[derive(thiserror::Error, Debug)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Error))]
+pub enum StatusError {
+    /// Retryable error
+    #[error("HTTP request: {0}")]
+    Request(reqwest::Error),
+
+    /// Retryable error
+    #[error("HTTP request failed: {0}")]
+    RequestFailed(String),
+    #[error("HTTP request text failed: {0}")]
+    RequestFailedText(reqwest::Error),
+
+    /// Retryable error
+    #[error("Decoding response as text failed: {0}")]
+    DecodingText(reqwest::Error),
+
+    /// Retryable error
+    #[error("Decoding response as json failed: {0}")]
+    DecodingJson(serde_json::Error, String),
+}
+
+#[cfg(feature = "wasm")]
+impl From<StatusError> for wasm_bindgen::prelude::JsValue {
+    fn from(error: StatusError) -> Self {
         wasm_bindgen::prelude::JsValue::from_str(&error.to_string())
     }
 }
@@ -120,8 +148,8 @@ impl PrepareDetailedResponse {
 #[derive(thiserror::Error, Debug)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Error))]
 pub enum WaitForSuccessError {
-    #[error("Prepare Error: {0}")]
-    Prepare(PrepareError),
+    #[error("Status: {0}")]
+    Status(StatusError),
 
     #[error("StatusResponseError: {0:?}")]
     StatusResponseError(StatusResponseError),
