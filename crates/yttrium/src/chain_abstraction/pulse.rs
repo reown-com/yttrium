@@ -1,5 +1,6 @@
 use {
     super::{client::ExecuteAnalytics, spawn::spawn},
+    crate::serde::duration_millis,
     relay_rpc::domain::ProjectId,
     reqwest::Client,
     serde::{Deserialize, Serialize},
@@ -53,7 +54,7 @@ pub fn pulse(
 #[serde(rename_all = "camelCase")]
 pub struct Event {
     pub event_id: Uuid,
-    #[serde(with = "crate::chain_abstraction::client::duration_millis")]
+    #[serde(with = "duration_millis")]
     pub timestamp: Duration,
     pub props: ExecuteAnalytics,
 }

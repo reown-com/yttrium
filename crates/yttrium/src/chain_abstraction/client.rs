@@ -14,14 +14,15 @@ use {
                 StatusQueryParams, StatusResponse, StatusResponseCompleted,
                 STATUS_ENDPOINT_PATH,
             },
-            FeeEstimatedTransaction, Transaction,
+            Transaction,
         },
         currency::Currency,
         error::{
-            PrepareDetailedError, PrepareDetailedResponse,
+            ExecuteError, PrepareDetailedError, PrepareDetailedResponse,
             PrepareDetailedResponseSuccess, PrepareError, StatusError,
             WaitForSuccessError,
         },
+        send_transaction::{send_transaction, TransactionAnalytics},
         ui_fields::UiFields,
     },
     crate::{
@@ -32,17 +33,14 @@ use {
         },
         erc20::ERC20,
         provider_pool::ProviderPool,
+        serde::{duration_millis, option_duration_millis},
     },
     alloy::{
-        consensus::{SignableTransaction, TxEnvelope},
         network::TransactionBuilder,
         primitives::{Address, PrimitiveSignature, B256, U256, U64},
         rpc::types::{TransactionReceipt, TransactionRequest},
-        transports::{RpcError, TransportErrorKind},
     },
-    alloy_provider::{
-        utils::Eip1559Estimation, PendingTransactionError, Provider,
-    },
+    alloy_provider::{utils::Eip1559Estimation, Provider},
     relay_rpc::domain::ProjectId,
     reqwest::Client as ReqwestClient,
     serde::{Deserialize, Serialize},
@@ -50,7 +48,6 @@ use {
         collections::{HashMap, HashSet},
         time::{Duration, Instant, SystemTime, UNIX_EPOCH},
     },
-    thiserror::Error,
 };
 
 #[derive(Clone)]
@@ -626,137 +623,6 @@ pub struct ExecuteDetails {
     pub initial_txn_hash: B256,
 }
 
-#[derive(Debug, Error)]
-#[cfg_attr(feature = "uniffi", derive(uniffi::Error))]
-pub enum ExecuteError {
-    #[error("Route: {0}")]
-    Route(SendTransactionError),
-    #[error("Bridge: {0}")]
-    Bridge(WaitForSuccessError),
-    #[error("Initial: {0}")]
-    Initial(SendTransactionError),
-}
-
-#[cfg(feature = "wasm")]
-impl From<ExecuteError> for wasm_bindgen::prelude::JsValue {
-    fn from(error: ExecuteError) -> Self {
-        wasm_bindgen::prelude::JsValue::from_str(&error.to_string())
-    }
-}
-
-async fn send_transaction(
-    txn: FeeEstimatedTransaction,
-    sig: PrimitiveSignature,
-    provider_pool: &ProviderPool,
-) -> Result<
-    (TransactionReceipt, TransactionAnalytics),
-    (SendTransactionError, TransactionAnalytics),
-> {
-    let start = Instant::now();
-    let start_time =
-        SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default();
-
-    let provider = provider_pool.get_provider(&txn.chain_id).await;
-    let signed = txn.into_eip1559().into_signed(sig);
-    let txn_hash = *signed.hash();
-
-    let send_start = Instant::now();
-    let sent_transaction_result =
-        provider.send_tx_envelope(TxEnvelope::Eip1559(signed)).await;
-    let send_latency = send_start.elapsed();
-    let sent_transaction = sent_transaction_result.map_err(|e| {
-        (
-            SendTransactionError::Rpc(e),
-            TransactionAnalytics {
-                txn_hash,
-                start: start_time,
-                send_latency,
-                receipt_latency: None,
-                latency: start.elapsed(),
-                end: SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .unwrap_or_default(),
-            },
-        )
-    })?;
-
-    let receipt_start = Instant::now();
-    let receipt_result = sent_transaction
-        .with_timeout(Some(Duration::from_secs(15)))
-        .get_receipt()
-        .await;
-    let receipt_latency = receipt_start.elapsed();
-
-    let final_analytics = TransactionAnalytics {
-        txn_hash,
-        start: start_time,
-        send_latency,
-        receipt_latency: Some(receipt_latency),
-        latency: start.elapsed(),
-        end: SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default(),
-    };
-
-    let receipt = receipt_result.map_err(|e| {
-        (SendTransactionError::PendingTransaction(e), final_analytics.clone())
-    })?;
-
-    if !receipt.status() {
-        Err((SendTransactionError::Failed, final_analytics))
-    } else {
-        Ok((receipt, final_analytics))
-    }
-}
-
-// trait RemapAnalytics<T, E, B> {
-//     fn remap(result: Self) -> (Result<T, E>, B);
-// }
-
-// impl<T, E, B> RemapAnalytics<T, E, B> for Result<(T, B), (E, B)> {
-//     fn remap(result: Self) -> (Result<T, E>, B) {
-//         match result {
-//             Ok((t, b)) => (Ok(t), b),
-//             Err((e, b)) => (Err(e), b),
-//         }
-//     }
-// }
-
-// impl<T, E, B> RemapAnalytics<T, E, B> for Result<T, (E, B)> {
-//     fn remap(result: Self) -> (Result<T, E>, B) {
-//         match result {
-//             Ok(_t) => unimplemented!(),
-//             Err((e, b)) => (Err(e), b),
-//         }
-//     }
-// }
-
-#[derive(Debug, Error)]
-#[cfg_attr(feature = "uniffi", derive(uniffi::Error))]
-pub enum SendTransactionError {
-    #[error("Rpc: {0}")]
-    Rpc(RpcError<TransportErrorKind>),
-
-    #[error("PendingTransaction: {0}")]
-    PendingTransaction(PendingTransactionError),
-
-    #[error("Failed")]
-    Failed,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct TransactionAnalytics {
-    pub txn_hash: B256,
-    #[serde(with = "duration_millis")]
-    pub start: Duration,
-    #[serde(with = "duration_millis")]
-    pub end: Duration,
-    #[serde(with = "duration_millis")]
-    pub latency: Duration,
-    #[serde(with = "duration_millis")]
-    pub send_latency: Duration,
-    #[serde(with = "option_duration_millis")]
-    pub receipt_latency: Option<Duration>,
-}
-
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ExecuteAnalytics {
     pub error: Option<String>,
@@ -772,55 +638,6 @@ pub struct ExecuteAnalytics {
     pub latency: Duration,
     #[serde(with = "duration_millis")]
     pub end: Duration,
-}
-
-pub mod duration_millis {
-    use {
-        serde::{de, ser, Deserialize},
-        std::time::Duration,
-    };
-
-    pub fn serialize<S>(dt: &Duration, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: ser::Serializer,
-    {
-        serializer.serialize_u128(dt.as_millis())
-    }
-
-    pub fn deserialize<'de, D>(d: D) -> Result<Duration, D::Error>
-    where
-        D: de::Deserializer<'de>,
-    {
-        u64::deserialize(d).map(Duration::from_millis)
-    }
-}
-
-pub mod option_duration_millis {
-    use {
-        serde::{de, ser, Deserialize},
-        std::time::Duration,
-    };
-
-    pub fn serialize<S>(
-        dt: &Option<Duration>,
-        serializer: S,
-    ) -> Result<S::Ok, S::Error>
-    where
-        S: ser::Serializer,
-    {
-        if let Some(dt) = dt {
-            serializer.serialize_some(&dt.as_millis())
-        } else {
-            serializer.serialize_none()
-        }
-    }
-
-    pub fn deserialize<'de, D>(d: D) -> Result<Option<Duration>, D::Error>
-    where
-        D: de::Deserializer<'de>,
-    {
-        Option::<u64>::deserialize(d).map(|o| o.map(Duration::from_millis))
-    }
 }
 
 // TODO test non-happy paths: txn failures

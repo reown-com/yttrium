@@ -27,7 +27,7 @@ use {
             U256 as FFIU256, U64 as FFIU64,
         },
     },
-    yttrium::chain_abstraction::client::ExecuteError,
+    yttrium::chain_abstraction::error::ExecuteError,
 };
 #[cfg(feature = "chain_abstraction_client")]
 use {

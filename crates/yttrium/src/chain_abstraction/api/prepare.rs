@@ -2,7 +2,9 @@
 use wasm_bindgen::prelude::*;
 use {
     super::Transaction,
-    crate::{call::Call, chain_abstraction::amount::Amount},
+    crate::{
+        call::Call, chain_abstraction::amount::Amount, serde::duration_millis,
+    },
     alloy::primitives::{utils::Unit, Address, U256},
     relay_rpc::domain::ProjectId,
     serde::{Deserialize, Serialize},
@@ -60,7 +62,7 @@ pub struct Metadata {
     pub funding_from: Vec<FundingMetadata>,
     pub initial_transaction: InitialTransactionMetadata,
     /// The number of milliseconds to delay before calling `/status` after getting successful transaction receipts from all sent transactions.
-    #[serde(with = "crate::chain_abstraction::client::duration_millis")]
+    #[serde(with = "duration_millis")]
     pub check_in: Duration,
 }
 

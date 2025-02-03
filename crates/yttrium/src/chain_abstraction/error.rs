@@ -6,8 +6,11 @@ use {
         },
         ui_fields::UiFields,
     },
+    alloy::transports::{RpcError, TransportErrorKind},
+    alloy_provider::PendingTransactionError,
     reqwest::StatusCode,
     serde::{Deserialize, Serialize},
+    thiserror::Error,
 };
 
 #[derive(thiserror::Error, Debug)]
@@ -31,15 +34,9 @@ pub enum PrepareError {
     DecodingJson(serde_json::Error, String),
 }
 
-#[cfg(feature = "wasm")]
-impl From<PrepareError> for wasm_bindgen::prelude::JsValue {
-    fn from(error: PrepareError) -> Self {
-        wasm_bindgen::prelude::JsValue::from_str(&error.to_string())
-    }
-}
-
 #[derive(thiserror::Error, Debug)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Error))]
+#[cfg_attr(feature = "wasm", derive(derive_jserror::JsError))]
 pub enum StatusError {
     /// Retryable error
     #[error("HTTP request: {0}")]
@@ -60,14 +57,8 @@ pub enum StatusError {
     DecodingJson(serde_json::Error, String),
 }
 
-#[cfg(feature = "wasm")]
-impl From<StatusError> for wasm_bindgen::prelude::JsValue {
-    fn from(error: StatusError) -> Self {
-        wasm_bindgen::prelude::JsValue::from_str(&error.to_string())
-    }
-}
-
 #[derive(thiserror::Error, Debug)]
+#[cfg_attr(feature = "wasm", derive(derive_jserror::JsError))]
 pub enum UiFieldsError {
     /// Retryable error
     #[error("HTTP request: {0}")]
@@ -82,13 +73,6 @@ pub enum UiFieldsError {
     Json(reqwest::Error),
 }
 
-#[cfg(feature = "wasm")]
-impl From<UiFieldsError> for wasm_bindgen::prelude::JsValue {
-    fn from(error: UiFieldsError) -> Self {
-        wasm_bindgen::prelude::JsValue::from_str(&error.to_string())
-    }
-}
-
 #[derive(thiserror::Error, Debug)]
 pub enum PrepareDetailedError {
     #[error("Prepare Error: {0}")]
@@ -96,13 +80,6 @@ pub enum PrepareDetailedError {
 
     #[error("UiFieldsError: {0}")]
     UiFields(UiFieldsError),
-}
-
-#[cfg(feature = "wasm")]
-impl From<PrepareDetailedError> for wasm_bindgen::prelude::JsValue {
-    fn from(error: PrepareDetailedError) -> Self {
-        wasm_bindgen::prelude::JsValue::from_str(&error.to_string())
-    }
 }
 
 // TODO this response type shouldn't be in `error` module
@@ -147,6 +124,7 @@ impl PrepareDetailedResponse {
 
 #[derive(thiserror::Error, Debug)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Error))]
+#[cfg_attr(feature = "wasm", derive(derive_jserror::JsError))]
 pub enum WaitForSuccessError {
     #[error("Status: {0}")]
     Status(StatusError),
@@ -158,9 +136,26 @@ pub enum WaitForSuccessError {
     StatusResponsePending(StatusResponsePending),
 }
 
-#[cfg(feature = "wasm")]
-impl From<WaitForSuccessError> for wasm_bindgen::prelude::JsValue {
-    fn from(error: WaitForSuccessError) -> Self {
-        wasm_bindgen::prelude::JsValue::from_str(&error.to_string())
-    }
+#[derive(Debug, Error)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Error))]
+pub enum ExecuteError {
+    #[error("Route: {0}")]
+    Route(SendTransactionError),
+    #[error("Bridge: {0}")]
+    Bridge(WaitForSuccessError),
+    #[error("Initial: {0}")]
+    Initial(SendTransactionError),
+}
+
+#[derive(Debug, Error)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Error))]
+pub enum SendTransactionError {
+    #[error("Rpc: {0}")]
+    Rpc(RpcError<TransportErrorKind>),
+
+    #[error("PendingTransaction: {0}")]
+    PendingTransaction(PendingTransactionError),
+
+    #[error("Failed")]
+    Failed,
 }
