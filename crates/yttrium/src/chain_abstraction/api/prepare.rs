@@ -6,6 +6,7 @@ use {
     alloy::primitives::{utils::Unit, Address, U256},
     relay_rpc::domain::ProjectId,
     serde::{Deserialize, Serialize},
+    std::time::Duration,
 };
 
 pub const ROUTE_ENDPOINT_PATH: &str = "/v1/ca/orchestrator/route";
@@ -58,7 +59,9 @@ impl CallOrCalls {
 pub struct Metadata {
     pub funding_from: Vec<FundingMetadata>,
     pub initial_transaction: InitialTransactionMetadata,
-    pub check_in: u64,
+    /// The number of milliseconds to delay before calling `/status` after getting successful transaction receipts from all sent transactions.
+    #[serde(with = "crate::chain_abstraction::client::duration_millis")]
+    pub check_in: Duration,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

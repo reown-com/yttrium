@@ -216,7 +216,7 @@ mod tests {
             FundingMetadata, InitialTransactionMetadata, Metadata,
         },
         alloy::primitives::{address, bytes, utils::Unit, Address, U64},
-        std::iter,
+        std::{iter, time::Duration},
     };
 
     #[test]
@@ -285,7 +285,7 @@ mod tests {
                         symbol: "UNREACHABLE".to_owned(),
                         decimals: 18,
                     },
-                    check_in: 0,
+                    check_in: Duration::ZERO,
                 },
                 initial_transaction: initial_transaction.clone(),
                 transactions: vec![

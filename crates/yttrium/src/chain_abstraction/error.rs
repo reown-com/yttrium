@@ -11,21 +11,24 @@ use {
 };
 
 #[derive(thiserror::Error, Debug)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Error))]
 pub enum PrepareError {
     /// Retryable error
     #[error("HTTP request: {0}")]
     Request(reqwest::Error),
 
     /// Retryable error
-    #[error("HTTP request failed: {0:?}")]
-    RequestFailed(Result<String, reqwest::Error>),
+    #[error("HTTP request failed: {0}")]
+    RequestFailed(String),
+    #[error("HTTP request text failed: {0}")]
+    RequestFailedText(reqwest::Error),
 
     /// Retryable error
-    #[error("Decoding response as text failed: {0:?}")]
+    #[error("Decoding response as text failed: {0}")]
     DecodingText(reqwest::Error),
 
     /// Retryable error
-    #[error("Decoding response as json failed: {0:?}")]
+    #[error("Decoding response as json failed: {0}")]
     DecodingJson(serde_json::Error, String),
 }
 
@@ -43,7 +46,7 @@ pub enum UiFieldsError {
     Request(reqwest::Error),
 
     /// Retryable error
-    #[error("HTTP request failed: {0:?}")]
+    #[error("HTTP request failed: {0}")]
     RequestFailed(StatusCode, Result<String, reqwest::Error>),
 
     /// Retryable error
@@ -115,6 +118,7 @@ impl PrepareDetailedResponse {
 }
 
 #[derive(thiserror::Error, Debug)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Error))]
 pub enum WaitForSuccessError {
     #[error("Prepare Error: {0}")]
     Prepare(PrepareError),

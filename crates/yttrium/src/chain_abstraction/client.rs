@@ -14,7 +14,7 @@ use {
                 StatusQueryParams, StatusResponse, StatusResponseCompleted,
                 STATUS_ENDPOINT_PATH,
             },
-            Transaction,
+            FeeEstimatedTransaction, Transaction,
         },
         currency::Currency,
         error::{
@@ -37,8 +37,11 @@ use {
         network::TransactionBuilder,
         primitives::{Address, PrimitiveSignature, B256, U256, U64},
         rpc::types::{TransactionReceipt, TransactionRequest},
+        transports::{RpcError, TransportErrorKind},
     },
-    alloy_provider::{utils::Eip1559Estimation, Provider},
+    alloy_provider::{
+        utils::Eip1559Estimation, PendingTransactionError, Provider,
+    },
     relay_rpc::domain::ProjectId,
     reqwest::Client as ReqwestClient,
     serde::{Deserialize, Serialize},
@@ -102,9 +105,29 @@ impl Client {
             let text =
                 response.text().await.map_err(PrepareError::DecodingText)?;
             serde_json::from_str(&text)
+                // .map(|mut response| {
+                //     if let PrepareResponse::Success(
+                //         PrepareResponseSuccess::Available(ref mut response),
+                //     ) = response
+                //     {
+                //         // response.transactions.iter_mut().for_each(|t| {
+                //         //     t.gas_limit *= U64::from(3);
+                //         // });
+                //         // response.initial_transaction.gas_limit *= U64::from(3);
+                //         response.metadata.funding_from.iter_mut().for_each(
+                //             |f| {
+                //                 f.bridging_fee = U256::from(1000);
+                //             },
+                //         );
+                //     }
+                //     response
+                // })
                 .map_err(|e| PrepareError::DecodingJson(e, text))
         } else {
-            Err(PrepareError::RequestFailed(response.text().await))
+            match response.text().await {
+                Ok(text) => Err(PrepareError::RequestFailed(text)),
+                Err(e) => Err(PrepareError::RequestFailedText(e)),
+            }
         }
     }
 
@@ -184,7 +207,7 @@ impl Client {
                     .await
                     .estimate_eip1559_fees(None)
                     .await
-                    .unwrap();
+                    .unwrap(); // TODO remove this unwrap()
                 Ok((chain_id, estimate))
             },
         ));
@@ -347,7 +370,10 @@ impl Client {
             serde_json::from_str(&text)
                 .map_err(|e| PrepareError::DecodingJson(e, text))
         } else {
-            Err(PrepareError::RequestFailed(response.text().await))
+            match response.text().await {
+                Ok(text) => Err(PrepareError::RequestFailed(text)),
+                Err(e) => Err(PrepareError::RequestFailedText(e)),
+            }
         }
     }
 
@@ -411,42 +437,86 @@ impl Client {
         }
     }
 
+    /// Panics if:
+    /// - The length of `route_txn_sigs` does not match the length of `ui_fields.route`
     pub async fn execute(
         &self,
         ui_fields: UiFields,
         route_txn_sigs: Vec<PrimitiveSignature>,
         initial_txn_sig: PrimitiveSignature,
-    ) -> ExecuteDetails {
+    ) -> Result<ExecuteDetails, ExecuteError> {
         assert_eq!(
             ui_fields.route.len(),
             route_txn_sigs.len(),
             "route_txn_sigs length must match route length"
         );
 
+        let result = self
+            .execute_inner(ui_fields, route_txn_sigs, initial_txn_sig)
+            .await;
+        let (result, analytics) = match result {
+            Ok((details, analytics)) => (Ok(details), analytics),
+            Err((e, analytics)) => {
+                // Doing it globally here in-case I would forget to do it deeper in
+                // TODO refactor somehow to avoid this
+                let mut analytics = analytics;
+                analytics.error = Some(e.to_string());
+                (Err(e), analytics)
+            }
+        };
+
+        pulse(self.http_client.clone(), analytics, self.project_id.clone());
+
+        result
+    }
+
+    async fn execute_inner(
+        &self,
+        ui_fields: UiFields,
+        route_txn_sigs: Vec<PrimitiveSignature>,
+        initial_txn_sig: PrimitiveSignature,
+    ) -> Result<
+        (ExecuteDetails, ExecuteAnalytics),
+        (ExecuteError, ExecuteAnalytics),
+    > {
         let start = Instant::now();
         let start_time = SystemTime::now();
 
         let route_start = start;
-        let mut route_latencies = Vec::with_capacity(ui_fields.route.len());
+        let mut route = Vec::with_capacity(ui_fields.route.len());
         for (txn, sig) in
             ui_fields.route.into_iter().zip(route_txn_sigs.into_iter())
         {
-            let route_i_start = Instant::now();
-            let provider = self
-                .provider_pool
-                .get_provider(&txn.transaction.chain_id)
-                .await;
-            let signed = txn.transaction.into_eip1559().into_signed(sig);
-            assert!(provider
-                .send_tx_envelope(TxEnvelope::Eip1559(signed))
-                .await
-                .unwrap()
-                .with_timeout(Some(Duration::from_secs(15)))
-                .get_receipt()
-                .await
-                .unwrap()
-                .status());
-            route_latencies.push(route_i_start.elapsed());
+            let result =
+                send_transaction(txn.transaction, sig, &self.provider_pool)
+                    .await;
+            match result {
+                Ok((_receipt, analytics)) => {
+                    route.push(analytics); // TODO refactor to avoid non-dry `route.push(analytics)` as it risks us forgettting it
+                }
+                Err((e, analytics)) => {
+                    route.push(analytics);
+                    let route_latency = route_start.elapsed();
+                    let latency = start.elapsed();
+                    return Err((
+                        ExecuteError::Route(e),
+                        ExecuteAnalytics {
+                            error: None,
+                            start: start_time
+                                .duration_since(UNIX_EPOCH)
+                                .unwrap_or_default(),
+                            route_latency,
+                            route,
+                            status_latency: None,
+                            initial_txn: None,
+                            latency,
+                            end: SystemTime::now()
+                                .duration_since(UNIX_EPOCH)
+                                .unwrap_or_default(),
+                        },
+                    ));
+                }
+            }
         }
         let route_latency = route_start.elapsed();
 
@@ -454,34 +524,58 @@ impl Client {
         let _success = self
             .wait_for_success(
                 ui_fields.route_response.orchestration_id,
-                Duration::from_millis(
-                    ui_fields.route_response.metadata.check_in,
-                ),
+                ui_fields.route_response.metadata.check_in,
             )
             .await
-            .unwrap();
+            .map_err(|e| {
+                let status_latency = status_start.elapsed();
+                let latency = start.elapsed();
+                (
+                    ExecuteError::Bridge(e),
+                    ExecuteAnalytics {
+                        error: None,
+                        start: start_time
+                            .duration_since(UNIX_EPOCH)
+                            .unwrap_or_default(),
+                        route_latency,
+                        route: route.clone(),
+                        status_latency: Some(status_latency), // TODO refactor to avoid potentially forgetting to set this to Some() (also in subsequent ones)
+                        initial_txn: None,
+                        latency,
+                        end: SystemTime::now()
+                            .duration_since(UNIX_EPOCH)
+                            .unwrap_or_default(),
+                    },
+                )
+            })?;
         let status_latency = status_start.elapsed();
 
-        let initial_txn_start = Instant::now();
-        let provider = self
-            .provider_pool
-            .get_provider(&ui_fields.initial.transaction.chain_id)
-            .await;
-        let signed = ui_fields
-            .initial
-            .transaction
-            .into_eip1559()
-            .into_signed(initial_txn_sig);
-        let initial_txn_receipt = provider
-            .send_tx_envelope(TxEnvelope::Eip1559(signed))
-            .await
-            .unwrap()
-            .with_timeout(Some(Duration::from_secs(15)))
-            .get_receipt()
-            .await
-            .unwrap();
-        let initial_latency = initial_txn_start.elapsed();
-        assert!(initial_txn_receipt.status());
+        let (initial_txn_receipt, initial_txn_analytics) = send_transaction(
+            ui_fields.initial.transaction,
+            initial_txn_sig,
+            &self.provider_pool,
+        )
+        .await
+        .map_err(|(e, analytics)| {
+            let latency = start.elapsed();
+            (
+                ExecuteError::Route(e),
+                ExecuteAnalytics {
+                    error: None,
+                    start: start_time
+                        .duration_since(UNIX_EPOCH)
+                        .unwrap_or_default(),
+                    route_latency,
+                    route: route.clone(),
+                    status_latency: Some(status_latency),
+                    initial_txn: Some(analytics),
+                    latency,
+                    end: SystemTime::now()
+                        .duration_since(UNIX_EPOCH)
+                        .unwrap_or_default(),
+                },
+            )
+        })?;
 
         let details = ExecuteDetails {
             initial_txn_hash: initial_txn_receipt.transaction_hash,
@@ -490,30 +584,20 @@ impl Client {
 
         let latency = start.elapsed();
 
-        pulse(
-            self.http_client.clone(),
-            ExecuteAnalytics {
-                error: None,
-                start: start_time
-                    .duration_since(UNIX_EPOCH)
-                    .unwrap_or_default()
-                    .as_millis(),
-                route_latency,
-                route_latencies,
-                route_txn_hashes: vec![],
-                status_latency,
-                initial_latency,
-                latency,
-                initial_txn_hash: details.initial_txn_hash,
-                end: SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .unwrap_or_default()
-                    .as_millis(),
-            },
-            self.project_id.clone(),
-        );
+        let analytics = ExecuteAnalytics {
+            error: None,
+            start: start_time.duration_since(UNIX_EPOCH).unwrap_or_default(),
+            route_latency,
+            route,
+            status_latency: Some(status_latency),
+            initial_txn: Some(initial_txn_analytics),
+            latency,
+            end: SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap_or_default(),
+        };
 
-        details
+        Ok((details, analytics))
     }
 
     pub async fn erc20_token_balance(
@@ -537,28 +621,193 @@ pub struct ExecuteDetails {
 }
 
 #[derive(Debug, Error)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Error))]
 pub enum ExecuteError {
-    #[error("Route error: {0}")]
-    RouteError(String),
-    #[error("Status error: {0}")]
-    StatusError(String),
-    #[error("Initial error: {0}")]
-    InitialError(String),
+    #[error("Route: {0}")]
+    Route(SendTransactionError),
+    #[error("Bridge: {0}")]
+    Bridge(WaitForSuccessError),
+    #[error("Initial: {0}")]
+    Initial(SendTransactionError),
 }
 
-#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
+async fn send_transaction(
+    txn: FeeEstimatedTransaction,
+    sig: PrimitiveSignature,
+    provider_pool: &ProviderPool,
+) -> Result<
+    (TransactionReceipt, TransactionAnalytics),
+    (SendTransactionError, TransactionAnalytics),
+> {
+    let start = Instant::now();
+    let start_time =
+        SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default();
+
+    let provider = provider_pool.get_provider(&txn.chain_id).await;
+    let signed = txn.into_eip1559().into_signed(sig);
+    let txn_hash = *signed.hash();
+
+    let send_start = Instant::now();
+    let sent_transaction_result =
+        provider.send_tx_envelope(TxEnvelope::Eip1559(signed)).await;
+    let send_latency = send_start.elapsed();
+    let sent_transaction = sent_transaction_result.map_err(|e| {
+        (
+            SendTransactionError::Rpc(e),
+            TransactionAnalytics {
+                txn_hash,
+                start: start_time,
+                send_latency,
+                receipt_latency: None,
+                latency: start.elapsed(),
+                end: SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap_or_default(),
+            },
+        )
+    })?;
+
+    let receipt_start = Instant::now();
+    let receipt_result = sent_transaction
+        .with_timeout(Some(Duration::from_secs(15)))
+        .get_receipt()
+        .await;
+    let receipt_latency = receipt_start.elapsed();
+
+    let final_analytics = TransactionAnalytics {
+        txn_hash,
+        start: start_time,
+        send_latency,
+        receipt_latency: Some(receipt_latency),
+        latency: start.elapsed(),
+        end: SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default(),
+    };
+
+    let receipt = receipt_result.map_err(|e| {
+        (SendTransactionError::PendingTransaction(e), final_analytics.clone())
+    })?;
+
+    if !receipt.status() {
+        Err((SendTransactionError::Failed, final_analytics))
+    } else {
+        Ok((receipt, final_analytics))
+    }
+}
+
+// trait RemapAnalytics<T, E, B> {
+//     fn remap(result: Self) -> (Result<T, E>, B);
+// }
+
+// impl<T, E, B> RemapAnalytics<T, E, B> for Result<(T, B), (E, B)> {
+//     fn remap(result: Self) -> (Result<T, E>, B) {
+//         match result {
+//             Ok((t, b)) => (Ok(t), b),
+//             Err((e, b)) => (Err(e), b),
+//         }
+//     }
+// }
+
+// impl<T, E, B> RemapAnalytics<T, E, B> for Result<T, (E, B)> {
+//     fn remap(result: Self) -> (Result<T, E>, B) {
+//         match result {
+//             Ok(_t) => unimplemented!(),
+//             Err((e, b)) => (Err(e), b),
+//         }
+//     }
+// }
+
+#[derive(Debug, Error)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Error))]
+pub enum SendTransactionError {
+    #[error("Rpc: {0}")]
+    Rpc(RpcError<TransportErrorKind>),
+
+    #[error("PendingTransaction: {0}")]
+    PendingTransaction(PendingTransactionError),
+
+    #[error("Failed")]
+    Failed,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TransactionAnalytics {
+    pub txn_hash: B256,
+    #[serde(with = "duration_millis")]
+    pub start: Duration,
+    #[serde(with = "duration_millis")]
+    pub end: Duration,
+    #[serde(with = "duration_millis")]
+    pub latency: Duration,
+    #[serde(with = "duration_millis")]
+    pub send_latency: Duration,
+    #[serde(with = "option_duration_millis")]
+    pub receipt_latency: Option<Duration>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ExecuteAnalytics {
     pub error: Option<String>,
-    pub start: u128,
+    #[serde(with = "duration_millis")]
+    pub start: Duration,
+    #[serde(with = "duration_millis")]
     pub route_latency: Duration,
-    pub route_latencies: Vec<Duration>,
-    pub route_txn_hashes: Vec<B256>,
-    pub status_latency: Duration,
-    pub initial_latency: Duration,
-    pub initial_txn_hash: B256,
+    pub route: Vec<TransactionAnalytics>,
+    #[serde(with = "option_duration_millis")]
+    pub status_latency: Option<Duration>,
+    pub initial_txn: Option<TransactionAnalytics>,
+    #[serde(with = "duration_millis")]
     pub latency: Duration,
-    pub end: u128,
+    #[serde(with = "duration_millis")]
+    pub end: Duration,
+}
+
+pub mod duration_millis {
+    use {
+        serde::{de, ser, Deserialize},
+        std::time::Duration,
+    };
+
+    pub fn serialize<S>(dt: &Duration, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: ser::Serializer,
+    {
+        serializer.serialize_u128(dt.as_millis())
+    }
+
+    pub fn deserialize<'de, D>(d: D) -> Result<Duration, D::Error>
+    where
+        D: de::Deserializer<'de>,
+    {
+        u64::deserialize(d).map(Duration::from_millis)
+    }
+}
+
+pub mod option_duration_millis {
+    use {
+        serde::{de, ser, Deserialize},
+        std::time::Duration,
+    };
+
+    pub fn serialize<S>(
+        dt: &Option<Duration>,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error>
+    where
+        S: ser::Serializer,
+    {
+        if let Some(dt) = dt {
+            serializer.serialize_some(&dt.as_millis())
+        } else {
+            serializer.serialize_none()
+        }
+    }
+
+    pub fn deserialize<'de, D>(d: D) -> Result<Option<Duration>, D::Error>
+    where
+        D: de::Deserializer<'de>,
+    {
+        Option::<u64>::deserialize(d).map(|o| o.map(Duration::from_millis))
+    }
 }
 
 // TODO test non-happy paths: txn failures

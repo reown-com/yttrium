@@ -3,11 +3,12 @@ use {
     relay_rpc::domain::ProjectId,
     reqwest::Client,
     serde::{Deserialize, Serialize},
+    std::time::Duration,
     tracing::{info, warn},
+    uuid::Uuid,
 };
 
-const PULSE_ENDPOINT: &str = "http://localhost:8080/analytics";
-// const PULSE_ENDPOINT: &str = "https://analytics-api-cf-workers-staging.walletconnect-v1-bridge.workers.dev/e";
+const PULSE_ENDPOINT: &str = "https://analytics-api-cf-workers-staging.walletconnect-v1-bridge.workers.dev/e";
 // const PULSE_ENDPOINT: &str = "https://pulse.walletconnect.org/e";
 
 pub fn pulse(
@@ -15,11 +16,10 @@ pub fn pulse(
     props: ExecuteAnalytics,
     project_id: ProjectId,
 ) {
-    let event_id = generate_event_id();
+    let event_id = Uuid::new_v4();
     let timestamp = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_millis();
+        .unwrap_or_default();
     let analytics = Event { event_id, timestamp, props };
     info!("pulse analytics: {analytics:?}");
 
@@ -52,8 +52,9 @@ pub fn pulse(
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Event {
-    pub event_id: String,
-    pub timestamp: u128,
+    pub event_id: Uuid,
+    #[serde(with = "crate::chain_abstraction::client::duration_millis")]
+    pub timestamp: Duration,
     pub props: ExecuteAnalytics,
 }
 
@@ -69,14 +70,6 @@ pub struct Query {
     pub sdk_platform: &'static str,
 }
 
-const SDK_TYPE: &str = "events_sdk";
-const SDK_VERSION: &str = "0.0.0";
-const SDK_PLATFORM: &str = "rust";
-
-fn generate_event_id() -> String {
-    let mut buf = [0u8; 16];
-    if let Err(e) = getrandom::getrandom(&mut buf) {
-        warn!("error: getrandom::fill(x16): {e}");
-    }
-    hex::encode(buf)
-}
+const SDK_TYPE: &str = "ca";
+const SDK_VERSION: &str = "0.0.0"; // get WK version here walletkit-swift-1.1.5 (current events sdk version)
+const SDK_PLATFORM: &str = "mobile";
