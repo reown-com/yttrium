@@ -1,6 +1,14 @@
 uniffi::setup_scaffolding!();
 
 // Force import of this crate to ensure that the code is actually generated
+use alloy::{
+    hex,
+    primitives::{
+        ruint::aliases::U256, Address as FFIAddress, Bytes as FFIBytes,
+        PrimitiveSignature as FFIPrimitiveSignature, Uint, U128 as FFIU128,
+        U256 as FFIU256, U64 as FFIU64,
+    },
+};
 #[allow(unused_imports)]
 #[allow(clippy::single_component_path_imports)]
 use yttrium;
@@ -17,17 +25,6 @@ use {
         smart_accounts::account_address::AccountAddress as FfiAccountAddress,
         smart_accounts::safe::{SignOutputEnum, SignStep3Params},
     },
-};
-use {
-    alloy::{
-        hex,
-        primitives::{
-            ruint::aliases::U256, Address as FFIAddress, Bytes as FFIBytes,
-            PrimitiveSignature as FFIPrimitiveSignature, Uint, U128 as FFIU128,
-            U256 as FFIU256, U64 as FFIU64,
-        },
-    },
-    yttrium::chain_abstraction::error::ExecuteError,
 };
 #[cfg(feature = "chain_abstraction_client")]
 use {
@@ -208,8 +205,13 @@ impl ChainAbstractionClient {
         ui_fields: UiFields,
         route_txn_sigs: Vec<FFIPrimitiveSignature>,
         initial_txn_sig: FFIPrimitiveSignature,
-    ) -> Result<ExecuteDetails, ExecuteError> {
-        self.client.execute(ui_fields, route_txn_sigs, initial_txn_sig).await
+    ) -> Result<ExecuteDetails, FFIError> {
+        self.client
+            .execute(ui_fields, route_txn_sigs, initial_txn_sig)
+            .await
+            // TODO wanted to return ExecuteError directly here, but can't because Swift keeps the UniFFI lifer private to the yttrium crate and not available to kotlin-ffi crate
+            // This will be fixed when we merge these crates
+            .map_err(|e| FFIError::General(e.to_string()))
     }
 
     pub async fn estimate_fees(
