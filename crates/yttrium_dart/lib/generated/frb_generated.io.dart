@@ -40,6 +40,10 @@ abstract class YttriumDartApiImplPlatform extends BaseApiImpl<YttriumDartWire> {
           ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPrepareResponseAvailablePtr;
 
   CrossPlatformFinalizerArg
+      get rust_arc_decrement_strong_count_PulseMetadataPtr => wire
+          ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPulseMetadataPtr;
+
+  CrossPlatformFinalizerArg
       get rust_arc_decrement_strong_count_StatusResponsePtr => wire
           ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerStatusResponsePtr;
 
@@ -78,6 +82,11 @@ abstract class YttriumDartApiImplPlatform extends BaseApiImpl<YttriumDartWire> {
   @protected
   PrepareResponseAvailable
       dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPrepareResponseAvailable(
+          dynamic raw);
+
+  @protected
+  PulseMetadata
+      dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPulseMetadata(
           dynamic raw);
 
   @protected
@@ -133,6 +142,11 @@ abstract class YttriumDartApiImplPlatform extends BaseApiImpl<YttriumDartWire> {
   @protected
   PrepareResponseAvailable
       dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPrepareResponseAvailable(
+          dynamic raw);
+
+  @protected
+  PulseMetadata
+      dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPulseMetadata(
           dynamic raw);
 
   @protected
@@ -205,6 +219,11 @@ abstract class YttriumDartApiImplPlatform extends BaseApiImpl<YttriumDartWire> {
           SseDeserializer deserializer);
 
   @protected
+  PulseMetadata
+      sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPulseMetadata(
+          SseDeserializer deserializer);
+
+  @protected
   StatusResponse
       sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerStatusResponse(
           SseDeserializer deserializer);
@@ -257,6 +276,11 @@ abstract class YttriumDartApiImplPlatform extends BaseApiImpl<YttriumDartWire> {
   @protected
   PrepareResponseAvailable
       sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPrepareResponseAvailable(
+          SseDeserializer deserializer);
+
+  @protected
+  PulseMetadata
+      sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPulseMetadata(
           SseDeserializer deserializer);
 
   @protected
@@ -337,6 +361,11 @@ abstract class YttriumDartApiImplPlatform extends BaseApiImpl<YttriumDartWire> {
 
   @protected
   void
+      sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPulseMetadata(
+          PulseMetadata self, SseSerializer serializer);
+
+  @protected
+  void
       sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerStatusResponse(
           StatusResponse self, SseSerializer serializer);
 
@@ -389,6 +418,11 @@ abstract class YttriumDartApiImplPlatform extends BaseApiImpl<YttriumDartWire> {
   void
       sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPrepareResponseAvailable(
           PrepareResponseAvailable self, SseSerializer serializer);
+
+  @protected
+  void
+      sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPulseMetadata(
+          PulseMetadata self, SseSerializer serializer);
 
   @protected
   void
@@ -642,6 +676,38 @@ class YttriumDartWire implements BaseWire {
           'frbgen_yttrium_dart_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPrepareResponseAvailable');
   late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPrepareResponseAvailable =
       _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPrepareResponseAvailablePtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void
+      rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPulseMetadata(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPulseMetadata(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPulseMetadataPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+          'frbgen_yttrium_dart_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPulseMetadata');
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPulseMetadata =
+      _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPulseMetadataPtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void
+      rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPulseMetadata(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPulseMetadata(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPulseMetadataPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+          'frbgen_yttrium_dart_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPulseMetadata');
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPulseMetadata =
+      _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPulseMetadataPtr
           .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
 
   void

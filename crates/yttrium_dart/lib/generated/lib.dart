@@ -36,9 +36,9 @@ abstract class ChainAbstractionClient implements RustOpaqueInterface {
 
   // HINT: Make it `#[frb(sync)]` to let it become the default constructor of Dart class.
   static Future<ChainAbstractionClient> newInstance(
-          {required String projectId}) =>
-      YttriumDart.instance.api
-          .crateChainAbstractionClientNew(projectId: projectId);
+          {required String projectId, required PulseMetadata pulseMetadata}) =>
+      YttriumDart.instance.api.crateChainAbstractionClientNew(
+          projectId: projectId, pulseMetadata: pulseMetadata);
 
   Future<PrepareResponse> prepare(
       {required String chainId, required Address from, required Call call});
@@ -59,6 +59,9 @@ abstract class PrepareResponse implements RustOpaqueInterface {}
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<PrepareResponseAvailable>>
 abstract class PrepareResponseAvailable implements RustOpaqueInterface {}
+
+// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<PulseMetadata>>
+abstract class PulseMetadata implements RustOpaqueInterface {}
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<StatusResponse>>
 abstract class StatusResponse implements RustOpaqueInterface {}

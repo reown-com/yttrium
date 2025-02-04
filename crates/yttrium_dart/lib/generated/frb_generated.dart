@@ -99,7 +99,7 @@ abstract class YttriumDartApi extends BaseApi {
       required Currency currency});
 
   Future<ChainAbstractionClient> crateChainAbstractionClientNew(
-      {required String projectId});
+      {required String projectId, required PulseMetadata pulseMetadata});
 
   Future<PrepareResponse> crateChainAbstractionClientPrepare(
       {required ChainAbstractionClient that,
@@ -163,6 +163,15 @@ abstract class YttriumDartApi extends BaseApi {
 
   CrossPlatformFinalizerArg
       get rust_arc_decrement_strong_count_PrepareResponseAvailablePtr;
+
+  RustArcIncrementStrongCountFnType
+      get rust_arc_increment_strong_count_PulseMetadata;
+
+  RustArcDecrementStrongCountFnType
+      get rust_arc_decrement_strong_count_PulseMetadata;
+
+  CrossPlatformFinalizerArg
+      get rust_arc_decrement_strong_count_PulseMetadataPtr;
 
   RustArcIncrementStrongCountFnType
       get rust_arc_increment_strong_count_StatusResponse;
@@ -354,11 +363,13 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
 
   @override
   Future<ChainAbstractionClient> crateChainAbstractionClientNew(
-      {required String projectId}) {
+      {required String projectId, required PulseMetadata pulseMetadata}) {
     return handler.executeNormal(NormalTask(
       callFfi: (port_) {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_String(projectId, serializer);
+        sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPulseMetadata(
+            pulseMetadata, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
             funcId: 6, port: port_);
       },
@@ -368,7 +379,7 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
         decodeErrorData: null,
       ),
       constMeta: kCrateChainAbstractionClientNewConstMeta,
-      argValues: [projectId],
+      argValues: [projectId, pulseMetadata],
       apiImpl: this,
     ));
   }
@@ -376,7 +387,7 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
   TaskConstMeta get kCrateChainAbstractionClientNewConstMeta =>
       const TaskConstMeta(
         debugName: 'ChainAbstractionClient_new',
-        argNames: ['projectId'],
+        argNames: ['projectId', 'pulseMetadata'],
       );
 
   @override
@@ -527,6 +538,14 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
           .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPrepareResponseAvailable;
 
   RustArcIncrementStrongCountFnType
+      get rust_arc_increment_strong_count_PulseMetadata => wire
+          .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPulseMetadata;
+
+  RustArcDecrementStrongCountFnType
+      get rust_arc_decrement_strong_count_PulseMetadata => wire
+          .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPulseMetadata;
+
+  RustArcIncrementStrongCountFnType
       get rust_arc_increment_strong_count_StatusResponse => wire
           .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerStatusResponse;
 
@@ -598,6 +617,14 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return PrepareResponseAvailableImpl.frbInternalDcoDecode(
         raw as List<dynamic>);
+  }
+
+  @protected
+  PulseMetadata
+      dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPulseMetadata(
+          dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return PulseMetadataImpl.frbInternalDcoDecode(raw as List<dynamic>);
   }
 
   @protected
@@ -691,6 +718,14 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return PrepareResponseAvailableImpl.frbInternalDcoDecode(
         raw as List<dynamic>);
+  }
+
+  @protected
+  PulseMetadata
+      dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPulseMetadata(
+          dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return PulseMetadataImpl.frbInternalDcoDecode(raw as List<dynamic>);
   }
 
   @protected
@@ -834,6 +869,15 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
   }
 
   @protected
+  PulseMetadata
+      sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPulseMetadata(
+          SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return PulseMetadataImpl.frbInternalSseDecode(
+        sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
+  }
+
+  @protected
   StatusResponse
       sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerStatusResponse(
           SseDeserializer deserializer) {
@@ -929,6 +973,15 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
           SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return PrepareResponseAvailableImpl.frbInternalSseDecode(
+        sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
+  }
+
+  @protected
+  PulseMetadata
+      sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPulseMetadata(
+          SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return PulseMetadataImpl.frbInternalSseDecode(
         sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
   }
 
@@ -1092,6 +1145,16 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
 
   @protected
   void
+      sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPulseMetadata(
+          PulseMetadata self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+        (self as PulseMetadataImpl).frbInternalSseEncode(move: true),
+        serializer);
+  }
+
+  @protected
+  void
       sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerStatusResponse(
           StatusResponse self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -1193,6 +1256,16 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_usize(
         (self as PrepareResponseAvailableImpl).frbInternalSseEncode(move: null),
+        serializer);
+  }
+
+  @protected
+  void
+      sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPulseMetadata(
+          PulseMetadata self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+        (self as PulseMetadataImpl).frbInternalSseEncode(move: null),
         serializer);
   }
 
@@ -1462,6 +1535,26 @@ class PrepareResponseImpl extends RustOpaque implements PrepareResponse {
         .instance.api.rust_arc_decrement_strong_count_PrepareResponse,
     rustArcDecrementStrongCountPtr: YttriumDart
         .instance.api.rust_arc_decrement_strong_count_PrepareResponsePtr,
+  );
+}
+
+@sealed
+class PulseMetadataImpl extends RustOpaque implements PulseMetadata {
+  // Not to be used by end users
+  PulseMetadataImpl.frbInternalDcoDecode(List<dynamic> wire)
+      : super.frbInternalDcoDecode(wire, _kStaticData);
+
+  // Not to be used by end users
+  PulseMetadataImpl.frbInternalSseDecode(BigInt ptr, int externalSizeOnNative)
+      : super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
+
+  static final _kStaticData = RustArcStaticData(
+    rustArcIncrementStrongCount:
+        YttriumDart.instance.api.rust_arc_increment_strong_count_PulseMetadata,
+    rustArcDecrementStrongCount:
+        YttriumDart.instance.api.rust_arc_decrement_strong_count_PulseMetadata,
+    rustArcDecrementStrongCountPtr: YttriumDart
+        .instance.api.rust_arc_decrement_strong_count_PulseMetadataPtr,
   );
 }
 
