@@ -54,7 +54,7 @@ test-blockchain-api-debug:
 lint: fmt clippy
 
 clippy:
-  cargo clippy --workspace --features=full --all-targets -- -D warnings
+  cargo clippy --workspace --all-features --all-targets -- -D warnings
   cargo clippy -p yttrium --lib --target wasm32-unknown-unknown --features=wasm -- -D warnings
 
 fmt:
