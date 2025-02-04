@@ -5,7 +5,7 @@ use {
     reqwest::{Client, Url},
     serde::{Deserialize, Serialize},
     std::time::Duration,
-    tracing::{debug, info, warn},
+    tracing::{debug, warn},
     uuid::Uuid,
 };
 
@@ -42,16 +42,29 @@ pub fn pulse(
         sdk_platform: pulse_metadata.sdk_platform.clone(),
     };
 
+    // println!(
+    //     "url: {}",
+    //     http_client.post(PULSE_ENDPOINT).query(&query).build().unwrap().url()
+    // );
+
     let fut =
         http_client.post(PULSE_ENDPOINT).query(&query).json(&analytics).send();
 
     spawn(async move {
         match fut.await {
             Ok(response) => {
-                if response.status().is_success() {
-                    info!("successfully sent execute() analytics");
+                let status = response.status();
+                if status.is_success() {
+                    debug!("successfully sent execute() analytics");
                 } else {
-                    warn!("execute() analytics request failed: {response:?}");
+                    match response.text().await {
+                        Ok(text) => {
+                            warn!("execute() analytics request failed: {status} {text}");
+                        }
+                        Err(e) => {
+                            warn!("execute() analytics request failed: {e}");
+                        }
+                    }
                 }
             }
             Err(e) => {
@@ -85,7 +98,7 @@ pub struct Query {
     pub sdk_platform: String,
 }
 
-const SDK_TYPE: &str = "ca";
+const SDK_TYPE: &str = "wkca";
 
 #[derive(Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
