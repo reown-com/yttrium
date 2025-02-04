@@ -2,7 +2,7 @@ use {
     super::{
         api::{
             prepare::{PrepareResponseError, PrepareResponseNotRequired},
-            status::{StatusResponseError, StatusResponsePending},
+            status::{StatusResponseError, StatusResponsePendingObject},
         },
         ui_fields::UiFields,
     },
@@ -145,7 +145,8 @@ pub enum WaitForSuccessError {
     StatusResponseError(StatusResponseError),
 
     #[error("StatusResponsePending: {0:?}")]
-    StatusResponsePending(StatusResponsePending),
+    // renamed to `Object` to avoid conflicts: https://github.com/mozilla/uniffi-rs/issues/2402
+    StatusResponsePending(StatusResponsePendingObject),
 }
 
 #[derive(Debug, Error)]

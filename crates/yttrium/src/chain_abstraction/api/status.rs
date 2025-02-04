@@ -15,7 +15,7 @@ pub struct StatusQueryParams {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
 #[serde(rename_all = "camelCase")]
-pub struct StatusResponsePending {
+pub struct StatusResponsePendingObject {
     pub created_at: u64,
     /// Polling interval in ms for the client
     pub check_in: u64,
@@ -50,7 +50,7 @@ pub struct StatusResponseError {
 )]
 #[serde(rename_all = "UPPERCASE", tag = "status")]
 pub enum StatusResponse {
-    Pending(StatusResponsePending),
+    Pending(StatusResponsePendingObject),
     Completed(StatusResponseCompleted),
     Error(StatusResponseError),
 }
