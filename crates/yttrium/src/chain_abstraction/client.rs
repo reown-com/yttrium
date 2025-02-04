@@ -22,6 +22,7 @@ use {
             PrepareDetailedResponseSuccess, PrepareError, StatusError,
             WaitForSuccessError,
         },
+        pulse::PulseMetadata,
         send_transaction::{send_transaction, TransactionAnalytics},
         ui_fields::UiFields,
     },
@@ -55,10 +56,11 @@ pub struct Client {
     provider_pool: ProviderPool,
     http_client: ReqwestClient,
     project_id: ProjectId,
+    pulse_metadata: PulseMetadata,
 }
 
 impl Client {
-    pub fn new(project_id: ProjectId) -> Self {
+    pub fn new(project_id: ProjectId, metadata: PulseMetadata) -> Self {
         let client = ReqwestClient::new();
         Self {
             provider_pool: ProviderPool::new(
@@ -67,6 +69,7 @@ impl Client {
             ),
             http_client: client,
             project_id,
+            pulse_metadata: metadata,
         }
     }
 
@@ -462,7 +465,12 @@ impl Client {
             }
         };
 
-        pulse(self.http_client.clone(), analytics, self.project_id.clone());
+        pulse(
+            self.http_client.clone(),
+            analytics,
+            self.project_id.clone(),
+            &self.pulse_metadata,
+        );
 
         result
     }

@@ -2,7 +2,7 @@ use {
     super::{client::ExecuteAnalytics, spawn::spawn},
     crate::serde::duration_millis,
     relay_rpc::domain::ProjectId,
-    reqwest::Client,
+    reqwest::{Client, Url},
     serde::{Deserialize, Serialize},
     std::time::Duration,
     tracing::{debug, info, warn},
@@ -16,19 +16,30 @@ pub fn pulse(
     http_client: Client,
     props: ExecuteAnalytics,
     project_id: ProjectId,
+    pulse_metadata: &PulseMetadata,
 ) {
     let event_id = Uuid::new_v4();
     let timestamp = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default();
-    let analytics = Event { event_id, timestamp, props };
+    let analytics = Event {
+        event_id,
+        url: pulse_metadata.url.as_ref().map(|url| url.to_string()),
+        domain: pulse_metadata
+            .url
+            .as_ref()
+            .map(|url| url.origin().ascii_serialization()),
+        bundle_id: pulse_metadata.bundle_id.clone(),
+        timestamp,
+        props,
+    };
     debug!("pulse analytics: {analytics:?}");
 
     let query = Query {
         project_id,
         sdk_type: SDK_TYPE,
-        sdk_version: SDK_VERSION,
-        sdk_platform: SDK_PLATFORM,
+        sdk_version: pulse_metadata.sdk_version.clone(),
+        sdk_platform: pulse_metadata.sdk_platform.clone(),
     };
 
     let fut =
@@ -54,6 +65,9 @@ pub fn pulse(
 #[serde(rename_all = "camelCase")]
 pub struct Event {
     pub event_id: Uuid,
+    pub url: Option<String>,
+    pub domain: Option<String>,
+    pub bundle_id: Option<String>,
     #[serde(with = "duration_millis")]
     pub timestamp: Duration,
     pub props: ExecuteAnalytics,
@@ -66,11 +80,28 @@ pub struct Query {
     #[serde(rename = "st")]
     pub sdk_type: &'static str,
     #[serde(rename = "sv")]
-    pub sdk_version: &'static str,
+    pub sdk_version: String,
     #[serde(rename = "sp")]
-    pub sdk_platform: &'static str,
+    pub sdk_platform: String,
 }
 
 const SDK_TYPE: &str = "ca";
-const SDK_VERSION: &str = "0.0.0"; // get WK version here walletkit-swift-1.1.5 (current events sdk version)
-const SDK_PLATFORM: &str = "mobile";
+
+#[derive(Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
+#[cfg_attr(
+    feature = "wasm",
+    derive(tsify_next::Tsify),
+    tsify(into_wasm_abi, from_wasm_abi)
+)]
+pub struct PulseMetadata {
+    // web
+    pub url: Option<Url>,
+    // iOS
+    pub bundle_id: Option<String>,
+    // Android
+    // FIXME this param is not used yet
+    pub package_name: Option<String>,
+    pub sdk_version: String,
+    pub sdk_platform: String,
+}

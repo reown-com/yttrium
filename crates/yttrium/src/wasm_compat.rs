@@ -14,6 +14,7 @@ use {
                 PrepareDetailedResponse, StatusError, UiFieldsError,
                 WaitForSuccessError,
             },
+            pulse::PulseMetadata,
             ui_fields::UiFields,
         },
     },
@@ -31,8 +32,8 @@ pub struct Client {
 #[wasm_bindgen]
 impl Client {
     #[wasm_bindgen(constructor)]
-    pub fn new(project_id: String) -> Self {
-        Self { inner: InnerClient::new(project_id.into()) }
+    pub fn new(project_id: String, pulse_metadata: PulseMetadata) -> Self {
+        Self { inner: InnerClient::new(project_id.into(), pulse_metadata) }
     }
 
     #[wasm_bindgen]

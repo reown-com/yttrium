@@ -1,14 +1,6 @@
 uniffi::setup_scaffolding!();
 
 // Force import of this crate to ensure that the code is actually generated
-use alloy::{
-    hex,
-    primitives::{
-        ruint::aliases::U256, Address as FFIAddress, Bytes as FFIBytes,
-        PrimitiveSignature as FFIPrimitiveSignature, Uint, U128 as FFIU128,
-        U256 as FFIU256, U64 as FFIU64,
-    },
-};
 #[allow(unused_imports)]
 #[allow(clippy::single_component_path_imports)]
 use yttrium;
@@ -25,6 +17,17 @@ use {
         smart_accounts::account_address::AccountAddress as FfiAccountAddress,
         smart_accounts::safe::{SignOutputEnum, SignStep3Params},
     },
+};
+use {
+    alloy::{
+        hex,
+        primitives::{
+            ruint::aliases::U256, Address as FFIAddress, Bytes as FFIBytes,
+            PrimitiveSignature as FFIPrimitiveSignature, Uint, U128 as FFIU128,
+            U256 as FFIU256, U64 as FFIU64,
+        },
+    },
+    yttrium::chain_abstraction::pulse::PulseMetadata,
 };
 #[cfg(feature = "chain_abstraction_client")]
 use {
@@ -146,8 +149,9 @@ pub struct ChainAbstractionClient {
 #[uniffi::export(async_runtime = "tokio")]
 impl ChainAbstractionClient {
     #[uniffi::constructor]
-    pub fn new(project_id: String) -> Self {
-        let client = Client::new(ProjectId::from(project_id.clone()));
+    pub fn new(project_id: String, pulse_metadata: PulseMetadata) -> Self {
+        let client =
+            Client::new(ProjectId::from(project_id.clone()), pulse_metadata);
         Self { project_id, client }
     }
 

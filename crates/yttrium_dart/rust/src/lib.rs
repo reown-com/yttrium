@@ -16,6 +16,7 @@ use {
             },
             client::Client,
             currency::Currency,
+            pulse::PulseMetadata,
             ui_fields::UiFields,
         },
     },
@@ -117,8 +118,9 @@ pub struct ChainAbstractionClient {
 // #[frb]
 impl ChainAbstractionClient {
     // #[uniffi::constructor]
-    pub fn new(project_id: String) -> Self {
-        let client = Client::new(ProjectId::from(project_id.clone()));
+    pub fn new(project_id: String, pulse_metadata: PulseMetadata) -> Self {
+        let client =
+            Client::new(ProjectId::from(project_id.clone()), pulse_metadata);
         Self { project_id, client }
     }
 
