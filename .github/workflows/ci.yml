@@ -32,7 +32,7 @@ jobs:
       - run: while ! curl localhost:3000/ping; do sleep 1; done
       - run: cargo build --workspace --all-features --all-targets
       - run: cargo build -p yttrium --features=wasm --lib --target wasm32-unknown-unknown
-      - run: cargo test --features=full --lib --bins
+      - run: RUST_BACKTRACE=1 RUST_LOG=yttrium=trace cargo test --features=full --lib --bins
         env:
           REOWN_PROJECT_ID: ${{ vars.REOWN_PROJECT_ID }}
       - run: cargo clippy --workspace --all-features --all-targets -- -D warnings
