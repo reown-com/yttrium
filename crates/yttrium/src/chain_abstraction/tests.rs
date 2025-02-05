@@ -1620,7 +1620,7 @@ async fn happy_path_full_dependency_on_ui_fields() {
     );
 }
 
-#[tokio::test]
+#[test_log::test(tokio::test)]
 #[serial(happy_path)]
 async fn happy_path_execute_method() {
     let faucet = private_faucet();

@@ -106,6 +106,7 @@ derive_jserror = { version = "=0.1.0", optional = true, default-features = false
 [dev-dependencies]
 # mocking
 wiremock = { version = "0.6.0", default-features = false }
+test-log = { version = "0.2.17", default-features = false, features = ["trace"] }
 
 # Networking
 reqwest.workspace = true

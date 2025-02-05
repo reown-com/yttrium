@@ -1,5 +1,5 @@
 use {
-    super::{client::ExecuteAnalytics, spawn::spawn},
+    super::client::ExecuteAnalytics,
     crate::serde::duration_millis,
     relay_rpc::domain::ProjectId,
     reqwest::{Client, Url},
@@ -47,11 +47,14 @@ pub fn pulse(
     //     http_client.post(PULSE_ENDPOINT).query(&query).build().unwrap().url()
     // );
 
-    let fut =
-        http_client.post(PULSE_ENDPOINT).query(&query).json(&analytics).send();
-
-    spawn(async move {
-        match fut.await {
+    let fut = async move {
+        let result = http_client
+            .post(PULSE_ENDPOINT)
+            .query(&query)
+            .json(&analytics)
+            .send()
+            .await;
+        match result {
             Ok(response) => {
                 let status = response.status();
                 if status.is_success() {
@@ -71,7 +74,21 @@ pub fn pulse(
                 warn!("execute() analytics request failed: {e}");
             }
         }
-    });
+    };
+
+    #[cfg(not(test))]
+    super::spawn::spawn(fut);
+
+    #[cfg(test)]
+    std::thread::spawn(move || {
+        tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap()
+            .block_on(fut)
+    })
+    .join()
+    .unwrap();
 }
 
 #[derive(Debug, Serialize, Deserialize)]
