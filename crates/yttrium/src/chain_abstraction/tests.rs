@@ -961,7 +961,10 @@ async fn happy_path() {
     }
 
     let status = client
-        .wait_for_success(result.orchestration_id, result.metadata.check_in)
+        .wait_for_success(
+            result.orchestration_id,
+            Duration::from_millis(result.metadata.check_in),
+        )
         .await
         .unwrap();
     println!("status: {:?}", status);
@@ -1517,7 +1520,10 @@ async fn happy_path_full_dependency_on_ui_fields() {
     }
 
     let status = client
-        .wait_for_success(result.orchestration_id, result.metadata.check_in)
+        .wait_for_success(
+            result.orchestration_id,
+            Duration::from_millis(result.metadata.check_in),
+        )
         .await
         .unwrap();
     println!("status: {:?}", status);

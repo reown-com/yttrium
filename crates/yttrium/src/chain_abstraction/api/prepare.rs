@@ -2,13 +2,10 @@
 use wasm_bindgen::prelude::*;
 use {
     super::Transaction,
-    crate::{
-        call::Call, chain_abstraction::amount::Amount, serde::duration_millis,
-    },
+    crate::{call::Call, chain_abstraction::amount::Amount},
     alloy::primitives::{utils::Unit, Address, U256},
     relay_rpc::domain::ProjectId,
     serde::{Deserialize, Serialize},
-    std::time::Duration,
 };
 
 pub const ROUTE_ENDPOINT_PATH: &str = "/v1/ca/orchestrator/route";
@@ -62,8 +59,9 @@ pub struct Metadata {
     pub funding_from: Vec<FundingMetadata>,
     pub initial_transaction: InitialTransactionMetadata,
     /// The number of milliseconds to delay before calling `/status` after getting successful transaction receipts from all sent transactions.
-    #[serde(with = "duration_millis")]
-    pub check_in: Duration,
+    /// Not switching to Duration yet because Kotlin maps this to a native `duration` type but this requires API version 26 but we support 23.
+    /// https://reown-inc.slack.com/archives/C07HQ8RCGD8/p1738740204879269
+    pub check_in: u64,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
