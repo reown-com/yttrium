@@ -111,12 +111,22 @@ jobs:
         with:
           name: artifacts-aarch64-linux-android
           path: combined/aarch64
+    
+      - name: Debug listing of downloaded artifact aarch64
+        run: |
+            echo "Contents of combined/aarch64:"
+            ls -R combined/aarch64
 
       - name: Download armv7 artifact
         uses: actions/download-artifact@v4
         with:
           name: artifacts-armv7-linux-androideabi
           path: combined/armv7
+      
+      - name: Debug listing of downloaded artifact armv7
+        run: |
+              echo "Contents of combined/armv7:"
+              ls -R combined/armv7
 
       - name: Merge artifacts
         run: |
@@ -125,14 +135,14 @@ jobs:
           mkdir -p merged/yttrium/libs
 
           # Copy aarch64's libs
-          cp -r yttrium/yttrium/combined/aarch64/build-artifacts/yttrium/libs/arm64-v8a merged/yttrium/libs/
+          cp -r combined/aarch64/build-artifacts/yttrium/libs/arm64-v8a merged/yttrium/libs/
 
           # Copy armv7's libs
-          cp -r yttrium/yttrium/combined/armv7/build-artifacts/yttrium/libs/armeabi-v7a merged/yttrium/libs/
+          cp -r combined/armv7/build-artifacts/yttrium/libs/armeabi-v7a merged/yttrium/libs/
 
           # Copy Kotlin bindings if it exists in the aarch64 artifact
           if [ -d combined/aarch64/build-artifacts/yttrium/kotlin-bindings ]; then
-            cp -r yttrium/yttrium/combined/aarch64/build-artifacts/yttrium/kotlin-bindings merged/yttrium/
+            cp -r combined/aarch64/build-artifacts/yttrium/kotlin-bindings merged/yttrium/
           fi
 
       - name: Upload single combined artifact
