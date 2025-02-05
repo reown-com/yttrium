@@ -47,9 +47,9 @@ test-pimlico-api:
   cargo test --features=test_pimlico_api --lib --bins pimlico
 
 test-blockchain-api:
-  RUST_BACKTRACE=1 cargo test --features=test_blockchain_api --lib --bins chain_abstraction::tests
+  RUST_BACKTRACE=1 RUST_LOG=yttrium=trace cargo test --features=test_blockchain_api --lib --bins chain_abstraction::tests
 test-blockchain-api-debug:
-  RUST_BACKTRACE=1 cargo test --features=test_blockchain_api --lib --bins chain_abstraction::tests::happy_path_full_dependency_on_route_ui_fields -- --nocapture
+  RUST_BACKTRACE=1 RUST_LOG=yttrium=trace cargo test --features=test_blockchain_api --lib --bins chain_abstraction::tests::happy_path_execute_method -- --nocapture
 
 lint: fmt clippy
 
