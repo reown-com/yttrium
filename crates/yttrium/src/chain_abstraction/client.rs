@@ -528,7 +528,9 @@ impl Client {
         let _success = self
             .wait_for_success(
                 orchestration_id.clone(),
-                Duration::from_millis(ui_fields.route_response.metadata.check_in),
+                Duration::from_millis(
+                    ui_fields.route_response.metadata.check_in,
+                ),
             )
             .await
             .map_err(|e| {

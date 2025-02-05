@@ -27,7 +27,9 @@ use {
             U256 as FFIU256, U64 as FFIU64,
         },
     },
-    yttrium::chain_abstraction::pulse::PulseMetadata,
+    yttrium::chain_abstraction::{
+        error::PrepareDetailedResponse, pulse::PulseMetadata,
+    },
 };
 #[cfg(feature = "chain_abstraction_client")]
 use {
@@ -170,10 +172,25 @@ impl ChainAbstractionClient {
     pub async fn get_ui_fields(
         &self,
         route_response: PrepareResponseAvailable,
-        currency: Currency,
+        local_currency: Currency,
     ) -> Result<UiFields, FFIError> {
         self.client
-            .get_ui_fields(route_response, currency)
+            .get_ui_fields(route_response, local_currency)
+            .await
+            .map_err(|e| FFIError::General(e.to_string()))
+    }
+
+    pub async fn prepare_detailed(
+        &self,
+        chain_id: String,
+        from: FFIAddress,
+        call: Call,
+        local_currency: Currency,
+        // TODO use this to e.g. modify priority fee
+        // _speed: String,
+    ) -> Result<PrepareDetailedResponse, FFIError> {
+        self.client
+            .prepare_detailed(chain_id, from, call, local_currency)
             .await
             .map_err(|e| FFIError::General(e.to_string()))
     }
