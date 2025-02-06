@@ -211,11 +211,7 @@ strip = true
 panic = "abort"
 
 [profile.profile11]
-inherits = "release-base"
-opt-level = "z"
-codegen-units = 1
-lto = true
-panic = "abort"
+
 
 [profile.profile10-nostrip]
 inherits = "profile10"
