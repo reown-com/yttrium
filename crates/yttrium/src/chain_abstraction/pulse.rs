@@ -9,8 +9,8 @@ use {
     uuid::Uuid,
 };
 
-const PULSE_ENDPOINT: &str = "https://analytics-api-cf-workers-staging.walletconnect-v1-bridge.workers.dev/e";
-// const PULSE_ENDPOINT: &str = "https://pulse.walletconnect.org/e";
+// const PULSE_ENDPOINT: &str = "https://analytics-api-cf-workers-staging.walletconnect-v1-bridge.workers.dev/e";
+const PULSE_ENDPOINT: &str = "https://pulse.walletconnect.org/e";
 
 pub fn pulse(
     http_client: Client,
