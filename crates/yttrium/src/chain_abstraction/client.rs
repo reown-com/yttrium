@@ -61,7 +61,13 @@ pub struct Client {
 
 impl Client {
     pub fn new(project_id: ProjectId, metadata: PulseMetadata) -> Self {
-        let client = ReqwestClient::new();
+        let client = ReqwestClient::builder().build();
+        let client = match client {
+            Ok(client) => client,
+            Err(e) => {
+                panic!("Failed to create reqwest client: {} ... {:?}", e, e)
+            }
+        };
         Self {
             provider_pool: ProviderPool::new(
                 project_id.clone(),
