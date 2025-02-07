@@ -4,21 +4,11 @@ use {
         network::Ethereum,
         primitives::Address,
         providers::{Provider, ReqwestProvider},
-        sol_types::SolStruct,
     },
-    // flutter_rust_bridge::frb,
     relay_rpc::domain::ProjectId,
-    serde::{Deserialize, Serialize},
     std::time::Duration,
     yttrium::{
-        account_client::AccountClient as YAccountClient,
-        call::{
-            send::safe_test::{
-                self, DoSendTransactionParams, OwnerSignature,
-                PreparedSendTransaction,
-            },
-            Call,
-        },
+        call::Call,
         chain_abstraction::{
             api::{
                 prepare::{PrepareResponse, PrepareResponseAvailable},
@@ -28,11 +18,6 @@ use {
             currency::Currency,
             ui_fields::UiFields,
         },
-        config::Config,
-        smart_accounts::{
-            account_address::AccountAddress as FfiAccountAddress,
-            safe::{SignOutputEnum, SignStep3Params},
-        },
     },
 };
 
@@ -40,7 +25,7 @@ use {
 //     try_lift: |val| Ok(val.parse()?),
 //     lower: |obj| obj.to_string(),
 // });
-// uniffi::custom_type!(FfiAccountAddress, FFIAddress, {
+// uniffi::custom_type!(AccountAddress, FFIAddress, {
 //     try_lift: |val| Ok(val.into()),
 //     lower: |obj| obj.into(),
 // });
@@ -72,7 +57,7 @@ use {
 // });
 
 // // #[frb]
-// #[derive(Clone, Debug, Serialize, Deserialize)]
+// #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 // pub struct Call {
 //     pub to: String,
 //     pub value: String,
@@ -91,7 +76,7 @@ use {
 // }
 
 // #[frb]
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Eip1559Estimation {
     /// The base fee per gas as a String.
     pub max_fee_per_gas: String,
@@ -112,22 +97,15 @@ impl From<alloy::providers::utils::Eip1559Estimation> for Eip1559Estimation {
 }
 
 #[derive(Clone, Debug)]
-pub struct FfiPreparedSignature {
+pub struct PreparedSignature {
     pub message_hash: String,
 }
 
 // #[frb]
 #[derive(Debug, thiserror::Error)]
-pub enum FFIError {
+pub enum Error {
     #[error("General {0}")]
     General(String),
-}
-
-// #[frb]
-pub struct FFIAccountClient {
-    pub owner_address: FfiAccountAddress,
-    pub chain_id: u64,
-    account_client: YAccountClient,
 }
 
 // #[frb]
@@ -150,11 +128,11 @@ impl ChainAbstractionClient {
         chain_id: String,
         from: Address,
         call: Call,
-    ) -> Result<PrepareResponse, FFIError> {
+    ) -> Result<PrepareResponse, Error> {
         self.client
             .prepare(chain_id, from, call)
             .await
-            .map_err(|e| FFIError::General(e.to_string()))
+            .map_err(|e| Error::General(e.to_string()))
     }
 
     // #[frb]
@@ -162,24 +140,22 @@ impl ChainAbstractionClient {
         &self,
         route_response: PrepareResponseAvailable,
         currency: Currency,
-    ) -> Result<UiFields, FFIError> {
+    ) -> Result<UiFields, Error> {
         self.client
             .get_ui_fields(route_response, currency)
             .await
-            .map(Into::into)
-            .map_err(|e| FFIError::General(e.to_string()))
+            .map_err(|e| Error::General(e.to_string()))
     }
 
     // #[frb]
     pub async fn status(
         &self,
         orchestration_id: String,
-    ) -> Result<StatusResponse, FFIError> {
+    ) -> Result<StatusResponse, Error> {
         self.client
             .status(orchestration_id)
             .await
-            .map(|status_response| status_response.into())
-            .map_err(|e| FFIError::General(e.to_string()))
+            .map_err(|e| Error::General(e.to_string()))
     }
 
     // #[frb]
@@ -188,7 +164,7 @@ impl ChainAbstractionClient {
         orchestration_id: String,
         check_in: u64,
         timeout: u64,
-    ) -> Result<StatusResponseCompleted, FFIError> {
+    ) -> Result<StatusResponseCompleted, Error> {
         self.client
             .wait_for_success_with_timeout(
                 orchestration_id,
@@ -196,15 +172,14 @@ impl ChainAbstractionClient {
                 Duration::from_secs(timeout),
             )
             .await
-            .map(|src| src.into())
-            .map_err(|e| FFIError::General(e.to_string()))
+            .map_err(|e| Error::General(e.to_string()))
     }
 
     // #[frb]
     pub async fn estimate_fees(
         &self,
         chain_id: String,
-    ) -> Result<Eip1559Estimation, FFIError> {
+    ) -> Result<Eip1559Estimation, Error> {
         let url = format!(
             "https://rpc.walletconnect.com/v1?chainId={chain_id}&projectId={}",
             self.project_id
@@ -216,7 +191,7 @@ impl ChainAbstractionClient {
             .estimate_eip1559_fees(None)
             .await
             .map(Into::into)
-            .map_err(|e| FFIError::General(e.to_string()))
+            .map_err(|e| Error::General(e.to_string()))
     }
 
     // #[frb]
@@ -225,131 +200,25 @@ impl ChainAbstractionClient {
         chain_id: &str,
         token: Address,
         owner: Address,
-    ) -> Result<String, FFIError> {
+    ) -> Result<String, Error> {
         self.client
             .erc20_token_balance(chain_id, token, owner)
             .await
             .map(|balance| balance.to_string())
-            .map_err(|e| FFIError::General(e.to_string()))
-    }
-}
-
-// #[frb]
-impl FFIAccountClient {
-    // #[frb]
-    pub fn new(
-        owner: FfiAccountAddress,
-        chain_id: u64,
-        config: Config,
-    ) -> Self {
-        let account_client = YAccountClient::new(owner, chain_id, config);
-        Self { owner_address: owner, chain_id, account_client }
-    }
-
-    // #[frb]
-    pub fn get_chain_id(&self) -> u64 {
-        self.chain_id
-    }
-
-    // Async method for fetching address
-    // #[frb]
-    pub async fn get_address(&self) -> Result<String, FFIError> {
-        self.account_client
-            .get_address()
-            .await
-            .map(|address| address.to_string())
-            .map_err(|e| FFIError::General(e.to_string()))
-    }
-
-    // #[frb]
-    pub fn prepare_sign_message(
-        &self,
-        message_hash: String,
-    ) -> FfiPreparedSignature {
-        let res = self
-            .account_client
-            .prepare_sign_message(message_hash.parse().unwrap());
-        let hash = res.safe_message.eip712_signing_hash(&res.domain);
-        FfiPreparedSignature { message_hash: hash.to_string() }
-    }
-
-    // #[frb]
-    pub async fn do_sign_message(
-        &self,
-        signatures: Vec<safe_test::OwnerSignature>,
-    ) -> Result<SignOutputEnum, FFIError> {
-        self.account_client
-            .do_sign_message(signatures)
-            .await
-            .map_err(|e| FFIError::General(e.to_string()))
-    }
-
-    // #[frb]
-    pub async fn finalize_sign_message(
-        &self,
-        signatures: Vec<safe_test::OwnerSignature>,
-        sign_step_3_params: SignStep3Params,
-    ) -> Result<Vec<u8>, FFIError> {
-        self.account_client
-            .finalize_sign_message(signatures, sign_step_3_params)
-            .await
-            .map(|bytes| bytes.to_vec()) // Convert Bytes to Vec<u8>
-            .map_err(|e| FFIError::General(e.to_string()))
-    }
-
-    // #[frb]
-    pub async fn prepare_send_transactions(
-        &self,
-        transactions: Vec<Call>,
-    ) -> Result<PreparedSendTransaction, FFIError> {
-        self.account_client
-            .prepare_send_transactions(transactions)
-            .await
-            .map_err(|e| FFIError::General(e.to_string()))
-    }
-
-    // #[frb]
-    pub async fn do_send_transactions(
-        &self,
-        signatures: Vec<OwnerSignature>,
-        do_send_transaction_params: DoSendTransactionParams,
-    ) -> Result<String, FFIError> {
-        Ok(self
-            .account_client
-            .do_send_transactions(signatures, do_send_transaction_params)
-            .await
-            .map_err(|e| FFIError::General(e.to_string()))?
-            .to_string())
-    }
-
-    // #[frb]
-    pub async fn wait_for_user_operation_receipt(
-        &self,
-        user_operation_hash: String,
-    ) -> Result<String, FFIError> {
-        self.account_client
-            .wait_for_user_operation_receipt(
-                user_operation_hash.parse().map_err(|e| {
-                    FFIError::General(format!(
-                        "Parsing user_operation_hash: {e}"
-                    ))
-                })?,
-            )
-            .await
-            .iter()
-            .map(serde_json::to_string)
-            .collect::<Result<String, serde_json::Error>>()
-            .map_err(|e| FFIError::General(e.to_string()))
+            .map_err(|e| Error::General(e.to_string()))
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use alloy::{
-        hex,
-        network::Ethereum,
-        primitives::{address, bytes},
-        providers::{Provider, ReqwestProvider},
+    use {
+        // super::*,
+        alloy::{
+            hex,
+            network::Ethereum,
+            primitives::{address, bytes},
+            providers::{Provider, ReqwestProvider},
+        },
     };
 
     #[tokio::test]
@@ -368,7 +237,8 @@ mod tests {
         println!("estimate: {estimate:?}");
         // Simulate sending the data to Dart (convert U128 values to strings)
         let max_fee_per_gas = estimate.max_fee_per_gas.to_string();
-        let max_priority_fee_per_gas = estimate.max_priority_fee_per_gas.to_string();
+        let max_priority_fee_per_gas =
+            estimate.max_priority_fee_per_gas.to_string();
 
         println!("Max fee per gas: {max_fee_per_gas}, Max priority fee per gas: {max_priority_fee_per_gas}");
     }

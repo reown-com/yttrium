@@ -13,11 +13,17 @@ use {
     },
     alloy::primitives::U256,
     alloy_provider::utils::Eip1559Estimation,
+    serde::{Deserialize, Serialize},
     tracing::warn,
 };
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
+#[cfg_attr(
+    feature = "wasm",
+    derive(tsify_next::Tsify),
+    tsify(into_wasm_abi, from_wasm_abi)
+)]
 pub struct UiFields {
     pub route: Vec<TxnDetails>,
     pub local_route_total: Amount,
@@ -27,14 +33,14 @@ pub struct UiFields {
     pub local_total: Amount,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
 pub struct TxnDetails {
     pub transaction: FeeEstimatedTransaction,
     pub fee: TransactionFee,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
 pub struct TransactionFee {
     pub fee: Amount,

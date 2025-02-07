@@ -35,3 +35,6 @@ Utilities/InstalledSwiftPMConfiguration/config.json
 /crates/kotlin-ffi/android/build
 
 *.env.secret*
+benchmark-profile-output-sizes.csv
+benchmark*.csv
+benchmark/

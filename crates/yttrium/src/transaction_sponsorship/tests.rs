@@ -10,14 +10,43 @@ use {
     alloy::{
         network::Ethereum,
         primitives::{Bytes, U256},
-        signers::{local::LocalSigner, SignerSync},
+        signers::{
+            local::{LocalSigner, PrivateKeySigner},
+            SignerSync,
+        },
     },
     alloy_provider::{Provider, ReqwestProvider},
     std::collections::HashMap,
 };
 
 #[tokio::test]
-async fn happy_path() {
+#[serial_test::serial(odyssey)]
+#[cfg(feature = "test_pimlico_api")]
+async fn happy_path_pimlico() {
+    use {crate::test_helpers::private_faucet, reqwest::Url, std::env};
+
+    let chain_id = 911867; // Odyssey Testnet
+    let rpc = "https://odyssey.ithaca.xyz".parse::<Url>().unwrap();
+    let pimlico_api_key = env::var("PIMLICO_API_KEY")
+        .expect("You've not set the PIMLICO_API_KEY");
+    let bundler_url = format!(
+        "https://api.pimlico.io/v2/{chain_id}/rpc?apikey={pimlico_api_key}"
+    )
+    .parse::<Url>()
+    .unwrap();
+    let chain_id = format!("eip155:{chain_id}");
+
+    let project_id = "".into();
+    let client = GasAbstractionClient::new(project_id)
+        .with_rpc_overrides(HashMap::from([(chain_id.clone(), rpc)]))
+        .with_4337_urls(bundler_url.clone(), bundler_url);
+
+    let faucet = private_faucet();
+    happy_path_impl(chain_id, client, Some(faucet)).await
+}
+
+#[tokio::test]
+async fn happy_path_local() {
     let chain_id = format!(
         "eip155:{}",
         ReqwestProvider::<Ethereum>::new_http(LOCAL_RPC_URL.parse().unwrap())
@@ -26,9 +55,6 @@ async fn happy_path() {
             .unwrap()
     );
 
-    // You have a GasAbstractionClient
-    // TODO allow Sponsor EOA as configuration - for non-Anvil usage i.e. TODO Pimlico test case against testnet
-    // let project_id = std::env::var("REOWN_PROJECT_ID").unwrap().into();
     let project_id = "".into();
     let client = GasAbstractionClient::new(project_id)
         .with_rpc_overrides(HashMap::from([(
@@ -40,6 +66,14 @@ async fn happy_path() {
             LOCAL_PAYMASTER_URL.parse().unwrap(),
         );
 
+    happy_path_impl(chain_id, client, None).await
+}
+
+async fn happy_path_impl(
+    chain_id: String,
+    client: GasAbstractionClient,
+    sponsor: Option<PrivateKeySigner>,
+) {
     // You have an EOA
     let eoa = LocalSigner::random();
     let from = eoa.address();
@@ -75,15 +109,14 @@ async fn happy_path() {
             auth: auth.auth,
         };
         let prepared_send = client
-            .prepare_deploy(auth_sig, prepare_deploy_params, None)
+            .prepare_deploy(auth_sig, prepare_deploy_params, sponsor)
             .await
             .unwrap();
 
         // Display fee information to the user: prepare_deploy_result.fees
         // User approved? Yes
 
-        let signature: alloy::signers::Signature =
-            eoa.sign_hash_sync(&prepared_send.hash).unwrap();
+        let signature = eoa.sign_hash_sync(&prepared_send.hash).unwrap();
         let receipt = client.send(signature, prepared_send.send_params).await;
         println!("receipt: {:?}", receipt);
     }
