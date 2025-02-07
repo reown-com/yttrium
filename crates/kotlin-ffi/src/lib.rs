@@ -1,50 +1,59 @@
 uniffi::setup_scaffolding!();
 
+use alloy::primitives::{
+    ruint::aliases::U256, Address as FFIAddress, Bytes as FFIBytes, Uint,
+    U128 as FFIU128, U256 as FFIU256, U64 as FFIU64,
+};
+// Force import of this crate to ensure that the code is actually generated
+#[allow(unused_imports)]
+#[allow(clippy::single_component_path_imports)]
+use yttrium;
+#[cfg(feature = "account_client")]
+use {
+    alloy::sol_types::SolStruct,
+    yttrium::account_client::AccountClient as YAccountClient,
+    yttrium::{
+        call::send::safe_test::{
+            self, DoSendTransactionParams, OwnerSignature,
+            PreparedSendTransaction,
+        },
+        config::Config,
+        smart_accounts::account_address::AccountAddress as FfiAccountAddress,
+        smart_accounts::safe::{SignOutputEnum, SignStep3Params},
+    },
+};
+#[cfg(feature = "chain_abstraction_client")]
 use {
     alloy::{
         network::Ethereum,
-        primitives::{
-            Address as FFIAddress, Bytes as FFIBytes, Uint, U128 as FFIU128,
-            U256 as FFIU256, U64 as FFIU64,
-        },
         providers::{Provider, ReqwestProvider},
-        sol_types::SolStruct,
+        sol,
+        sol_types::SolCall,
     },
     relay_rpc::domain::ProjectId,
     std::time::Duration,
-    yttrium::{
-        account_client::AccountClient as YAccountClient,
-        call::{
-            send::safe_test::{
-                self, DoSendTransactionParams, OwnerSignature,
-                PreparedSendTransaction,
-            },
-            Call,
+    yttrium::call::Call,
+    yttrium::chain_abstraction::{
+        api::{
+            prepare::{PrepareResponse, PrepareResponseAvailable},
+            status::{StatusResponse, StatusResponseCompleted},
         },
-        chain_abstraction::{
-            api::{
-                prepare::{PrepareResponse, PrepareResponseAvailable},
-                status::{StatusResponse, StatusResponseCompleted},
-            },
-            client::Client,
-            currency::Currency,
-            ui_fields::UiFields,
-        },
-        config::Config,
-        smart_accounts::{
-            account_address::AccountAddress as FfiAccountAddress,
-            safe::{SignOutputEnum, SignStep3Params},
-        },
+        client::Client,
+        currency::Currency,
+        ui_fields::UiFields,
     },
 };
+// extern crate yttrium; // This might work too, but I haven't tested
+
+sol! {
+    pragma solidity ^0.8.0;
+    function transfer(address recipient, uint256 amount) external returns (bool);
+}
 
 uniffi::custom_type!(FFIAddress, String, {
+    remote,
     try_lift: |val| Ok(val.parse()?),
     lower: |obj| obj.to_string(),
-});
-uniffi::custom_type!(FfiAccountAddress, FFIAddress, {
-    try_lift: |val| Ok(val.into()),
-    lower: |obj| obj.into(),
 });
 
 fn uint_to_hex<const BITS: usize, const LIMBS: usize>(
@@ -54,21 +63,25 @@ fn uint_to_hex<const BITS: usize, const LIMBS: usize>(
 }
 
 uniffi::custom_type!(FFIU64, String, {
+    remote,
     try_lift: |val| Ok(val.parse()?),
     lower: |obj| uint_to_hex(obj),
 });
 
 uniffi::custom_type!(FFIU128, String, {
+    remote,
     try_lift: |val| Ok(val.parse()?),
     lower: |obj| uint_to_hex(obj),
 });
 
 uniffi::custom_type!(FFIU256, String, {
+    remote,
     try_lift: |val| Ok(val.parse()?),
     lower: |obj| uint_to_hex(obj),
 });
 
 uniffi::custom_type!(FFIBytes, String, {
+    remote,
     try_lift: |val| Ok(val.parse()?),
     lower: |obj| obj.to_string(),
 });
@@ -103,6 +116,7 @@ pub enum FFIError {
     General(String),
 }
 
+#[cfg(feature = "account_client")]
 #[derive(uniffi::Object)]
 pub struct FFIAccountClient {
     pub owner_address: FfiAccountAddress,
@@ -110,12 +124,14 @@ pub struct FFIAccountClient {
     account_client: YAccountClient,
 }
 
+#[cfg(feature = "chain_abstraction_client")]
 #[derive(uniffi::Object)]
 pub struct ChainAbstractionClient {
     pub project_id: String,
     client: Client,
 }
 
+#[cfg(feature = "chain_abstraction_client")]
 #[uniffi::export(async_runtime = "tokio")]
 impl ChainAbstractionClient {
     #[uniffi::constructor]
@@ -191,6 +207,21 @@ impl ChainAbstractionClient {
             .map_err(|e| FFIError::General(e.to_string()))
     }
 
+    pub fn prepare_erc20_transfer_call(
+        &self,
+        erc20_address: FFIAddress,
+        to: FFIAddress,
+        amount: U256,
+    ) -> Call {
+        let encoded_data = transferCall::new((to, amount)).abi_encode();
+
+        Call {
+            to: erc20_address,
+            value: U256::ZERO,
+            input: encoded_data.into(),
+        }
+    }
+
     pub async fn erc20_token_balance(
         &self,
         chain_id: &str,
@@ -204,6 +235,7 @@ impl ChainAbstractionClient {
     }
 }
 
+#[cfg(feature = "account_client")]
 #[uniffi::export(async_runtime = "tokio")]
 impl FFIAccountClient {
     #[uniffi::constructor]

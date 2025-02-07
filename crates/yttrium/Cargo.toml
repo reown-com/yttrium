@@ -5,10 +5,31 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 
+[lib]
+crate-type = ["lib", "cdylib"]
+
 [features]
-full = ["uniffi", "frb"]
+default = ["erc6492_client", "chain_abstraction_client"]
+full = ["all_platforms", "all_clients"]
+
+# Features enabling FFI bindings for different platforms
+all_platforms = ["uniffi", "wasm"]
 uniffi = ["dep:uniffi", "dep:uniffi_macros"]
-frb = ["dep:flutter_rust_bridge_codegen", "dep:flutter_rust_bridge"]
+wasm = [
+    "dep:wasm-bindgen",
+    "dep:wasm-bindgen-futures",
+    "alloy/wasm-bindgen",
+    "dep:tsify-next",
+]
+
+# Features contributing to bundle size, that you might not need
+all_clients = ["account_client", "erc6492_client", "chain_abstraction_client", "transaction_sponsorship_client"]
+account_client = []
+erc6492_client = []
+chain_abstraction_client = []
+transaction_sponsorship_client = []
+
+# Features enabling test coverage
 test_pimlico_api = []
 test_blockchain_api = []
 
@@ -20,6 +41,10 @@ flutter_rust_bridge = { workspace = true, optional = true }
 
 uniffi = { workspace = true, optional = true }
 uniffi_macros = { workspace = true, optional = true }
+
+wasm-bindgen = { workspace = true, optional = true }
+wasm-bindgen-futures = { workspace = true, optional = true }
+tsify-next = { workspace = true, optional = true, features = ["js"] }
 
 # Ethereum
 alloy = { workspace = true, features = [
@@ -60,8 +85,6 @@ async-trait = { version = "0.1.83", default-features = false }
 tracing = { version = "0.1.40", default-features = false }
 fastlz-rs = { version = "0.0.3", features = ["std"], default-features = false }
 
-[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-
 # Networking
 reqwest.workspace = true
 
@@ -73,3 +96,6 @@ wiremock = { version = "0.6.0", default-features = false }
 reqwest.workspace = true
 alloy = { workspace = true, features = ["node-bindings"] }
 serial_test.workspace = true
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = ['-Oz']

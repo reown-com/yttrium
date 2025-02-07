@@ -29,20 +29,20 @@ echo "✅ $0: building for targest: x86_64-apple-ios $TARGET."
 
 rustup target add x86_64-apple-ios $TARGET
 
-cargo build --manifest-path Cargo.toml --target x86_64-apple-ios --release
-cargo build --manifest-path Cargo.toml --target $TARGET --release
+cargo build --manifest-path Cargo.toml --target x86_64-apple-ios --profile=uniffi-release
+cargo build --manifest-path Cargo.toml --target $TARGET --profile=uniffi-release
 
 cd .. #/yttrium_dart
 cd .. #/crates
 cd .. #/yttrium
 
-mkdir -p target/universal/ios/release
+mkdir -p target/universal/ios/uniffi-release
 
-lipo -create target/$TARGET/release/libyttrium_dart.dylib target/x86_64-apple-ios/release/libyttrium_dart.dylib -output target/universal/ios/release/libyttrium_dart_universal.dylib
+lipo -create target/$TARGET/uniffi-release/libyttrium_dart.dylib target/x86_64-apple-ios/uniffi-release/libyttrium_dart.dylib -output target/universal/ios/uniffi-release/libyttrium_dart_universal.dylib
 
-lipo -info target/universal/ios/release/libyttrium_dart_universal.dylib
+lipo -info target/universal/ios/uniffi-release/libyttrium_dart_universal.dylib
 
-cp target/universal/ios/release/libyttrium_dart_universal.dylib crates/yttrium_dart/ios/libyttrium_dart_universal.dylib
+cp target/universal/ios/uniffi-release/libyttrium_dart_universal.dylib crates/yttrium_dart/ios/libyttrium_dart_universal.dylib
 
 # otool -L crates/yttrium_dart/ios/libyttrium_dart_universal.dylib
 

@@ -4,20 +4,11 @@ use {
         network::Ethereum,
         primitives::Address,
         providers::{Provider, ReqwestProvider},
-        sol_types::SolStruct,
     },
-    // flutter_rust_bridge::frb,
     relay_rpc::domain::ProjectId,
     std::time::Duration,
     yttrium::{
-        account_client::AccountClient as YAccountClient,
-        call::{
-            send::safe_test::{
-                self, DoSendTransactionParams, OwnerSignature,
-                PreparedSendTransaction,
-            },
-            Call,
-        },
+        call::Call,
         chain_abstraction::{
             api::{
                 prepare::{PrepareResponse, PrepareResponseAvailable},
@@ -26,11 +17,6 @@ use {
             client::Client,
             currency::Currency,
             ui_fields::UiFields,
-        },
-        config::Config,
-        smart_accounts::{
-            account_address::AccountAddress,
-            safe::{SignOutputEnum, SignStep3Params},
         },
     },
 };
@@ -120,13 +106,6 @@ pub struct PreparedSignature {
 pub enum Error {
     #[error("General {0}")]
     General(String),
-}
-
-// #[frb]
-pub struct AccountClient {
-    pub owner_address: AccountAddress,
-    pub chain_id: u64,
-    account_client: YAccountClient,
 }
 
 // #[frb]
@@ -226,108 +205,6 @@ impl ChainAbstractionClient {
             .erc20_token_balance(chain_id, token, owner)
             .await
             .map(|balance| balance.to_string())
-            .map_err(|e| Error::General(e.to_string()))
-    }
-}
-
-// #[frb]
-impl AccountClient {
-    // #[uniffi::constructor]
-    pub fn new(owner: AccountAddress, chain_id: u64, config: Config) -> Self {
-        let account_client = YAccountClient::new(owner, chain_id, config);
-        Self { owner_address: owner, chain_id, account_client }
-    }
-
-    // #[frb]
-    pub fn get_chain_id(&self) -> u64 {
-        self.chain_id
-    }
-
-    // #[frb]
-    pub async fn get_address(&self) -> Result<String, Error> {
-        self.account_client
-            .get_address()
-            .await
-            .map(|address| address.to_string())
-            .map_err(|e| Error::General(e.to_string()))
-    }
-
-    // #[frb]
-    pub fn prepare_sign_message(
-        &self,
-        message_hash: String,
-    ) -> PreparedSignature {
-        let res = self
-            .account_client
-            .prepare_sign_message(message_hash.parse().unwrap());
-        let hash = res.safe_message.eip712_signing_hash(&res.domain);
-        PreparedSignature { message_hash: hash.to_string() }
-    }
-
-    // #[frb]
-    pub async fn do_sign_message(
-        &self,
-        signatures: Vec<safe_test::OwnerSignature>,
-    ) -> Result<SignOutputEnum, Error> {
-        self.account_client
-            .do_sign_message(signatures)
-            .await
-            .map_err(|e| Error::General(e.to_string()))
-    }
-
-    // #[frb]
-    pub async fn finalize_sign_message(
-        &self,
-        signatures: Vec<safe_test::OwnerSignature>,
-        sign_step_3_params: SignStep3Params,
-    ) -> Result<Vec<u8>, Error> {
-        self.account_client
-            .finalize_sign_message(signatures, sign_step_3_params)
-            .await
-            .map(|bytes| bytes.to_vec()) // Convert Bytes to Vec<u8>
-            .map_err(|e| Error::General(e.to_string()))
-    }
-
-    // #[frb]
-    pub async fn prepare_send_transactions(
-        &self,
-        transactions: Vec<Call>,
-    ) -> Result<PreparedSendTransaction, Error> {
-        self.account_client
-            .prepare_send_transactions(transactions)
-            .await
-            .map_err(|e| Error::General(e.to_string()))
-    }
-
-    // #[frb]
-    pub async fn do_send_transactions(
-        &self,
-        signatures: Vec<OwnerSignature>,
-        do_send_transaction_params: DoSendTransactionParams,
-    ) -> Result<String, Error> {
-        Ok(self
-            .account_client
-            .do_send_transactions(signatures, do_send_transaction_params)
-            .await
-            .map_err(|e| Error::General(e.to_string()))?
-            .to_string())
-    }
-
-    // #[frb]
-    pub async fn wait_for_user_operation_receipt(
-        &self,
-        user_operation_hash: String,
-    ) -> Result<String, Error> {
-        self.account_client
-            .wait_for_user_operation_receipt(
-                user_operation_hash.parse().map_err(|e| {
-                    Error::General(format!("Parsing user_operation_hash: {e}"))
-                })?,
-            )
-            .await
-            .iter()
-            .map(serde_json::to_string)
-            .collect::<Result<String, serde_json::Error>>()
             .map_err(|e| Error::General(e.to_string()))
     }
 }

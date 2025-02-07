@@ -79,6 +79,10 @@ To contribute to this project, ensure you have the following dependencies instal
 - `swiftc` and Xcode
 - `make`
 
+```bash
+rustup toolchain install nightly -t armv7-linux-androideabi,aarch64-linux-android -c rust-src
+```
+
 ### Setup
 
 After installing the above dependencies, you can run `just ci` to run the checks that CI does and initialize your repo.

@@ -1,3 +1,5 @@
+#[cfg(feature = "wasm")]
+use wasm_bindgen::prelude::*;
 use {
     super::Transaction,
     crate::{call::Call, chain_abstraction::amount::Amount},
@@ -126,6 +128,11 @@ impl FundingMetadata {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
+#[cfg_attr(
+    feature = "wasm",
+    derive(tsify_next::Tsify),
+    tsify(into_wasm_abi, from_wasm_abi)
+)]
 #[serde(rename_all = "camelCase")]
 pub struct PrepareResponseAvailable {
     pub orchestration_id: String,
@@ -178,6 +185,11 @@ pub enum BridgingError {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Enum))]
+#[cfg_attr(
+    feature = "wasm",
+    derive(tsify_next::Tsify),
+    tsify(into_wasm_abi, from_wasm_abi)
+)]
 #[serde(untagged)]
 pub enum PrepareResponse {
     Success(PrepareResponseSuccess),

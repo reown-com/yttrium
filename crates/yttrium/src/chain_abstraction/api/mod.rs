@@ -1,3 +1,5 @@
+#[cfg(feature = "wasm")]
+use wasm_bindgen::prelude::*;
 use {
     alloy::{
         network::TransactionBuilder,
@@ -14,6 +16,11 @@ pub mod status;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
+#[cfg_attr(
+    feature = "wasm",
+    derive(tsify_next::Tsify),
+    tsify(into_wasm_abi, from_wasm_abi)
+)]
 #[serde(rename_all = "camelCase")]
 pub struct Transaction {
     // CAIP-2 chain ID
