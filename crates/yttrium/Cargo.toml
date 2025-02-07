@@ -13,8 +13,9 @@ default = ["erc6492_client", "chain_abstraction_client"]
 full = ["all_platforms", "all_clients"]
 
 # Features enabling FFI bindings for different platforms
-all_platforms = ["uniffi", "wasm"]
+all_platforms = ["uniffi", "frb", "wasm"]
 uniffi = ["dep:uniffi", "dep:uniffi_macros"]
+frb = ["dep:flutter_rust_bridge_codegen", "dep:flutter_rust_bridge"]
 wasm = [
     "dep:wasm-bindgen",
     "dep:wasm-bindgen-futures",
