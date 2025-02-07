@@ -57,20 +57,17 @@ jobs:
 
       - name: Build Rust library
         run: |
-          cargo ndk -t ${{ matrix.target }} build --features=uniffi/cli
+          cargo ndk -t ${{ matrix.target }} build --profile=uniffi-release-v1 --features=uniffi/cli
 
       - name: Generate Kotlin bindings (once, on aarch64 only)
         if: ${{ matrix.target == 'aarch64-linux-android' }}
         run: |
-          cargo run --features=uniffi/cli --bin uniffi-bindgen generate \
-            --library target/${{ matrix.target }}/debug/libuniffi_yttrium.so \
-            --language kotlin \
-            --out-dir yttrium/kotlin-bindings
+          cargo run --features=uniffi/cli --bin uniffi-bindgen generate --library target/${{ matrix.target }}/uniffi-release-v1/libuniffi_yttrium.so --language kotlin --out-dir yttrium/kotlin-bindings
 
-      - name: Strip binaries
-        run: |
-            NDK_PATH=$ANDROID_HOME/ndk/27.2.12479018
-            $NDK_PATH/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip target/${{ matrix.target }}/debug/libuniffi_yttrium.so
+      # - name: Strip binaries
+      #   run: |
+      #       NDK_PATH=$ANDROID_HOME/ndk/27.2.12479018
+      #       $NDK_PATH/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip target/${{ matrix.target }}/uniffi-release-v1/libuniffi_yttrium.so
 
       - name: Prepare local artifacts folder
         run: |
@@ -87,7 +84,7 @@ jobs:
 
           # Create a local folder with everything for this target
           mkdir -p build-artifacts/yttrium/libs/$abi_name
-          cp target/${{ matrix.target }}/debug/libuniffi_yttrium.so build-artifacts/yttrium/libs/$abi_name/
+          cp target/${{ matrix.target }}/uniffi-release-v1/libuniffi_yttrium.so build-artifacts/yttrium/libs/$abi_name/
 
           # Also copy Kotlin bindings if they exist (only for aarch64)
           if [ -d "yttrium/kotlin-bindings" ]; then
