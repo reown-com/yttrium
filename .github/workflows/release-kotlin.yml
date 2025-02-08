@@ -100,7 +100,7 @@ jobs:
       - name: Debug listing of downloaded artifact aarch64
         run: |
             echo "Contents of combined/aarch64:"
-            ls -R combined/aarch64/build-artifacts
+            ls -R combined/aarch64
 
       - name: Download armv7 artifact
         uses: actions/download-artifact@v4
@@ -111,8 +111,7 @@ jobs:
       - name: Debug listing of downloaded artifact armv7
         run: |
               echo "Contents of combined/armv7:"
-              ls -R combined/armv7/build-artifacts
-
+              ls -R combined/armv7
       - name: Merge artifacts
         run: |
           # We'll create one combined folder that contains all ABIs. 
