@@ -46,7 +46,7 @@ jobs:
           cargo install cargo-ndk --locked
       - name: Build Rust library
         run: |
-          cargo ndk -t ${{ matrix.target }} build --profile=uniffi-release-kotlin --features=uniffi/cli
+          cargo ndk --platform 21 -t ${{ matrix.target }} build --profile=uniffi-release-kotlin --features=uniffi/cli
       - name: Generate Kotlin bindings (once, on aarch64 only)
         if: ${{ matrix.target == 'aarch64-linux-android' }}
         run: |
