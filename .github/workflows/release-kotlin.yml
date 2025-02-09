@@ -128,26 +128,26 @@ jobs:
           mkdir -p merged/yttrium/libs
 
           # Copy aarch64's libs
-          cp -r combined/aarch64/yttrium/libs/arm64-v8a merged/yttrium/libs/
+          cp -r combined/aarch64/libs/arm64-v8a merged/yttrium/libs/
 
           # Copy armv7's libs
-          cp -r combined/armv7/yttrium/libs/armeabi-v7a merged/yttrium/libs/
+          cp -r combined/armv7/libs/armeabi-v7a merged/yttrium/libs/
           
           # Copy Kotlin bindings if it exists in the aarch64 artifact
-          if [ -d combined/aarch64/yttrium/kotlin-bindings ]; then
-            cp -r combined/aarch64/yttrium/kotlin-bindings merged/yttrium/
+          if [ -d combined/aarch64/kotlin-bindings ]; then
+            cp -r combined/aarch64/kotlin-bindings merged/yttrium/
           fi
+
+      - name: Debug listing of merged folder
+        run: |
+            echo "Merged final content:"
+            ls -R merged/yttrium
 
       - name: Upload single combined artifact
         uses: actions/upload-artifact@v4
         with:
           name: artifacts
           path: merged/yttrium/
-        
-      - name: Debug listing of merged folder
-        run: |
-            echo "Merged final content:"
-            ls -R merged/yttrium
 
   create-github-release:
     needs: combine-artifacts
