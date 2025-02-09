@@ -166,7 +166,7 @@ jobs:
       - name: Debug listing of yttrium before zip
         run: |
               echo "Before zip:"
-              ls -R merged/yttrium
+              ls -R yttrium/
 
       - name: Create artifacts zip
         run: |
