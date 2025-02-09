@@ -65,25 +65,33 @@ jobs:
           declare -A abi_map
           abi_map[aarch64-linux-android]="arm64-v8a"
           abi_map[armv7-linux-androideabi]="armeabi-v7a"
+
           abi_name=${abi_map[${{ matrix.target }}]}
+
           if [ -z "$abi_name" ]; then
             echo "Unknown ABI for target ${{ matrix.target }}"
             exit 1
           fi
 
           # Create a local folder with everything for this target
-          mkdir -p build-artifacts/yttrium/libs/$abi_name
-          cp target/${{ matrix.target }}/uniffi-release-kotlin/libuniffi_yttrium.so build-artifacts/yttrium/libs/$abi_name/
+          mkdir -p yttrium/libs/$abi_name
+          cp target/${{ matrix.target }}/uniffi-release-kotlin/libuniffi_yttrium.so yttrium/libs/$abi_name/
 
-          # Also copy Kotlin bindings if they exist (only for aarch64)
-          if [ -d "yttrium/kotlin-bindings" ]; then
-            cp -r yttrium/kotlin-bindings build-artifacts/yttrium/
-          fi
+          # # Also copy Kotlin bindings if they exist (only for aarch64)
+          # if [ -d "yttrium/kotlin-bindings" ]; then
+          #   cp -r yttrium/kotlin-bindings build-artifacts/yttrium/
+          # fi
+
+      - name: Debug listing of yttrium
+        run: |
+              echo "Contents of yttrium/:"
+              ls -R yttrium/
+
       - name: Upload artifact (unique name per target)
         uses: actions/upload-artifact@v4
         with:
           name: artifacts-${{ matrix.target }}
-          path: build-artifacts/
+          path: yttrium/
 
   combine-artifacts:
     needs: build-kotlin-artifacts
@@ -112,6 +120,7 @@ jobs:
         run: |
               echo "Contents of combined/armv7:"
               ls -R combined/armv7
+
       - name: Merge artifacts
         run: |
           # We'll create one combined folder that contains all ABIs. 
@@ -128,6 +137,7 @@ jobs:
           if [ -d combined/aarch64/yttrium/kotlin-bindings ]; then
             cp -r combined/aarch64/yttrium/kotlin-bindings merged/yttrium/
           fi
+
       - name: Upload single combined artifact
         uses: actions/upload-artifact@v4
         with:
@@ -152,6 +162,12 @@ jobs:
         with:
           name: artifacts
           path: yttrium/
+
+      - name: Debug listing of yttrium before zip
+        run: |
+              echo "Before zip:"
+              ls -R merged/yttrium
+
       - name: Create artifacts zip
         run: |
           zip -r kotlin-artifacts.zip yttrium/
