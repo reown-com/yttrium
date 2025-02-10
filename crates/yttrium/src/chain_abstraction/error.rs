@@ -109,6 +109,12 @@ pub enum PrepareDetailedResponse {
 
 #[derive(Debug, Serialize, Deserialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Enum))]
+#[cfg_attr(
+    feature = "wasm",
+    derive(tsify_next::Tsify),
+    tsify(into_wasm_abi, from_wasm_abi)
+)]
+#[serde(rename_all = "camelCase")]
 pub enum PrepareDetailedResponseSuccess {
     Available(UiFields),
     NotRequired(PrepareResponseNotRequired),

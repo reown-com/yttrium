@@ -124,6 +124,7 @@ pub const PULSE_SDK_TYPE: &str = "wkca";
     derive(tsify_next::Tsify),
     tsify(into_wasm_abi, from_wasm_abi)
 )]
+#[serde(rename_all = "camelCase")]
 pub struct PulseMetadata {
     // web
     pub url: Option<Url>,

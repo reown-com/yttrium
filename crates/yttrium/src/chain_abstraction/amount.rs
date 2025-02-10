@@ -8,6 +8,12 @@ use {
 
 #[derive(Debug, Serialize, Deserialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
+#[cfg_attr(
+    feature = "wasm",
+    derive(tsify_next::Tsify),
+    tsify(into_wasm_abi, from_wasm_abi)
+)]
+#[serde(rename_all = "camelCase")]
 pub struct Amount {
     pub symbol: String,    // USDC, USD
     pub amount: U256,      // e.g. 40000, 4

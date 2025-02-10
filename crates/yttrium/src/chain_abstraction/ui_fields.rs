@@ -19,6 +19,7 @@ use {
 
 #[derive(Debug, Serialize, Deserialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
+#[serde(rename_all = "camelCase")]
 #[cfg_attr(
     feature = "wasm",
     derive(tsify_next::Tsify),
@@ -36,6 +37,12 @@ pub struct UiFields {
 
 #[derive(Debug, Serialize, Deserialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
+#[cfg_attr(
+    feature = "wasm",
+    derive(tsify_next::Tsify),
+    tsify(into_wasm_abi, from_wasm_abi)
+)]
+#[serde(rename_all = "camelCase")]
 pub struct TxnDetails {
     pub transaction: FeeEstimatedTransaction,
     pub transaction_hash_to_sign: B256,
@@ -44,6 +51,12 @@ pub struct TxnDetails {
 
 #[derive(Debug, Serialize, Deserialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
+#[cfg_attr(
+    feature = "wasm",
+    derive(tsify_next::Tsify),
+    tsify(into_wasm_abi, from_wasm_abi)
+)]
+#[serde(rename_all = "camelCase")]
 pub struct TransactionFee {
     pub fee: Amount,
     pub local_fee: Amount,
