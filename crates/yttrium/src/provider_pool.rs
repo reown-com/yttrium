@@ -1,5 +1,8 @@
 use {
-    crate::{blockchain_api::{BLOCKCHAIN_API_URL, PROXY_ENDPOINT_PATH}, chain_abstraction::pulse::{PulseMetadata, PULSE_SDK_TYPE}},
+    crate::{
+        blockchain_api::{BLOCKCHAIN_API_URL, PROXY_ENDPOINT_PATH},
+        chain_abstraction::pulse::{PulseMetadata, PULSE_SDK_TYPE},
+    },
     alloy::{
         network::Ethereum, rpc::client::RpcClient, transports::http::Http,
     },
@@ -24,7 +27,11 @@ pub struct ProviderPool {
 }
 
 impl ProviderPool {
-    pub fn new(project_id: ProjectId, client: ReqwestClient, pulse_metadata: PulseMetadata) -> Self {
+    pub fn new(
+        project_id: ProjectId,
+        client: ReqwestClient,
+        pulse_metadata: PulseMetadata,
+    ) -> Self {
         Self {
             client,
             providers: Arc::new(RwLock::new(HashMap::new())),
@@ -72,9 +79,15 @@ impl ProviderPool {
                 url.query_pairs_mut()
                     .append_pair("chainId", chain_id)
                     .append_pair("projectId", self.project_id.as_ref())
-                    .append_pair("sessionId", self.session_id.to_string().as_str())
+                    .append_pair(
+                        "sessionId",
+                        self.session_id.to_string().as_str(),
+                    )
                     .append_pair("st", PULSE_SDK_TYPE)
-                    .append_pair("sv", self.pulse_metadata.sdk_version.as_str());
+                    .append_pair(
+                        "sv",
+                        self.pulse_metadata.sdk_version.as_str(),
+                    );
                 url
             };
 
