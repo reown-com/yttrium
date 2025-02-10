@@ -14,6 +14,10 @@ pub const ROUTE_ENDPOINT_PATH: &str = "/v1/ca/orchestrator/route";
 #[serde(rename_all = "camelCase")]
 pub struct RouteQueryParams {
     pub project_id: ProjectId,
+    #[serde(rename = "st")]
+    pub sdk_type: String,
+    #[serde(rename = "sv")]
+    pub sdk_version: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

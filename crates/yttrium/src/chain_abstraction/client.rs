@@ -22,7 +22,7 @@ use {
             PrepareDetailedResponseSuccess, PrepareError, StatusError,
             WaitForSuccessError,
         },
-        pulse::PulseMetadata,
+        pulse::{PulseMetadata, PULSE_SDK_TYPE},
         send_transaction::{send_transaction, TransactionAnalytics},
         ui_fields::UiFields,
     },
@@ -104,6 +104,8 @@ impl Client {
             })
             .query(&RouteQueryParams {
                 project_id: self.provider_pool.project_id.clone(),
+                sdk_type: PULSE_SDK_TYPE.to_string(),
+                sdk_version: self.pulse_metadata.sdk_version.clone(),
             })
             .send()
             .await
@@ -359,6 +361,8 @@ impl Client {
                 .query(&StatusQueryParams {
                     project_id: self.provider_pool.project_id.clone(),
                     orchestration_id,
+                    sdk_type: PULSE_SDK_TYPE.to_string(),
+                    sdk_version: self.pulse_metadata.sdk_version.clone(),
                 });
             // https://github.com/seanmonstar/reqwest/pull/1760
             #[cfg(not(target_arch = "wasm32"))]
