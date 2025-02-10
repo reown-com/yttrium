@@ -1,5 +1,5 @@
 use {
-    crate::blockchain_api::{BLOCKCHAIN_API_URL, PROXY_ENDPOINT_PATH},
+    crate::{blockchain_api::{BLOCKCHAIN_API_URL, PROXY_ENDPOINT_PATH}, chain_abstraction::pulse::{PulseMetadata, PULSE_SDK_TYPE}},
     alloy::{
         network::Ethereum, rpc::client::RpcClient, transports::http::Http,
     },
@@ -8,6 +8,7 @@ use {
     reqwest::{Client as ReqwestClient, Url},
     std::{collections::HashMap, sync::Arc, time::Duration},
     tokio::sync::RwLock,
+    uuid::Uuid,
 };
 
 /// Creates Blockchain API Reqwest clients for each chain and will return the same provider for subsequent calls
@@ -18,16 +19,20 @@ pub struct ProviderPool {
     pub blockchain_api_base_url: Url,
     pub project_id: ProjectId,
     pub rpc_overrides: HashMap<String, Url>,
+    pub session_id: Uuid,
+    pub pulse_metadata: PulseMetadata,
 }
 
 impl ProviderPool {
-    pub fn new(project_id: ProjectId, client: ReqwestClient) -> Self {
+    pub fn new(project_id: ProjectId, client: ReqwestClient, pulse_metadata: PulseMetadata) -> Self {
         Self {
             client,
             providers: Arc::new(RwLock::new(HashMap::new())),
             blockchain_api_base_url: BLOCKCHAIN_API_URL.parse().unwrap(),
             project_id,
             rpc_overrides: HashMap::new(),
+            session_id: Uuid::new_v4(),
+            pulse_metadata,
         }
     }
 
@@ -66,7 +71,10 @@ impl ProviderPool {
                     .unwrap();
                 url.query_pairs_mut()
                     .append_pair("chainId", chain_id)
-                    .append_pair("projectId", self.project_id.as_ref());
+                    .append_pair("projectId", self.project_id.as_ref())
+                    .append_pair("sessionId", self.session_id.to_string().as_str())
+                    .append_pair("st", PULSE_SDK_TYPE)
+                    .append_pair("sv", self.pulse_metadata.sdk_version.as_str());
                 url
             };
 

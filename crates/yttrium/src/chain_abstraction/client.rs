@@ -60,7 +60,7 @@ pub struct Client {
 }
 
 impl Client {
-    pub fn new(project_id: ProjectId, metadata: PulseMetadata) -> Self {
+    pub fn new(project_id: ProjectId, pulse_metadata: PulseMetadata) -> Self {
         let client = ReqwestClient::builder().build();
         let client = match client {
             Ok(client) => client,
@@ -72,10 +72,11 @@ impl Client {
             provider_pool: ProviderPool::new(
                 project_id.clone(),
                 client.clone(),
+                pulse_metadata.clone(),
             ),
             http_client: client,
             project_id,
-            pulse_metadata: metadata,
+            pulse_metadata,
         }
     }
 
