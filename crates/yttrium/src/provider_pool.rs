@@ -6,7 +6,7 @@ use {
     alloy_provider::ReqwestProvider,
     relay_rpc::domain::ProjectId,
     reqwest::{Client as ReqwestClient, Url},
-    std::{collections::HashMap, sync::Arc},
+    std::{collections::HashMap, sync::Arc, time::Duration},
     tokio::sync::RwLock,
 };
 
@@ -21,9 +21,9 @@ pub struct ProviderPool {
 }
 
 impl ProviderPool {
-    pub fn new(project_id: ProjectId) -> Self {
+    pub fn new(project_id: ProjectId, client: ReqwestClient) -> Self {
         Self {
-            client: ReqwestClient::new(),
+            client,
             providers: Arc::new(RwLock::new(HashMap::new())),
             blockchain_api_base_url: BLOCKCHAIN_API_URL.parse().unwrap(),
             project_id,
@@ -70,10 +70,13 @@ impl ProviderPool {
                 url
             };
 
-            let provider = ReqwestProvider::<Ethereum>::new(RpcClient::new(
-                Http::with_client(self.client.clone(), url),
-                false,
-            ));
+            let provider = ReqwestProvider::<Ethereum>::new(
+                RpcClient::new(
+                    Http::with_client(self.client.clone(), url),
+                    false,
+                )
+                .with_poll_interval(polling_interval_for_chain_id(chain_id)),
+            );
             self.providers
                 .write()
                 .await
@@ -81,4 +84,18 @@ impl ProviderPool {
             provider
         }
     }
+}
+
+fn polling_interval_for_chain_id(chain_id: &str) -> Duration {
+    const ONE: Duration = Duration::from_secs(1);
+    match chain_id {
+        network::BASE | network::OPTIMISM | network::ARBITRUM => ONE,
+        _ => Duration::from_secs(7), // alloy's current default
+    }
+}
+
+mod network {
+    pub const BASE: &str = "eip155:8453";
+    pub const OPTIMISM: &str = "eip155:10";
+    pub const ARBITRUM: &str = "eip155:42161";
 }

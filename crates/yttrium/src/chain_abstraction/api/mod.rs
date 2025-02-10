@@ -2,8 +2,9 @@
 use wasm_bindgen::prelude::*;
 use {
     alloy::{
+        consensus::{SignableTransaction, TxEip1559},
         network::TransactionBuilder,
-        primitives::{Address, Bytes, U128, U256, U64},
+        primitives::{Address, Bytes, B256, U128, U256, U64},
         rpc::types::TransactionRequest,
     },
     alloy_provider::utils::Eip1559Estimation,
@@ -91,5 +92,18 @@ impl FeeEstimatedTransaction {
             .with_nonce(self.nonce.to())
             .with_max_fee_per_gas(self.max_fee_per_gas.to())
             .with_max_priority_fee_per_gas(self.max_priority_fee_per_gas.to())
+    }
+
+    pub fn into_eip1559(self) -> TxEip1559 {
+        self.into_transaction_request()
+            .build_unsigned()
+            .unwrap()
+            .eip1559()
+            .unwrap()
+            .clone()
+    }
+
+    pub fn into_signing_hash(self) -> B256 {
+        self.into_eip1559().signature_hash()
     }
 }

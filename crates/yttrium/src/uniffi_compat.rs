@@ -16,7 +16,8 @@ use {
     alloy_provider::PendingTransactionError,
     eyre::Report as EyreError,
     relay_rpc::domain::ProjectId,
-    reqwest::Url,
+    reqwest::{Error as ReqwestError, Url},
+    serde_json::Error as SerdeJsonError,
 };
 
 // TODO use https://mozilla.github.io/uniffi-rs/next/udl/remote_ext_types.html#remote-types when it's available
@@ -146,6 +147,16 @@ uniffi::custom_type!(UserOperationReceipt, String, {
 uniffi::custom_type!(PendingTransactionError, String, {
     remote,
     try_lift: |_val| unimplemented!("Does not support lifting PendingTransactionError"),
+    lower: |obj| obj.to_string(),
+});
+uniffi::custom_type!(ReqwestError, String, {
+    remote,
+    try_lift: |_val| unimplemented!("Does not support lifting ReqwestError"),
+    lower: |obj| obj.to_string(),
+});
+uniffi::custom_type!(SerdeJsonError, String, {
+    remote,
+    try_lift: |_val| unimplemented!("Does not support lifting SerdeJsonError"),
     lower: |obj| obj.to_string(),
 });
 

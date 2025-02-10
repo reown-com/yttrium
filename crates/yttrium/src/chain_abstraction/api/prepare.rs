@@ -58,6 +58,9 @@ impl CallOrCalls {
 pub struct Metadata {
     pub funding_from: Vec<FundingMetadata>,
     pub initial_transaction: InitialTransactionMetadata,
+    /// The number of milliseconds to delay before calling `/status` after getting successful transaction receipts from all sent transactions.
+    /// Not switching to Duration yet because Kotlin maps this to a native `duration` type but this requires API version 26 but we support 23.
+    /// https://reown-inc.slack.com/archives/C07HQ8RCGD8/p1738740204879269
     pub check_in: u64,
 }
 
