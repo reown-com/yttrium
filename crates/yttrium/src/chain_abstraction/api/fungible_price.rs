@@ -25,6 +25,15 @@ pub struct PriceRequestBody {
     pub addresses: HashSet<String>,
 }
 
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct PriceQueryParams {
+    #[serde(rename = "st")]
+    pub sdk_type: String,
+    #[serde(rename = "sv")]
+    pub sdk_version: String,
+}
+
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct PriceResponseBody {

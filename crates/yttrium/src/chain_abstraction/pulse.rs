@@ -37,7 +37,7 @@ pub fn pulse(
 
     let query = Query {
         project_id,
-        sdk_type: SDK_TYPE,
+        sdk_type: PULSE_SDK_TYPE,
         sdk_version: pulse_metadata.sdk_version.clone(),
         sdk_platform: pulse_metadata.sdk_platform.clone(),
     };
@@ -115,7 +115,7 @@ pub struct Query {
     pub sdk_platform: String,
 }
 
-const SDK_TYPE: &str = "wkca";
+pub const PULSE_SDK_TYPE: &str = "wkca";
 
 #[derive(Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Record))]

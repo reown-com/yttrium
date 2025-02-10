@@ -22,15 +22,15 @@ use {
             PrepareDetailedResponseSuccess, PrepareError, StatusError,
             WaitForSuccessError,
         },
-        pulse::PulseMetadata,
+        pulse::{PulseMetadata, PULSE_SDK_TYPE},
         send_transaction::{send_transaction, TransactionAnalytics},
         ui_fields::UiFields,
     },
     crate::{
         call::Call,
         chain_abstraction::{
-            error::UiFieldsError, l1_data_fee::get_l1_data_fee, pulse::pulse,
-            ui_fields,
+            api::fungible_price::PriceQueryParams, error::UiFieldsError,
+            l1_data_fee::get_l1_data_fee, pulse::pulse, ui_fields,
         },
         erc20::ERC20,
         provider_pool::ProviderPool,
@@ -60,7 +60,7 @@ pub struct Client {
 }
 
 impl Client {
-    pub fn new(project_id: ProjectId, metadata: PulseMetadata) -> Self {
+    pub fn new(project_id: ProjectId, pulse_metadata: PulseMetadata) -> Self {
         let client = ReqwestClient::builder().build();
         let client = match client {
             Ok(client) => client,
@@ -72,10 +72,11 @@ impl Client {
             provider_pool: ProviderPool::new(
                 project_id.clone(),
                 client.clone(),
+                pulse_metadata.clone(),
             ),
             http_client: client,
             project_id,
-            pulse_metadata: metadata,
+            pulse_metadata,
         }
     }
 
@@ -103,6 +104,8 @@ impl Client {
             })
             .query(&RouteQueryParams {
                 project_id: self.provider_pool.project_id.clone(),
+                sdk_type: PULSE_SDK_TYPE.to_string(),
+                sdk_version: self.pulse_metadata.sdk_version.clone(),
             })
             .send()
             .await
@@ -183,6 +186,10 @@ impl Client {
                             .join(FUNGIBLE_PRICE_ENDPOINT_PATH)
                             .unwrap(),
                     )
+                    .query(&PriceQueryParams {
+                        sdk_type: PULSE_SDK_TYPE.to_string(),
+                        sdk_version: self.pulse_metadata.sdk_version.clone(),
+                    })
                     .json(&PriceRequestBody {
                         project_id: self.provider_pool.project_id.clone(),
                         currency: local_currency,
@@ -358,6 +365,8 @@ impl Client {
                 .query(&StatusQueryParams {
                     project_id: self.provider_pool.project_id.clone(),
                     orchestration_id,
+                    sdk_type: PULSE_SDK_TYPE.to_string(),
+                    sdk_version: self.pulse_metadata.sdk_version.clone(),
                 });
             // https://github.com/seanmonstar/reqwest/pull/1760
             #[cfg(not(target_arch = "wasm32"))]
