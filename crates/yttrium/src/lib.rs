@@ -24,6 +24,7 @@ pub mod erc7579;
 pub mod error;
 pub mod jsonrpc;
 pub mod provider_pool;
+pub mod serde;
 pub mod smart_accounts;
 pub mod test_helpers;
 #[cfg(feature = "transaction_sponsorship_client")]

@@ -11,7 +11,7 @@ use {
         api::fungible_price::{FungiblePriceItem, NATIVE_TOKEN_ADDRESS},
         local_fee_acc::LocalAmountAcc,
     },
-    alloy::primitives::U256,
+    alloy::primitives::{B256, U256},
     alloy_provider::utils::Eip1559Estimation,
     serde::{Deserialize, Serialize},
     tracing::warn,
@@ -25,6 +25,7 @@ use {
     tsify(into_wasm_abi, from_wasm_abi)
 )]
 pub struct UiFields {
+    pub route_response: PrepareResponseAvailable,
     pub route: Vec<TxnDetails>,
     pub local_route_total: Amount,
     pub bridge: Vec<TransactionFee>,
@@ -37,6 +38,7 @@ pub struct UiFields {
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
 pub struct TxnDetails {
     pub transaction: FeeEstimatedTransaction,
+    pub transaction_hash_to_sign: B256,
     pub fee: TransactionFee,
 }
 
@@ -113,10 +115,13 @@ pub fn ui_fields(
                 })
                 .unwrap(),
         );
-        route.push(TxnDetails {
-            transaction: FeeEstimatedTransaction::from_transaction_and_estimate(
+        let transaction =
+            FeeEstimatedTransaction::from_transaction_and_estimate(
                 item.0, item.1,
-            ),
+            );
+        route.push(TxnDetails {
+            transaction_hash_to_sign: transaction.clone().into_signing_hash(),
+            transaction,
             fee,
         });
     }
@@ -136,17 +141,19 @@ pub fn ui_fields(
             })
             .unwrap(),
     );
+    let transaction = FeeEstimatedTransaction::from_transaction_and_estimate(
+        estimated_initial_transaction.0,
+        estimated_initial_transaction.1,
+    );
     let initial = TxnDetails {
-        transaction: FeeEstimatedTransaction::from_transaction_and_estimate(
-            estimated_initial_transaction.0,
-            estimated_initial_transaction.1,
-        ),
+        transaction_hash_to_sign: transaction.clone().into_signing_hash(),
+        transaction,
         fee: initial_fee,
     };
 
     let mut bridge =
         Vec::with_capacity(route_response.metadata.funding_from.len());
-    for item in route_response.metadata.funding_from {
+    for item in &route_response.metadata.funding_from {
         let fungible = fungibles
             .iter()
             .find(|f| {
@@ -179,6 +186,7 @@ pub fn ui_fields(
     let (local_bridge_total_fee, local_bridge_total_fee_unit) =
         local_bridge_total_acc.compute();
     UiFields {
+        route_response,
         route,
         local_route_total: Amount::new(
             "USD".to_owned(),

@@ -8,15 +8,16 @@ use {
                 status::{StatusResponse, StatusResponseCompleted},
             },
             client::Client as InnerClient,
+            client::ExecuteDetails,
             currency::Currency,
             error::{
-                PrepareDetailedResponse, PrepareError, UiFieldsError,
+                PrepareDetailedResponse, StatusError, UiFieldsError,
                 WaitForSuccessError,
             },
+            pulse::PulseMetadata,
             ui_fields::UiFields,
         },
     },
-    alloy::primitives::Address,
     std::time::Duration,
     wasm_bindgen::prelude::*,
 };
@@ -31,8 +32,8 @@ pub struct Client {
 #[wasm_bindgen]
 impl Client {
     #[wasm_bindgen(constructor)]
-    pub fn new(project_id: String) -> Self {
-        Self { inner: InnerClient::new(project_id.into()) }
+    pub fn new(project_id: String, pulse_metadata: PulseMetadata) -> Self {
+        Self { inner: InnerClient::new(project_id.into(), pulse_metadata) }
     }
 
     #[wasm_bindgen]
@@ -41,14 +42,9 @@ impl Client {
         chain_id: String,
         from: String,
         call: Call,
-    ) -> Result<PrepareResponse, JsValue> {
+    ) -> Result<PrepareResponse, JsError> {
         self.inner
-            .prepare(
-                chain_id,
-                from.parse::<Address>()
-                    .map_err(|e| JsValue::from_str(&e.to_string()))?,
-                call,
-            )
+            .prepare(chain_id, from.parse()?, call)
             .await
             .map_err(Into::into)
     }
@@ -69,15 +65,9 @@ impl Client {
         from: String,
         call: Call,
         local_currency: Currency,
-    ) -> Result<PrepareDetailedResponse, JsValue> {
+    ) -> Result<PrepareDetailedResponse, JsError> {
         self.inner
-            .prepare_detailed(
-                chain_id,
-                from.parse::<Address>()
-                    .map_err(|e| JsValue::from_str(&e.to_string()))?,
-                call,
-                local_currency,
-            )
+            .prepare_detailed(chain_id, from.parse()?, call, local_currency)
             .await
             .map_err(Into::into)
     }
@@ -86,7 +76,7 @@ impl Client {
     pub async fn status(
         &self,
         orchestration_id: String,
-    ) -> Result<StatusResponse, PrepareError> {
+    ) -> Result<StatusResponse, StatusError> {
         self.inner.status(orchestration_id).await
     }
 
@@ -119,21 +109,40 @@ impl Client {
             .await
     }
 
+    #[wasm_bindgen]
+    pub async fn execute(
+        &self,
+        ui_fields: UiFields,
+        route_txn_sigs: Vec<String>,
+        initial_txn_sig: String,
+    ) -> Result<ExecuteDetails, JsError> {
+        self.inner
+            .execute(
+                ui_fields,
+                {
+                    // TODO refactor to use try_collect() when it's stable
+                    let mut sigs = Vec::with_capacity(route_txn_sigs.len());
+                    for result in route_txn_sigs.iter().map(|s| s.parse()) {
+                        sigs.push(result?);
+                    }
+                    sigs
+                },
+                initial_txn_sig.parse()?,
+            )
+            .await
+            .map_err(Into::into)
+    }
+
     pub async fn erc20_token_balance(
         &self,
         chain_id: &str,
         token: String,
         owner: String,
-    ) -> Result<String, String> {
-        Ok(self
-            .inner
-            .erc20_token_balance(
-                chain_id,
-                token.parse::<Address>().map_err(|e| e.to_string())?,
-                owner.parse::<Address>().map_err(|e| e.to_string())?,
-            )
+    ) -> Result<String, JsError> {
+        self.inner
+            .erc20_token_balance(chain_id, token.parse()?, owner.parse()?)
             .await
-            .map_err(|e| e.to_string())?
-            .to_string())
+            .map_err(Into::into)
+            .map(|balance| balance.to_string())
     }
 }

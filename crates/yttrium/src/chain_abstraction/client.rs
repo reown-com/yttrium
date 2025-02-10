@@ -18,40 +18,65 @@ use {
         },
         currency::Currency,
         error::{
-            PrepareDetailedError, PrepareDetailedResponse,
-            PrepareDetailedResponseSuccess, PrepareError, WaitForSuccessError,
+            ExecuteError, PrepareDetailedError, PrepareDetailedResponse,
+            PrepareDetailedResponseSuccess, PrepareError, StatusError,
+            WaitForSuccessError,
         },
+        pulse::PulseMetadata,
+        send_transaction::{send_transaction, TransactionAnalytics},
         ui_fields::UiFields,
     },
     crate::{
         call::Call,
         chain_abstraction::{
-            error::UiFieldsError, l1_data_fee::get_l1_data_fee, ui_fields,
+            error::UiFieldsError, l1_data_fee::get_l1_data_fee, pulse::pulse,
+            ui_fields,
         },
         erc20::ERC20,
         provider_pool::ProviderPool,
+        serde::{duration_millis, option_duration_millis, systemtime_millis},
     },
     alloy::{
         network::TransactionBuilder,
-        primitives::{Address, U256, U64},
-        rpc::types::TransactionRequest,
+        primitives::{Address, PrimitiveSignature, B256, U256, U64},
+        rpc::types::{TransactionReceipt, TransactionRequest},
     },
     alloy_provider::{utils::Eip1559Estimation, Provider},
     relay_rpc::domain::ProjectId,
+    reqwest::Client as ReqwestClient,
+    serde::{Deserialize, Serialize},
     std::{
         collections::{HashMap, HashSet},
-        time::{Duration, Instant},
+        time::{Duration, Instant, SystemTime},
     },
 };
 
 #[derive(Clone)]
 pub struct Client {
     provider_pool: ProviderPool,
+    http_client: ReqwestClient,
+    project_id: ProjectId,
+    pulse_metadata: PulseMetadata,
 }
 
 impl Client {
-    pub fn new(project_id: ProjectId) -> Self {
-        Self { provider_pool: ProviderPool::new(project_id) }
+    pub fn new(project_id: ProjectId, metadata: PulseMetadata) -> Self {
+        let client = ReqwestClient::builder().build();
+        let client = match client {
+            Ok(client) => client,
+            Err(e) => {
+                panic!("Failed to create reqwest client: {} ... {:?}", e, e)
+            }
+        };
+        Self {
+            provider_pool: ProviderPool::new(
+                project_id.clone(),
+                client.clone(),
+            ),
+            http_client: client,
+            project_id,
+            pulse_metadata: metadata,
+        }
     }
 
     pub async fn prepare(
@@ -87,9 +112,29 @@ impl Client {
             let text =
                 response.text().await.map_err(PrepareError::DecodingText)?;
             serde_json::from_str(&text)
+                // .map(|mut response| {
+                //     if let PrepareResponse::Success(
+                //         PrepareResponseSuccess::Available(ref mut response),
+                //     ) = response
+                //     {
+                //         // response.transactions.iter_mut().for_each(|t| {
+                //         //     t.gas_limit *= U64::from(3);
+                //         // });
+                //         // response.initial_transaction.gas_limit *= U64::from(3);
+                //         response.metadata.funding_from.iter_mut().for_each(
+                //             |f| {
+                //                 f.bridging_fee = U256::from(1000);
+                //             },
+                //         );
+                //     }
+                //     response
+                // })
                 .map_err(|e| PrepareError::DecodingJson(e, text))
         } else {
-            Err(PrepareError::RequestFailed(response.text().await))
+            match response.text().await {
+                Ok(text) => Err(PrepareError::RequestFailed(text)),
+                Err(e) => Err(PrepareError::RequestFailedText(e)),
+            }
         }
     }
 
@@ -145,14 +190,14 @@ impl Client {
                     })
                     .send()
                     .await
-                    .map_err(UiFieldsError::Request)?;
+                    .map_err(UiFieldsError::FungiblesRequest)?;
                 let prices = if response.status().is_success() {
                     response
                         .json::<PriceResponseBody>()
                         .await
-                        .map_err(UiFieldsError::Json)
+                        .map_err(UiFieldsError::FungiblesJson)
                 } else {
-                    Err(UiFieldsError::RequestFailed(
+                    Err(UiFieldsError::FungiblesRequestFailed(
                         response.status(),
                         response.text().await,
                     ))
@@ -163,14 +208,13 @@ impl Client {
 
         let estimate_future = futures::future::try_join_all(chains.iter().map(
             |chain_id| async move {
-                let estimate = self
-                    .provider_pool
+                self.provider_pool
                     .get_provider(chain_id)
                     .await
                     .estimate_eip1559_fees(None)
                     .await
-                    .unwrap();
-                Ok((chain_id, estimate))
+                    .map_err(UiFieldsError::Eip1559Estimation)
+                    .map(|estimate| (chain_id, estimate))
             },
         ));
 
@@ -178,7 +222,7 @@ impl Client {
             txn: Transaction,
             providers: &Client,
         ) -> Result<U256, UiFieldsError> {
-            Ok(get_l1_data_fee(
+            get_l1_data_fee(
                 TransactionRequest::default()
                     .with_from(txn.from)
                     .with_to(txn.to)
@@ -198,7 +242,8 @@ impl Client {
                     .with_max_priority_fee_per_gas(1),
                 providers.provider_pool.get_provider(&txn.chain_id).await,
             )
-            .await)
+            .await
+            .map_err(UiFieldsError::L1DataFee)
         }
 
         let route_l1_data_fee_futures = futures::future::try_join_all(
@@ -296,11 +341,10 @@ impl Client {
         }
     }
 
-    // TODO don't use "prepare" error type here. Maybe rename to generic request error?
     pub async fn status(
         &self,
         orchestration_id: String,
-    ) -> Result<StatusResponse, PrepareError> {
+    ) -> Result<StatusResponse, StatusError> {
         let response = {
             let req = self
                 .provider_pool
@@ -322,17 +366,20 @@ impl Client {
         }
         .send()
         .await
-        .map_err(PrepareError::Request)?
+        .map_err(StatusError::Request)?
         .error_for_status()
-        .map_err(PrepareError::Request)?;
+        .map_err(StatusError::Request)?;
         let status = response.status();
         if status.is_success() {
             let text =
-                response.text().await.map_err(PrepareError::DecodingText)?;
+                response.text().await.map_err(StatusError::DecodingText)?;
             serde_json::from_str(&text)
-                .map_err(|e| PrepareError::DecodingJson(e, text))
+                .map_err(|e| StatusError::DecodingJson(e, text))
         } else {
-            Err(PrepareError::RequestFailed(response.text().await))
+            match response.text().await {
+                Ok(text) => Err(StatusError::RequestFailed(text)),
+                Err(e) => Err(StatusError::RequestFailedText(e)),
+            }
         }
     }
 
@@ -385,8 +432,8 @@ impl Client {
                     }
                 },
                 Err(e) => {
-                    (WaitForSuccessError::Prepare(e), Duration::from_secs(1))
-                    // TODO exponential back-off: 0ms, 500ms, 1s
+                    (WaitForSuccessError::Status(e), Duration::from_secs(1))
+                    // TODO exponential back-off (server-side): 0ms, 500ms, 1s
                 }
             };
             if start.elapsed() > timeout {
@@ -396,13 +443,167 @@ impl Client {
         }
     }
 
-    // pub async fn send() {
-    //     // TODO input signed txns
-    //     // TODO send route first, etc. (possibly in parallel)
-    //     // TODO wait_for_success
-    //     // TODO send initial transaction
-    //     // TODO await initial transaction success
-    // }
+    /// Panics if:
+    /// - The length of `route_txn_sigs` does not match the length of `ui_fields.route`
+    pub async fn execute(
+        &self,
+        ui_fields: UiFields,
+        route_txn_sigs: Vec<PrimitiveSignature>,
+        initial_txn_sig: PrimitiveSignature,
+    ) -> Result<ExecuteDetails, ExecuteError> {
+        assert_eq!(
+            ui_fields.route.len(),
+            route_txn_sigs.len(),
+            "route_txn_sigs length must match route length"
+        );
+
+        let result = self
+            .execute_inner(ui_fields, route_txn_sigs, initial_txn_sig)
+            .await;
+        let (result, analytics) = match result {
+            Ok((details, analytics)) => (Ok(details), analytics),
+            Err((e, analytics)) => {
+                // Doing it globally here in-case I would forget to do it deeper in
+                // TODO refactor somehow to avoid this
+                let mut analytics = analytics;
+                analytics.error = Some(e.to_string());
+                (Err(e), analytics)
+            }
+        };
+
+        pulse(
+            self.http_client.clone(),
+            analytics,
+            self.project_id.clone(),
+            &self.pulse_metadata,
+        );
+
+        result
+    }
+
+    async fn execute_inner(
+        &self,
+        ui_fields: UiFields,
+        route_txn_sigs: Vec<PrimitiveSignature>,
+        initial_txn_sig: PrimitiveSignature,
+    ) -> Result<
+        (ExecuteDetails, ExecuteAnalytics),
+        (ExecuteError, ExecuteAnalytics),
+    > {
+        let start = Instant::now();
+        let start_time = SystemTime::now();
+
+        let orchestration_id = ui_fields.route_response.orchestration_id;
+
+        let route_start = start;
+        let mut route = Vec::with_capacity(ui_fields.route.len());
+        for (txn, sig) in
+            ui_fields.route.into_iter().zip(route_txn_sigs.into_iter())
+        {
+            let result =
+                send_transaction(txn.transaction, sig, &self.provider_pool)
+                    .await;
+            match result {
+                Ok((_receipt, analytics)) => {
+                    route.push(analytics); // TODO refactor to avoid non-dry `route.push(analytics)` as it risks us forgettting it
+                }
+                Err((e, analytics)) => {
+                    route.push(analytics);
+                    let route_latency = route_start.elapsed();
+                    let latency = start.elapsed();
+                    return Err((
+                        ExecuteError::Route(e),
+                        ExecuteAnalytics {
+                            orchestration_id: orchestration_id.clone(),
+                            error: None,
+                            start: start_time,
+                            route_latency,
+                            route,
+                            status_latency: None,
+                            initial_txn: None,
+                            latency,
+                            end: SystemTime::now(),
+                        },
+                    ));
+                }
+            }
+        }
+        let route_latency = route_start.elapsed();
+
+        let status_start = Instant::now();
+        let _success = self
+            .wait_for_success(
+                orchestration_id.clone(),
+                Duration::from_millis(
+                    ui_fields.route_response.metadata.check_in,
+                ),
+            )
+            .await
+            .map_err(|e| {
+                let status_latency = status_start.elapsed();
+                let latency = start.elapsed();
+                (
+                    ExecuteError::Bridge(e),
+                    ExecuteAnalytics {
+                        orchestration_id: orchestration_id.clone(),
+                        error: None,
+                        start: start_time,
+                        route_latency,
+                        route: route.clone(),
+                        status_latency: Some(status_latency), // TODO refactor to avoid potentially forgetting to set this to Some() (also in subsequent ones)
+                        initial_txn: None,
+                        latency,
+                        end: SystemTime::now(),
+                    },
+                )
+            })?;
+        let status_latency = status_start.elapsed();
+
+        let (initial_txn_receipt, initial_txn_analytics) = send_transaction(
+            ui_fields.initial.transaction,
+            initial_txn_sig,
+            &self.provider_pool,
+        )
+        .await
+        .map_err(|(e, analytics)| {
+            let latency = start.elapsed();
+            (
+                ExecuteError::Route(e),
+                ExecuteAnalytics {
+                    orchestration_id: orchestration_id.clone(),
+                    error: None,
+                    start: start_time,
+                    route_latency,
+                    route: route.clone(),
+                    status_latency: Some(status_latency),
+                    initial_txn: Some(analytics),
+                    latency,
+                    end: SystemTime::now(),
+                },
+            )
+        })?;
+
+        let details = ExecuteDetails {
+            initial_txn_hash: initial_txn_receipt.transaction_hash,
+            initial_txn_receipt,
+        };
+
+        let latency = start.elapsed();
+
+        let analytics = ExecuteAnalytics {
+            orchestration_id,
+            error: None,
+            start: start_time,
+            route_latency,
+            route,
+            status_latency: Some(status_latency),
+            initial_txn: Some(initial_txn_analytics),
+            latency,
+            end: SystemTime::now(),
+        };
+
+        Ok((details, analytics))
+    }
 
     pub async fn erc20_token_balance(
         &self,
@@ -416,3 +617,37 @@ impl Client {
         Ok(balance.balance)
     }
 }
+
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(
+    feature = "wasm",
+    derive(tsify_next::Tsify),
+    tsify(into_wasm_abi, from_wasm_abi)
+)]
+#[serde(rename_all = "camelCase")]
+pub struct ExecuteDetails {
+    pub initial_txn_receipt: TransactionReceipt,
+    pub initial_txn_hash: B256,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExecuteAnalytics {
+    pub orchestration_id: String,
+    pub error: Option<String>,
+    #[serde(with = "systemtime_millis")]
+    pub start: SystemTime,
+    #[serde(with = "duration_millis")]
+    pub route_latency: Duration,
+    pub route: Vec<TransactionAnalytics>,
+    #[serde(with = "option_duration_millis")]
+    pub status_latency: Option<Duration>,
+    pub initial_txn: Option<TransactionAnalytics>,
+    #[serde(with = "duration_millis")]
+    pub latency: Duration,
+    #[serde(with = "systemtime_millis")]
+    pub end: SystemTime,
+}
+
+// TODO test non-happy paths: txn failures
