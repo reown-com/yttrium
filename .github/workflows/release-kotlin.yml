@@ -58,7 +58,6 @@ jobs:
 
       - name: Prepare local artifacts folder
         run: |
-
          echo "kobe Matrix ${{ matrix.target }}"
 
           # Map Rust targets to Android ABI names
@@ -76,11 +75,6 @@ jobs:
           # Create a local folder with everything for this target
           mkdir -p yttrium/libs/$abi_name
           cp target/${{ matrix.target }}/uniffi-release-kotlin/libuniffi_yttrium.so yttrium/libs/$abi_name/
-
-          # # Also copy Kotlin bindings if they exist (only for aarch64)
-          # if [ -d "yttrium/kotlin-bindings" ]; then
-          #   cp -r yttrium/kotlin-bindings build-artifacts/yttrium/
-          # fi
 
       - name: Debug listing of yttrium
         run: |
