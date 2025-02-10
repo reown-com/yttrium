@@ -29,8 +29,8 @@ use {
     crate::{
         call::Call,
         chain_abstraction::{
-            error::UiFieldsError, l1_data_fee::get_l1_data_fee, pulse::pulse,
-            ui_fields,
+            api::fungible_price::PriceQueryParams, error::UiFieldsError,
+            l1_data_fee::get_l1_data_fee, pulse::pulse, ui_fields,
         },
         erc20::ERC20,
         provider_pool::ProviderPool,
@@ -186,6 +186,10 @@ impl Client {
                             .join(FUNGIBLE_PRICE_ENDPOINT_PATH)
                             .unwrap(),
                     )
+                    .query(&PriceQueryParams {
+                        sdk_type: PULSE_SDK_TYPE.to_string(),
+                        sdk_version: self.pulse_metadata.sdk_version.clone(),
+                    })
                     .json(&PriceRequestBody {
                         project_id: self.provider_pool.project_id.clone(),
                         currency: local_currency,
