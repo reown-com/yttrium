@@ -25,7 +25,6 @@ use {
     },
     alloy::{
         dyn_abi::{DynSolValue, Eip712Domain},
-        network::Network,
         primitives::{
             address, aliases::U48, bytes, keccak256, Address, Bytes,
             FixedBytes, Uint, B256, U128, U256, U64,
@@ -33,7 +32,6 @@ use {
         providers::Provider,
         sol,
         sol_types::{SolCall, SolValue},
-        transports::Transport,
     },
     erc6492::create::create_erc6492_signature,
     serde::{Deserialize, Serialize},
@@ -283,15 +281,10 @@ pub fn factory_data(
     }
 }
 
-pub async fn get_account_address<P, T, N>(
-    provider: P,
+pub async fn get_account_address(
+    provider: impl Provider,
     owners: Owners,
-) -> AccountAddress
-where
-    T: Transport + Clone,
-    P: Provider<T, N>,
-    N: Network,
-{
+) -> AccountAddress {
     let creation_code =
         SafeProxyFactory::new(SAFE_PROXY_FACTORY_1_4_1, provider)
             .proxyCreationCode()
@@ -422,18 +415,13 @@ pub struct SignStep3Params {
 // TODO refactor to make account_address optional, if not provided it will
 // determine it based on Owners TODO refactor to make owners optional, in the
 // case where it already being deployed is assumed
-pub async fn sign<P, T, N>(
+pub async fn sign(
     owners: Owners,
     account_address: AccountAddress,
     signatures: Vec<OwnerSignature>,
-    provider: &P,
+    provider: &impl Provider,
     paymaster_client: PaymasterClient,
-) -> eyre::Result<SignOutputEnum>
-where
-    T: Transport + Clone,
-    P: Provider<T, N>,
-    N: Network,
-{
+) -> eyre::Result<SignOutputEnum> {
     if signatures.len() > 1 {
         unimplemented!("multi-signature is not yet supported");
     }

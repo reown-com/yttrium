@@ -53,7 +53,7 @@ use {
 
 #[derive(Clone)]
 pub struct Client {
-    provider_pool: ProviderPool,
+    pub provider_pool: ProviderPool,
     http_client: ReqwestClient,
     project_id: ProjectId,
     pulse_metadata: PulseMetadata,
@@ -247,7 +247,7 @@ impl Client {
                     )
                     .with_max_fee_per_gas(100000)
                     .with_max_priority_fee_per_gas(1),
-                providers.provider_pool.get_provider(&txn.chain_id).await,
+                &providers.provider_pool.get_provider(&txn.chain_id).await,
             )
             .await
             .map_err(UiFieldsError::L1DataFee)

@@ -7,7 +7,7 @@ use {
     alloy::{
         consensus::{SignableTransaction, TxEnvelope},
         primitives::{PrimitiveSignature, B256},
-        rpc::types::TransactionReceipt,
+        rpc::{json_rpc::Id, types::TransactionReceipt},
     },
     alloy_provider::Provider,
     serde::{Deserialize, Serialize},
@@ -25,7 +25,10 @@ pub async fn send_transaction(
     let start = Instant::now();
     let start_time = SystemTime::now();
 
-    let provider = provider_pool.get_provider(&txn.chain_id).await;
+    let (sender, receiver) = std::sync::mpsc::channel();
+    let provider = provider_pool
+        .get_provider_with_tracing(&txn.chain_id, Some(sender))
+        .await;
     let signed = txn.into_eip1559().into_signed(sig);
     let txn_hash = *signed.hash();
 
@@ -43,6 +46,7 @@ pub async fn send_transaction(
                 receipt_latency: None,
                 latency: start.elapsed(),
                 end: SystemTime::now(),
+                rpcs: receiver.try_iter().collect(),
             },
         )
     })?;
@@ -61,6 +65,7 @@ pub async fn send_transaction(
         receipt_latency: Some(receipt_latency),
         latency: start.elapsed(),
         end: SystemTime::now(),
+        rpcs: receiver.try_iter().collect(),
     };
 
     let receipt = receipt_result.map_err(|e| {
@@ -109,4 +114,13 @@ pub struct TransactionAnalytics {
     pub send_latency: Duration,
     #[serde(with = "option_duration_millis")]
     pub receipt_latency: Option<Duration>,
+    pub rpcs: Vec<RpcRequestAnalytics>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RpcRequestAnalytics {
+    pub req_id: Option<String>,
+    pub rpc_id: Id,
+    // pub latency: Duration,
+    // pub status: u8,
 }

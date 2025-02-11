@@ -1,12 +1,11 @@
-use alloy::{
-    network::Ethereum,
-    primitives::{Address, Bytes, B256},
-    providers::ReqwestProvider,
+use {
+    alloy::primitives::{Address, Bytes, B256},
+    alloy_provider::{ProviderBuilder, RootProvider},
 };
 
 #[cfg_attr(feature = "uniffi", derive(uniffi::Object))]
 pub struct Erc6492Client {
-    provider: ReqwestProvider<Ethereum>,
+    provider: RootProvider,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -23,7 +22,8 @@ impl Erc6492Client {
     #[cfg_attr(feature = "uniffi", uniffi::constructor)]
     pub fn new(rpc_url: String) -> Self {
         let url = rpc_url.parse().expect("Invalid RPC URL");
-        let provider = ReqwestProvider::<Ethereum>::new_http(url);
+        let provider =
+            ProviderBuilder::new().disable_recommended_fillers().on_http(url);
         Self { provider }
     }
 

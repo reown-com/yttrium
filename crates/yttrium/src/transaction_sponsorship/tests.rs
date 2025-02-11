@@ -9,14 +9,14 @@ use {
         },
     },
     alloy::{
-        network::Ethereum,
         primitives::{Bytes, U256},
+        providers::ProviderBuilder,
         signers::{
             local::{LocalSigner, PrivateKeySigner},
             SignerSync,
         },
     },
-    alloy_provider::{Provider, ReqwestProvider},
+    alloy_provider::Provider,
     std::collections::HashMap,
 };
 
@@ -59,7 +59,8 @@ async fn happy_path_pimlico() {
 async fn happy_path_local() {
     let chain_id = format!(
         "eip155:{}",
-        ReqwestProvider::<Ethereum>::new_http(LOCAL_RPC_URL.parse().unwrap())
+        ProviderBuilder::new()
+            .on_http(LOCAL_RPC_URL.parse().unwrap())
             .get_chain_id()
             .await
             .unwrap()

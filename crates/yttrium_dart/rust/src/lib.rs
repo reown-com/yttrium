@@ -1,9 +1,8 @@
 mod frb_generated; /* AUTO INJECTED BY flutter_rust_bridge. This line may not be accurate, and you can change it according to your needs. */
 use {
     alloy::{
-        network::Ethereum,
         primitives::Address,
-        providers::{Provider, ReqwestProvider},
+        providers::{Provider, ProviderBuilder},
     },
     relay_rpc::domain::ProjectId,
     std::time::Duration,
@@ -188,7 +187,7 @@ impl ChainAbstractionClient {
         )
         .parse()
         .expect("Invalid RPC URL");
-        let provider = ReqwestProvider::<Ethereum>::new_http(url);
+        let provider = ProviderBuilder::new().on_http(url);
         provider
             .estimate_eip1559_fees(None)
             .await
@@ -217,9 +216,8 @@ mod tests {
         // super::*,
         alloy::{
             hex,
-            network::Ethereum,
             primitives::{address, bytes},
-            providers::{Provider, ReqwestProvider},
+            providers::{Provider, ProviderBuilder},
         },
     };
 
@@ -232,7 +230,8 @@ mod tests {
             "https://rpc.walletconnect.com/v1?chainId={chain_id}&projectId={project_id}")
         .parse()
         .expect("Invalid RPC URL");
-        let provider = ReqwestProvider::<Ethereum>::new_http(url);
+        let provider =
+            ProviderBuilder::new().disable_recommended_fillers().on_http(url);
 
         let estimate = provider.estimate_eip1559_fees(None).await.unwrap();
 

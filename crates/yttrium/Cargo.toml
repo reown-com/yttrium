@@ -57,6 +57,7 @@ alloy = { workspace = true, features = [
     "providers",
     "node-bindings",
     "rpc-types-trace",
+    "json-rpc",
     "signer-mnemonic",
     "eip712",
     "rlp",
@@ -64,6 +65,7 @@ alloy = { workspace = true, features = [
 alloy-provider = { workspace = true, features = ["erc4337-api"] }
 erc6492.workspace = true
 relay_rpc.workspace = true
+tower = { version = "0.5", features = ["util"] }
 
 # foundry-block-explorers = "0.2.3"
 getrandom = { version = "0.2", default-features = false }

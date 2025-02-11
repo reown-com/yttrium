@@ -5,9 +5,7 @@ use {
         rpc::types::TransactionRequest,
         signers::{k256::ecdsa::SigningKey, local::LocalSigner},
     },
-    alloy_provider::{
-        ext::AnvilApi, Provider, ProviderBuilder, ReqwestProvider,
-    },
+    alloy_provider::{ext::AnvilApi, Provider, ProviderBuilder},
     std::time::{Duration, Instant},
 };
 
@@ -39,9 +37,7 @@ pub fn use_account(name: Option<&str>) -> LocalSigner<SigningKey> {
     builder.build().unwrap()
 }
 
-pub async fn anvil_faucet(
-    provider: &ReqwestProvider,
-) -> LocalSigner<SigningKey> {
+pub async fn anvil_faucet(provider: &impl Provider) -> LocalSigner<SigningKey> {
     let faucet = LocalSigner::random();
     provider.anvil_set_balance(faucet.address(), U256::MAX).await.unwrap();
     faucet
@@ -49,7 +45,7 @@ pub async fn anvil_faucet(
 
 // Get tiny amounts of wei to test with
 pub async fn use_faucet(
-    provider: ReqwestProvider,
+    provider: &impl Provider,
     faucet: LocalSigner<SigningKey>,
     amount: U256,
     to: Address,
@@ -67,7 +63,7 @@ pub async fn use_faucet(
 // This must be lower than `max_usd` to prevent abuse (find a cheaper L2)
 // Set `multiplier` to top-off with additional gas for later executions
 pub async fn use_faucet_gas(
-    provider: ReqwestProvider,
+    provider: &impl Provider,
     faucet: LocalSigner<SigningKey>,
     amount: U256,
     to: Address,
@@ -86,7 +82,7 @@ pub async fn use_faucet_gas(
 // Use the faucet without any limits. Function is intentionally private to
 // prevent accidental abuse
 async fn use_faucet_unlimited(
-    provider: ReqwestProvider,
+    provider: &impl Provider,
     faucet: LocalSigner<SigningKey>,
     amount: U256,
     to: Address,
@@ -102,9 +98,8 @@ async fn use_faucet_unlimited(
     loop {
         println!("sending txn: {:?}", txn);
         let txn_sent = ProviderBuilder::new()
-            .with_recommended_fillers()
             .wallet(EthereumWallet::new(faucet.clone()))
-            .on_provider(provider.clone())
+            .on_provider(provider)
             .send_transaction(txn.clone())
             .await
             .unwrap()

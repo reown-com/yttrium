@@ -380,10 +380,8 @@ impl Client {
             anvil_faucet(&provider).await
         };
         let sponsor_wallet = EthereumWallet::new(sponsor);
-        let sponsor_provider = ProviderBuilder::new()
-            .with_recommended_fillers()
-            .wallet(sponsor_wallet)
-            .on_provider(provider);
+        let sponsor_provider =
+            ProviderBuilder::new().wallet(sponsor_wallet).on_provider(provider);
 
         let safe_owners = Owners {
             threshold: 1,

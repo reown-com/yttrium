@@ -30,21 +30,15 @@ use {
         rpc::types::TransactionRequest,
         signers::{k256::ecdsa::SigningKey, local::LocalSigner, SignerSync},
         sol_types::SolCall,
-        transports::http::Http,
     },
-    alloy_provider::{
-        fillers::{
-            BlobGasFiller, ChainIdFiller, FillProvider, GasFiller, JoinFill,
-            NonceFiller, WalletFiller,
-        },
-        Identity, Provider, ProviderBuilder, ReqwestProvider, RootProvider,
-    },
+    alloy_provider::{Network, Provider, ProviderBuilder, RootProvider},
     relay_rpc::domain::ProjectId,
     serial_test::serial,
     std::{
         cmp::max,
         collections::HashMap,
         iter,
+        sync::Arc,
         time::{Duration, Instant},
     },
     ERC20::ERC20Instance,
@@ -108,7 +102,7 @@ impl Chain {
     }
 }
 
-fn provider_for_chain(chain_id: &Chain) -> ReqwestProvider {
+fn provider_for_chain(chain_id: &Chain) -> impl Provider + Clone {
     let project_id: ProjectId = std::env::var("REOWN_PROJECT_ID")
         .expect("You've not set the REOWN_PROJECT_ID environment variable")
         .into();
@@ -136,27 +130,20 @@ struct BridgeTokenParams {
     token: Token,
 }
 
-type BridgeTokenProvider = FillProvider<
-    JoinFill<
-        JoinFill<
-            Identity,
-            JoinFill<
-                GasFiller,
-                JoinFill<BlobGasFiller, JoinFill<NonceFiller, ChainIdFiller>>,
-            >,
-        >,
-        WalletFiller<EthereumWallet>,
-    >,
-    RootProvider<Http<reqwest::Client>>,
-    Http<reqwest::Client>,
-    Ethereum,
->;
+#[derive(Clone)]
+struct DynProvider<N: Network = Ethereum>(Arc<dyn Provider<N>>);
+
+impl<N: Network> Provider<N> for DynProvider<N> {
+    fn root(&self) -> &RootProvider<N> {
+        self.0.root()
+    }
+}
 
 #[derive(Clone)]
 struct BridgeToken {
     params: BridgeTokenParams,
-    token: ERC20Instance<Http<reqwest::Client>, BridgeTokenProvider, Ethereum>,
-    provider: BridgeTokenProvider,
+    token: ERC20Instance<(), DynProvider, Ethereum>,
+    provider: DynProvider,
 }
 
 impl BridgeToken {
@@ -165,9 +152,9 @@ impl BridgeToken {
         account: LocalSigner<SigningKey>,
     ) -> BridgeToken {
         let provider = ProviderBuilder::new()
-            .with_recommended_fillers()
             .wallet(EthereumWallet::new(account))
             .on_provider(provider_for_chain(&params.chain));
+        let provider = DynProvider(Arc::new(provider));
 
         let token_address = params.chain.token_address(&params.token);
 
@@ -196,7 +183,7 @@ const CHAIN_ID_ARBITRUM: &str = "eip155:42161";
 
 async fn estimate_total_fees(
     _wallet: &EthereumWallet,
-    provider: &ReqwestProvider,
+    provider: &impl Provider,
     txn: TransactionRequest,
 ) -> U256 {
     let gas = txn.gas.unwrap();
@@ -207,7 +194,7 @@ async fn estimate_total_fees(
     let l1_data_fee = if provider_chain_id == CHAIN_ID_BASE
         || provider_chain_id == CHAIN_ID_OPTIMISM
     {
-        get_l1_data_fee(txn, provider.clone()).await.unwrap()
+        get_l1_data_fee(txn, provider).await.unwrap()
     } else {
         U256::ZERO
     };
@@ -218,7 +205,7 @@ async fn estimate_total_fees(
 
 async fn send_sponsored_txn(
     faucet: LocalSigner<SigningKey>,
-    provider: &ReqwestProvider,
+    provider: &impl Provider,
     wallet_lookup: &HashMap<Address, LocalSigner<SigningKey>>,
     txn: TransactionRequest,
 ) {
@@ -250,7 +237,7 @@ async fn send_sponsored_txn(
             provider_chain_id, from_address, additional_balance_required
         );
         use_faucet_gas(
-            provider.clone(),
+            provider,
             faucet.clone(),
             U256::from(additional_balance_required),
             from_address,
@@ -264,7 +251,6 @@ async fn send_sponsored_txn(
     loop {
         println!("sending txn: {:?}", txn);
         let txn_sent = ProviderBuilder::new()
-            .with_recommended_fillers()
             .wallet(wallet.clone())
             .on_provider(provider)
             .send_transaction(txn.clone())
@@ -878,7 +864,7 @@ async fn happy_path() {
             let additional_balance_required = total_fee - balance;
             println!("using faucet (1) for {chain_id}:{address} at {additional_balance_required}");
             use_faucet_gas(
-                provider,
+                &provider,
                 faucet.clone(),
                 additional_balance_required,
                 address,
@@ -1441,7 +1427,7 @@ async fn happy_path_full_dependency_on_ui_fields() {
             let additional_balance_required = total_fee - balance;
             println!("using faucet (1) for {chain_id}:{address} at {additional_balance_required}");
             use_faucet_gas(
-                provider,
+                &provider,
                 faucet.clone(),
                 additional_balance_required,
                 address,
@@ -2035,7 +2021,7 @@ async fn happy_path_execute_method() {
             let additional_balance_required = total_fee - balance;
             println!("using faucet (1) for {chain_id}:{address} at {additional_balance_required}");
             use_faucet_gas(
-                provider,
+                &provider,
                 faucet.clone(),
                 additional_balance_required,
                 address,

@@ -6,12 +6,10 @@ use {
         user_operation::UserOperationV07,
     },
     alloy::{
-        network::Ethereum,
-        primitives::B256,
-        rpc::types::UserOperationReceipt,
-        transports::{Transport, TransportResult},
+        primitives::B256, rpc::types::UserOperationReceipt,
+        transports::TransportResult,
     },
-    alloy_provider::{Network, Provider, ReqwestProvider},
+    alloy_provider::{Provider, ProviderBuilder},
     eyre::Ok,
     serde_json::{self, Value},
     tracing::debug,
@@ -109,7 +107,7 @@ impl BundlerClient {
         &self,
         hash: B256,
     ) -> eyre::Result<Option<UserOperationReceipt>> {
-        let provider = ReqwestProvider::<Ethereum>::new_http(self.config.url());
+        let provider = ProviderBuilder::new().on_http(self.config.url());
         let receipt = provider.get_user_operation_receipt(hash).await?;
 
         // For some reason Pimlico bundler doesn't include these fields
@@ -176,7 +174,7 @@ impl BundlerClient {
 
 #[cfg_attr(target_arch = "wasm32", async_trait::async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait::async_trait)]
-pub trait CustomErc4337Api<N, T>: Send + Sync {
+pub trait CustomErc4337Api: Send + Sync {
     async fn get_user_operation_receipt(
         &self,
         user_op_hash: B256,
@@ -185,11 +183,9 @@ pub trait CustomErc4337Api<N, T>: Send + Sync {
 
 #[cfg_attr(target_arch = "wasm32", async_trait::async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait::async_trait)]
-impl<N, T, P> CustomErc4337Api<N, T> for P
+impl<P> CustomErc4337Api for P
 where
-    N: Network,
-    T: Transport + Clone,
-    P: Provider<T, N>,
+    P: Provider,
 {
     async fn get_user_operation_receipt(
         &self,
