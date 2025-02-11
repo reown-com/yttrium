@@ -1,0 +1,28 @@
+name: E2E
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build_rust_and_test:
+    name: Rust project - latest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Run sccache-cache
+        uses: mozilla-actions/sccache-action@v0.0.4
+      - run: rustup update stable && rustup default stable
+      - run: cargo test chain_abstraction::tests::happy_path_execute_method
+        env:
+          REOWN_PROJECT_ID: ${{ vars.REOWN_PROJECT_ID }}
+          FAUCET_MNEMONIC: ${{ secrets.FAUCET_MNEMONIC }}
+          RUST_BACKTRACE: 1
+          RUST_LOG: yttrium=trace
