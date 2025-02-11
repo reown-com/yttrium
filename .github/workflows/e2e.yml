@@ -5,13 +5,15 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
+  # TODO input for yttrium commit to test against
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build_rust_and_test:
-    name: Rust project - latest
+  e2e:
+    name: E2E
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -20,7 +22,7 @@ jobs:
       - name: Run sccache-cache
         uses: mozilla-actions/sccache-action@v0.0.4
       - run: rustup update stable && rustup default stable
-      - run: cargo test chain_abstraction::tests::happy_path_execute_method
+      - run: cargo test -p yttrium --features=test_blockchain_api chain_abstraction::tests::happy_path_execute_method
         env:
           REOWN_PROJECT_ID: ${{ vars.REOWN_PROJECT_ID }}
           FAUCET_MNEMONIC: ${{ secrets.FAUCET_MNEMONIC }}

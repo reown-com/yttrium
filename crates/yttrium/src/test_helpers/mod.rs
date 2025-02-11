@@ -25,7 +25,7 @@ pub fn use_account(name: Option<&str>) -> LocalSigner<SigningKey> {
     use alloy::signers::local::{coins_bip39::English, MnemonicBuilder};
     let mut builder = MnemonicBuilder::<English>::default().phrase(
         std::env::var("FAUCET_MNEMONIC")
-            .expect("You've not set the FAUCET_MNEMONIC"),
+            .expect("You've not set the FAUCET_MNEMONIC environment variable"),
     );
 
     if let Some(name) = name {
