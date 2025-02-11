@@ -102,6 +102,7 @@ pub enum PrepareDetailedError {
     derive(tsify_next::Tsify),
     tsify(into_wasm_abi, from_wasm_abi)
 )]
+#[serde(rename_all = "camelCase")]
 pub enum PrepareDetailedResponse {
     Success(PrepareDetailedResponseSuccess),
     Error(PrepareResponseError),
