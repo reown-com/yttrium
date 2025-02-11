@@ -463,9 +463,13 @@ public protocol ChainAbstractionClientProtocol: AnyObject {
     
     func estimateFees(chainId: String) async throws  -> Eip1559Estimation
     
-    func getUiFields(routeResponse: PrepareResponseAvailable, currency: Currency) async throws  -> UiFields
+    func execute(uiFields: UiFields, routeTxnSigs: [FfiPrimitiveSignature], initialTxnSig: FfiPrimitiveSignature) async throws  -> ExecuteDetails
+    
+    func getUiFields(routeResponse: PrepareResponseAvailable, localCurrency: Currency) async throws  -> UiFields
     
     func prepare(chainId: String, from: FfiAddress, call: Call) async throws  -> PrepareResponse
+    
+    func prepareDetailed(chainId: String, from: FfiAddress, call: Call, localCurrency: Currency) async throws  -> PrepareDetailedResponse
     
     func prepareErc20TransferCall(erc20Address: FfiAddress, to: FfiAddress, amount: Ffiu256)  -> Call
     
@@ -474,11 +478,7 @@ public protocol ChainAbstractionClientProtocol: AnyObject {
     func waitForSuccessWithTimeout(orchestrationId: String, checkIn: UInt64, timeout: UInt64) async throws  -> StatusResponseCompleted
     
 }
-
-#if swift(>=6.0)
-extension ChainAbstractionClientProtocol: Sendable {}
-#endif
-open class ChainAbstractionClient: ChainAbstractionClientProtocol {
+open class ChainAbstractionClient: ChainAbstractionClientProtocol, @unchecked Sendable {
     fileprivate let pointer: UnsafeMutableRawPointer!
 
     /// Used to instantiate a [FFIObject] without an actual pointer, for fakes in tests, mostly.
@@ -514,11 +514,12 @@ open class ChainAbstractionClient: ChainAbstractionClientProtocol {
     public func uniffiClonePointer() -> UnsafeMutableRawPointer {
         return try! rustCall { uniffi_uniffi_yttrium_fn_clone_chainabstractionclient(self.pointer, $0) }
     }
-public convenience init(projectId: String) {
+public convenience init(projectId: String, pulseMetadata: PulseMetadata) {
     let pointer =
         try! rustCall() {
     uniffi_uniffi_yttrium_fn_constructor_chainabstractionclient_new(
-        FfiConverterString.lower(projectId),$0
+        FfiConverterString.lower(projectId),
+        FfiConverterTypePulseMetadata_lower(pulseMetadata),$0
     )
 }
     self.init(unsafeFromRawPointer: pointer)
@@ -569,13 +570,30 @@ open func estimateFees(chainId: String)async throws  -> Eip1559Estimation  {
         )
 }
     
-open func getUiFields(routeResponse: PrepareResponseAvailable, currency: Currency)async throws  -> UiFields  {
+open func execute(uiFields: UiFields, routeTxnSigs: [FfiPrimitiveSignature], initialTxnSig: FfiPrimitiveSignature)async throws  -> ExecuteDetails  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_uniffi_yttrium_fn_method_chainabstractionclient_execute(
+                    self.uniffiClonePointer(),
+                    FfiConverterTypeUiFields_lower(uiFields),FfiConverterSequenceTypeFFIPrimitiveSignature.lower(routeTxnSigs),FfiConverterTypeFFIPrimitiveSignature_lower(initialTxnSig)
+                )
+            },
+            pollFunc: ffi_uniffi_yttrium_rust_future_poll_rust_buffer,
+            completeFunc: ffi_uniffi_yttrium_rust_future_complete_rust_buffer,
+            freeFunc: ffi_uniffi_yttrium_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeExecuteDetails_lift,
+            errorHandler: FfiConverterTypeFFIError.lift
+        )
+}
+    
+open func getUiFields(routeResponse: PrepareResponseAvailable, localCurrency: Currency)async throws  -> UiFields  {
     return
         try  await uniffiRustCallAsync(
             rustFutureFunc: {
                 uniffi_uniffi_yttrium_fn_method_chainabstractionclient_get_ui_fields(
                     self.uniffiClonePointer(),
-                    FfiConverterTypePrepareResponseAvailable_lower(routeResponse),FfiConverterTypeCurrency_lower(currency)
+                    FfiConverterTypePrepareResponseAvailable_lower(routeResponse),FfiConverterTypeCurrency_lower(localCurrency)
                 )
             },
             pollFunc: ffi_uniffi_yttrium_rust_future_poll_rust_buffer,
@@ -599,6 +617,23 @@ open func prepare(chainId: String, from: FfiAddress, call: Call)async throws  ->
             completeFunc: ffi_uniffi_yttrium_rust_future_complete_rust_buffer,
             freeFunc: ffi_uniffi_yttrium_rust_future_free_rust_buffer,
             liftFunc: FfiConverterTypePrepareResponse_lift,
+            errorHandler: FfiConverterTypeFFIError.lift
+        )
+}
+    
+open func prepareDetailed(chainId: String, from: FfiAddress, call: Call, localCurrency: Currency)async throws  -> PrepareDetailedResponse  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_uniffi_yttrium_fn_method_chainabstractionclient_prepare_detailed(
+                    self.uniffiClonePointer(),
+                    FfiConverterString.lower(chainId),FfiConverterTypeFFIAddress_lower(from),FfiConverterTypeCall_lower(call),FfiConverterTypeCurrency_lower(localCurrency)
+                )
+            },
+            pollFunc: ffi_uniffi_yttrium_rust_future_poll_rust_buffer,
+            completeFunc: ffi_uniffi_yttrium_rust_future_complete_rust_buffer,
+            freeFunc: ffi_uniffi_yttrium_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypePrepareDetailedResponse_lift,
             errorHandler: FfiConverterTypeFFIError.lift
         )
 }
@@ -649,10 +684,6 @@ open func waitForSuccessWithTimeout(orchestrationId: String, checkIn: UInt64, ti
     
 
 }
-
-#if swift(>=6.0)
-extension ChainAbstractionClient: Sendable {}
-#endif
 
 
 #if swift(>=5.8)
@@ -731,6 +762,10 @@ public struct Eip1559Estimation {
     }
 }
 
+#if compiler(>=6)
+extension Eip1559Estimation: Sendable {}
+#endif
+
 
 extension Eip1559Estimation: Equatable, Hashable {
     public static func ==(lhs: Eip1559Estimation, rhs: Eip1559Estimation) -> Bool {
@@ -749,9 +784,6 @@ extension Eip1559Estimation: Equatable, Hashable {
     }
 }
 
-#if swift(>=6.0)
-extension Eip1559Estimation: Sendable {}
-#endif
 
 
 #if swift(>=5.8)
@@ -798,6 +830,10 @@ public struct FfiPreparedSignature {
     }
 }
 
+#if compiler(>=6)
+extension FfiPreparedSignature: Sendable {}
+#endif
+
 
 extension FfiPreparedSignature: Equatable, Hashable {
     public static func ==(lhs: FfiPreparedSignature, rhs: FfiPreparedSignature) -> Bool {
@@ -812,9 +848,6 @@ extension FfiPreparedSignature: Equatable, Hashable {
     }
 }
 
-#if swift(>=6.0)
-extension FfiPreparedSignature: Sendable {}
-#endif
 
 
 #if swift(>=5.8)
@@ -921,6 +954,31 @@ extension FfiError: Foundation.LocalizedError {
 }
 
 
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeFFIPrimitiveSignature: FfiConverterRustBuffer {
+    typealias SwiftType = [FfiPrimitiveSignature]
+
+    public static func write(_ value: [FfiPrimitiveSignature], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeFFIPrimitiveSignature.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [FfiPrimitiveSignature] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [FfiPrimitiveSignature]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeFFIPrimitiveSignature.read(from: &buf))
+        }
+        return seq
+    }
+}
+
 
 /**
  * Typealias from the type name used in the UDL file to the builtin type.  This
@@ -1006,6 +1064,50 @@ public func FfiConverterTypeFFIBytes_lift(_ value: RustBuffer) throws -> FfiByte
 #endif
 public func FfiConverterTypeFFIBytes_lower(_ value: FfiBytes) -> RustBuffer {
     return FfiConverterTypeFFIBytes.lower(value)
+}
+
+
+
+/**
+ * Typealias from the type name used in the UDL file to the builtin type.  This
+ * is needed because the UDL type name is used in function/method signatures.
+ */
+public typealias FfiPrimitiveSignature = String
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeFFIPrimitiveSignature: FfiConverter {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> FfiPrimitiveSignature {
+        return try FfiConverterString.read(from: &buf)
+    }
+
+    public static func write(_ value: FfiPrimitiveSignature, into buf: inout [UInt8]) {
+        return FfiConverterString.write(value, into: &buf)
+    }
+
+    public static func lift(_ value: RustBuffer) throws -> FfiPrimitiveSignature {
+        return try FfiConverterString.lift(value)
+    }
+
+    public static func lower(_ value: FfiPrimitiveSignature) -> RustBuffer {
+        return FfiConverterString.lower(value)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFFIPrimitiveSignature_lift(_ value: RustBuffer) throws -> FfiPrimitiveSignature {
+    return try FfiConverterTypeFFIPrimitiveSignature.lift(value)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFFIPrimitiveSignature_lower(_ value: FfiPrimitiveSignature) -> RustBuffer {
+    return FfiConverterTypeFFIPrimitiveSignature.lower(value)
 }
 
 
@@ -1208,10 +1310,16 @@ private let initializationResult: InitializationResult = {
     if (uniffi_uniffi_yttrium_checksum_method_chainabstractionclient_estimate_fees() != 51281) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_uniffi_yttrium_checksum_method_chainabstractionclient_get_ui_fields() != 19431) {
+    if (uniffi_uniffi_yttrium_checksum_method_chainabstractionclient_execute() != 10965) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_uniffi_yttrium_checksum_method_chainabstractionclient_get_ui_fields() != 40860) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_uniffi_yttrium_checksum_method_chainabstractionclient_prepare() != 48357) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_uniffi_yttrium_checksum_method_chainabstractionclient_prepare_detailed() != 27799) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_uniffi_yttrium_checksum_method_chainabstractionclient_prepare_erc20_transfer_call() != 58309) {
@@ -1223,7 +1331,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_uniffi_yttrium_checksum_method_chainabstractionclient_wait_for_success_with_timeout() != 16595) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_uniffi_yttrium_checksum_constructor_chainabstractionclient_new() != 39164) {
+    if (uniffi_uniffi_yttrium_checksum_constructor_chainabstractionclient_new() != 20017) {
         return InitializationResult.apiChecksumMismatch
     }
 
