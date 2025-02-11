@@ -22,6 +22,9 @@ use {
     wasm_bindgen::prelude::*,
 };
 
+#[wasm_bindgen(typescript_custom_section)]
+const TS_APPEND_CONTENT: &'static str = include_str!("wasm_compat.ts");
+
 #[cfg(feature = "chain_abstraction_client")]
 #[wasm_bindgen(getter_with_clone)]
 pub struct Client {

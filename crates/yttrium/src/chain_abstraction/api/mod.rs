@@ -38,6 +38,11 @@ pub struct Transaction {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
+#[cfg_attr(
+    feature = "wasm",
+    derive(tsify_next::Tsify),
+    tsify(into_wasm_abi, from_wasm_abi)
+)]
 #[serde(rename_all = "camelCase")]
 pub struct FeeEstimatedTransaction {
     // CAIP-2 chain ID

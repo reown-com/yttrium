@@ -58,6 +58,11 @@ impl CallOrCalls {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
+#[cfg_attr(
+    feature = "wasm",
+    derive(tsify_next::Tsify),
+    tsify(into_wasm_abi, from_wasm_abi)
+)]
 #[serde(rename_all = "camelCase")]
 pub struct Metadata {
     pub funding_from: Vec<FundingMetadata>,
@@ -70,6 +75,11 @@ pub struct Metadata {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
+#[cfg_attr(
+    feature = "wasm",
+    derive(tsify_next::Tsify),
+    tsify(into_wasm_abi, from_wasm_abi)
+)]
 #[serde(rename_all = "camelCase")]
 pub struct InitialTransactionMetadata {
     pub transfer_to: Address,
@@ -91,6 +101,11 @@ impl InitialTransactionMetadata {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
+#[cfg_attr(
+    feature = "wasm",
+    derive(tsify_next::Tsify),
+    tsify(into_wasm_abi, from_wasm_abi)
+)]
 #[serde(rename_all = "camelCase")]
 pub struct FundingMetadata {
     pub chain_id: String,
@@ -150,6 +165,11 @@ pub struct PrepareResponseAvailable {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
+#[cfg_attr(
+    feature = "wasm",
+    derive(tsify_next::Tsify),
+    tsify(into_wasm_abi, from_wasm_abi)
+)]
 #[serde(rename_all = "camelCase")]
 pub struct PrepareResponseNotRequired {
     pub initial_transaction: Transaction,
@@ -158,6 +178,11 @@ pub struct PrepareResponseNotRequired {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Enum))]
+#[cfg_attr(
+    feature = "wasm",
+    derive(tsify_next::Tsify),
+    tsify(into_wasm_abi, from_wasm_abi)
+)]
 #[serde(untagged)]
 pub enum PrepareResponseSuccess {
     Available(PrepareResponseAvailable),
@@ -177,12 +202,23 @@ impl PrepareResponseSuccess {
 /// response
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
+#[cfg_attr(
+    feature = "wasm",
+    derive(tsify_next::Tsify),
+    tsify(into_wasm_abi, from_wasm_abi)
+)]
+#[serde(rename_all = "camelCase")]
 pub struct PrepareResponseError {
     pub error: BridgingError,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Enum))]
+#[cfg_attr(
+    feature = "wasm",
+    derive(tsify_next::Tsify),
+    tsify(into_wasm_abi, from_wasm_abi)
+)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum BridgingError {
     NoRoutesAvailable,
