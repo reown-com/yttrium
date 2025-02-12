@@ -198,7 +198,8 @@ impl ProxyReqwestClient {
         let req_id = resp
             .headers()
             .get("x-request-id")
-            .map(|hv| hv.to_str().unwrap_or_default().to_owned());
+            .and_then(|hv| hv.to_str().ok())
+            .map(|s| s.to_string());
         if let Some(tracing) = tracing {
             let rpc_ids = match req {
                 RequestPacket::Single(req) => vec![req.id().clone()],
@@ -209,7 +210,7 @@ impl ProxyReqwestClient {
             for rpc_id in rpc_ids {
                 if let Err(e) = tracing.send(RpcRequestAnalytics {
                     req_id: req_id.clone(),
-                    rpc_id,
+                    rpc_id: rpc_id.to_string(),
                 }) {
                     warn!("PRC: send: {e}");
                 }

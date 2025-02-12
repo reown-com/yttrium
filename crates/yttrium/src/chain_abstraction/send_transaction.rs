@@ -7,7 +7,7 @@ use {
     alloy::{
         consensus::{SignableTransaction, TxEnvelope},
         primitives::{PrimitiveSignature, B256},
-        rpc::{json_rpc::Id, types::TransactionReceipt},
+        rpc::types::TransactionReceipt,
     },
     alloy_provider::Provider,
     serde::{Deserialize, Serialize},
@@ -120,7 +120,7 @@ pub struct TransactionAnalytics {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RpcRequestAnalytics {
     pub req_id: Option<String>,
-    pub rpc_id: Id,
+    pub rpc_id: String,
     // pub latency: Duration,
     // pub status: u8,
 }
