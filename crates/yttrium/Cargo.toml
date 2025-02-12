@@ -75,6 +75,8 @@ uuid = { version = "1.12.1", default-features = false, features = [
     "serde",
 ] }
 
+web-time = { version = "0.1.0", default-features = false }
+
 # Error/Result
 eyre.workspace = true
 thiserror.workspace = true

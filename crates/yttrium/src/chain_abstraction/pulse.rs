@@ -4,9 +4,9 @@ use {
     relay_rpc::domain::ProjectId,
     reqwest::{Client, Url},
     serde::{Deserialize, Serialize},
-    std::time::SystemTime,
     tracing::{debug, warn},
     uuid::Uuid,
+    web_time::SystemTime,
 };
 
 // const PULSE_ENDPOINT: &str = "https://analytics-api-cf-workers-staging.walletconnect-v1-bridge.workers.dev/e";
