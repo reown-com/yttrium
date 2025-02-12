@@ -114,7 +114,7 @@ test-log = { version = "0.2.17", default-features = false, features = [
 
 # Networking
 reqwest.workspace = true
-alloy = { workspace = true, features = ["node-bindings"] }
+alloy = { workspace = true, features = ["node-bindings", "reqwest"] }
 serial_test.workspace = true
 
 [package.metadata.wasm-pack.profile.release]
