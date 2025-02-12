@@ -44,6 +44,16 @@ use {
     ERC20::ERC20Instance,
 };
 
+fn get_pulse_metadata() -> PulseMetadata {
+    PulseMetadata {
+        url: "https://yttrium-tests.com".parse().unwrap(),
+        bundle_id: None,
+        package_name: None,
+        sdk_version: "yttrium-tests-0.0.0".to_owned(),
+        sdk_platform: "desktop".to_owned(),
+    }
+}
+
 const USDC_CONTRACT_OPTIMISM: Address =
     address!("0b2c639c533813f4aa9d7837caf62653d097ff85");
 const USDC_CONTRACT_BASE: Address =
@@ -386,16 +396,7 @@ async fn bridging_routes_routes_available() {
     println!("input transaction: {:?}", transaction);
 
     let project_id = std::env::var("REOWN_PROJECT_ID").unwrap().into();
-    let client = Client::new(
-        project_id,
-        PulseMetadata {
-            url: None,
-            bundle_id: None,
-            package_name: None,
-            sdk_version: "yttrium-tests-0.0.0".to_owned(),
-            sdk_platform: "desktop".to_owned(),
-        },
-    );
+    let client = Client::new(project_id, get_pulse_metadata());
     let start = Instant::now();
     let result = client
         .prepare(
@@ -738,16 +739,7 @@ async fn happy_path() {
     println!("input transaction: {:?}", initial_transaction);
 
     let project_id = std::env::var("REOWN_PROJECT_ID").unwrap().into();
-    let client = Client::new(
-        project_id,
-        PulseMetadata {
-            url: None,
-            bundle_id: None,
-            package_name: None,
-            sdk_version: "yttrium-tests-0.0.0".to_owned(),
-            sdk_platform: "desktop".to_owned(),
-        },
-    );
+    let client = Client::new(project_id, get_pulse_metadata());
     let result = client
         .prepare(
             source
@@ -1313,16 +1305,7 @@ async fn happy_path_full_dependency_on_ui_fields() {
         .to_owned();
 
     let project_id = std::env::var("REOWN_PROJECT_ID").unwrap().into();
-    let client = Client::new(
-        project_id,
-        PulseMetadata {
-            url: None,
-            bundle_id: None,
-            package_name: None,
-            sdk_version: "yttrium-tests-0.0.0".to_owned(),
-            sdk_platform: "desktop".to_owned(),
-        },
-    );
+    let client = Client::new(project_id, get_pulse_metadata());
     let result = client
         .prepare(
             initial_transaction_chain_id.clone(),
@@ -1873,16 +1856,7 @@ async fn happy_path_execute_method() {
         .to_owned();
 
     let project_id = std::env::var("REOWN_PROJECT_ID").unwrap().into();
-    let client = Client::new(
-        project_id,
-        PulseMetadata {
-            url: None,
-            bundle_id: None,
-            package_name: None,
-            sdk_version: "yttrium-tests-0.0.0".to_owned(),
-            sdk_platform: "desktop".to_owned(),
-        },
-    );
+    let client = Client::new(project_id, get_pulse_metadata());
     let result = client
         .prepare_detailed(
             initial_transaction_chain_id.clone(),
@@ -2161,16 +2135,7 @@ async fn bridging_routes_routes_insufficient_funds() {
     println!("input transaction: {:?}", transaction);
 
     let project_id = std::env::var("REOWN_PROJECT_ID").unwrap().into();
-    let client = Client::new(
-        project_id,
-        PulseMetadata {
-            url: None,
-            bundle_id: None,
-            package_name: None,
-            sdk_version: "yttrium-tests-0.0.0".to_owned(),
-            sdk_platform: "desktop".to_owned(),
-        },
-    );
+    let client = Client::new(project_id, get_pulse_metadata());
     let result = client
         .prepare(
             chain_1.eip155_chain_id().to_owned(),
