@@ -23,7 +23,7 @@ pub mod systemtime_millis {
     use {
         super::duration_millis,
         serde::{de, ser},
-        std::time::{SystemTime, UNIX_EPOCH},
+        web_time::{SystemTime, UNIX_EPOCH},
     };
 
     pub fn serialize<S>(

@@ -47,8 +47,9 @@ use {
     serde::{Deserialize, Serialize},
     std::{
         collections::{HashMap, HashSet},
-        time::{Duration, Instant, SystemTime},
+        time::Duration,
     },
+    web_time::{Instant, SystemTime},
 };
 
 #[derive(Clone)]

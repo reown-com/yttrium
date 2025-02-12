@@ -34,13 +34,8 @@ use {
     alloy_provider::{Network, Provider, ProviderBuilder, RootProvider},
     relay_rpc::domain::ProjectId,
     serial_test::serial,
-    std::{
-        cmp::max,
-        collections::HashMap,
-        iter,
-        sync::Arc,
-        time::{Duration, Instant},
-    },
+    std::{cmp::max, collections::HashMap, iter, sync::Arc, time::Duration},
+    web_time::Instant,
     ERC20::ERC20Instance,
 };
 

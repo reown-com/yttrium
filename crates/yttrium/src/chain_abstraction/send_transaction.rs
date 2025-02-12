@@ -11,7 +11,8 @@ use {
     },
     alloy_provider::Provider,
     serde::{Deserialize, Serialize},
-    std::time::{Duration, Instant, SystemTime},
+    std::time::Duration,
+    web_time::{Instant, SystemTime},
 };
 
 pub async fn send_transaction(

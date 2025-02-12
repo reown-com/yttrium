@@ -6,7 +6,8 @@ use {
         signers::{k256::ecdsa::SigningKey, local::LocalSigner},
     },
     alloy_provider::{ext::AnvilApi, Provider, ProviderBuilder},
-    std::time::{Duration, Instant},
+    std::time::Duration,
+    web_time::Instant,
 };
 
 pub fn private_faucet() -> LocalSigner<SigningKey> {
