@@ -1,21 +1,31 @@
 import 'dart:io';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
+import 'package:yttrium_dart/generated/chain_abstraction/api/prepare.dart';
+import 'package:yttrium_dart/generated/chain_abstraction/api/status.dart';
+import 'package:yttrium_dart/generated/chain_abstraction/currency.dart';
+import 'package:yttrium_dart/generated/chain_abstraction/dart_compat.dart';
+import 'package:yttrium_dart/generated/chain_abstraction/error.dart';
+import 'package:yttrium_dart/generated/chain_abstraction/ui_fields.dart';
 import 'package:yttrium_dart/generated/frb_generated.dart' as frb;
-import 'package:yttrium_dart/generated/lib.dart';
 
-class YttriumDart implements ChainAbstractionClient {
+abstract class IYttriumClient extends ChainAbstractionClient {
+  Future<void> init({required String projectId});
+}
+
+class YttriumDart implements IYttriumClient {
+  // Private constructor
+  YttriumDart._internal();
+
   // Singleton instance
   static final YttriumDart _instance = YttriumDart._internal();
 
   // Public accessor for the singleton instance
   static YttriumDart get instance => _instance;
 
-  // Private constructor
-  YttriumDart._internal();
+  late final ChainAbstractionClient _chainAbstractionClient;
 
-  ChainAbstractionClient? _chainAbstractionClient;
-
+  @override
   Future<void> init({required String projectId}) async {
     try {
       // Locate the native library file
@@ -35,52 +45,10 @@ class YttriumDart implements ChainAbstractionClient {
     }
   }
 
-  // TODO shouldn't be needed
-  @override
-  String get projectId {
-    if (_chainAbstractionClient == null) {
-      throw 'ChainAbstractionClient is not initialized';
-    }
-
-    return _chainAbstractionClient!.projectId;
-  }
-
-  // TODO shouldn't be needed
-  @override
-  bool get isDisposed => _chainAbstractionClient?.isDisposed ?? true;
-
-  // TODO shouldn't be needed
-  @override
-  set projectId(String projectId) {
-    if (_chainAbstractionClient == null) {
-      throw 'ChainAbstractionClient is not initialized';
-    }
-    _chainAbstractionClient!.projectId = projectId;
-  }
-
   @override
   Future<Eip1559Estimation> estimateFees({required String chainId}) async {
-    if (_chainAbstractionClient == null) {
-      throw 'ChainAbstractionClient is not initialized';
-    }
-    return await _chainAbstractionClient!.estimateFees(
+    return await _chainAbstractionClient.estimateFees(
       chainId: chainId,
-    );
-  }
-
-  @override
-  Future<PrepareResponse> prepare({
-    required String chainId,
-    required String from,
-    required FFICall call,
-  }) async {
-    if (_chainAbstractionClient == null) {
-      throw 'ChainAbstractionClient is not initialized';
-    }
-    return await _chainAbstractionClient!.prepare(
-      chainId: chainId,
-      from: from,
-      call: call,
     );
   }
 
@@ -90,10 +58,7 @@ class YttriumDart implements ChainAbstractionClient {
     required String token,
     required String owner,
   }) async {
-    if (_chainAbstractionClient == null) {
-      throw 'ChainAbstractionClient is not initialized';
-    }
-    return await _chainAbstractionClient!.erc20TokenBalance(
+    return await _chainAbstractionClient.erc20TokenBalance(
       chainId: chainId,
       token: token,
       owner: owner,
@@ -101,30 +66,42 @@ class YttriumDart implements ChainAbstractionClient {
   }
 
   @override
-  Future<FFICall> prepareErc20TransferCall({
-    required String erc20Address,
-    required String to,
-    required BigInt amount,
+  Future<PrepareDetailedResponse> prepareDetailed({
+    required String chainId,
+    required String from,
+    required FFICall call,
+    required Currency localCurrency,
   }) async {
-    if (_chainAbstractionClient == null) {
-      throw 'ChainAbstractionClient is not initialized';
-    }
-    return await _chainAbstractionClient!.prepareErc20TransferCall(
-      erc20Address: erc20Address,
-      to: to,
-      amount: amount,
+    return await _chainAbstractionClient.prepareDetailed(
+      chainId: chainId,
+      from: from,
+      call: call,
+      localCurrency: localCurrency,
     );
   }
+
+  // @override
+  // Future<FFICall> prepareErc20TransferCall({
+  //   required String erc20Address,
+  //   required String to,
+  //   required BigInt amount,
+  // }) async {
+  //   if (_chainAbstractionClient == null) {
+  //     throw 'ChainAbstractionClient is not initialized';
+  //   }
+  //   return await _chainAbstractionClient!.prepareErc20TransferCall(
+  //     erc20Address: erc20Address,
+  //     to: to,
+  //     amount: amount,
+  //   );
+  // }
 
   @override
   Future<UiFields> getUiFields({
     required PrepareResponseAvailable routeResponse,
     required Currency currency,
   }) async {
-    if (_chainAbstractionClient == null) {
-      throw 'ChainAbstractionClient is not initialized';
-    }
-    return await _chainAbstractionClient!.getUiFields(
+    return await _chainAbstractionClient.getUiFields(
       routeResponse: routeResponse,
       currency: currency,
     );
@@ -132,10 +109,7 @@ class YttriumDart implements ChainAbstractionClient {
 
   @override
   Future<StatusResponse> status({required String orchestrationId}) async {
-    if (_chainAbstractionClient == null) {
-      throw 'ChainAbstractionClient is not initialized';
-    }
-    return await _chainAbstractionClient!.status(
+    return await _chainAbstractionClient.status(
       orchestrationId: orchestrationId,
     );
   }
@@ -146,19 +120,18 @@ class YttriumDart implements ChainAbstractionClient {
     required BigInt checkIn,
     required BigInt timeout,
   }) async {
-    if (_chainAbstractionClient == null) {
-      throw 'ChainAbstractionClient is not initialized';
-    }
-    return await _chainAbstractionClient!.waitForSuccessWithTimeout(
+    return await _chainAbstractionClient.waitForSuccessWithTimeout(
       orchestrationId: orchestrationId,
       checkIn: checkIn,
       timeout: timeout,
     );
   }
 
-  // TODO shouldn't be needed
+  @override
+  bool get isDisposed => _chainAbstractionClient.isDisposed;
+
   @override
   void dispose() {
-    _chainAbstractionClient?.dispose();
+    _chainAbstractionClient.dispose();
   }
 }

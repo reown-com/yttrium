@@ -7,6 +7,9 @@ pub mod l1_data_fee;
 pub mod local_fee_acc;
 pub mod ui_fields;
 
+#[cfg(feature = "frb")]
+pub mod dart_compat;
+
 #[cfg(test)]
 mod test_helpers;
 

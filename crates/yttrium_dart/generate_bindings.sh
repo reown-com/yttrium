@@ -4,4 +4,6 @@
 rm -r lib/generated/*
 rm rust/src/frb_generated.rs
 
-flutter_rust_bridge_codegen generate --config-file flutter_rust_bridge.yaml
+# cargo clean
+flutter_rust_bridge_codegen generate --config-file flutter_rust_bridge.yaml 
+# dart pub run build_runner build

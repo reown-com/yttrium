@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/kotlin-ffi", "crates/yttrium", "crates/yttrium_dart/rust"]
+members = ["crates/kotlin-ffi", "crates/yttrium"]
 resolver = "2"
 
 [workspace.package]

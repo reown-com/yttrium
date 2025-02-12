@@ -6,7 +6,8 @@ rust-version.workspace = true
 license.workspace = true
 
 [lib]
-crate-type = ["lib", "cdylib"]
+name = "yttrium_dart"
+crate-type = ["lib", "cdylib", "staticlib"]
 
 [features]
 default = ["erc6492_client", "chain_abstraction_client"]

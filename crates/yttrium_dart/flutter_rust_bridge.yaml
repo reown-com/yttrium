@@ -1,5 +1,5 @@
-rust_root: "rust/" # rust code entry point relative to local path
-rust_input: crate # meaning src/ folder inside rust/
+rust_root: "../yttrium/" # rust code entry point relative to local path
+rust_input: crate::chain_abstraction::dart_compat #,alloy,ruint,alloy-primitives # meaning src/ folder inside rust/
 dart_output: lib/generated/ # output path for generated Dart code
 # c_output: bridge_generated.h
 # duplicated_c_output: args.duplicated_c_output,
@@ -28,4 +28,4 @@ enable_lifetime: true
 # default_dart_async: negative_bool_arg(args.no_default_dart_async),
 # dump: args.dump,
 # dump_all: true
-# rust_features: args.rust_features,
+rust_features: [frb]
