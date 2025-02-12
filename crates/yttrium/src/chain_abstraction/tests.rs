@@ -109,8 +109,9 @@ impl Chain {
 }
 
 fn provider_for_chain(chain_id: &Chain) -> ReqwestProvider {
-    let project_id: ProjectId =
-        std::env::var("REOWN_PROJECT_ID").unwrap().into();
+    let project_id: ProjectId = std::env::var("REOWN_PROJECT_ID")
+        .expect("You've not set the REOWN_PROJECT_ID environment variable")
+        .into();
     let url = format!(
         "https://rpc.walletconnect.org/v1?chainId={}&projectId={project_id}",
         chain_id.eip155_chain_id()
