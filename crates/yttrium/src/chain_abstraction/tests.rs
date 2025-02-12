@@ -46,11 +46,11 @@ use {
 
 fn get_pulse_metadata() -> PulseMetadata {
     PulseMetadata {
-        url: Some("https://yttrium-tests.com".parse().unwrap()),
-        bundle_id: None,
+        url: None,
+        bundle_id: Some("com.reown.yttrium.tests".to_owned()),
         package_name: None,
         sdk_version: "yttrium-tests-0.0.0".to_owned(),
-        sdk_platform: "desktop".to_owned(),
+        sdk_platform: "mobile".to_owned(),
     }
 }
 

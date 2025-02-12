@@ -45,13 +45,18 @@ pub fn pulse(
     //     http_client.post(PULSE_ENDPOINT).query(&query).build().unwrap().url()
     // );
 
+    let mut builder =
+        http_client.post(PULSE_ENDPOINT).query(&query).json(&analytics);
+
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        builder =
+            builder.header("User-Agent", pulse_metadata.sdk_version.clone());
+    }
+
+    let fut = builder.send();
     let fut = async move {
-        let result = http_client
-            .post(PULSE_ENDPOINT)
-            .query(&query)
-            .json(&analytics)
-            .send()
-            .await;
+        let result = fut.await;
         match result {
             Ok(response) => {
                 let status = response.status();
