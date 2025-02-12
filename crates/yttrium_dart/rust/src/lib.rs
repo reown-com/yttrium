@@ -1,5 +1,3 @@
-mod frb_generated; /* AUTO INJECTED BY flutter_rust_bridge. This line may not be accurate, and you can change it according to your needs. */
-
 // use alloy::primitives::{
 //     ruint::aliases::U256, Address as FFIAddress, Bytes as FFIBytes, Uint,
 //     U128 as FFIU128, U256 as FFIU256, U64 as FFIU64,
