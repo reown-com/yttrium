@@ -1,10 +1,10 @@
 use {
     super::client::ExecuteAnalytics,
-    crate::serde::duration_millis,
+    crate::serde::systemtime_millis,
     relay_rpc::domain::ProjectId,
     reqwest::{Client, Url},
     serde::{Deserialize, Serialize},
-    std::time::Duration,
+    std::time::SystemTime,
     tracing::{debug, warn},
     uuid::Uuid,
 };
@@ -19,9 +19,7 @@ pub fn pulse(
     pulse_metadata: &PulseMetadata,
 ) {
     let event_id = Uuid::new_v4();
-    let timestamp = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default();
+    let timestamp = SystemTime::now();
     let analytics = Event {
         event_id,
         url: pulse_metadata.url.as_ref().map(|url| url.to_string()),
@@ -47,13 +45,18 @@ pub fn pulse(
     //     http_client.post(PULSE_ENDPOINT).query(&query).build().unwrap().url()
     // );
 
+    let mut builder =
+        http_client.post(PULSE_ENDPOINT).query(&query).json(&analytics);
+
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        builder =
+            builder.header("User-Agent", pulse_metadata.sdk_version.clone());
+    }
+
+    let fut = builder.send();
     let fut = async move {
-        let result = http_client
-            .post(PULSE_ENDPOINT)
-            .query(&query)
-            .json(&analytics)
-            .send()
-            .await;
+        let result = fut.await;
         match result {
             Ok(response) => {
                 let status = response.status();
@@ -98,8 +101,8 @@ pub struct Event {
     pub url: Option<String>,
     pub domain: Option<String>,
     pub bundle_id: Option<String>,
-    #[serde(with = "duration_millis")]
-    pub timestamp: Duration,
+    #[serde(with = "systemtime_millis")]
+    pub timestamp: SystemTime,
     pub props: ExecuteAnalytics,
 }
 

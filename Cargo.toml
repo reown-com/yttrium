@@ -29,9 +29,9 @@ serde_json = { version = "1.0", default-features = false }
 oslog = { version = "0.2.0", default-features = false }
 log = { version = "0.4.20", default-features = false }
 
-alloy = { version = "0.9.2", default-features = false }
-alloy-provider = { version = "0.9.2", default-features = false }
-erc6492 = { git = "https://github.com/reown-com/erc6492.git", rev = "703016d", default-features = false }
+alloy = { version = "0.11.0", default-features = false }
+alloy-provider = { version = "0.11.0", default-features = false }
+erc6492 = { git = "https://github.com/reown-com/erc6492.git", rev = "dc654d3", default-features = false }
 relay_rpc = { git = "https://github.com/WalletConnect/WalletConnectRust.git", rev = "51e984e", default-features = false }
 
 serial_test = { version = "3.2.0", default-features = false }
@@ -230,4 +230,4 @@ strip = false
 # Can we use panic=abort? I think for now we shouldn't due to incomplete error handling coverage, but we should in the future
 
 # [patch."https://github.com/reown-com/erc6492.git"]
-# erc6492 = { path = "../erc6492-rs" }
+# erc6492 = { path = "../../WalletConnect/erc6492-rs" }

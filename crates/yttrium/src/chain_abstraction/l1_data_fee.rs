@@ -7,7 +7,7 @@ use {
         rpc::types::TransactionRequest,
         sol,
     },
-    alloy_provider::ReqwestProvider,
+    alloy_provider::Provider,
     tracing::warn,
 };
 
@@ -24,7 +24,7 @@ const ORACLE_ADDRESS: Address =
 
 pub async fn get_l1_data_fee(
     txn: TransactionRequest,
-    provider: ReqwestProvider,
+    provider: &impl Provider,
 ) -> Result<U256, L1DataFeeError> {
     let oracle = GasPriceOracle::new(ORACLE_ADDRESS, provider);
     let x = txn.build_unsigned().unwrap();

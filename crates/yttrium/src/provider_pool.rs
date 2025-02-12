@@ -1,16 +1,26 @@
 use {
     crate::{
         blockchain_api::{BLOCKCHAIN_API_URL, PROXY_ENDPOINT_PATH},
-        chain_abstraction::pulse::{PulseMetadata, PULSE_SDK_TYPE},
+        chain_abstraction::{
+            pulse::{PulseMetadata, PULSE_SDK_TYPE},
+            send_transaction::RpcRequestAnalytics,
+        },
     },
     alloy::{
-        network::Ethereum, rpc::client::RpcClient, transports::http::Http,
+        rpc::{
+            client::ClientBuilder,
+            json_rpc::{RequestPacket, ResponsePacket},
+        },
+        transports::{
+            TransportError, TransportErrorKind, TransportFut, TransportResult,
+        },
     },
-    alloy_provider::ReqwestProvider,
+    alloy_provider::{ProviderBuilder, RootProvider},
     relay_rpc::domain::ProjectId,
     reqwest::{Client as ReqwestClient, Url},
-    std::{collections::HashMap, sync::Arc, time::Duration},
-    tokio::sync::RwLock,
+    std::{collections::HashMap, task, time::Duration},
+    tower::Service,
+    tracing::warn,
     uuid::Uuid,
 };
 
@@ -18,7 +28,7 @@ use {
 #[derive(Clone)]
 pub struct ProviderPool {
     pub client: ReqwestClient,
-    pub providers: Arc<RwLock<HashMap<String, ReqwestProvider>>>,
+    // pub providers: Arc<RwLock<HashMap<String, RootProvider>>>,
     pub blockchain_api_base_url: Url,
     pub project_id: ProjectId,
     pub rpc_overrides: HashMap<String, Url>,
@@ -34,7 +44,7 @@ impl ProviderPool {
     ) -> Self {
         Self {
             client,
-            providers: Arc::new(RwLock::new(HashMap::new())),
+            // providers: Arc::new(RwLock::new(HashMap::new())),
             blockchain_api_base_url: BLOCKCHAIN_API_URL.parse().unwrap(),
             project_id,
             rpc_overrides: HashMap::new(),
@@ -58,12 +68,22 @@ impl ProviderPool {
         self.rpc_overrides = rpc_overrides;
     }
 
-    pub async fn get_provider(&self, chain_id: &str) -> ReqwestProvider {
-        let providers = self.providers.read().await;
-        if let Some(provider) = providers.get(chain_id) {
+    pub async fn get_provider(&self, chain_id: &str) -> RootProvider {
+        self.get_provider_with_tracing(chain_id, None).await
+    }
+
+    pub async fn get_provider_with_tracing(
+        &self,
+        chain_id: &str,
+        tracing: Option<std::sync::mpsc::Sender<RpcRequestAnalytics>>,
+    ) -> RootProvider {
+        // let providers = self.providers.read().await;
+        // let cached_provider = providers.get(chain_id);
+        let cached_provider = None as Option<&RootProvider>;
+        if let Some(provider) = cached_provider {
             provider.clone()
         } else {
-            std::mem::drop(providers);
+            // std::mem::drop(providers);
 
             let url = if let Some(rpc_override) =
                 self.rpc_overrides.get(chain_id).cloned()
@@ -91,18 +111,21 @@ impl ProviderPool {
                 url
             };
 
-            let provider = ReqwestProvider::<Ethereum>::new(
-                RpcClient::new(
-                    Http::with_client(self.client.clone(), url),
-                    false,
-                )
-                .with_poll_interval(polling_interval_for_chain_id(chain_id)),
-            );
-            self.providers
-                .write()
-                .await
-                .insert(chain_id.to_owned(), provider.clone());
-            provider
+            ProviderBuilder::new().disable_recommended_fillers().on_client({
+                let transport =
+                    ProxyReqwestClient::new(self.client.clone(), url, tracing);
+                ClientBuilder::default()
+                    // .layer(RpcRequestModifyingLayer { tracing })
+                    .transport(transport, false)
+                    .with_poll_interval(polling_interval_for_chain_id(chain_id))
+            })
+
+            // self.providers
+            //     .write()
+            //     .await
+            //     .insert(chain_id.to_owned(), provider.clone());
+
+            // provider
         }
     }
 }
@@ -119,4 +142,98 @@ mod network {
     pub const BASE: &str = "eip155:8453";
     pub const OPTIMISM: &str = "eip155:10";
     pub const ARBITRUM: &str = "eip155:42161";
+}
+
+type TracingType = Option<std::sync::mpsc::Sender<RpcRequestAnalytics>>;
+
+#[derive(Clone)]
+pub struct ProxyReqwestClient {
+    client: ReqwestClient,
+    url: Url,
+    tracing: TracingType,
+}
+
+impl ProxyReqwestClient {
+    pub fn new(client: ReqwestClient, url: Url, tracing: TracingType) -> Self {
+        Self { client, url, tracing }
+    }
+}
+
+impl Service<RequestPacket> for ProxyReqwestClient {
+    type Response = ResponsePacket;
+    type Error = TransportError;
+    type Future = TransportFut<'static>;
+
+    #[inline]
+    fn poll_ready(
+        &mut self,
+        _cx: &mut task::Context<'_>,
+    ) -> task::Poll<Result<(), Self::Error>> {
+        // `reqwest` always returns `Ok(())`.
+        task::Poll::Ready(Ok(()))
+    }
+
+    #[inline]
+    fn call(&mut self, req: RequestPacket) -> Self::Future {
+        Box::pin(self.clone().do_reqwest(req, self.tracing.clone()))
+    }
+}
+
+impl ProxyReqwestClient {
+    // Copied from alloy `Http<RequestClient>` impl
+    async fn do_reqwest(
+        self,
+        req: RequestPacket,
+        tracing: TracingType,
+    ) -> TransportResult<ResponsePacket> {
+        let resp = self
+            .client
+            .post(self.url)
+            .json(&req)
+            .send()
+            .await
+            .map_err(TransportErrorKind::custom)?;
+        let status = resp.status();
+
+        let req_id = resp
+            .headers()
+            .get("x-request-id")
+            .and_then(|hv| hv.to_str().ok())
+            .map(|s| s.to_string());
+        if let Some(tracing) = tracing {
+            let rpc_ids = match req {
+                RequestPacket::Single(req) => vec![req.id().clone()],
+                RequestPacket::Batch(req) => {
+                    req.iter().map(|r| r.id().clone()).collect()
+                }
+            };
+            for rpc_id in rpc_ids {
+                if let Err(e) = tracing.send(RpcRequestAnalytics {
+                    req_id: req_id.clone(),
+                    rpc_id: rpc_id.to_string(),
+                }) {
+                    warn!("PRC: send: {e}");
+                }
+            }
+        }
+
+        // Unpack data from the response body. We do this regardless of
+        // the status code, as we want to return the error in the body
+        // if there is one.
+        let body = resp.bytes().await.map_err(TransportErrorKind::custom)?;
+
+        if !status.is_success() {
+            return Err(TransportErrorKind::http_error(
+                status.as_u16(),
+                String::from_utf8_lossy(&body).into_owned(),
+            ));
+        }
+
+        // Deserialize a Box<RawValue> from the body. If deserialization fails, return
+        // the body as a string in the error. The conversion to String
+        // is lossy and may not cover all the bytes in the body.
+        serde_json::from_slice(&body).map_err(|err| {
+            TransportError::deser_err(err, String::from_utf8_lossy(&body))
+        })
+    }
 }

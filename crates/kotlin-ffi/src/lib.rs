@@ -33,12 +33,7 @@ use {
 };
 #[cfg(feature = "chain_abstraction_client")]
 use {
-    alloy::{
-        network::Ethereum,
-        providers::{Provider, ReqwestProvider},
-        sol,
-        sol_types::SolCall,
-    },
+    alloy::{providers::Provider, sol, sol_types::SolCall},
     relay_rpc::domain::ProjectId,
     std::time::Duration,
     yttrium::call::Call,
@@ -239,14 +234,10 @@ impl ChainAbstractionClient {
         &self,
         chain_id: String,
     ) -> Result<Eip1559Estimation, FFIError> {
-        let url = format!(
-            "https://rpc.walletconnect.com/v1?chainId={chain_id}&projectId={}",
-            self.project_id
-        )
-        .parse()
-        .expect("Invalid RPC URL");
-        let provider = ReqwestProvider::<Ethereum>::new_http(url);
-        provider
+        self.client
+            .provider_pool
+            .get_provider(&chain_id)
+            .await
             .estimate_eip1559_fees(None)
             .await
             .map(Into::into)
@@ -386,9 +377,8 @@ mod tests {
     use {
         super::*,
         alloy::{
-            network::Ethereum,
             primitives::{address, bytes},
-            providers::{Provider, ReqwestProvider},
+            providers::{Provider, ProviderBuilder},
         },
     };
 
@@ -401,7 +391,7 @@ mod tests {
             "https://rpc.walletconnect.com/v1?chainId={chain_id}&projectId={project_id}")
         .parse()
         .expect("Invalid RPC URL");
-        let provider = ReqwestProvider::<Ethereum>::new_http(url);
+        let provider = ProviderBuilder::new().on_http(url);
 
         let estimate = provider.estimate_eip1559_fees(None).await.unwrap();
 
