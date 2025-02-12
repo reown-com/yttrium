@@ -2235,7 +2235,7 @@ checksum = "5443807d6dff69373d433ab9ef5378ad8df50ca6298caf15de6e52e24aaf54d5"
 [[package]]
 name = "erc6492"
 version = "0.1.0"
-source = "git+https://github.com/reown-com/erc6492.git?branch=chore/bump-alloy-0.11.0#2253367b9bd9e55078300c3363dcf3fff293d705"
+source = "git+https://github.com/reown-com/erc6492.git?rev=dc654d3#dc654d3c52ee68781d229389ba6e17ec8fc73b5f"
 dependencies = [
  "alloy",
 ]

@@ -31,7 +31,7 @@ log = { version = "0.4.20", default-features = false }
 
 alloy = { version = "0.11.0", default-features = false }
 alloy-provider = { version = "0.11.0", default-features = false }
-erc6492 = { git = "https://github.com/reown-com/erc6492.git", branch = "chore/bump-alloy-0.11.0", default-features = false }
+erc6492 = { git = "https://github.com/reown-com/erc6492.git", rev = "dc654d3", default-features = false }
 relay_rpc = { git = "https://github.com/WalletConnect/WalletConnectRust.git", rev = "51e984e", default-features = false }
 
 serial_test = { version = "3.2.0", default-features = false }
