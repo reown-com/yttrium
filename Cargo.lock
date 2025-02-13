@@ -45,9 +45,8 @@ checksum = "683d7910e743518b0e34f1186f92494becacb047c7b6bf616c96772180fef923"
 
 [[package]]
 name = "alloy"
-version = "0.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e5295219c9bc87cfa2497131423921e8ea136ee7e2ab338967078995168431d5"
+version = "0.11.1"
+source = "git+https://github.com/chris13524/alloy.git?branch=fix/tokio-interval-wasm#b6714ddfaf32a0bd76124992ac6c40f94aca61cf"
 dependencies = [
  "alloy-consensus",
  "alloy-contract",
@@ -59,6 +58,7 @@ dependencies = [
  "alloy-provider",
  "alloy-rpc-client",
  "alloy-rpc-types",
+ "alloy-serde",
  "alloy-signer",
  "alloy-signer-aws",
  "alloy-signer-gcp",
@@ -81,9 +81,8 @@ dependencies = [
 
 [[package]]
 name = "alloy-consensus"
-version = "0.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ce20c85f6b24a5da40b2350a748e348417f0465dedbb523a4d149143bc4a41ce"
+version = "0.11.1"
+source = "git+https://github.com/chris13524/alloy.git?branch=fix/tokio-interval-wasm#b6714ddfaf32a0bd76124992ac6c40f94aca61cf"
 dependencies = [
  "alloy-eips",
  "alloy-primitives",
@@ -98,9 +97,8 @@ dependencies = [
 
 [[package]]
 name = "alloy-consensus-any"
-version = "0.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8e23af02ccded0031ef2b70df4fe9965b1c742c5d5384c8c767ae0311f7e62b9"
+version = "0.11.1"
+source = "git+https://github.com/chris13524/alloy.git?branch=fix/tokio-interval-wasm#b6714ddfaf32a0bd76124992ac6c40f94aca61cf"
 dependencies = [
  "alloy-consensus",
  "alloy-eips",
@@ -112,9 +110,8 @@ dependencies = [
 
 [[package]]
 name = "alloy-contract"
-version = "0.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "71c7a59f261333db00fa10a3de9480f31121bb919ad38487040d7833d5982203"
+version = "0.11.1"
+source = "git+https://github.com/chris13524/alloy.git?branch=fix/tokio-interval-wasm#b6714ddfaf32a0bd76124992ac6c40f94aca61cf"
 dependencies = [
  "alloy-dyn-abi",
  "alloy-json-abi",
@@ -198,9 +195,8 @@ dependencies = [
 
 [[package]]
 name = "alloy-eips"
-version = "0.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7149e011edbd588f6df6564b369c75f6b538d76db14053d95e0b43b2d92e4266"
+version = "0.11.1"
+source = "git+https://github.com/chris13524/alloy.git?branch=fix/tokio-interval-wasm#b6714ddfaf32a0bd76124992ac6c40f94aca61cf"
 dependencies = [
  "alloy-eip2124",
  "alloy-eip2930",
@@ -218,9 +214,8 @@ dependencies = [
 
 [[package]]
 name = "alloy-genesis"
-version = "0.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "acaec0cc4c1489d61d6f33d0c3dd522c750025f4b5c8f59cd546221e4df660e5"
+version = "0.11.1"
+source = "git+https://github.com/chris13524/alloy.git?branch=fix/tokio-interval-wasm#b6714ddfaf32a0bd76124992ac6c40f94aca61cf"
 dependencies = [
  "alloy-eips",
  "alloy-primitives",
@@ -243,9 +238,8 @@ dependencies = [
 
 [[package]]
 name = "alloy-json-rpc"
-version = "0.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c0c5c9651fd20a2fd4a57606b6a570d1c17ab86e686b962b2f1ecac68b51e020"
+version = "0.11.1"
+source = "git+https://github.com/chris13524/alloy.git?branch=fix/tokio-interval-wasm#b6714ddfaf32a0bd76124992ac6c40f94aca61cf"
 dependencies = [
  "alloy-primitives",
  "alloy-sol-types",
@@ -257,9 +251,8 @@ dependencies = [
 
 [[package]]
 name = "alloy-network"
-version = "0.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b02ed56783fb2c086a4ac8961175dd6d3ad163e6cf6125f0b83f7de03379b607"
+version = "0.11.1"
+source = "git+https://github.com/chris13524/alloy.git?branch=fix/tokio-interval-wasm#b6714ddfaf32a0bd76124992ac6c40f94aca61cf"
 dependencies = [
  "alloy-consensus",
  "alloy-consensus-any",
@@ -282,9 +275,8 @@ dependencies = [
 
 [[package]]
 name = "alloy-network-primitives"
-version = "0.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a0624cfa9311aa8283cd3bf5eed883d0d1e823e2a4d57b30e1b49af4b3678a6b"
+version = "0.11.1"
+source = "git+https://github.com/chris13524/alloy.git?branch=fix/tokio-interval-wasm#b6714ddfaf32a0bd76124992ac6c40f94aca61cf"
 dependencies = [
  "alloy-consensus",
  "alloy-eips",
@@ -295,12 +287,14 @@ dependencies = [
 
 [[package]]
 name = "alloy-node-bindings"
-version = "0.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c96f1a87e3b2842d6a35bbebedf2bd48a49ee757ec63d0cfc1f3cb86338e972c"
+version = "0.11.1"
+source = "git+https://github.com/chris13524/alloy.git?branch=fix/tokio-interval-wasm#b6714ddfaf32a0bd76124992ac6c40f94aca61cf"
 dependencies = [
  "alloy-genesis",
+ "alloy-network",
  "alloy-primitives",
+ "alloy-signer",
+ "alloy-signer-local",
  "k256",
  "rand",
  "serde_json",
@@ -339,9 +333,8 @@ dependencies = [
 
 [[package]]
 name = "alloy-provider"
-version = "0.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "07c68df5354225da542efeb6d9388b65773b3304309b437416146e9d1e2bc1bd"
+version = "0.11.1"
+source = "git+https://github.com/chris13524/alloy.git?branch=fix/tokio-interval-wasm#b6714ddfaf32a0bd76124992ac6c40f94aca61cf"
 dependencies = [
  "alloy-chains",
  "alloy-consensus",
@@ -355,8 +348,7 @@ dependencies = [
  "alloy-rpc-types-anvil",
  "alloy-rpc-types-eth",
  "alloy-rpc-types-trace",
- "alloy-signer",
- "alloy-signer-local",
+ "alloy-sol-types",
  "alloy-transport",
  "alloy-transport-http",
  "async-stream",
@@ -402,9 +394,8 @@ dependencies = [
 
 [[package]]
 name = "alloy-rpc-client"
-version = "0.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0371aae9b44a35e374c94c7e1df5cbccf0f52b2ef7c782291ed56e86d88ec106"
+version = "0.11.1"
+source = "git+https://github.com/chris13524/alloy.git?branch=fix/tokio-interval-wasm#b6714ddfaf32a0bd76124992ac6c40f94aca61cf"
 dependencies = [
  "alloy-json-rpc",
  "alloy-primitives",
@@ -425,9 +416,8 @@ dependencies = [
 
 [[package]]
 name = "alloy-rpc-types"
-version = "0.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1428d64569961b00373c503a3de306656e94ef1f2a474e93fd41a6daae0d6ac7"
+version = "0.11.1"
+source = "git+https://github.com/chris13524/alloy.git?branch=fix/tokio-interval-wasm#b6714ddfaf32a0bd76124992ac6c40f94aca61cf"
 dependencies = [
  "alloy-primitives",
  "alloy-rpc-types-eth",
@@ -438,9 +428,8 @@ dependencies = [
 
 [[package]]
 name = "alloy-rpc-types-anvil"
-version = "0.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d721727cc493a58bd197a3ebbd42b88c0393c1f30da905bb7a31686c820f4c2d"
+version = "0.11.1"
+source = "git+https://github.com/chris13524/alloy.git?branch=fix/tokio-interval-wasm#b6714ddfaf32a0bd76124992ac6c40f94aca61cf"
 dependencies = [
  "alloy-primitives",
  "alloy-rpc-types-eth",
@@ -450,9 +439,8 @@ dependencies = [
 
 [[package]]
 name = "alloy-rpc-types-any"
-version = "0.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "66e119337400d8b0348e1576ab37ffa56d1a04cbc977a84d4fa0a527d7cb0c21"
+version = "0.11.1"
+source = "git+https://github.com/chris13524/alloy.git?branch=fix/tokio-interval-wasm#b6714ddfaf32a0bd76124992ac6c40f94aca61cf"
 dependencies = [
  "alloy-consensus-any",
  "alloy-rpc-types-eth",
@@ -461,9 +449,8 @@ dependencies = [
 
 [[package]]
 name = "alloy-rpc-types-eth"
-version = "0.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8a4a43d8b1344e3ef115ed7a2cee934876e4a64d2b9d9bee8738f9806900757e"
+version = "0.11.1"
+source = "git+https://github.com/chris13524/alloy.git?branch=fix/tokio-interval-wasm#b6714ddfaf32a0bd76124992ac6c40f94aca61cf"
 dependencies = [
  "alloy-consensus",
  "alloy-consensus-any",
@@ -481,9 +468,8 @@ dependencies = [
 
 [[package]]
 name = "alloy-rpc-types-trace"
-version = "0.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ac383c60b09660b7695a4f210cd11ab05887d058dfc669efd814904dbbaead82"
+version = "0.11.1"
+source = "git+https://github.com/chris13524/alloy.git?branch=fix/tokio-interval-wasm#b6714ddfaf32a0bd76124992ac6c40f94aca61cf"
 dependencies = [
  "alloy-primitives",
  "alloy-rpc-types-eth",
@@ -495,9 +481,8 @@ dependencies = [
 
 [[package]]
 name = "alloy-serde"
-version = "0.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "86aa42c36e3c0db5bd9a7314e98aa261a61d5e3d6a0bd7e51fb8b0a3d6438481"
+version = "0.11.1"
+source = "git+https://github.com/chris13524/alloy.git?branch=fix/tokio-interval-wasm#b6714ddfaf32a0bd76124992ac6c40f94aca61cf"
 dependencies = [
  "alloy-primitives",
  "serde",
@@ -506,15 +491,15 @@ dependencies = [
 
 [[package]]
 name = "alloy-signer"
-version = "0.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c613222abd016e03ba548f41db938a2c99108b59c0c66ca105eab1b7a2e6b40a"
+version = "0.11.1"
+source = "git+https://github.com/chris13524/alloy.git?branch=fix/tokio-interval-wasm#b6714ddfaf32a0bd76124992ac6c40f94aca61cf"
 dependencies = [
  "alloy-dyn-abi",
  "alloy-primitives",
  "alloy-sol-types",
  "async-trait",
  "auto_impl",
+ "either",
  "elliptic-curve",
  "k256",
  "thiserror 2.0.11",
@@ -522,9 +507,8 @@ dependencies = [
 
 [[package]]
 name = "alloy-signer-aws"
-version = "0.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "729df0003039c90f66f52a67b3dda8dbdcb6439585eeb72f0e0019950329a6ed"
+version = "0.11.1"
+source = "git+https://github.com/chris13524/alloy.git?branch=fix/tokio-interval-wasm#b6714ddfaf32a0bd76124992ac6c40f94aca61cf"
 dependencies = [
  "alloy-consensus",
  "alloy-network",
@@ -540,9 +524,8 @@ dependencies = [
 
 [[package]]
 name = "alloy-signer-gcp"
-version = "0.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "39653f75284f17300bc8bbe74925db0adf59850f6c674c2db0ed6fd3b7a23ee0"
+version = "0.11.1"
+source = "git+https://github.com/chris13524/alloy.git?branch=fix/tokio-interval-wasm#b6714ddfaf32a0bd76124992ac6c40f94aca61cf"
 dependencies = [
  "alloy-consensus",
  "alloy-network",
@@ -558,9 +541,8 @@ dependencies = [
 
 [[package]]
 name = "alloy-signer-ledger"
-version = "0.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "107758cf1e537461551b56260253338999bc1474e92fb765f6f7c8a57d968ae4"
+version = "0.11.1"
+source = "git+https://github.com/chris13524/alloy.git?branch=fix/tokio-interval-wasm#b6714ddfaf32a0bd76124992ac6c40f94aca61cf"
 dependencies = [
  "alloy-consensus",
  "alloy-dyn-abi",
@@ -578,9 +560,8 @@ dependencies = [
 
 [[package]]
 name = "alloy-signer-local"
-version = "0.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "39163b956c81e8fd9605194d6b5b92dd93b0e0252810e69f9a4cebe3a8614f46"
+version = "0.11.1"
+source = "git+https://github.com/chris13524/alloy.git?branch=fix/tokio-interval-wasm#b6714ddfaf32a0bd76124992ac6c40f94aca61cf"
 dependencies = [
  "alloy-consensus",
  "alloy-network",
@@ -669,9 +650,8 @@ dependencies = [
 
 [[package]]
 name = "alloy-transport"
-version = "0.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "40e2f34fcd849676c8fe274a6e72f0664dfede7ce06d12daa728d2e72f1b4393"
+version = "0.11.1"
+source = "git+https://github.com/chris13524/alloy.git?branch=fix/tokio-interval-wasm#b6714ddfaf32a0bd76124992ac6c40f94aca61cf"
 dependencies = [
  "alloy-json-rpc",
  "base64 0.22.1",
@@ -689,9 +669,8 @@ dependencies = [
 
 [[package]]
 name = "alloy-transport-http"
-version = "0.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6e291c97c3c0ebb5d03c34e3a55c0f7c5bfa307536a2efaaa6fae4b3a4d09851"
+version = "0.11.1"
+source = "git+https://github.com/chris13524/alloy.git?branch=fix/tokio-interval-wasm#b6714ddfaf32a0bd76124992ac6c40f94aca61cf"
 dependencies = [
  "alloy-json-rpc",
  "alloy-transport",
@@ -2235,7 +2214,7 @@ checksum = "5443807d6dff69373d433ab9ef5378ad8df50ca6298caf15de6e52e24aaf54d5"
 [[package]]
 name = "erc6492"
 version = "0.1.0"
-source = "git+https://github.com/reown-com/erc6492.git?rev=dc654d3#dc654d3c52ee68781d229389ba6e17ec8fc73b5f"
+source = "git+https://github.com/reown-com/erc6492.git?branch=chore/bump-alloy#18acad5ba417b096935565dec0bb32af32910f2e"
 dependencies = [
  "alloy",
 ]
