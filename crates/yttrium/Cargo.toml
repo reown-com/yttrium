@@ -6,7 +6,7 @@ rust-version.workspace = true
 license.workspace = true
 
 [lib]
-# name = "yttrium_dart"
+name = "yttrium_dart"
 crate-type = ["lib", "cdylib", "staticlib"]
 
 [features]

@@ -32,9 +32,10 @@ rustup target add x86_64-apple-ios $TARGET
 cargo build -p yttrium --features=frb --target x86_64-apple-ios --profile=uniffi-release
 cargo build -p yttrium --features=frb --target $TARGET --profile=uniffi-release
 
-cd .. #/yttrium_dart
 cd .. #/crates
-# cd .. #/yttrium
+cd .. #/yttrium
+
+pwd
 
 mkdir -p target/universal/ios/uniffi-release
 
@@ -50,7 +51,7 @@ install_name_tool -id @rpath/libyttrium_dart_universal.dylib crates/yttrium_dart
 
 codesign --force --sign - crates/yttrium_dart/ios/libyttrium_dart_universal.dylib
 
-# otool -L crates/yttrium_dart/ios/libyttrium_dart_universal.dylib
+otool -L crates/yttrium_dart/ios/libyttrium_dart_universal.dylib
 
 pwd
 

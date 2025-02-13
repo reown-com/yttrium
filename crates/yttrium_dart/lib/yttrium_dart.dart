@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:yttrium_dart/generated/chain_abstraction/api/prepare.dart';
 import 'package:yttrium_dart/generated/chain_abstraction/api/status.dart';
+import 'package:yttrium_dart/generated/chain_abstraction/client.dart';
 import 'package:yttrium_dart/generated/chain_abstraction/currency.dart';
 import 'package:yttrium_dart/generated/chain_abstraction/dart_compat.dart';
 import 'package:yttrium_dart/generated/chain_abstraction/error.dart';
@@ -118,6 +119,19 @@ class YttriumDart implements IYttriumClient {
   Future<StatusResponse> status({required String orchestrationId}) async {
     return await _chainAbstractionClient.status(
       orchestrationId: orchestrationId,
+    );
+  }
+
+  @override
+  Future<ExecuteDetails> execute({
+    required UiFields uiFields,
+    required List<FFIPrimitiveSignature> routeTxnSigs,
+    required FFIPrimitiveSignature initialTxnSig,
+  }) async {
+    return await _chainAbstractionClient.execute(
+      uiFields: uiFields,
+      routeTxnSigs: routeTxnSigs,
+      initialTxnSig: initialTxnSig,
     );
   }
 

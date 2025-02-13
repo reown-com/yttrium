@@ -1,7 +1,9 @@
 #[cfg(feature = "chain_abstraction_client")]
 use {
     alloy::{
-        providers::Provider,
+        network::Ethereum,
+        primitives::PrimitiveSignature,
+        providers::{Provider, RootProvider},
         // sol,
         // sol_types::SolCall,
     },
@@ -12,7 +14,7 @@ use {
             prepare::PrepareResponseAvailable,
             status::{StatusResponse, StatusResponseCompleted},
         },
-        client::Client,
+        client::{Client,ExecuteDetails},
         currency::Currency,
         error::PrepareDetailedResponse,
         ui_fields::UiFields,
@@ -32,6 +34,26 @@ use {
 pub enum FFIError {
     #[error("General {0}")]
     General(String),
+}
+
+#[cfg(feature = "chain_abstraction_client")]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct FFIPrimitiveSignature {
+    pub y_parity: bool,
+    pub r: String,
+    pub s: String,
+}
+
+impl From<FFIPrimitiveSignature> for PrimitiveSignature {
+
+    fn from(ffi_signature: FFIPrimitiveSignature) -> Self {
+        type U256 = alloy::primitives::U256;
+        PrimitiveSignature::new(
+            U256::from_str(&ffi_signature.r).unwrap(),
+            U256::from_str(&ffi_signature.s).unwrap(),
+            ffi_signature.y_parity,
+        )
+    }
 }
 
 // ----------------
@@ -141,12 +163,8 @@ pub struct LocalAmountAccCompat {
     pub fees: Vec<FeeCompat>,
 }
 
-impl From<crate::chain_abstraction::local_fee_acc::LocalAmountAcc>
-    for LocalAmountAccCompat
-{
-    fn from(
-        original: crate::chain_abstraction::local_fee_acc::LocalAmountAcc,
-    ) -> Self {
+impl From<crate::chain_abstraction::local_fee_acc::LocalAmountAcc> for LocalAmountAccCompat {
+    fn from(original: crate::chain_abstraction::local_fee_acc::LocalAmountAcc) -> Self {
         Self { fees: original.get_fees_compat() }
     }
 }
@@ -164,8 +182,7 @@ impl ChainAbstractionClient {
 
     pub fn new(project_id: String, pulse_metadata: FFIPulseMetadata) -> Self {
         let ffi_pulse_metadata = PulseMetadata::try_from(pulse_metadata).unwrap();
-        let ffi_project_id = ProjectId::from(project_id.clone());
-        let client = Client::new(ffi_project_id, ffi_pulse_metadata);
+        let client = Client::new(ProjectId::from(project_id.clone()), ffi_pulse_metadata);
         Self { project_id, client }
     }
 
@@ -239,17 +256,39 @@ impl ChainAbstractionClient {
             .map_err(|e| FFIError::General(e.to_string()))
     }
 
-    // pub async fn execute(
+    pub async fn execute(
+        &self,
+        ui_fields: UiFields,
+        route_txn_sigs: Vec<FFIPrimitiveSignature>,
+        initial_txn_sig: FFIPrimitiveSignature,
+    ) -> Result<ExecuteDetails, FFIError> {
+
+        let ffi_route_txn_sigs = route_txn_sigs
+        .into_iter()
+        .map(|sig| PrimitiveSignature::from(sig))
+        .collect();
+
+        let ffi_initial_txn_sig = PrimitiveSignature::from(initial_txn_sig);
+
+        self.client
+            .execute(ui_fields, ffi_route_txn_sigs, ffi_initial_txn_sig)
+            .await
+            // TODO wanted to return ExecuteError directly here, but can't because Swift keeps the UniFFI lifer private to the yttrium crate and not available to kotlin-ffi crate
+            // This will be fixed when we merge these crates
+            .map_err(|e| FFIError::General(e.to_string()))
+    }
+
+    // pub async fn estimate_fees(
     //     &self,
-    //     ui_fields: UiFields,
-    //     route_txn_sigs: Vec<FFIPrimitiveSignature>,
-    //     initial_txn_sig: FFIPrimitiveSignature,
-    // ) -> Result<ExecuteDetails, FFIError> {
+    //     chain_id: String,
+    // ) -> Result<Eip1559Estimation, FFIError> {
     //     self.client
-    //         .execute(ui_fields, route_txn_sigs, initial_txn_sig)
+    //         .provider_pool
+    //         .get_provider(&chain_id)
     //         .await
-    //         // TODO wanted to return ExecuteError directly here, but can't because Swift keeps the UniFFI lifer private to the yttrium crate and not available to kotlin-ffi crate
-    //         // This will be fixed when we merge these crates
+    //         .estimate_eip1559_fees(None)
+    //         .await
+    //         .map(Into::into)
     //         .map_err(|e| FFIError::General(e.to_string()))
     // }
 
@@ -257,10 +296,12 @@ impl ChainAbstractionClient {
         &self,
         chain_id: String,
     ) -> Result<Eip1559Estimation, FFIError> {
-        self.client
-            .provider_pool
-            .get_provider(&chain_id)
-            .await
+        let url = format!("https://rpc.walletconnect.org/v1?chainId={chain_id}&projectId={}", self.project_id)
+        .parse()
+        .expect("Invalid RPC URL");
+    
+        let provider = RootProvider::<Ethereum>::new_http(url);
+        provider
             .estimate_eip1559_fees(None)
             .await
             .map(Into::into)

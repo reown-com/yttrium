@@ -6,15 +6,5 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-enum Currency {
-  usd,
-  eur,
-  gbp,
-  aud,
-  cad,
-  inr,
-  jpy,
-  btc,
-  eth,
-  ;
-}
+// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ExecuteDetails>>
+abstract class ExecuteDetails implements RustOpaqueInterface {}
