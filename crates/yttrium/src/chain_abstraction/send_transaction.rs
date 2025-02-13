@@ -12,7 +12,7 @@ use {
     alloy_provider::Provider,
     serde::{Deserialize, Serialize},
     std::time::Duration,
-    web_time::{Instant, SystemTime},
+    wasmtimer::std::{Instant, SystemTime},
 };
 
 pub async fn send_transaction(

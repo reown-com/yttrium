@@ -7,7 +7,7 @@ use {
     },
     alloy_provider::{ext::AnvilApi, Provider, ProviderBuilder},
     std::time::Duration,
-    web_time::Instant,
+    wasmtimer::std::Instant,
 };
 
 pub fn private_faucet() -> LocalSigner<SigningKey> {

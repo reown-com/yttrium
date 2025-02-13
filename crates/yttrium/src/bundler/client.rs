@@ -140,7 +140,10 @@ impl BundlerClient {
         &self,
         hash: B256,
     ) -> eyre::Result<UserOperationReceipt> {
-        use {std::time::Duration, tokio::time::sleep, web_time::Instant};
+        use {
+            std::time::Duration,
+            wasmtimer::{std::Instant, tokio::sleep},
+        };
 
         let polling_interval = Duration::from_millis(2000);
         let timeout = Some(Duration::from_secs(30));

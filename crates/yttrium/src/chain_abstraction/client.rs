@@ -49,7 +49,7 @@ use {
         collections::{HashMap, HashSet},
         time::Duration,
     },
-    web_time::{Instant, SystemTime},
+    wasmtimer::std::{Instant, SystemTime},
 };
 
 #[derive(Clone)]
@@ -420,7 +420,7 @@ impl Client {
         timeout: Duration,
     ) -> Result<StatusResponseCompleted, WaitForSuccessError> {
         let start = Instant::now();
-        tokio::time::sleep(check_in).await;
+        wasmtimer::tokio::sleep(check_in).await;
         loop {
             let result = self.status(orchestration_id.clone()).await;
             let (error, check_in) = match result {
@@ -449,7 +449,7 @@ impl Client {
             if start.elapsed() > timeout {
                 return Err(error);
             }
-            tokio::time::sleep(check_in).await;
+            wasmtimer::tokio::sleep(check_in).await;
         }
     }
 

@@ -35,7 +35,7 @@ use {
     relay_rpc::domain::ProjectId,
     serial_test::serial,
     std::{cmp::max, collections::HashMap, iter, sync::Arc, time::Duration},
-    web_time::Instant,
+    wasmtimer::std::Instant,
     ERC20::ERC20Instance,
 };
 
@@ -979,7 +979,7 @@ async fn happy_path() {
             }
             Err(e) => {
                 println!("error sending txn: {:?}", e);
-                tokio::time::sleep(Duration::from_secs(1)).await;
+                wasmtimer::tokio::sleep(Duration::from_secs(1)).await;
                 continue;
             }
         };
@@ -1530,7 +1530,7 @@ async fn happy_path_full_dependency_on_ui_fields() {
             }
             Err(e) => {
                 println!("error sending txn: {:?}", e);
-                tokio::time::sleep(Duration::from_secs(1)).await;
+                wasmtimer::tokio::sleep(Duration::from_secs(1)).await;
                 continue;
             }
         };
