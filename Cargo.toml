@@ -237,6 +237,5 @@ strip = false
 # erc6492 = { path = "../../WalletConnect/erc6492-rs" }
 
 [patch.crates-io]
-alloy = { git = "https://github.com/chris13524/alloy.git", branch = "fix/tokio-interval-wasm" }
-alloy-provider = { git = "https://github.com/chris13524/alloy.git", branch = "fix/tokio-interval-wasm" }
-wasmtimer = { path = "../../chris13524/wasmtimer-rs" }
+alloy = { git = "https://github.com/alloy-rs/alloy.git", rev = "5dcdf0f" }
+alloy-provider = { git = "https://github.com/alloy-rs/alloy.git", rev = "5dcdf0f" }
