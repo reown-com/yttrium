@@ -19,21 +19,21 @@ mixin _$StatusResponse {
   Object get field0 => throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult when<TResult extends Object?>({
-    required TResult Function(StatusResponsePending field0) pending,
+    required TResult Function(StatusResponsePendingObject field0) pending,
     required TResult Function(StatusResponseCompleted field0) completed,
     required TResult Function(StatusResponseError field0) error,
   }) =>
       throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult? whenOrNull<TResult extends Object?>({
-    TResult? Function(StatusResponsePending field0)? pending,
+    TResult? Function(StatusResponsePendingObject field0)? pending,
     TResult? Function(StatusResponseCompleted field0)? completed,
     TResult? Function(StatusResponseError field0)? error,
   }) =>
       throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult maybeWhen<TResult extends Object?>({
-    TResult Function(StatusResponsePending field0)? pending,
+    TResult Function(StatusResponsePendingObject field0)? pending,
     TResult Function(StatusResponseCompleted field0)? completed,
     TResult Function(StatusResponseError field0)? error,
     required TResult orElse(),
@@ -91,7 +91,7 @@ abstract class _$$StatusResponse_PendingImplCopyWith<$Res> {
           $Res Function(_$StatusResponse_PendingImpl) then) =
       __$$StatusResponse_PendingImplCopyWithImpl<$Res>;
   @useResult
-  $Res call({StatusResponsePending field0});
+  $Res call({StatusResponsePendingObject field0});
 }
 
 /// @nodoc
@@ -114,7 +114,7 @@ class __$$StatusResponse_PendingImplCopyWithImpl<$Res>
       null == field0
           ? _value.field0
           : field0 // ignore: cast_nullable_to_non_nullable
-              as StatusResponsePending,
+              as StatusResponsePendingObject,
     ));
   }
 }
@@ -125,7 +125,7 @@ class _$StatusResponse_PendingImpl extends StatusResponse_Pending {
   const _$StatusResponse_PendingImpl(this.field0) : super._();
 
   @override
-  final StatusResponsePending field0;
+  final StatusResponsePendingObject field0;
 
   @override
   String toString() {
@@ -155,7 +155,7 @@ class _$StatusResponse_PendingImpl extends StatusResponse_Pending {
   @override
   @optionalTypeArgs
   TResult when<TResult extends Object?>({
-    required TResult Function(StatusResponsePending field0) pending,
+    required TResult Function(StatusResponsePendingObject field0) pending,
     required TResult Function(StatusResponseCompleted field0) completed,
     required TResult Function(StatusResponseError field0) error,
   }) {
@@ -165,7 +165,7 @@ class _$StatusResponse_PendingImpl extends StatusResponse_Pending {
   @override
   @optionalTypeArgs
   TResult? whenOrNull<TResult extends Object?>({
-    TResult? Function(StatusResponsePending field0)? pending,
+    TResult? Function(StatusResponsePendingObject field0)? pending,
     TResult? Function(StatusResponseCompleted field0)? completed,
     TResult? Function(StatusResponseError field0)? error,
   }) {
@@ -175,7 +175,7 @@ class _$StatusResponse_PendingImpl extends StatusResponse_Pending {
   @override
   @optionalTypeArgs
   TResult maybeWhen<TResult extends Object?>({
-    TResult Function(StatusResponsePending field0)? pending,
+    TResult Function(StatusResponsePendingObject field0)? pending,
     TResult Function(StatusResponseCompleted field0)? completed,
     TResult Function(StatusResponseError field0)? error,
     required TResult orElse(),
@@ -222,12 +222,12 @@ class _$StatusResponse_PendingImpl extends StatusResponse_Pending {
 }
 
 abstract class StatusResponse_Pending extends StatusResponse {
-  const factory StatusResponse_Pending(final StatusResponsePending field0) =
-      _$StatusResponse_PendingImpl;
+  const factory StatusResponse_Pending(
+      final StatusResponsePendingObject field0) = _$StatusResponse_PendingImpl;
   const StatusResponse_Pending._() : super._();
 
   @override
-  StatusResponsePending get field0;
+  StatusResponsePendingObject get field0;
 
   /// Create a copy of StatusResponse
   /// with the given fields replaced by the non-null parameter values.
@@ -307,7 +307,7 @@ class _$StatusResponse_CompletedImpl extends StatusResponse_Completed {
   @override
   @optionalTypeArgs
   TResult when<TResult extends Object?>({
-    required TResult Function(StatusResponsePending field0) pending,
+    required TResult Function(StatusResponsePendingObject field0) pending,
     required TResult Function(StatusResponseCompleted field0) completed,
     required TResult Function(StatusResponseError field0) error,
   }) {
@@ -317,7 +317,7 @@ class _$StatusResponse_CompletedImpl extends StatusResponse_Completed {
   @override
   @optionalTypeArgs
   TResult? whenOrNull<TResult extends Object?>({
-    TResult? Function(StatusResponsePending field0)? pending,
+    TResult? Function(StatusResponsePendingObject field0)? pending,
     TResult? Function(StatusResponseCompleted field0)? completed,
     TResult? Function(StatusResponseError field0)? error,
   }) {
@@ -327,7 +327,7 @@ class _$StatusResponse_CompletedImpl extends StatusResponse_Completed {
   @override
   @optionalTypeArgs
   TResult maybeWhen<TResult extends Object?>({
-    TResult Function(StatusResponsePending field0)? pending,
+    TResult Function(StatusResponsePendingObject field0)? pending,
     TResult Function(StatusResponseCompleted field0)? completed,
     TResult Function(StatusResponseError field0)? error,
     required TResult orElse(),
@@ -458,7 +458,7 @@ class _$StatusResponse_ErrorImpl extends StatusResponse_Error {
   @override
   @optionalTypeArgs
   TResult when<TResult extends Object?>({
-    required TResult Function(StatusResponsePending field0) pending,
+    required TResult Function(StatusResponsePendingObject field0) pending,
     required TResult Function(StatusResponseCompleted field0) completed,
     required TResult Function(StatusResponseError field0) error,
   }) {
@@ -468,7 +468,7 @@ class _$StatusResponse_ErrorImpl extends StatusResponse_Error {
   @override
   @optionalTypeArgs
   TResult? whenOrNull<TResult extends Object?>({
-    TResult? Function(StatusResponsePending field0)? pending,
+    TResult? Function(StatusResponsePendingObject field0)? pending,
     TResult? Function(StatusResponseCompleted field0)? completed,
     TResult? Function(StatusResponseError field0)? error,
   }) {
@@ -478,7 +478,7 @@ class _$StatusResponse_ErrorImpl extends StatusResponse_Error {
   @override
   @optionalTypeArgs
   TResult maybeWhen<TResult extends Object?>({
-    TResult Function(StatusResponsePending field0)? pending,
+    TResult Function(StatusResponsePendingObject field0)? pending,
     TResult Function(StatusResponseCompleted field0)? completed,
     TResult Function(StatusResponseError field0)? error,
     required TResult orElse(),

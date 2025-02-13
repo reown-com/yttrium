@@ -1,13 +1,11 @@
-// use super::error::PrepareDetailedResponse;
-
 #[cfg(feature = "chain_abstraction_client")]
 use {
     alloy::{
-        network::Ethereum,
-        providers::{Provider, ReqwestProvider},
+        providers::Provider,
         // sol,
         // sol_types::SolCall,
     },
+    // super::api::prepare::PrepareResponse,
     crate::call::Call,
     crate::chain_abstraction::{
         api::{
@@ -16,12 +14,13 @@ use {
         },
         client::Client,
         currency::Currency,
+        error::PrepareDetailedResponse,
         ui_fields::UiFields,
+        pulse::PulseMetadata,
     },
     relay_rpc::domain::ProjectId,
-    std::time::Duration,
     std::str::FromStr,
-    super::error::PrepareDetailedResponse,
+    std::time::Duration,
 };
 
 // sol! {
@@ -35,13 +34,43 @@ pub enum FFIError {
     General(String),
 }
 
+// ----------------
+
+#[cfg(feature = "chain_abstraction_client")]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+pub struct FFIPulseMetadata {
+    // web
+    pub url: Option<String>,
+    // iOS
+    pub bundle_id: Option<String>,
+    // Android
+    // FIXME this param is not used yet
+    pub package_name: Option<String>,
+    pub sdk_version: String,
+    pub sdk_platform: String,
+}
+
+impl TryFrom<FFIPulseMetadata> for PulseMetadata {
+    type Error = FFIError;
+
+    fn try_from(ffi_pulse_metadata: FFIPulseMetadata) -> Result<Self, Self::Error> {
+        let url = ffi_pulse_metadata.url.and_then(|s| url::Url::parse(&s).ok()); // Convert only if parsing succeeds
+        let bundle_id = ffi_pulse_metadata.bundle_id.clone();
+        let package_name = ffi_pulse_metadata.package_name.clone();
+        let sdk_version = ffi_pulse_metadata.sdk_version.clone();
+        let sdk_platform = ffi_pulse_metadata.sdk_platform.clone();
+
+        Ok(PulseMetadata { url, bundle_id, package_name, sdk_version, sdk_platform })
+    }
+}
+
 // -----------------
 
 #[cfg(feature = "chain_abstraction_client")]
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct FFICall {
     pub to: String,     // Convert Address to String
-    pub value: u128,  // Convert U256 to String
+    pub value: u128,    // Convert U256 to String
     pub input: Vec<u8>, // Convert Bytes to Vec<u8>
 }
 
@@ -112,11 +141,13 @@ pub struct LocalAmountAccCompat {
     pub fees: Vec<FeeCompat>,
 }
 
-impl From<crate::chain_abstraction::local_fee_acc::LocalAmountAcc> for LocalAmountAccCompat {
-    fn from(original: crate::chain_abstraction::local_fee_acc::LocalAmountAcc) -> Self {
-        Self {
-            fees: original.get_fees_compat(),
-        }
+impl From<crate::chain_abstraction::local_fee_acc::LocalAmountAcc>
+    for LocalAmountAccCompat
+{
+    fn from(
+        original: crate::chain_abstraction::local_fee_acc::LocalAmountAcc,
+    ) -> Self {
+        Self { fees: original.get_fees_compat() }
     }
 }
 
@@ -130,10 +161,39 @@ pub struct ChainAbstractionClient {
 
 #[cfg(feature = "chain_abstraction_client")]
 impl ChainAbstractionClient {
-    
-    pub fn new(project_id: String) -> Self {
-        let client = Client::new(ProjectId::from(project_id.clone()));
+
+    pub fn new(project_id: String, pulse_metadata: FFIPulseMetadata) -> Self {
+        let ffi_pulse_metadata = PulseMetadata::try_from(pulse_metadata).unwrap();
+        let ffi_project_id = ProjectId::from(project_id.clone());
+        let client = Client::new(ffi_project_id, ffi_pulse_metadata);
         Self { project_id, client }
+    }
+
+    // pub async fn prepare(
+    //     &self,
+    //     chain_id: String,
+    //     from: String,
+    //     call: FFICall,
+    // ) -> Result<PrepareResponse, FFIError> {
+    //     type Address = alloy::primitives::Address;
+    //     let ffi_from = Address::from_str(&from).unwrap();
+    //     let ffi_call = Call::try_from(call)?;
+
+    //     self.client
+    //         .prepare(chain_id, ffi_from, ffi_call)
+    //         .await
+    //         .map_err(|e| FFIError::General(e.to_string()))
+    // }
+
+    pub async fn get_ui_fields(
+        &self,
+        route_response: PrepareResponseAvailable,
+        currency: Currency,
+    ) -> Result<UiFields, FFIError> {
+        self.client
+            .get_ui_fields(route_response, currency)
+            .await
+            .map_err(|e| FFIError::General(e.to_string()))
     }
 
     pub async fn prepare_detailed(
@@ -143,27 +203,12 @@ impl ChainAbstractionClient {
         call: FFICall,
         local_currency: Currency,
     ) -> Result<PrepareDetailedResponse, FFIError> {
-        // let ffi_from = Address::try_from(from).map_err(|e| Error::General(e.to_string()))?;
-        // let ffi_from = Address::from_str(&from.0).map_err(|e| Error::General(e.to_string()))?;
         type Address = alloy::primitives::Address;
         let ffi_from = Address::from_str(&from).unwrap();
         let ffi_call = Call::try_from(call)?;
 
         self.client
             .prepare_detailed(chain_id, ffi_from, ffi_call, local_currency)
-            .await
-            .map_err(|e| FFIError::General(e.to_string()))
-    }
-
-    // execute
-
-    pub async fn get_ui_fields(
-        &self,
-        route_response: PrepareResponseAvailable,
-        currency: Currency,
-    ) -> Result<UiFields, FFIError> {
-        self.client
-            .get_ui_fields(route_response, currency)
             .await
             .map_err(|e| FFIError::General(e.to_string()))
     }
@@ -194,18 +239,28 @@ impl ChainAbstractionClient {
             .map_err(|e| FFIError::General(e.to_string()))
     }
 
+    // pub async fn execute(
+    //     &self,
+    //     ui_fields: UiFields,
+    //     route_txn_sigs: Vec<FFIPrimitiveSignature>,
+    //     initial_txn_sig: FFIPrimitiveSignature,
+    // ) -> Result<ExecuteDetails, FFIError> {
+    //     self.client
+    //         .execute(ui_fields, route_txn_sigs, initial_txn_sig)
+    //         .await
+    //         // TODO wanted to return ExecuteError directly here, but can't because Swift keeps the UniFFI lifer private to the yttrium crate and not available to kotlin-ffi crate
+    //         // This will be fixed when we merge these crates
+    //         .map_err(|e| FFIError::General(e.to_string()))
+    // }
+
     pub async fn estimate_fees(
         &self,
         chain_id: String,
     ) -> Result<Eip1559Estimation, FFIError> {
-        let url = format!(
-            "https://rpc.walletconnect.com/v1?chainId={chain_id}&projectId={}",
-            self.project_id
-        )
-        .parse()
-        .expect("Invalid RPC URL");
-        let provider = ReqwestProvider::<Ethereum>::new_http(url);
-        provider
+        self.client
+            .provider_pool
+            .get_provider(&chain_id)
+            .await
             .estimate_eip1559_fees(None)
             .await
             .map(Into::into)
@@ -225,9 +280,9 @@ impl ChainAbstractionClient {
     //     // let ffi_to = Address::from_str(&to).unwrap_or_else(|_| Address::ZERO);
     //     let ffi_to = Address::from_str(&to).unwrap();
     //     let ffi_amount = U256::from(amount);
-    
+
     //     let encoded_data = transferCall::new((ffi_to, ffi_amount)).abi_encode().into();
-    
+
     //     Call {
     //         to: ffi_erc20_address,
     //         value: U256::ZERO,

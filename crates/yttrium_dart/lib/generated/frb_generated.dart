@@ -76,7 +76,7 @@ class YttriumDart extends BaseEntrypoint<YttriumDartApi, YttriumDartApiImpl,
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
-    stem: 'yttrium_dart',
+    stem: 'yttrium',
     ioDirectory: '../yttrium/target/release/',
     webPrefix: 'pkg/',
   );
@@ -102,7 +102,7 @@ abstract class YttriumDartApi extends BaseApi {
 
   Future<ChainAbstractionClient>
       crateChainAbstractionDartCompatChainAbstractionClientNew(
-          {required String projectId});
+          {required String projectId, required FFIPulseMetadata pulseMetadata});
 
   Future<PrepareDetailedResponse>
       crateChainAbstractionDartCompatChainAbstractionClientPrepareDetailed(
@@ -275,11 +275,13 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
   @override
   Future<ChainAbstractionClient>
       crateChainAbstractionDartCompatChainAbstractionClientNew(
-          {required String projectId}) {
+          {required String projectId,
+          required FFIPulseMetadata pulseMetadata}) {
     return handler.executeNormal(NormalTask(
       callFfi: (port_) {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_String(projectId, serializer);
+        sse_encode_box_autoadd_ffi_pulse_metadata(pulseMetadata, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
             funcId: 4, port: port_);
       },
@@ -290,7 +292,7 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
       ),
       constMeta:
           kCrateChainAbstractionDartCompatChainAbstractionClientNewConstMeta,
-      argValues: [projectId],
+      argValues: [projectId, pulseMetadata],
       apiImpl: this,
     ));
   }
@@ -299,7 +301,7 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
       get kCrateChainAbstractionDartCompatChainAbstractionClientNewConstMeta =>
           const TaskConstMeta(
             debugName: 'ChainAbstractionClient_new',
-            argNames: ['projectId'],
+            argNames: ['projectId', 'pulseMetadata'],
           );
 
   @override
@@ -539,6 +541,12 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
   }
 
   @protected
+  FFIPulseMetadata dco_decode_box_autoadd_ffi_pulse_metadata(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_ffi_pulse_metadata(raw);
+  }
+
+  @protected
   StatusResponseCompleted dco_decode_box_autoadd_status_response_completed(
       dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
@@ -553,10 +561,10 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
   }
 
   @protected
-  StatusResponsePending dco_decode_box_autoadd_status_response_pending(
-      dynamic raw) {
+  StatusResponsePendingObject
+      dco_decode_box_autoadd_status_response_pending_object(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_status_response_pending(raw);
+    return dco_decode_status_response_pending_object(raw);
   }
 
   @protected
@@ -604,6 +612,21 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
   }
 
   @protected
+  FFIPulseMetadata dco_decode_ffi_pulse_metadata(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    return FFIPulseMetadata(
+      url: dco_decode_opt_String(arr[0]),
+      bundleId: dco_decode_opt_String(arr[1]),
+      packageName: dco_decode_opt_String(arr[2]),
+      sdkVersion: dco_decode_String(arr[3]),
+      sdkPlatform: dco_decode_String(arr[4]),
+    );
+  }
+
+  @protected
   int dco_decode_i_32(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as int;
@@ -616,12 +639,18 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
   }
 
   @protected
+  String? dco_decode_opt_String(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_String(raw);
+  }
+
+  @protected
   StatusResponse dco_decode_status_response(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     switch (raw[0]) {
       case 0:
         return StatusResponse_Pending(
-          dco_decode_box_autoadd_status_response_pending(raw[1]),
+          dco_decode_box_autoadd_status_response_pending_object(raw[1]),
         );
       case 1:
         return StatusResponse_Completed(
@@ -660,12 +689,13 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
   }
 
   @protected
-  StatusResponsePending dco_decode_status_response_pending(dynamic raw) {
+  StatusResponsePendingObject dco_decode_status_response_pending_object(
+      dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
     if (arr.length != 2)
       throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
-    return StatusResponsePending(
+    return StatusResponsePendingObject(
       createdAt: dco_decode_u_64(arr[0]),
       checkIn: dco_decode_u_64(arr[1]),
     );
@@ -797,6 +827,13 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
   }
 
   @protected
+  FFIPulseMetadata sse_decode_box_autoadd_ffi_pulse_metadata(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_ffi_pulse_metadata(deserializer));
+  }
+
+  @protected
   StatusResponseCompleted sse_decode_box_autoadd_status_response_completed(
       SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -811,10 +848,11 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
   }
 
   @protected
-  StatusResponsePending sse_decode_box_autoadd_status_response_pending(
-      SseDeserializer deserializer) {
+  StatusResponsePendingObject
+      sse_decode_box_autoadd_status_response_pending_object(
+          SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_status_response_pending(deserializer));
+    return (sse_decode_status_response_pending_object(deserializer));
   }
 
   @protected
@@ -859,6 +897,22 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
   }
 
   @protected
+  FFIPulseMetadata sse_decode_ffi_pulse_metadata(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_url = sse_decode_opt_String(deserializer);
+    var var_bundleId = sse_decode_opt_String(deserializer);
+    var var_packageName = sse_decode_opt_String(deserializer);
+    var var_sdkVersion = sse_decode_String(deserializer);
+    var var_sdkPlatform = sse_decode_String(deserializer);
+    return FFIPulseMetadata(
+        url: var_url,
+        bundleId: var_bundleId,
+        packageName: var_packageName,
+        sdkVersion: var_sdkVersion,
+        sdkPlatform: var_sdkPlatform);
+  }
+
+  @protected
   int sse_decode_i_32(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getInt32();
@@ -872,6 +926,17 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
   }
 
   @protected
+  String? sse_decode_opt_String(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_String(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
   StatusResponse sse_decode_status_response(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -879,7 +944,7 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
     switch (tag_) {
       case 0:
         var var_field0 =
-            sse_decode_box_autoadd_status_response_pending(deserializer);
+            sse_decode_box_autoadd_status_response_pending_object(deserializer);
         return StatusResponse_Pending(var_field0);
       case 1:
         var var_field0 =
@@ -912,12 +977,12 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
   }
 
   @protected
-  StatusResponsePending sse_decode_status_response_pending(
+  StatusResponsePendingObject sse_decode_status_response_pending_object(
       SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_createdAt = sse_decode_u_64(deserializer);
     var var_checkIn = sse_decode_u_64(deserializer);
-    return StatusResponsePending(
+    return StatusResponsePendingObject(
         createdAt: var_createdAt, checkIn: var_checkIn);
   }
 
@@ -1057,6 +1122,13 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
   }
 
   @protected
+  void sse_encode_box_autoadd_ffi_pulse_metadata(
+      FFIPulseMetadata self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_ffi_pulse_metadata(self, serializer);
+  }
+
+  @protected
   void sse_encode_box_autoadd_status_response_completed(
       StatusResponseCompleted self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -1071,10 +1143,10 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
   }
 
   @protected
-  void sse_encode_box_autoadd_status_response_pending(
-      StatusResponsePending self, SseSerializer serializer) {
+  void sse_encode_box_autoadd_status_response_pending_object(
+      StatusResponsePendingObject self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_status_response_pending(self, serializer);
+    sse_encode_status_response_pending_object(self, serializer);
   }
 
   @protected
@@ -1110,6 +1182,17 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
   }
 
   @protected
+  void sse_encode_ffi_pulse_metadata(
+      FFIPulseMetadata self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_opt_String(self.url, serializer);
+    sse_encode_opt_String(self.bundleId, serializer);
+    sse_encode_opt_String(self.packageName, serializer);
+    sse_encode_String(self.sdkVersion, serializer);
+    sse_encode_String(self.sdkPlatform, serializer);
+  }
+
+  @protected
   void sse_encode_i_32(int self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putInt32(self);
@@ -1124,13 +1207,24 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
   }
 
   @protected
+  void sse_encode_opt_String(String? self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_String(self, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_status_response(
       StatusResponse self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     switch (self) {
       case StatusResponse_Pending(field0: final field0):
         sse_encode_i_32(0, serializer);
-        sse_encode_box_autoadd_status_response_pending(field0, serializer);
+        sse_encode_box_autoadd_status_response_pending_object(
+            field0, serializer);
       case StatusResponse_Completed(field0: final field0):
         sse_encode_i_32(1, serializer);
         sse_encode_box_autoadd_status_response_completed(field0, serializer);
@@ -1156,8 +1250,8 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
   }
 
   @protected
-  void sse_encode_status_response_pending(
-      StatusResponsePending self, SseSerializer serializer) {
+  void sse_encode_status_response_pending_object(
+      StatusResponsePendingObject self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_u_64(self.createdAt, serializer);
     sse_encode_u_64(self.checkIn, serializer);

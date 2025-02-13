@@ -14,7 +14,7 @@ import 'ui_fields.dart';
 part 'dart_compat.freezed.dart';
 
 // These types are ignored because they are not used by any `pub` functions: `FeeCompat`, `LocalAmountAccCompat`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `try_from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `try_from`, `try_from`
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ChainAbstractionClient>>
 abstract class ChainAbstractionClient implements RustOpaqueInterface {
@@ -29,10 +29,11 @@ abstract class ChainAbstractionClient implements RustOpaqueInterface {
 
   // HINT: Make it `#[frb(sync)]` to let it become the default constructor of Dart class.
   static Future<ChainAbstractionClient> newInstance(
-          {required String projectId}) =>
+          {required String projectId,
+          required FFIPulseMetadata pulseMetadata}) =>
       YttriumDart.instance.api
           .crateChainAbstractionDartCompatChainAbstractionClientNew(
-              projectId: projectId);
+              projectId: projectId, pulseMetadata: pulseMetadata);
 
   Future<PrepareDetailedResponse> prepareDetailed(
       {required String chainId,
@@ -103,4 +104,39 @@ sealed class FFIError with _$FFIError implements FrbException {
   const factory FFIError.general(
     String field0,
   ) = FFIError_General;
+}
+
+class FFIPulseMetadata {
+  final String? url;
+  final String? bundleId;
+  final String? packageName;
+  final String sdkVersion;
+  final String sdkPlatform;
+
+  const FFIPulseMetadata({
+    this.url,
+    this.bundleId,
+    this.packageName,
+    required this.sdkVersion,
+    required this.sdkPlatform,
+  });
+
+  @override
+  int get hashCode =>
+      url.hashCode ^
+      bundleId.hashCode ^
+      packageName.hashCode ^
+      sdkVersion.hashCode ^
+      sdkPlatform.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is FFIPulseMetadata &&
+          runtimeType == other.runtimeType &&
+          url == other.url &&
+          bundleId == other.bundleId &&
+          packageName == other.packageName &&
+          sdkVersion == other.sdkVersion &&
+          sdkPlatform == other.sdkPlatform;
 }

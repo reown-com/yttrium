@@ -140,9 +140,10 @@ fn wire__crate__chain_abstraction__dart_compat__ChainAbstractionClient_new_impl(
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "ChainAbstractionClient_new", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { 
             let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_project_id = <String>::sse_decode(&mut deserializer);deserializer.end(); move |context|  {
+            let api_project_id = <String>::sse_decode(&mut deserializer);
+let api_pulse_metadata = <crate::chain_abstraction::dart_compat::FFIPulseMetadata>::sse_decode(&mut deserializer);deserializer.end(); move |context|  {
                     transform_result_sse::<_, ()>((move ||  {
-                         let output_ok = Result::<_,()>::Ok(crate::chain_abstraction::dart_compat::ChainAbstractionClient::new(api_project_id))?;   Ok(output_ok)
+                         let output_ok = Result::<_,()>::Ok(crate::chain_abstraction::dart_compat::ChainAbstractionClient::new(api_project_id, api_pulse_metadata))?;   Ok(output_ok)
                     })())
                 } })
 }
@@ -455,6 +456,26 @@ impl SseDecode for crate::chain_abstraction::dart_compat::FFIError {
     }
 }
 
+impl SseDecode for crate::chain_abstraction::dart_compat::FFIPulseMetadata {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        let mut var_url = <Option<String>>::sse_decode(deserializer);
+        let mut var_bundleId = <Option<String>>::sse_decode(deserializer);
+        let mut var_packageName = <Option<String>>::sse_decode(deserializer);
+        let mut var_sdkVersion = <String>::sse_decode(deserializer);
+        let mut var_sdkPlatform = <String>::sse_decode(deserializer);
+        return crate::chain_abstraction::dart_compat::FFIPulseMetadata {
+            url: var_url,
+            bundle_id: var_bundleId,
+            package_name: var_packageName,
+            sdk_version: var_sdkVersion,
+            sdk_platform: var_sdkPlatform,
+        };
+    }
+}
+
 impl SseDecode for i32 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(
@@ -478,6 +499,19 @@ impl SseDecode for Vec<u8> {
     }
 }
 
+impl SseDecode for Option<String> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<String>::sse_decode(deserializer));
+        } else {
+            return None;
+        }
+    }
+}
+
 impl SseDecode for crate::chain_abstraction::api::status::StatusResponse {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(
@@ -486,7 +520,7 @@ impl SseDecode for crate::chain_abstraction::api::status::StatusResponse {
         let mut tag_ = <i32>::sse_decode(deserializer);
         match tag_ {
             0 => {
-                let mut var_field0 = <crate::chain_abstraction::api::status::StatusResponsePending>::sse_decode(deserializer);
+                let mut var_field0 = <crate::chain_abstraction::api::status::StatusResponsePendingObject>::sse_decode(deserializer);
                 return crate::chain_abstraction::api::status::StatusResponse::Pending(var_field0);
             }
             1 => {
@@ -531,7 +565,7 @@ impl SseDecode for crate::chain_abstraction::api::status::StatusResponseError {
 }
 
 impl SseDecode
-    for crate::chain_abstraction::api::status::StatusResponsePending
+    for crate::chain_abstraction::api::status::StatusResponsePendingObject
 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(
@@ -539,10 +573,7 @@ impl SseDecode
     ) -> Self {
         let mut var_createdAt = <u64>::sse_decode(deserializer);
         let mut var_checkIn = <u64>::sse_decode(deserializer);
-        return crate::chain_abstraction::api::status::StatusResponsePending {
-            created_at: var_createdAt,
-            check_in: var_checkIn,
-        };
+        return crate::chain_abstraction::api::status::StatusResponsePendingObject{created_at: var_createdAt, check_in: var_checkIn};
     }
 }
 
@@ -831,6 +862,36 @@ impl
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart
+    for crate::chain_abstraction::dart_compat::FFIPulseMetadata
+{
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.url.into_into_dart().into_dart(),
+            self.bundle_id.into_into_dart().into_dart(),
+            self.package_name.into_into_dart().into_dart(),
+            self.sdk_version.into_into_dart().into_dart(),
+            self.sdk_platform.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::chain_abstraction::dart_compat::FFIPulseMetadata
+{
+}
+impl
+    flutter_rust_bridge::IntoIntoDart<
+        crate::chain_abstraction::dart_compat::FFIPulseMetadata,
+    > for crate::chain_abstraction::dart_compat::FFIPulseMetadata
+{
+    fn into_into_dart(
+        self,
+    ) -> crate::chain_abstraction::dart_compat::FFIPulseMetadata {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart
     for crate::chain_abstraction::api::status::StatusResponse
 {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
@@ -910,7 +971,7 @@ impl
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart
-    for crate::chain_abstraction::api::status::StatusResponsePending
+    for crate::chain_abstraction::api::status::StatusResponsePendingObject
 {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -921,17 +982,18 @@ impl flutter_rust_bridge::IntoDart
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::chain_abstraction::api::status::StatusResponsePending
+    for crate::chain_abstraction::api::status::StatusResponsePendingObject
 {
 }
 impl
     flutter_rust_bridge::IntoIntoDart<
-        crate::chain_abstraction::api::status::StatusResponsePending,
-    > for crate::chain_abstraction::api::status::StatusResponsePending
+        crate::chain_abstraction::api::status::StatusResponsePendingObject,
+    > for crate::chain_abstraction::api::status::StatusResponsePendingObject
 {
     fn into_into_dart(
         self,
-    ) -> crate::chain_abstraction::api::status::StatusResponsePending {
+    ) -> crate::chain_abstraction::api::status::StatusResponsePendingObject
+    {
         self
     }
 }
@@ -1173,6 +1235,20 @@ impl SseEncode for crate::chain_abstraction::dart_compat::FFIError {
     }
 }
 
+impl SseEncode for crate::chain_abstraction::dart_compat::FFIPulseMetadata {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(
+        self,
+        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
+    ) {
+        <Option<String>>::sse_encode(self.url, serializer);
+        <Option<String>>::sse_encode(self.bundle_id, serializer);
+        <Option<String>>::sse_encode(self.package_name, serializer);
+        <String>::sse_encode(self.sdk_version, serializer);
+        <String>::sse_encode(self.sdk_platform, serializer);
+    }
+}
+
 impl SseEncode for i32 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(
@@ -1196,13 +1272,26 @@ impl SseEncode for Vec<u8> {
     }
 }
 
+impl SseEncode for Option<String> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(
+        self,
+        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
+    ) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <String>::sse_encode(value, serializer);
+        }
+    }
+}
+
 impl SseEncode for crate::chain_abstraction::api::status::StatusResponse {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(
         self,
         serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
     ) {
-        match self {crate::chain_abstraction::api::status::StatusResponse::Pending(field0) => { <i32>::sse_encode(0, serializer); <crate::chain_abstraction::api::status::StatusResponsePending>::sse_encode(field0, serializer);
+        match self {crate::chain_abstraction::api::status::StatusResponse::Pending(field0) => { <i32>::sse_encode(0, serializer); <crate::chain_abstraction::api::status::StatusResponsePendingObject>::sse_encode(field0, serializer);
  }
 crate::chain_abstraction::api::status::StatusResponse::Completed(field0) => { <i32>::sse_encode(1, serializer); <crate::chain_abstraction::api::status::StatusResponseCompleted>::sse_encode(field0, serializer);
  }
@@ -1236,7 +1325,7 @@ impl SseEncode for crate::chain_abstraction::api::status::StatusResponseError {
 }
 
 impl SseEncode
-    for crate::chain_abstraction::api::status::StatusResponsePending
+    for crate::chain_abstraction::api::status::StatusResponsePendingObject
 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(

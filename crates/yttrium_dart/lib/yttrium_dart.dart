@@ -39,6 +39,13 @@ class YttriumDart implements IYttriumClient {
       // Create ChainAbstractionClient instance
       _chainAbstractionClient = await ChainAbstractionClient.newInstance(
         projectId: projectId,
+        pulseMetadata: FFIPulseMetadata(
+          url: 'https://appkit-lab.reown.com/flutter_appkit',
+          bundleId: 'com.walletconnect.flutterdapp.internal',
+          packageName: 'com.walletconnect.flutterdapp.internal',
+          sdkVersion: '1.0.0',
+          sdkPlatform: Platform.operatingSystem,
+        ),
       );
     } catch (e) {
       rethrow;

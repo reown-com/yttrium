@@ -13,7 +13,7 @@ sealed class StatusResponse with _$StatusResponse {
   const StatusResponse._();
 
   const factory StatusResponse.pending(
-    StatusResponsePending field0,
+    StatusResponsePendingObject field0,
   ) = StatusResponse_Pending;
   const factory StatusResponse.completed(
     StatusResponseCompleted field0,
@@ -62,13 +62,13 @@ class StatusResponseError {
           error == other.error;
 }
 
-class StatusResponsePending {
+class StatusResponsePendingObject {
   final BigInt createdAt;
 
   /// Polling interval in ms for the client
   final BigInt checkIn;
 
-  const StatusResponsePending({
+  const StatusResponsePendingObject({
     required this.createdAt,
     required this.checkIn,
   });
@@ -79,7 +79,7 @@ class StatusResponsePending {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is StatusResponsePending &&
+      other is StatusResponsePendingObject &&
           runtimeType == other.runtimeType &&
           createdAt == other.createdAt &&
           checkIn == other.checkIn;

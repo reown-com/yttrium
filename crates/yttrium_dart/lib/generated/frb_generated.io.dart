@@ -93,6 +93,9 @@ abstract class YttriumDartApiImplPlatform extends BaseApiImpl<YttriumDartWire> {
   FFICall dco_decode_box_autoadd_ffi_call(dynamic raw);
 
   @protected
+  FFIPulseMetadata dco_decode_box_autoadd_ffi_pulse_metadata(dynamic raw);
+
+  @protected
   StatusResponseCompleted dco_decode_box_autoadd_status_response_completed(
       dynamic raw);
 
@@ -100,8 +103,8 @@ abstract class YttriumDartApiImplPlatform extends BaseApiImpl<YttriumDartWire> {
   StatusResponseError dco_decode_box_autoadd_status_response_error(dynamic raw);
 
   @protected
-  StatusResponsePending dco_decode_box_autoadd_status_response_pending(
-      dynamic raw);
+  StatusResponsePendingObject
+      dco_decode_box_autoadd_status_response_pending_object(dynamic raw);
 
   @protected
   Currency dco_decode_currency(dynamic raw);
@@ -116,10 +119,16 @@ abstract class YttriumDartApiImplPlatform extends BaseApiImpl<YttriumDartWire> {
   FFIError dco_decode_ffi_error(dynamic raw);
 
   @protected
+  FFIPulseMetadata dco_decode_ffi_pulse_metadata(dynamic raw);
+
+  @protected
   int dco_decode_i_32(dynamic raw);
 
   @protected
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw);
+
+  @protected
+  String? dco_decode_opt_String(dynamic raw);
 
   @protected
   StatusResponse dco_decode_status_response(dynamic raw);
@@ -131,7 +140,8 @@ abstract class YttriumDartApiImplPlatform extends BaseApiImpl<YttriumDartWire> {
   StatusResponseError dco_decode_status_response_error(dynamic raw);
 
   @protected
-  StatusResponsePending dco_decode_status_response_pending(dynamic raw);
+  StatusResponsePendingObject dco_decode_status_response_pending_object(
+      dynamic raw);
 
   @protected
   BigInt dco_decode_u_64(dynamic raw);
@@ -200,6 +210,10 @@ abstract class YttriumDartApiImplPlatform extends BaseApiImpl<YttriumDartWire> {
   FFICall sse_decode_box_autoadd_ffi_call(SseDeserializer deserializer);
 
   @protected
+  FFIPulseMetadata sse_decode_box_autoadd_ffi_pulse_metadata(
+      SseDeserializer deserializer);
+
+  @protected
   StatusResponseCompleted sse_decode_box_autoadd_status_response_completed(
       SseDeserializer deserializer);
 
@@ -208,8 +222,9 @@ abstract class YttriumDartApiImplPlatform extends BaseApiImpl<YttriumDartWire> {
       SseDeserializer deserializer);
 
   @protected
-  StatusResponsePending sse_decode_box_autoadd_status_response_pending(
-      SseDeserializer deserializer);
+  StatusResponsePendingObject
+      sse_decode_box_autoadd_status_response_pending_object(
+          SseDeserializer deserializer);
 
   @protected
   Currency sse_decode_currency(SseDeserializer deserializer);
@@ -225,10 +240,16 @@ abstract class YttriumDartApiImplPlatform extends BaseApiImpl<YttriumDartWire> {
   FFIError sse_decode_ffi_error(SseDeserializer deserializer);
 
   @protected
+  FFIPulseMetadata sse_decode_ffi_pulse_metadata(SseDeserializer deserializer);
+
+  @protected
   int sse_decode_i_32(SseDeserializer deserializer);
 
   @protected
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer);
+
+  @protected
+  String? sse_decode_opt_String(SseDeserializer deserializer);
 
   @protected
   StatusResponse sse_decode_status_response(SseDeserializer deserializer);
@@ -242,7 +263,7 @@ abstract class YttriumDartApiImplPlatform extends BaseApiImpl<YttriumDartWire> {
       SseDeserializer deserializer);
 
   @protected
-  StatusResponsePending sse_decode_status_response_pending(
+  StatusResponsePendingObject sse_decode_status_response_pending_object(
       SseDeserializer deserializer);
 
   @protected
@@ -315,6 +336,10 @@ abstract class YttriumDartApiImplPlatform extends BaseApiImpl<YttriumDartWire> {
   void sse_encode_box_autoadd_ffi_call(FFICall self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_ffi_pulse_metadata(
+      FFIPulseMetadata self, SseSerializer serializer);
+
+  @protected
   void sse_encode_box_autoadd_status_response_completed(
       StatusResponseCompleted self, SseSerializer serializer);
 
@@ -323,8 +348,8 @@ abstract class YttriumDartApiImplPlatform extends BaseApiImpl<YttriumDartWire> {
       StatusResponseError self, SseSerializer serializer);
 
   @protected
-  void sse_encode_box_autoadd_status_response_pending(
-      StatusResponsePending self, SseSerializer serializer);
+  void sse_encode_box_autoadd_status_response_pending_object(
+      StatusResponsePendingObject self, SseSerializer serializer);
 
   @protected
   void sse_encode_currency(Currency self, SseSerializer serializer);
@@ -340,11 +365,18 @@ abstract class YttriumDartApiImplPlatform extends BaseApiImpl<YttriumDartWire> {
   void sse_encode_ffi_error(FFIError self, SseSerializer serializer);
 
   @protected
+  void sse_encode_ffi_pulse_metadata(
+      FFIPulseMetadata self, SseSerializer serializer);
+
+  @protected
   void sse_encode_i_32(int self, SseSerializer serializer);
 
   @protected
   void sse_encode_list_prim_u_8_strict(
       Uint8List self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_String(String? self, SseSerializer serializer);
 
   @protected
   void sse_encode_status_response(
@@ -359,8 +391,8 @@ abstract class YttriumDartApiImplPlatform extends BaseApiImpl<YttriumDartWire> {
       StatusResponseError self, SseSerializer serializer);
 
   @protected
-  void sse_encode_status_response_pending(
-      StatusResponsePending self, SseSerializer serializer);
+  void sse_encode_status_response_pending_object(
+      StatusResponsePendingObject self, SseSerializer serializer);
 
   @protected
   void sse_encode_u_64(BigInt self, SseSerializer serializer);
