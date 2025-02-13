@@ -18,9 +18,9 @@ use {
         },
         currency::Currency,
         error::{
-            ExecuteError, PrepareDetailedError, PrepareDetailedResponse,
-            PrepareDetailedResponseSuccess, PrepareError, StatusError,
-            WaitForSuccessError,
+            ExecuteError, ExecuteErrorReason, PrepareDetailedError,
+            PrepareDetailedResponse, PrepareDetailedResponseSuccess,
+            PrepareError, StatusError, WaitForSuccessError,
         },
         pulse::{PulseMetadata, PULSE_SDK_TYPE},
         send_transaction::{send_transaction, TransactionAnalytics},
@@ -519,7 +519,10 @@ impl Client {
                     let route_latency = route_start.elapsed();
                     let latency = start.elapsed();
                     return Err((
-                        ExecuteError::Route(e),
+                        ExecuteError::WithOrchestrationId {
+                            orchestration_id: orchestration_id.clone(),
+                            reason: ExecuteErrorReason::Route(e),
+                        },
                         ExecuteAnalytics {
                             orchestration_id: orchestration_id.clone(),
                             error: None,
@@ -550,7 +553,10 @@ impl Client {
                 let status_latency = status_start.elapsed();
                 let latency = start.elapsed();
                 (
-                    ExecuteError::Bridge(e),
+                    ExecuteError::WithOrchestrationId {
+                        orchestration_id: orchestration_id.clone(),
+                        reason: ExecuteErrorReason::Bridge(e),
+                    },
                     ExecuteAnalytics {
                         orchestration_id: orchestration_id.clone(),
                         error: None,
@@ -575,7 +581,10 @@ impl Client {
         .map_err(|(e, analytics)| {
             let latency = start.elapsed();
             (
-                ExecuteError::Route(e),
+                ExecuteError::WithOrchestrationId {
+                    orchestration_id: orchestration_id.clone(),
+                    reason: ExecuteErrorReason::Initial(e),
+                },
                 ExecuteAnalytics {
                     orchestration_id: orchestration_id.clone(),
                     error: None,

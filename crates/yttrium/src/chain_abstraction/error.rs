@@ -156,9 +156,16 @@ pub enum WaitForSuccessError {
     StatusResponsePending(StatusResponsePendingObject),
 }
 
-#[derive(Debug, Error)]
+#[derive(thiserror::Error, Debug)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Error))]
 pub enum ExecuteError {
+    #[error("Execute Error: orchestration_id:{orchestration_id} - {reason}")]
+    WithOrchestrationId { orchestration_id: String, reason: ExecuteErrorReason },
+}
+
+#[derive(Debug, Error)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Error))]
+pub enum ExecuteErrorReason {
     #[error("Route: {0}")]
     Route(SendTransactionError),
     #[error("Bridge: {0}")]
