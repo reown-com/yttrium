@@ -201,18 +201,21 @@ impl ProxyReqwestClient {
             .and_then(|hv| hv.to_str().ok())
             .map(|s| s.to_string());
         if let Some(tracing) = tracing {
-            let rpc_ids = match req {
-                RequestPacket::Single(req) => vec![req.id().clone()],
-                RequestPacket::Batch(req) => {
-                    req.iter().map(|r| r.id().clone()).collect()
+            let rpcs = match req {
+                RequestPacket::Single(req) => {
+                    vec![(req.id().clone(), req.method().to_owned())]
                 }
+                RequestPacket::Batch(reqs) => reqs
+                    .iter()
+                    .map(|req| (req.id().clone(), req.method().to_owned()))
+                    .collect(),
             };
-            for rpc_id in rpc_ids {
+            for (rpc_id, rpc_method) in rpcs {
                 if let Err(e) = tracing.send(RpcRequestAnalytics {
                     req_id: req_id.clone(),
                     rpc_id: rpc_id.to_string(),
                 }) {
-                    warn!("PRC: send: {e}");
+                    warn!("ProxyReqwestClient: send: {e} {rpc_method}");
                 }
             }
         }
