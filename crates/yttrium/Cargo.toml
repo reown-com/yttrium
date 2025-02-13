@@ -24,6 +24,7 @@ wasm = [
     # "getrandom/wasm_js", # for getrandom v0.3.*
     "getrandom/js",
     "uuid/js",
+    "dep:wasmtimer",
 ]
 
 # Features contributing to bundle size, that you might not need
@@ -75,7 +76,7 @@ uuid = { version = "1.12.1", default-features = false, features = [
     "serde",
 ] }
 
-wasmtimer.workspace = true
+wasmtimer = { workspace = true, optional = true }
 
 # Error/Result
 eyre.workspace = true
