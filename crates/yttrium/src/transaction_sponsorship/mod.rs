@@ -7,7 +7,7 @@ use {
             pimlico::{self, paymaster::client::PaymasterClient},
         },
         call::Call,
-        chain_abstraction::amount::Amount,
+        chain_abstraction::{amount::Amount, pulse::PulseMetadata},
         entry_point::ENTRYPOINT_ADDRESS_V07,
         erc7579::{
             accounts::safe::encode_validator_key,
@@ -71,7 +71,7 @@ pub struct Client {
 #[cfg_attr(feature = "uniffi", uniffi::export(async_runtime = "tokio"))]
 impl Client {
     #[cfg_attr(feature = "uniffi", uniffi::constructor)]
-    pub fn new(project_id: ProjectId) -> Self {
+    pub fn new(project_id: ProjectId, pulse_metadata: PulseMetadata) -> Self {
         let bundler_url = BLOCKCHAIN_API_URL
             .parse::<Url>()
             .unwrap()
@@ -79,7 +79,11 @@ impl Client {
             .unwrap();
 
         Self {
-            provider_pool: ProviderPool::new(project_id),
+            provider_pool: ProviderPool::new(
+                project_id,
+                reqwest::Client::new(),
+                pulse_metadata,
+            ),
             paymaster_url: bundler_url.clone(),
             bundler_url,
         }
@@ -376,10 +380,8 @@ impl Client {
             anvil_faucet(&provider).await
         };
         let sponsor_wallet = EthereumWallet::new(sponsor);
-        let sponsor_provider = ProviderBuilder::new()
-            .with_recommended_fillers()
-            .wallet(sponsor_wallet)
-            .on_provider(provider);
+        let sponsor_provider =
+            ProviderBuilder::new().wallet(sponsor_wallet).on_provider(provider);
 
         let safe_owners = Owners {
             threshold: 1,

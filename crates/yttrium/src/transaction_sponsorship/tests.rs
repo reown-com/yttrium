@@ -1,6 +1,7 @@
 use {
     crate::{
         call::Call,
+        chain_abstraction::pulse::PulseMetadata,
         config::{LOCAL_BUNDLER_URL, LOCAL_PAYMASTER_URL, LOCAL_RPC_URL},
         transaction_sponsorship::{
             Client as GasAbstractionClient, PreparedGasAbstraction,
@@ -8,14 +9,14 @@ use {
         },
     },
     alloy::{
-        network::Ethereum,
         primitives::{Bytes, U256},
+        providers::ProviderBuilder,
         signers::{
             local::{LocalSigner, PrivateKeySigner},
             SignerSync,
         },
     },
-    alloy_provider::{Provider, ReqwestProvider},
+    alloy_provider::Provider,
     std::collections::HashMap,
 };
 
@@ -37,9 +38,18 @@ async fn happy_path_pimlico() {
     let chain_id = format!("eip155:{chain_id}");
 
     let project_id = "".into();
-    let client = GasAbstractionClient::new(project_id)
-        .with_rpc_overrides(HashMap::from([(chain_id.clone(), rpc)]))
-        .with_4337_urls(bundler_url.clone(), bundler_url);
+    let client = GasAbstractionClient::new(
+        project_id,
+        PulseMetadata {
+            url: None,
+            bundle_id: None,
+            package_name: None,
+            sdk_version: "yttrium-tests-0.0.0".to_owned(),
+            sdk_platform: "desktop".to_owned(),
+        },
+    )
+    .with_rpc_overrides(HashMap::from([(chain_id.clone(), rpc)]))
+    .with_4337_urls(bundler_url.clone(), bundler_url);
 
     let faucet = private_faucet();
     happy_path_impl(chain_id, client, Some(faucet)).await
@@ -49,22 +59,32 @@ async fn happy_path_pimlico() {
 async fn happy_path_local() {
     let chain_id = format!(
         "eip155:{}",
-        ReqwestProvider::<Ethereum>::new_http(LOCAL_RPC_URL.parse().unwrap())
+        ProviderBuilder::new()
+            .on_http(LOCAL_RPC_URL.parse().unwrap())
             .get_chain_id()
             .await
             .unwrap()
     );
 
     let project_id = "".into();
-    let client = GasAbstractionClient::new(project_id)
-        .with_rpc_overrides(HashMap::from([(
-            chain_id.clone(),
-            LOCAL_RPC_URL.parse().unwrap(),
-        )]))
-        .with_4337_urls(
-            LOCAL_BUNDLER_URL.parse().unwrap(),
-            LOCAL_PAYMASTER_URL.parse().unwrap(),
-        );
+    let client = GasAbstractionClient::new(
+        project_id,
+        PulseMetadata {
+            url: None,
+            bundle_id: None,
+            package_name: None,
+            sdk_version: "yttrium-tests-0.0.0".to_owned(),
+            sdk_platform: "desktop".to_owned(),
+        },
+    )
+    .with_rpc_overrides(HashMap::from([(
+        chain_id.clone(),
+        LOCAL_RPC_URL.parse().unwrap(),
+    )]))
+    .with_4337_urls(
+        LOCAL_BUNDLER_URL.parse().unwrap(),
+        LOCAL_PAYMASTER_URL.parse().unwrap(),
+    );
 
     happy_path_impl(chain_id, client, None).await
 }

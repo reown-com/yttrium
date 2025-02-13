@@ -24,9 +24,8 @@ use {
         },
     },
     alloy::{
-        network::Ethereum,
         primitives::{Bytes, B256, U256, U64},
-        providers::ReqwestProvider,
+        providers::ProviderBuilder,
         rpc::types::UserOperationReceipt,
     },
 };
@@ -70,9 +69,8 @@ impl AccountClient {
     ) -> eyre::Result<SignOutputEnum> {
         // TODO refactor class to create Provider on AccountClient
         // initialization instead of lazily
-        let provider = ReqwestProvider::<Ethereum>::new_http(
-            self.config.endpoints.rpc.base_url.parse().unwrap(),
-        );
+        let provider = ProviderBuilder::new()
+            .on_http(self.config.endpoints.rpc.base_url.parse().unwrap());
 
         sign(
             Owners { owners: vec![self.owner.into()], threshold: 1 },

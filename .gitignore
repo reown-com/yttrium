@@ -1,5 +1,4 @@
 /target
-/Cargo.lock
 .vscode
 .env
 .DS_Store

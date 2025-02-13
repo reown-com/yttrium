@@ -502,11 +502,7 @@ public protocol Erc6492ClientProtocol: AnyObject {
     func verifySignature(signature: Bytes, address: Address, messageHash: B256) async throws  -> Bool
     
 }
-
-#if swift(>=6.0)
-extension Erc6492ClientProtocol: Sendable {}
-#endif
-open class Erc6492Client: Erc6492ClientProtocol {
+open class Erc6492Client: Erc6492ClientProtocol, @unchecked Sendable {
     fileprivate let pointer: UnsafeMutableRawPointer!
 
     /// Used to instantiate a [FFIObject] without an actual pointer, for fakes in tests, mostly.
@@ -582,10 +578,6 @@ open func verifySignature(signature: Bytes, address: Address, messageHash: B256)
     
 
 }
-
-#if swift(>=6.0)
-extension Erc6492Client: Sendable {}
-#endif
 
 
 #if swift(>=5.8)
@@ -664,6 +656,10 @@ public struct Amount {
     }
 }
 
+#if compiler(>=6)
+extension Amount: Sendable {}
+#endif
+
 
 extension Amount: Equatable, Hashable {
     public static func ==(lhs: Amount, rhs: Amount) -> Bool {
@@ -694,9 +690,6 @@ extension Amount: Equatable, Hashable {
     }
 }
 
-#if swift(>=6.0)
-extension Amount: Sendable {}
-#endif
 
 
 #if swift(>=5.8)
@@ -753,6 +746,10 @@ public struct Call {
     }
 }
 
+#if compiler(>=6)
+extension Call: Sendable {}
+#endif
+
 
 extension Call: Equatable, Hashable {
     public static func ==(lhs: Call, rhs: Call) -> Bool {
@@ -775,9 +772,6 @@ extension Call: Equatable, Hashable {
     }
 }
 
-#if swift(>=6.0)
-extension Call: Sendable {}
-#endif
 
 
 #if swift(>=5.8)
@@ -826,6 +820,10 @@ public struct Config {
     }
 }
 
+#if compiler(>=6)
+extension Config: Sendable {}
+#endif
+
 
 extension Config: Equatable, Hashable {
     public static func ==(lhs: Config, rhs: Config) -> Bool {
@@ -840,9 +838,6 @@ extension Config: Equatable, Hashable {
     }
 }
 
-#if swift(>=6.0)
-extension Config: Sendable {}
-#endif
 
 
 #if swift(>=5.8)
@@ -891,6 +886,10 @@ public struct DoSendTransactionParams {
     }
 }
 
+#if compiler(>=6)
+extension DoSendTransactionParams: Sendable {}
+#endif
+
 
 extension DoSendTransactionParams: Equatable, Hashable {
     public static func ==(lhs: DoSendTransactionParams, rhs: DoSendTransactionParams) -> Bool {
@@ -913,9 +912,6 @@ extension DoSendTransactionParams: Equatable, Hashable {
     }
 }
 
-#if swift(>=6.0)
-extension DoSendTransactionParams: Sendable {}
-#endif
 
 
 #if swift(>=5.8)
@@ -966,6 +962,10 @@ public struct Endpoint {
     }
 }
 
+#if compiler(>=6)
+extension Endpoint: Sendable {}
+#endif
+
 
 extension Endpoint: Equatable, Hashable {
     public static func ==(lhs: Endpoint, rhs: Endpoint) -> Bool {
@@ -984,9 +984,6 @@ extension Endpoint: Equatable, Hashable {
     }
 }
 
-#if swift(>=6.0)
-extension Endpoint: Sendable {}
-#endif
 
 
 #if swift(>=5.8)
@@ -1037,6 +1034,10 @@ public struct Endpoints {
     }
 }
 
+#if compiler(>=6)
+extension Endpoints: Sendable {}
+#endif
+
 
 extension Endpoints: Equatable, Hashable {
     public static func ==(lhs: Endpoints, rhs: Endpoints) -> Bool {
@@ -1059,9 +1060,6 @@ extension Endpoints: Equatable, Hashable {
     }
 }
 
-#if swift(>=6.0)
-extension Endpoints: Sendable {}
-#endif
 
 
 #if swift(>=5.8)
@@ -1100,6 +1098,76 @@ public func FfiConverterTypeEndpoints_lower(_ value: Endpoints) -> RustBuffer {
 }
 
 
+public struct ExecuteDetails {
+    public var initialTxnReceipt: TransactionReceipt
+    public var initialTxnHash: B256
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(initialTxnReceipt: TransactionReceipt, initialTxnHash: B256) {
+        self.initialTxnReceipt = initialTxnReceipt
+        self.initialTxnHash = initialTxnHash
+    }
+}
+
+#if compiler(>=6)
+extension ExecuteDetails: Sendable {}
+#endif
+
+
+extension ExecuteDetails: Equatable, Hashable {
+    public static func ==(lhs: ExecuteDetails, rhs: ExecuteDetails) -> Bool {
+        if lhs.initialTxnReceipt != rhs.initialTxnReceipt {
+            return false
+        }
+        if lhs.initialTxnHash != rhs.initialTxnHash {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(initialTxnReceipt)
+        hasher.combine(initialTxnHash)
+    }
+}
+
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeExecuteDetails: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ExecuteDetails {
+        return
+            try ExecuteDetails(
+                initialTxnReceipt: FfiConverterTypeTransactionReceipt.read(from: &buf), 
+                initialTxnHash: FfiConverterTypeB256.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ExecuteDetails, into buf: inout [UInt8]) {
+        FfiConverterTypeTransactionReceipt.write(value.initialTxnReceipt, into: &buf)
+        FfiConverterTypeB256.write(value.initialTxnHash, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeExecuteDetails_lift(_ buf: RustBuffer) throws -> ExecuteDetails {
+    return try FfiConverterTypeExecuteDetails.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeExecuteDetails_lower(_ value: ExecuteDetails) -> RustBuffer {
+    return FfiConverterTypeExecuteDetails.lower(value)
+}
+
+
 public struct FeeEstimatedTransaction {
     public var chainId: String
     public var from: Address
@@ -1125,6 +1193,10 @@ public struct FeeEstimatedTransaction {
         self.maxPriorityFeePerGas = maxPriorityFeePerGas
     }
 }
+
+#if compiler(>=6)
+extension FeeEstimatedTransaction: Sendable {}
+#endif
 
 
 extension FeeEstimatedTransaction: Equatable, Hashable {
@@ -1172,9 +1244,6 @@ extension FeeEstimatedTransaction: Equatable, Hashable {
     }
 }
 
-#if swift(>=6.0)
-extension FeeEstimatedTransaction: Sendable {}
-#endif
 
 
 #if swift(>=5.8)
@@ -1257,6 +1326,10 @@ public struct FfiAuthorization {
     }
 }
 
+#if compiler(>=6)
+extension FfiAuthorization: Sendable {}
+#endif
+
 
 extension FfiAuthorization: Equatable, Hashable {
     public static func ==(lhs: FfiAuthorization, rhs: FfiAuthorization) -> Bool {
@@ -1279,9 +1352,6 @@ extension FfiAuthorization: Equatable, Hashable {
     }
 }
 
-#if swift(>=6.0)
-extension FfiAuthorization: Sendable {}
-#endif
 
 
 #if swift(>=5.8)
@@ -1340,6 +1410,10 @@ public struct FundingMetadata {
     }
 }
 
+#if compiler(>=6)
+extension FundingMetadata: Sendable {}
+#endif
+
 
 extension FundingMetadata: Equatable, Hashable {
     public static func ==(lhs: FundingMetadata, rhs: FundingMetadata) -> Bool {
@@ -1374,9 +1448,6 @@ extension FundingMetadata: Equatable, Hashable {
     }
 }
 
-#if swift(>=6.0)
-extension FundingMetadata: Sendable {}
-#endif
 
 
 #if swift(>=5.8)
@@ -1439,6 +1510,10 @@ public struct InitialTransactionMetadata {
     }
 }
 
+#if compiler(>=6)
+extension InitialTransactionMetadata: Sendable {}
+#endif
+
 
 extension InitialTransactionMetadata: Equatable, Hashable {
     public static func ==(lhs: InitialTransactionMetadata, rhs: InitialTransactionMetadata) -> Bool {
@@ -1469,9 +1544,6 @@ extension InitialTransactionMetadata: Equatable, Hashable {
     }
 }
 
-#if swift(>=6.0)
-extension InitialTransactionMetadata: Sendable {}
-#endif
 
 
 #if swift(>=5.8)
@@ -1517,16 +1589,30 @@ public func FfiConverterTypeInitialTransactionMetadata_lower(_ value: InitialTra
 public struct Metadata {
     public var fundingFrom: [FundingMetadata]
     public var initialTransaction: InitialTransactionMetadata
+    /**
+     * The number of milliseconds to delay before calling `/status` after getting successful transaction receipts from all sent transactions.
+     * Not switching to Duration yet because Kotlin maps this to a native `duration` type but this requires API version 26 but we support 23.
+     * https://reown-inc.slack.com/archives/C07HQ8RCGD8/p1738740204879269
+     */
     public var checkIn: UInt64
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(fundingFrom: [FundingMetadata], initialTransaction: InitialTransactionMetadata, checkIn: UInt64) {
+    public init(fundingFrom: [FundingMetadata], initialTransaction: InitialTransactionMetadata, 
+        /**
+         * The number of milliseconds to delay before calling `/status` after getting successful transaction receipts from all sent transactions.
+         * Not switching to Duration yet because Kotlin maps this to a native `duration` type but this requires API version 26 but we support 23.
+         * https://reown-inc.slack.com/archives/C07HQ8RCGD8/p1738740204879269
+         */checkIn: UInt64) {
         self.fundingFrom = fundingFrom
         self.initialTransaction = initialTransaction
         self.checkIn = checkIn
     }
 }
+
+#if compiler(>=6)
+extension Metadata: Sendable {}
+#endif
 
 
 extension Metadata: Equatable, Hashable {
@@ -1550,9 +1636,6 @@ extension Metadata: Equatable, Hashable {
     }
 }
 
-#if swift(>=6.0)
-extension Metadata: Sendable {}
-#endif
 
 
 #if swift(>=5.8)
@@ -1603,6 +1686,10 @@ public struct OwnerSignature {
     }
 }
 
+#if compiler(>=6)
+extension OwnerSignature: Sendable {}
+#endif
+
 
 extension OwnerSignature: Equatable, Hashable {
     public static func ==(lhs: OwnerSignature, rhs: OwnerSignature) -> Bool {
@@ -1621,9 +1708,6 @@ extension OwnerSignature: Equatable, Hashable {
     }
 }
 
-#if swift(>=6.0)
-extension OwnerSignature: Sendable {}
-#endif
 
 
 #if swift(>=5.8)
@@ -1676,6 +1760,10 @@ public struct PrepareResponseAvailable {
     }
 }
 
+#if compiler(>=6)
+extension PrepareResponseAvailable: Sendable {}
+#endif
+
 
 extension PrepareResponseAvailable: Equatable, Hashable {
     public static func ==(lhs: PrepareResponseAvailable, rhs: PrepareResponseAvailable) -> Bool {
@@ -1702,9 +1790,6 @@ extension PrepareResponseAvailable: Equatable, Hashable {
     }
 }
 
-#if swift(>=6.0)
-extension PrepareResponseAvailable: Sendable {}
-#endif
 
 
 #if swift(>=5.8)
@@ -1759,6 +1844,10 @@ public struct PrepareResponseError {
     }
 }
 
+#if compiler(>=6)
+extension PrepareResponseError: Sendable {}
+#endif
+
 
 extension PrepareResponseError: Equatable, Hashable {
     public static func ==(lhs: PrepareResponseError, rhs: PrepareResponseError) -> Bool {
@@ -1773,9 +1862,6 @@ extension PrepareResponseError: Equatable, Hashable {
     }
 }
 
-#if swift(>=6.0)
-extension PrepareResponseError: Sendable {}
-#endif
 
 
 #if swift(>=5.8)
@@ -1822,6 +1908,10 @@ public struct PrepareResponseNotRequired {
     }
 }
 
+#if compiler(>=6)
+extension PrepareResponseNotRequired: Sendable {}
+#endif
+
 
 extension PrepareResponseNotRequired: Equatable, Hashable {
     public static func ==(lhs: PrepareResponseNotRequired, rhs: PrepareResponseNotRequired) -> Bool {
@@ -1840,9 +1930,6 @@ extension PrepareResponseNotRequired: Equatable, Hashable {
     }
 }
 
-#if swift(>=6.0)
-extension PrepareResponseNotRequired: Sendable {}
-#endif
 
 
 #if swift(>=5.8)
@@ -1895,6 +1982,10 @@ public struct PreparedSendTransaction {
     }
 }
 
+#if compiler(>=6)
+extension PreparedSendTransaction: Sendable {}
+#endif
+
 
 extension PreparedSendTransaction: Equatable, Hashable {
     public static func ==(lhs: PreparedSendTransaction, rhs: PreparedSendTransaction) -> Bool {
@@ -1921,9 +2012,6 @@ extension PreparedSendTransaction: Equatable, Hashable {
     }
 }
 
-#if swift(>=6.0)
-extension PreparedSendTransaction: Sendable {}
-#endif
 
 
 #if swift(>=5.8)
@@ -1961,6 +2049,100 @@ public func FfiConverterTypePreparedSendTransaction_lift(_ buf: RustBuffer) thro
 #endif
 public func FfiConverterTypePreparedSendTransaction_lower(_ value: PreparedSendTransaction) -> RustBuffer {
     return FfiConverterTypePreparedSendTransaction.lower(value)
+}
+
+
+public struct PulseMetadata {
+    public var url: Url?
+    public var bundleId: String?
+    public var packageName: String?
+    public var sdkVersion: String
+    public var sdkPlatform: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(url: Url?, bundleId: String?, packageName: String?, sdkVersion: String, sdkPlatform: String) {
+        self.url = url
+        self.bundleId = bundleId
+        self.packageName = packageName
+        self.sdkVersion = sdkVersion
+        self.sdkPlatform = sdkPlatform
+    }
+}
+
+#if compiler(>=6)
+extension PulseMetadata: Sendable {}
+#endif
+
+
+extension PulseMetadata: Equatable, Hashable {
+    public static func ==(lhs: PulseMetadata, rhs: PulseMetadata) -> Bool {
+        if lhs.url != rhs.url {
+            return false
+        }
+        if lhs.bundleId != rhs.bundleId {
+            return false
+        }
+        if lhs.packageName != rhs.packageName {
+            return false
+        }
+        if lhs.sdkVersion != rhs.sdkVersion {
+            return false
+        }
+        if lhs.sdkPlatform != rhs.sdkPlatform {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(url)
+        hasher.combine(bundleId)
+        hasher.combine(packageName)
+        hasher.combine(sdkVersion)
+        hasher.combine(sdkPlatform)
+    }
+}
+
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypePulseMetadata: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> PulseMetadata {
+        return
+            try PulseMetadata(
+                url: FfiConverterOptionTypeUrl.read(from: &buf), 
+                bundleId: FfiConverterOptionString.read(from: &buf), 
+                packageName: FfiConverterOptionString.read(from: &buf), 
+                sdkVersion: FfiConverterString.read(from: &buf), 
+                sdkPlatform: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: PulseMetadata, into buf: inout [UInt8]) {
+        FfiConverterOptionTypeUrl.write(value.url, into: &buf)
+        FfiConverterOptionString.write(value.bundleId, into: &buf)
+        FfiConverterOptionString.write(value.packageName, into: &buf)
+        FfiConverterString.write(value.sdkVersion, into: &buf)
+        FfiConverterString.write(value.sdkPlatform, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePulseMetadata_lift(_ buf: RustBuffer) throws -> PulseMetadata {
+    return try FfiConverterTypePulseMetadata.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePulseMetadata_lower(_ value: PulseMetadata) -> RustBuffer {
+    return FfiConverterTypePulseMetadata.lower(value)
 }
 
 
@@ -2002,6 +2184,10 @@ public struct SafeOp {
         self.entryPoint = entryPoint
     }
 }
+
+#if compiler(>=6)
+extension SafeOp: Sendable {}
+#endif
 
 
 extension SafeOp: Equatable, Hashable {
@@ -2065,9 +2251,6 @@ extension SafeOp: Equatable, Hashable {
     }
 }
 
-#if swift(>=6.0)
-extension SafeOp: Sendable {}
-#endif
 
 
 #if swift(>=5.8)
@@ -2138,6 +2321,10 @@ public struct SignOutputObject {
     }
 }
 
+#if compiler(>=6)
+extension SignOutputObject: Sendable {}
+#endif
+
 
 extension SignOutputObject: Equatable, Hashable {
     public static func ==(lhs: SignOutputObject, rhs: SignOutputObject) -> Bool {
@@ -2156,9 +2343,6 @@ extension SignOutputObject: Equatable, Hashable {
     }
 }
 
-#if swift(>=6.0)
-extension SignOutputObject: Sendable {}
-#endif
 
 
 #if swift(>=5.8)
@@ -2209,6 +2393,10 @@ public struct SignOutputToSign {
     }
 }
 
+#if compiler(>=6)
+extension SignOutputToSign: Sendable {}
+#endif
+
 
 extension SignOutputToSign: Equatable, Hashable {
     public static func ==(lhs: SignOutputToSign, rhs: SignOutputToSign) -> Bool {
@@ -2231,9 +2419,6 @@ extension SignOutputToSign: Equatable, Hashable {
     }
 }
 
-#if swift(>=6.0)
-extension SignOutputToSign: Sendable {}
-#endif
 
 
 #if swift(>=5.8)
@@ -2284,6 +2469,10 @@ public struct SignStep3Params {
     }
 }
 
+#if compiler(>=6)
+extension SignStep3Params: Sendable {}
+#endif
+
 
 extension SignStep3Params: Equatable, Hashable {
     public static func ==(lhs: SignStep3Params, rhs: SignStep3Params) -> Bool {
@@ -2302,9 +2491,6 @@ extension SignStep3Params: Equatable, Hashable {
     }
 }
 
-#if swift(>=6.0)
-extension SignStep3Params: Sendable {}
-#endif
 
 
 #if swift(>=5.8)
@@ -2351,6 +2537,10 @@ public struct StatusResponseCompleted {
     }
 }
 
+#if compiler(>=6)
+extension StatusResponseCompleted: Sendable {}
+#endif
+
 
 extension StatusResponseCompleted: Equatable, Hashable {
     public static func ==(lhs: StatusResponseCompleted, rhs: StatusResponseCompleted) -> Bool {
@@ -2365,9 +2555,6 @@ extension StatusResponseCompleted: Equatable, Hashable {
     }
 }
 
-#if swift(>=6.0)
-extension StatusResponseCompleted: Sendable {}
-#endif
 
 
 #if swift(>=5.8)
@@ -2414,6 +2601,10 @@ public struct StatusResponseError {
     }
 }
 
+#if compiler(>=6)
+extension StatusResponseError: Sendable {}
+#endif
+
 
 extension StatusResponseError: Equatable, Hashable {
     public static func ==(lhs: StatusResponseError, rhs: StatusResponseError) -> Bool {
@@ -2432,9 +2623,6 @@ extension StatusResponseError: Equatable, Hashable {
     }
 }
 
-#if swift(>=6.0)
-extension StatusResponseError: Sendable {}
-#endif
 
 
 #if swift(>=5.8)
@@ -2471,7 +2659,7 @@ public func FfiConverterTypeStatusResponseError_lower(_ value: StatusResponseErr
 }
 
 
-public struct StatusResponsePending {
+public struct StatusResponsePendingObject {
     public var createdAt: UInt64
     /**
      * Polling interval in ms for the client
@@ -2489,9 +2677,13 @@ public struct StatusResponsePending {
     }
 }
 
+#if compiler(>=6)
+extension StatusResponsePendingObject: Sendable {}
+#endif
 
-extension StatusResponsePending: Equatable, Hashable {
-    public static func ==(lhs: StatusResponsePending, rhs: StatusResponsePending) -> Bool {
+
+extension StatusResponsePendingObject: Equatable, Hashable {
+    public static func ==(lhs: StatusResponsePendingObject, rhs: StatusResponsePendingObject) -> Bool {
         if lhs.createdAt != rhs.createdAt {
             return false
         }
@@ -2507,24 +2699,21 @@ extension StatusResponsePending: Equatable, Hashable {
     }
 }
 
-#if swift(>=6.0)
-extension StatusResponsePending: Sendable {}
-#endif
 
 
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
-public struct FfiConverterTypeStatusResponsePending: FfiConverterRustBuffer {
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> StatusResponsePending {
+public struct FfiConverterTypeStatusResponsePendingObject: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> StatusResponsePendingObject {
         return
-            try StatusResponsePending(
+            try StatusResponsePendingObject(
                 createdAt: FfiConverterUInt64.read(from: &buf), 
                 checkIn: FfiConverterUInt64.read(from: &buf)
         )
     }
 
-    public static func write(_ value: StatusResponsePending, into buf: inout [UInt8]) {
+    public static func write(_ value: StatusResponsePendingObject, into buf: inout [UInt8]) {
         FfiConverterUInt64.write(value.createdAt, into: &buf)
         FfiConverterUInt64.write(value.checkIn, into: &buf)
     }
@@ -2534,15 +2723,15 @@ public struct FfiConverterTypeStatusResponsePending: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
-public func FfiConverterTypeStatusResponsePending_lift(_ buf: RustBuffer) throws -> StatusResponsePending {
-    return try FfiConverterTypeStatusResponsePending.lift(buf)
+public func FfiConverterTypeStatusResponsePendingObject_lift(_ buf: RustBuffer) throws -> StatusResponsePendingObject {
+    return try FfiConverterTypeStatusResponsePendingObject.lift(buf)
 }
 
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
-public func FfiConverterTypeStatusResponsePending_lower(_ value: StatusResponsePending) -> RustBuffer {
-    return FfiConverterTypeStatusResponsePending.lower(value)
+public func FfiConverterTypeStatusResponsePendingObject_lower(_ value: StatusResponsePendingObject) -> RustBuffer {
+    return FfiConverterTypeStatusResponsePendingObject.lower(value)
 }
 
 
@@ -2567,6 +2756,10 @@ public struct Transaction {
         self.nonce = nonce
     }
 }
+
+#if compiler(>=6)
+extension Transaction: Sendable {}
+#endif
 
 
 extension Transaction: Equatable, Hashable {
@@ -2606,9 +2799,6 @@ extension Transaction: Equatable, Hashable {
     }
 }
 
-#if swift(>=6.0)
-extension Transaction: Sendable {}
-#endif
 
 
 #if swift(>=5.8)
@@ -2667,6 +2857,10 @@ public struct TransactionFee {
     }
 }
 
+#if compiler(>=6)
+extension TransactionFee: Sendable {}
+#endif
+
 
 extension TransactionFee: Equatable, Hashable {
     public static func ==(lhs: TransactionFee, rhs: TransactionFee) -> Bool {
@@ -2685,9 +2879,6 @@ extension TransactionFee: Equatable, Hashable {
     }
 }
 
-#if swift(>=6.0)
-extension TransactionFee: Sendable {}
-#endif
 
 
 #if swift(>=5.8)
@@ -2726,20 +2917,29 @@ public func FfiConverterTypeTransactionFee_lower(_ value: TransactionFee) -> Rus
 
 public struct TxnDetails {
     public var transaction: FeeEstimatedTransaction
+    public var transactionHashToSign: B256
     public var fee: TransactionFee
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(transaction: FeeEstimatedTransaction, fee: TransactionFee) {
+    public init(transaction: FeeEstimatedTransaction, transactionHashToSign: B256, fee: TransactionFee) {
         self.transaction = transaction
+        self.transactionHashToSign = transactionHashToSign
         self.fee = fee
     }
 }
+
+#if compiler(>=6)
+extension TxnDetails: Sendable {}
+#endif
 
 
 extension TxnDetails: Equatable, Hashable {
     public static func ==(lhs: TxnDetails, rhs: TxnDetails) -> Bool {
         if lhs.transaction != rhs.transaction {
+            return false
+        }
+        if lhs.transactionHashToSign != rhs.transactionHashToSign {
             return false
         }
         if lhs.fee != rhs.fee {
@@ -2750,13 +2950,11 @@ extension TxnDetails: Equatable, Hashable {
 
     public func hash(into hasher: inout Hasher) {
         hasher.combine(transaction)
+        hasher.combine(transactionHashToSign)
         hasher.combine(fee)
     }
 }
 
-#if swift(>=6.0)
-extension TxnDetails: Sendable {}
-#endif
 
 
 #if swift(>=5.8)
@@ -2767,12 +2965,14 @@ public struct FfiConverterTypeTxnDetails: FfiConverterRustBuffer {
         return
             try TxnDetails(
                 transaction: FfiConverterTypeFeeEstimatedTransaction.read(from: &buf), 
+                transactionHashToSign: FfiConverterTypeB256.read(from: &buf), 
                 fee: FfiConverterTypeTransactionFee.read(from: &buf)
         )
     }
 
     public static func write(_ value: TxnDetails, into buf: inout [UInt8]) {
         FfiConverterTypeFeeEstimatedTransaction.write(value.transaction, into: &buf)
+        FfiConverterTypeB256.write(value.transactionHashToSign, into: &buf)
         FfiConverterTypeTransactionFee.write(value.fee, into: &buf)
     }
 }
@@ -2794,6 +2994,7 @@ public func FfiConverterTypeTxnDetails_lower(_ value: TxnDetails) -> RustBuffer 
 
 
 public struct UiFields {
+    public var routeResponse: PrepareResponseAvailable
     public var route: [TxnDetails]
     public var localRouteTotal: Amount
     public var bridge: [TransactionFee]
@@ -2803,7 +3004,8 @@ public struct UiFields {
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(route: [TxnDetails], localRouteTotal: Amount, bridge: [TransactionFee], localBridgeTotal: Amount, initial: TxnDetails, localTotal: Amount) {
+    public init(routeResponse: PrepareResponseAvailable, route: [TxnDetails], localRouteTotal: Amount, bridge: [TransactionFee], localBridgeTotal: Amount, initial: TxnDetails, localTotal: Amount) {
+        self.routeResponse = routeResponse
         self.route = route
         self.localRouteTotal = localRouteTotal
         self.bridge = bridge
@@ -2813,9 +3015,16 @@ public struct UiFields {
     }
 }
 
+#if compiler(>=6)
+extension UiFields: Sendable {}
+#endif
+
 
 extension UiFields: Equatable, Hashable {
     public static func ==(lhs: UiFields, rhs: UiFields) -> Bool {
+        if lhs.routeResponse != rhs.routeResponse {
+            return false
+        }
         if lhs.route != rhs.route {
             return false
         }
@@ -2838,6 +3047,7 @@ extension UiFields: Equatable, Hashable {
     }
 
     public func hash(into hasher: inout Hasher) {
+        hasher.combine(routeResponse)
         hasher.combine(route)
         hasher.combine(localRouteTotal)
         hasher.combine(bridge)
@@ -2847,9 +3057,6 @@ extension UiFields: Equatable, Hashable {
     }
 }
 
-#if swift(>=6.0)
-extension UiFields: Sendable {}
-#endif
 
 
 #if swift(>=5.8)
@@ -2859,6 +3066,7 @@ public struct FfiConverterTypeUiFields: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> UiFields {
         return
             try UiFields(
+                routeResponse: FfiConverterTypePrepareResponseAvailable.read(from: &buf), 
                 route: FfiConverterSequenceTypeTxnDetails.read(from: &buf), 
                 localRouteTotal: FfiConverterTypeAmount.read(from: &buf), 
                 bridge: FfiConverterSequenceTypeTransactionFee.read(from: &buf), 
@@ -2869,6 +3077,7 @@ public struct FfiConverterTypeUiFields: FfiConverterRustBuffer {
     }
 
     public static func write(_ value: UiFields, into buf: inout [UInt8]) {
+        FfiConverterTypePrepareResponseAvailable.write(value.routeResponse, into: &buf)
         FfiConverterSequenceTypeTxnDetails.write(value.route, into: &buf)
         FfiConverterTypeAmount.write(value.localRouteTotal, into: &buf)
         FfiConverterSequenceTypeTransactionFee.write(value.bridge, into: &buf)
@@ -2931,6 +3140,10 @@ public struct UserOperationV07 {
         self.signature = signature
     }
 }
+
+#if compiler(>=6)
+extension UserOperationV07: Sendable {}
+#endif
 
 
 extension UserOperationV07: Equatable, Hashable {
@@ -3002,9 +3215,6 @@ extension UserOperationV07: Equatable, Hashable {
     }
 }
 
-#if swift(>=6.0)
-extension UserOperationV07: Sendable {}
-#endif
 
 
 #if swift(>=5.8)
@@ -3077,6 +3287,10 @@ public enum BridgingError {
 }
 
 
+#if compiler(>=6)
+extension BridgingError: Sendable {}
+#endif
+
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
@@ -3133,9 +3347,6 @@ public func FfiConverterTypeBridgingError_lower(_ value: BridgingError) -> RustB
 
 
 extension BridgingError: Equatable, Hashable {}
-#if swift(>=6.0)
-extension BridgingError: Sendable {}
-#endif
 
 
 
@@ -3155,6 +3366,10 @@ public enum Currency {
     case eth
 }
 
+
+#if compiler(>=6)
+extension Currency: Sendable {}
+#endif
 
 #if swift(>=5.8)
 @_documentation(visibility: private)
@@ -3248,9 +3463,6 @@ public func FfiConverterTypeCurrency_lower(_ value: Currency) -> RustBuffer {
 
 
 extension Currency: Equatable, Hashable {}
-#if swift(>=6.0)
-extension Currency: Sendable {}
-#endif
 
 
 
@@ -3327,6 +3539,99 @@ extension Erc6492Error: Foundation.LocalizedError {
 }
 
 
+
+public enum ExecuteError {
+
+    
+    
+    case Route(SendTransactionError
+    )
+    case Bridge(WaitForSuccessError
+    )
+    case Initial(SendTransactionError
+    )
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeExecuteError: FfiConverterRustBuffer {
+    typealias SwiftType = ExecuteError
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ExecuteError {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+
+        
+
+        
+        case 1: return .Route(
+            try FfiConverterTypeSendTransactionError.read(from: &buf)
+            )
+        case 2: return .Bridge(
+            try FfiConverterTypeWaitForSuccessError.read(from: &buf)
+            )
+        case 3: return .Initial(
+            try FfiConverterTypeSendTransactionError.read(from: &buf)
+            )
+
+         default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: ExecuteError, into buf: inout [UInt8]) {
+        switch value {
+
+        
+
+        
+        
+        case let .Route(v1):
+            writeInt(&buf, Int32(1))
+            FfiConverterTypeSendTransactionError.write(v1, into: &buf)
+            
+        
+        case let .Bridge(v1):
+            writeInt(&buf, Int32(2))
+            FfiConverterTypeWaitForSuccessError.write(v1, into: &buf)
+            
+        
+        case let .Initial(v1):
+            writeInt(&buf, Int32(3))
+            FfiConverterTypeSendTransactionError.write(v1, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeExecuteError_lift(_ buf: RustBuffer) throws -> ExecuteError {
+    return try FfiConverterTypeExecuteError.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeExecuteError_lower(_ value: ExecuteError) -> RustBuffer {
+    return FfiConverterTypeExecuteError.lower(value)
+}
+
+
+extension ExecuteError: Equatable, Hashable {}
+
+
+
+extension ExecuteError: Foundation.LocalizedError {
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+}
+
+
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
 
@@ -3338,6 +3643,10 @@ public enum PrepareDetailedResponse {
     )
 }
 
+
+#if compiler(>=6)
+extension PrepareDetailedResponse: Sendable {}
+#endif
 
 #if swift(>=5.8)
 @_documentation(visibility: private)
@@ -3393,9 +3702,6 @@ public func FfiConverterTypePrepareDetailedResponse_lower(_ value: PrepareDetail
 
 
 extension PrepareDetailedResponse: Equatable, Hashable {}
-#if swift(>=6.0)
-extension PrepareDetailedResponse: Sendable {}
-#endif
 
 
 
@@ -3410,6 +3716,10 @@ public enum PrepareDetailedResponseSuccess {
     )
 }
 
+
+#if compiler(>=6)
+extension PrepareDetailedResponseSuccess: Sendable {}
+#endif
 
 #if swift(>=5.8)
 @_documentation(visibility: private)
@@ -3465,9 +3775,6 @@ public func FfiConverterTypePrepareDetailedResponseSuccess_lower(_ value: Prepar
 
 
 extension PrepareDetailedResponseSuccess: Equatable, Hashable {}
-#if swift(>=6.0)
-extension PrepareDetailedResponseSuccess: Sendable {}
-#endif
 
 
 
@@ -3482,6 +3789,10 @@ public enum PrepareResponse {
     )
 }
 
+
+#if compiler(>=6)
+extension PrepareResponse: Sendable {}
+#endif
 
 #if swift(>=5.8)
 @_documentation(visibility: private)
@@ -3537,9 +3848,6 @@ public func FfiConverterTypePrepareResponse_lower(_ value: PrepareResponse) -> R
 
 
 extension PrepareResponse: Equatable, Hashable {}
-#if swift(>=6.0)
-extension PrepareResponse: Sendable {}
-#endif
 
 
 
@@ -3554,6 +3862,10 @@ public enum PrepareResponseSuccess {
     )
 }
 
+
+#if compiler(>=6)
+extension PrepareResponseSuccess: Sendable {}
+#endif
 
 #if swift(>=5.8)
 @_documentation(visibility: private)
@@ -3609,10 +3921,96 @@ public func FfiConverterTypePrepareResponseSuccess_lower(_ value: PrepareRespons
 
 
 extension PrepareResponseSuccess: Equatable, Hashable {}
-#if swift(>=6.0)
-extension PrepareResponseSuccess: Sendable {}
-#endif
 
+
+
+
+public enum SendTransactionError {
+
+    
+    
+    case Rpc(RpcError
+    )
+    case PendingTransaction(PendingTransactionError
+    )
+    case Failed
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSendTransactionError: FfiConverterRustBuffer {
+    typealias SwiftType = SendTransactionError
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SendTransactionError {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+
+        
+
+        
+        case 1: return .Rpc(
+            try FfiConverterTypeRpcError.read(from: &buf)
+            )
+        case 2: return .PendingTransaction(
+            try FfiConverterTypePendingTransactionError.read(from: &buf)
+            )
+        case 3: return .Failed
+
+         default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: SendTransactionError, into buf: inout [UInt8]) {
+        switch value {
+
+        
+
+        
+        
+        case let .Rpc(v1):
+            writeInt(&buf, Int32(1))
+            FfiConverterTypeRpcError.write(v1, into: &buf)
+            
+        
+        case let .PendingTransaction(v1):
+            writeInt(&buf, Int32(2))
+            FfiConverterTypePendingTransactionError.write(v1, into: &buf)
+            
+        
+        case .Failed:
+            writeInt(&buf, Int32(3))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSendTransactionError_lift(_ buf: RustBuffer) throws -> SendTransactionError {
+    return try FfiConverterTypeSendTransactionError.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSendTransactionError_lower(_ value: SendTransactionError) -> RustBuffer {
+    return FfiConverterTypeSendTransactionError.lower(value)
+}
+
+
+extension SendTransactionError: Equatable, Hashable {}
+
+
+
+extension SendTransactionError: Foundation.LocalizedError {
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+}
 
 
 // Note that we don't yet support `indirect` for enums.
@@ -3626,6 +4024,10 @@ public enum SignOutputEnum {
     )
 }
 
+
+#if compiler(>=6)
+extension SignOutputEnum: Sendable {}
+#endif
 
 #if swift(>=5.8)
 @_documentation(visibility: private)
@@ -3681,10 +4083,134 @@ public func FfiConverterTypeSignOutputEnum_lower(_ value: SignOutputEnum) -> Rus
 
 
 extension SignOutputEnum: Equatable, Hashable {}
-#if swift(>=6.0)
-extension SignOutputEnum: Sendable {}
-#endif
 
+
+
+
+public enum StatusError {
+
+    
+    
+    /**
+     * Retryable error
+     */
+    case Request(ReqwestError
+    )
+    /**
+     * Retryable error
+     */
+    case RequestFailed(String
+    )
+    case RequestFailedText(ReqwestError
+    )
+    /**
+     * Retryable error
+     */
+    case DecodingText(ReqwestError
+    )
+    /**
+     * Retryable error
+     */
+    case DecodingJson(SerdeJsonError,String
+    )
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeStatusError: FfiConverterRustBuffer {
+    typealias SwiftType = StatusError
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> StatusError {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+
+        
+
+        
+        case 1: return .Request(
+            try FfiConverterTypeReqwestError.read(from: &buf)
+            )
+        case 2: return .RequestFailed(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 3: return .RequestFailedText(
+            try FfiConverterTypeReqwestError.read(from: &buf)
+            )
+        case 4: return .DecodingText(
+            try FfiConverterTypeReqwestError.read(from: &buf)
+            )
+        case 5: return .DecodingJson(
+            try FfiConverterTypeSerdeJsonError.read(from: &buf), 
+            try FfiConverterString.read(from: &buf)
+            )
+
+         default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: StatusError, into buf: inout [UInt8]) {
+        switch value {
+
+        
+
+        
+        
+        case let .Request(v1):
+            writeInt(&buf, Int32(1))
+            FfiConverterTypeReqwestError.write(v1, into: &buf)
+            
+        
+        case let .RequestFailed(v1):
+            writeInt(&buf, Int32(2))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .RequestFailedText(v1):
+            writeInt(&buf, Int32(3))
+            FfiConverterTypeReqwestError.write(v1, into: &buf)
+            
+        
+        case let .DecodingText(v1):
+            writeInt(&buf, Int32(4))
+            FfiConverterTypeReqwestError.write(v1, into: &buf)
+            
+        
+        case let .DecodingJson(v1,v2):
+            writeInt(&buf, Int32(5))
+            FfiConverterTypeSerdeJsonError.write(v1, into: &buf)
+            FfiConverterString.write(v2, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeStatusError_lift(_ buf: RustBuffer) throws -> StatusError {
+    return try FfiConverterTypeStatusError.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeStatusError_lower(_ value: StatusError) -> RustBuffer {
+    return FfiConverterTypeStatusError.lower(value)
+}
+
+
+extension StatusError: Equatable, Hashable {}
+
+
+
+extension StatusError: Foundation.LocalizedError {
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+}
 
 
 // Note that we don't yet support `indirect` for enums.
@@ -3692,7 +4218,7 @@ extension SignOutputEnum: Sendable {}
 
 public enum StatusResponse {
     
-    case pending(StatusResponsePending
+    case pending(StatusResponsePendingObject
     )
     case completed(StatusResponseCompleted
     )
@@ -3700,6 +4226,10 @@ public enum StatusResponse {
     )
 }
 
+
+#if compiler(>=6)
+extension StatusResponse: Sendable {}
+#endif
 
 #if swift(>=5.8)
 @_documentation(visibility: private)
@@ -3711,7 +4241,7 @@ public struct FfiConverterTypeStatusResponse: FfiConverterRustBuffer {
         let variant: Int32 = try readInt(&buf)
         switch variant {
         
-        case 1: return .pending(try FfiConverterTypeStatusResponsePending.read(from: &buf)
+        case 1: return .pending(try FfiConverterTypeStatusResponsePendingObject.read(from: &buf)
         )
         
         case 2: return .completed(try FfiConverterTypeStatusResponseCompleted.read(from: &buf)
@@ -3730,7 +4260,7 @@ public struct FfiConverterTypeStatusResponse: FfiConverterRustBuffer {
         
         case let .pending(v1):
             writeInt(&buf, Int32(1))
-            FfiConverterTypeStatusResponsePending.write(v1, into: &buf)
+            FfiConverterTypeStatusResponsePendingObject.write(v1, into: &buf)
             
         
         case let .completed(v1):
@@ -3763,11 +4293,125 @@ public func FfiConverterTypeStatusResponse_lower(_ value: StatusResponse) -> Rus
 
 
 extension StatusResponse: Equatable, Hashable {}
-#if swift(>=6.0)
-extension StatusResponse: Sendable {}
+
+
+
+
+public enum WaitForSuccessError {
+
+    
+    
+    case Status(StatusError
+    )
+    case StatusResponseError(StatusResponseError
+    )
+    case StatusResponsePending(StatusResponsePendingObject
+    )
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
 #endif
+public struct FfiConverterTypeWaitForSuccessError: FfiConverterRustBuffer {
+    typealias SwiftType = WaitForSuccessError
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> WaitForSuccessError {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+
+        
+
+        
+        case 1: return .Status(
+            try FfiConverterTypeStatusError.read(from: &buf)
+            )
+        case 2: return .StatusResponseError(
+            try FfiConverterTypeStatusResponseError.read(from: &buf)
+            )
+        case 3: return .StatusResponsePending(
+            try FfiConverterTypeStatusResponsePendingObject.read(from: &buf)
+            )
+
+         default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: WaitForSuccessError, into buf: inout [UInt8]) {
+        switch value {
+
+        
+
+        
+        
+        case let .Status(v1):
+            writeInt(&buf, Int32(1))
+            FfiConverterTypeStatusError.write(v1, into: &buf)
+            
+        
+        case let .StatusResponseError(v1):
+            writeInt(&buf, Int32(2))
+            FfiConverterTypeStatusResponseError.write(v1, into: &buf)
+            
+        
+        case let .StatusResponsePending(v1):
+            writeInt(&buf, Int32(3))
+            FfiConverterTypeStatusResponsePendingObject.write(v1, into: &buf)
+            
+        }
+    }
+}
 
 
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeWaitForSuccessError_lift(_ buf: RustBuffer) throws -> WaitForSuccessError {
+    return try FfiConverterTypeWaitForSuccessError.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeWaitForSuccessError_lower(_ value: WaitForSuccessError) -> RustBuffer {
+    return FfiConverterTypeWaitForSuccessError.lower(value)
+}
+
+
+extension WaitForSuccessError: Equatable, Hashable {}
+
+
+
+extension WaitForSuccessError: Foundation.LocalizedError {
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionString: FfiConverterRustBuffer {
+    typealias SwiftType = String?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterString.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterString.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
 
 #if swift(>=5.8)
 @_documentation(visibility: private)
@@ -3836,6 +4480,30 @@ fileprivate struct FfiConverterOptionTypeU256: FfiConverterRustBuffer {
         switch try readInt(&buf) as Int8 {
         case 0: return nil
         case 1: return try FfiConverterTypeU256.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeUrl: FfiConverterRustBuffer {
+    typealias SwiftType = Url?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeUrl.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeUrl.read(from: &buf)
         default: throw UniffiInternalError.unexpectedOptionalTag
         }
     }
@@ -4474,6 +5142,50 @@ public func FfiConverterTypeProjectId_lower(_ value: ProjectId) -> RustBuffer {
  * Typealias from the type name used in the UDL file to the builtin type.  This
  * is needed because the UDL type name is used in function/method signatures.
  */
+public typealias ReqwestError = String
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeReqwestError: FfiConverter {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ReqwestError {
+        return try FfiConverterString.read(from: &buf)
+    }
+
+    public static func write(_ value: ReqwestError, into buf: inout [UInt8]) {
+        return FfiConverterString.write(value, into: &buf)
+    }
+
+    public static func lift(_ value: RustBuffer) throws -> ReqwestError {
+        return try FfiConverterString.lift(value)
+    }
+
+    public static func lower(_ value: ReqwestError) -> RustBuffer {
+        return FfiConverterString.lower(value)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeReqwestError_lift(_ value: RustBuffer) throws -> ReqwestError {
+    return try FfiConverterTypeReqwestError.lift(value)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeReqwestError_lower(_ value: ReqwestError) -> RustBuffer {
+    return FfiConverterTypeReqwestError.lower(value)
+}
+
+
+
+/**
+ * Typealias from the type name used in the UDL file to the builtin type.  This
+ * is needed because the UDL type name is used in function/method signatures.
+ */
 public typealias RpcError = String
 
 #if swift(>=5.8)
@@ -4510,6 +5222,50 @@ public func FfiConverterTypeRpcError_lift(_ value: RustBuffer) throws -> RpcErro
 #endif
 public func FfiConverterTypeRpcError_lower(_ value: RpcError) -> RustBuffer {
     return FfiConverterTypeRpcError.lower(value)
+}
+
+
+
+/**
+ * Typealias from the type name used in the UDL file to the builtin type.  This
+ * is needed because the UDL type name is used in function/method signatures.
+ */
+public typealias SerdeJsonError = String
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSerdeJsonError: FfiConverter {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SerdeJsonError {
+        return try FfiConverterString.read(from: &buf)
+    }
+
+    public static func write(_ value: SerdeJsonError, into buf: inout [UInt8]) {
+        return FfiConverterString.write(value, into: &buf)
+    }
+
+    public static func lift(_ value: RustBuffer) throws -> SerdeJsonError {
+        return try FfiConverterString.lift(value)
+    }
+
+    public static func lower(_ value: SerdeJsonError) -> RustBuffer {
+        return FfiConverterString.lower(value)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSerdeJsonError_lift(_ value: RustBuffer) throws -> SerdeJsonError {
+    return try FfiConverterTypeSerdeJsonError.lift(value)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSerdeJsonError_lower(_ value: SerdeJsonError) -> RustBuffer {
+    return FfiConverterTypeSerdeJsonError.lower(value)
 }
 
 

@@ -14,6 +14,10 @@ pub const ROUTE_ENDPOINT_PATH: &str = "/v1/ca/orchestrator/route";
 #[serde(rename_all = "camelCase")]
 pub struct RouteQueryParams {
     pub project_id: ProjectId,
+    #[serde(rename = "st")]
+    pub sdk_type: String,
+    #[serde(rename = "sv")]
+    pub sdk_version: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -54,15 +58,28 @@ impl CallOrCalls {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
+#[cfg_attr(
+    feature = "wasm",
+    derive(tsify_next::Tsify),
+    tsify(into_wasm_abi, from_wasm_abi)
+)]
 #[serde(rename_all = "camelCase")]
 pub struct Metadata {
     pub funding_from: Vec<FundingMetadata>,
     pub initial_transaction: InitialTransactionMetadata,
+    /// The number of milliseconds to delay before calling `/status` after getting successful transaction receipts from all sent transactions.
+    /// Not switching to Duration yet because Kotlin maps this to a native `duration` type but this requires API version 26 but we support 23.
+    /// https://reown-inc.slack.com/archives/C07HQ8RCGD8/p1738740204879269
     pub check_in: u64,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
+#[cfg_attr(
+    feature = "wasm",
+    derive(tsify_next::Tsify),
+    tsify(into_wasm_abi, from_wasm_abi)
+)]
 #[serde(rename_all = "camelCase")]
 pub struct InitialTransactionMetadata {
     pub transfer_to: Address,
@@ -84,6 +101,11 @@ impl InitialTransactionMetadata {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
+#[cfg_attr(
+    feature = "wasm",
+    derive(tsify_next::Tsify),
+    tsify(into_wasm_abi, from_wasm_abi)
+)]
 #[serde(rename_all = "camelCase")]
 pub struct FundingMetadata {
     pub chain_id: String,
@@ -143,6 +165,11 @@ pub struct PrepareResponseAvailable {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
+#[cfg_attr(
+    feature = "wasm",
+    derive(tsify_next::Tsify),
+    tsify(into_wasm_abi, from_wasm_abi)
+)]
 #[serde(rename_all = "camelCase")]
 pub struct PrepareResponseNotRequired {
     pub initial_transaction: Transaction,
@@ -151,6 +178,11 @@ pub struct PrepareResponseNotRequired {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Enum))]
+#[cfg_attr(
+    feature = "wasm",
+    derive(tsify_next::Tsify),
+    tsify(into_wasm_abi, from_wasm_abi)
+)]
 #[serde(untagged)]
 pub enum PrepareResponseSuccess {
     Available(PrepareResponseAvailable),
@@ -170,12 +202,23 @@ impl PrepareResponseSuccess {
 /// response
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
+#[cfg_attr(
+    feature = "wasm",
+    derive(tsify_next::Tsify),
+    tsify(into_wasm_abi, from_wasm_abi)
+)]
+#[serde(rename_all = "camelCase")]
 pub struct PrepareResponseError {
     pub error: BridgingError,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Enum))]
+#[cfg_attr(
+    feature = "wasm",
+    derive(tsify_next::Tsify),
+    tsify(into_wasm_abi, from_wasm_abi)
+)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum BridgingError {
     NoRoutesAvailable,

@@ -5,6 +5,9 @@ pub mod currency;
 pub mod error;
 pub mod l1_data_fee;
 pub mod local_fee_acc;
+pub mod pulse;
+pub mod send_transaction;
+pub mod spawn;
 pub mod ui_fields;
 
 #[cfg(feature = "frb")]

@@ -1,0 +1,32 @@
+name: E2E
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+  # TODO input for yttrium commit to test against
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  e2e:
+    name: E2E
+    runs-on: ubuntu-latest
+    concurrency:
+      group: yttrium-e2e
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Run sccache-cache
+        uses: mozilla-actions/sccache-action@v0.0.4
+      - run: rustup update stable && rustup default stable
+      - run: cargo test -p yttrium --features=test_blockchain_api chain_abstraction::tests::happy_path_execute_method
+        env:
+          REOWN_PROJECT_ID: ${{ vars.REOWN_PROJECT_ID }}
+          FAUCET_MNEMONIC: ${{ secrets.FAUCET_MNEMONIC }}
+          RUST_BACKTRACE: 1
+          RUST_LOG: yttrium=trace

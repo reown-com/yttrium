@@ -1,0 +1,9 @@
+export type Hex = `0x${string}`;
+export type Address = Hex;
+export type Bytes = Hex;
+export type U64 = Hex;
+export type U128 = Hex;
+export type U256 = Hex;
+export type B256 = Hex;
+export type Url = string;
+export type TransactionReceipt = {};

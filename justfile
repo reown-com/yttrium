@@ -47,15 +47,15 @@ test-pimlico-api:
   cargo test --features=test_pimlico_api --lib --bins pimlico
 
 test-blockchain-api:
-  RUST_BACKTRACE=1 cargo test --features=test_blockchain_api --lib --bins chain_abstraction::tests
+  RUST_BACKTRACE=1 RUST_LOG=yttrium=trace cargo test --features=test_blockchain_api --lib --bins chain_abstraction::tests
 test-blockchain-api-debug:
-  RUST_BACKTRACE=1 cargo test --features=test_blockchain_api --lib --bins chain_abstraction::tests::happy_path_full_dependency_on_route_ui_fields -- --nocapture
+  RUST_BACKTRACE=1 RUST_LOG=yttrium=trace cargo test -p yttrium --features=test_blockchain_api chain_abstraction::tests::happy_path_execute_method -- --nocapture
 
 lint: fmt clippy
 
 clippy:
-  cargo clippy --workspace --features=full --all-targets -- -D warnings
-  cargo clippy -p yttrium --lib --target wasm32-unknown-unknown -- -D warnings
+  cargo clippy --workspace --all-features --all-targets -- -D warnings
+  cargo clippy -p yttrium --lib --target wasm32-unknown-unknown --features=wasm -- -D warnings
 
 fmt:
   cargo +nightly fmt --all
@@ -71,4 +71,5 @@ swift:
   make CONFIG=debug build-swift-apple-platforms
 
 kotlin:
-  cargo ndk -t armeabi-v7a -t arm64-v8a build --profile=uniffi-release --features=uniffi/cli
+  # cargo ndk -t armeabi-v7a -t arm64-v8a build -p kotlin-ffi --profile=uniffi-release --features=uniffi/cli
+  ./build-kotlin.sh

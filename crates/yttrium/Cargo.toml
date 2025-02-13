@@ -22,10 +22,19 @@ wasm = [
     "dep:wasm-bindgen-futures",
     "alloy/wasm-bindgen",
     "dep:tsify-next",
+    "dep:derive_jserror",
+    # "getrandom/wasm_js", # for getrandom v0.3.*
+    "getrandom/js",
+    "uuid/js",
 ]
 
 # Features contributing to bundle size, that you might not need
-all_clients = ["account_client", "erc6492_client", "chain_abstraction_client", "transaction_sponsorship_client"]
+all_clients = [
+    "account_client",
+    "erc6492_client",
+    "chain_abstraction_client",
+    "transaction_sponsorship_client",
+]
 account_client = []
 erc6492_client = []
 chain_abstraction_client = []
@@ -55,6 +64,7 @@ alloy = { workspace = true, features = [
     "providers",
     "node-bindings",
     "rpc-types-trace",
+    "json-rpc",
     "signer-mnemonic",
     "eip712",
     "rlp",
@@ -62,16 +72,24 @@ alloy = { workspace = true, features = [
 alloy-provider = { workspace = true, features = ["erc4337-api"] }
 erc6492.workspace = true
 relay_rpc.workspace = true
+tower = { version = "0.5", features = ["util"] }
 
 # foundry-block-explorers = "0.2.3"
-getrandom = { version = "0.2", features = ["js"], default-features = false }
+getrandom = { version = "0.2", default-features = false }
+
+uuid = { version = "1.12.1", default-features = false, features = [
+    "v4",
+    "serde",
+] }
+
+web-time = { version = "0.1.0", default-features = false }
 
 # Error/Result
 eyre.workspace = true
 thiserror.workspace = true
 
 # Async
-tokio.workspace = true
+tokio = { workspace = true, features = ["rt"] }
 futures.workspace = true
 
 # Serialization
@@ -84,19 +102,28 @@ dotenvy = { version = "0.15.7", default-features = false }
 # Other
 hex = { version = "0.4.3", features = ["std"], default-features = false }
 async-trait = { version = "0.1.83", default-features = false }
-tracing = { version = "0.1.40", default-features = false }
+tracing = { version = "0.1.40", default-features = false, features = [
+    "release_max_level_warn",
+] }
 # fastlz-rs = { version = "0.0.3", features = ["std"], default-features = false }
 
 # Networking
 reqwest.workspace = true
+url = { workspace = true, features = ["serde"] }
+
+# Tiny dependency, could copy source. Pinning to exact version to avoid supply-chain attacks.
+derive_jserror = { version = "=0.1.0", optional = true, default-features = false }
 
 [dev-dependencies]
 # mocking
 wiremock = { version = "0.6.0", default-features = false }
+test-log = { version = "0.2.17", default-features = false, features = [
+    "trace",
+] }
 
 # Networking
 reqwest.workspace = true
-alloy = { workspace = true, features = ["node-bindings"] }
+alloy = { workspace = true, features = ["node-bindings", "reqwest"] }
 serial_test.workspace = true
 
 [package.metadata.wasm-pack.profile.release]

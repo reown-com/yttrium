@@ -36,7 +36,7 @@ use {
         user_operation::{hash::get_user_operation_hash_v07, UserOperationV07},
     },
     alloy::{
-        network::{Ethereum, EthereumWallet, TransactionBuilder7702},
+        network::{EthereumWallet, TransactionBuilder7702},
         primitives::{
             address, eip191_hash_message, fixed_bytes, Address, B256, U256,
         },
@@ -48,7 +48,7 @@ use {
         },
         sol_types::SolCall,
     },
-    alloy_provider::{Provider, ProviderBuilder, ReqwestProvider},
+    alloy_provider::{Provider, ProviderBuilder},
     reqwest::Url,
     std::time::Duration,
 };
@@ -75,7 +75,7 @@ async fn test_pimlico() {
     .parse::<Url>()
     .unwrap();
 
-    let provider = ReqwestProvider::<Ethereum>::new_http(rpc);
+    let provider = ProviderBuilder::new().on_http(rpc);
     let faucet = private_faucet();
     test_impl(provider, faucet, bundler_url.clone(), bundler_url).await
 }
@@ -83,7 +83,7 @@ async fn test_pimlico() {
 #[tokio::test]
 async fn test_local() {
     let provider =
-        ReqwestProvider::<Ethereum>::new_http(LOCAL_RPC_URL.parse().unwrap());
+        ProviderBuilder::new().on_http(LOCAL_RPC_URL.parse().unwrap());
     let faucet = anvil_faucet(&provider).await;
 
     test_impl(
@@ -96,7 +96,7 @@ async fn test_local() {
 }
 
 async fn test_impl(
-    provider: ReqwestProvider,
+    provider: impl Provider + Clone,
     faucet: PrivateKeySigner,
     bundler_url: Url,
     paymaster_url: Url,
@@ -151,7 +151,6 @@ async fn test_impl(
     println!("faucet private key: {}", hex::encode(faucet.to_bytes()));
     let faucet_wallet = EthereumWallet::new(faucet);
     let faucet_provider = ProviderBuilder::new()
-        .with_recommended_fillers()
         .wallet(faucet_wallet)
         .on_provider(provider.clone());
 

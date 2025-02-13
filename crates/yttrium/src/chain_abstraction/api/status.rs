@@ -10,12 +10,21 @@ pub const STATUS_ENDPOINT_PATH: &str = "/v1/ca/orchestrator/status";
 pub struct StatusQueryParams {
     pub project_id: ProjectId,
     pub orchestration_id: String,
+    #[serde(rename = "st")]
+    pub sdk_type: String,
+    #[serde(rename = "sv")]
+    pub sdk_version: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
+#[cfg_attr(
+    feature = "wasm",
+    derive(tsify_next::Tsify),
+    tsify(into_wasm_abi, from_wasm_abi)
+)]
 #[serde(rename_all = "camelCase")]
-pub struct StatusResponsePending {
+pub struct StatusResponsePendingObject {
     pub created_at: u64,
     /// Polling interval in ms for the client
     pub check_in: u64,
@@ -35,6 +44,11 @@ pub struct StatusResponseCompleted {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
+#[cfg_attr(
+    feature = "wasm",
+    derive(tsify_next::Tsify),
+    tsify(into_wasm_abi, from_wasm_abi)
+)]
 #[serde(rename_all = "camelCase")]
 pub struct StatusResponseError {
     pub created_at: u64,
@@ -50,7 +64,7 @@ pub struct StatusResponseError {
 )]
 #[serde(rename_all = "UPPERCASE", tag = "status")]
 pub enum StatusResponse {
-    Pending(StatusResponsePending),
+    Pending(StatusResponsePendingObject),
     Completed(StatusResponseCompleted),
     Error(StatusResponseError),
 }

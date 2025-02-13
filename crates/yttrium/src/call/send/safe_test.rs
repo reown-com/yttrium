@@ -27,18 +27,16 @@ use {
     },
     alloy::{
         dyn_abi::{DynSolValue, Eip712Domain},
-        network::Ethereum,
         primitives::{
             aliases::U48, Address, PrimitiveSignature, Uint, B256, U160, U256,
             U64,
         },
-        providers::{Provider, ReqwestProvider},
+        providers::Provider,
         rpc::types::UserOperationReceipt,
         signers::{k256::ecdsa::SigningKey, local::LocalSigner, SignerSync},
         sol_types::{SolCall, SolStruct},
-        transports::Transport,
     },
-    alloy_provider::Network,
+    alloy_provider::ProviderBuilder,
     core::fmt,
     serde::{Deserialize, Serialize},
     std::ops::Not,
@@ -83,7 +81,7 @@ pub async fn get_address(
 ) -> eyre::Result<AccountAddress> {
     let rpc_url = config.endpoints.rpc.base_url;
     let rpc_url: reqwest::Url = rpc_url.parse()?;
-    let provider = ReqwestProvider::<Ethereum>::new_http(rpc_url);
+    let provider = ProviderBuilder::new().on_http(rpc_url);
 
     let owners = Owners { owners: vec![owner_address.into()], threshold: 1 };
 
@@ -184,9 +182,8 @@ pub async fn prepare_send_transactions(
         config.endpoints.bundler.base_url.parse()?,
     ));
 
-    let provider = ReqwestProvider::<Ethereum>::new_http(
-        config.endpoints.rpc.base_url.parse()?,
-    );
+    let provider =
+        ProviderBuilder::new().on_http(config.endpoints.rpc.base_url.parse()?);
 
     let paymaster_client = PaymasterClient::new(BundlerConfig::new(
         config.endpoints.paymaster.base_url.parse()?,
@@ -209,21 +206,16 @@ pub async fn prepare_send_transactions(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn prepare_send_transactions_inner<P, T, N>(
+pub async fn prepare_send_transactions_inner(
     calls: Vec<Call>,
     owners: Owners,
     address: Option<AccountAddress>,
     authorization_list: Option<Vec<Authorization>>,
-    provider: &P,
+    provider: &impl Provider,
     max_fee_per_gas: U256,
     max_priority_fee_per_gas: U256,
     paymaster_client: PaymasterClient,
-) -> eyre::Result<PreparedSendTransaction>
-where
-    T: Transport + Clone,
-    P: Provider<T, N>,
-    N: Network,
-{
+) -> eyre::Result<PreparedSendTransaction> {
     let chain_id = provider.get_chain_id().await?;
     let chain = crate::chain::Chain::new(
         ChainId::new_eip155(chain_id),
@@ -422,9 +414,8 @@ pub async fn do_send_transactions(
 ) -> eyre::Result<B256> {
     let user_op = encode_send_transactions(signatures, params).await?;
 
-    let provider = ReqwestProvider::<Ethereum>::new_http(
-        config.endpoints.rpc.base_url.parse()?,
-    );
+    let provider =
+        ProviderBuilder::new().on_http(config.endpoints.rpc.base_url.parse()?);
     let chain_id = provider.get_chain_id().await?;
     let chain = crate::chain::Chain::new(
         ChainId::new_eip155(chain_id),
@@ -470,9 +461,8 @@ mod tests {
         config: Config,
         faucet: LocalSigner<SigningKey>,
     ) -> eyre::Result<()> {
-        let provider = ReqwestProvider::<Ethereum>::new_http(
-            config.endpoints.rpc.base_url.parse()?,
-        );
+        let provider = ProviderBuilder::new()
+            .on_http(config.endpoints.rpc.base_url.parse()?);
 
         let destination = LocalSigner::random();
         let balance = provider.get_balance(destination.address()).await?;
@@ -486,7 +476,7 @@ mod tests {
         .await;
 
         use_faucet(
-            provider.clone(),
+            &provider,
             faucet.clone(),
             U256::from(2),
             sender_address.into(),
@@ -529,9 +519,10 @@ mod tests {
     }
 
     async fn anvil_faucet(config: Config) -> LocalSigner<SigningKey> {
-        test_helpers::anvil_faucet(&ReqwestProvider::new_http(
-            config.endpoints.rpc.base_url.parse().unwrap(),
-        ))
+        test_helpers::anvil_faucet(
+            &ProviderBuilder::new()
+                .on_http(config.endpoints.rpc.base_url.parse().unwrap()),
+        )
         .await
     }
 
@@ -573,9 +564,8 @@ mod tests {
         config: Config,
         faucet: LocalSigner<SigningKey>,
     ) {
-        let provider = ReqwestProvider::<Ethereum>::new_http(
-            config.endpoints.rpc.base_url.parse().unwrap(),
-        );
+        let provider = ProviderBuilder::new()
+            .on_http(config.endpoints.rpc.base_url.parse().unwrap());
 
         let destination = LocalSigner::random();
         let balance =
@@ -623,7 +613,7 @@ mod tests {
             provider.get_balance(destination.address()).await.unwrap();
         assert_eq!(balance, Uint::from(0));
         use_faucet(
-            provider.clone(),
+            &provider,
             faucet.clone(),
             U256::from(1),
             sender_address.into(),
@@ -657,9 +647,8 @@ mod tests {
     #[ignore]
     async fn test_send_transaction_reverted() {
         let config = Config::local();
-        let provider = ReqwestProvider::<Ethereum>::new_http(
-            config.endpoints.rpc.base_url.parse().unwrap(),
-        );
+        let provider = ProviderBuilder::new()
+            .on_http(config.endpoints.rpc.base_url.parse().unwrap());
 
         let destination = LocalSigner::random();
         let balance =
@@ -738,9 +727,8 @@ mod tests {
     async fn test_send_transaction_just_deploy() -> eyre::Result<()> {
         let config = Config::local();
 
-        let provider = ReqwestProvider::<Ethereum>::new_http(
-            config.endpoints.rpc.base_url.parse()?,
-        );
+        let provider = ProviderBuilder::new()
+            .on_http(config.endpoints.rpc.base_url.parse()?);
 
         let owner = LocalSigner::random();
         let sender_address = get_account_address(
@@ -780,9 +768,8 @@ mod tests {
         let config = Config::local();
         let faucet = anvil_faucet(config.clone()).await;
 
-        let provider = ReqwestProvider::<Ethereum>::new_http(
-            config.endpoints.rpc.base_url.parse()?,
-        );
+        let provider = ProviderBuilder::new()
+            .on_http(config.endpoints.rpc.base_url.parse()?);
 
         let destination1 = LocalSigner::random();
         let destination2 = LocalSigner::random();
@@ -795,7 +782,7 @@ mod tests {
         .await;
 
         use_faucet(
-            provider.clone(),
+            &provider,
             faucet.clone(),
             U256::from(3),
             sender_address.into(),
@@ -840,9 +827,8 @@ mod tests {
     #[tokio::test]
     async fn test_sign_message_deployed() {
         let config = Config::local();
-        let provider = ReqwestProvider::<Ethereum>::new_http(
-            config.endpoints.rpc.base_url.parse().unwrap(),
-        );
+        let provider = ProviderBuilder::new()
+            .on_http(config.endpoints.rpc.base_url.parse().unwrap());
 
         let owner = LocalSigner::random();
         let owner_address = owner.address();
@@ -935,9 +921,8 @@ mod tests {
     #[tokio::test]
     async fn test_sign_message_not_deployed() {
         let config = Config::local();
-        let provider = ReqwestProvider::<Ethereum>::new_http(
-            config.endpoints.rpc.base_url.parse().unwrap(),
-        );
+        let provider = ProviderBuilder::new()
+            .on_http(config.endpoints.rpc.base_url.parse().unwrap());
 
         let owner = LocalSigner::random();
         let owner_address = owner.address();
@@ -1018,9 +1003,8 @@ mod tests {
     #[tokio::test]
     async fn test_sign_message_partial_deployed() {
         let config = Config::local();
-        let provider = ReqwestProvider::<Ethereum>::new_http(
-            config.endpoints.rpc.base_url.parse().unwrap(),
-        );
+        let provider = ProviderBuilder::new()
+            .on_http(config.endpoints.rpc.base_url.parse().unwrap());
 
         let owner = LocalSigner::random();
         let owner_address = owner.address();
@@ -1129,7 +1113,7 @@ mod tests {
         assert_eq!(balance, Uint::from(0));
         let faucet = anvil_faucet(config.clone()).await;
         use_faucet(
-            provider.clone(),
+            &provider,
             faucet.clone(),
             U256::from(1),
             sender_address.into(),
@@ -1163,9 +1147,8 @@ mod tests {
     #[ignore]
     async fn test_send_transaction_7702() -> eyre::Result<()> {
         let config = Config::local();
-        let provider = ReqwestProvider::<Ethereum>::new_http(
-            config.endpoints.rpc.base_url.parse()?,
-        );
+        let provider = ProviderBuilder::new()
+            .on_http(config.endpoints.rpc.base_url.parse()?);
 
         let destination = LocalSigner::random();
         let balance = provider.get_balance(destination.address()).await?;
@@ -1256,9 +1239,8 @@ mod tests {
     #[ignore]
     async fn test_send_transaction_7702_vanilla_bundler() -> eyre::Result<()> {
         let config = Config::local();
-        let provider = ReqwestProvider::<Ethereum>::new_http(
-            config.endpoints.rpc.base_url.parse()?,
-        );
+        let provider = ProviderBuilder::new()
+            .on_http(config.endpoints.rpc.base_url.parse()?);
 
         let destination = LocalSigner::random();
         let balance = provider.get_balance(destination.address()).await?;

@@ -1,9 +1,5 @@
 uniffi::setup_scaffolding!();
 
-use alloy::primitives::{
-    ruint::aliases::U256, Address as FFIAddress, Bytes as FFIBytes, Uint,
-    U128 as FFIU128, U256 as FFIU256, U64 as FFIU64,
-};
 // Force import of this crate to ensure that the code is actually generated
 #[allow(unused_imports)]
 #[allow(clippy::single_component_path_imports)]
@@ -22,17 +18,26 @@ use {
         smart_accounts::safe::{SignOutputEnum, SignStep3Params},
     },
 };
-#[cfg(feature = "chain_abstraction_client")]
 use {
     alloy::{
-        network::Ethereum,
-        providers::{Provider, ReqwestProvider},
-        sol,
-        sol_types::SolCall,
+        hex,
+        primitives::{
+            ruint::aliases::U256, Address as FFIAddress, Bytes as FFIBytes,
+            PrimitiveSignature as FFIPrimitiveSignature, Uint, U128 as FFIU128,
+            U256 as FFIU256, U64 as FFIU64,
+        },
     },
+    yttrium::chain_abstraction::{
+        error::PrepareDetailedResponse, pulse::PulseMetadata,
+    },
+};
+#[cfg(feature = "chain_abstraction_client")]
+use {
+    alloy::{providers::Provider, sol, sol_types::SolCall},
     relay_rpc::domain::ProjectId,
     std::time::Duration,
     yttrium::call::Call,
+    yttrium::chain_abstraction::client::ExecuteDetails,
     yttrium::chain_abstraction::{
         api::{
             prepare::{PrepareResponse, PrepareResponseAvailable},
@@ -54,6 +59,12 @@ uniffi::custom_type!(FFIAddress, String, {
     remote,
     try_lift: |val| Ok(val.parse()?),
     lower: |obj| obj.to_string(),
+});
+
+uniffi::custom_type!(FFIPrimitiveSignature, String, {
+    remote,
+    try_lift: |val| Ok(val.parse()?),
+    lower: |obj| format!("0x{}", hex::encode(obj.as_bytes())),
 });
 
 fn uint_to_hex<const BITS: usize, const LIMBS: usize>(
@@ -135,8 +146,9 @@ pub struct ChainAbstractionClient {
 #[uniffi::export(async_runtime = "tokio")]
 impl ChainAbstractionClient {
     #[uniffi::constructor]
-    pub fn new(project_id: String) -> Self {
-        let client = Client::new(ProjectId::from(project_id.clone()));
+    pub fn new(project_id: String, pulse_metadata: PulseMetadata) -> Self {
+        let client =
+            Client::new(ProjectId::from(project_id.clone()), pulse_metadata);
         Self { project_id, client }
     }
 
@@ -155,10 +167,25 @@ impl ChainAbstractionClient {
     pub async fn get_ui_fields(
         &self,
         route_response: PrepareResponseAvailable,
-        currency: Currency,
+        local_currency: Currency,
     ) -> Result<UiFields, FFIError> {
         self.client
-            .get_ui_fields(route_response, currency)
+            .get_ui_fields(route_response, local_currency)
+            .await
+            .map_err(|e| FFIError::General(e.to_string()))
+    }
+
+    pub async fn prepare_detailed(
+        &self,
+        chain_id: String,
+        from: FFIAddress,
+        call: Call,
+        local_currency: Currency,
+        // TODO use this to e.g. modify priority fee
+        // _speed: String,
+    ) -> Result<PrepareDetailedResponse, FFIError> {
+        self.client
+            .prepare_detailed(chain_id, from, call, local_currency)
             .await
             .map_err(|e| FFIError::General(e.to_string()))
     }
@@ -189,18 +216,28 @@ impl ChainAbstractionClient {
             .map_err(|e| FFIError::General(e.to_string()))
     }
 
+    pub async fn execute(
+        &self,
+        ui_fields: UiFields,
+        route_txn_sigs: Vec<FFIPrimitiveSignature>,
+        initial_txn_sig: FFIPrimitiveSignature,
+    ) -> Result<ExecuteDetails, FFIError> {
+        self.client
+            .execute(ui_fields, route_txn_sigs, initial_txn_sig)
+            .await
+            // TODO wanted to return ExecuteError directly here, but can't because Swift keeps the UniFFI lifer private to the yttrium crate and not available to kotlin-ffi crate
+            // This will be fixed when we merge these crates
+            .map_err(|e| FFIError::General(e.to_string()))
+    }
+
     pub async fn estimate_fees(
         &self,
         chain_id: String,
     ) -> Result<Eip1559Estimation, FFIError> {
-        let url = format!(
-            "https://rpc.walletconnect.com/v1?chainId={chain_id}&projectId={}",
-            self.project_id
-        )
-        .parse()
-        .expect("Invalid RPC URL");
-        let provider = ReqwestProvider::<Ethereum>::new_http(url);
-        provider
+        self.client
+            .provider_pool
+            .get_provider(&chain_id)
+            .await
             .estimate_eip1559_fees(None)
             .await
             .map(Into::into)
@@ -340,9 +377,8 @@ mod tests {
     use {
         super::*,
         alloy::{
-            network::Ethereum,
             primitives::{address, bytes},
-            providers::{Provider, ReqwestProvider},
+            providers::{Provider, ProviderBuilder},
         },
     };
 
@@ -355,7 +391,7 @@ mod tests {
             "https://rpc.walletconnect.com/v1?chainId={chain_id}&projectId={project_id}")
         .parse()
         .expect("Invalid RPC URL");
-        let provider = ReqwestProvider::<Ethereum>::new_http(url);
+        let provider = ProviderBuilder::new().on_http(url);
 
         let estimate = provider.estimate_eip1559_fees(None).await.unwrap();
 
