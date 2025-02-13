@@ -35,6 +35,7 @@ use {
         erc20::ERC20,
         provider_pool::ProviderPool,
         serde::{duration_millis, option_duration_millis, systemtime_millis},
+        time::{sleep, Duration, Instant, SystemTime},
     },
     alloy::{
         network::TransactionBuilder,
@@ -45,11 +46,7 @@ use {
     relay_rpc::domain::ProjectId,
     reqwest::Client as ReqwestClient,
     serde::{Deserialize, Serialize},
-    std::{
-        collections::{HashMap, HashSet},
-        time::Duration,
-    },
-    wasmtimer::std::{Instant, SystemTime},
+    std::collections::{HashMap, HashSet},
 };
 
 #[derive(Clone)]
@@ -420,7 +417,7 @@ impl Client {
         timeout: Duration,
     ) -> Result<StatusResponseCompleted, WaitForSuccessError> {
         let start = Instant::now();
-        wasmtimer::tokio::sleep(check_in).await;
+        sleep(check_in).await;
         loop {
             let result = self.status(orchestration_id.clone()).await;
             let (error, check_in) = match result {
@@ -449,7 +446,7 @@ impl Client {
             if start.elapsed() > timeout {
                 return Err(error);
             }
-            wasmtimer::tokio::sleep(check_in).await;
+            sleep(check_in).await;
         }
     }
 

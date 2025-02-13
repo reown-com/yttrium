@@ -1,12 +1,11 @@
 use {
     super::client::ExecuteAnalytics,
-    crate::serde::systemtime_millis,
+    crate::{serde::systemtime_millis, time::SystemTime},
     relay_rpc::domain::ProjectId,
     reqwest::{Client, Url},
     serde::{Deserialize, Serialize},
     tracing::{debug, warn},
     uuid::Uuid,
-    wasmtimer::std::SystemTime,
 };
 
 // const PULSE_ENDPOINT: &str = "https://analytics-api-cf-workers-staging.walletconnect-v1-bridge.workers.dev/e";

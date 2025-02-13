@@ -75,9 +75,7 @@ uuid = { version = "1.12.1", default-features = false, features = [
     "serde",
 ] }
 
-wasmtimer = { version = "0.4.1", default-features = false, features = [
-    "tokio",
-] }
+wasmtimer.workspace = true
 
 # Error/Result
 eyre.workspace = true

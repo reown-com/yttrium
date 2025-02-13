@@ -17,6 +17,10 @@ thiserror = { version = "1.0", default-features = false }
 tokio = { version = "1.17", default-features = false }
 futures = { version = "0.3.31", default-features = false }
 
+wasmtimer = { version = "0.4.1", default-features = false, features = [
+    "tokio",
+] }
+
 # Networking
 reqwest = { version = "0.12.5", features = ["json"], default-features = false }
 url = { version = "2.5.4", default-features = false }
@@ -47,7 +51,7 @@ tsify-next = "0.5.4"
 # Used by WASM ONLY, since wasm-pack doesn't support custom profiles
 # https://github.com/rustwasm/wasm-pack/issues/1461
 [profile.release]
-lto = true # Seems to make it slightly larger actually
+lto = true        # Seems to make it slightly larger actually
 opt-level = 'z'
 codegen-units = 1
 strip = true
@@ -235,3 +239,4 @@ strip = false
 [patch.crates-io]
 alloy = { git = "https://github.com/chris13524/alloy.git", branch = "fix/tokio-interval-wasm" }
 alloy-provider = { git = "https://github.com/chris13524/alloy.git", branch = "fix/tokio-interval-wasm" }
+wasmtimer = { path = "../../chris13524/wasmtimer-rs" }

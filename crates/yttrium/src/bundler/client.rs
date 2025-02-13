@@ -3,6 +3,7 @@ use {
     crate::{
         entry_point::EntryPointAddress,
         jsonrpc::{JSONRPCResponse, Request, Response},
+        time::{sleep, Duration, Instant},
         user_operation::UserOperationV07,
     },
     alloy::{
@@ -140,11 +141,6 @@ impl BundlerClient {
         &self,
         hash: B256,
     ) -> eyre::Result<UserOperationReceipt> {
-        use {
-            std::time::Duration,
-            wasmtimer::{std::Instant, tokio::sleep},
-        };
-
         let polling_interval = Duration::from_millis(2000);
         let timeout = Some(Duration::from_secs(30));
 
