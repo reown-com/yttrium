@@ -18,6 +18,7 @@ pub mod config;
 pub mod eip7702;
 pub mod entry_point;
 pub mod erc20;
+pub mod erc4337;
 #[cfg(feature = "erc6492_client")]
 pub mod erc6492_client;
 pub mod erc7579;

@@ -2629,8 +2629,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "43a49c392881ce6d5c3b8cb70f98717b7c07aabbdff06687b9030dbfbe2725f8"
 dependencies = [
  "cfg-if",
+ "js-sys",
  "libc",
  "wasi 0.13.3+wasi-0.2.2",
+ "wasm-bindgen",
  "windows-targets 0.52.6",
 ]
 
@@ -5837,7 +5839,17 @@ dependencies = [
  "getrandom 0.3.1",
  "js-sys",
  "serde",
+ "uuid-rng-internal",
  "wasm-bindgen",
+]
+
+[[package]]
+name = "uuid-rng-internal"
+version = "1.13.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1e2a8003ae4b0dc7829a0744a9895063baa298adabfbfdaa9487f3a0ddf5c95f"
+dependencies = [
+ "getrandom 0.3.1",
 ]
 
 [[package]]
@@ -6352,6 +6364,7 @@ dependencies = [
  "eyre",
  "futures",
  "getrandom 0.2.15",
+ "getrandom 0.3.1",
  "hex",
  "relay_rpc",
  "reqwest",
