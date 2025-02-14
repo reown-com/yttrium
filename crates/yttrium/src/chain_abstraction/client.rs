@@ -104,6 +104,7 @@ impl Client {
                 project_id: self.provider_pool.project_id.clone(),
                 sdk_type: PULSE_SDK_TYPE.to_string(),
                 sdk_version: self.pulse_metadata.sdk_version.clone(),
+                session_id: Some(self.provider_pool.session_id.to_string()),
             })
             .send()
             .await
@@ -363,6 +364,7 @@ impl Client {
                 .query(&StatusQueryParams {
                     project_id: self.provider_pool.project_id.clone(),
                     orchestration_id,
+                    session_id: Some(self.provider_pool.session_id.to_string()),
                     sdk_type: PULSE_SDK_TYPE.to_string(),
                     sdk_version: self.pulse_metadata.sdk_version.clone(),
                 });

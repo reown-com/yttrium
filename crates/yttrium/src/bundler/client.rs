@@ -2,17 +2,15 @@ use {
     super::{config::BundlerConfig, models::estimate_result::EstimateResult},
     crate::{
         entry_point::EntryPointAddress,
+        erc4337::get_user_operation_receipt,
         jsonrpc::{JSONRPCResponse, Request, Response},
         time::{sleep, Duration, Instant},
         user_operation::UserOperationV07,
     },
-    alloy::{
-        primitives::B256, rpc::types::UserOperationReceipt,
-        transports::TransportResult,
-    },
-    alloy_provider::{Provider, ProviderBuilder},
+    alloy::{primitives::Bytes, rpc::types::UserOperationReceipt},
+    alloy_provider::ProviderBuilder,
     eyre::Ok,
-    serde_json::{self, Value},
+    serde_json::{self},
     tracing::debug,
 };
 
@@ -30,7 +28,7 @@ impl BundlerClient {
         &self,
         entry_point_address: EntryPointAddress,
         user_op: UserOperationV07,
-    ) -> eyre::Result<B256> {
+    ) -> eyre::Result<Bytes> {
         let send_body = crate::jsonrpc::Request {
             jsonrpc: "2.0".into(), // TODO use Arc<str>
             id: 1,
@@ -52,8 +50,8 @@ impl BundlerClient {
 
         debug!("response: {}", response);
 
-        let response: Response<B256> =
-            serde_json::from_str::<JSONRPCResponse<B256>>(&response)?.into();
+        let response: Response<Bytes> =
+            serde_json::from_str::<JSONRPCResponse<Bytes>>(&response)?.into();
 
         response?.ok_or(eyre::eyre!("send_user_operation got None"))
     }
@@ -106,40 +104,15 @@ impl BundlerClient {
 
     pub async fn get_user_operation_receipt(
         &self,
-        hash: B256,
+        hash: Bytes,
     ) -> eyre::Result<Option<UserOperationReceipt>> {
         let provider = ProviderBuilder::new().on_http(self.config.url());
-        let receipt = provider.get_user_operation_receipt(hash).await?;
-
-        // For some reason Pimlico bundler doesn't include these fields
-        // Workaround by injecting them in
-        let value = receipt.map(|mut value| {
-            if let Some(value) = value.as_object_mut() {
-                if let Some(receipt) = value.get_mut("receipt") {
-                    if let Some(receipt) = receipt.as_object_mut() {
-                        receipt.insert(
-                            "type".to_owned(),
-                            serde_json::Value::String("0x0".to_owned()),
-                        );
-                    }
-                }
-                value.insert(
-                    "reason".to_owned(),
-                    serde_json::Value::String("".to_owned()),
-                );
-            }
-            value
-        });
-        if let Some(value) = value {
-            Ok(serde_json::from_value(value)?)
-        } else {
-            Ok(None)
-        }
+        get_user_operation_receipt(&provider, hash).await.map_err(Into::into)
     }
 
     pub async fn wait_for_user_operation_receipt(
         &self,
-        hash: B256,
+        hash: Bytes,
     ) -> eyre::Result<UserOperationReceipt> {
         let polling_interval = Duration::from_millis(2000);
         let timeout = Some(Duration::from_secs(30));
@@ -147,7 +120,7 @@ impl BundlerClient {
         let start_time = Instant::now();
 
         loop {
-            match self.get_user_operation_receipt(hash).await? {
+            match self.get_user_operation_receipt(hash.clone()).await? {
                 Some(receipt) => return Ok(receipt),
                 None => {
                     if let Some(timeout_duration) = timeout {
@@ -165,31 +138,6 @@ impl BundlerClient {
                 }
             }
         }
-    }
-}
-
-#[cfg_attr(target_arch = "wasm32", async_trait::async_trait(?Send))]
-#[cfg_attr(not(target_arch = "wasm32"), async_trait::async_trait)]
-pub trait CustomErc4337Api: Send + Sync {
-    async fn get_user_operation_receipt(
-        &self,
-        user_op_hash: B256,
-    ) -> TransportResult<Option<Value>>;
-}
-
-#[cfg_attr(target_arch = "wasm32", async_trait::async_trait(?Send))]
-#[cfg_attr(not(target_arch = "wasm32"), async_trait::async_trait)]
-impl<P> CustomErc4337Api for P
-where
-    P: Provider,
-{
-    async fn get_user_operation_receipt(
-        &self,
-        user_op_hash: B256,
-    ) -> TransportResult<Option<Value>> {
-        self.client()
-            .request("eth_getUserOperationReceipt", (user_op_hash,))
-            .await
     }
 }
 

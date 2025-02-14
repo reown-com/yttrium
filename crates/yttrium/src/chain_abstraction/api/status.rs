@@ -10,6 +10,7 @@ pub const STATUS_ENDPOINT_PATH: &str = "/v1/ca/orchestrator/status";
 pub struct StatusQueryParams {
     pub project_id: ProjectId,
     pub orchestration_id: String,
+    pub session_id: Option<String>,
     #[serde(rename = "st")]
     pub sdk_type: String,
     #[serde(rename = "sv")]

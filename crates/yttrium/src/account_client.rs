@@ -109,7 +109,7 @@ impl AccountClient {
         &self,
         signatures: Vec<OwnerSignature>,
         do_send_transaction_params: DoSendTransactionParams,
-    ) -> eyre::Result<B256> {
+    ) -> eyre::Result<Bytes> {
         do_send_transactions(
             signatures,
             do_send_transaction_params,
@@ -121,7 +121,7 @@ impl AccountClient {
 
     pub async fn wait_for_user_operation_receipt(
         &self,
-        user_operation_hash: B256,
+        user_operation_hash: Bytes,
     ) -> eyre::Result<UserOperationReceipt> {
         println!("Querying for receipts...");
 
