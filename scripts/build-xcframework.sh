@@ -74,21 +74,26 @@ build_rust_libraries() {
 }
 
 generate_ffi() {
-  echo "Generating framework module mapping and FFI bindings..."
-  cargo run --features uniffi/cli --bin uniffi-bindgen generate \
-      --library "target/aarch64-apple-ios/uniffi-release-swift/lib$1.dylib" \
-      --language swift \
-      --out-dir target/uniffi-xcframework-staging
+  echo "Generating framework module mapping and FFI bindings..."
+  cargo run --features uniffi/cli --bin uniffi-bindgen generate \
+      --library "target/aarch64-apple-ios/uniffi-release-swift/lib$1.dylib" \
+      --language swift \
+      --out-dir target/uniffi-xcframework-staging
 
-  echo "Creating Yttrium.modulemap"
-  cat target/uniffi-xcframework-staging/yttriumFFI.modulemap \
-      target/uniffi-xcframework-staging/uniffi_yttriumFFI.modulemap \
-      > target/uniffi-xcframework-staging/Yttrium.modulemap
+  echo "Creating yttrium.modulemap with custom module name"
+  # Create a custom named module map instead of generic module.modulemap
+  cat > target/uniffi-xcframework-staging/yttrium.modulemap << EOF
+module Yttrium {
+    header "yttriumFFI.h"
+    header "uniffi_yttriumFFI.h"
+    export *
+}
+EOF
 
-  echo "Copying bindings to Swift package directory..."
-  mkdir -p "$swift_package_dir"
-  cp target/uniffi-xcframework-staging/*.swift "$swift_package_dir/"
-  cp target/uniffi-xcframework-staging/*.h "$swift_package_dir/"
+  echo "Copying bindings to Swift package directory..."
+  mkdir -p "$swift_package_dir"
+  cp target/uniffi-xcframework-staging/*.swift "$swift_package_dir/"
+  cp target/uniffi-xcframework-staging/*.h "$swift_package_dir/"
 }
 
 create_fat_simulator_lib() {
@@ -105,8 +110,10 @@ build_xcframework() {
   rm -rf target/ios
   mkdir -p target/ios
   xcodebuild -create-xcframework \
-      -library "target/aarch64-apple-ios/uniffi-release-swift/lib$1.a" -headers target/uniffi-xcframework-staging \
-      -library "$fat_simulator_lib_dir/lib$1.a" -headers target/uniffi-xcframework-staging \
+      -library "target/aarch64-apple-ios/uniffi-release-swift/lib$1.a" \
+      -headers target/uniffi-xcframework-staging \
+      -library "$fat_simulator_lib_dir/lib$1.a" \
+      -headers target/uniffi-xcframework-staging \
       -output "target/ios/lib$1.xcframework"
 }
 
