@@ -27,6 +27,7 @@ pub mod provider_pool;
 pub mod serde;
 pub mod smart_accounts;
 pub mod test_helpers;
+pub mod time;
 #[cfg(feature = "transaction_sponsorship_client")]
 pub mod transaction_sponsorship;
 pub mod user_operation;

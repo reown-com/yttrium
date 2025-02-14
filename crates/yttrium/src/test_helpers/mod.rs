@@ -1,4 +1,5 @@
 use {
+    crate::time::Instant,
     alloy::{
         network::{EthereumWallet, TransactionBuilder},
         primitives::{keccak256, Address, U256},
@@ -7,7 +8,6 @@ use {
     },
     alloy_provider::{ext::AnvilApi, Provider, ProviderBuilder},
     std::time::Duration,
-    web_time::Instant,
 };
 
 pub fn private_faucet() -> LocalSigner<SigningKey> {

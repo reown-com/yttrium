@@ -22,8 +22,8 @@ pub mod duration_millis {
 pub mod systemtime_millis {
     use {
         super::duration_millis,
+        crate::time::{SystemTime, UNIX_EPOCH},
         serde::{de, ser},
-        web_time::{SystemTime, UNIX_EPOCH},
     };
 
     pub fn serialize<S>(

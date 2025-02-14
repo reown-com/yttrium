@@ -23,6 +23,7 @@ use {
             BRIDGE_ACCOUNT_2, BRIDGE_ACCOUNT_USDC_1557_1,
             BRIDGE_ACCOUNT_USDC_1557_2,
         },
+        time::Instant,
     },
     alloy::{
         network::{Ethereum, EthereumWallet, TransactionBuilder},
@@ -35,7 +36,6 @@ use {
     relay_rpc::domain::ProjectId,
     serial_test::serial,
     std::{cmp::max, collections::HashMap, iter, sync::Arc, time::Duration},
-    web_time::Instant,
     ERC20::ERC20Instance,
 };
 
@@ -979,7 +979,7 @@ async fn happy_path() {
             }
             Err(e) => {
                 println!("error sending txn: {:?}", e);
-                tokio::time::sleep(Duration::from_secs(1)).await;
+                crate::time::sleep(Duration::from_secs(1)).await;
                 continue;
             }
         };
@@ -1530,7 +1530,7 @@ async fn happy_path_full_dependency_on_ui_fields() {
             }
             Err(e) => {
                 println!("error sending txn: {:?}", e);
-                tokio::time::sleep(Duration::from_secs(1)).await;
+                crate::time::sleep(Duration::from_secs(1)).await;
                 continue;
             }
         };

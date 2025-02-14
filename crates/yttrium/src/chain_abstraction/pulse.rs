@@ -1,12 +1,11 @@
 use {
     super::client::ExecuteAnalytics,
-    crate::serde::systemtime_millis,
+    crate::{serde::systemtime_millis, time::SystemTime},
     relay_rpc::domain::ProjectId,
     reqwest::{Client, Url},
     serde::{Deserialize, Serialize},
     tracing::{debug, warn},
     uuid::Uuid,
-    web_time::SystemTime,
 };
 
 // const PULSE_ENDPOINT: &str = "https://analytics-api-cf-workers-staging.walletconnect-v1-bridge.workers.dev/e";
@@ -45,14 +44,12 @@ pub fn pulse(
     //     http_client.post(PULSE_ENDPOINT).query(&query).build().unwrap().url()
     // );
 
-    let mut builder =
+    let builder =
         http_client.post(PULSE_ENDPOINT).query(&query).json(&analytics);
 
     #[cfg(not(target_arch = "wasm32"))]
-    {
-        builder =
-            builder.header("User-Agent", pulse_metadata.sdk_version.clone());
-    }
+    let builder =
+        builder.header("User-Agent", pulse_metadata.sdk_version.clone());
 
     let fut = builder.send();
     let fut = async move {
