@@ -2351,9 +2351,9 @@ dependencies = [
 
 [[package]]
 name = "flutter_rust_bridge"
-version = "2.8.0"
+version = "2.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fdc62f583dff79c7ea34b775b2cc4158adc17cb69ad4c1d276be7fe95c63d597"
+checksum = "5419323ff3ae8b63ed20b7cd0fd0e3e73fa9234b3b212b87b5586fe76ae52318"
 dependencies = [
  "allo-isolate",
  "android_logger",
@@ -2369,7 +2369,7 @@ dependencies = [
  "js-sys",
  "lazy_static",
  "log",
- "oslog 0.1.0",
+ "oslog",
  "portable-atomic",
  "threadpool",
  "tokio",
@@ -2425,9 +2425,9 @@ dependencies = [
 
 [[package]]
 name = "flutter_rust_bridge_macros"
-version = "2.8.0"
+version = "2.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ac75354933904c334c13a7c9e08c65be528f0820ab587e03f255203a28d5efec"
+checksum = "9c6fd06cacc0dfe931d00f3acdc5ac6c5dd9382b33dd78d71cce8f0a62e9458b"
 dependencies = [
  "hex",
  "md-5",
@@ -3785,17 +3785,6 @@ checksum = "8343ce955f18e7e68c0207dd0ea776ec453035685395ababd2ea651c569728b3"
 dependencies = [
  "cc",
  "dashmap 4.0.2",
- "log",
-]
-
-[[package]]
-name = "oslog"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "80d2043d1f61d77cb2f4b1f7b7b2295f40507f5f8e9d1c8bf10a1ca5f97a3969"
-dependencies = [
- "cc",
- "dashmap 5.5.3",
  "log",
 ]
 
@@ -5691,9 +5680,8 @@ checksum = "ebc1c04c71510c7f702b52b7c350734c9ff1295c464a03335b00bb84fc54f853"
 
 [[package]]
 name = "uniffi"
-version = "0.29.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ba62a57e90f9baed5ad02a71a0870180fa1cc35499093b2d21be2edfb68ec0f7"
+version = "0.28.3"
+source = "git+https://github.com/mozilla/uniffi-rs?rev=7cb2532#7cb2532a6eb3286997596098e40adf6b4b2b75b4"
 dependencies = [
  "anyhow",
  "camino",
@@ -5705,9 +5693,8 @@ dependencies = [
 
 [[package]]
 name = "uniffi_bindgen"
-version = "0.29.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2242f35214f1e0e3b47c495d340c69f649f9a9ece3a943a29e275686cc884533"
+version = "0.28.3"
+source = "git+https://github.com/mozilla/uniffi-rs?rev=7cb2532#7cb2532a6eb3286997596098e40adf6b4b2b75b4"
 dependencies = [
  "anyhow",
  "camino",
@@ -5728,9 +5715,8 @@ dependencies = [
 
 [[package]]
 name = "uniffi_build"
-version = "0.29.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c887a6c9a2857d8dc2ab0c8d578e8aa4978145b4fd65ed44296341e89aebc3cc"
+version = "0.28.3"
+source = "git+https://github.com/mozilla/uniffi-rs?rev=7cb2532#7cb2532a6eb3286997596098e40adf6b4b2b75b4"
 dependencies = [
  "anyhow",
  "camino",
@@ -5739,9 +5725,8 @@ dependencies = [
 
 [[package]]
 name = "uniffi_core"
-version = "0.29.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cad9fbdeb7ae4daf8d0f7704a3b638c37018eb16bb701e30fa17a2dd3e2d39c1"
+version = "0.28.3"
+source = "git+https://github.com/mozilla/uniffi-rs?rev=7cb2532#7cb2532a6eb3286997596098e40adf6b4b2b75b4"
 dependencies = [
  "anyhow",
  "async-compat",
@@ -5753,9 +5738,8 @@ dependencies = [
 
 [[package]]
 name = "uniffi_internal_macros"
-version = "0.29.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "22a9dba1d78b9ce429439891089c223478043d52a1c3176a0fcea2b5573a7fcf"
+version = "0.28.3"
+source = "git+https://github.com/mozilla/uniffi-rs?rev=7cb2532#7cb2532a6eb3286997596098e40adf6b4b2b75b4"
 dependencies = [
  "quote",
  "syn 2.0.96",
@@ -5763,9 +5747,8 @@ dependencies = [
 
 [[package]]
 name = "uniffi_macros"
-version = "0.29.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "78dd5f8eefba5898b901086f5e7916da67b9a5286a01cc44e910cd75fa37c630"
+version = "0.28.3"
+source = "git+https://github.com/mozilla/uniffi-rs?rev=7cb2532#7cb2532a6eb3286997596098e40adf6b4b2b75b4"
 dependencies = [
  "camino",
  "fs-err",
@@ -5780,9 +5763,8 @@ dependencies = [
 
 [[package]]
 name = "uniffi_meta"
-version = "0.29.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9d5965b1d4ffacef1eaa72fef9c00d2491641e87ad910f6c5859b9c503ddb16a"
+version = "0.28.3"
+source = "git+https://github.com/mozilla/uniffi-rs?rev=7cb2532#7cb2532a6eb3286997596098e40adf6b4b2b75b4"
 dependencies = [
  "anyhow",
  "siphasher",
@@ -5791,9 +5773,8 @@ dependencies = [
 
 [[package]]
 name = "uniffi_udl"
-version = "0.29.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "279b82bac9a382c796a0d210bb8354a0b813499b28aa1de046c85d78ca389805"
+version = "0.28.3"
+source = "git+https://github.com/mozilla/uniffi-rs?rev=7cb2532#7cb2532a6eb3286997596098e40adf6b4b2b75b4"
 dependencies = [
  "anyhow",
  "textwrap",
@@ -6060,8 +6041,7 @@ dependencies = [
 [[package]]
 name = "weedle2"
 version = "5.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "998d2c24ec099a87daf9467808859f9d82b61f1d9c9701251aea037f514eae0e"
+source = "git+https://github.com/mozilla/uniffi-rs?rev=7cb2532#7cb2532a6eb3286997596098e40adf6b4b2b75b4"
 dependencies = [
  "nom",
 ]
@@ -6382,6 +6362,8 @@ dependencies = [
  "dotenvy",
  "erc6492",
  "eyre",
+ "flutter_rust_bridge",
+ "flutter_rust_bridge_codegen",
  "futures",
  "getrandom 0.2.15",
  "hex",
@@ -6404,28 +6386,6 @@ dependencies = [
  "wasm-bindgen-futures",
  "web-time 0.1.0",
  "wiremock",
-]
-
-[[package]]
-name = "yttrium_dart"
-version = "0.1.0"
-dependencies = [
- "alloy",
- "erc6492",
- "eyre",
- "flutter_rust_bridge",
- "flutter_rust_bridge_codegen",
- "log",
- "openssl",
- "openssl-sys",
- "oslog 0.2.0",
- "relay_rpc",
- "reqwest",
- "serde",
- "serde_json",
- "thiserror 1.0.69",
- "tokio",
- "yttrium",
 ]
 
 [[package]]
