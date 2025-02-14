@@ -1,13 +1,12 @@
 import 'dart:io';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
-import 'package:yttrium_dart/generated/chain_abstraction/api/prepare.dart';
+// import 'package:yttrium_dart/generated/chain_abstraction/api/prepare.dart';
 import 'package:yttrium_dart/generated/chain_abstraction/api/status.dart';
-import 'package:yttrium_dart/generated/chain_abstraction/client.dart';
+// import 'package:yttrium_dart/generated/chain_abstraction/client.dart';
 import 'package:yttrium_dart/generated/chain_abstraction/currency.dart';
 import 'package:yttrium_dart/generated/chain_abstraction/dart_compat.dart';
 import 'package:yttrium_dart/generated/chain_abstraction/error.dart';
-import 'package:yttrium_dart/generated/chain_abstraction/ui_fields.dart';
 import 'package:yttrium_dart/generated/frb_generated.dart' as frb;
 
 abstract class IYttriumClient extends ChainAbstractionClient {
@@ -40,7 +39,7 @@ class YttriumDart implements IYttriumClient {
       // Create ChainAbstractionClient instance
       _chainAbstractionClient = await ChainAbstractionClient.newInstance(
         projectId: projectId,
-        pulseMetadata: FFIPulseMetadata(
+        pulseMetadata: PulseMetadataCompat(
           url: 'https://appkit-lab.reown.com/flutter_appkit',
           bundleId: 'com.walletconnect.flutterdapp.internal',
           packageName: 'com.walletconnect.flutterdapp.internal',
@@ -54,7 +53,9 @@ class YttriumDart implements IYttriumClient {
   }
 
   @override
-  Future<Eip1559Estimation> estimateFees({required String chainId}) async {
+  Future<Eip1559EstimationCompat> estimateFees({
+    required String chainId,
+  }) async {
     return await _chainAbstractionClient.estimateFees(
       chainId: chainId,
     );
@@ -77,7 +78,7 @@ class YttriumDart implements IYttriumClient {
   Future<PrepareDetailedResponse> prepareDetailed({
     required String chainId,
     required String from,
-    required FFICall call,
+    required CallCompat call,
     required Currency localCurrency,
   }) async {
     return await _chainAbstractionClient.prepareDetailed(
@@ -104,16 +105,16 @@ class YttriumDart implements IYttriumClient {
   //   );
   // }
 
-  @override
-  Future<UiFields> getUiFields({
-    required PrepareResponseAvailable routeResponse,
-    required Currency currency,
-  }) async {
-    return await _chainAbstractionClient.getUiFields(
-      routeResponse: routeResponse,
-      currency: currency,
-    );
-  }
+  // @override
+  // Future<UiFieldsCompat> getUiFields({
+  //   required PrepareResponseAvailable routeResponse,
+  //   required Currency currency,
+  // }) async {
+  //   return await _chainAbstractionClient.getUiFields(
+  //     routeResponse: routeResponse,
+  //     currency: currency,
+  //   );
+  // }
 
   @override
   Future<StatusResponse> status({required String orchestrationId}) async {
@@ -122,18 +123,18 @@ class YttriumDart implements IYttriumClient {
     );
   }
 
-  @override
-  Future<ExecuteDetails> execute({
-    required UiFields uiFields,
-    required List<FFIPrimitiveSignature> routeTxnSigs,
-    required FFIPrimitiveSignature initialTxnSig,
-  }) async {
-    return await _chainAbstractionClient.execute(
-      uiFields: uiFields,
-      routeTxnSigs: routeTxnSigs,
-      initialTxnSig: initialTxnSig,
-    );
-  }
+  // @override
+  // Future<ExecuteDetails> execute({
+  //   required UiFieldsCompat uiFields,
+  //   required List<PrimitiveSignatureCompat> routeTxnSigs,
+  //   required PrimitiveSignatureCompat initialTxnSig,
+  // }) async {
+  //   return await _chainAbstractionClient.execute(
+  //     uiFields: uiFields,
+  //     routeTxnSigs: routeTxnSigs,
+  //     initialTxnSig: initialTxnSig,
+  //   );
+  // }
 
   @override
   Future<StatusResponseCompleted> waitForSuccessWithTimeout({

@@ -3,13 +3,10 @@
 
 // ignore_for_file: unused_import, unused_element, unnecessary_import, duplicate_ignore, invalid_use_of_internal_member, annotate_overrides, non_constant_identifier_names, curly_braces_in_flow_control_structures, prefer_const_literals_to_create_immutables, unused_field
 
-import 'chain_abstraction/api/prepare.dart';
 import 'chain_abstraction/api/status.dart';
-import 'chain_abstraction/client.dart';
 import 'chain_abstraction/currency.dart';
 import 'chain_abstraction/dart_compat.dart';
 import 'chain_abstraction/error.dart';
-import 'chain_abstraction/ui_fields.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:ffi' as ffi;
@@ -29,19 +26,8 @@ abstract class YttriumDartApiImplPlatform extends BaseApiImpl<YttriumDartWire> {
           ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerChainAbstractionClientPtr;
 
   CrossPlatformFinalizerArg
-      get rust_arc_decrement_strong_count_ExecuteDetailsPtr => wire
-          ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExecuteDetailsPtr;
-
-  CrossPlatformFinalizerArg
       get rust_arc_decrement_strong_count_PrepareDetailedResponsePtr => wire
           ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPrepareDetailedResponsePtr;
-
-  CrossPlatformFinalizerArg
-      get rust_arc_decrement_strong_count_PrepareResponseAvailablePtr => wire
-          ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPrepareResponseAvailablePtr;
-
-  CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_UiFieldsPtr => wire
-      ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerUiFieldsPtr;
 
   @protected
   ChainAbstractionClient
@@ -49,23 +35,8 @@ abstract class YttriumDartApiImplPlatform extends BaseApiImpl<YttriumDartWire> {
           dynamic raw);
 
   @protected
-  ExecuteDetails
-      dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExecuteDetails(
-          dynamic raw);
-
-  @protected
   PrepareDetailedResponse
       dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPrepareDetailedResponse(
-          dynamic raw);
-
-  @protected
-  PrepareResponseAvailable
-      dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPrepareResponseAvailable(
-          dynamic raw);
-
-  @protected
-  UiFields
-      dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerUiFields(
           dynamic raw);
 
   @protected
@@ -79,23 +50,8 @@ abstract class YttriumDartApiImplPlatform extends BaseApiImpl<YttriumDartWire> {
           dynamic raw);
 
   @protected
-  ExecuteDetails
-      dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExecuteDetails(
-          dynamic raw);
-
-  @protected
   PrepareDetailedResponse
       dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPrepareDetailedResponse(
-          dynamic raw);
-
-  @protected
-  PrepareResponseAvailable
-      dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPrepareResponseAvailable(
-          dynamic raw);
-
-  @protected
-  UiFields
-      dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerUiFields(
           dynamic raw);
 
   @protected
@@ -105,17 +61,10 @@ abstract class YttriumDartApiImplPlatform extends BaseApiImpl<YttriumDartWire> {
   BigInt dco_decode_U128(dynamic raw);
 
   @protected
-  bool dco_decode_bool(dynamic raw);
+  CallCompat dco_decode_box_autoadd_call_compat(dynamic raw);
 
   @protected
-  FFICall dco_decode_box_autoadd_ffi_call(dynamic raw);
-
-  @protected
-  FFIPrimitiveSignature dco_decode_box_autoadd_ffi_primitive_signature(
-      dynamic raw);
-
-  @protected
-  FFIPulseMetadata dco_decode_box_autoadd_ffi_pulse_metadata(dynamic raw);
+  PulseMetadataCompat dco_decode_box_autoadd_pulse_metadata_compat(dynamic raw);
 
   @protected
   StatusResponseCompleted dco_decode_box_autoadd_status_response_completed(
@@ -129,35 +78,28 @@ abstract class YttriumDartApiImplPlatform extends BaseApiImpl<YttriumDartWire> {
       dco_decode_box_autoadd_status_response_pending_object(dynamic raw);
 
   @protected
+  CallCompat dco_decode_call_compat(dynamic raw);
+
+  @protected
   Currency dco_decode_currency(dynamic raw);
 
   @protected
-  Eip1559Estimation dco_decode_eip_1559_estimation(dynamic raw);
+  Eip1559EstimationCompat dco_decode_eip_1559_estimation_compat(dynamic raw);
 
   @protected
-  FFICall dco_decode_ffi_call(dynamic raw);
-
-  @protected
-  FFIError dco_decode_ffi_error(dynamic raw);
-
-  @protected
-  FFIPrimitiveSignature dco_decode_ffi_primitive_signature(dynamic raw);
-
-  @protected
-  FFIPulseMetadata dco_decode_ffi_pulse_metadata(dynamic raw);
+  ErrorCompat dco_decode_error_compat(dynamic raw);
 
   @protected
   int dco_decode_i_32(dynamic raw);
-
-  @protected
-  List<FFIPrimitiveSignature> dco_decode_list_ffi_primitive_signature(
-      dynamic raw);
 
   @protected
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw);
 
   @protected
   String? dco_decode_opt_String(dynamic raw);
+
+  @protected
+  PulseMetadataCompat dco_decode_pulse_metadata_compat(dynamic raw);
 
   @protected
   StatusResponse dco_decode_status_response(dynamic raw);
@@ -190,23 +132,8 @@ abstract class YttriumDartApiImplPlatform extends BaseApiImpl<YttriumDartWire> {
           SseDeserializer deserializer);
 
   @protected
-  ExecuteDetails
-      sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExecuteDetails(
-          SseDeserializer deserializer);
-
-  @protected
   PrepareDetailedResponse
       sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPrepareDetailedResponse(
-          SseDeserializer deserializer);
-
-  @protected
-  PrepareResponseAvailable
-      sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPrepareResponseAvailable(
-          SseDeserializer deserializer);
-
-  @protected
-  UiFields
-      sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerUiFields(
           SseDeserializer deserializer);
 
   @protected
@@ -220,23 +147,8 @@ abstract class YttriumDartApiImplPlatform extends BaseApiImpl<YttriumDartWire> {
           SseDeserializer deserializer);
 
   @protected
-  ExecuteDetails
-      sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExecuteDetails(
-          SseDeserializer deserializer);
-
-  @protected
   PrepareDetailedResponse
       sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPrepareDetailedResponse(
-          SseDeserializer deserializer);
-
-  @protected
-  PrepareResponseAvailable
-      sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPrepareResponseAvailable(
-          SseDeserializer deserializer);
-
-  @protected
-  UiFields
-      sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerUiFields(
           SseDeserializer deserializer);
 
   @protected
@@ -246,17 +158,10 @@ abstract class YttriumDartApiImplPlatform extends BaseApiImpl<YttriumDartWire> {
   BigInt sse_decode_U128(SseDeserializer deserializer);
 
   @protected
-  bool sse_decode_bool(SseDeserializer deserializer);
+  CallCompat sse_decode_box_autoadd_call_compat(SseDeserializer deserializer);
 
   @protected
-  FFICall sse_decode_box_autoadd_ffi_call(SseDeserializer deserializer);
-
-  @protected
-  FFIPrimitiveSignature sse_decode_box_autoadd_ffi_primitive_signature(
-      SseDeserializer deserializer);
-
-  @protected
-  FFIPulseMetadata sse_decode_box_autoadd_ffi_pulse_metadata(
+  PulseMetadataCompat sse_decode_box_autoadd_pulse_metadata_compat(
       SseDeserializer deserializer);
 
   @protected
@@ -273,37 +178,30 @@ abstract class YttriumDartApiImplPlatform extends BaseApiImpl<YttriumDartWire> {
           SseDeserializer deserializer);
 
   @protected
+  CallCompat sse_decode_call_compat(SseDeserializer deserializer);
+
+  @protected
   Currency sse_decode_currency(SseDeserializer deserializer);
 
   @protected
-  Eip1559Estimation sse_decode_eip_1559_estimation(
+  Eip1559EstimationCompat sse_decode_eip_1559_estimation_compat(
       SseDeserializer deserializer);
 
   @protected
-  FFICall sse_decode_ffi_call(SseDeserializer deserializer);
-
-  @protected
-  FFIError sse_decode_ffi_error(SseDeserializer deserializer);
-
-  @protected
-  FFIPrimitiveSignature sse_decode_ffi_primitive_signature(
-      SseDeserializer deserializer);
-
-  @protected
-  FFIPulseMetadata sse_decode_ffi_pulse_metadata(SseDeserializer deserializer);
+  ErrorCompat sse_decode_error_compat(SseDeserializer deserializer);
 
   @protected
   int sse_decode_i_32(SseDeserializer deserializer);
-
-  @protected
-  List<FFIPrimitiveSignature> sse_decode_list_ffi_primitive_signature(
-      SseDeserializer deserializer);
 
   @protected
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer);
 
   @protected
   String? sse_decode_opt_String(SseDeserializer deserializer);
+
+  @protected
+  PulseMetadataCompat sse_decode_pulse_metadata_compat(
+      SseDeserializer deserializer);
 
   @protected
   StatusResponse sse_decode_status_response(SseDeserializer deserializer);
@@ -333,29 +231,17 @@ abstract class YttriumDartApiImplPlatform extends BaseApiImpl<YttriumDartWire> {
   BigInt sse_decode_usize(SseDeserializer deserializer);
 
   @protected
+  bool sse_decode_bool(SseDeserializer deserializer);
+
+  @protected
   void
       sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerChainAbstractionClient(
           ChainAbstractionClient self, SseSerializer serializer);
 
   @protected
   void
-      sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExecuteDetails(
-          ExecuteDetails self, SseSerializer serializer);
-
-  @protected
-  void
       sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPrepareDetailedResponse(
           PrepareDetailedResponse self, SseSerializer serializer);
-
-  @protected
-  void
-      sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPrepareResponseAvailable(
-          PrepareResponseAvailable self, SseSerializer serializer);
-
-  @protected
-  void
-      sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerUiFields(
-          UiFields self, SseSerializer serializer);
 
   @protected
   void
@@ -369,23 +255,8 @@ abstract class YttriumDartApiImplPlatform extends BaseApiImpl<YttriumDartWire> {
 
   @protected
   void
-      sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExecuteDetails(
-          ExecuteDetails self, SseSerializer serializer);
-
-  @protected
-  void
       sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPrepareDetailedResponse(
           PrepareDetailedResponse self, SseSerializer serializer);
-
-  @protected
-  void
-      sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPrepareResponseAvailable(
-          PrepareResponseAvailable self, SseSerializer serializer);
-
-  @protected
-  void
-      sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerUiFields(
-          UiFields self, SseSerializer serializer);
 
   @protected
   void sse_encode_String(String self, SseSerializer serializer);
@@ -394,18 +265,12 @@ abstract class YttriumDartApiImplPlatform extends BaseApiImpl<YttriumDartWire> {
   void sse_encode_U128(BigInt self, SseSerializer serializer);
 
   @protected
-  void sse_encode_bool(bool self, SseSerializer serializer);
+  void sse_encode_box_autoadd_call_compat(
+      CallCompat self, SseSerializer serializer);
 
   @protected
-  void sse_encode_box_autoadd_ffi_call(FFICall self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_box_autoadd_ffi_primitive_signature(
-      FFIPrimitiveSignature self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_box_autoadd_ffi_pulse_metadata(
-      FFIPulseMetadata self, SseSerializer serializer);
+  void sse_encode_box_autoadd_pulse_metadata_compat(
+      PulseMetadataCompat self, SseSerializer serializer);
 
   @protected
   void sse_encode_box_autoadd_status_response_completed(
@@ -420,32 +285,20 @@ abstract class YttriumDartApiImplPlatform extends BaseApiImpl<YttriumDartWire> {
       StatusResponsePendingObject self, SseSerializer serializer);
 
   @protected
+  void sse_encode_call_compat(CallCompat self, SseSerializer serializer);
+
+  @protected
   void sse_encode_currency(Currency self, SseSerializer serializer);
 
   @protected
-  void sse_encode_eip_1559_estimation(
-      Eip1559Estimation self, SseSerializer serializer);
+  void sse_encode_eip_1559_estimation_compat(
+      Eip1559EstimationCompat self, SseSerializer serializer);
 
   @protected
-  void sse_encode_ffi_call(FFICall self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_ffi_error(FFIError self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_ffi_primitive_signature(
-      FFIPrimitiveSignature self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_ffi_pulse_metadata(
-      FFIPulseMetadata self, SseSerializer serializer);
+  void sse_encode_error_compat(ErrorCompat self, SseSerializer serializer);
 
   @protected
   void sse_encode_i_32(int self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_list_ffi_primitive_signature(
-      List<FFIPrimitiveSignature> self, SseSerializer serializer);
 
   @protected
   void sse_encode_list_prim_u_8_strict(
@@ -453,6 +306,10 @@ abstract class YttriumDartApiImplPlatform extends BaseApiImpl<YttriumDartWire> {
 
   @protected
   void sse_encode_opt_String(String? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_pulse_metadata_compat(
+      PulseMetadataCompat self, SseSerializer serializer);
 
   @protected
   void sse_encode_status_response(
@@ -481,6 +338,9 @@ abstract class YttriumDartApiImplPlatform extends BaseApiImpl<YttriumDartWire> {
 
   @protected
   void sse_encode_usize(BigInt self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_bool(bool self, SseSerializer serializer);
 }
 
 // Section: wire_class
@@ -530,38 +390,6 @@ class YttriumDartWire implements BaseWire {
           .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
 
   void
-      rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExecuteDetails(
-    ffi.Pointer<ffi.Void> ptr,
-  ) {
-    return _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExecuteDetails(
-      ptr,
-    );
-  }
-
-  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExecuteDetailsPtr =
-      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
-          'frbgen_yttrium_dart_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExecuteDetails');
-  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExecuteDetails =
-      _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExecuteDetailsPtr
-          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
-
-  void
-      rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExecuteDetails(
-    ffi.Pointer<ffi.Void> ptr,
-  ) {
-    return _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExecuteDetails(
-      ptr,
-    );
-  }
-
-  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExecuteDetailsPtr =
-      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
-          'frbgen_yttrium_dart_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExecuteDetails');
-  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExecuteDetails =
-      _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExecuteDetailsPtr
-          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
-
-  void
       rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPrepareDetailedResponse(
     ffi.Pointer<ffi.Void> ptr,
   ) {
@@ -591,69 +419,5 @@ class YttriumDartWire implements BaseWire {
           'frbgen_yttrium_dart_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPrepareDetailedResponse');
   late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPrepareDetailedResponse =
       _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPrepareDetailedResponsePtr
-          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
-
-  void
-      rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPrepareResponseAvailable(
-    ffi.Pointer<ffi.Void> ptr,
-  ) {
-    return _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPrepareResponseAvailable(
-      ptr,
-    );
-  }
-
-  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPrepareResponseAvailablePtr =
-      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
-          'frbgen_yttrium_dart_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPrepareResponseAvailable');
-  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPrepareResponseAvailable =
-      _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPrepareResponseAvailablePtr
-          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
-
-  void
-      rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPrepareResponseAvailable(
-    ffi.Pointer<ffi.Void> ptr,
-  ) {
-    return _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPrepareResponseAvailable(
-      ptr,
-    );
-  }
-
-  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPrepareResponseAvailablePtr =
-      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
-          'frbgen_yttrium_dart_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPrepareResponseAvailable');
-  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPrepareResponseAvailable =
-      _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPrepareResponseAvailablePtr
-          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
-
-  void
-      rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerUiFields(
-    ffi.Pointer<ffi.Void> ptr,
-  ) {
-    return _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerUiFields(
-      ptr,
-    );
-  }
-
-  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerUiFieldsPtr =
-      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
-          'frbgen_yttrium_dart_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerUiFields');
-  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerUiFields =
-      _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerUiFieldsPtr
-          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
-
-  void
-      rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerUiFields(
-    ffi.Pointer<ffi.Void> ptr,
-  ) {
-    return _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerUiFields(
-      ptr,
-    );
-  }
-
-  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerUiFieldsPtr =
-      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
-          'frbgen_yttrium_dart_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerUiFields');
-  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerUiFields =
-      _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerUiFieldsPtr
           .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
 }

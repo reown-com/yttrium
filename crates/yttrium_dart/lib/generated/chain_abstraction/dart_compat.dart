@@ -4,17 +4,14 @@
 // ignore_for_file: invalid_use_of_internal_member, unused_import, unnecessary_import
 
 import '../frb_generated.dart';
-import 'api/prepare.dart';
 import 'api/status.dart';
-import 'client.dart';
 import 'currency.dart';
 import 'error.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
-import 'ui_fields.dart';
 part 'dart_compat.freezed.dart';
 
-// These types are ignored because they are not used by any `pub` functions: `FeeCompat`, `LocalAmountAccCompat`
+// These types are ignored because they are not used by any `pub` functions: `FeeCompat`, `LocalAmountAccCompat`, `PrimitiveSignatureCompat`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `try_from`, `try_from`
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ChainAbstractionClient>>
@@ -22,21 +19,12 @@ abstract class ChainAbstractionClient implements RustOpaqueInterface {
   Future<String> erc20TokenBalance(
       {required String chainId, required String token, required String owner});
 
-  Future<Eip1559Estimation> estimateFees({required String chainId});
-
-  Future<ExecuteDetails> execute(
-      {required UiFields uiFields,
-      required List<FFIPrimitiveSignature> routeTxnSigs,
-      required FFIPrimitiveSignature initialTxnSig});
-
-  Future<UiFields> getUiFields(
-      {required PrepareResponseAvailable routeResponse,
-      required Currency currency});
+  Future<Eip1559EstimationCompat> estimateFees({required String chainId});
 
   // HINT: Make it `#[frb(sync)]` to let it become the default constructor of Dart class.
   static Future<ChainAbstractionClient> newInstance(
           {required String projectId,
-          required FFIPulseMetadata pulseMetadata}) =>
+          required PulseMetadataCompat pulseMetadata}) =>
       YttriumDart.instance.api
           .crateChainAbstractionDartCompatChainAbstractionClientNew(
               projectId: projectId, pulseMetadata: pulseMetadata);
@@ -44,7 +32,7 @@ abstract class ChainAbstractionClient implements RustOpaqueInterface {
   Future<PrepareDetailedResponse> prepareDetailed(
       {required String chainId,
       required String from,
-      required FFICall call,
+      required CallCompat call,
       required Currency localCurrency});
 
   Future<StatusResponse> status({required String orchestrationId});
@@ -55,36 +43,12 @@ abstract class ChainAbstractionClient implements RustOpaqueInterface {
       required BigInt timeout});
 }
 
-class Eip1559Estimation {
-  /// The base fee per gas as a String.
-  final String maxFeePerGas;
-
-  /// The max priority fee per gas as a String.
-  final String maxPriorityFeePerGas;
-
-  const Eip1559Estimation({
-    required this.maxFeePerGas,
-    required this.maxPriorityFeePerGas,
-  });
-
-  @override
-  int get hashCode => maxFeePerGas.hashCode ^ maxPriorityFeePerGas.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is Eip1559Estimation &&
-          runtimeType == other.runtimeType &&
-          maxFeePerGas == other.maxFeePerGas &&
-          maxPriorityFeePerGas == other.maxPriorityFeePerGas;
-}
-
-class FFICall {
+class CallCompat {
   final String to;
   final BigInt value;
   final Uint8List input;
 
-  const FFICall({
+  const CallCompat({
     required this.to,
     required this.value,
     required this.input,
@@ -96,54 +60,54 @@ class FFICall {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is FFICall &&
+      other is CallCompat &&
           runtimeType == other.runtimeType &&
           to == other.to &&
           value == other.value &&
           input == other.input;
 }
 
-@freezed
-sealed class FFIError with _$FFIError implements FrbException {
-  const FFIError._();
+class Eip1559EstimationCompat {
+  /// The base fee per gas as a String.
+  final String maxFeePerGas;
 
-  const factory FFIError.general(
-    String field0,
-  ) = FFIError_General;
-}
+  /// The max priority fee per gas as a String.
+  final String maxPriorityFeePerGas;
 
-class FFIPrimitiveSignature {
-  final bool yParity;
-  final String r;
-  final String s;
-
-  const FFIPrimitiveSignature({
-    required this.yParity,
-    required this.r,
-    required this.s,
+  const Eip1559EstimationCompat({
+    required this.maxFeePerGas,
+    required this.maxPriorityFeePerGas,
   });
 
   @override
-  int get hashCode => yParity.hashCode ^ r.hashCode ^ s.hashCode;
+  int get hashCode => maxFeePerGas.hashCode ^ maxPriorityFeePerGas.hashCode;
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is FFIPrimitiveSignature &&
+      other is Eip1559EstimationCompat &&
           runtimeType == other.runtimeType &&
-          yParity == other.yParity &&
-          r == other.r &&
-          s == other.s;
+          maxFeePerGas == other.maxFeePerGas &&
+          maxPriorityFeePerGas == other.maxPriorityFeePerGas;
 }
 
-class FFIPulseMetadata {
+@freezed
+sealed class ErrorCompat with _$ErrorCompat implements FrbException {
+  const ErrorCompat._();
+
+  const factory ErrorCompat.general(
+    String field0,
+  ) = ErrorCompat_General;
+}
+
+class PulseMetadataCompat {
   final String? url;
   final String? bundleId;
   final String? packageName;
   final String sdkVersion;
   final String sdkPlatform;
 
-  const FFIPulseMetadata({
+  const PulseMetadataCompat({
     this.url,
     this.bundleId,
     this.packageName,
@@ -162,7 +126,7 @@ class FFIPulseMetadata {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is FFIPulseMetadata &&
+      other is PulseMetadataCompat &&
           runtimeType == other.runtimeType &&
           url == other.url &&
           bundleId == other.bundleId &&

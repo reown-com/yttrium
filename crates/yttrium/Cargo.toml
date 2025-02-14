@@ -16,7 +16,7 @@ full = ["all_platforms", "all_clients"]
 # Features enabling FFI bindings for different platforms
 all_platforms = ["uniffi", "frb", "wasm"]
 uniffi = ["dep:uniffi", "dep:uniffi_macros"]
-frb = ["dep:flutter_rust_bridge_codegen", "dep:flutter_rust_bridge"]
+frb = ["dep:flutter_rust_bridge_codegen", "dep:flutter_rust_bridge", "reqwest/default-tls"]
 wasm = [
     "dep:wasm-bindgen",
     "dep:wasm-bindgen-futures",
