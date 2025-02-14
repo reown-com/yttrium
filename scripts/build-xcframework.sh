@@ -74,21 +74,21 @@ build_rust_libraries() {
 }
 
 generate_ffi() {
-  echo "Generating framework module mapping and FFI bindings..."
-  cargo run --features uniffi/cli --bin uniffi-bindgen generate \
-      --library "target/aarch64-apple-ios/uniffi-release-swift/lib$1.dylib" \
-      --language swift \
-      --out-dir target/uniffi-xcframework-staging
+  echo "Generating framework module mapping and FFI bindings..."
+  cargo run --features uniffi/cli --bin uniffi-bindgen generate \
+      --library "target/aarch64-apple-ios/uniffi-release-swift/lib$1.dylib" \
+      --language swift \
+      --out-dir target/uniffi-xcframework-staging
 
-  echo "Creating module.modulemap"
-  cat target/uniffi-xcframework-staging/yttriumFFI.modulemap \
-      target/uniffi-xcframework-staging/uniffi_yttriumFFI.modulemap \
-      > target/uniffi-xcframework-staging/module.modulemap
+  echo "Creating Yttrium.modulemap"
+  cat target/uniffi-xcframework-staging/yttriumFFI.modulemap \
+      target/uniffi-xcframework-staging/uniffi_yttriumFFI.modulemap \
+      > target/uniffi-xcframework-staging/Yttrium.modulemap
 
-  echo "Copying bindings to Swift package directory..."
-  mkdir -p "$swift_package_dir"
-  cp target/uniffi-xcframework-staging/*.swift "$swift_package_dir/"
-  cp target/uniffi-xcframework-staging/*.h "$swift_package_dir/"
+  echo "Copying bindings to Swift package directory..."
+  mkdir -p "$swift_package_dir"
+  cp target/uniffi-xcframework-staging/*.swift "$swift_package_dir/"
+  cp target/uniffi-xcframework-staging/*.h "$swift_package_dir/"
 }
 
 create_fat_simulator_lib() {
@@ -120,3 +120,4 @@ build_rust_libraries
 generate_ffi $PACKAGE_NAME
 create_fat_simulator_lib $PACKAGE_NAME
 build_xcframework $PACKAGE_NAME
+
