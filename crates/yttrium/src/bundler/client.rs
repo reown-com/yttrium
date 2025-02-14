@@ -7,7 +7,7 @@ use {
         time::{sleep, Duration, Instant},
         user_operation::UserOperationV07,
     },
-    alloy::{primitives::B256, rpc::types::UserOperationReceipt},
+    alloy::{primitives::Bytes, rpc::types::UserOperationReceipt},
     alloy_provider::ProviderBuilder,
     eyre::Ok,
     serde_json::{self},
@@ -28,7 +28,7 @@ impl BundlerClient {
         &self,
         entry_point_address: EntryPointAddress,
         user_op: UserOperationV07,
-    ) -> eyre::Result<B256> {
+    ) -> eyre::Result<Bytes> {
         let send_body = crate::jsonrpc::Request {
             jsonrpc: "2.0".into(), // TODO use Arc<str>
             id: 1,
@@ -50,8 +50,8 @@ impl BundlerClient {
 
         debug!("response: {}", response);
 
-        let response: Response<B256> =
-            serde_json::from_str::<JSONRPCResponse<B256>>(&response)?.into();
+        let response: Response<Bytes> =
+            serde_json::from_str::<JSONRPCResponse<Bytes>>(&response)?.into();
 
         response?.ok_or(eyre::eyre!("send_user_operation got None"))
     }
@@ -104,7 +104,7 @@ impl BundlerClient {
 
     pub async fn get_user_operation_receipt(
         &self,
-        hash: B256,
+        hash: Bytes,
     ) -> eyre::Result<Option<UserOperationReceipt>> {
         let provider = ProviderBuilder::new().on_http(self.config.url());
         get_user_operation_receipt(&provider, hash).await.map_err(Into::into)
@@ -112,7 +112,7 @@ impl BundlerClient {
 
     pub async fn wait_for_user_operation_receipt(
         &self,
-        hash: B256,
+        hash: Bytes,
     ) -> eyre::Result<UserOperationReceipt> {
         let polling_interval = Duration::from_millis(2000);
         let timeout = Some(Duration::from_secs(30));
@@ -120,7 +120,7 @@ impl BundlerClient {
         let start_time = Instant::now();
 
         loop {
-            match self.get_user_operation_receipt(hash).await? {
+            match self.get_user_operation_receipt(hash.clone()).await? {
                 Some(receipt) => return Ok(receipt),
                 None => {
                     if let Some(timeout_duration) = timeout {

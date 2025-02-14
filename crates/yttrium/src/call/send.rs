@@ -4,7 +4,7 @@ use {
         smart_accounts::account_address::AccountAddress,
         user_operation::UserOperationV07,
     },
-    alloy::primitives::B256,
+    alloy::primitives::Bytes,
     core::fmt,
     safe_test::{
         DoSendTransactionParams, OwnerSignature, PreparedSendTransaction,
@@ -69,7 +69,7 @@ pub async fn do_send_transactions(
     do_send_transaction_params: DoSendTransactionParams,
     _chain_id: u64,
     config: Config,
-) -> eyre::Result<B256> {
+) -> eyre::Result<Bytes> {
     let user_operation_hash = safe_test::do_send_transactions(
         signatures,
         do_send_transaction_params,

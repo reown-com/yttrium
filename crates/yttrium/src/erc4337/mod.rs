@@ -1,6 +1,6 @@
 use {
     alloy::{
-        primitives::B256,
+        primitives::Bytes,
         rpc::types::UserOperationReceipt,
         transports::{TransportError, TransportResult},
     },
@@ -10,7 +10,7 @@ use {
 
 pub async fn get_user_operation_receipt(
     provider: &impl Provider,
-    hash: B256,
+    hash: Bytes,
 ) -> TransportResult<Option<UserOperationReceipt>> {
     let receipt = provider.get_user_operation_receipt(hash).await?;
 
@@ -50,7 +50,7 @@ pub async fn get_user_operation_receipt(
 trait CustomErc4337Api: Send + Sync {
     async fn get_user_operation_receipt(
         &self,
-        user_op_hash: B256,
+        user_op_hash: Bytes,
     ) -> TransportResult<Option<Value>>;
 }
 
@@ -62,7 +62,7 @@ where
 {
     async fn get_user_operation_receipt(
         &self,
-        user_op_hash: B256,
+        user_op_hash: Bytes,
     ) -> TransportResult<Option<Value>> {
         self.client()
             .request("eth_getUserOperationReceipt", (user_op_hash,))
