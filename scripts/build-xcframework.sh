@@ -80,17 +80,20 @@ generate_ffi() {
       --language swift \
       --out-dir target/uniffi-xcframework-staging
 
-  echo "Creating module.modulemap"
-  cat target/uniffi-xcframework-staging/yttriumFFI.modulemap \
-      target/uniffi-xcframework-staging/uniffi_yttriumFFI.modulemap \
-      > target/uniffi-xcframework-staging/module.modulemap
-
+  echo "Creating yttrium.modulemap"
+cat <<EOF > target/uniffi-xcframework-staging/yttrium.modulemap
+module uniffi_yttriumFFI {
+    header "yttriumFFI.h"
+    header "uniffi_yttriumFFI.h"
+    export *
+}
+EOF
   echo "Copying bindings to Swift package directory..."
   mkdir -p "$swift_package_dir"
   cp target/uniffi-xcframework-staging/*.swift "$swift_package_dir/"
   cp target/uniffi-xcframework-staging/*.h "$swift_package_dir/"
+  cp target/uniffi-xcframework-staging/yttrium.modulemap "$swift_package_dir/"
 }
-
 create_fat_simulator_lib() {
   echo "Creating a fat library for x86_64 and aarch64 simulators..."
   mkdir -p "$fat_simulator_lib_dir"
