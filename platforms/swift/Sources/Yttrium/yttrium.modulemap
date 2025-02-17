@@ -1,5 +1,0 @@
-module uniffi_yttriumFFI {
-    header "yttriumFFI.h"
-    header "uniffi_yttriumFFI.h"
-    export *
-}
