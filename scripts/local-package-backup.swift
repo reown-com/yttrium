@@ -21,8 +21,6 @@ let package = Package(
             publicHeadersPath: ".",
             cSettings: [
                 .headerSearchPath("."),
-                // Tells the compiler to use yttrium.modulemap instead of the default module.modulemap
-                .unsafeFlags(["-fmodule-map-file=yttrium.modulemap"])
             ]
         ),
         .binaryTarget(
