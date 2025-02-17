@@ -20,7 +20,7 @@ let package = Package(
             path: "platforms/swift/Sources/Yttrium",
             publicHeadersPath: ".",
             cSettings: [
-                .headerSearchPath(".")
+                .headerSearchPath("."),
             ]
         ),
         .binaryTarget(

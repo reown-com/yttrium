@@ -80,15 +80,40 @@ generate_ffi() {
       --language swift \
       --out-dir target/uniffi-xcframework-staging
 
+  # Create yttriumFFI subdirectory for headers
+  mkdir -p target/uniffi-xcframework-staging/yttriumFFI
+
+  # Concatenate the module maps in yttriumFFI directory
   echo "Creating module.modulemap"
   cat target/uniffi-xcframework-staging/yttriumFFI.modulemap \
       target/uniffi-xcframework-staging/uniffi_yttriumFFI.modulemap \
-      > target/uniffi-xcframework-staging/module.modulemap
+      > target/uniffi-xcframework-staging/yttriumFFI/module.modulemap
 
-  echo "Copying bindings to Swift package directory..."
+  # Move headers to yttriumFFI directory
+  mv target/uniffi-xcframework-staging/*.h target/uniffi-xcframework-staging/yttriumFFI/
+
+  # Copy only Swift files to Swift package directory
   mkdir -p "$swift_package_dir"
   cp target/uniffi-xcframework-staging/*.swift "$swift_package_dir/"
-  cp target/uniffi-xcframework-staging/*.h "$swift_package_dir/"
+}
+
+build_xcframework() {
+  echo "Generating XCFramework..."
+  rm -rf target/ios
+  mkdir -p target/ios
+
+  # Create headers directory structure for device
+  mkdir -p target/uniffi-xcframework-staging/device/Headers/yttriumFFI
+  cp -r target/uniffi-xcframework-staging/yttriumFFI/* target/uniffi-xcframework-staging/device/Headers/yttriumFFI/
+
+  # Create headers directory structure for simulator
+  mkdir -p target/uniffi-xcframework-staging/simulator/Headers/yttriumFFI
+  cp -r target/uniffi-xcframework-staging/yttriumFFI/* target/uniffi-xcframework-staging/simulator/Headers/yttriumFFI/
+
+  xcodebuild -create-xcframework \
+      -library "target/aarch64-apple-ios/uniffi-release-swift/lib$1.a" -headers target/uniffi-xcframework-staging/device/Headers \
+      -library "$fat_simulator_lib_dir/lib$1.a" -headers target/uniffi-xcframework-staging/simulator/Headers \
+      -output "target/ios/lib$1.xcframework"
 }
 
 create_fat_simulator_lib() {
@@ -98,16 +123,6 @@ create_fat_simulator_lib() {
       "target/x86_64-apple-ios/uniffi-release-swift/lib$1.a" \
       "target/aarch64-apple-ios-sim/uniffi-release-swift/lib$1.a" \
       -output "$fat_simulator_lib_dir/lib$1.a"
-}
-
-build_xcframework() {
-  echo "Generating XCFramework..."
-  rm -rf target/ios
-  mkdir -p target/ios
-  xcodebuild -create-xcframework \
-      -library "target/aarch64-apple-ios/uniffi-release-swift/lib$1.a" -headers target/uniffi-xcframework-staging \
-      -library "$fat_simulator_lib_dir/lib$1.a" -headers target/uniffi-xcframework-staging \
-      -output "target/ios/lib$1.xcframework"
 }
 
 # Add the necessary Rust targets
