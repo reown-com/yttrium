@@ -28,8 +28,8 @@ use {
     alloy::{
         dyn_abi::{DynSolValue, Eip712Domain},
         primitives::{
-            aliases::U48, Address, PrimitiveSignature, Uint, B256, U160, U256,
-            U64,
+            aliases::U48, Address, Bytes, PrimitiveSignature, Uint, B256, U160,
+            U256, U64,
         },
         providers::Provider,
         rpc::types::UserOperationReceipt,
@@ -411,7 +411,7 @@ pub async fn do_send_transactions(
     signatures: Vec<OwnerSignature>,
     params: DoSendTransactionParams,
     config: Config,
-) -> eyre::Result<B256> {
+) -> eyre::Result<Bytes> {
     let user_op = encode_send_transactions(signatures, params).await?;
 
     let provider =
