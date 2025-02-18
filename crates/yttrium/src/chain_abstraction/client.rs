@@ -102,8 +102,8 @@ impl Client {
             })
             .query(&RouteQueryParams {
                 project_id: self.provider_pool.project_id.clone(),
-                sdk_type: PULSE_SDK_TYPE.to_string(),
-                sdk_version: self.pulse_metadata.sdk_version.clone(),
+                sdk_type: Some(PULSE_SDK_TYPE.to_string()),
+                sdk_version: Some(self.pulse_metadata.sdk_version.clone()),
                 session_id: Some(self.provider_pool.session_id.to_string()),
             })
             .send()
@@ -365,8 +365,8 @@ impl Client {
                     project_id: self.provider_pool.project_id.clone(),
                     orchestration_id,
                     session_id: Some(self.provider_pool.session_id.to_string()),
-                    sdk_type: PULSE_SDK_TYPE.to_string(),
-                    sdk_version: self.pulse_metadata.sdk_version.clone(),
+                    sdk_type: Some(PULSE_SDK_TYPE.to_string()),
+                    sdk_version: Some(self.pulse_metadata.sdk_version.clone()),
                 });
             // https://github.com/seanmonstar/reqwest/pull/1760
             #[cfg(not(target_arch = "wasm32"))]

@@ -128,11 +128,8 @@ pub const PULSE_SDK_TYPE: &str = "wkca";
 pub struct PulseMetadata {
     // web
     pub url: Option<Url>,
-    // iOS
+    // iOS & Android
     pub bundle_id: Option<String>,
-    // Android
-    // FIXME this param is not used yet
-    pub package_name: Option<String>,
     pub sdk_version: String,
     pub sdk_platform: String,
 }

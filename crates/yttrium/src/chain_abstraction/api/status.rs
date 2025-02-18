@@ -12,9 +12,9 @@ pub struct StatusQueryParams {
     pub orchestration_id: String,
     pub session_id: Option<String>,
     #[serde(rename = "st")]
-    pub sdk_type: String,
+    pub sdk_type: Option<String>,
     #[serde(rename = "sv")]
-    pub sdk_version: String,
+    pub sdk_version: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
