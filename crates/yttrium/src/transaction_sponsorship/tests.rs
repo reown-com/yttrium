@@ -43,7 +43,6 @@ async fn happy_path_pimlico() {
         PulseMetadata {
             url: None,
             bundle_id: None,
-            package_name: None,
             sdk_version: "yttrium-tests-0.0.0".to_owned(),
             sdk_platform: "desktop".to_owned(),
         },
@@ -72,7 +71,6 @@ async fn happy_path_local() {
         PulseMetadata {
             url: None,
             bundle_id: None,
-            package_name: None,
             sdk_version: "yttrium-tests-0.0.0".to_owned(),
             sdk_platform: "desktop".to_owned(),
         },

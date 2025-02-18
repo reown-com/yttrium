@@ -5845,9 +5845,9 @@ dependencies = [
 
 [[package]]
 name = "uuid-rng-internal"
-version = "1.13.1"
+version = "1.13.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1e2a8003ae4b0dc7829a0744a9895063baa298adabfbfdaa9487f3a0ddf5c95f"
+checksum = "f4f8aaea8bbefd0ed7b4267a5be5d7252ff036ce536c91f7d93c3becc26050e9"
 dependencies = [
  "getrandom 0.3.1",
 ]
