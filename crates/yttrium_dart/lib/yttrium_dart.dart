@@ -1,12 +1,10 @@
 import 'dart:io';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
-// import 'package:yttrium_dart/generated/chain_abstraction/api/prepare.dart';
-import 'package:yttrium_dart/generated/chain_abstraction/api/status.dart';
-// import 'package:yttrium_dart/generated/chain_abstraction/client.dart';
+// import 'package:yttrium_dart/generated/chain_abstraction/api/status.dart';
 import 'package:yttrium_dart/generated/chain_abstraction/currency.dart';
 import 'package:yttrium_dart/generated/chain_abstraction/dart_compat.dart';
-import 'package:yttrium_dart/generated/chain_abstraction/error.dart';
+import 'package:yttrium_dart/generated/chain_abstraction/dart_compat_models.dart';
 import 'package:yttrium_dart/generated/frb_generated.dart' as frb;
 
 abstract class IYttriumClient extends ChainAbstractionClient {
@@ -75,7 +73,7 @@ class YttriumDart implements IYttriumClient {
   }
 
   @override
-  Future<PrepareDetailedResponse> prepareDetailed({
+  Future<PrepareDetailedResponseCompat> prepareDetailed({
     required String chainId,
     required String from,
     required CallCompat call,
@@ -116,12 +114,12 @@ class YttriumDart implements IYttriumClient {
   //   );
   // }
 
-  @override
-  Future<StatusResponse> status({required String orchestrationId}) async {
-    return await _chainAbstractionClient.status(
-      orchestrationId: orchestrationId,
-    );
-  }
+  // @override
+  // Future<StatusResponse> status({required String orchestrationId}) async {
+  //   return await _chainAbstractionClient.status(
+  //     orchestrationId: orchestrationId,
+  //   );
+  // }
 
   // @override
   // Future<ExecuteDetails> execute({
@@ -136,16 +134,29 @@ class YttriumDart implements IYttriumClient {
   //   );
   // }
 
+  // @override
+  // Future<StatusResponseCompleted> waitForSuccessWithTimeout({
+  //   required String orchestrationId,
+  //   required BigInt checkIn,
+  //   required BigInt timeout,
+  // }) async {
+  //   return await _chainAbstractionClient.waitForSuccessWithTimeout(
+  //     orchestrationId: orchestrationId,
+  //     checkIn: checkIn,
+  //     timeout: timeout,
+  //   );
+  // }
+
   @override
-  Future<StatusResponseCompleted> waitForSuccessWithTimeout({
-    required String orchestrationId,
-    required BigInt checkIn,
-    required BigInt timeout,
+  Future<ExecuteDetailsCompat> execute({
+    required UiFieldsCompat uiFields,
+    required List<PrimitiveSignatureCompat> routeTxnSigs,
+    required PrimitiveSignatureCompat initialTxnSig,
   }) async {
-    return await _chainAbstractionClient.waitForSuccessWithTimeout(
-      orchestrationId: orchestrationId,
-      checkIn: checkIn,
-      timeout: timeout,
+    return await _chainAbstractionClient.execute(
+      uiFields: uiFields,
+      routeTxnSigs: routeTxnSigs,
+      initialTxnSig: initialTxnSig,
     );
   }
 

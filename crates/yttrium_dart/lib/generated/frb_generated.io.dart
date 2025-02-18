@@ -3,10 +3,10 @@
 
 // ignore_for_file: unused_import, unused_element, unnecessary_import, duplicate_ignore, invalid_use_of_internal_member, annotate_overrides, non_constant_identifier_names, curly_braces_in_flow_control_structures, prefer_const_literals_to_create_immutables, unused_field
 
-import 'chain_abstraction/api/status.dart';
+import 'chain_abstraction/api/prepare.dart';
 import 'chain_abstraction/currency.dart';
 import 'chain_abstraction/dart_compat.dart';
-import 'chain_abstraction/error.dart';
+import 'chain_abstraction/dart_compat_models.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:ffi' as ffi;
@@ -26,8 +26,8 @@ abstract class YttriumDartApiImplPlatform extends BaseApiImpl<YttriumDartWire> {
           ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerChainAbstractionClientPtr;
 
   CrossPlatformFinalizerArg
-      get rust_arc_decrement_strong_count_PrepareDetailedResponsePtr => wire
-          ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPrepareDetailedResponsePtr;
+      get rust_arc_decrement_strong_count_ExecuteDetailsCompatPtr => wire
+          ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExecuteDetailsCompatPtr;
 
   @protected
   ChainAbstractionClient
@@ -35,8 +35,8 @@ abstract class YttriumDartApiImplPlatform extends BaseApiImpl<YttriumDartWire> {
           dynamic raw);
 
   @protected
-  PrepareDetailedResponse
-      dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPrepareDetailedResponse(
+  ExecuteDetailsCompat
+      dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExecuteDetailsCompat(
           dynamic raw);
 
   @protected
@@ -50,8 +50,8 @@ abstract class YttriumDartApiImplPlatform extends BaseApiImpl<YttriumDartWire> {
           dynamic raw);
 
   @protected
-  PrepareDetailedResponse
-      dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPrepareDetailedResponse(
+  ExecuteDetailsCompat
+      dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExecuteDetailsCompat(
           dynamic raw);
 
   @protected
@@ -61,21 +61,39 @@ abstract class YttriumDartApiImplPlatform extends BaseApiImpl<YttriumDartWire> {
   BigInt dco_decode_U128(dynamic raw);
 
   @protected
+  AmountCompat dco_decode_amount_compat(dynamic raw);
+
+  @protected
+  bool dco_decode_bool(dynamic raw);
+
+  @protected
   CallCompat dco_decode_box_autoadd_call_compat(dynamic raw);
+
+  @protected
+  PrepareDetailedResponseSuccessCompat
+      dco_decode_box_autoadd_prepare_detailed_response_success_compat(
+          dynamic raw);
+
+  @protected
+  PrepareResponseError dco_decode_box_autoadd_prepare_response_error(
+      dynamic raw);
+
+  @protected
+  PrepareResponseNotRequiredCompat
+      dco_decode_box_autoadd_prepare_response_not_required_compat(dynamic raw);
+
+  @protected
+  PrimitiveSignatureCompat dco_decode_box_autoadd_primitive_signature_compat(
+      dynamic raw);
 
   @protected
   PulseMetadataCompat dco_decode_box_autoadd_pulse_metadata_compat(dynamic raw);
 
   @protected
-  StatusResponseCompleted dco_decode_box_autoadd_status_response_completed(
-      dynamic raw);
+  UiFieldsCompat dco_decode_box_autoadd_ui_fields_compat(dynamic raw);
 
   @protected
-  StatusResponseError dco_decode_box_autoadd_status_response_error(dynamic raw);
-
-  @protected
-  StatusResponsePendingObject
-      dco_decode_box_autoadd_status_response_pending_object(dynamic raw);
+  BridgingError dco_decode_bridging_error(dynamic raw);
 
   @protected
   CallCompat dco_decode_call_compat(dynamic raw);
@@ -90,35 +108,88 @@ abstract class YttriumDartApiImplPlatform extends BaseApiImpl<YttriumDartWire> {
   ErrorCompat dco_decode_error_compat(dynamic raw);
 
   @protected
+  FeeEstimatedTransactionCompat dco_decode_fee_estimated_transaction_compat(
+      dynamic raw);
+
+  @protected
+  FundingMetadataCompat dco_decode_funding_metadata_compat(dynamic raw);
+
+  @protected
   int dco_decode_i_32(dynamic raw);
+
+  @protected
+  InitialTransactionMetadataCompat
+      dco_decode_initial_transaction_metadata_compat(dynamic raw);
+
+  @protected
+  List<FundingMetadataCompat> dco_decode_list_funding_metadata_compat(
+      dynamic raw);
 
   @protected
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw);
 
   @protected
+  List<PrimitiveSignatureCompat> dco_decode_list_primitive_signature_compat(
+      dynamic raw);
+
+  @protected
+  List<TransactionCompat> dco_decode_list_transaction_compat(dynamic raw);
+
+  @protected
+  List<TransactionFeeCompat> dco_decode_list_transaction_fee_compat(
+      dynamic raw);
+
+  @protected
+  List<TxnDetailsCompat> dco_decode_list_txn_details_compat(dynamic raw);
+
+  @protected
+  MetadataCompat dco_decode_metadata_compat(dynamic raw);
+
+  @protected
   String? dco_decode_opt_String(dynamic raw);
+
+  @protected
+  PrepareDetailedResponseCompat dco_decode_prepare_detailed_response_compat(
+      dynamic raw);
+
+  @protected
+  PrepareDetailedResponseSuccessCompat
+      dco_decode_prepare_detailed_response_success_compat(dynamic raw);
+
+  @protected
+  PrepareResponseAvailableCompat dco_decode_prepare_response_available_compat(
+      dynamic raw);
+
+  @protected
+  PrepareResponseError dco_decode_prepare_response_error(dynamic raw);
+
+  @protected
+  PrepareResponseNotRequiredCompat
+      dco_decode_prepare_response_not_required_compat(dynamic raw);
+
+  @protected
+  PrimitiveSignatureCompat dco_decode_primitive_signature_compat(dynamic raw);
 
   @protected
   PulseMetadataCompat dco_decode_pulse_metadata_compat(dynamic raw);
 
   @protected
-  StatusResponse dco_decode_status_response(dynamic raw);
+  TransactionCompat dco_decode_transaction_compat(dynamic raw);
 
   @protected
-  StatusResponseCompleted dco_decode_status_response_completed(dynamic raw);
+  TransactionFeeCompat dco_decode_transaction_fee_compat(dynamic raw);
 
   @protected
-  StatusResponseError dco_decode_status_response_error(dynamic raw);
-
-  @protected
-  StatusResponsePendingObject dco_decode_status_response_pending_object(
-      dynamic raw);
+  TxnDetailsCompat dco_decode_txn_details_compat(dynamic raw);
 
   @protected
   BigInt dco_decode_u_64(dynamic raw);
 
   @protected
   int dco_decode_u_8(dynamic raw);
+
+  @protected
+  UiFieldsCompat dco_decode_ui_fields_compat(dynamic raw);
 
   @protected
   void dco_decode_unit(dynamic raw);
@@ -132,8 +203,8 @@ abstract class YttriumDartApiImplPlatform extends BaseApiImpl<YttriumDartWire> {
           SseDeserializer deserializer);
 
   @protected
-  PrepareDetailedResponse
-      sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPrepareDetailedResponse(
+  ExecuteDetailsCompat
+      sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExecuteDetailsCompat(
           SseDeserializer deserializer);
 
   @protected
@@ -147,8 +218,8 @@ abstract class YttriumDartApiImplPlatform extends BaseApiImpl<YttriumDartWire> {
           SseDeserializer deserializer);
 
   @protected
-  PrepareDetailedResponse
-      sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPrepareDetailedResponse(
+  ExecuteDetailsCompat
+      sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExecuteDetailsCompat(
           SseDeserializer deserializer);
 
   @protected
@@ -158,24 +229,42 @@ abstract class YttriumDartApiImplPlatform extends BaseApiImpl<YttriumDartWire> {
   BigInt sse_decode_U128(SseDeserializer deserializer);
 
   @protected
+  AmountCompat sse_decode_amount_compat(SseDeserializer deserializer);
+
+  @protected
+  bool sse_decode_bool(SseDeserializer deserializer);
+
+  @protected
   CallCompat sse_decode_box_autoadd_call_compat(SseDeserializer deserializer);
+
+  @protected
+  PrepareDetailedResponseSuccessCompat
+      sse_decode_box_autoadd_prepare_detailed_response_success_compat(
+          SseDeserializer deserializer);
+
+  @protected
+  PrepareResponseError sse_decode_box_autoadd_prepare_response_error(
+      SseDeserializer deserializer);
+
+  @protected
+  PrepareResponseNotRequiredCompat
+      sse_decode_box_autoadd_prepare_response_not_required_compat(
+          SseDeserializer deserializer);
+
+  @protected
+  PrimitiveSignatureCompat sse_decode_box_autoadd_primitive_signature_compat(
+      SseDeserializer deserializer);
 
   @protected
   PulseMetadataCompat sse_decode_box_autoadd_pulse_metadata_compat(
       SseDeserializer deserializer);
 
   @protected
-  StatusResponseCompleted sse_decode_box_autoadd_status_response_completed(
+  UiFieldsCompat sse_decode_box_autoadd_ui_fields_compat(
       SseDeserializer deserializer);
 
   @protected
-  StatusResponseError sse_decode_box_autoadd_status_response_error(
-      SseDeserializer deserializer);
-
-  @protected
-  StatusResponsePendingObject
-      sse_decode_box_autoadd_status_response_pending_object(
-          SseDeserializer deserializer);
+  BridgingError sse_decode_bridging_error(SseDeserializer deserializer);
 
   @protected
   CallCompat sse_decode_call_compat(SseDeserializer deserializer);
@@ -191,32 +280,89 @@ abstract class YttriumDartApiImplPlatform extends BaseApiImpl<YttriumDartWire> {
   ErrorCompat sse_decode_error_compat(SseDeserializer deserializer);
 
   @protected
+  FeeEstimatedTransactionCompat sse_decode_fee_estimated_transaction_compat(
+      SseDeserializer deserializer);
+
+  @protected
+  FundingMetadataCompat sse_decode_funding_metadata_compat(
+      SseDeserializer deserializer);
+
+  @protected
   int sse_decode_i_32(SseDeserializer deserializer);
+
+  @protected
+  InitialTransactionMetadataCompat
+      sse_decode_initial_transaction_metadata_compat(
+          SseDeserializer deserializer);
+
+  @protected
+  List<FundingMetadataCompat> sse_decode_list_funding_metadata_compat(
+      SseDeserializer deserializer);
 
   @protected
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer);
 
   @protected
+  List<PrimitiveSignatureCompat> sse_decode_list_primitive_signature_compat(
+      SseDeserializer deserializer);
+
+  @protected
+  List<TransactionCompat> sse_decode_list_transaction_compat(
+      SseDeserializer deserializer);
+
+  @protected
+  List<TransactionFeeCompat> sse_decode_list_transaction_fee_compat(
+      SseDeserializer deserializer);
+
+  @protected
+  List<TxnDetailsCompat> sse_decode_list_txn_details_compat(
+      SseDeserializer deserializer);
+
+  @protected
+  MetadataCompat sse_decode_metadata_compat(SseDeserializer deserializer);
+
+  @protected
   String? sse_decode_opt_String(SseDeserializer deserializer);
+
+  @protected
+  PrepareDetailedResponseCompat sse_decode_prepare_detailed_response_compat(
+      SseDeserializer deserializer);
+
+  @protected
+  PrepareDetailedResponseSuccessCompat
+      sse_decode_prepare_detailed_response_success_compat(
+          SseDeserializer deserializer);
+
+  @protected
+  PrepareResponseAvailableCompat sse_decode_prepare_response_available_compat(
+      SseDeserializer deserializer);
+
+  @protected
+  PrepareResponseError sse_decode_prepare_response_error(
+      SseDeserializer deserializer);
+
+  @protected
+  PrepareResponseNotRequiredCompat
+      sse_decode_prepare_response_not_required_compat(
+          SseDeserializer deserializer);
+
+  @protected
+  PrimitiveSignatureCompat sse_decode_primitive_signature_compat(
+      SseDeserializer deserializer);
 
   @protected
   PulseMetadataCompat sse_decode_pulse_metadata_compat(
       SseDeserializer deserializer);
 
   @protected
-  StatusResponse sse_decode_status_response(SseDeserializer deserializer);
+  TransactionCompat sse_decode_transaction_compat(SseDeserializer deserializer);
 
   @protected
-  StatusResponseCompleted sse_decode_status_response_completed(
+  TransactionFeeCompat sse_decode_transaction_fee_compat(
       SseDeserializer deserializer);
 
   @protected
-  StatusResponseError sse_decode_status_response_error(
-      SseDeserializer deserializer);
-
-  @protected
-  StatusResponsePendingObject sse_decode_status_response_pending_object(
-      SseDeserializer deserializer);
+  TxnDetailsCompat sse_decode_txn_details_compat(SseDeserializer deserializer);
 
   @protected
   BigInt sse_decode_u_64(SseDeserializer deserializer);
@@ -225,13 +371,13 @@ abstract class YttriumDartApiImplPlatform extends BaseApiImpl<YttriumDartWire> {
   int sse_decode_u_8(SseDeserializer deserializer);
 
   @protected
+  UiFieldsCompat sse_decode_ui_fields_compat(SseDeserializer deserializer);
+
+  @protected
   void sse_decode_unit(SseDeserializer deserializer);
 
   @protected
   BigInt sse_decode_usize(SseDeserializer deserializer);
-
-  @protected
-  bool sse_decode_bool(SseDeserializer deserializer);
 
   @protected
   void
@@ -240,8 +386,8 @@ abstract class YttriumDartApiImplPlatform extends BaseApiImpl<YttriumDartWire> {
 
   @protected
   void
-      sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPrepareDetailedResponse(
-          PrepareDetailedResponse self, SseSerializer serializer);
+      sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExecuteDetailsCompat(
+          ExecuteDetailsCompat self, SseSerializer serializer);
 
   @protected
   void
@@ -255,8 +401,8 @@ abstract class YttriumDartApiImplPlatform extends BaseApiImpl<YttriumDartWire> {
 
   @protected
   void
-      sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPrepareDetailedResponse(
-          PrepareDetailedResponse self, SseSerializer serializer);
+      sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExecuteDetailsCompat(
+          ExecuteDetailsCompat self, SseSerializer serializer);
 
   @protected
   void sse_encode_String(String self, SseSerializer serializer);
@@ -265,24 +411,41 @@ abstract class YttriumDartApiImplPlatform extends BaseApiImpl<YttriumDartWire> {
   void sse_encode_U128(BigInt self, SseSerializer serializer);
 
   @protected
+  void sse_encode_amount_compat(AmountCompat self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_bool(bool self, SseSerializer serializer);
+
+  @protected
   void sse_encode_box_autoadd_call_compat(
       CallCompat self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_prepare_detailed_response_success_compat(
+      PrepareDetailedResponseSuccessCompat self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_prepare_response_error(
+      PrepareResponseError self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_prepare_response_not_required_compat(
+      PrepareResponseNotRequiredCompat self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_primitive_signature_compat(
+      PrimitiveSignatureCompat self, SseSerializer serializer);
 
   @protected
   void sse_encode_box_autoadd_pulse_metadata_compat(
       PulseMetadataCompat self, SseSerializer serializer);
 
   @protected
-  void sse_encode_box_autoadd_status_response_completed(
-      StatusResponseCompleted self, SseSerializer serializer);
+  void sse_encode_box_autoadd_ui_fields_compat(
+      UiFieldsCompat self, SseSerializer serializer);
 
   @protected
-  void sse_encode_box_autoadd_status_response_error(
-      StatusResponseError self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_box_autoadd_status_response_pending_object(
-      StatusResponsePendingObject self, SseSerializer serializer);
+  void sse_encode_bridging_error(BridgingError self, SseSerializer serializer);
 
   @protected
   void sse_encode_call_compat(CallCompat self, SseSerializer serializer);
@@ -298,34 +461,90 @@ abstract class YttriumDartApiImplPlatform extends BaseApiImpl<YttriumDartWire> {
   void sse_encode_error_compat(ErrorCompat self, SseSerializer serializer);
 
   @protected
+  void sse_encode_fee_estimated_transaction_compat(
+      FeeEstimatedTransactionCompat self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_funding_metadata_compat(
+      FundingMetadataCompat self, SseSerializer serializer);
+
+  @protected
   void sse_encode_i_32(int self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_initial_transaction_metadata_compat(
+      InitialTransactionMetadataCompat self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_funding_metadata_compat(
+      List<FundingMetadataCompat> self, SseSerializer serializer);
 
   @protected
   void sse_encode_list_prim_u_8_strict(
       Uint8List self, SseSerializer serializer);
 
   @protected
+  void sse_encode_list_primitive_signature_compat(
+      List<PrimitiveSignatureCompat> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_transaction_compat(
+      List<TransactionCompat> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_transaction_fee_compat(
+      List<TransactionFeeCompat> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_txn_details_compat(
+      List<TxnDetailsCompat> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_metadata_compat(
+      MetadataCompat self, SseSerializer serializer);
+
+  @protected
   void sse_encode_opt_String(String? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_prepare_detailed_response_compat(
+      PrepareDetailedResponseCompat self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_prepare_detailed_response_success_compat(
+      PrepareDetailedResponseSuccessCompat self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_prepare_response_available_compat(
+      PrepareResponseAvailableCompat self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_prepare_response_error(
+      PrepareResponseError self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_prepare_response_not_required_compat(
+      PrepareResponseNotRequiredCompat self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_primitive_signature_compat(
+      PrimitiveSignatureCompat self, SseSerializer serializer);
 
   @protected
   void sse_encode_pulse_metadata_compat(
       PulseMetadataCompat self, SseSerializer serializer);
 
   @protected
-  void sse_encode_status_response(
-      StatusResponse self, SseSerializer serializer);
+  void sse_encode_transaction_compat(
+      TransactionCompat self, SseSerializer serializer);
 
   @protected
-  void sse_encode_status_response_completed(
-      StatusResponseCompleted self, SseSerializer serializer);
+  void sse_encode_transaction_fee_compat(
+      TransactionFeeCompat self, SseSerializer serializer);
 
   @protected
-  void sse_encode_status_response_error(
-      StatusResponseError self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_status_response_pending_object(
-      StatusResponsePendingObject self, SseSerializer serializer);
+  void sse_encode_txn_details_compat(
+      TxnDetailsCompat self, SseSerializer serializer);
 
   @protected
   void sse_encode_u_64(BigInt self, SseSerializer serializer);
@@ -334,13 +553,14 @@ abstract class YttriumDartApiImplPlatform extends BaseApiImpl<YttriumDartWire> {
   void sse_encode_u_8(int self, SseSerializer serializer);
 
   @protected
+  void sse_encode_ui_fields_compat(
+      UiFieldsCompat self, SseSerializer serializer);
+
+  @protected
   void sse_encode_unit(void self, SseSerializer serializer);
 
   @protected
   void sse_encode_usize(BigInt self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_bool(bool self, SseSerializer serializer);
 }
 
 // Section: wire_class
@@ -390,34 +610,34 @@ class YttriumDartWire implements BaseWire {
           .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
 
   void
-      rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPrepareDetailedResponse(
+      rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExecuteDetailsCompat(
     ffi.Pointer<ffi.Void> ptr,
   ) {
-    return _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPrepareDetailedResponse(
+    return _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExecuteDetailsCompat(
       ptr,
     );
   }
 
-  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPrepareDetailedResponsePtr =
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExecuteDetailsCompatPtr =
       _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
-          'frbgen_yttrium_dart_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPrepareDetailedResponse');
-  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPrepareDetailedResponse =
-      _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPrepareDetailedResponsePtr
+          'frbgen_yttrium_dart_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExecuteDetailsCompat');
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExecuteDetailsCompat =
+      _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExecuteDetailsCompatPtr
           .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
 
   void
-      rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPrepareDetailedResponse(
+      rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExecuteDetailsCompat(
     ffi.Pointer<ffi.Void> ptr,
   ) {
-    return _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPrepareDetailedResponse(
+    return _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExecuteDetailsCompat(
       ptr,
     );
   }
 
-  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPrepareDetailedResponsePtr =
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExecuteDetailsCompatPtr =
       _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
-          'frbgen_yttrium_dart_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPrepareDetailedResponse');
-  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPrepareDetailedResponse =
-      _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerPrepareDetailedResponsePtr
+          'frbgen_yttrium_dart_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExecuteDetailsCompat');
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExecuteDetailsCompat =
+      _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExecuteDetailsCompatPtr
           .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
 }

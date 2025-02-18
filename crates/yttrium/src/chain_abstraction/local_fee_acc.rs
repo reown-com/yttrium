@@ -1,6 +1,6 @@
 use alloy::primitives::{utils::Unit, U256};
 
-use super::dart_compat::FeeCompat;
+use super::dart_compat_models::FeeCompat;
 
 struct Fee {
     fungible_amount: U256,

@@ -4,15 +4,10 @@
 // ignore_for_file: invalid_use_of_internal_member, unused_import, unnecessary_import
 
 import '../frb_generated.dart';
-import 'api/status.dart';
+import 'api/prepare.dart';
 import 'currency.dart';
-import 'error.dart';
+import 'dart_compat_models.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
-import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
-part 'dart_compat.freezed.dart';
-
-// These types are ignored because they are not used by any `pub` functions: `FeeCompat`, `LocalAmountAccCompat`, `PrimitiveSignatureCompat`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `try_from`, `try_from`
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ChainAbstractionClient>>
 abstract class ChainAbstractionClient implements RustOpaqueInterface {
@@ -20,6 +15,11 @@ abstract class ChainAbstractionClient implements RustOpaqueInterface {
       {required String chainId, required String token, required String owner});
 
   Future<Eip1559EstimationCompat> estimateFees({required String chainId});
+
+  Future<ExecuteDetailsCompat> execute(
+      {required UiFieldsCompat uiFields,
+      required List<PrimitiveSignatureCompat> routeTxnSigs,
+      required PrimitiveSignatureCompat initialTxnSig});
 
   // HINT: Make it `#[frb(sync)]` to let it become the default constructor of Dart class.
   static Future<ChainAbstractionClient> newInstance(
@@ -29,108 +29,9 @@ abstract class ChainAbstractionClient implements RustOpaqueInterface {
           .crateChainAbstractionDartCompatChainAbstractionClientNew(
               projectId: projectId, pulseMetadata: pulseMetadata);
 
-  Future<PrepareDetailedResponse> prepareDetailed(
+  Future<PrepareDetailedResponseCompat> prepareDetailed(
       {required String chainId,
       required String from,
       required CallCompat call,
       required Currency localCurrency});
-
-  Future<StatusResponse> status({required String orchestrationId});
-
-  Future<StatusResponseCompleted> waitForSuccessWithTimeout(
-      {required String orchestrationId,
-      required BigInt checkIn,
-      required BigInt timeout});
-}
-
-class CallCompat {
-  final String to;
-  final BigInt value;
-  final Uint8List input;
-
-  const CallCompat({
-    required this.to,
-    required this.value,
-    required this.input,
-  });
-
-  @override
-  int get hashCode => to.hashCode ^ value.hashCode ^ input.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is CallCompat &&
-          runtimeType == other.runtimeType &&
-          to == other.to &&
-          value == other.value &&
-          input == other.input;
-}
-
-class Eip1559EstimationCompat {
-  /// The base fee per gas as a String.
-  final String maxFeePerGas;
-
-  /// The max priority fee per gas as a String.
-  final String maxPriorityFeePerGas;
-
-  const Eip1559EstimationCompat({
-    required this.maxFeePerGas,
-    required this.maxPriorityFeePerGas,
-  });
-
-  @override
-  int get hashCode => maxFeePerGas.hashCode ^ maxPriorityFeePerGas.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is Eip1559EstimationCompat &&
-          runtimeType == other.runtimeType &&
-          maxFeePerGas == other.maxFeePerGas &&
-          maxPriorityFeePerGas == other.maxPriorityFeePerGas;
-}
-
-@freezed
-sealed class ErrorCompat with _$ErrorCompat implements FrbException {
-  const ErrorCompat._();
-
-  const factory ErrorCompat.general(
-    String field0,
-  ) = ErrorCompat_General;
-}
-
-class PulseMetadataCompat {
-  final String? url;
-  final String? bundleId;
-  final String? packageName;
-  final String sdkVersion;
-  final String sdkPlatform;
-
-  const PulseMetadataCompat({
-    this.url,
-    this.bundleId,
-    this.packageName,
-    required this.sdkVersion,
-    required this.sdkPlatform,
-  });
-
-  @override
-  int get hashCode =>
-      url.hashCode ^
-      bundleId.hashCode ^
-      packageName.hashCode ^
-      sdkVersion.hashCode ^
-      sdkPlatform.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is PulseMetadataCompat &&
-          runtimeType == other.runtimeType &&
-          url == other.url &&
-          bundleId == other.bundleId &&
-          packageName == other.packageName &&
-          sdkVersion == other.sdkVersion &&
-          sdkPlatform == other.sdkPlatform;
 }
