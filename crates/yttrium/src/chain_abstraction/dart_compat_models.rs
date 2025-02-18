@@ -550,15 +550,15 @@ impl From<AmountCompat> for Amount {
 #[cfg(feature = "chain_abstraction_client")]
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct ExecuteDetailsCompat {
-    pub initial_txn_receipt: TransactionReceipt,
+    pub initial_txn_receipt: TransactionReceiptCompat,
     pub initial_txn_hash: String,
 }
 
 impl From<ExecuteDetails> for ExecuteDetailsCompat {
     fn from(original: ExecuteDetails) -> Self {
         Self {
-            initial_txn_receipt: original.initial_txn_receipt, // No conversion needed if compatible
-            initial_txn_hash: original.initial_txn_hash.to_string(), // No conversion needed if compatible
+            initial_txn_receipt: original.initial_txn_receipt.into(),
+            initial_txn_hash: original.initial_txn_hash.to_string(),
         }
     }
 }
@@ -567,8 +567,93 @@ impl From<ExecuteDetailsCompat> for ExecuteDetails {
     fn from(compat: ExecuteDetailsCompat) -> Self {
         type B256 = alloy::primitives::B256;
         Self {
-            initial_txn_receipt: compat.initial_txn_receipt,
+            initial_txn_receipt: compat.initial_txn_receipt.into(),
             initial_txn_hash: B256::from_str(&compat.initial_txn_hash).unwrap(),
+        }
+    }
+}
+
+// -------
+
+#[cfg(feature = "chain_abstraction_client")]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+pub struct TransactionReceiptCompat {
+    pub transaction_hash: String, // Convert TxHash to String
+    pub transaction_index: Option<u64>, // Already FRB-compatible
+    pub block_hash: Option<String>, // Convert Option<BlockHash> to Option<String>
+    pub block_number: Option<u64>,  // Already FRB-compatible
+    pub gas_used: u64,              // Already FRB-compatible
+    pub effective_gas_price: String, // Convert u128 to String
+    pub blob_gas_used: Option<u64>, // Already FRB-compatible
+    pub blob_gas_price: Option<String>, // Convert Option<u128> to Option<String>
+    pub from: String,                   // Convert Address to String (hex)
+    pub to: Option<String>, // Convert Option<Address> to Option<String>
+    pub contract_address: Option<String>, // Convert Option<Address> to Option<String>
+}
+
+impl From<alloy::rpc::types::TransactionReceipt> for TransactionReceiptCompat {
+    fn from(original: alloy::rpc::types::TransactionReceipt) -> Self {
+        Self {
+            transaction_hash: format!("{:?}", original.transaction_hash),
+            transaction_index: original.transaction_index,
+            block_hash: original.block_hash.map(|h| format!("{:?}", h)),
+            block_number: original.block_number,
+            gas_used: original.gas_used,
+            effective_gas_price: original.effective_gas_price.to_string(),
+            blob_gas_used: original.blob_gas_used,
+            blob_gas_price: original.blob_gas_price.map(|g| g.to_string()),
+            from: format!("{:?}", original.from),
+            to: original.to.map(|t| format!("{:?}", t)),
+            contract_address: original
+                .contract_address
+                .map(|c| format!("{:?}", c)),
+        }
+    }
+}
+
+impl From<TransactionReceiptCompat> for TransactionReceipt {
+    fn from(compat: TransactionReceiptCompat) -> Self {
+        type Address = alloy::primitives::Address;
+        type TxHash = alloy::primitives::B256;
+        type BlockHash = alloy::primitives::B256;
+        type Bloom = alloy::primitives::Bloom;
+        
+        let dummy_receipt = alloy::rpc::types::Receipt {
+            status: alloy::consensus::Eip658Value::Eip658(true),
+            cumulative_gas_used: 0,
+            logs: Vec::new(),
+        };
+        let dummy_receipt_with_bloom = alloy::rpc::types::ReceiptWithBloom::new(
+            dummy_receipt,
+            Bloom::ZERO,
+        );
+
+        Self {
+            // FIXME
+            inner: alloy::rpc::types::ReceiptEnvelope::Legacy(
+                dummy_receipt_with_bloom,
+            ),
+            transaction_hash: TxHash::from_str(&compat.transaction_hash)
+                .unwrap(),
+            transaction_index: compat.transaction_index,
+            block_hash: compat
+                .block_hash
+                .map(|h| BlockHash::from_str(&h).unwrap()),
+            block_number: compat.block_number,
+            gas_used: compat.gas_used,
+            effective_gas_price: compat
+                .effective_gas_price
+                .parse::<u128>()
+                .unwrap(),
+            blob_gas_used: compat.blob_gas_used,
+            blob_gas_price: compat
+                .blob_gas_price
+                .map(|g| g.parse::<u128>().unwrap()),
+            from: Address::from_str(&compat.from).unwrap(),
+            to: compat.to.map(|t| Address::from_str(&t).unwrap()),
+            contract_address: compat
+                .contract_address
+                .map(|c| Address::from_str(&c).unwrap()),
         }
     }
 }

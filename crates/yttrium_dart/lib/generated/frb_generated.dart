@@ -120,15 +120,6 @@ abstract class YttriumDartApi extends BaseApi {
 
   CrossPlatformFinalizerArg
       get rust_arc_decrement_strong_count_ChainAbstractionClientPtr;
-
-  RustArcIncrementStrongCountFnType
-      get rust_arc_increment_strong_count_ExecuteDetailsCompat;
-
-  RustArcDecrementStrongCountFnType
-      get rust_arc_decrement_strong_count_ExecuteDetailsCompat;
-
-  CrossPlatformFinalizerArg
-      get rust_arc_decrement_strong_count_ExecuteDetailsCompatPtr;
 }
 
 class YttriumDartApiImpl extends YttriumDartApiImplPlatform
@@ -227,8 +218,7 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
             funcId: 3, port: port_);
       },
       codec: SseCodec(
-        decodeSuccessData:
-            sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExecuteDetailsCompat,
+        decodeSuccessData: sse_decode_execute_details_compat,
         decodeErrorData: sse_decode_error_compat,
       ),
       constMeta:
@@ -323,14 +313,6 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
       get rust_arc_decrement_strong_count_ChainAbstractionClient => wire
           .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerChainAbstractionClient;
 
-  RustArcIncrementStrongCountFnType
-      get rust_arc_increment_strong_count_ExecuteDetailsCompat => wire
-          .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExecuteDetailsCompat;
-
-  RustArcDecrementStrongCountFnType
-      get rust_arc_decrement_strong_count_ExecuteDetailsCompat => wire
-          .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExecuteDetailsCompat;
-
   @protected
   ChainAbstractionClient
       dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerChainAbstractionClient(
@@ -338,14 +320,6 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return ChainAbstractionClientImpl.frbInternalDcoDecode(
         raw as List<dynamic>);
-  }
-
-  @protected
-  ExecuteDetailsCompat
-      dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExecuteDetailsCompat(
-          dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return ExecuteDetailsCompatImpl.frbInternalDcoDecode(raw as List<dynamic>);
   }
 
   @protected
@@ -364,14 +338,6 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return ChainAbstractionClientImpl.frbInternalDcoDecode(
         raw as List<dynamic>);
-  }
-
-  @protected
-  ExecuteDetailsCompat
-      dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExecuteDetailsCompat(
-          dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return ExecuteDetailsCompatImpl.frbInternalDcoDecode(raw as List<dynamic>);
   }
 
   @protected
@@ -450,6 +416,12 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
   }
 
   @protected
+  BigInt dco_decode_box_autoadd_u_64(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_u_64(raw);
+  }
+
+  @protected
   UiFieldsCompat dco_decode_box_autoadd_ui_fields_compat(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_ui_fields_compat(raw);
@@ -503,6 +475,18 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
       default:
         throw Exception('unreachable');
     }
+  }
+
+  @protected
+  ExecuteDetailsCompat dco_decode_execute_details_compat(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return ExecuteDetailsCompat(
+      initialTxnReceipt: dco_decode_transaction_receipt_compat(arr[0]),
+      initialTxnHash: dco_decode_String(arr[1]),
+    );
   }
 
   @protected
@@ -626,6 +610,12 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
   String? dco_decode_opt_String(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_String(raw);
+  }
+
+  @protected
+  BigInt? dco_decode_opt_box_autoadd_u_64(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_u_64(raw);
   }
 
   @protected
@@ -762,6 +752,27 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
   }
 
   @protected
+  TransactionReceiptCompat dco_decode_transaction_receipt_compat(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 11)
+      throw Exception('unexpected arr length: expect 11 but see ${arr.length}');
+    return TransactionReceiptCompat(
+      transactionHash: dco_decode_String(arr[0]),
+      transactionIndex: dco_decode_opt_box_autoadd_u_64(arr[1]),
+      blockHash: dco_decode_opt_String(arr[2]),
+      blockNumber: dco_decode_opt_box_autoadd_u_64(arr[3]),
+      gasUsed: dco_decode_u_64(arr[4]),
+      effectiveGasPrice: dco_decode_String(arr[5]),
+      blobGasUsed: dco_decode_opt_box_autoadd_u_64(arr[6]),
+      blobGasPrice: dco_decode_opt_String(arr[7]),
+      from: dco_decode_String(arr[8]),
+      to: dco_decode_opt_String(arr[9]),
+      contractAddress: dco_decode_opt_String(arr[10]),
+    );
+  }
+
+  @protected
   TxnDetailsCompat dco_decode_txn_details_compat(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -825,15 +836,6 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
   }
 
   @protected
-  ExecuteDetailsCompat
-      sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExecuteDetailsCompat(
-          SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return ExecuteDetailsCompatImpl.frbInternalSseDecode(
-        sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
-  }
-
-  @protected
   ChainAbstractionClient
       sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerChainAbstractionClient(
           SseDeserializer deserializer) {
@@ -848,15 +850,6 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
           SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return ChainAbstractionClientImpl.frbInternalSseDecode(
-        sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
-  }
-
-  @protected
-  ExecuteDetailsCompat
-      sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExecuteDetailsCompat(
-          SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return ExecuteDetailsCompatImpl.frbInternalSseDecode(
         sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
   }
 
@@ -940,6 +933,12 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
   }
 
   @protected
+  BigInt sse_decode_box_autoadd_u_64(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_u_64(deserializer));
+  }
+
+  @protected
   UiFieldsCompat sse_decode_box_autoadd_ui_fields_compat(
       SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -992,6 +991,18 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
       default:
         throw UnimplementedError('');
     }
+  }
+
+  @protected
+  ExecuteDetailsCompat sse_decode_execute_details_compat(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_initialTxnReceipt =
+        sse_decode_transaction_receipt_compat(deserializer);
+    var var_initialTxnHash = sse_decode_String(deserializer);
+    return ExecuteDetailsCompat(
+        initialTxnReceipt: var_initialTxnReceipt,
+        initialTxnHash: var_initialTxnHash);
   }
 
   @protected
@@ -1159,6 +1170,17 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
   }
 
   @protected
+  BigInt? sse_decode_opt_box_autoadd_u_64(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_u_64(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
   PrepareDetailedResponseCompat sse_decode_prepare_detailed_response_compat(
       SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -1293,6 +1315,35 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
   }
 
   @protected
+  TransactionReceiptCompat sse_decode_transaction_receipt_compat(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_transactionHash = sse_decode_String(deserializer);
+    var var_transactionIndex = sse_decode_opt_box_autoadd_u_64(deserializer);
+    var var_blockHash = sse_decode_opt_String(deserializer);
+    var var_blockNumber = sse_decode_opt_box_autoadd_u_64(deserializer);
+    var var_gasUsed = sse_decode_u_64(deserializer);
+    var var_effectiveGasPrice = sse_decode_String(deserializer);
+    var var_blobGasUsed = sse_decode_opt_box_autoadd_u_64(deserializer);
+    var var_blobGasPrice = sse_decode_opt_String(deserializer);
+    var var_from = sse_decode_String(deserializer);
+    var var_to = sse_decode_opt_String(deserializer);
+    var var_contractAddress = sse_decode_opt_String(deserializer);
+    return TransactionReceiptCompat(
+        transactionHash: var_transactionHash,
+        transactionIndex: var_transactionIndex,
+        blockHash: var_blockHash,
+        blockNumber: var_blockNumber,
+        gasUsed: var_gasUsed,
+        effectiveGasPrice: var_effectiveGasPrice,
+        blobGasUsed: var_blobGasUsed,
+        blobGasPrice: var_blobGasPrice,
+        from: var_from,
+        to: var_to,
+        contractAddress: var_contractAddress);
+  }
+
+  @protected
   TxnDetailsCompat sse_decode_txn_details_compat(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_transaction =
@@ -1361,16 +1412,6 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
 
   @protected
   void
-      sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExecuteDetailsCompat(
-          ExecuteDetailsCompat self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_usize(
-        (self as ExecuteDetailsCompatImpl).frbInternalSseEncode(move: true),
-        serializer);
-  }
-
-  @protected
-  void
       sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerChainAbstractionClient(
           ChainAbstractionClient self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -1386,16 +1427,6 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_usize(
         (self as ChainAbstractionClientImpl).frbInternalSseEncode(move: null),
-        serializer);
-  }
-
-  @protected
-  void
-      sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExecuteDetailsCompat(
-          ExecuteDetailsCompat self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_usize(
-        (self as ExecuteDetailsCompatImpl).frbInternalSseEncode(move: null),
         serializer);
   }
 
@@ -1470,6 +1501,12 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
   }
 
   @protected
+  void sse_encode_box_autoadd_u_64(BigInt self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_64(self, serializer);
+  }
+
+  @protected
   void sse_encode_box_autoadd_ui_fields_compat(
       UiFieldsCompat self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -1512,6 +1549,14 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
         sse_encode_i_32(0, serializer);
         sse_encode_String(field0, serializer);
     }
+  }
+
+  @protected
+  void sse_encode_execute_details_compat(
+      ExecuteDetailsCompat self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_transaction_receipt_compat(self.initialTxnReceipt, serializer);
+    sse_encode_String(self.initialTxnHash, serializer);
   }
 
   @protected
@@ -1637,6 +1682,16 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
   }
 
   @protected
+  void sse_encode_opt_box_autoadd_u_64(BigInt? self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_u_64(self, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_prepare_detailed_response_compat(
       PrepareDetailedResponseCompat self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -1732,6 +1787,23 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_amount_compat(self.fee, serializer);
     sse_encode_amount_compat(self.localFee, serializer);
+  }
+
+  @protected
+  void sse_encode_transaction_receipt_compat(
+      TransactionReceiptCompat self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.transactionHash, serializer);
+    sse_encode_opt_box_autoadd_u_64(self.transactionIndex, serializer);
+    sse_encode_opt_String(self.blockHash, serializer);
+    sse_encode_opt_box_autoadd_u_64(self.blockNumber, serializer);
+    sse_encode_u_64(self.gasUsed, serializer);
+    sse_encode_String(self.effectiveGasPrice, serializer);
+    sse_encode_opt_box_autoadd_u_64(self.blobGasUsed, serializer);
+    sse_encode_opt_String(self.blobGasPrice, serializer);
+    sse_encode_String(self.from, serializer);
+    sse_encode_opt_String(self.to, serializer);
+    sse_encode_opt_String(self.contractAddress, serializer);
   }
 
   @protected
@@ -1838,26 +1910,4 @@ class ChainAbstractionClientImpl extends RustOpaque
               from: from,
               call: call,
               localCurrency: localCurrency);
-}
-
-@sealed
-class ExecuteDetailsCompatImpl extends RustOpaque
-    implements ExecuteDetailsCompat {
-  // Not to be used by end users
-  ExecuteDetailsCompatImpl.frbInternalDcoDecode(List<dynamic> wire)
-      : super.frbInternalDcoDecode(wire, _kStaticData);
-
-  // Not to be used by end users
-  ExecuteDetailsCompatImpl.frbInternalSseDecode(
-      BigInt ptr, int externalSizeOnNative)
-      : super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
-
-  static final _kStaticData = RustArcStaticData(
-    rustArcIncrementStrongCount: YttriumDart
-        .instance.api.rust_arc_increment_strong_count_ExecuteDetailsCompat,
-    rustArcDecrementStrongCount: YttriumDart
-        .instance.api.rust_arc_decrement_strong_count_ExecuteDetailsCompat,
-    rustArcDecrementStrongCountPtr: YttriumDart
-        .instance.api.rust_arc_decrement_strong_count_ExecuteDetailsCompatPtr,
-  );
 }

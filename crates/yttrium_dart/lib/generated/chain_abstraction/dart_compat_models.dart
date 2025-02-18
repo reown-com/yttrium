@@ -9,9 +9,6 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'dart_compat_models.freezed.dart';
 
-// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ExecuteDetailsCompat>>
-abstract class ExecuteDetailsCompat implements RustOpaqueInterface {}
-
 class AmountCompat {
   final String symbol;
   final String amount;
@@ -102,6 +99,27 @@ sealed class ErrorCompat with _$ErrorCompat implements FrbException {
   const factory ErrorCompat.general(
     String field0,
   ) = ErrorCompat_General;
+}
+
+class ExecuteDetailsCompat {
+  final TransactionReceiptCompat initialTxnReceipt;
+  final String initialTxnHash;
+
+  const ExecuteDetailsCompat({
+    required this.initialTxnReceipt,
+    required this.initialTxnHash,
+  });
+
+  @override
+  int get hashCode => initialTxnReceipt.hashCode ^ initialTxnHash.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ExecuteDetailsCompat &&
+          runtimeType == other.runtimeType &&
+          initialTxnReceipt == other.initialTxnReceipt &&
+          initialTxnHash == other.initialTxnHash;
 }
 
 class FeeEstimatedTransactionCompat {
@@ -453,6 +471,65 @@ class TransactionFeeCompat {
           runtimeType == other.runtimeType &&
           fee == other.fee &&
           localFee == other.localFee;
+}
+
+class TransactionReceiptCompat {
+  final String transactionHash;
+  final BigInt? transactionIndex;
+  final String? blockHash;
+  final BigInt? blockNumber;
+  final BigInt gasUsed;
+  final String effectiveGasPrice;
+  final BigInt? blobGasUsed;
+  final String? blobGasPrice;
+  final String from;
+  final String? to;
+  final String? contractAddress;
+
+  const TransactionReceiptCompat({
+    required this.transactionHash,
+    this.transactionIndex,
+    this.blockHash,
+    this.blockNumber,
+    required this.gasUsed,
+    required this.effectiveGasPrice,
+    this.blobGasUsed,
+    this.blobGasPrice,
+    required this.from,
+    this.to,
+    this.contractAddress,
+  });
+
+  @override
+  int get hashCode =>
+      transactionHash.hashCode ^
+      transactionIndex.hashCode ^
+      blockHash.hashCode ^
+      blockNumber.hashCode ^
+      gasUsed.hashCode ^
+      effectiveGasPrice.hashCode ^
+      blobGasUsed.hashCode ^
+      blobGasPrice.hashCode ^
+      from.hashCode ^
+      to.hashCode ^
+      contractAddress.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is TransactionReceiptCompat &&
+          runtimeType == other.runtimeType &&
+          transactionHash == other.transactionHash &&
+          transactionIndex == other.transactionIndex &&
+          blockHash == other.blockHash &&
+          blockNumber == other.blockNumber &&
+          gasUsed == other.gasUsed &&
+          effectiveGasPrice == other.effectiveGasPrice &&
+          blobGasUsed == other.blobGasUsed &&
+          blobGasPrice == other.blobGasPrice &&
+          from == other.from &&
+          to == other.to &&
+          contractAddress == other.contractAddress;
 }
 
 class TxnDetailsCompat {

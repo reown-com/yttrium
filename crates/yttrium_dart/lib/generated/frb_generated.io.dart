@@ -25,18 +25,9 @@ abstract class YttriumDartApiImplPlatform extends BaseApiImpl<YttriumDartWire> {
       get rust_arc_decrement_strong_count_ChainAbstractionClientPtr => wire
           ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerChainAbstractionClientPtr;
 
-  CrossPlatformFinalizerArg
-      get rust_arc_decrement_strong_count_ExecuteDetailsCompatPtr => wire
-          ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExecuteDetailsCompatPtr;
-
   @protected
   ChainAbstractionClient
       dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerChainAbstractionClient(
-          dynamic raw);
-
-  @protected
-  ExecuteDetailsCompat
-      dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExecuteDetailsCompat(
           dynamic raw);
 
   @protected
@@ -47,11 +38,6 @@ abstract class YttriumDartApiImplPlatform extends BaseApiImpl<YttriumDartWire> {
   @protected
   ChainAbstractionClient
       dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerChainAbstractionClient(
-          dynamic raw);
-
-  @protected
-  ExecuteDetailsCompat
-      dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExecuteDetailsCompat(
           dynamic raw);
 
   @protected
@@ -90,6 +76,9 @@ abstract class YttriumDartApiImplPlatform extends BaseApiImpl<YttriumDartWire> {
   PulseMetadataCompat dco_decode_box_autoadd_pulse_metadata_compat(dynamic raw);
 
   @protected
+  BigInt dco_decode_box_autoadd_u_64(dynamic raw);
+
+  @protected
   UiFieldsCompat dco_decode_box_autoadd_ui_fields_compat(dynamic raw);
 
   @protected
@@ -106,6 +95,9 @@ abstract class YttriumDartApiImplPlatform extends BaseApiImpl<YttriumDartWire> {
 
   @protected
   ErrorCompat dco_decode_error_compat(dynamic raw);
+
+  @protected
+  ExecuteDetailsCompat dco_decode_execute_details_compat(dynamic raw);
 
   @protected
   FeeEstimatedTransactionCompat dco_decode_fee_estimated_transaction_compat(
@@ -149,6 +141,9 @@ abstract class YttriumDartApiImplPlatform extends BaseApiImpl<YttriumDartWire> {
   String? dco_decode_opt_String(dynamic raw);
 
   @protected
+  BigInt? dco_decode_opt_box_autoadd_u_64(dynamic raw);
+
+  @protected
   PrepareDetailedResponseCompat dco_decode_prepare_detailed_response_compat(
       dynamic raw);
 
@@ -180,6 +175,9 @@ abstract class YttriumDartApiImplPlatform extends BaseApiImpl<YttriumDartWire> {
   TransactionFeeCompat dco_decode_transaction_fee_compat(dynamic raw);
 
   @protected
+  TransactionReceiptCompat dco_decode_transaction_receipt_compat(dynamic raw);
+
+  @protected
   TxnDetailsCompat dco_decode_txn_details_compat(dynamic raw);
 
   @protected
@@ -203,11 +201,6 @@ abstract class YttriumDartApiImplPlatform extends BaseApiImpl<YttriumDartWire> {
           SseDeserializer deserializer);
 
   @protected
-  ExecuteDetailsCompat
-      sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExecuteDetailsCompat(
-          SseDeserializer deserializer);
-
-  @protected
   ChainAbstractionClient
       sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerChainAbstractionClient(
           SseDeserializer deserializer);
@@ -215,11 +208,6 @@ abstract class YttriumDartApiImplPlatform extends BaseApiImpl<YttriumDartWire> {
   @protected
   ChainAbstractionClient
       sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerChainAbstractionClient(
-          SseDeserializer deserializer);
-
-  @protected
-  ExecuteDetailsCompat
-      sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExecuteDetailsCompat(
           SseDeserializer deserializer);
 
   @protected
@@ -260,6 +248,9 @@ abstract class YttriumDartApiImplPlatform extends BaseApiImpl<YttriumDartWire> {
       SseDeserializer deserializer);
 
   @protected
+  BigInt sse_decode_box_autoadd_u_64(SseDeserializer deserializer);
+
+  @protected
   UiFieldsCompat sse_decode_box_autoadd_ui_fields_compat(
       SseDeserializer deserializer);
 
@@ -278,6 +269,10 @@ abstract class YttriumDartApiImplPlatform extends BaseApiImpl<YttriumDartWire> {
 
   @protected
   ErrorCompat sse_decode_error_compat(SseDeserializer deserializer);
+
+  @protected
+  ExecuteDetailsCompat sse_decode_execute_details_compat(
+      SseDeserializer deserializer);
 
   @protected
   FeeEstimatedTransactionCompat sse_decode_fee_estimated_transaction_compat(
@@ -325,6 +320,9 @@ abstract class YttriumDartApiImplPlatform extends BaseApiImpl<YttriumDartWire> {
   String? sse_decode_opt_String(SseDeserializer deserializer);
 
   @protected
+  BigInt? sse_decode_opt_box_autoadd_u_64(SseDeserializer deserializer);
+
+  @protected
   PrepareDetailedResponseCompat sse_decode_prepare_detailed_response_compat(
       SseDeserializer deserializer);
 
@@ -362,6 +360,10 @@ abstract class YttriumDartApiImplPlatform extends BaseApiImpl<YttriumDartWire> {
       SseDeserializer deserializer);
 
   @protected
+  TransactionReceiptCompat sse_decode_transaction_receipt_compat(
+      SseDeserializer deserializer);
+
+  @protected
   TxnDetailsCompat sse_decode_txn_details_compat(SseDeserializer deserializer);
 
   @protected
@@ -386,11 +388,6 @@ abstract class YttriumDartApiImplPlatform extends BaseApiImpl<YttriumDartWire> {
 
   @protected
   void
-      sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExecuteDetailsCompat(
-          ExecuteDetailsCompat self, SseSerializer serializer);
-
-  @protected
-  void
       sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerChainAbstractionClient(
           ChainAbstractionClient self, SseSerializer serializer);
 
@@ -398,11 +395,6 @@ abstract class YttriumDartApiImplPlatform extends BaseApiImpl<YttriumDartWire> {
   void
       sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerChainAbstractionClient(
           ChainAbstractionClient self, SseSerializer serializer);
-
-  @protected
-  void
-      sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExecuteDetailsCompat(
-          ExecuteDetailsCompat self, SseSerializer serializer);
 
   @protected
   void sse_encode_String(String self, SseSerializer serializer);
@@ -441,6 +433,9 @@ abstract class YttriumDartApiImplPlatform extends BaseApiImpl<YttriumDartWire> {
       PulseMetadataCompat self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_u_64(BigInt self, SseSerializer serializer);
+
+  @protected
   void sse_encode_box_autoadd_ui_fields_compat(
       UiFieldsCompat self, SseSerializer serializer);
 
@@ -459,6 +454,10 @@ abstract class YttriumDartApiImplPlatform extends BaseApiImpl<YttriumDartWire> {
 
   @protected
   void sse_encode_error_compat(ErrorCompat self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_execute_details_compat(
+      ExecuteDetailsCompat self, SseSerializer serializer);
 
   @protected
   void sse_encode_fee_estimated_transaction_compat(
@@ -507,6 +506,9 @@ abstract class YttriumDartApiImplPlatform extends BaseApiImpl<YttriumDartWire> {
   void sse_encode_opt_String(String? self, SseSerializer serializer);
 
   @protected
+  void sse_encode_opt_box_autoadd_u_64(BigInt? self, SseSerializer serializer);
+
+  @protected
   void sse_encode_prepare_detailed_response_compat(
       PrepareDetailedResponseCompat self, SseSerializer serializer);
 
@@ -541,6 +543,10 @@ abstract class YttriumDartApiImplPlatform extends BaseApiImpl<YttriumDartWire> {
   @protected
   void sse_encode_transaction_fee_compat(
       TransactionFeeCompat self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_transaction_receipt_compat(
+      TransactionReceiptCompat self, SseSerializer serializer);
 
   @protected
   void sse_encode_txn_details_compat(
@@ -607,37 +613,5 @@ class YttriumDartWire implements BaseWire {
           'frbgen_yttrium_dart_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerChainAbstractionClient');
   late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerChainAbstractionClient =
       _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerChainAbstractionClientPtr
-          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
-
-  void
-      rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExecuteDetailsCompat(
-    ffi.Pointer<ffi.Void> ptr,
-  ) {
-    return _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExecuteDetailsCompat(
-      ptr,
-    );
-  }
-
-  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExecuteDetailsCompatPtr =
-      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
-          'frbgen_yttrium_dart_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExecuteDetailsCompat');
-  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExecuteDetailsCompat =
-      _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExecuteDetailsCompatPtr
-          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
-
-  void
-      rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExecuteDetailsCompat(
-    ffi.Pointer<ffi.Void> ptr,
-  ) {
-    return _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExecuteDetailsCompat(
-      ptr,
-    );
-  }
-
-  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExecuteDetailsCompatPtr =
-      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
-          'frbgen_yttrium_dart_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExecuteDetailsCompat');
-  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExecuteDetailsCompat =
-      _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExecuteDetailsCompatPtr
           .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
 }

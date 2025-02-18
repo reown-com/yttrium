@@ -26,7 +26,6 @@
 // Section: imports
 
 use crate::chain_abstraction::dart_compat::*;
-use crate::chain_abstraction::dart_compat_models::*;
 use flutter_rust_bridge::for_generated::byteorder::{
     NativeEndian, ReadBytesExt, WriteBytesExt,
 };
@@ -182,11 +181,6 @@ flutter_rust_bridge::frb_generated_moi_arc_impl_value!(
         ChainAbstractionClient,
     >
 );
-flutter_rust_bridge::frb_generated_moi_arc_impl_value!(
-    flutter_rust_bridge::for_generated::RustAutoOpaqueInner<
-        ExecuteDetailsCompat,
-    >
-);
 
 // Section: dart2rust
 
@@ -204,40 +198,10 @@ impl SseDecode for ChainAbstractionClient {
     }
 }
 
-impl SseDecode for ExecuteDetailsCompat {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(
-        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
-    ) -> Self {
-        let mut inner = <RustOpaqueMoi<
-            flutter_rust_bridge::for_generated::RustAutoOpaqueInner<
-                ExecuteDetailsCompat,
-            >,
-        >>::sse_decode(deserializer);
-        return flutter_rust_bridge::for_generated::rust_auto_opaque_decode_owned(inner);
-    }
-}
-
 impl SseDecode
     for RustOpaqueMoi<
         flutter_rust_bridge::for_generated::RustAutoOpaqueInner<
             ChainAbstractionClient,
-        >,
-    >
-{
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(
-        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
-    ) -> Self {
-        let mut inner = <usize>::sse_decode(deserializer);
-        return decode_rust_opaque_moi(inner);
-    }
-}
-
-impl SseDecode
-    for RustOpaqueMoi<
-        flutter_rust_bridge::for_generated::RustAutoOpaqueInner<
-            ExecuteDetailsCompat,
         >,
     >
 {
@@ -379,6 +343,19 @@ impl SseDecode for crate::chain_abstraction::dart_compat_models::ErrorCompat {
                 unimplemented!("");
             }
         }
+    }
+}
+
+impl SseDecode
+    for crate::chain_abstraction::dart_compat_models::ExecuteDetailsCompat
+{
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        let mut var_initialTxnReceipt = <crate::chain_abstraction::dart_compat_models::TransactionReceiptCompat>::sse_decode(deserializer);
+        let mut var_initialTxnHash = <String>::sse_decode(deserializer);
+        return crate::chain_abstraction::dart_compat_models::ExecuteDetailsCompat{initial_txn_receipt: var_initialTxnReceipt, initial_txn_hash: var_initialTxnHash};
     }
 }
 
@@ -561,6 +538,19 @@ impl SseDecode for Option<String> {
     }
 }
 
+impl SseDecode for Option<u64> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<u64>::sse_decode(deserializer));
+        } else {
+            return None;
+        }
+    }
+}
+
 impl SseDecode for crate::chain_abstraction::dart_compat_models::PrepareDetailedResponseCompat {
                     // Codec=Sse (Serialization based), see doc to use other codecs
                     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {let mut tag_ = <i32>::sse_decode(deserializer);
@@ -672,6 +662,29 @@ impl SseDecode
         let mut var_fee = <crate::chain_abstraction::dart_compat_models::AmountCompat>::sse_decode(deserializer);
         let mut var_localFee = <crate::chain_abstraction::dart_compat_models::AmountCompat>::sse_decode(deserializer);
         return crate::chain_abstraction::dart_compat_models::TransactionFeeCompat{fee: var_fee, local_fee: var_localFee};
+    }
+}
+
+impl SseDecode
+    for crate::chain_abstraction::dart_compat_models::TransactionReceiptCompat
+{
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        let mut var_transactionHash = <String>::sse_decode(deserializer);
+        let mut var_transactionIndex = <Option<u64>>::sse_decode(deserializer);
+        let mut var_blockHash = <Option<String>>::sse_decode(deserializer);
+        let mut var_blockNumber = <Option<u64>>::sse_decode(deserializer);
+        let mut var_gasUsed = <u64>::sse_decode(deserializer);
+        let mut var_effectiveGasPrice = <String>::sse_decode(deserializer);
+        let mut var_blobGasUsed = <Option<u64>>::sse_decode(deserializer);
+        let mut var_blobGasPrice = <Option<String>>::sse_decode(deserializer);
+        let mut var_from = <String>::sse_decode(deserializer);
+        let mut var_to = <Option<String>>::sse_decode(deserializer);
+        let mut var_contractAddress =
+            <Option<String>>::sse_decode(deserializer);
+        return crate::chain_abstraction::dart_compat_models::TransactionReceiptCompat{transaction_hash: var_transactionHash, transaction_index: var_transactionIndex, block_hash: var_blockHash, block_number: var_blockNumber, gas_used: var_gasUsed, effective_gas_price: var_effectiveGasPrice, blob_gas_used: var_blobGasUsed, blob_gas_price: var_blobGasPrice, from: var_from, to: var_to, contract_address: var_contractAddress};
     }
 }
 
@@ -805,29 +818,6 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<ChainAbstractionClient>>
     for ChainAbstractionClient
 {
     fn into_into_dart(self) -> FrbWrapper<ChainAbstractionClient> {
-        self.into()
-    }
-}
-
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<ExecuteDetailsCompat> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        flutter_rust_bridge::for_generated::rust_auto_opaque_encode::<
-            _,
-            MoiArc<_>,
-        >(self.0)
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for FrbWrapper<ExecuteDetailsCompat>
-{
-}
-
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<ExecuteDetailsCompat>>
-    for ExecuteDetailsCompat
-{
-    fn into_into_dart(self) -> FrbWrapper<ExecuteDetailsCompat> {
         self.into()
     }
 }
@@ -1001,6 +991,34 @@ impl
     fn into_into_dart(
         self,
     ) -> crate::chain_abstraction::dart_compat_models::ErrorCompat {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart
+    for crate::chain_abstraction::dart_compat_models::ExecuteDetailsCompat
+{
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.initial_txn_receipt.into_into_dart().into_dart(),
+            self.initial_txn_hash.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::chain_abstraction::dart_compat_models::ExecuteDetailsCompat
+{
+}
+impl
+    flutter_rust_bridge::IntoIntoDart<
+        crate::chain_abstraction::dart_compat_models::ExecuteDetailsCompat,
+    > for crate::chain_abstraction::dart_compat_models::ExecuteDetailsCompat
+{
+    fn into_into_dart(
+        self,
+    ) -> crate::chain_abstraction::dart_compat_models::ExecuteDetailsCompat
+    {
         self
     }
 }
@@ -1313,6 +1331,44 @@ impl
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart
+    for crate::chain_abstraction::dart_compat_models::TransactionReceiptCompat
+{
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.transaction_hash.into_into_dart().into_dart(),
+            self.transaction_index.into_into_dart().into_dart(),
+            self.block_hash.into_into_dart().into_dart(),
+            self.block_number.into_into_dart().into_dart(),
+            self.gas_used.into_into_dart().into_dart(),
+            self.effective_gas_price.into_into_dart().into_dart(),
+            self.blob_gas_used.into_into_dart().into_dart(),
+            self.blob_gas_price.into_into_dart().into_dart(),
+            self.from.into_into_dart().into_dart(),
+            self.to.into_into_dart().into_dart(),
+            self.contract_address.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::chain_abstraction::dart_compat_models::TransactionReceiptCompat
+{
+}
+impl
+    flutter_rust_bridge::IntoIntoDart<
+        crate::chain_abstraction::dart_compat_models::TransactionReceiptCompat,
+    >
+    for crate::chain_abstraction::dart_compat_models::TransactionReceiptCompat
+{
+    fn into_into_dart(
+        self,
+    ) -> crate::chain_abstraction::dart_compat_models::TransactionReceiptCompat
+    {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart
     for crate::chain_abstraction::dart_compat_models::TxnDetailsCompat
 {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
@@ -1392,48 +1448,10 @@ impl SseEncode for ChainAbstractionClient {
     }
 }
 
-impl SseEncode for ExecuteDetailsCompat {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(
-        self,
-        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
-    ) {
-        <RustOpaqueMoi<
-            flutter_rust_bridge::for_generated::RustAutoOpaqueInner<
-                ExecuteDetailsCompat,
-            >,
-        >>::sse_encode(
-            flutter_rust_bridge::for_generated::rust_auto_opaque_encode::<
-                _,
-                MoiArc<_>,
-            >(self),
-            serializer,
-        );
-    }
-}
-
 impl SseEncode
     for RustOpaqueMoi<
         flutter_rust_bridge::for_generated::RustAutoOpaqueInner<
             ChainAbstractionClient,
-        >,
-    >
-{
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(
-        self,
-        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
-    ) {
-        let (ptr, size) = self.sse_encode_raw();
-        <usize>::sse_encode(ptr, serializer);
-        <i32>::sse_encode(size, serializer);
-    }
-}
-
-impl SseEncode
-    for RustOpaqueMoi<
-        flutter_rust_bridge::for_generated::RustAutoOpaqueInner<
-            ExecuteDetailsCompat,
         >,
     >
 {
@@ -1565,6 +1583,19 @@ impl SseEncode for crate::chain_abstraction::dart_compat_models::ErrorCompat {
         match self {crate::chain_abstraction::dart_compat_models::ErrorCompat::General(field0) => { <i32>::sse_encode(0, serializer); <String>::sse_encode(field0, serializer);
  }
  _ => { unimplemented!(""); }}
+    }
+}
+
+impl SseEncode
+    for crate::chain_abstraction::dart_compat_models::ExecuteDetailsCompat
+{
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(
+        self,
+        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
+    ) {
+        <crate::chain_abstraction::dart_compat_models::TransactionReceiptCompat>::sse_encode(self.initial_txn_receipt, serializer);
+        <String>::sse_encode(self.initial_txn_hash, serializer);
     }
 }
 
@@ -1736,6 +1767,19 @@ impl SseEncode for Option<String> {
     }
 }
 
+impl SseEncode for Option<u64> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(
+        self,
+        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
+    ) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <u64>::sse_encode(value, serializer);
+        }
+    }
+}
+
 impl SseEncode for crate::chain_abstraction::dart_compat_models::PrepareDetailedResponseCompat {
                     // Codec=Sse (Serialization based), see doc to use other codecs
                     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {match self {crate::chain_abstraction::dart_compat_models::PrepareDetailedResponseCompat::Success(field0) => { <i32>::sse_encode(0, serializer); <crate::chain_abstraction::dart_compat_models::PrepareDetailedResponseSuccessCompat>::sse_encode(field0, serializer);
@@ -1844,6 +1888,28 @@ impl SseEncode
 }
 
 impl SseEncode
+    for crate::chain_abstraction::dart_compat_models::TransactionReceiptCompat
+{
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(
+        self,
+        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
+    ) {
+        <String>::sse_encode(self.transaction_hash, serializer);
+        <Option<u64>>::sse_encode(self.transaction_index, serializer);
+        <Option<String>>::sse_encode(self.block_hash, serializer);
+        <Option<u64>>::sse_encode(self.block_number, serializer);
+        <u64>::sse_encode(self.gas_used, serializer);
+        <String>::sse_encode(self.effective_gas_price, serializer);
+        <Option<u64>>::sse_encode(self.blob_gas_used, serializer);
+        <Option<String>>::sse_encode(self.blob_gas_price, serializer);
+        <String>::sse_encode(self.from, serializer);
+        <Option<String>>::sse_encode(self.to, serializer);
+        <Option<String>>::sse_encode(self.contract_address, serializer);
+    }
+}
+
+impl SseEncode
     for crate::chain_abstraction::dart_compat_models::TxnDetailsCompat
 {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -1923,7 +1989,6 @@ mod io {
 
     use super::*;
     use crate::chain_abstraction::dart_compat::*;
-    use crate::chain_abstraction::dart_compat_models::*;
     use flutter_rust_bridge::for_generated::byteorder::{
         NativeEndian, ReadBytesExt, WriteBytesExt,
     };
@@ -1954,28 +2019,6 @@ mod io {
         MoiArc::<
             flutter_rust_bridge::for_generated::RustAutoOpaqueInner<
                 ChainAbstractionClient,
-            >,
-        >::decrement_strong_count(ptr as _);
-    }
-
-    #[no_mangle]
-    pub extern "C" fn frbgen_yttrium_dart_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExecuteDetailsCompat(
-        ptr: *const std::ffi::c_void,
-    ) {
-        MoiArc::<
-            flutter_rust_bridge::for_generated::RustAutoOpaqueInner<
-                ExecuteDetailsCompat,
-            >,
-        >::increment_strong_count(ptr as _);
-    }
-
-    #[no_mangle]
-    pub extern "C" fn frbgen_yttrium_dart_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerExecuteDetailsCompat(
-        ptr: *const std::ffi::c_void,
-    ) {
-        MoiArc::<
-            flutter_rust_bridge::for_generated::RustAutoOpaqueInner<
-                ExecuteDetailsCompat,
             >,
         >::decrement_strong_count(ptr as _);
     }
