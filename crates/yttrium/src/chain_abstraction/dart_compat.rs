@@ -4,7 +4,8 @@ use {
         dart_compat_models::{
             CallCompat, Eip1559EstimationCompat, ErrorCompat,
             ExecuteDetailsCompat, PrepareDetailedResponseCompat,
-            PrimitiveSignatureCompat, PulseMetadataCompat, UiFieldsCompat,
+            PrepareResponseCompat, PrimitiveSignatureCompat,
+            PulseMetadataCompat, UiFieldsCompat,
         },
         ui_fields::UiFields,
     },
@@ -51,35 +52,22 @@ impl ChainAbstractionClient {
         Self { client }
     }
 
-    // pub async fn prepare(
-    //     &self,
-    //     chain_id: String,
-    //     from: String,
-    //     call: FFICall,
-    // ) -> Result<PrepareResponse, ErrorCompat> {
-    //     type Address = alloy::primitives::Address;
-    //     let ffi_from = Address::from_str(&from).unwrap();
-    //     let ffi_call = CallCompat::try_from(call)?;
+    pub async fn prepare(
+        &self,
+        chain_id: String,
+        from: String,
+        call: CallCompat,
+    ) -> Result<PrepareResponseCompat, ErrorCompat> {
+        type Address = alloy::primitives::Address;
+        let ffi_from = Address::from_str(&from).unwrap();
+        let call_orig = Call::try_from(call).unwrap();
 
-    //     self.client
-    //         .prepare(chain_id, ffi_from, ffi_call)
-    //         .await
-    //         .map_err(|e| ErrorCompat::General(e.to_string()))
-    // }
-
-    // FIXME
-    // pub async fn get_ui_fields(
-    //     &self,
-    //     route_response: PrepareResponseAvailable,
-    //     currency: Currency,
-    // ) -> Result<UiFieldsCompat, ErrorCompat> {
-
-    //     self.client
-    //         .get_ui_fields(route_response, currency)
-    //         .await
-    //         .map(Into::into)
-    //         .map_err(|e| ErrorCompat::General(e.to_string()))
-    // }
+        self.client
+            .prepare(chain_id, ffi_from, call_orig)
+            .await
+            .map(PrepareResponseCompat::from)
+            .map_err(|e| ErrorCompat::General(e.to_string()))
+    }
 
     pub async fn prepare_detailed(
         &self,
@@ -98,6 +86,20 @@ impl ChainAbstractionClient {
             .map(Into::into)
             .map_err(|e| ErrorCompat::General(e.to_string()))
     }
+
+    // FIXME
+    // pub async fn get_ui_fields(
+    //     &self,
+    //     route_response: PrepareResponseAvailable,
+    //     currency: Currency,
+    // ) -> Result<UiFieldsCompat, ErrorCompat> {
+
+    //     self.client
+    //         .get_ui_fields(route_response, currency)
+    //         .await
+    //         .map(Into::into)
+    //         .map_err(|e| ErrorCompat::General(e.to_string()))
+    // }
 
     // pub async fn status(
     //     &self,

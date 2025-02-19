@@ -44,6 +44,13 @@ class AmountCompat {
           formattedAlt == other.formattedAlt;
 }
 
+enum BridgingErrorCompat {
+  noRoutesAvailable,
+  insufficientFunds,
+  insufficientGasFunds,
+  ;
+}
+
 class CallCompat {
   final String to;
   final BigInt value;
@@ -277,12 +284,12 @@ sealed class PrepareDetailedResponseCompat
     with _$PrepareDetailedResponseCompat {
   const PrepareDetailedResponseCompat._();
 
-  const factory PrepareDetailedResponseCompat.success(
-    PrepareDetailedResponseSuccessCompat field0,
-  ) = PrepareDetailedResponseCompat_Success;
-  const factory PrepareDetailedResponseCompat.error(
-    PrepareResponseError field0,
-  ) = PrepareDetailedResponseCompat_Error;
+  const factory PrepareDetailedResponseCompat.success({
+    required PrepareDetailedResponseSuccessCompat value,
+  }) = PrepareDetailedResponseCompat_Success;
+  const factory PrepareDetailedResponseCompat.error({
+    required PrepareResponseError value,
+  }) = PrepareDetailedResponseCompat_Error;
 }
 
 @freezed
@@ -290,12 +297,12 @@ sealed class PrepareDetailedResponseSuccessCompat
     with _$PrepareDetailedResponseSuccessCompat {
   const PrepareDetailedResponseSuccessCompat._();
 
-  const factory PrepareDetailedResponseSuccessCompat.available(
-    UiFieldsCompat field0,
-  ) = PrepareDetailedResponseSuccessCompat_Available;
-  const factory PrepareDetailedResponseSuccessCompat.notRequired(
-    PrepareResponseNotRequiredCompat field0,
-  ) = PrepareDetailedResponseSuccessCompat_NotRequired;
+  const factory PrepareDetailedResponseSuccessCompat.available({
+    required UiFieldsCompat value,
+  }) = PrepareDetailedResponseSuccessCompat_Available;
+  const factory PrepareDetailedResponseSuccessCompat.notRequired({
+    required PrepareResponseNotRequiredCompat value,
+  }) = PrepareDetailedResponseSuccessCompat_NotRequired;
 }
 
 class PrepareResponseAvailableCompat {
@@ -329,6 +336,36 @@ class PrepareResponseAvailableCompat {
           metadata == other.metadata;
 }
 
+@freezed
+sealed class PrepareResponseCompat with _$PrepareResponseCompat {
+  const PrepareResponseCompat._();
+
+  const factory PrepareResponseCompat.success(
+    PrepareResponseSuccessCompat field0,
+  ) = PrepareResponseCompat_Success;
+  const factory PrepareResponseCompat.error(
+    PrepareResponseErrorCompat field0,
+  ) = PrepareResponseCompat_Error;
+}
+
+class PrepareResponseErrorCompat {
+  final BridgingErrorCompat error;
+
+  const PrepareResponseErrorCompat({
+    required this.error,
+  });
+
+  @override
+  int get hashCode => error.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is PrepareResponseErrorCompat &&
+          runtimeType == other.runtimeType &&
+          error == other.error;
+}
+
 class PrepareResponseNotRequiredCompat {
   final TransactionCompat initialTransaction;
   final List<TransactionCompat> transactions;
@@ -348,6 +385,18 @@ class PrepareResponseNotRequiredCompat {
           runtimeType == other.runtimeType &&
           initialTransaction == other.initialTransaction &&
           transactions == other.transactions;
+}
+
+@freezed
+sealed class PrepareResponseSuccessCompat with _$PrepareResponseSuccessCompat {
+  const PrepareResponseSuccessCompat._();
+
+  const factory PrepareResponseSuccessCompat.available({
+    required PrepareResponseAvailableCompat value,
+  }) = PrepareResponseSuccessCompat_Available;
+  const factory PrepareResponseSuccessCompat.notRequired({
+    required PrepareResponseNotRequiredCompat value,
+  }) = PrepareResponseSuccessCompat_NotRequired;
 }
 
 class PrimitiveSignatureCompat {

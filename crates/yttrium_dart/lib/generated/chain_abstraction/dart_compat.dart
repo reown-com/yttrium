@@ -29,6 +29,11 @@ abstract class ChainAbstractionClient implements RustOpaqueInterface {
           .crateChainAbstractionDartCompatChainAbstractionClientNew(
               projectId: projectId, pulseMetadata: pulseMetadata);
 
+  Future<PrepareResponseCompat> prepare(
+      {required String chainId,
+      required String from,
+      required CallCompat call});
+
   Future<PrepareDetailedResponseCompat> prepareDetailed(
       {required String chainId,
       required String from,

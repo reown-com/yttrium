@@ -42,7 +42,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.7.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1070456081;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1153940926;
 
 // Section: executor
 
@@ -143,6 +143,33 @@ let api_pulse_metadata = <crate::chain_abstraction::dart_compat_models::PulseMet
                     transform_result_sse::<_, ()>((move ||  {
                          let output_ok = Result::<_,()>::Ok(crate::chain_abstraction::dart_compat::ChainAbstractionClient::new(api_project_id, api_pulse_metadata))?;   Ok(output_ok)
                     })())
+                } })
+}
+fn wire__crate__chain_abstraction__dart_compat__ChainAbstractionClient_prepare_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "ChainAbstractionClient_prepare", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { 
+            let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
+            let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ChainAbstractionClient>>>::sse_decode(&mut deserializer);
+let api_chain_id = <String>::sse_decode(&mut deserializer);
+let api_from = <String>::sse_decode(&mut deserializer);
+let api_call = <crate::chain_abstraction::dart_compat_models::CallCompat>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
+                    transform_result_sse::<_, crate::chain_abstraction::dart_compat_models::ErrorCompat>((move || async move {
+                        let mut api_that_guard = None;
+let decode_indices_ = flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![flutter_rust_bridge::for_generated::LockableOrderInfo::new(&api_that, 0, false)]);
+        for i in decode_indices_ {
+            match i {
+                0 => api_that_guard = Some(api_that.lockable_decode_async_ref().await),
+                _ => unreachable!(),
+            }
+        }
+        let api_that_guard = api_that_guard.unwrap();
+ let output_ok = crate::chain_abstraction::dart_compat::ChainAbstractionClient::prepare(&*api_that_guard, api_chain_id, api_from, api_call).await?;   Ok(output_ok)
+                    })().await)
                 } })
 }
 fn wire__crate__chain_abstraction__dart_compat__ChainAbstractionClient_prepare_detailed_impl(
@@ -274,6 +301,23 @@ impl SseDecode for crate::chain_abstraction::api::prepare::BridgingError {
 1 => crate::chain_abstraction::api::prepare::BridgingError::InsufficientFunds,
 2 => crate::chain_abstraction::api::prepare::BridgingError::InsufficientGasFunds,
             _ => unreachable!("Invalid variant for BridgingError: {}", inner),
+        };
+    }
+}
+
+impl SseDecode
+    for crate::chain_abstraction::dart_compat_models::BridgingErrorCompat
+{
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::chain_abstraction::dart_compat_models::BridgingErrorCompat::NoRoutesAvailable,
+1 => crate::chain_abstraction::dart_compat_models::BridgingErrorCompat::InsufficientFunds,
+2 => crate::chain_abstraction::dart_compat_models::BridgingErrorCompat::InsufficientGasFunds,
+            _ => unreachable!("Invalid variant for BridgingErrorCompat: {}", inner),
         };
     }
 }
@@ -554,20 +598,20 @@ impl SseDecode for Option<u64> {
 impl SseDecode for crate::chain_abstraction::dart_compat_models::PrepareDetailedResponseCompat {
                     // Codec=Sse (Serialization based), see doc to use other codecs
                     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {let mut tag_ = <i32>::sse_decode(deserializer);
-            match tag_ {0 => { let mut var_field0 = <crate::chain_abstraction::dart_compat_models::PrepareDetailedResponseSuccessCompat>::sse_decode(deserializer);
-return crate::chain_abstraction::dart_compat_models::PrepareDetailedResponseCompat::Success(var_field0); }
-1 => { let mut var_field0 = <crate::chain_abstraction::api::prepare::PrepareResponseError>::sse_decode(deserializer);
-return crate::chain_abstraction::dart_compat_models::PrepareDetailedResponseCompat::Error(var_field0); }
+            match tag_ {0 => { let mut var_value = <crate::chain_abstraction::dart_compat_models::PrepareDetailedResponseSuccessCompat>::sse_decode(deserializer);
+return crate::chain_abstraction::dart_compat_models::PrepareDetailedResponseCompat::Success{value: var_value}; }
+1 => { let mut var_value = <crate::chain_abstraction::api::prepare::PrepareResponseError>::sse_decode(deserializer);
+return crate::chain_abstraction::dart_compat_models::PrepareDetailedResponseCompat::Error{value: var_value}; }
  _ => { unimplemented!(""); }}}
                 }
 
 impl SseDecode for crate::chain_abstraction::dart_compat_models::PrepareDetailedResponseSuccessCompat {
                     // Codec=Sse (Serialization based), see doc to use other codecs
                     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {let mut tag_ = <i32>::sse_decode(deserializer);
-            match tag_ {0 => { let mut var_field0 = <crate::chain_abstraction::dart_compat_models::UiFieldsCompat>::sse_decode(deserializer);
-return crate::chain_abstraction::dart_compat_models::PrepareDetailedResponseSuccessCompat::Available(var_field0); }
-1 => { let mut var_field0 = <crate::chain_abstraction::dart_compat_models::PrepareResponseNotRequiredCompat>::sse_decode(deserializer);
-return crate::chain_abstraction::dart_compat_models::PrepareDetailedResponseSuccessCompat::NotRequired(var_field0); }
+            match tag_ {0 => { let mut var_value = <crate::chain_abstraction::dart_compat_models::UiFieldsCompat>::sse_decode(deserializer);
+return crate::chain_abstraction::dart_compat_models::PrepareDetailedResponseSuccessCompat::Available{value: var_value}; }
+1 => { let mut var_value = <crate::chain_abstraction::dart_compat_models::PrepareResponseNotRequiredCompat>::sse_decode(deserializer);
+return crate::chain_abstraction::dart_compat_models::PrepareDetailedResponseSuccessCompat::NotRequired{value: var_value}; }
  _ => { unimplemented!(""); }}}
                 }
 
@@ -579,6 +623,30 @@ let mut var_transactions = <Vec<crate::chain_abstraction::dart_compat_models::Tr
 let mut var_metadata = <crate::chain_abstraction::dart_compat_models::MetadataCompat>::sse_decode(deserializer);
 return crate::chain_abstraction::dart_compat_models::PrepareResponseAvailableCompat{orchestration_id: var_orchestrationId, initial_transaction: var_initialTransaction, transactions: var_transactions, metadata: var_metadata};}
                 }
+
+impl SseDecode
+    for crate::chain_abstraction::dart_compat_models::PrepareResponseCompat
+{
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        let mut tag_ = <i32>::sse_decode(deserializer);
+        match tag_ {
+            0 => {
+                let mut var_field0 = <crate::chain_abstraction::dart_compat_models::PrepareResponseSuccessCompat>::sse_decode(deserializer);
+                return crate::chain_abstraction::dart_compat_models::PrepareResponseCompat::Success(var_field0);
+            }
+            1 => {
+                let mut var_field0 = <crate::chain_abstraction::dart_compat_models::PrepareResponseErrorCompat>::sse_decode(deserializer);
+                return crate::chain_abstraction::dart_compat_models::PrepareResponseCompat::Error(var_field0);
+            }
+            _ => {
+                unimplemented!("");
+            }
+        }
+    }
+}
 
 impl SseDecode
     for crate::chain_abstraction::api::prepare::PrepareResponseError
@@ -597,11 +665,33 @@ impl SseDecode
     }
 }
 
+impl SseDecode
+    for crate::chain_abstraction::dart_compat_models::PrepareResponseErrorCompat
+{
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        let mut var_error = <crate::chain_abstraction::dart_compat_models::BridgingErrorCompat>::sse_decode(deserializer);
+        return crate::chain_abstraction::dart_compat_models::PrepareResponseErrorCompat{error: var_error};
+    }
+}
+
 impl SseDecode for crate::chain_abstraction::dart_compat_models::PrepareResponseNotRequiredCompat {
                     // Codec=Sse (Serialization based), see doc to use other codecs
                     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {let mut var_initialTransaction = <crate::chain_abstraction::dart_compat_models::TransactionCompat>::sse_decode(deserializer);
 let mut var_transactions = <Vec<crate::chain_abstraction::dart_compat_models::TransactionCompat>>::sse_decode(deserializer);
 return crate::chain_abstraction::dart_compat_models::PrepareResponseNotRequiredCompat{initial_transaction: var_initialTransaction, transactions: var_transactions};}
+                }
+
+impl SseDecode for crate::chain_abstraction::dart_compat_models::PrepareResponseSuccessCompat {
+                    // Codec=Sse (Serialization based), see doc to use other codecs
+                    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {let mut tag_ = <i32>::sse_decode(deserializer);
+            match tag_ {0 => { let mut var_value = <crate::chain_abstraction::dart_compat_models::PrepareResponseAvailableCompat>::sse_decode(deserializer);
+return crate::chain_abstraction::dart_compat_models::PrepareResponseSuccessCompat::Available{value: var_value}; }
+1 => { let mut var_value = <crate::chain_abstraction::dart_compat_models::PrepareResponseNotRequiredCompat>::sse_decode(deserializer);
+return crate::chain_abstraction::dart_compat_models::PrepareResponseSuccessCompat::NotRequired{value: var_value}; }
+ _ => { unimplemented!(""); }}}
                 }
 
 impl SseDecode
@@ -780,7 +870,8 @@ fn pde_ffi_dispatcher_primary_impl(
 2 => wire__crate__chain_abstraction__dart_compat__ChainAbstractionClient_estimate_fees_impl(port, ptr, rust_vec_len, data_len),
 3 => wire__crate__chain_abstraction__dart_compat__ChainAbstractionClient_execute_impl(port, ptr, rust_vec_len, data_len),
 4 => wire__crate__chain_abstraction__dart_compat__ChainAbstractionClient_new_impl(port, ptr, rust_vec_len, data_len),
-5 => wire__crate__chain_abstraction__dart_compat__ChainAbstractionClient_prepare_detailed_impl(port, ptr, rust_vec_len, data_len),
+5 => wire__crate__chain_abstraction__dart_compat__ChainAbstractionClient_prepare_impl(port, ptr, rust_vec_len, data_len),
+6 => wire__crate__chain_abstraction__dart_compat__ChainAbstractionClient_prepare_detailed_impl(port, ptr, rust_vec_len, data_len),
                         _ => unreachable!(),
                     }
 }
@@ -877,6 +968,34 @@ impl
     fn into_into_dart(
         self,
     ) -> crate::chain_abstraction::api::prepare::BridgingError {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart
+    for crate::chain_abstraction::dart_compat_models::BridgingErrorCompat
+{
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::NoRoutesAvailable => 0.into_dart(),
+            Self::InsufficientFunds => 1.into_dart(),
+            Self::InsufficientGasFunds => 2.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::chain_abstraction::dart_compat_models::BridgingErrorCompat
+{
+}
+impl
+    flutter_rust_bridge::IntoIntoDart<
+        crate::chain_abstraction::dart_compat_models::BridgingErrorCompat,
+    > for crate::chain_abstraction::dart_compat_models::BridgingErrorCompat
+{
+    fn into_into_dart(
+        self,
+    ) -> crate::chain_abstraction::dart_compat_models::BridgingErrorCompat {
         self
     }
 }
@@ -1125,10 +1244,10 @@ impl
 // Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::chain_abstraction::dart_compat_models::PrepareDetailedResponseCompat {
                 fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-                    match self {crate::chain_abstraction::dart_compat_models::PrepareDetailedResponseCompat::Success(field0) => { [0.into_dart(),
-field0.into_into_dart().into_dart()].into_dart() }
-crate::chain_abstraction::dart_compat_models::PrepareDetailedResponseCompat::Error(field0) => { [1.into_dart(),
-field0.into_into_dart().into_dart()].into_dart() }
+                    match self {crate::chain_abstraction::dart_compat_models::PrepareDetailedResponseCompat::Success{value} => { [0.into_dart(),
+value.into_into_dart().into_dart()].into_dart() }
+crate::chain_abstraction::dart_compat_models::PrepareDetailedResponseCompat::Error{value} => { [1.into_dart(),
+value.into_into_dart().into_dart()].into_dart() }
  _ => { unimplemented!(""); }}
                 }
             }
@@ -1141,10 +1260,10 @@ impl flutter_rust_bridge::IntoIntoDart<crate::chain_abstraction::dart_compat_mod
 // Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::chain_abstraction::dart_compat_models::PrepareDetailedResponseSuccessCompat {
                 fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-                    match self {crate::chain_abstraction::dart_compat_models::PrepareDetailedResponseSuccessCompat::Available(field0) => { [0.into_dart(),
-field0.into_into_dart().into_dart()].into_dart() }
-crate::chain_abstraction::dart_compat_models::PrepareDetailedResponseSuccessCompat::NotRequired(field0) => { [1.into_dart(),
-field0.into_into_dart().into_dart()].into_dart() }
+                    match self {crate::chain_abstraction::dart_compat_models::PrepareDetailedResponseSuccessCompat::Available{value} => { [0.into_dart(),
+value.into_into_dart().into_dart()].into_dart() }
+crate::chain_abstraction::dart_compat_models::PrepareDetailedResponseSuccessCompat::NotRequired{value} => { [1.into_dart(),
+value.into_into_dart().into_dart()].into_dart() }
  _ => { unimplemented!(""); }}
                 }
             }
@@ -1173,6 +1292,34 @@ impl flutter_rust_bridge::IntoIntoDart<crate::chain_abstraction::dart_compat_mod
         }
 // Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart
+    for crate::chain_abstraction::dart_compat_models::PrepareResponseCompat
+{
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {crate::chain_abstraction::dart_compat_models::PrepareResponseCompat::Success(field0) => { [0.into_dart(),
+field0.into_into_dart().into_dart()].into_dart() }
+crate::chain_abstraction::dart_compat_models::PrepareResponseCompat::Error(field0) => { [1.into_dart(),
+field0.into_into_dart().into_dart()].into_dart() }
+ _ => { unimplemented!(""); }}
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::chain_abstraction::dart_compat_models::PrepareResponseCompat
+{
+}
+impl
+    flutter_rust_bridge::IntoIntoDart<
+        crate::chain_abstraction::dart_compat_models::PrepareResponseCompat,
+    > for crate::chain_abstraction::dart_compat_models::PrepareResponseCompat
+{
+    fn into_into_dart(
+        self,
+    ) -> crate::chain_abstraction::dart_compat_models::PrepareResponseCompat
+    {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart
     for crate::chain_abstraction::api::prepare::PrepareResponseError
 {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
@@ -1195,6 +1342,23 @@ impl
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart
+    for crate::chain_abstraction::dart_compat_models::PrepareResponseErrorCompat
+{
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [self.error.into_into_dart().into_dart()].into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::chain_abstraction::dart_compat_models::PrepareResponseErrorCompat
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::chain_abstraction::dart_compat_models::PrepareResponseErrorCompat> for crate::chain_abstraction::dart_compat_models::PrepareResponseErrorCompat {
+            fn into_into_dart(self) -> crate::chain_abstraction::dart_compat_models::PrepareResponseErrorCompat {
+                self
+            }
+        }
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::chain_abstraction::dart_compat_models::PrepareResponseNotRequiredCompat {
                 fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
                     [
@@ -1206,6 +1370,22 @@ self.transactions.into_into_dart().into_dart()
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::chain_abstraction::dart_compat_models::PrepareResponseNotRequiredCompat {}
 impl flutter_rust_bridge::IntoIntoDart<crate::chain_abstraction::dart_compat_models::PrepareResponseNotRequiredCompat> for crate::chain_abstraction::dart_compat_models::PrepareResponseNotRequiredCompat {
             fn into_into_dart(self) -> crate::chain_abstraction::dart_compat_models::PrepareResponseNotRequiredCompat {
+                self
+            }
+        }
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::chain_abstraction::dart_compat_models::PrepareResponseSuccessCompat {
+                fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+                    match self {crate::chain_abstraction::dart_compat_models::PrepareResponseSuccessCompat::Available{value} => { [0.into_dart(),
+value.into_into_dart().into_dart()].into_dart() }
+crate::chain_abstraction::dart_compat_models::PrepareResponseSuccessCompat::NotRequired{value} => { [1.into_dart(),
+value.into_into_dart().into_dart()].into_dart() }
+ _ => { unimplemented!(""); }}
+                }
+            }
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::chain_abstraction::dart_compat_models::PrepareResponseSuccessCompat {}
+impl flutter_rust_bridge::IntoIntoDart<crate::chain_abstraction::dart_compat_models::PrepareResponseSuccessCompat> for crate::chain_abstraction::dart_compat_models::PrepareResponseSuccessCompat {
+            fn into_into_dart(self) -> crate::chain_abstraction::dart_compat_models::PrepareResponseSuccessCompat {
                 self
             }
         }
@@ -1523,6 +1703,21 @@ crate::chain_abstraction::api::prepare::BridgingError::InsufficientGasFunds => {
     }
 }
 
+impl SseEncode
+    for crate::chain_abstraction::dart_compat_models::BridgingErrorCompat
+{
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(
+        self,
+        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
+    ) {
+        <i32>::sse_encode(match self {crate::chain_abstraction::dart_compat_models::BridgingErrorCompat::NoRoutesAvailable => { 0 }
+crate::chain_abstraction::dart_compat_models::BridgingErrorCompat::InsufficientFunds => { 1 }
+crate::chain_abstraction::dart_compat_models::BridgingErrorCompat::InsufficientGasFunds => { 2 }
+ _ => { unimplemented!(""); }}, serializer);
+    }
+}
+
 impl SseEncode for crate::chain_abstraction::dart_compat_models::CallCompat {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(
@@ -1782,18 +1977,18 @@ impl SseEncode for Option<u64> {
 
 impl SseEncode for crate::chain_abstraction::dart_compat_models::PrepareDetailedResponseCompat {
                     // Codec=Sse (Serialization based), see doc to use other codecs
-                    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {match self {crate::chain_abstraction::dart_compat_models::PrepareDetailedResponseCompat::Success(field0) => { <i32>::sse_encode(0, serializer); <crate::chain_abstraction::dart_compat_models::PrepareDetailedResponseSuccessCompat>::sse_encode(field0, serializer);
+                    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {match self {crate::chain_abstraction::dart_compat_models::PrepareDetailedResponseCompat::Success{value} => { <i32>::sse_encode(0, serializer); <crate::chain_abstraction::dart_compat_models::PrepareDetailedResponseSuccessCompat>::sse_encode(value, serializer);
  }
-crate::chain_abstraction::dart_compat_models::PrepareDetailedResponseCompat::Error(field0) => { <i32>::sse_encode(1, serializer); <crate::chain_abstraction::api::prepare::PrepareResponseError>::sse_encode(field0, serializer);
+crate::chain_abstraction::dart_compat_models::PrepareDetailedResponseCompat::Error{value} => { <i32>::sse_encode(1, serializer); <crate::chain_abstraction::api::prepare::PrepareResponseError>::sse_encode(value, serializer);
  }
  _ => { unimplemented!(""); }}}
                 }
 
 impl SseEncode for crate::chain_abstraction::dart_compat_models::PrepareDetailedResponseSuccessCompat {
                     // Codec=Sse (Serialization based), see doc to use other codecs
-                    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {match self {crate::chain_abstraction::dart_compat_models::PrepareDetailedResponseSuccessCompat::Available(field0) => { <i32>::sse_encode(0, serializer); <crate::chain_abstraction::dart_compat_models::UiFieldsCompat>::sse_encode(field0, serializer);
+                    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {match self {crate::chain_abstraction::dart_compat_models::PrepareDetailedResponseSuccessCompat::Available{value} => { <i32>::sse_encode(0, serializer); <crate::chain_abstraction::dart_compat_models::UiFieldsCompat>::sse_encode(value, serializer);
  }
-crate::chain_abstraction::dart_compat_models::PrepareDetailedResponseSuccessCompat::NotRequired(field0) => { <i32>::sse_encode(1, serializer); <crate::chain_abstraction::dart_compat_models::PrepareResponseNotRequiredCompat>::sse_encode(field0, serializer);
+crate::chain_abstraction::dart_compat_models::PrepareDetailedResponseSuccessCompat::NotRequired{value} => { <i32>::sse_encode(1, serializer); <crate::chain_abstraction::dart_compat_models::PrepareResponseNotRequiredCompat>::sse_encode(value, serializer);
  }
  _ => { unimplemented!(""); }}}
                 }
@@ -1805,6 +2000,22 @@ impl SseEncode for crate::chain_abstraction::dart_compat_models::PrepareResponse
 <Vec<crate::chain_abstraction::dart_compat_models::TransactionCompat>>::sse_encode(self.transactions, serializer);
 <crate::chain_abstraction::dart_compat_models::MetadataCompat>::sse_encode(self.metadata, serializer);}
                 }
+
+impl SseEncode
+    for crate::chain_abstraction::dart_compat_models::PrepareResponseCompat
+{
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(
+        self,
+        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
+    ) {
+        match self {crate::chain_abstraction::dart_compat_models::PrepareResponseCompat::Success(field0) => { <i32>::sse_encode(0, serializer); <crate::chain_abstraction::dart_compat_models::PrepareResponseSuccessCompat>::sse_encode(field0, serializer);
+ }
+crate::chain_abstraction::dart_compat_models::PrepareResponseCompat::Error(field0) => { <i32>::sse_encode(1, serializer); <crate::chain_abstraction::dart_compat_models::PrepareResponseErrorCompat>::sse_encode(field0, serializer);
+ }
+ _ => { unimplemented!(""); }}
+    }
+}
 
 impl SseEncode
     for crate::chain_abstraction::api::prepare::PrepareResponseError
@@ -1820,10 +2031,31 @@ impl SseEncode
     }
 }
 
+impl SseEncode
+    for crate::chain_abstraction::dart_compat_models::PrepareResponseErrorCompat
+{
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(
+        self,
+        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
+    ) {
+        <crate::chain_abstraction::dart_compat_models::BridgingErrorCompat>::sse_encode(self.error, serializer);
+    }
+}
+
 impl SseEncode for crate::chain_abstraction::dart_compat_models::PrepareResponseNotRequiredCompat {
                     // Codec=Sse (Serialization based), see doc to use other codecs
                     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {<crate::chain_abstraction::dart_compat_models::TransactionCompat>::sse_encode(self.initial_transaction, serializer);
 <Vec<crate::chain_abstraction::dart_compat_models::TransactionCompat>>::sse_encode(self.transactions, serializer);}
+                }
+
+impl SseEncode for crate::chain_abstraction::dart_compat_models::PrepareResponseSuccessCompat {
+                    // Codec=Sse (Serialization based), see doc to use other codecs
+                    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {match self {crate::chain_abstraction::dart_compat_models::PrepareResponseSuccessCompat::Available{value} => { <i32>::sse_encode(0, serializer); <crate::chain_abstraction::dart_compat_models::PrepareResponseAvailableCompat>::sse_encode(value, serializer);
+ }
+crate::chain_abstraction::dart_compat_models::PrepareResponseSuccessCompat::NotRequired{value} => { <i32>::sse_encode(1, serializer); <crate::chain_abstraction::dart_compat_models::PrepareResponseNotRequiredCompat>::sse_encode(value, serializer);
+ }
+ _ => { unimplemented!(""); }}}
                 }
 
 impl SseEncode

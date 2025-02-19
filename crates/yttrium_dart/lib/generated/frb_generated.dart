@@ -70,7 +70,7 @@ class YttriumDart extends BaseEntrypoint<YttriumDartApi, YttriumDartApiImpl,
   String get codegenVersion => '2.7.0';
 
   @override
-  int get rustContentHash => -1070456081;
+  int get rustContentHash => -1153940926;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -103,6 +103,13 @@ abstract class YttriumDartApi extends BaseApi {
       crateChainAbstractionDartCompatChainAbstractionClientNew(
           {required String projectId,
           required PulseMetadataCompat pulseMetadata});
+
+  Future<PrepareResponseCompat>
+      crateChainAbstractionDartCompatChainAbstractionClientPrepare(
+          {required ChainAbstractionClient that,
+          required String chainId,
+          required String from,
+          required CallCompat call});
 
   Future<PrepareDetailedResponseCompat>
       crateChainAbstractionDartCompatChainAbstractionClientPrepareDetailed(
@@ -268,6 +275,42 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
           );
 
   @override
+  Future<PrepareResponseCompat>
+      crateChainAbstractionDartCompatChainAbstractionClientPrepare(
+          {required ChainAbstractionClient that,
+          required String chainId,
+          required String from,
+          required CallCompat call}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerChainAbstractionClient(
+            that, serializer);
+        sse_encode_String(chainId, serializer);
+        sse_encode_String(from, serializer);
+        sse_encode_box_autoadd_call_compat(call, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 5, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_prepare_response_compat,
+        decodeErrorData: sse_decode_error_compat,
+      ),
+      constMeta:
+          kCrateChainAbstractionDartCompatChainAbstractionClientPrepareConstMeta,
+      argValues: [that, chainId, from, call],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta
+      get kCrateChainAbstractionDartCompatChainAbstractionClientPrepareConstMeta =>
+          const TaskConstMeta(
+            debugName: 'ChainAbstractionClient_prepare',
+            argNames: ['that', 'chainId', 'from', 'call'],
+          );
+
+  @override
   Future<PrepareDetailedResponseCompat>
       crateChainAbstractionDartCompatChainAbstractionClientPrepareDetailed(
           {required ChainAbstractionClient that,
@@ -285,7 +328,7 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
         sse_encode_box_autoadd_call_compat(call, serializer);
         sse_encode_currency(localCurrency, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 5, port: port_);
+            funcId: 6, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_prepare_detailed_response_compat,
@@ -388,6 +431,13 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
   }
 
   @protected
+  PrepareResponseAvailableCompat
+      dco_decode_box_autoadd_prepare_response_available_compat(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_prepare_response_available_compat(raw);
+  }
+
+  @protected
   PrepareResponseError dco_decode_box_autoadd_prepare_response_error(
       dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
@@ -395,10 +445,24 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
   }
 
   @protected
+  PrepareResponseErrorCompat
+      dco_decode_box_autoadd_prepare_response_error_compat(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_prepare_response_error_compat(raw);
+  }
+
+  @protected
   PrepareResponseNotRequiredCompat
       dco_decode_box_autoadd_prepare_response_not_required_compat(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_prepare_response_not_required_compat(raw);
+  }
+
+  @protected
+  PrepareResponseSuccessCompat
+      dco_decode_box_autoadd_prepare_response_success_compat(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_prepare_response_success_compat(raw);
   }
 
   @protected
@@ -431,6 +495,12 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
   BridgingError dco_decode_bridging_error(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return BridgingError.values[raw as int];
+  }
+
+  @protected
+  BridgingErrorCompat dco_decode_bridging_error_compat(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return BridgingErrorCompat.values[raw as int];
   }
 
   @protected
@@ -625,12 +695,13 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
     switch (raw[0]) {
       case 0:
         return PrepareDetailedResponseCompat_Success(
-          dco_decode_box_autoadd_prepare_detailed_response_success_compat(
-              raw[1]),
+          value:
+              dco_decode_box_autoadd_prepare_detailed_response_success_compat(
+                  raw[1]),
         );
       case 1:
         return PrepareDetailedResponseCompat_Error(
-          dco_decode_box_autoadd_prepare_response_error(raw[1]),
+          value: dco_decode_box_autoadd_prepare_response_error(raw[1]),
         );
       default:
         throw Exception('unreachable');
@@ -644,11 +715,12 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
     switch (raw[0]) {
       case 0:
         return PrepareDetailedResponseSuccessCompat_Available(
-          dco_decode_box_autoadd_ui_fields_compat(raw[1]),
+          value: dco_decode_box_autoadd_ui_fields_compat(raw[1]),
         );
       case 1:
         return PrepareDetailedResponseSuccessCompat_NotRequired(
-          dco_decode_box_autoadd_prepare_response_not_required_compat(raw[1]),
+          value: dco_decode_box_autoadd_prepare_response_not_required_compat(
+              raw[1]),
         );
       default:
         throw Exception('unreachable');
@@ -671,6 +743,23 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
   }
 
   @protected
+  PrepareResponseCompat dco_decode_prepare_response_compat(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    switch (raw[0]) {
+      case 0:
+        return PrepareResponseCompat_Success(
+          dco_decode_box_autoadd_prepare_response_success_compat(raw[1]),
+        );
+      case 1:
+        return PrepareResponseCompat_Error(
+          dco_decode_box_autoadd_prepare_response_error_compat(raw[1]),
+        );
+      default:
+        throw Exception('unreachable');
+    }
+  }
+
+  @protected
   PrepareResponseError dco_decode_prepare_response_error(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -678,6 +767,18 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
       throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
     return PrepareResponseError(
       error: dco_decode_bridging_error(arr[0]),
+    );
+  }
+
+  @protected
+  PrepareResponseErrorCompat dco_decode_prepare_response_error_compat(
+      dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 1)
+      throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
+    return PrepareResponseErrorCompat(
+      error: dco_decode_bridging_error_compat(arr[0]),
     );
   }
 
@@ -692,6 +793,26 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
       initialTransaction: dco_decode_transaction_compat(arr[0]),
       transactions: dco_decode_list_transaction_compat(arr[1]),
     );
+  }
+
+  @protected
+  PrepareResponseSuccessCompat dco_decode_prepare_response_success_compat(
+      dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    switch (raw[0]) {
+      case 0:
+        return PrepareResponseSuccessCompat_Available(
+          value:
+              dco_decode_box_autoadd_prepare_response_available_compat(raw[1]),
+        );
+      case 1:
+        return PrepareResponseSuccessCompat_NotRequired(
+          value: dco_decode_box_autoadd_prepare_response_not_required_compat(
+              raw[1]),
+        );
+      default:
+        throw Exception('unreachable');
+    }
   }
 
   @protected
@@ -904,10 +1025,26 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
   }
 
   @protected
+  PrepareResponseAvailableCompat
+      sse_decode_box_autoadd_prepare_response_available_compat(
+          SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_prepare_response_available_compat(deserializer));
+  }
+
+  @protected
   PrepareResponseError sse_decode_box_autoadd_prepare_response_error(
       SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_prepare_response_error(deserializer));
+  }
+
+  @protected
+  PrepareResponseErrorCompat
+      sse_decode_box_autoadd_prepare_response_error_compat(
+          SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_prepare_response_error_compat(deserializer));
   }
 
   @protected
@@ -916,6 +1053,14 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
           SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_prepare_response_not_required_compat(deserializer));
+  }
+
+  @protected
+  PrepareResponseSuccessCompat
+      sse_decode_box_autoadd_prepare_response_success_compat(
+          SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_prepare_response_success_compat(deserializer));
   }
 
   @protected
@@ -950,6 +1095,14 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
     // Codec=Sse (Serialization based), see doc to use other codecs
     var inner = sse_decode_i_32(deserializer);
     return BridgingError.values[inner];
+  }
+
+  @protected
+  BridgingErrorCompat sse_decode_bridging_error_compat(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return BridgingErrorCompat.values[inner];
   }
 
   @protected
@@ -1188,14 +1341,14 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
     var tag_ = sse_decode_i_32(deserializer);
     switch (tag_) {
       case 0:
-        var var_field0 =
+        var var_value =
             sse_decode_box_autoadd_prepare_detailed_response_success_compat(
                 deserializer);
-        return PrepareDetailedResponseCompat_Success(var_field0);
+        return PrepareDetailedResponseCompat_Success(value: var_value);
       case 1:
-        var var_field0 =
+        var var_value =
             sse_decode_box_autoadd_prepare_response_error(deserializer);
-        return PrepareDetailedResponseCompat_Error(var_field0);
+        return PrepareDetailedResponseCompat_Error(value: var_value);
       default:
         throw UnimplementedError('');
     }
@@ -1210,13 +1363,14 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
     var tag_ = sse_decode_i_32(deserializer);
     switch (tag_) {
       case 0:
-        var var_field0 = sse_decode_box_autoadd_ui_fields_compat(deserializer);
-        return PrepareDetailedResponseSuccessCompat_Available(var_field0);
+        var var_value = sse_decode_box_autoadd_ui_fields_compat(deserializer);
+        return PrepareDetailedResponseSuccessCompat_Available(value: var_value);
       case 1:
-        var var_field0 =
+        var var_value =
             sse_decode_box_autoadd_prepare_response_not_required_compat(
                 deserializer);
-        return PrepareDetailedResponseSuccessCompat_NotRequired(var_field0);
+        return PrepareDetailedResponseSuccessCompat_NotRequired(
+            value: var_value);
       default:
         throw UnimplementedError('');
     }
@@ -1238,11 +1392,39 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
   }
 
   @protected
+  PrepareResponseCompat sse_decode_prepare_response_compat(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var tag_ = sse_decode_i_32(deserializer);
+    switch (tag_) {
+      case 0:
+        var var_field0 = sse_decode_box_autoadd_prepare_response_success_compat(
+            deserializer);
+        return PrepareResponseCompat_Success(var_field0);
+      case 1:
+        var var_field0 =
+            sse_decode_box_autoadd_prepare_response_error_compat(deserializer);
+        return PrepareResponseCompat_Error(var_field0);
+      default:
+        throw UnimplementedError('');
+    }
+  }
+
+  @protected
   PrepareResponseError sse_decode_prepare_response_error(
       SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_error = sse_decode_bridging_error(deserializer);
     return PrepareResponseError(error: var_error);
+  }
+
+  @protected
+  PrepareResponseErrorCompat sse_decode_prepare_response_error_compat(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_error = sse_decode_bridging_error_compat(deserializer);
+    return PrepareResponseErrorCompat(error: var_error);
   }
 
   @protected
@@ -1255,6 +1437,28 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
     return PrepareResponseNotRequiredCompat(
         initialTransaction: var_initialTransaction,
         transactions: var_transactions);
+  }
+
+  @protected
+  PrepareResponseSuccessCompat sse_decode_prepare_response_success_compat(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var tag_ = sse_decode_i_32(deserializer);
+    switch (tag_) {
+      case 0:
+        var var_value =
+            sse_decode_box_autoadd_prepare_response_available_compat(
+                deserializer);
+        return PrepareResponseSuccessCompat_Available(value: var_value);
+      case 1:
+        var var_value =
+            sse_decode_box_autoadd_prepare_response_not_required_compat(
+                deserializer);
+        return PrepareResponseSuccessCompat_NotRequired(value: var_value);
+      default:
+        throw UnimplementedError('');
+    }
   }
 
   @protected
@@ -1473,6 +1677,13 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
   }
 
   @protected
+  void sse_encode_box_autoadd_prepare_response_available_compat(
+      PrepareResponseAvailableCompat self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_prepare_response_available_compat(self, serializer);
+  }
+
+  @protected
   void sse_encode_box_autoadd_prepare_response_error(
       PrepareResponseError self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -1480,10 +1691,24 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
   }
 
   @protected
+  void sse_encode_box_autoadd_prepare_response_error_compat(
+      PrepareResponseErrorCompat self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_prepare_response_error_compat(self, serializer);
+  }
+
+  @protected
   void sse_encode_box_autoadd_prepare_response_not_required_compat(
       PrepareResponseNotRequiredCompat self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_prepare_response_not_required_compat(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_prepare_response_success_compat(
+      PrepareResponseSuccessCompat self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_prepare_response_success_compat(self, serializer);
   }
 
   @protected
@@ -1515,6 +1740,13 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
 
   @protected
   void sse_encode_bridging_error(BridgingError self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
+  void sse_encode_bridging_error_compat(
+      BridgingErrorCompat self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self.index, serializer);
   }
@@ -1696,13 +1928,13 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
       PrepareDetailedResponseCompat self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     switch (self) {
-      case PrepareDetailedResponseCompat_Success(field0: final field0):
+      case PrepareDetailedResponseCompat_Success(value: final value):
         sse_encode_i_32(0, serializer);
         sse_encode_box_autoadd_prepare_detailed_response_success_compat(
-            field0, serializer);
-      case PrepareDetailedResponseCompat_Error(field0: final field0):
+            value, serializer);
+      case PrepareDetailedResponseCompat_Error(value: final value):
         sse_encode_i_32(1, serializer);
-        sse_encode_box_autoadd_prepare_response_error(field0, serializer);
+        sse_encode_box_autoadd_prepare_response_error(value, serializer);
     }
   }
 
@@ -1711,15 +1943,13 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
       PrepareDetailedResponseSuccessCompat self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     switch (self) {
-      case PrepareDetailedResponseSuccessCompat_Available(field0: final field0):
+      case PrepareDetailedResponseSuccessCompat_Available(value: final value):
         sse_encode_i_32(0, serializer);
-        sse_encode_box_autoadd_ui_fields_compat(field0, serializer);
-      case PrepareDetailedResponseSuccessCompat_NotRequired(
-          field0: final field0
-        ):
+        sse_encode_box_autoadd_ui_fields_compat(value, serializer);
+      case PrepareDetailedResponseSuccessCompat_NotRequired(value: final value):
         sse_encode_i_32(1, serializer);
         sse_encode_box_autoadd_prepare_response_not_required_compat(
-            field0, serializer);
+            value, serializer);
     }
   }
 
@@ -1734,10 +1964,33 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
   }
 
   @protected
+  void sse_encode_prepare_response_compat(
+      PrepareResponseCompat self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    switch (self) {
+      case PrepareResponseCompat_Success(field0: final field0):
+        sse_encode_i_32(0, serializer);
+        sse_encode_box_autoadd_prepare_response_success_compat(
+            field0, serializer);
+      case PrepareResponseCompat_Error(field0: final field0):
+        sse_encode_i_32(1, serializer);
+        sse_encode_box_autoadd_prepare_response_error_compat(
+            field0, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_prepare_response_error(
       PrepareResponseError self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_bridging_error(self.error, serializer);
+  }
+
+  @protected
+  void sse_encode_prepare_response_error_compat(
+      PrepareResponseErrorCompat self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_bridging_error_compat(self.error, serializer);
   }
 
   @protected
@@ -1746,6 +1999,22 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_transaction_compat(self.initialTransaction, serializer);
     sse_encode_list_transaction_compat(self.transactions, serializer);
+  }
+
+  @protected
+  void sse_encode_prepare_response_success_compat(
+      PrepareResponseSuccessCompat self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    switch (self) {
+      case PrepareResponseSuccessCompat_Available(value: final value):
+        sse_encode_i_32(0, serializer);
+        sse_encode_box_autoadd_prepare_response_available_compat(
+            value, serializer);
+      case PrepareResponseSuccessCompat_NotRequired(value: final value):
+        sse_encode_i_32(1, serializer);
+        sse_encode_box_autoadd_prepare_response_not_required_compat(
+            value, serializer);
+    }
   }
 
   @protected
@@ -1897,6 +2166,14 @@ class ChainAbstractionClientImpl extends RustOpaque
               uiFields: uiFields,
               routeTxnSigs: routeTxnSigs,
               initialTxnSig: initialTxnSig);
+
+  Future<PrepareResponseCompat> prepare(
+          {required String chainId,
+          required String from,
+          required CallCompat call}) =>
+      YttriumDart.instance.api
+          .crateChainAbstractionDartCompatChainAbstractionClientPrepare(
+              that: this, chainId: chainId, from: from, call: call);
 
   Future<PrepareDetailedResponseCompat> prepareDetailed(
           {required String chainId,

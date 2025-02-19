@@ -235,24 +235,24 @@ abstract class ErrorCompat_General extends ErrorCompat {
 
 /// @nodoc
 mixin _$PrepareDetailedResponseCompat {
-  Object get field0 => throw _privateConstructorUsedError;
+  Object get value => throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult when<TResult extends Object?>({
-    required TResult Function(PrepareDetailedResponseSuccessCompat field0)
+    required TResult Function(PrepareDetailedResponseSuccessCompat value)
         success,
-    required TResult Function(PrepareResponseError field0) error,
+    required TResult Function(PrepareResponseError value) error,
   }) =>
       throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult? whenOrNull<TResult extends Object?>({
-    TResult? Function(PrepareDetailedResponseSuccessCompat field0)? success,
-    TResult? Function(PrepareResponseError field0)? error,
+    TResult? Function(PrepareDetailedResponseSuccessCompat value)? success,
+    TResult? Function(PrepareResponseError value)? error,
   }) =>
       throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult maybeWhen<TResult extends Object?>({
-    TResult Function(PrepareDetailedResponseSuccessCompat field0)? success,
-    TResult Function(PrepareResponseError field0)? error,
+    TResult Function(PrepareDetailedResponseSuccessCompat value)? success,
+    TResult Function(PrepareResponseError value)? error,
     required TResult orElse(),
   }) =>
       throw _privateConstructorUsedError;
@@ -309,9 +309,9 @@ abstract class _$$PrepareDetailedResponseCompat_SuccessImplCopyWith<$Res> {
           $Res Function(_$PrepareDetailedResponseCompat_SuccessImpl) then) =
       __$$PrepareDetailedResponseCompat_SuccessImplCopyWithImpl<$Res>;
   @useResult
-  $Res call({PrepareDetailedResponseSuccessCompat field0});
+  $Res call({PrepareDetailedResponseSuccessCompat value});
 
-  $PrepareDetailedResponseSuccessCompatCopyWith<$Res> get field0;
+  $PrepareDetailedResponseSuccessCompatCopyWith<$Res> get value;
 }
 
 /// @nodoc
@@ -329,12 +329,12 @@ class __$$PrepareDetailedResponseCompat_SuccessImplCopyWithImpl<$Res>
   @pragma('vm:prefer-inline')
   @override
   $Res call({
-    Object? field0 = null,
+    Object? value = null,
   }) {
     return _then(_$PrepareDetailedResponseCompat_SuccessImpl(
-      null == field0
-          ? _value.field0
-          : field0 // ignore: cast_nullable_to_non_nullable
+      value: null == value
+          ? _value.value
+          : value // ignore: cast_nullable_to_non_nullable
               as PrepareDetailedResponseSuccessCompat,
     ));
   }
@@ -343,10 +343,10 @@ class __$$PrepareDetailedResponseCompat_SuccessImplCopyWithImpl<$Res>
   /// with the given fields replaced by the non-null parameter values.
   @override
   @pragma('vm:prefer-inline')
-  $PrepareDetailedResponseSuccessCompatCopyWith<$Res> get field0 {
-    return $PrepareDetailedResponseSuccessCompatCopyWith<$Res>(_value.field0,
+  $PrepareDetailedResponseSuccessCompatCopyWith<$Res> get value {
+    return $PrepareDetailedResponseSuccessCompatCopyWith<$Res>(_value.value,
         (value) {
-      return _then(_value.copyWith(field0: value));
+      return _then(_value.copyWith(value: value));
     });
   }
 }
@@ -355,14 +355,15 @@ class __$$PrepareDetailedResponseCompat_SuccessImplCopyWithImpl<$Res>
 
 class _$PrepareDetailedResponseCompat_SuccessImpl
     extends PrepareDetailedResponseCompat_Success {
-  const _$PrepareDetailedResponseCompat_SuccessImpl(this.field0) : super._();
+  const _$PrepareDetailedResponseCompat_SuccessImpl({required this.value})
+      : super._();
 
   @override
-  final PrepareDetailedResponseSuccessCompat field0;
+  final PrepareDetailedResponseSuccessCompat value;
 
   @override
   String toString() {
-    return 'PrepareDetailedResponseCompat.success(field0: $field0)';
+    return 'PrepareDetailedResponseCompat.success(value: $value)';
   }
 
   @override
@@ -370,11 +371,11 @@ class _$PrepareDetailedResponseCompat_SuccessImpl
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
             other is _$PrepareDetailedResponseCompat_SuccessImpl &&
-            (identical(other.field0, field0) || other.field0 == field0));
+            (identical(other.value, value) || other.value == value));
   }
 
   @override
-  int get hashCode => Object.hash(runtimeType, field0);
+  int get hashCode => Object.hash(runtimeType, value);
 
   /// Create a copy of PrepareDetailedResponseCompat
   /// with the given fields replaced by the non-null parameter values.
@@ -389,31 +390,31 @@ class _$PrepareDetailedResponseCompat_SuccessImpl
   @override
   @optionalTypeArgs
   TResult when<TResult extends Object?>({
-    required TResult Function(PrepareDetailedResponseSuccessCompat field0)
+    required TResult Function(PrepareDetailedResponseSuccessCompat value)
         success,
-    required TResult Function(PrepareResponseError field0) error,
+    required TResult Function(PrepareResponseError value) error,
   }) {
-    return success(field0);
+    return success(value);
   }
 
   @override
   @optionalTypeArgs
   TResult? whenOrNull<TResult extends Object?>({
-    TResult? Function(PrepareDetailedResponseSuccessCompat field0)? success,
-    TResult? Function(PrepareResponseError field0)? error,
+    TResult? Function(PrepareDetailedResponseSuccessCompat value)? success,
+    TResult? Function(PrepareResponseError value)? error,
   }) {
-    return success?.call(field0);
+    return success?.call(value);
   }
 
   @override
   @optionalTypeArgs
   TResult maybeWhen<TResult extends Object?>({
-    TResult Function(PrepareDetailedResponseSuccessCompat field0)? success,
-    TResult Function(PrepareResponseError field0)? error,
+    TResult Function(PrepareDetailedResponseSuccessCompat value)? success,
+    TResult Function(PrepareResponseError value)? error,
     required TResult orElse(),
   }) {
     if (success != null) {
-      return success(field0);
+      return success(value);
     }
     return orElse();
   }
@@ -454,12 +455,12 @@ class _$PrepareDetailedResponseCompat_SuccessImpl
 abstract class PrepareDetailedResponseCompat_Success
     extends PrepareDetailedResponseCompat {
   const factory PrepareDetailedResponseCompat_Success(
-          final PrepareDetailedResponseSuccessCompat field0) =
+          {required final PrepareDetailedResponseSuccessCompat value}) =
       _$PrepareDetailedResponseCompat_SuccessImpl;
   const PrepareDetailedResponseCompat_Success._() : super._();
 
   @override
-  PrepareDetailedResponseSuccessCompat get field0;
+  PrepareDetailedResponseSuccessCompat get value;
 
   /// Create a copy of PrepareDetailedResponseCompat
   /// with the given fields replaced by the non-null parameter values.
@@ -476,7 +477,7 @@ abstract class _$$PrepareDetailedResponseCompat_ErrorImplCopyWith<$Res> {
           $Res Function(_$PrepareDetailedResponseCompat_ErrorImpl) then) =
       __$$PrepareDetailedResponseCompat_ErrorImplCopyWithImpl<$Res>;
   @useResult
-  $Res call({PrepareResponseError field0});
+  $Res call({PrepareResponseError value});
 }
 
 /// @nodoc
@@ -494,12 +495,12 @@ class __$$PrepareDetailedResponseCompat_ErrorImplCopyWithImpl<$Res>
   @pragma('vm:prefer-inline')
   @override
   $Res call({
-    Object? field0 = null,
+    Object? value = null,
   }) {
     return _then(_$PrepareDetailedResponseCompat_ErrorImpl(
-      null == field0
-          ? _value.field0
-          : field0 // ignore: cast_nullable_to_non_nullable
+      value: null == value
+          ? _value.value
+          : value // ignore: cast_nullable_to_non_nullable
               as PrepareResponseError,
     ));
   }
@@ -509,14 +510,15 @@ class __$$PrepareDetailedResponseCompat_ErrorImplCopyWithImpl<$Res>
 
 class _$PrepareDetailedResponseCompat_ErrorImpl
     extends PrepareDetailedResponseCompat_Error {
-  const _$PrepareDetailedResponseCompat_ErrorImpl(this.field0) : super._();
+  const _$PrepareDetailedResponseCompat_ErrorImpl({required this.value})
+      : super._();
 
   @override
-  final PrepareResponseError field0;
+  final PrepareResponseError value;
 
   @override
   String toString() {
-    return 'PrepareDetailedResponseCompat.error(field0: $field0)';
+    return 'PrepareDetailedResponseCompat.error(value: $value)';
   }
 
   @override
@@ -524,11 +526,11 @@ class _$PrepareDetailedResponseCompat_ErrorImpl
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
             other is _$PrepareDetailedResponseCompat_ErrorImpl &&
-            (identical(other.field0, field0) || other.field0 == field0));
+            (identical(other.value, value) || other.value == value));
   }
 
   @override
-  int get hashCode => Object.hash(runtimeType, field0);
+  int get hashCode => Object.hash(runtimeType, value);
 
   /// Create a copy of PrepareDetailedResponseCompat
   /// with the given fields replaced by the non-null parameter values.
@@ -543,31 +545,31 @@ class _$PrepareDetailedResponseCompat_ErrorImpl
   @override
   @optionalTypeArgs
   TResult when<TResult extends Object?>({
-    required TResult Function(PrepareDetailedResponseSuccessCompat field0)
+    required TResult Function(PrepareDetailedResponseSuccessCompat value)
         success,
-    required TResult Function(PrepareResponseError field0) error,
+    required TResult Function(PrepareResponseError value) error,
   }) {
-    return error(field0);
+    return error(value);
   }
 
   @override
   @optionalTypeArgs
   TResult? whenOrNull<TResult extends Object?>({
-    TResult? Function(PrepareDetailedResponseSuccessCompat field0)? success,
-    TResult? Function(PrepareResponseError field0)? error,
+    TResult? Function(PrepareDetailedResponseSuccessCompat value)? success,
+    TResult? Function(PrepareResponseError value)? error,
   }) {
-    return error?.call(field0);
+    return error?.call(value);
   }
 
   @override
   @optionalTypeArgs
   TResult maybeWhen<TResult extends Object?>({
-    TResult Function(PrepareDetailedResponseSuccessCompat field0)? success,
-    TResult Function(PrepareResponseError field0)? error,
+    TResult Function(PrepareDetailedResponseSuccessCompat value)? success,
+    TResult Function(PrepareResponseError value)? error,
     required TResult orElse(),
   }) {
     if (error != null) {
-      return error(field0);
+      return error(value);
     }
     return orElse();
   }
@@ -608,12 +610,12 @@ class _$PrepareDetailedResponseCompat_ErrorImpl
 abstract class PrepareDetailedResponseCompat_Error
     extends PrepareDetailedResponseCompat {
   const factory PrepareDetailedResponseCompat_Error(
-          final PrepareResponseError field0) =
+          {required final PrepareResponseError value}) =
       _$PrepareDetailedResponseCompat_ErrorImpl;
   const PrepareDetailedResponseCompat_Error._() : super._();
 
   @override
-  PrepareResponseError get field0;
+  PrepareResponseError get value;
 
   /// Create a copy of PrepareDetailedResponseCompat
   /// with the given fields replaced by the non-null parameter values.
@@ -625,24 +627,24 @@ abstract class PrepareDetailedResponseCompat_Error
 
 /// @nodoc
 mixin _$PrepareDetailedResponseSuccessCompat {
-  Object get field0 => throw _privateConstructorUsedError;
+  Object get value => throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult when<TResult extends Object?>({
-    required TResult Function(UiFieldsCompat field0) available,
-    required TResult Function(PrepareResponseNotRequiredCompat field0)
+    required TResult Function(UiFieldsCompat value) available,
+    required TResult Function(PrepareResponseNotRequiredCompat value)
         notRequired,
   }) =>
       throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult? whenOrNull<TResult extends Object?>({
-    TResult? Function(UiFieldsCompat field0)? available,
-    TResult? Function(PrepareResponseNotRequiredCompat field0)? notRequired,
+    TResult? Function(UiFieldsCompat value)? available,
+    TResult? Function(PrepareResponseNotRequiredCompat value)? notRequired,
   }) =>
       throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult maybeWhen<TResult extends Object?>({
-    TResult Function(UiFieldsCompat field0)? available,
-    TResult Function(PrepareResponseNotRequiredCompat field0)? notRequired,
+    TResult Function(UiFieldsCompat value)? available,
+    TResult Function(PrepareResponseNotRequiredCompat value)? notRequired,
     required TResult orElse(),
   }) =>
       throw _privateConstructorUsedError;
@@ -708,7 +710,7 @@ abstract class _$$PrepareDetailedResponseSuccessCompat_AvailableImplCopyWith<
               then) =
       __$$PrepareDetailedResponseSuccessCompat_AvailableImplCopyWithImpl<$Res>;
   @useResult
-  $Res call({UiFieldsCompat field0});
+  $Res call({UiFieldsCompat value});
 }
 
 /// @nodoc
@@ -727,12 +729,12 @@ class __$$PrepareDetailedResponseSuccessCompat_AvailableImplCopyWithImpl<$Res>
   @pragma('vm:prefer-inline')
   @override
   $Res call({
-    Object? field0 = null,
+    Object? value = null,
   }) {
     return _then(_$PrepareDetailedResponseSuccessCompat_AvailableImpl(
-      null == field0
-          ? _value.field0
-          : field0 // ignore: cast_nullable_to_non_nullable
+      value: null == value
+          ? _value.value
+          : value // ignore: cast_nullable_to_non_nullable
               as UiFieldsCompat,
     ));
   }
@@ -742,15 +744,16 @@ class __$$PrepareDetailedResponseSuccessCompat_AvailableImplCopyWithImpl<$Res>
 
 class _$PrepareDetailedResponseSuccessCompat_AvailableImpl
     extends PrepareDetailedResponseSuccessCompat_Available {
-  const _$PrepareDetailedResponseSuccessCompat_AvailableImpl(this.field0)
+  const _$PrepareDetailedResponseSuccessCompat_AvailableImpl(
+      {required this.value})
       : super._();
 
   @override
-  final UiFieldsCompat field0;
+  final UiFieldsCompat value;
 
   @override
   String toString() {
-    return 'PrepareDetailedResponseSuccessCompat.available(field0: $field0)';
+    return 'PrepareDetailedResponseSuccessCompat.available(value: $value)';
   }
 
   @override
@@ -758,11 +761,11 @@ class _$PrepareDetailedResponseSuccessCompat_AvailableImpl
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
             other is _$PrepareDetailedResponseSuccessCompat_AvailableImpl &&
-            (identical(other.field0, field0) || other.field0 == field0));
+            (identical(other.value, value) || other.value == value));
   }
 
   @override
-  int get hashCode => Object.hash(runtimeType, field0);
+  int get hashCode => Object.hash(runtimeType, value);
 
   /// Create a copy of PrepareDetailedResponseSuccessCompat
   /// with the given fields replaced by the non-null parameter values.
@@ -779,31 +782,31 @@ class _$PrepareDetailedResponseSuccessCompat_AvailableImpl
   @override
   @optionalTypeArgs
   TResult when<TResult extends Object?>({
-    required TResult Function(UiFieldsCompat field0) available,
-    required TResult Function(PrepareResponseNotRequiredCompat field0)
+    required TResult Function(UiFieldsCompat value) available,
+    required TResult Function(PrepareResponseNotRequiredCompat value)
         notRequired,
   }) {
-    return available(field0);
+    return available(value);
   }
 
   @override
   @optionalTypeArgs
   TResult? whenOrNull<TResult extends Object?>({
-    TResult? Function(UiFieldsCompat field0)? available,
-    TResult? Function(PrepareResponseNotRequiredCompat field0)? notRequired,
+    TResult? Function(UiFieldsCompat value)? available,
+    TResult? Function(PrepareResponseNotRequiredCompat value)? notRequired,
   }) {
-    return available?.call(field0);
+    return available?.call(value);
   }
 
   @override
   @optionalTypeArgs
   TResult maybeWhen<TResult extends Object?>({
-    TResult Function(UiFieldsCompat field0)? available,
-    TResult Function(PrepareResponseNotRequiredCompat field0)? notRequired,
+    TResult Function(UiFieldsCompat value)? available,
+    TResult Function(PrepareResponseNotRequiredCompat value)? notRequired,
     required TResult orElse(),
   }) {
     if (available != null) {
-      return available(field0);
+      return available(value);
     }
     return orElse();
   }
@@ -851,12 +854,12 @@ class _$PrepareDetailedResponseSuccessCompat_AvailableImpl
 abstract class PrepareDetailedResponseSuccessCompat_Available
     extends PrepareDetailedResponseSuccessCompat {
   const factory PrepareDetailedResponseSuccessCompat_Available(
-          final UiFieldsCompat field0) =
+          {required final UiFieldsCompat value}) =
       _$PrepareDetailedResponseSuccessCompat_AvailableImpl;
   const PrepareDetailedResponseSuccessCompat_Available._() : super._();
 
   @override
-  UiFieldsCompat get field0;
+  UiFieldsCompat get value;
 
   /// Create a copy of PrepareDetailedResponseSuccessCompat
   /// with the given fields replaced by the non-null parameter values.
@@ -876,7 +879,7 @@ abstract class _$$PrepareDetailedResponseSuccessCompat_NotRequiredImplCopyWith<
       __$$PrepareDetailedResponseSuccessCompat_NotRequiredImplCopyWithImpl<
           $Res>;
   @useResult
-  $Res call({PrepareResponseNotRequiredCompat field0});
+  $Res call({PrepareResponseNotRequiredCompat value});
 }
 
 /// @nodoc
@@ -896,12 +899,12 @@ class __$$PrepareDetailedResponseSuccessCompat_NotRequiredImplCopyWithImpl<$Res>
   @pragma('vm:prefer-inline')
   @override
   $Res call({
-    Object? field0 = null,
+    Object? value = null,
   }) {
     return _then(_$PrepareDetailedResponseSuccessCompat_NotRequiredImpl(
-      null == field0
-          ? _value.field0
-          : field0 // ignore: cast_nullable_to_non_nullable
+      value: null == value
+          ? _value.value
+          : value // ignore: cast_nullable_to_non_nullable
               as PrepareResponseNotRequiredCompat,
     ));
   }
@@ -911,15 +914,16 @@ class __$$PrepareDetailedResponseSuccessCompat_NotRequiredImplCopyWithImpl<$Res>
 
 class _$PrepareDetailedResponseSuccessCompat_NotRequiredImpl
     extends PrepareDetailedResponseSuccessCompat_NotRequired {
-  const _$PrepareDetailedResponseSuccessCompat_NotRequiredImpl(this.field0)
+  const _$PrepareDetailedResponseSuccessCompat_NotRequiredImpl(
+      {required this.value})
       : super._();
 
   @override
-  final PrepareResponseNotRequiredCompat field0;
+  final PrepareResponseNotRequiredCompat value;
 
   @override
   String toString() {
-    return 'PrepareDetailedResponseSuccessCompat.notRequired(field0: $field0)';
+    return 'PrepareDetailedResponseSuccessCompat.notRequired(value: $value)';
   }
 
   @override
@@ -927,11 +931,11 @@ class _$PrepareDetailedResponseSuccessCompat_NotRequiredImpl
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
             other is _$PrepareDetailedResponseSuccessCompat_NotRequiredImpl &&
-            (identical(other.field0, field0) || other.field0 == field0));
+            (identical(other.value, value) || other.value == value));
   }
 
   @override
-  int get hashCode => Object.hash(runtimeType, field0);
+  int get hashCode => Object.hash(runtimeType, value);
 
   /// Create a copy of PrepareDetailedResponseSuccessCompat
   /// with the given fields replaced by the non-null parameter values.
@@ -948,31 +952,31 @@ class _$PrepareDetailedResponseSuccessCompat_NotRequiredImpl
   @override
   @optionalTypeArgs
   TResult when<TResult extends Object?>({
-    required TResult Function(UiFieldsCompat field0) available,
-    required TResult Function(PrepareResponseNotRequiredCompat field0)
+    required TResult Function(UiFieldsCompat value) available,
+    required TResult Function(PrepareResponseNotRequiredCompat value)
         notRequired,
   }) {
-    return notRequired(field0);
+    return notRequired(value);
   }
 
   @override
   @optionalTypeArgs
   TResult? whenOrNull<TResult extends Object?>({
-    TResult? Function(UiFieldsCompat field0)? available,
-    TResult? Function(PrepareResponseNotRequiredCompat field0)? notRequired,
+    TResult? Function(UiFieldsCompat value)? available,
+    TResult? Function(PrepareResponseNotRequiredCompat value)? notRequired,
   }) {
-    return notRequired?.call(field0);
+    return notRequired?.call(value);
   }
 
   @override
   @optionalTypeArgs
   TResult maybeWhen<TResult extends Object?>({
-    TResult Function(UiFieldsCompat field0)? available,
-    TResult Function(PrepareResponseNotRequiredCompat field0)? notRequired,
+    TResult Function(UiFieldsCompat value)? available,
+    TResult Function(PrepareResponseNotRequiredCompat value)? notRequired,
     required TResult orElse(),
   }) {
     if (notRequired != null) {
-      return notRequired(field0);
+      return notRequired(value);
     }
     return orElse();
   }
@@ -1020,17 +1024,783 @@ class _$PrepareDetailedResponseSuccessCompat_NotRequiredImpl
 abstract class PrepareDetailedResponseSuccessCompat_NotRequired
     extends PrepareDetailedResponseSuccessCompat {
   const factory PrepareDetailedResponseSuccessCompat_NotRequired(
-          final PrepareResponseNotRequiredCompat field0) =
+          {required final PrepareResponseNotRequiredCompat value}) =
       _$PrepareDetailedResponseSuccessCompat_NotRequiredImpl;
   const PrepareDetailedResponseSuccessCompat_NotRequired._() : super._();
 
   @override
-  PrepareResponseNotRequiredCompat get field0;
+  PrepareResponseNotRequiredCompat get value;
 
   /// Create a copy of PrepareDetailedResponseSuccessCompat
   /// with the given fields replaced by the non-null parameter values.
   @JsonKey(includeFromJson: false, includeToJson: false)
   _$$PrepareDetailedResponseSuccessCompat_NotRequiredImplCopyWith<
           _$PrepareDetailedResponseSuccessCompat_NotRequiredImpl>
+      get copyWith => throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+mixin _$PrepareResponseCompat {
+  Object get field0 => throw _privateConstructorUsedError;
+  @optionalTypeArgs
+  TResult when<TResult extends Object?>({
+    required TResult Function(PrepareResponseSuccessCompat field0) success,
+    required TResult Function(PrepareResponseErrorCompat field0) error,
+  }) =>
+      throw _privateConstructorUsedError;
+  @optionalTypeArgs
+  TResult? whenOrNull<TResult extends Object?>({
+    TResult? Function(PrepareResponseSuccessCompat field0)? success,
+    TResult? Function(PrepareResponseErrorCompat field0)? error,
+  }) =>
+      throw _privateConstructorUsedError;
+  @optionalTypeArgs
+  TResult maybeWhen<TResult extends Object?>({
+    TResult Function(PrepareResponseSuccessCompat field0)? success,
+    TResult Function(PrepareResponseErrorCompat field0)? error,
+    required TResult orElse(),
+  }) =>
+      throw _privateConstructorUsedError;
+  @optionalTypeArgs
+  TResult map<TResult extends Object?>({
+    required TResult Function(PrepareResponseCompat_Success value) success,
+    required TResult Function(PrepareResponseCompat_Error value) error,
+  }) =>
+      throw _privateConstructorUsedError;
+  @optionalTypeArgs
+  TResult? mapOrNull<TResult extends Object?>({
+    TResult? Function(PrepareResponseCompat_Success value)? success,
+    TResult? Function(PrepareResponseCompat_Error value)? error,
+  }) =>
+      throw _privateConstructorUsedError;
+  @optionalTypeArgs
+  TResult maybeMap<TResult extends Object?>({
+    TResult Function(PrepareResponseCompat_Success value)? success,
+    TResult Function(PrepareResponseCompat_Error value)? error,
+    required TResult orElse(),
+  }) =>
+      throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class $PrepareResponseCompatCopyWith<$Res> {
+  factory $PrepareResponseCompatCopyWith(PrepareResponseCompat value,
+          $Res Function(PrepareResponseCompat) then) =
+      _$PrepareResponseCompatCopyWithImpl<$Res, PrepareResponseCompat>;
+}
+
+/// @nodoc
+class _$PrepareResponseCompatCopyWithImpl<$Res,
+        $Val extends PrepareResponseCompat>
+    implements $PrepareResponseCompatCopyWith<$Res> {
+  _$PrepareResponseCompatCopyWithImpl(this._value, this._then);
+
+  // ignore: unused_field
+  final $Val _value;
+  // ignore: unused_field
+  final $Res Function($Val) _then;
+
+  /// Create a copy of PrepareResponseCompat
+  /// with the given fields replaced by the non-null parameter values.
+}
+
+/// @nodoc
+abstract class _$$PrepareResponseCompat_SuccessImplCopyWith<$Res> {
+  factory _$$PrepareResponseCompat_SuccessImplCopyWith(
+          _$PrepareResponseCompat_SuccessImpl value,
+          $Res Function(_$PrepareResponseCompat_SuccessImpl) then) =
+      __$$PrepareResponseCompat_SuccessImplCopyWithImpl<$Res>;
+  @useResult
+  $Res call({PrepareResponseSuccessCompat field0});
+
+  $PrepareResponseSuccessCompatCopyWith<$Res> get field0;
+}
+
+/// @nodoc
+class __$$PrepareResponseCompat_SuccessImplCopyWithImpl<$Res>
+    extends _$PrepareResponseCompatCopyWithImpl<$Res,
+        _$PrepareResponseCompat_SuccessImpl>
+    implements _$$PrepareResponseCompat_SuccessImplCopyWith<$Res> {
+  __$$PrepareResponseCompat_SuccessImplCopyWithImpl(
+      _$PrepareResponseCompat_SuccessImpl _value,
+      $Res Function(_$PrepareResponseCompat_SuccessImpl) _then)
+      : super(_value, _then);
+
+  /// Create a copy of PrepareResponseCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? field0 = null,
+  }) {
+    return _then(_$PrepareResponseCompat_SuccessImpl(
+      null == field0
+          ? _value.field0
+          : field0 // ignore: cast_nullable_to_non_nullable
+              as PrepareResponseSuccessCompat,
+    ));
+  }
+
+  /// Create a copy of PrepareResponseCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $PrepareResponseSuccessCompatCopyWith<$Res> get field0 {
+    return $PrepareResponseSuccessCompatCopyWith<$Res>(_value.field0, (value) {
+      return _then(_value.copyWith(field0: value));
+    });
+  }
+}
+
+/// @nodoc
+
+class _$PrepareResponseCompat_SuccessImpl
+    extends PrepareResponseCompat_Success {
+  const _$PrepareResponseCompat_SuccessImpl(this.field0) : super._();
+
+  @override
+  final PrepareResponseSuccessCompat field0;
+
+  @override
+  String toString() {
+    return 'PrepareResponseCompat.success(field0: $field0)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$PrepareResponseCompat_SuccessImpl &&
+            (identical(other.field0, field0) || other.field0 == field0));
+  }
+
+  @override
+  int get hashCode => Object.hash(runtimeType, field0);
+
+  /// Create a copy of PrepareResponseCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$PrepareResponseCompat_SuccessImplCopyWith<
+          _$PrepareResponseCompat_SuccessImpl>
+      get copyWith => __$$PrepareResponseCompat_SuccessImplCopyWithImpl<
+          _$PrepareResponseCompat_SuccessImpl>(this, _$identity);
+
+  @override
+  @optionalTypeArgs
+  TResult when<TResult extends Object?>({
+    required TResult Function(PrepareResponseSuccessCompat field0) success,
+    required TResult Function(PrepareResponseErrorCompat field0) error,
+  }) {
+    return success(field0);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? whenOrNull<TResult extends Object?>({
+    TResult? Function(PrepareResponseSuccessCompat field0)? success,
+    TResult? Function(PrepareResponseErrorCompat field0)? error,
+  }) {
+    return success?.call(field0);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeWhen<TResult extends Object?>({
+    TResult Function(PrepareResponseSuccessCompat field0)? success,
+    TResult Function(PrepareResponseErrorCompat field0)? error,
+    required TResult orElse(),
+  }) {
+    if (success != null) {
+      return success(field0);
+    }
+    return orElse();
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult map<TResult extends Object?>({
+    required TResult Function(PrepareResponseCompat_Success value) success,
+    required TResult Function(PrepareResponseCompat_Error value) error,
+  }) {
+    return success(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? mapOrNull<TResult extends Object?>({
+    TResult? Function(PrepareResponseCompat_Success value)? success,
+    TResult? Function(PrepareResponseCompat_Error value)? error,
+  }) {
+    return success?.call(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeMap<TResult extends Object?>({
+    TResult Function(PrepareResponseCompat_Success value)? success,
+    TResult Function(PrepareResponseCompat_Error value)? error,
+    required TResult orElse(),
+  }) {
+    if (success != null) {
+      return success(this);
+    }
+    return orElse();
+  }
+}
+
+abstract class PrepareResponseCompat_Success extends PrepareResponseCompat {
+  const factory PrepareResponseCompat_Success(
+          final PrepareResponseSuccessCompat field0) =
+      _$PrepareResponseCompat_SuccessImpl;
+  const PrepareResponseCompat_Success._() : super._();
+
+  @override
+  PrepareResponseSuccessCompat get field0;
+
+  /// Create a copy of PrepareResponseCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  _$$PrepareResponseCompat_SuccessImplCopyWith<
+          _$PrepareResponseCompat_SuccessImpl>
+      get copyWith => throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class _$$PrepareResponseCompat_ErrorImplCopyWith<$Res> {
+  factory _$$PrepareResponseCompat_ErrorImplCopyWith(
+          _$PrepareResponseCompat_ErrorImpl value,
+          $Res Function(_$PrepareResponseCompat_ErrorImpl) then) =
+      __$$PrepareResponseCompat_ErrorImplCopyWithImpl<$Res>;
+  @useResult
+  $Res call({PrepareResponseErrorCompat field0});
+}
+
+/// @nodoc
+class __$$PrepareResponseCompat_ErrorImplCopyWithImpl<$Res>
+    extends _$PrepareResponseCompatCopyWithImpl<$Res,
+        _$PrepareResponseCompat_ErrorImpl>
+    implements _$$PrepareResponseCompat_ErrorImplCopyWith<$Res> {
+  __$$PrepareResponseCompat_ErrorImplCopyWithImpl(
+      _$PrepareResponseCompat_ErrorImpl _value,
+      $Res Function(_$PrepareResponseCompat_ErrorImpl) _then)
+      : super(_value, _then);
+
+  /// Create a copy of PrepareResponseCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? field0 = null,
+  }) {
+    return _then(_$PrepareResponseCompat_ErrorImpl(
+      null == field0
+          ? _value.field0
+          : field0 // ignore: cast_nullable_to_non_nullable
+              as PrepareResponseErrorCompat,
+    ));
+  }
+}
+
+/// @nodoc
+
+class _$PrepareResponseCompat_ErrorImpl extends PrepareResponseCompat_Error {
+  const _$PrepareResponseCompat_ErrorImpl(this.field0) : super._();
+
+  @override
+  final PrepareResponseErrorCompat field0;
+
+  @override
+  String toString() {
+    return 'PrepareResponseCompat.error(field0: $field0)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$PrepareResponseCompat_ErrorImpl &&
+            (identical(other.field0, field0) || other.field0 == field0));
+  }
+
+  @override
+  int get hashCode => Object.hash(runtimeType, field0);
+
+  /// Create a copy of PrepareResponseCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$PrepareResponseCompat_ErrorImplCopyWith<_$PrepareResponseCompat_ErrorImpl>
+      get copyWith => __$$PrepareResponseCompat_ErrorImplCopyWithImpl<
+          _$PrepareResponseCompat_ErrorImpl>(this, _$identity);
+
+  @override
+  @optionalTypeArgs
+  TResult when<TResult extends Object?>({
+    required TResult Function(PrepareResponseSuccessCompat field0) success,
+    required TResult Function(PrepareResponseErrorCompat field0) error,
+  }) {
+    return error(field0);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? whenOrNull<TResult extends Object?>({
+    TResult? Function(PrepareResponseSuccessCompat field0)? success,
+    TResult? Function(PrepareResponseErrorCompat field0)? error,
+  }) {
+    return error?.call(field0);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeWhen<TResult extends Object?>({
+    TResult Function(PrepareResponseSuccessCompat field0)? success,
+    TResult Function(PrepareResponseErrorCompat field0)? error,
+    required TResult orElse(),
+  }) {
+    if (error != null) {
+      return error(field0);
+    }
+    return orElse();
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult map<TResult extends Object?>({
+    required TResult Function(PrepareResponseCompat_Success value) success,
+    required TResult Function(PrepareResponseCompat_Error value) error,
+  }) {
+    return error(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? mapOrNull<TResult extends Object?>({
+    TResult? Function(PrepareResponseCompat_Success value)? success,
+    TResult? Function(PrepareResponseCompat_Error value)? error,
+  }) {
+    return error?.call(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeMap<TResult extends Object?>({
+    TResult Function(PrepareResponseCompat_Success value)? success,
+    TResult Function(PrepareResponseCompat_Error value)? error,
+    required TResult orElse(),
+  }) {
+    if (error != null) {
+      return error(this);
+    }
+    return orElse();
+  }
+}
+
+abstract class PrepareResponseCompat_Error extends PrepareResponseCompat {
+  const factory PrepareResponseCompat_Error(
+          final PrepareResponseErrorCompat field0) =
+      _$PrepareResponseCompat_ErrorImpl;
+  const PrepareResponseCompat_Error._() : super._();
+
+  @override
+  PrepareResponseErrorCompat get field0;
+
+  /// Create a copy of PrepareResponseCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  _$$PrepareResponseCompat_ErrorImplCopyWith<_$PrepareResponseCompat_ErrorImpl>
+      get copyWith => throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+mixin _$PrepareResponseSuccessCompat {
+  Object get value => throw _privateConstructorUsedError;
+  @optionalTypeArgs
+  TResult when<TResult extends Object?>({
+    required TResult Function(PrepareResponseAvailableCompat value) available,
+    required TResult Function(PrepareResponseNotRequiredCompat value)
+        notRequired,
+  }) =>
+      throw _privateConstructorUsedError;
+  @optionalTypeArgs
+  TResult? whenOrNull<TResult extends Object?>({
+    TResult? Function(PrepareResponseAvailableCompat value)? available,
+    TResult? Function(PrepareResponseNotRequiredCompat value)? notRequired,
+  }) =>
+      throw _privateConstructorUsedError;
+  @optionalTypeArgs
+  TResult maybeWhen<TResult extends Object?>({
+    TResult Function(PrepareResponseAvailableCompat value)? available,
+    TResult Function(PrepareResponseNotRequiredCompat value)? notRequired,
+    required TResult orElse(),
+  }) =>
+      throw _privateConstructorUsedError;
+  @optionalTypeArgs
+  TResult map<TResult extends Object?>({
+    required TResult Function(PrepareResponseSuccessCompat_Available value)
+        available,
+    required TResult Function(PrepareResponseSuccessCompat_NotRequired value)
+        notRequired,
+  }) =>
+      throw _privateConstructorUsedError;
+  @optionalTypeArgs
+  TResult? mapOrNull<TResult extends Object?>({
+    TResult? Function(PrepareResponseSuccessCompat_Available value)? available,
+    TResult? Function(PrepareResponseSuccessCompat_NotRequired value)?
+        notRequired,
+  }) =>
+      throw _privateConstructorUsedError;
+  @optionalTypeArgs
+  TResult maybeMap<TResult extends Object?>({
+    TResult Function(PrepareResponseSuccessCompat_Available value)? available,
+    TResult Function(PrepareResponseSuccessCompat_NotRequired value)?
+        notRequired,
+    required TResult orElse(),
+  }) =>
+      throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class $PrepareResponseSuccessCompatCopyWith<$Res> {
+  factory $PrepareResponseSuccessCompatCopyWith(
+          PrepareResponseSuccessCompat value,
+          $Res Function(PrepareResponseSuccessCompat) then) =
+      _$PrepareResponseSuccessCompatCopyWithImpl<$Res,
+          PrepareResponseSuccessCompat>;
+}
+
+/// @nodoc
+class _$PrepareResponseSuccessCompatCopyWithImpl<$Res,
+        $Val extends PrepareResponseSuccessCompat>
+    implements $PrepareResponseSuccessCompatCopyWith<$Res> {
+  _$PrepareResponseSuccessCompatCopyWithImpl(this._value, this._then);
+
+  // ignore: unused_field
+  final $Val _value;
+  // ignore: unused_field
+  final $Res Function($Val) _then;
+
+  /// Create a copy of PrepareResponseSuccessCompat
+  /// with the given fields replaced by the non-null parameter values.
+}
+
+/// @nodoc
+abstract class _$$PrepareResponseSuccessCompat_AvailableImplCopyWith<$Res> {
+  factory _$$PrepareResponseSuccessCompat_AvailableImplCopyWith(
+          _$PrepareResponseSuccessCompat_AvailableImpl value,
+          $Res Function(_$PrepareResponseSuccessCompat_AvailableImpl) then) =
+      __$$PrepareResponseSuccessCompat_AvailableImplCopyWithImpl<$Res>;
+  @useResult
+  $Res call({PrepareResponseAvailableCompat value});
+}
+
+/// @nodoc
+class __$$PrepareResponseSuccessCompat_AvailableImplCopyWithImpl<$Res>
+    extends _$PrepareResponseSuccessCompatCopyWithImpl<$Res,
+        _$PrepareResponseSuccessCompat_AvailableImpl>
+    implements _$$PrepareResponseSuccessCompat_AvailableImplCopyWith<$Res> {
+  __$$PrepareResponseSuccessCompat_AvailableImplCopyWithImpl(
+      _$PrepareResponseSuccessCompat_AvailableImpl _value,
+      $Res Function(_$PrepareResponseSuccessCompat_AvailableImpl) _then)
+      : super(_value, _then);
+
+  /// Create a copy of PrepareResponseSuccessCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? value = null,
+  }) {
+    return _then(_$PrepareResponseSuccessCompat_AvailableImpl(
+      value: null == value
+          ? _value.value
+          : value // ignore: cast_nullable_to_non_nullable
+              as PrepareResponseAvailableCompat,
+    ));
+  }
+}
+
+/// @nodoc
+
+class _$PrepareResponseSuccessCompat_AvailableImpl
+    extends PrepareResponseSuccessCompat_Available {
+  const _$PrepareResponseSuccessCompat_AvailableImpl({required this.value})
+      : super._();
+
+  @override
+  final PrepareResponseAvailableCompat value;
+
+  @override
+  String toString() {
+    return 'PrepareResponseSuccessCompat.available(value: $value)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$PrepareResponseSuccessCompat_AvailableImpl &&
+            (identical(other.value, value) || other.value == value));
+  }
+
+  @override
+  int get hashCode => Object.hash(runtimeType, value);
+
+  /// Create a copy of PrepareResponseSuccessCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$PrepareResponseSuccessCompat_AvailableImplCopyWith<
+          _$PrepareResponseSuccessCompat_AvailableImpl>
+      get copyWith =>
+          __$$PrepareResponseSuccessCompat_AvailableImplCopyWithImpl<
+              _$PrepareResponseSuccessCompat_AvailableImpl>(this, _$identity);
+
+  @override
+  @optionalTypeArgs
+  TResult when<TResult extends Object?>({
+    required TResult Function(PrepareResponseAvailableCompat value) available,
+    required TResult Function(PrepareResponseNotRequiredCompat value)
+        notRequired,
+  }) {
+    return available(value);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? whenOrNull<TResult extends Object?>({
+    TResult? Function(PrepareResponseAvailableCompat value)? available,
+    TResult? Function(PrepareResponseNotRequiredCompat value)? notRequired,
+  }) {
+    return available?.call(value);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeWhen<TResult extends Object?>({
+    TResult Function(PrepareResponseAvailableCompat value)? available,
+    TResult Function(PrepareResponseNotRequiredCompat value)? notRequired,
+    required TResult orElse(),
+  }) {
+    if (available != null) {
+      return available(value);
+    }
+    return orElse();
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult map<TResult extends Object?>({
+    required TResult Function(PrepareResponseSuccessCompat_Available value)
+        available,
+    required TResult Function(PrepareResponseSuccessCompat_NotRequired value)
+        notRequired,
+  }) {
+    return available(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? mapOrNull<TResult extends Object?>({
+    TResult? Function(PrepareResponseSuccessCompat_Available value)? available,
+    TResult? Function(PrepareResponseSuccessCompat_NotRequired value)?
+        notRequired,
+  }) {
+    return available?.call(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeMap<TResult extends Object?>({
+    TResult Function(PrepareResponseSuccessCompat_Available value)? available,
+    TResult Function(PrepareResponseSuccessCompat_NotRequired value)?
+        notRequired,
+    required TResult orElse(),
+  }) {
+    if (available != null) {
+      return available(this);
+    }
+    return orElse();
+  }
+}
+
+abstract class PrepareResponseSuccessCompat_Available
+    extends PrepareResponseSuccessCompat {
+  const factory PrepareResponseSuccessCompat_Available(
+          {required final PrepareResponseAvailableCompat value}) =
+      _$PrepareResponseSuccessCompat_AvailableImpl;
+  const PrepareResponseSuccessCompat_Available._() : super._();
+
+  @override
+  PrepareResponseAvailableCompat get value;
+
+  /// Create a copy of PrepareResponseSuccessCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  _$$PrepareResponseSuccessCompat_AvailableImplCopyWith<
+          _$PrepareResponseSuccessCompat_AvailableImpl>
+      get copyWith => throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class _$$PrepareResponseSuccessCompat_NotRequiredImplCopyWith<$Res> {
+  factory _$$PrepareResponseSuccessCompat_NotRequiredImplCopyWith(
+          _$PrepareResponseSuccessCompat_NotRequiredImpl value,
+          $Res Function(_$PrepareResponseSuccessCompat_NotRequiredImpl) then) =
+      __$$PrepareResponseSuccessCompat_NotRequiredImplCopyWithImpl<$Res>;
+  @useResult
+  $Res call({PrepareResponseNotRequiredCompat value});
+}
+
+/// @nodoc
+class __$$PrepareResponseSuccessCompat_NotRequiredImplCopyWithImpl<$Res>
+    extends _$PrepareResponseSuccessCompatCopyWithImpl<$Res,
+        _$PrepareResponseSuccessCompat_NotRequiredImpl>
+    implements _$$PrepareResponseSuccessCompat_NotRequiredImplCopyWith<$Res> {
+  __$$PrepareResponseSuccessCompat_NotRequiredImplCopyWithImpl(
+      _$PrepareResponseSuccessCompat_NotRequiredImpl _value,
+      $Res Function(_$PrepareResponseSuccessCompat_NotRequiredImpl) _then)
+      : super(_value, _then);
+
+  /// Create a copy of PrepareResponseSuccessCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? value = null,
+  }) {
+    return _then(_$PrepareResponseSuccessCompat_NotRequiredImpl(
+      value: null == value
+          ? _value.value
+          : value // ignore: cast_nullable_to_non_nullable
+              as PrepareResponseNotRequiredCompat,
+    ));
+  }
+}
+
+/// @nodoc
+
+class _$PrepareResponseSuccessCompat_NotRequiredImpl
+    extends PrepareResponseSuccessCompat_NotRequired {
+  const _$PrepareResponseSuccessCompat_NotRequiredImpl({required this.value})
+      : super._();
+
+  @override
+  final PrepareResponseNotRequiredCompat value;
+
+  @override
+  String toString() {
+    return 'PrepareResponseSuccessCompat.notRequired(value: $value)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$PrepareResponseSuccessCompat_NotRequiredImpl &&
+            (identical(other.value, value) || other.value == value));
+  }
+
+  @override
+  int get hashCode => Object.hash(runtimeType, value);
+
+  /// Create a copy of PrepareResponseSuccessCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$PrepareResponseSuccessCompat_NotRequiredImplCopyWith<
+          _$PrepareResponseSuccessCompat_NotRequiredImpl>
+      get copyWith =>
+          __$$PrepareResponseSuccessCompat_NotRequiredImplCopyWithImpl<
+              _$PrepareResponseSuccessCompat_NotRequiredImpl>(this, _$identity);
+
+  @override
+  @optionalTypeArgs
+  TResult when<TResult extends Object?>({
+    required TResult Function(PrepareResponseAvailableCompat value) available,
+    required TResult Function(PrepareResponseNotRequiredCompat value)
+        notRequired,
+  }) {
+    return notRequired(value);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? whenOrNull<TResult extends Object?>({
+    TResult? Function(PrepareResponseAvailableCompat value)? available,
+    TResult? Function(PrepareResponseNotRequiredCompat value)? notRequired,
+  }) {
+    return notRequired?.call(value);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeWhen<TResult extends Object?>({
+    TResult Function(PrepareResponseAvailableCompat value)? available,
+    TResult Function(PrepareResponseNotRequiredCompat value)? notRequired,
+    required TResult orElse(),
+  }) {
+    if (notRequired != null) {
+      return notRequired(value);
+    }
+    return orElse();
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult map<TResult extends Object?>({
+    required TResult Function(PrepareResponseSuccessCompat_Available value)
+        available,
+    required TResult Function(PrepareResponseSuccessCompat_NotRequired value)
+        notRequired,
+  }) {
+    return notRequired(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? mapOrNull<TResult extends Object?>({
+    TResult? Function(PrepareResponseSuccessCompat_Available value)? available,
+    TResult? Function(PrepareResponseSuccessCompat_NotRequired value)?
+        notRequired,
+  }) {
+    return notRequired?.call(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeMap<TResult extends Object?>({
+    TResult Function(PrepareResponseSuccessCompat_Available value)? available,
+    TResult Function(PrepareResponseSuccessCompat_NotRequired value)?
+        notRequired,
+    required TResult orElse(),
+  }) {
+    if (notRequired != null) {
+      return notRequired(this);
+    }
+    return orElse();
+  }
+}
+
+abstract class PrepareResponseSuccessCompat_NotRequired
+    extends PrepareResponseSuccessCompat {
+  const factory PrepareResponseSuccessCompat_NotRequired(
+          {required final PrepareResponseNotRequiredCompat value}) =
+      _$PrepareResponseSuccessCompat_NotRequiredImpl;
+  const PrepareResponseSuccessCompat_NotRequired._() : super._();
+
+  @override
+  PrepareResponseNotRequiredCompat get value;
+
+  /// Create a copy of PrepareResponseSuccessCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  _$$PrepareResponseSuccessCompat_NotRequiredImplCopyWith<
+          _$PrepareResponseSuccessCompat_NotRequiredImpl>
       get copyWith => throw _privateConstructorUsedError;
 }

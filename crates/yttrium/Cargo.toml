@@ -128,3 +128,6 @@ serial_test.workspace = true
 
 [package.metadata.wasm-pack.profile.release]
 wasm-opt = ['-Oz']
+
+# [lints.rust]
+# unexpected_cfgs = { level = "warn", check-cfg = ['cfg(frb_expand)'] }

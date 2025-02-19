@@ -73,6 +73,19 @@ class YttriumDart implements IYttriumClient {
   }
 
   @override
+  Future<PrepareResponseCompat> prepare({
+    required String chainId,
+    required String from,
+    required CallCompat call,
+  }) async {
+    return await _chainAbstractionClient.prepare(
+      chainId: chainId,
+      from: from,
+      call: call,
+    );
+  }
+
+  @override
   Future<PrepareDetailedResponseCompat> prepareDetailed({
     required String chainId,
     required String from,

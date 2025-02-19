@@ -5,8 +5,9 @@ use {
         api::{
             prepare::{
                 BridgingError, FundingMetadata, InitialTransactionMetadata,
-                Metadata, PrepareResponseAvailable, PrepareResponseError,
-                PrepareResponseNotRequired,
+                Metadata, PrepareResponse, PrepareResponseAvailable,
+                PrepareResponseError, PrepareResponseNotRequired,
+                PrepareResponseSuccess,
             },
             FeeEstimatedTransaction, Transaction,
         },
@@ -26,6 +27,8 @@ use {
     },
     std::str::FromStr,
 };
+
+// use flutter_rust_bridge::frb;
 
 #[derive(Debug, thiserror::Error)]
 pub enum ErrorCompat {
@@ -216,7 +219,6 @@ impl From<UiFields> for UiFieldsCompat {
 impl From<UiFieldsCompat> for UiFields {
     fn from(compat: UiFieldsCompat) -> Self {
         Self {
-            // FIXME
             route_response: PrepareResponseAvailable::from(
                 compat.route_response,
             ),
@@ -617,7 +619,7 @@ impl From<TransactionReceiptCompat> for TransactionReceipt {
         type TxHash = alloy::primitives::B256;
         type BlockHash = alloy::primitives::B256;
         type Bloom = alloy::primitives::Bloom;
-        
+
         let dummy_receipt = alloy::rpc::types::Receipt {
             status: alloy::consensus::Eip658Value::Eip658(true),
             cumulative_gas_used: 0,
@@ -663,33 +665,31 @@ impl From<TransactionReceiptCompat> for TransactionReceipt {
 #[cfg(feature = "chain_abstraction_client")]
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub enum PrepareDetailedResponseCompat {
-    Success(PrepareDetailedResponseSuccessCompat),
-    Error(PrepareResponseError),
+    Success { value: PrepareDetailedResponseSuccessCompat },
+    Error { value: PrepareResponseError },
 }
 
-// from PrepareDetailedResponseCompat to PrepareDetailedResponse
 impl From<PrepareDetailedResponse> for PrepareDetailedResponseCompat {
     fn from(original: PrepareDetailedResponse) -> Self {
         match original {
             PrepareDetailedResponse::Success(success) => {
-                PrepareDetailedResponseCompat::Success(success.into()) // Convert inner type
+                PrepareDetailedResponseCompat::Success { value: success.into() }
             }
             PrepareDetailedResponse::Error(error) => {
-                PrepareDetailedResponseCompat::Error(error) // Convert inner type
+                PrepareDetailedResponseCompat::Error { value: error }
             }
         }
     }
 }
 
-// from PrepareDetailedResponseCompat to PrepareDetailedResponse
 impl From<PrepareDetailedResponseCompat> for PrepareDetailedResponse {
     fn from(compat: PrepareDetailedResponseCompat) -> Self {
         match compat {
-            PrepareDetailedResponseCompat::Success(success) => {
-                PrepareDetailedResponse::Success(success.into()) // Convert inner type
+            PrepareDetailedResponseCompat::Success { value } => {
+                PrepareDetailedResponse::Success(value.into())
             }
-            PrepareDetailedResponseCompat::Error(error) => {
-                PrepareDetailedResponse::Error(error) // Convert inner type
+            PrepareDetailedResponseCompat::Error { value } => {
+                PrepareDetailedResponse::Error(value)
             }
         }
     }
@@ -700,8 +700,8 @@ impl From<PrepareDetailedResponseCompat> for PrepareDetailedResponse {
 #[cfg(feature = "chain_abstraction_client")]
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub enum PrepareDetailedResponseSuccessCompat {
-    Available(UiFieldsCompat),
-    NotRequired(PrepareResponseNotRequiredCompat),
+    Available { value: UiFieldsCompat },
+    NotRequired { value: PrepareResponseNotRequiredCompat },
 }
 
 // impl PrepareDetailedResponseSuccessCompat {
@@ -724,37 +724,35 @@ pub enum PrepareDetailedResponseSuccessCompat {
 //   }
 // }
 
-// from PrepareDetailedResponseSuccess to PrepareDetailedResponseSuccessCompat
 impl From<PrepareDetailedResponseSuccess>
     for PrepareDetailedResponseSuccessCompat
 {
     fn from(original: PrepareDetailedResponseSuccess) -> Self {
         match original {
             PrepareDetailedResponseSuccess::Available(ui_fields) => {
-                PrepareDetailedResponseSuccessCompat::Available(
-                    ui_fields.into(),
-                ) // Convert UiFields
+                PrepareDetailedResponseSuccessCompat::Available {
+                    value: ui_fields.into(),
+                }
             }
             PrepareDetailedResponseSuccess::NotRequired(not_required) => {
-                PrepareDetailedResponseSuccessCompat::NotRequired(
-                    not_required.into(),
-                ) // Convert NotRequired
+                PrepareDetailedResponseSuccessCompat::NotRequired {
+                    value: not_required.into(),
+                }
             }
         }
     }
 }
 
-// from PrepareDetailedResponseSuccessCompat to PrepareDetailedResponseSuccess
 impl From<PrepareDetailedResponseSuccessCompat>
     for PrepareDetailedResponseSuccess
 {
     fn from(compat: PrepareDetailedResponseSuccessCompat) -> Self {
         match compat {
-            PrepareDetailedResponseSuccessCompat::Available(ui_fields) => {
-                PrepareDetailedResponseSuccess::Available(ui_fields.into())
+            PrepareDetailedResponseSuccessCompat::Available { value } => {
+                PrepareDetailedResponseSuccess::Available(value.into())
             }
-            PrepareDetailedResponseSuccessCompat::NotRequired(not_required) => {
-                PrepareDetailedResponseSuccess::NotRequired(not_required.into())
+            PrepareDetailedResponseSuccessCompat::NotRequired { value } => {
+                PrepareDetailedResponseSuccess::NotRequired(value.into())
             }
         }
     }
@@ -863,6 +861,7 @@ impl From<PrepareResponseNotRequiredCompat> for PrepareResponseNotRequired {
 
 #[cfg(feature = "chain_abstraction_client")]
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+// #[cfg_attr(feature = "frb", frb(json_serializable))]
 pub struct TransactionCompat {
     // CAIP-2 chain ID
     pub chain_id: String,
@@ -901,7 +900,7 @@ impl From<TransactionCompat> for Transaction {
 
         let chain_id = compat.chain_id;
         let from = Address::from_str(&compat.from).unwrap();
-        let to = Address::from_str(&compat.from).unwrap();
+        let to = Address::from_str(&compat.to).unwrap();
         let value = U256::from_str(&compat.value).unwrap();
         let input = Bytes::from(compat.input);
 
@@ -909,5 +908,93 @@ impl From<TransactionCompat> for Transaction {
         let nonce = U64::from(compat.nonce);
 
         Transaction { chain_id, from, to, value, input, gas_limit, nonce }
+    }
+}
+
+// impl TransactionCompat {
+//     pub fn to_json(&self) -> String {
+//         serde_json::to_string(self).unwrap()
+//     }
+
+//     pub fn from_json(json: &str) -> Self {
+//         serde_json::from_str(json).unwrap()
+//     }
+// }
+
+pub enum PrepareResponseCompat {
+    Success(PrepareResponseSuccessCompat),
+    Error(PrepareResponseErrorCompat),
+}
+
+impl From<PrepareResponse> for PrepareResponseCompat {
+    fn from(original: PrepareResponse) -> Self {
+        match original {
+            PrepareResponse::Success(success) => {
+                PrepareResponseCompat::Success(success.into())
+            }
+            PrepareResponse::Error(error) => {
+                PrepareResponseCompat::Error(error.into())
+            }
+        }
+    }
+}
+
+impl From<PrepareResponseCompat> for PrepareResponse {
+    fn from(compat: PrepareResponseCompat) -> Self {
+        match compat {
+            PrepareResponseCompat::Success(success) => {
+                PrepareResponse::Success(success.into())
+            }
+            PrepareResponseCompat::Error(error) => {
+                PrepareResponse::Error(error.into())
+            }
+        }
+    }
+}
+
+// ------
+
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+pub enum PrepareResponseSuccessCompat {
+    Available { value: PrepareResponseAvailableCompat },
+    NotRequired { value: PrepareResponseNotRequiredCompat },
+}
+
+impl From<PrepareResponseSuccess> for PrepareResponseSuccessCompat {
+    fn from(original: PrepareResponseSuccess) -> Self {
+        match original {
+            PrepareResponseSuccess::Available(available) => {
+                PrepareResponseSuccessCompat::Available {
+                    value: available.into(),
+                }
+            }
+            PrepareResponseSuccess::NotRequired(not_required) => {
+                PrepareResponseSuccessCompat::NotRequired {
+                    value: not_required.into(),
+                }
+            }
+        }
+    }
+}
+
+impl From<PrepareResponseSuccessCompat> for PrepareResponseSuccess {
+    fn from(compat: PrepareResponseSuccessCompat) -> Self {
+        match compat {
+            PrepareResponseSuccessCompat::Available { value } => {
+                PrepareResponseSuccess::Available(value.into())
+            }
+            PrepareResponseSuccessCompat::NotRequired { value } => {
+                PrepareResponseSuccess::NotRequired(value.into())
+            }
+        }
+    }
+}
+
+impl PrepareResponseSuccessCompat {
+    pub fn into_option(self) -> Option<PrepareResponseAvailableCompat> {
+        match self {
+            Self::Available { value } => Some(value),
+            Self::NotRequired { .. } => None,
+        }
     }
 }
