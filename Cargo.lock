@@ -6367,6 +6367,8 @@ dependencies = [
  "futures",
  "getrandom 0.2.15",
  "hex",
+ "openssl",
+ "openssl-sys",
  "relay_rpc",
  "reqwest",
  "serde",

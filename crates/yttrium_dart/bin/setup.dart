@@ -64,7 +64,7 @@ Future<void> _setupFiles({
             '-o',
             '-j',
             zipFile,
-            'universal/libyttrium_dart_universal.dylib',
+            'universal/libyttrium_lib_universal.dylib',
             '-d',
             targetDir,
           ]
@@ -99,7 +99,7 @@ Future<Directory?> _getPackageRoot() async {
 
     if ((packages ?? []).isNotEmpty) {
       for (final package in packages!) {
-        if (package['name'] == 'yttrium_dart') {
+        if (package['name'] == 'yttrium_lib') {
           final rootUri = package['rootUri'] as String?;
           if (rootUri != null) {
             // Resolve absolute path for relative URIs

@@ -6,7 +6,7 @@ rust-version.workspace = true
 license.workspace = true
 
 [lib]
-name = "yttrium_dart"
+name = "yttrium_lib"
 crate-type = ["lib", "cdylib", "staticlib"]
 
 [features]
@@ -113,6 +113,9 @@ url = { workspace = true, features = ["serde"] }
 
 # Tiny dependency, could copy source. Pinning to exact version to avoid supply-chain attacks.
 derive_jserror = { version = "=0.1.0", optional = true, default-features = false }
+
+openssl = { version = "0.10", features = ["vendored"] }
+openssl-sys = { version = "0.9.103", features = ["vendored"] }
 
 [dev-dependencies]
 # mocking

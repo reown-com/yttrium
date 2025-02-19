@@ -79,7 +79,7 @@ jobs:
       # Install flutter_rust_bridge_codegen
       - name: Install flutter_rust_bridge_codegen
         run: |
-          cargo install flutter_rust_bridge_codegen
+          cargo install flutter_rust_bridge_codegen@2.7.0
 
       # Get package dependencies
       - name: Get package dependencies
@@ -113,10 +113,10 @@ jobs:
       # Build Native Android libraries
       - name: Build Native Android libraries
         shell: bash
-        working-directory: crates/yttrium_dart/rust
+        working-directory: crates/yttrium
         run: |
-          rustup target add armv7-linux-androideabi aarch64-linux-android
-          cargo ndk -t armeabi-v7a -t arm64-v8a build --profile=uniffi-release
+          rustup target add armv7-linux-androideabi aarch64-linux-android 
+          cargo ndk -t armeabi-v7a -t arm64-v8a build --profile=uniffi-release --features=frb -p yttrium
 
       # Prepare Android artifacts
       - name: Prepare Android artifacts
@@ -124,8 +124,8 @@ jobs:
         run: |
           mkdir -p jniLibs/arm64-v8a
           mkdir -p jniLibs/armeabi-v7a
-          cp target/aarch64-linux-android/uniffi-release/libyttrium_dart.so jniLibs/arm64-v8a/libyttrium_dart.so
-          cp target/armv7-linux-androideabi/uniffi-release/libyttrium_dart.so jniLibs/armeabi-v7a/libyttrium_dart.so
+          cp target/aarch64-linux-android/uniffi-release/libyttrium_lib.so jniLibs/arm64-v8a/libyttrium_lib.so
+          cp target/armv7-linux-androideabi/uniffi-release/libyttrium_lib.so jniLibs/armeabi-v7a/libyttrium_lib.so
 
       # Upload Android artifacts
       - name: Upload Android artifacts
@@ -146,20 +146,21 @@ jobs:
       # Build Native iOS libraries
       - name: Build Native iOS libraries
         shell: bash
-        working-directory: crates/yttrium_dart/rust
+        working-directory: crates/yttrium
         run: |
           rustup target add aarch64-apple-ios x86_64-apple-ios
-          cargo build --manifest-path Cargo.toml --target aarch64-apple-ios --profile=uniffi-release
-          cargo build --manifest-path Cargo.toml --target x86_64-apple-ios --profile=uniffi-release
+          cargo build -p yttrium --features=frb --target aarch64-apple-ios --profile=uniffi-release
+          cargo build -p yttrium --features=frb --target aarch64-apple-ios-sim --profile=uniffi-release
+          cargo build -p yttrium --features=frb --target x86_64-apple-ios --profile=uniffi-release
 
       # Prepare iOS artifacts
       - name: Prepare iOS artifacts
         shell: bash
         run: |
           mkdir -p universal
-          lipo -create target/aarch64-apple-ios/uniffi-release/libyttrium_dart.dylib target/x86_64-apple-ios/uniffi-release/libyttrium_dart.dylib -output universal/libyttrium_dart_universal.dylib
-          install_name_tool -id @rpath/libyttrium_dart_universal.dylib universal/libyttrium_dart_universal.dylib
-          codesign --force --sign - universal/libyttrium_dart_universal.dylib
+          lipo -create target/aarch64-apple-ios/uniffi-release/libyttrium_lib.dylib target/x86_64-apple-ios/uniffi-release/libyttrium_lib.dylib -output universal/libyttrium_lib_universal.dylib
+          install_name_tool -id @rpath/libyttrium_lib_universal.dylib universal/libyttrium_lib_universal.dylib
+          codesign --force --sign - universal/libyttrium_lib_universal.dylib
 
       # Upload iOS artifacts
       - name: Upload iOS artifacts

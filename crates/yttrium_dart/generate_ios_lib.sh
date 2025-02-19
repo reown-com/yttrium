@@ -23,8 +23,6 @@ else
   fi
 fi
 
-cd rust
-
 echo "✅ $0: building for targest: x86_64-apple-ios $TARGET."
 
 rustup target add x86_64-apple-ios $TARGET
@@ -39,19 +37,19 @@ pwd
 
 mkdir -p target/universal/ios/uniffi-release
 
-lipo -create target/$TARGET/uniffi-release/libyttrium_dart.dylib target/x86_64-apple-ios/uniffi-release/libyttrium_dart.dylib -output target/universal/ios/uniffi-release/libyttrium_dart_universal.dylib
+lipo -create target/$TARGET/uniffi-release/libyttrium_lib.dylib target/x86_64-apple-ios/uniffi-release/libyttrium_lib.dylib -output target/universal/ios/uniffi-release/libyttrium_lib_universal.dylib
 
-lipo -info target/universal/ios/uniffi-release/libyttrium_dart_universal.dylib
+lipo -info target/universal/ios/uniffi-release/libyttrium_lib_universal.dylib
 
-cp target/universal/ios/uniffi-release/libyttrium_dart_universal.dylib crates/yttrium_dart/ios/libyttrium_dart_universal.dylib
+cp target/universal/ios/uniffi-release/libyttrium_lib_universal.dylib crates/yttrium_dart/ios/libyttrium_lib_universal.dylib
 
-# otool -L crates/yttrium_dart/ios/libyttrium_dart_universal.dylib
+# otool -L crates/yttrium_dart/ios/libyttrium_lib_universal.dylib
 
-install_name_tool -id @rpath/libyttrium_dart_universal.dylib crates/yttrium_dart/ios/libyttrium_dart_universal.dylib
+install_name_tool -id @rpath/libyttrium_lib_universal.dylib crates/yttrium_dart/ios/libyttrium_lib_universal.dylib
 
-codesign --force --sign - crates/yttrium_dart/ios/libyttrium_dart_universal.dylib
+codesign --force --sign - crates/yttrium_dart/ios/libyttrium_lib_universal.dylib
 
-otool -L crates/yttrium_dart/ios/libyttrium_dart_universal.dylib
+otool -L crates/yttrium_dart/ios/libyttrium_lib_universal.dylib
 
 pwd
 

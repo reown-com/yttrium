@@ -74,7 +74,7 @@ class YttriumDart extends BaseEntrypoint<YttriumDartApi, YttriumDartApiImpl,
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
-    stem: 'yttrium_dart',
+    stem: 'yttrium_lib',
     ioDirectory: '../yttrium/target/release/',
     webPrefix: 'pkg/',
   );
