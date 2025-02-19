@@ -634,12 +634,12 @@ impl SseDecode
         let mut tag_ = <i32>::sse_decode(deserializer);
         match tag_ {
             0 => {
-                let mut var_field0 = <crate::chain_abstraction::dart_compat_models::PrepareResponseSuccessCompat>::sse_decode(deserializer);
-                return crate::chain_abstraction::dart_compat_models::PrepareResponseCompat::Success(var_field0);
+                let mut var_value = <crate::chain_abstraction::dart_compat_models::PrepareResponseSuccessCompat>::sse_decode(deserializer);
+                return crate::chain_abstraction::dart_compat_models::PrepareResponseCompat::Success{value: var_value};
             }
             1 => {
-                let mut var_field0 = <crate::chain_abstraction::dart_compat_models::PrepareResponseErrorCompat>::sse_decode(deserializer);
-                return crate::chain_abstraction::dart_compat_models::PrepareResponseCompat::Error(var_field0);
+                let mut var_value = <crate::chain_abstraction::dart_compat_models::PrepareResponseErrorCompat>::sse_decode(deserializer);
+                return crate::chain_abstraction::dart_compat_models::PrepareResponseCompat::Error{value: var_value};
             }
             _ => {
                 unimplemented!("");
@@ -1295,10 +1295,10 @@ impl flutter_rust_bridge::IntoDart
     for crate::chain_abstraction::dart_compat_models::PrepareResponseCompat
 {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        match self {crate::chain_abstraction::dart_compat_models::PrepareResponseCompat::Success(field0) => { [0.into_dart(),
-field0.into_into_dart().into_dart()].into_dart() }
-crate::chain_abstraction::dart_compat_models::PrepareResponseCompat::Error(field0) => { [1.into_dart(),
-field0.into_into_dart().into_dart()].into_dart() }
+        match self {crate::chain_abstraction::dart_compat_models::PrepareResponseCompat::Success{value} => { [0.into_dart(),
+value.into_into_dart().into_dart()].into_dart() }
+crate::chain_abstraction::dart_compat_models::PrepareResponseCompat::Error{value} => { [1.into_dart(),
+value.into_into_dart().into_dart()].into_dart() }
  _ => { unimplemented!(""); }}
     }
 }
@@ -2009,9 +2009,9 @@ impl SseEncode
         self,
         serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
     ) {
-        match self {crate::chain_abstraction::dart_compat_models::PrepareResponseCompat::Success(field0) => { <i32>::sse_encode(0, serializer); <crate::chain_abstraction::dart_compat_models::PrepareResponseSuccessCompat>::sse_encode(field0, serializer);
+        match self {crate::chain_abstraction::dart_compat_models::PrepareResponseCompat::Success{value} => { <i32>::sse_encode(0, serializer); <crate::chain_abstraction::dart_compat_models::PrepareResponseSuccessCompat>::sse_encode(value, serializer);
  }
-crate::chain_abstraction::dart_compat_models::PrepareResponseCompat::Error(field0) => { <i32>::sse_encode(1, serializer); <crate::chain_abstraction::dart_compat_models::PrepareResponseErrorCompat>::sse_encode(field0, serializer);
+crate::chain_abstraction::dart_compat_models::PrepareResponseCompat::Error{value} => { <i32>::sse_encode(1, serializer); <crate::chain_abstraction::dart_compat_models::PrepareResponseErrorCompat>::sse_encode(value, serializer);
  }
  _ => { unimplemented!(""); }}
     }

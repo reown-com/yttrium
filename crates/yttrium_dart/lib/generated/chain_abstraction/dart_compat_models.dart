@@ -9,39 +9,15 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'dart_compat_models.freezed.dart';
 
-class AmountCompat {
-  final String symbol;
-  final String amount;
-  final int unit;
-  final String formatted;
-  final String formattedAlt;
-
-  const AmountCompat({
-    required this.symbol,
-    required this.amount,
-    required this.unit,
-    required this.formatted,
-    required this.formattedAlt,
-  });
-
-  @override
-  int get hashCode =>
-      symbol.hashCode ^
-      amount.hashCode ^
-      unit.hashCode ^
-      formatted.hashCode ^
-      formattedAlt.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is AmountCompat &&
-          runtimeType == other.runtimeType &&
-          symbol == other.symbol &&
-          amount == other.amount &&
-          unit == other.unit &&
-          formatted == other.formatted &&
-          formattedAlt == other.formattedAlt;
+@freezed
+class AmountCompat with _$AmountCompat {
+  const factory AmountCompat({
+    required String symbol,
+    required String amount,
+    required int unit,
+    required String formatted,
+    required String formattedAlt,
+  }) = _AmountCompat;
 }
 
 enum BridgingErrorCompat {
@@ -51,52 +27,21 @@ enum BridgingErrorCompat {
   ;
 }
 
-class CallCompat {
-  final String to;
-  final BigInt value;
-  final Uint8List input;
-
-  const CallCompat({
-    required this.to,
-    required this.value,
-    required this.input,
-  });
-
-  @override
-  int get hashCode => to.hashCode ^ value.hashCode ^ input.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is CallCompat &&
-          runtimeType == other.runtimeType &&
-          to == other.to &&
-          value == other.value &&
-          input == other.input;
+@freezed
+class CallCompat with _$CallCompat {
+  const factory CallCompat({
+    required String to,
+    required BigInt value,
+    required Uint8List input,
+  }) = _CallCompat;
 }
 
-class Eip1559EstimationCompat {
-  /// The base fee per gas as a String.
-  final String maxFeePerGas;
-
-  /// The max priority fee per gas as a String.
-  final String maxPriorityFeePerGas;
-
-  const Eip1559EstimationCompat({
-    required this.maxFeePerGas,
-    required this.maxPriorityFeePerGas,
-  });
-
-  @override
-  int get hashCode => maxFeePerGas.hashCode ^ maxPriorityFeePerGas.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is Eip1559EstimationCompat &&
-          runtimeType == other.runtimeType &&
-          maxFeePerGas == other.maxFeePerGas &&
-          maxPriorityFeePerGas == other.maxPriorityFeePerGas;
+@freezed
+class Eip1559EstimationCompat with _$Eip1559EstimationCompat {
+  const factory Eip1559EstimationCompat({
+    required String maxFeePerGas,
+    required String maxPriorityFeePerGas,
+  }) = _Eip1559EstimationCompat;
 }
 
 @freezed
@@ -108,175 +53,59 @@ sealed class ErrorCompat with _$ErrorCompat implements FrbException {
   ) = ErrorCompat_General;
 }
 
-class ExecuteDetailsCompat {
-  final TransactionReceiptCompat initialTxnReceipt;
-  final String initialTxnHash;
-
-  const ExecuteDetailsCompat({
-    required this.initialTxnReceipt,
-    required this.initialTxnHash,
-  });
-
-  @override
-  int get hashCode => initialTxnReceipt.hashCode ^ initialTxnHash.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is ExecuteDetailsCompat &&
-          runtimeType == other.runtimeType &&
-          initialTxnReceipt == other.initialTxnReceipt &&
-          initialTxnHash == other.initialTxnHash;
+@freezed
+class ExecuteDetailsCompat with _$ExecuteDetailsCompat {
+  const factory ExecuteDetailsCompat({
+    required TransactionReceiptCompat initialTxnReceipt,
+    required String initialTxnHash,
+  }) = _ExecuteDetailsCompat;
 }
 
-class FeeEstimatedTransactionCompat {
-  final String chainId;
-  final String from;
-  final String to;
-  final String value;
-  final Uint8List input;
-  final String gasLimit;
-  final String nonce;
-  final String maxFeePerGas;
-  final String maxPriorityFeePerGas;
-
-  const FeeEstimatedTransactionCompat({
-    required this.chainId,
-    required this.from,
-    required this.to,
-    required this.value,
-    required this.input,
-    required this.gasLimit,
-    required this.nonce,
-    required this.maxFeePerGas,
-    required this.maxPriorityFeePerGas,
-  });
-
-  @override
-  int get hashCode =>
-      chainId.hashCode ^
-      from.hashCode ^
-      to.hashCode ^
-      value.hashCode ^
-      input.hashCode ^
-      gasLimit.hashCode ^
-      nonce.hashCode ^
-      maxFeePerGas.hashCode ^
-      maxPriorityFeePerGas.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is FeeEstimatedTransactionCompat &&
-          runtimeType == other.runtimeType &&
-          chainId == other.chainId &&
-          from == other.from &&
-          to == other.to &&
-          value == other.value &&
-          input == other.input &&
-          gasLimit == other.gasLimit &&
-          nonce == other.nonce &&
-          maxFeePerGas == other.maxFeePerGas &&
-          maxPriorityFeePerGas == other.maxPriorityFeePerGas;
+@freezed
+class FeeEstimatedTransactionCompat with _$FeeEstimatedTransactionCompat {
+  const factory FeeEstimatedTransactionCompat({
+    required String chainId,
+    required String from,
+    required String to,
+    required String value,
+    required Uint8List input,
+    required String gasLimit,
+    required String nonce,
+    required String maxFeePerGas,
+    required String maxPriorityFeePerGas,
+  }) = _FeeEstimatedTransactionCompat;
 }
 
-class FundingMetadataCompat {
-  final String chainId;
-  final String tokenContract;
-  final String symbol;
-  final String amount;
-  final String bridgingFee;
-  final int decimals;
-
-  const FundingMetadataCompat({
-    required this.chainId,
-    required this.tokenContract,
-    required this.symbol,
-    required this.amount,
-    required this.bridgingFee,
-    required this.decimals,
-  });
-
-  @override
-  int get hashCode =>
-      chainId.hashCode ^
-      tokenContract.hashCode ^
-      symbol.hashCode ^
-      amount.hashCode ^
-      bridgingFee.hashCode ^
-      decimals.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is FundingMetadataCompat &&
-          runtimeType == other.runtimeType &&
-          chainId == other.chainId &&
-          tokenContract == other.tokenContract &&
-          symbol == other.symbol &&
-          amount == other.amount &&
-          bridgingFee == other.bridgingFee &&
-          decimals == other.decimals;
+@freezed
+class FundingMetadataCompat with _$FundingMetadataCompat {
+  const factory FundingMetadataCompat({
+    required String chainId,
+    required String tokenContract,
+    required String symbol,
+    required String amount,
+    required String bridgingFee,
+    required int decimals,
+  }) = _FundingMetadataCompat;
 }
 
-class InitialTransactionMetadataCompat {
-  final String transferTo;
-  final String amount;
-  final String tokenContract;
-  final String symbol;
-  final int decimals;
-
-  const InitialTransactionMetadataCompat({
-    required this.transferTo,
-    required this.amount,
-    required this.tokenContract,
-    required this.symbol,
-    required this.decimals,
-  });
-
-  @override
-  int get hashCode =>
-      transferTo.hashCode ^
-      amount.hashCode ^
-      tokenContract.hashCode ^
-      symbol.hashCode ^
-      decimals.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is InitialTransactionMetadataCompat &&
-          runtimeType == other.runtimeType &&
-          transferTo == other.transferTo &&
-          amount == other.amount &&
-          tokenContract == other.tokenContract &&
-          symbol == other.symbol &&
-          decimals == other.decimals;
+@freezed
+class InitialTransactionMetadataCompat with _$InitialTransactionMetadataCompat {
+  const factory InitialTransactionMetadataCompat({
+    required String transferTo,
+    required String amount,
+    required String tokenContract,
+    required String symbol,
+    required int decimals,
+  }) = _InitialTransactionMetadataCompat;
 }
 
-class MetadataCompat {
-  final List<FundingMetadataCompat> fundingFrom;
-  final InitialTransactionMetadataCompat initialTransaction;
-  final BigInt checkIn;
-
-  const MetadataCompat({
-    required this.fundingFrom,
-    required this.initialTransaction,
-    required this.checkIn,
-  });
-
-  @override
-  int get hashCode =>
-      fundingFrom.hashCode ^ initialTransaction.hashCode ^ checkIn.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is MetadataCompat &&
-          runtimeType == other.runtimeType &&
-          fundingFrom == other.fundingFrom &&
-          initialTransaction == other.initialTransaction &&
-          checkIn == other.checkIn;
+@freezed
+class MetadataCompat with _$MetadataCompat {
+  const factory MetadataCompat({
+    required List<FundingMetadataCompat> fundingFrom,
+    required InitialTransactionMetadataCompat initialTransaction,
+    required BigInt checkIn,
+  }) = _MetadataCompat;
 }
 
 @freezed
@@ -305,86 +134,41 @@ sealed class PrepareDetailedResponseSuccessCompat
   }) = PrepareDetailedResponseSuccessCompat_NotRequired;
 }
 
-class PrepareResponseAvailableCompat {
-  final String orchestrationId;
-  final TransactionCompat initialTransaction;
-  final List<TransactionCompat> transactions;
-  final MetadataCompat metadata;
-
-  const PrepareResponseAvailableCompat({
-    required this.orchestrationId,
-    required this.initialTransaction,
-    required this.transactions,
-    required this.metadata,
-  });
-
-  @override
-  int get hashCode =>
-      orchestrationId.hashCode ^
-      initialTransaction.hashCode ^
-      transactions.hashCode ^
-      metadata.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is PrepareResponseAvailableCompat &&
-          runtimeType == other.runtimeType &&
-          orchestrationId == other.orchestrationId &&
-          initialTransaction == other.initialTransaction &&
-          transactions == other.transactions &&
-          metadata == other.metadata;
+@freezed
+class PrepareResponseAvailableCompat with _$PrepareResponseAvailableCompat {
+  const factory PrepareResponseAvailableCompat({
+    required String orchestrationId,
+    required TransactionCompat initialTransaction,
+    required List<TransactionCompat> transactions,
+    required MetadataCompat metadata,
+  }) = _PrepareResponseAvailableCompat;
 }
 
 @freezed
 sealed class PrepareResponseCompat with _$PrepareResponseCompat {
   const PrepareResponseCompat._();
 
-  const factory PrepareResponseCompat.success(
-    PrepareResponseSuccessCompat field0,
-  ) = PrepareResponseCompat_Success;
-  const factory PrepareResponseCompat.error(
-    PrepareResponseErrorCompat field0,
-  ) = PrepareResponseCompat_Error;
+  const factory PrepareResponseCompat.success({
+    required PrepareResponseSuccessCompat value,
+  }) = PrepareResponseCompat_Success;
+  const factory PrepareResponseCompat.error({
+    required PrepareResponseErrorCompat value,
+  }) = PrepareResponseCompat_Error;
 }
 
-class PrepareResponseErrorCompat {
-  final BridgingErrorCompat error;
-
-  const PrepareResponseErrorCompat({
-    required this.error,
-  });
-
-  @override
-  int get hashCode => error.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is PrepareResponseErrorCompat &&
-          runtimeType == other.runtimeType &&
-          error == other.error;
+@freezed
+class PrepareResponseErrorCompat with _$PrepareResponseErrorCompat {
+  const factory PrepareResponseErrorCompat({
+    required BridgingErrorCompat error,
+  }) = _PrepareResponseErrorCompat;
 }
 
-class PrepareResponseNotRequiredCompat {
-  final TransactionCompat initialTransaction;
-  final List<TransactionCompat> transactions;
-
-  const PrepareResponseNotRequiredCompat({
-    required this.initialTransaction,
-    required this.transactions,
-  });
-
-  @override
-  int get hashCode => initialTransaction.hashCode ^ transactions.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is PrepareResponseNotRequiredCompat &&
-          runtimeType == other.runtimeType &&
-          initialTransaction == other.initialTransaction &&
-          transactions == other.transactions;
+@freezed
+class PrepareResponseNotRequiredCompat with _$PrepareResponseNotRequiredCompat {
+  const factory PrepareResponseNotRequiredCompat({
+    required TransactionCompat initialTransaction,
+    required List<TransactionCompat> transactions,
+  }) = _PrepareResponseNotRequiredCompat;
 }
 
 @freezed
@@ -423,228 +207,73 @@ class PrimitiveSignatureCompat {
           s == other.s;
 }
 
-class PulseMetadataCompat {
-  final String? url;
-  final String? bundleId;
-  final String? packageName;
-  final String sdkVersion;
-  final String sdkPlatform;
-
-  const PulseMetadataCompat({
-    this.url,
-    this.bundleId,
-    this.packageName,
-    required this.sdkVersion,
-    required this.sdkPlatform,
-  });
-
-  @override
-  int get hashCode =>
-      url.hashCode ^
-      bundleId.hashCode ^
-      packageName.hashCode ^
-      sdkVersion.hashCode ^
-      sdkPlatform.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is PulseMetadataCompat &&
-          runtimeType == other.runtimeType &&
-          url == other.url &&
-          bundleId == other.bundleId &&
-          packageName == other.packageName &&
-          sdkVersion == other.sdkVersion &&
-          sdkPlatform == other.sdkPlatform;
+@freezed
+class PulseMetadataCompat with _$PulseMetadataCompat {
+  const factory PulseMetadataCompat({
+    String? url,
+    String? bundleId,
+    String? packageName,
+    required String sdkVersion,
+    required String sdkPlatform,
+  }) = _PulseMetadataCompat;
 }
 
-class TransactionCompat {
-  final String chainId;
-  final String from;
-  final String to;
-  final String value;
-  final Uint8List input;
-  final BigInt gasLimit;
-  final BigInt nonce;
-
-  const TransactionCompat({
-    required this.chainId,
-    required this.from,
-    required this.to,
-    required this.value,
-    required this.input,
-    required this.gasLimit,
-    required this.nonce,
-  });
-
-  @override
-  int get hashCode =>
-      chainId.hashCode ^
-      from.hashCode ^
-      to.hashCode ^
-      value.hashCode ^
-      input.hashCode ^
-      gasLimit.hashCode ^
-      nonce.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is TransactionCompat &&
-          runtimeType == other.runtimeType &&
-          chainId == other.chainId &&
-          from == other.from &&
-          to == other.to &&
-          value == other.value &&
-          input == other.input &&
-          gasLimit == other.gasLimit &&
-          nonce == other.nonce;
+@freezed
+class TransactionCompat with _$TransactionCompat {
+  const factory TransactionCompat({
+    required String chainId,
+    required String from,
+    required String to,
+    required String value,
+    required Uint8List input,
+    required BigInt gasLimit,
+    required BigInt nonce,
+  }) = _TransactionCompat;
 }
 
-class TransactionFeeCompat {
-  final AmountCompat fee;
-  final AmountCompat localFee;
-
-  const TransactionFeeCompat({
-    required this.fee,
-    required this.localFee,
-  });
-
-  @override
-  int get hashCode => fee.hashCode ^ localFee.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is TransactionFeeCompat &&
-          runtimeType == other.runtimeType &&
-          fee == other.fee &&
-          localFee == other.localFee;
+@freezed
+class TransactionFeeCompat with _$TransactionFeeCompat {
+  const factory TransactionFeeCompat({
+    required AmountCompat fee,
+    required AmountCompat localFee,
+  }) = _TransactionFeeCompat;
 }
 
-class TransactionReceiptCompat {
-  final String transactionHash;
-  final BigInt? transactionIndex;
-  final String? blockHash;
-  final BigInt? blockNumber;
-  final BigInt gasUsed;
-  final String effectiveGasPrice;
-  final BigInt? blobGasUsed;
-  final String? blobGasPrice;
-  final String from;
-  final String? to;
-  final String? contractAddress;
-
-  const TransactionReceiptCompat({
-    required this.transactionHash,
-    this.transactionIndex,
-    this.blockHash,
-    this.blockNumber,
-    required this.gasUsed,
-    required this.effectiveGasPrice,
-    this.blobGasUsed,
-    this.blobGasPrice,
-    required this.from,
-    this.to,
-    this.contractAddress,
-  });
-
-  @override
-  int get hashCode =>
-      transactionHash.hashCode ^
-      transactionIndex.hashCode ^
-      blockHash.hashCode ^
-      blockNumber.hashCode ^
-      gasUsed.hashCode ^
-      effectiveGasPrice.hashCode ^
-      blobGasUsed.hashCode ^
-      blobGasPrice.hashCode ^
-      from.hashCode ^
-      to.hashCode ^
-      contractAddress.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is TransactionReceiptCompat &&
-          runtimeType == other.runtimeType &&
-          transactionHash == other.transactionHash &&
-          transactionIndex == other.transactionIndex &&
-          blockHash == other.blockHash &&
-          blockNumber == other.blockNumber &&
-          gasUsed == other.gasUsed &&
-          effectiveGasPrice == other.effectiveGasPrice &&
-          blobGasUsed == other.blobGasUsed &&
-          blobGasPrice == other.blobGasPrice &&
-          from == other.from &&
-          to == other.to &&
-          contractAddress == other.contractAddress;
+@freezed
+class TransactionReceiptCompat with _$TransactionReceiptCompat {
+  const factory TransactionReceiptCompat({
+    required String transactionHash,
+    BigInt? transactionIndex,
+    String? blockHash,
+    BigInt? blockNumber,
+    required BigInt gasUsed,
+    required String effectiveGasPrice,
+    BigInt? blobGasUsed,
+    String? blobGasPrice,
+    required String from,
+    String? to,
+    String? contractAddress,
+  }) = _TransactionReceiptCompat;
 }
 
-class TxnDetailsCompat {
-  final FeeEstimatedTransactionCompat transaction;
-  final String transactionHashToSign;
-  final TransactionFeeCompat fee;
-
-  const TxnDetailsCompat({
-    required this.transaction,
-    required this.transactionHashToSign,
-    required this.fee,
-  });
-
-  @override
-  int get hashCode =>
-      transaction.hashCode ^ transactionHashToSign.hashCode ^ fee.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is TxnDetailsCompat &&
-          runtimeType == other.runtimeType &&
-          transaction == other.transaction &&
-          transactionHashToSign == other.transactionHashToSign &&
-          fee == other.fee;
+@freezed
+class TxnDetailsCompat with _$TxnDetailsCompat {
+  const factory TxnDetailsCompat({
+    required FeeEstimatedTransactionCompat transaction,
+    required String transactionHashToSign,
+    required TransactionFeeCompat fee,
+  }) = _TxnDetailsCompat;
 }
 
-class UiFieldsCompat {
-  final PrepareResponseAvailableCompat routeResponse;
-  final List<TxnDetailsCompat> route;
-  final AmountCompat localRouteTotal;
-  final List<TransactionFeeCompat> bridge;
-  final AmountCompat localBridgeTotal;
-  final TxnDetailsCompat initial;
-  final AmountCompat localTotal;
-
-  const UiFieldsCompat({
-    required this.routeResponse,
-    required this.route,
-    required this.localRouteTotal,
-    required this.bridge,
-    required this.localBridgeTotal,
-    required this.initial,
-    required this.localTotal,
-  });
-
-  @override
-  int get hashCode =>
-      routeResponse.hashCode ^
-      route.hashCode ^
-      localRouteTotal.hashCode ^
-      bridge.hashCode ^
-      localBridgeTotal.hashCode ^
-      initial.hashCode ^
-      localTotal.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is UiFieldsCompat &&
-          runtimeType == other.runtimeType &&
-          routeResponse == other.routeResponse &&
-          route == other.route &&
-          localRouteTotal == other.localRouteTotal &&
-          bridge == other.bridge &&
-          localBridgeTotal == other.localBridgeTotal &&
-          initial == other.initial &&
-          localTotal == other.localTotal;
+@freezed
+class UiFieldsCompat with _$UiFieldsCompat {
+  const factory UiFieldsCompat({
+    required PrepareResponseAvailableCompat routeResponse,
+    required List<TxnDetailsCompat> route,
+    required AmountCompat localRouteTotal,
+    required List<TransactionFeeCompat> bridge,
+    required AmountCompat localBridgeTotal,
+    required TxnDetailsCompat initial,
+    required AmountCompat localTotal,
+  }) = _UiFieldsCompat;
 }

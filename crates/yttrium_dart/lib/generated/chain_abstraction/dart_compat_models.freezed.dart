@@ -15,6 +15,542 @@ final _privateConstructorUsedError = UnsupportedError(
     'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models');
 
 /// @nodoc
+mixin _$AmountCompat {
+  String get symbol => throw _privateConstructorUsedError;
+  String get amount => throw _privateConstructorUsedError;
+  int get unit => throw _privateConstructorUsedError;
+  String get formatted => throw _privateConstructorUsedError;
+  String get formattedAlt => throw _privateConstructorUsedError;
+
+  /// Create a copy of AmountCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  $AmountCompatCopyWith<AmountCompat> get copyWith =>
+      throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class $AmountCompatCopyWith<$Res> {
+  factory $AmountCompatCopyWith(
+          AmountCompat value, $Res Function(AmountCompat) then) =
+      _$AmountCompatCopyWithImpl<$Res, AmountCompat>;
+  @useResult
+  $Res call(
+      {String symbol,
+      String amount,
+      int unit,
+      String formatted,
+      String formattedAlt});
+}
+
+/// @nodoc
+class _$AmountCompatCopyWithImpl<$Res, $Val extends AmountCompat>
+    implements $AmountCompatCopyWith<$Res> {
+  _$AmountCompatCopyWithImpl(this._value, this._then);
+
+  // ignore: unused_field
+  final $Val _value;
+  // ignore: unused_field
+  final $Res Function($Val) _then;
+
+  /// Create a copy of AmountCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? symbol = null,
+    Object? amount = null,
+    Object? unit = null,
+    Object? formatted = null,
+    Object? formattedAlt = null,
+  }) {
+    return _then(_value.copyWith(
+      symbol: null == symbol
+          ? _value.symbol
+          : symbol // ignore: cast_nullable_to_non_nullable
+              as String,
+      amount: null == amount
+          ? _value.amount
+          : amount // ignore: cast_nullable_to_non_nullable
+              as String,
+      unit: null == unit
+          ? _value.unit
+          : unit // ignore: cast_nullable_to_non_nullable
+              as int,
+      formatted: null == formatted
+          ? _value.formatted
+          : formatted // ignore: cast_nullable_to_non_nullable
+              as String,
+      formattedAlt: null == formattedAlt
+          ? _value.formattedAlt
+          : formattedAlt // ignore: cast_nullable_to_non_nullable
+              as String,
+    ) as $Val);
+  }
+}
+
+/// @nodoc
+abstract class _$$AmountCompatImplCopyWith<$Res>
+    implements $AmountCompatCopyWith<$Res> {
+  factory _$$AmountCompatImplCopyWith(
+          _$AmountCompatImpl value, $Res Function(_$AmountCompatImpl) then) =
+      __$$AmountCompatImplCopyWithImpl<$Res>;
+  @override
+  @useResult
+  $Res call(
+      {String symbol,
+      String amount,
+      int unit,
+      String formatted,
+      String formattedAlt});
+}
+
+/// @nodoc
+class __$$AmountCompatImplCopyWithImpl<$Res>
+    extends _$AmountCompatCopyWithImpl<$Res, _$AmountCompatImpl>
+    implements _$$AmountCompatImplCopyWith<$Res> {
+  __$$AmountCompatImplCopyWithImpl(
+      _$AmountCompatImpl _value, $Res Function(_$AmountCompatImpl) _then)
+      : super(_value, _then);
+
+  /// Create a copy of AmountCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? symbol = null,
+    Object? amount = null,
+    Object? unit = null,
+    Object? formatted = null,
+    Object? formattedAlt = null,
+  }) {
+    return _then(_$AmountCompatImpl(
+      symbol: null == symbol
+          ? _value.symbol
+          : symbol // ignore: cast_nullable_to_non_nullable
+              as String,
+      amount: null == amount
+          ? _value.amount
+          : amount // ignore: cast_nullable_to_non_nullable
+              as String,
+      unit: null == unit
+          ? _value.unit
+          : unit // ignore: cast_nullable_to_non_nullable
+              as int,
+      formatted: null == formatted
+          ? _value.formatted
+          : formatted // ignore: cast_nullable_to_non_nullable
+              as String,
+      formattedAlt: null == formattedAlt
+          ? _value.formattedAlt
+          : formattedAlt // ignore: cast_nullable_to_non_nullable
+              as String,
+    ));
+  }
+}
+
+/// @nodoc
+
+class _$AmountCompatImpl implements _AmountCompat {
+  const _$AmountCompatImpl(
+      {required this.symbol,
+      required this.amount,
+      required this.unit,
+      required this.formatted,
+      required this.formattedAlt});
+
+  @override
+  final String symbol;
+  @override
+  final String amount;
+  @override
+  final int unit;
+  @override
+  final String formatted;
+  @override
+  final String formattedAlt;
+
+  @override
+  String toString() {
+    return 'AmountCompat(symbol: $symbol, amount: $amount, unit: $unit, formatted: $formatted, formattedAlt: $formattedAlt)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$AmountCompatImpl &&
+            (identical(other.symbol, symbol) || other.symbol == symbol) &&
+            (identical(other.amount, amount) || other.amount == amount) &&
+            (identical(other.unit, unit) || other.unit == unit) &&
+            (identical(other.formatted, formatted) ||
+                other.formatted == formatted) &&
+            (identical(other.formattedAlt, formattedAlt) ||
+                other.formattedAlt == formattedAlt));
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(runtimeType, symbol, amount, unit, formatted, formattedAlt);
+
+  /// Create a copy of AmountCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$AmountCompatImplCopyWith<_$AmountCompatImpl> get copyWith =>
+      __$$AmountCompatImplCopyWithImpl<_$AmountCompatImpl>(this, _$identity);
+}
+
+abstract class _AmountCompat implements AmountCompat {
+  const factory _AmountCompat(
+      {required final String symbol,
+      required final String amount,
+      required final int unit,
+      required final String formatted,
+      required final String formattedAlt}) = _$AmountCompatImpl;
+
+  @override
+  String get symbol;
+  @override
+  String get amount;
+  @override
+  int get unit;
+  @override
+  String get formatted;
+  @override
+  String get formattedAlt;
+
+  /// Create a copy of AmountCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  _$$AmountCompatImplCopyWith<_$AmountCompatImpl> get copyWith =>
+      throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+mixin _$CallCompat {
+  String get to => throw _privateConstructorUsedError;
+  BigInt get value => throw _privateConstructorUsedError;
+  Uint8List get input => throw _privateConstructorUsedError;
+
+  /// Create a copy of CallCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  $CallCompatCopyWith<CallCompat> get copyWith =>
+      throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class $CallCompatCopyWith<$Res> {
+  factory $CallCompatCopyWith(
+          CallCompat value, $Res Function(CallCompat) then) =
+      _$CallCompatCopyWithImpl<$Res, CallCompat>;
+  @useResult
+  $Res call({String to, BigInt value, Uint8List input});
+}
+
+/// @nodoc
+class _$CallCompatCopyWithImpl<$Res, $Val extends CallCompat>
+    implements $CallCompatCopyWith<$Res> {
+  _$CallCompatCopyWithImpl(this._value, this._then);
+
+  // ignore: unused_field
+  final $Val _value;
+  // ignore: unused_field
+  final $Res Function($Val) _then;
+
+  /// Create a copy of CallCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? to = null,
+    Object? value = null,
+    Object? input = null,
+  }) {
+    return _then(_value.copyWith(
+      to: null == to
+          ? _value.to
+          : to // ignore: cast_nullable_to_non_nullable
+              as String,
+      value: null == value
+          ? _value.value
+          : value // ignore: cast_nullable_to_non_nullable
+              as BigInt,
+      input: null == input
+          ? _value.input
+          : input // ignore: cast_nullable_to_non_nullable
+              as Uint8List,
+    ) as $Val);
+  }
+}
+
+/// @nodoc
+abstract class _$$CallCompatImplCopyWith<$Res>
+    implements $CallCompatCopyWith<$Res> {
+  factory _$$CallCompatImplCopyWith(
+          _$CallCompatImpl value, $Res Function(_$CallCompatImpl) then) =
+      __$$CallCompatImplCopyWithImpl<$Res>;
+  @override
+  @useResult
+  $Res call({String to, BigInt value, Uint8List input});
+}
+
+/// @nodoc
+class __$$CallCompatImplCopyWithImpl<$Res>
+    extends _$CallCompatCopyWithImpl<$Res, _$CallCompatImpl>
+    implements _$$CallCompatImplCopyWith<$Res> {
+  __$$CallCompatImplCopyWithImpl(
+      _$CallCompatImpl _value, $Res Function(_$CallCompatImpl) _then)
+      : super(_value, _then);
+
+  /// Create a copy of CallCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? to = null,
+    Object? value = null,
+    Object? input = null,
+  }) {
+    return _then(_$CallCompatImpl(
+      to: null == to
+          ? _value.to
+          : to // ignore: cast_nullable_to_non_nullable
+              as String,
+      value: null == value
+          ? _value.value
+          : value // ignore: cast_nullable_to_non_nullable
+              as BigInt,
+      input: null == input
+          ? _value.input
+          : input // ignore: cast_nullable_to_non_nullable
+              as Uint8List,
+    ));
+  }
+}
+
+/// @nodoc
+
+class _$CallCompatImpl implements _CallCompat {
+  const _$CallCompatImpl(
+      {required this.to, required this.value, required this.input});
+
+  @override
+  final String to;
+  @override
+  final BigInt value;
+  @override
+  final Uint8List input;
+
+  @override
+  String toString() {
+    return 'CallCompat(to: $to, value: $value, input: $input)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$CallCompatImpl &&
+            (identical(other.to, to) || other.to == to) &&
+            (identical(other.value, value) || other.value == value) &&
+            const DeepCollectionEquality().equals(other.input, input));
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      runtimeType, to, value, const DeepCollectionEquality().hash(input));
+
+  /// Create a copy of CallCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$CallCompatImplCopyWith<_$CallCompatImpl> get copyWith =>
+      __$$CallCompatImplCopyWithImpl<_$CallCompatImpl>(this, _$identity);
+}
+
+abstract class _CallCompat implements CallCompat {
+  const factory _CallCompat(
+      {required final String to,
+      required final BigInt value,
+      required final Uint8List input}) = _$CallCompatImpl;
+
+  @override
+  String get to;
+  @override
+  BigInt get value;
+  @override
+  Uint8List get input;
+
+  /// Create a copy of CallCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  _$$CallCompatImplCopyWith<_$CallCompatImpl> get copyWith =>
+      throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+mixin _$Eip1559EstimationCompat {
+  String get maxFeePerGas => throw _privateConstructorUsedError;
+  String get maxPriorityFeePerGas => throw _privateConstructorUsedError;
+
+  /// Create a copy of Eip1559EstimationCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  $Eip1559EstimationCompatCopyWith<Eip1559EstimationCompat> get copyWith =>
+      throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class $Eip1559EstimationCompatCopyWith<$Res> {
+  factory $Eip1559EstimationCompatCopyWith(Eip1559EstimationCompat value,
+          $Res Function(Eip1559EstimationCompat) then) =
+      _$Eip1559EstimationCompatCopyWithImpl<$Res, Eip1559EstimationCompat>;
+  @useResult
+  $Res call({String maxFeePerGas, String maxPriorityFeePerGas});
+}
+
+/// @nodoc
+class _$Eip1559EstimationCompatCopyWithImpl<$Res,
+        $Val extends Eip1559EstimationCompat>
+    implements $Eip1559EstimationCompatCopyWith<$Res> {
+  _$Eip1559EstimationCompatCopyWithImpl(this._value, this._then);
+
+  // ignore: unused_field
+  final $Val _value;
+  // ignore: unused_field
+  final $Res Function($Val) _then;
+
+  /// Create a copy of Eip1559EstimationCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? maxFeePerGas = null,
+    Object? maxPriorityFeePerGas = null,
+  }) {
+    return _then(_value.copyWith(
+      maxFeePerGas: null == maxFeePerGas
+          ? _value.maxFeePerGas
+          : maxFeePerGas // ignore: cast_nullable_to_non_nullable
+              as String,
+      maxPriorityFeePerGas: null == maxPriorityFeePerGas
+          ? _value.maxPriorityFeePerGas
+          : maxPriorityFeePerGas // ignore: cast_nullable_to_non_nullable
+              as String,
+    ) as $Val);
+  }
+}
+
+/// @nodoc
+abstract class _$$Eip1559EstimationCompatImplCopyWith<$Res>
+    implements $Eip1559EstimationCompatCopyWith<$Res> {
+  factory _$$Eip1559EstimationCompatImplCopyWith(
+          _$Eip1559EstimationCompatImpl value,
+          $Res Function(_$Eip1559EstimationCompatImpl) then) =
+      __$$Eip1559EstimationCompatImplCopyWithImpl<$Res>;
+  @override
+  @useResult
+  $Res call({String maxFeePerGas, String maxPriorityFeePerGas});
+}
+
+/// @nodoc
+class __$$Eip1559EstimationCompatImplCopyWithImpl<$Res>
+    extends _$Eip1559EstimationCompatCopyWithImpl<$Res,
+        _$Eip1559EstimationCompatImpl>
+    implements _$$Eip1559EstimationCompatImplCopyWith<$Res> {
+  __$$Eip1559EstimationCompatImplCopyWithImpl(
+      _$Eip1559EstimationCompatImpl _value,
+      $Res Function(_$Eip1559EstimationCompatImpl) _then)
+      : super(_value, _then);
+
+  /// Create a copy of Eip1559EstimationCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? maxFeePerGas = null,
+    Object? maxPriorityFeePerGas = null,
+  }) {
+    return _then(_$Eip1559EstimationCompatImpl(
+      maxFeePerGas: null == maxFeePerGas
+          ? _value.maxFeePerGas
+          : maxFeePerGas // ignore: cast_nullable_to_non_nullable
+              as String,
+      maxPriorityFeePerGas: null == maxPriorityFeePerGas
+          ? _value.maxPriorityFeePerGas
+          : maxPriorityFeePerGas // ignore: cast_nullable_to_non_nullable
+              as String,
+    ));
+  }
+}
+
+/// @nodoc
+
+class _$Eip1559EstimationCompatImpl implements _Eip1559EstimationCompat {
+  const _$Eip1559EstimationCompatImpl(
+      {required this.maxFeePerGas, required this.maxPriorityFeePerGas});
+
+  @override
+  final String maxFeePerGas;
+  @override
+  final String maxPriorityFeePerGas;
+
+  @override
+  String toString() {
+    return 'Eip1559EstimationCompat(maxFeePerGas: $maxFeePerGas, maxPriorityFeePerGas: $maxPriorityFeePerGas)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$Eip1559EstimationCompatImpl &&
+            (identical(other.maxFeePerGas, maxFeePerGas) ||
+                other.maxFeePerGas == maxFeePerGas) &&
+            (identical(other.maxPriorityFeePerGas, maxPriorityFeePerGas) ||
+                other.maxPriorityFeePerGas == maxPriorityFeePerGas));
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(runtimeType, maxFeePerGas, maxPriorityFeePerGas);
+
+  /// Create a copy of Eip1559EstimationCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$Eip1559EstimationCompatImplCopyWith<_$Eip1559EstimationCompatImpl>
+      get copyWith => __$$Eip1559EstimationCompatImplCopyWithImpl<
+          _$Eip1559EstimationCompatImpl>(this, _$identity);
+}
+
+abstract class _Eip1559EstimationCompat implements Eip1559EstimationCompat {
+  const factory _Eip1559EstimationCompat(
+          {required final String maxFeePerGas,
+          required final String maxPriorityFeePerGas}) =
+      _$Eip1559EstimationCompatImpl;
+
+  @override
+  String get maxFeePerGas;
+  @override
+  String get maxPriorityFeePerGas;
+
+  /// Create a copy of Eip1559EstimationCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  _$$Eip1559EstimationCompatImplCopyWith<_$Eip1559EstimationCompatImpl>
+      get copyWith => throw _privateConstructorUsedError;
+}
+
+/// @nodoc
 mixin _$ErrorCompat {
   String get field0 => throw _privateConstructorUsedError;
   @optionalTypeArgs
@@ -230,6 +766,1166 @@ abstract class ErrorCompat_General extends ErrorCompat {
   @override
   @JsonKey(includeFromJson: false, includeToJson: false)
   _$$ErrorCompat_GeneralImplCopyWith<_$ErrorCompat_GeneralImpl> get copyWith =>
+      throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+mixin _$ExecuteDetailsCompat {
+  TransactionReceiptCompat get initialTxnReceipt =>
+      throw _privateConstructorUsedError;
+  String get initialTxnHash => throw _privateConstructorUsedError;
+
+  /// Create a copy of ExecuteDetailsCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  $ExecuteDetailsCompatCopyWith<ExecuteDetailsCompat> get copyWith =>
+      throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class $ExecuteDetailsCompatCopyWith<$Res> {
+  factory $ExecuteDetailsCompatCopyWith(ExecuteDetailsCompat value,
+          $Res Function(ExecuteDetailsCompat) then) =
+      _$ExecuteDetailsCompatCopyWithImpl<$Res, ExecuteDetailsCompat>;
+  @useResult
+  $Res call(
+      {TransactionReceiptCompat initialTxnReceipt, String initialTxnHash});
+
+  $TransactionReceiptCompatCopyWith<$Res> get initialTxnReceipt;
+}
+
+/// @nodoc
+class _$ExecuteDetailsCompatCopyWithImpl<$Res,
+        $Val extends ExecuteDetailsCompat>
+    implements $ExecuteDetailsCompatCopyWith<$Res> {
+  _$ExecuteDetailsCompatCopyWithImpl(this._value, this._then);
+
+  // ignore: unused_field
+  final $Val _value;
+  // ignore: unused_field
+  final $Res Function($Val) _then;
+
+  /// Create a copy of ExecuteDetailsCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? initialTxnReceipt = null,
+    Object? initialTxnHash = null,
+  }) {
+    return _then(_value.copyWith(
+      initialTxnReceipt: null == initialTxnReceipt
+          ? _value.initialTxnReceipt
+          : initialTxnReceipt // ignore: cast_nullable_to_non_nullable
+              as TransactionReceiptCompat,
+      initialTxnHash: null == initialTxnHash
+          ? _value.initialTxnHash
+          : initialTxnHash // ignore: cast_nullable_to_non_nullable
+              as String,
+    ) as $Val);
+  }
+
+  /// Create a copy of ExecuteDetailsCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $TransactionReceiptCompatCopyWith<$Res> get initialTxnReceipt {
+    return $TransactionReceiptCompatCopyWith<$Res>(_value.initialTxnReceipt,
+        (value) {
+      return _then(_value.copyWith(initialTxnReceipt: value) as $Val);
+    });
+  }
+}
+
+/// @nodoc
+abstract class _$$ExecuteDetailsCompatImplCopyWith<$Res>
+    implements $ExecuteDetailsCompatCopyWith<$Res> {
+  factory _$$ExecuteDetailsCompatImplCopyWith(_$ExecuteDetailsCompatImpl value,
+          $Res Function(_$ExecuteDetailsCompatImpl) then) =
+      __$$ExecuteDetailsCompatImplCopyWithImpl<$Res>;
+  @override
+  @useResult
+  $Res call(
+      {TransactionReceiptCompat initialTxnReceipt, String initialTxnHash});
+
+  @override
+  $TransactionReceiptCompatCopyWith<$Res> get initialTxnReceipt;
+}
+
+/// @nodoc
+class __$$ExecuteDetailsCompatImplCopyWithImpl<$Res>
+    extends _$ExecuteDetailsCompatCopyWithImpl<$Res, _$ExecuteDetailsCompatImpl>
+    implements _$$ExecuteDetailsCompatImplCopyWith<$Res> {
+  __$$ExecuteDetailsCompatImplCopyWithImpl(_$ExecuteDetailsCompatImpl _value,
+      $Res Function(_$ExecuteDetailsCompatImpl) _then)
+      : super(_value, _then);
+
+  /// Create a copy of ExecuteDetailsCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? initialTxnReceipt = null,
+    Object? initialTxnHash = null,
+  }) {
+    return _then(_$ExecuteDetailsCompatImpl(
+      initialTxnReceipt: null == initialTxnReceipt
+          ? _value.initialTxnReceipt
+          : initialTxnReceipt // ignore: cast_nullable_to_non_nullable
+              as TransactionReceiptCompat,
+      initialTxnHash: null == initialTxnHash
+          ? _value.initialTxnHash
+          : initialTxnHash // ignore: cast_nullable_to_non_nullable
+              as String,
+    ));
+  }
+}
+
+/// @nodoc
+
+class _$ExecuteDetailsCompatImpl implements _ExecuteDetailsCompat {
+  const _$ExecuteDetailsCompatImpl(
+      {required this.initialTxnReceipt, required this.initialTxnHash});
+
+  @override
+  final TransactionReceiptCompat initialTxnReceipt;
+  @override
+  final String initialTxnHash;
+
+  @override
+  String toString() {
+    return 'ExecuteDetailsCompat(initialTxnReceipt: $initialTxnReceipt, initialTxnHash: $initialTxnHash)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$ExecuteDetailsCompatImpl &&
+            (identical(other.initialTxnReceipt, initialTxnReceipt) ||
+                other.initialTxnReceipt == initialTxnReceipt) &&
+            (identical(other.initialTxnHash, initialTxnHash) ||
+                other.initialTxnHash == initialTxnHash));
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(runtimeType, initialTxnReceipt, initialTxnHash);
+
+  /// Create a copy of ExecuteDetailsCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$ExecuteDetailsCompatImplCopyWith<_$ExecuteDetailsCompatImpl>
+      get copyWith =>
+          __$$ExecuteDetailsCompatImplCopyWithImpl<_$ExecuteDetailsCompatImpl>(
+              this, _$identity);
+}
+
+abstract class _ExecuteDetailsCompat implements ExecuteDetailsCompat {
+  const factory _ExecuteDetailsCompat(
+      {required final TransactionReceiptCompat initialTxnReceipt,
+      required final String initialTxnHash}) = _$ExecuteDetailsCompatImpl;
+
+  @override
+  TransactionReceiptCompat get initialTxnReceipt;
+  @override
+  String get initialTxnHash;
+
+  /// Create a copy of ExecuteDetailsCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  _$$ExecuteDetailsCompatImplCopyWith<_$ExecuteDetailsCompatImpl>
+      get copyWith => throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+mixin _$FeeEstimatedTransactionCompat {
+  String get chainId => throw _privateConstructorUsedError;
+  String get from => throw _privateConstructorUsedError;
+  String get to => throw _privateConstructorUsedError;
+  String get value => throw _privateConstructorUsedError;
+  Uint8List get input => throw _privateConstructorUsedError;
+  String get gasLimit => throw _privateConstructorUsedError;
+  String get nonce => throw _privateConstructorUsedError;
+  String get maxFeePerGas => throw _privateConstructorUsedError;
+  String get maxPriorityFeePerGas => throw _privateConstructorUsedError;
+
+  /// Create a copy of FeeEstimatedTransactionCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  $FeeEstimatedTransactionCompatCopyWith<FeeEstimatedTransactionCompat>
+      get copyWith => throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class $FeeEstimatedTransactionCompatCopyWith<$Res> {
+  factory $FeeEstimatedTransactionCompatCopyWith(
+          FeeEstimatedTransactionCompat value,
+          $Res Function(FeeEstimatedTransactionCompat) then) =
+      _$FeeEstimatedTransactionCompatCopyWithImpl<$Res,
+          FeeEstimatedTransactionCompat>;
+  @useResult
+  $Res call(
+      {String chainId,
+      String from,
+      String to,
+      String value,
+      Uint8List input,
+      String gasLimit,
+      String nonce,
+      String maxFeePerGas,
+      String maxPriorityFeePerGas});
+}
+
+/// @nodoc
+class _$FeeEstimatedTransactionCompatCopyWithImpl<$Res,
+        $Val extends FeeEstimatedTransactionCompat>
+    implements $FeeEstimatedTransactionCompatCopyWith<$Res> {
+  _$FeeEstimatedTransactionCompatCopyWithImpl(this._value, this._then);
+
+  // ignore: unused_field
+  final $Val _value;
+  // ignore: unused_field
+  final $Res Function($Val) _then;
+
+  /// Create a copy of FeeEstimatedTransactionCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? chainId = null,
+    Object? from = null,
+    Object? to = null,
+    Object? value = null,
+    Object? input = null,
+    Object? gasLimit = null,
+    Object? nonce = null,
+    Object? maxFeePerGas = null,
+    Object? maxPriorityFeePerGas = null,
+  }) {
+    return _then(_value.copyWith(
+      chainId: null == chainId
+          ? _value.chainId
+          : chainId // ignore: cast_nullable_to_non_nullable
+              as String,
+      from: null == from
+          ? _value.from
+          : from // ignore: cast_nullable_to_non_nullable
+              as String,
+      to: null == to
+          ? _value.to
+          : to // ignore: cast_nullable_to_non_nullable
+              as String,
+      value: null == value
+          ? _value.value
+          : value // ignore: cast_nullable_to_non_nullable
+              as String,
+      input: null == input
+          ? _value.input
+          : input // ignore: cast_nullable_to_non_nullable
+              as Uint8List,
+      gasLimit: null == gasLimit
+          ? _value.gasLimit
+          : gasLimit // ignore: cast_nullable_to_non_nullable
+              as String,
+      nonce: null == nonce
+          ? _value.nonce
+          : nonce // ignore: cast_nullable_to_non_nullable
+              as String,
+      maxFeePerGas: null == maxFeePerGas
+          ? _value.maxFeePerGas
+          : maxFeePerGas // ignore: cast_nullable_to_non_nullable
+              as String,
+      maxPriorityFeePerGas: null == maxPriorityFeePerGas
+          ? _value.maxPriorityFeePerGas
+          : maxPriorityFeePerGas // ignore: cast_nullable_to_non_nullable
+              as String,
+    ) as $Val);
+  }
+}
+
+/// @nodoc
+abstract class _$$FeeEstimatedTransactionCompatImplCopyWith<$Res>
+    implements $FeeEstimatedTransactionCompatCopyWith<$Res> {
+  factory _$$FeeEstimatedTransactionCompatImplCopyWith(
+          _$FeeEstimatedTransactionCompatImpl value,
+          $Res Function(_$FeeEstimatedTransactionCompatImpl) then) =
+      __$$FeeEstimatedTransactionCompatImplCopyWithImpl<$Res>;
+  @override
+  @useResult
+  $Res call(
+      {String chainId,
+      String from,
+      String to,
+      String value,
+      Uint8List input,
+      String gasLimit,
+      String nonce,
+      String maxFeePerGas,
+      String maxPriorityFeePerGas});
+}
+
+/// @nodoc
+class __$$FeeEstimatedTransactionCompatImplCopyWithImpl<$Res>
+    extends _$FeeEstimatedTransactionCompatCopyWithImpl<$Res,
+        _$FeeEstimatedTransactionCompatImpl>
+    implements _$$FeeEstimatedTransactionCompatImplCopyWith<$Res> {
+  __$$FeeEstimatedTransactionCompatImplCopyWithImpl(
+      _$FeeEstimatedTransactionCompatImpl _value,
+      $Res Function(_$FeeEstimatedTransactionCompatImpl) _then)
+      : super(_value, _then);
+
+  /// Create a copy of FeeEstimatedTransactionCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? chainId = null,
+    Object? from = null,
+    Object? to = null,
+    Object? value = null,
+    Object? input = null,
+    Object? gasLimit = null,
+    Object? nonce = null,
+    Object? maxFeePerGas = null,
+    Object? maxPriorityFeePerGas = null,
+  }) {
+    return _then(_$FeeEstimatedTransactionCompatImpl(
+      chainId: null == chainId
+          ? _value.chainId
+          : chainId // ignore: cast_nullable_to_non_nullable
+              as String,
+      from: null == from
+          ? _value.from
+          : from // ignore: cast_nullable_to_non_nullable
+              as String,
+      to: null == to
+          ? _value.to
+          : to // ignore: cast_nullable_to_non_nullable
+              as String,
+      value: null == value
+          ? _value.value
+          : value // ignore: cast_nullable_to_non_nullable
+              as String,
+      input: null == input
+          ? _value.input
+          : input // ignore: cast_nullable_to_non_nullable
+              as Uint8List,
+      gasLimit: null == gasLimit
+          ? _value.gasLimit
+          : gasLimit // ignore: cast_nullable_to_non_nullable
+              as String,
+      nonce: null == nonce
+          ? _value.nonce
+          : nonce // ignore: cast_nullable_to_non_nullable
+              as String,
+      maxFeePerGas: null == maxFeePerGas
+          ? _value.maxFeePerGas
+          : maxFeePerGas // ignore: cast_nullable_to_non_nullable
+              as String,
+      maxPriorityFeePerGas: null == maxPriorityFeePerGas
+          ? _value.maxPriorityFeePerGas
+          : maxPriorityFeePerGas // ignore: cast_nullable_to_non_nullable
+              as String,
+    ));
+  }
+}
+
+/// @nodoc
+
+class _$FeeEstimatedTransactionCompatImpl
+    implements _FeeEstimatedTransactionCompat {
+  const _$FeeEstimatedTransactionCompatImpl(
+      {required this.chainId,
+      required this.from,
+      required this.to,
+      required this.value,
+      required this.input,
+      required this.gasLimit,
+      required this.nonce,
+      required this.maxFeePerGas,
+      required this.maxPriorityFeePerGas});
+
+  @override
+  final String chainId;
+  @override
+  final String from;
+  @override
+  final String to;
+  @override
+  final String value;
+  @override
+  final Uint8List input;
+  @override
+  final String gasLimit;
+  @override
+  final String nonce;
+  @override
+  final String maxFeePerGas;
+  @override
+  final String maxPriorityFeePerGas;
+
+  @override
+  String toString() {
+    return 'FeeEstimatedTransactionCompat(chainId: $chainId, from: $from, to: $to, value: $value, input: $input, gasLimit: $gasLimit, nonce: $nonce, maxFeePerGas: $maxFeePerGas, maxPriorityFeePerGas: $maxPriorityFeePerGas)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$FeeEstimatedTransactionCompatImpl &&
+            (identical(other.chainId, chainId) || other.chainId == chainId) &&
+            (identical(other.from, from) || other.from == from) &&
+            (identical(other.to, to) || other.to == to) &&
+            (identical(other.value, value) || other.value == value) &&
+            const DeepCollectionEquality().equals(other.input, input) &&
+            (identical(other.gasLimit, gasLimit) ||
+                other.gasLimit == gasLimit) &&
+            (identical(other.nonce, nonce) || other.nonce == nonce) &&
+            (identical(other.maxFeePerGas, maxFeePerGas) ||
+                other.maxFeePerGas == maxFeePerGas) &&
+            (identical(other.maxPriorityFeePerGas, maxPriorityFeePerGas) ||
+                other.maxPriorityFeePerGas == maxPriorityFeePerGas));
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      runtimeType,
+      chainId,
+      from,
+      to,
+      value,
+      const DeepCollectionEquality().hash(input),
+      gasLimit,
+      nonce,
+      maxFeePerGas,
+      maxPriorityFeePerGas);
+
+  /// Create a copy of FeeEstimatedTransactionCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$FeeEstimatedTransactionCompatImplCopyWith<
+          _$FeeEstimatedTransactionCompatImpl>
+      get copyWith => __$$FeeEstimatedTransactionCompatImplCopyWithImpl<
+          _$FeeEstimatedTransactionCompatImpl>(this, _$identity);
+}
+
+abstract class _FeeEstimatedTransactionCompat
+    implements FeeEstimatedTransactionCompat {
+  const factory _FeeEstimatedTransactionCompat(
+          {required final String chainId,
+          required final String from,
+          required final String to,
+          required final String value,
+          required final Uint8List input,
+          required final String gasLimit,
+          required final String nonce,
+          required final String maxFeePerGas,
+          required final String maxPriorityFeePerGas}) =
+      _$FeeEstimatedTransactionCompatImpl;
+
+  @override
+  String get chainId;
+  @override
+  String get from;
+  @override
+  String get to;
+  @override
+  String get value;
+  @override
+  Uint8List get input;
+  @override
+  String get gasLimit;
+  @override
+  String get nonce;
+  @override
+  String get maxFeePerGas;
+  @override
+  String get maxPriorityFeePerGas;
+
+  /// Create a copy of FeeEstimatedTransactionCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  _$$FeeEstimatedTransactionCompatImplCopyWith<
+          _$FeeEstimatedTransactionCompatImpl>
+      get copyWith => throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+mixin _$FundingMetadataCompat {
+  String get chainId => throw _privateConstructorUsedError;
+  String get tokenContract => throw _privateConstructorUsedError;
+  String get symbol => throw _privateConstructorUsedError;
+  String get amount => throw _privateConstructorUsedError;
+  String get bridgingFee => throw _privateConstructorUsedError;
+  int get decimals => throw _privateConstructorUsedError;
+
+  /// Create a copy of FundingMetadataCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  $FundingMetadataCompatCopyWith<FundingMetadataCompat> get copyWith =>
+      throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class $FundingMetadataCompatCopyWith<$Res> {
+  factory $FundingMetadataCompatCopyWith(FundingMetadataCompat value,
+          $Res Function(FundingMetadataCompat) then) =
+      _$FundingMetadataCompatCopyWithImpl<$Res, FundingMetadataCompat>;
+  @useResult
+  $Res call(
+      {String chainId,
+      String tokenContract,
+      String symbol,
+      String amount,
+      String bridgingFee,
+      int decimals});
+}
+
+/// @nodoc
+class _$FundingMetadataCompatCopyWithImpl<$Res,
+        $Val extends FundingMetadataCompat>
+    implements $FundingMetadataCompatCopyWith<$Res> {
+  _$FundingMetadataCompatCopyWithImpl(this._value, this._then);
+
+  // ignore: unused_field
+  final $Val _value;
+  // ignore: unused_field
+  final $Res Function($Val) _then;
+
+  /// Create a copy of FundingMetadataCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? chainId = null,
+    Object? tokenContract = null,
+    Object? symbol = null,
+    Object? amount = null,
+    Object? bridgingFee = null,
+    Object? decimals = null,
+  }) {
+    return _then(_value.copyWith(
+      chainId: null == chainId
+          ? _value.chainId
+          : chainId // ignore: cast_nullable_to_non_nullable
+              as String,
+      tokenContract: null == tokenContract
+          ? _value.tokenContract
+          : tokenContract // ignore: cast_nullable_to_non_nullable
+              as String,
+      symbol: null == symbol
+          ? _value.symbol
+          : symbol // ignore: cast_nullable_to_non_nullable
+              as String,
+      amount: null == amount
+          ? _value.amount
+          : amount // ignore: cast_nullable_to_non_nullable
+              as String,
+      bridgingFee: null == bridgingFee
+          ? _value.bridgingFee
+          : bridgingFee // ignore: cast_nullable_to_non_nullable
+              as String,
+      decimals: null == decimals
+          ? _value.decimals
+          : decimals // ignore: cast_nullable_to_non_nullable
+              as int,
+    ) as $Val);
+  }
+}
+
+/// @nodoc
+abstract class _$$FundingMetadataCompatImplCopyWith<$Res>
+    implements $FundingMetadataCompatCopyWith<$Res> {
+  factory _$$FundingMetadataCompatImplCopyWith(
+          _$FundingMetadataCompatImpl value,
+          $Res Function(_$FundingMetadataCompatImpl) then) =
+      __$$FundingMetadataCompatImplCopyWithImpl<$Res>;
+  @override
+  @useResult
+  $Res call(
+      {String chainId,
+      String tokenContract,
+      String symbol,
+      String amount,
+      String bridgingFee,
+      int decimals});
+}
+
+/// @nodoc
+class __$$FundingMetadataCompatImplCopyWithImpl<$Res>
+    extends _$FundingMetadataCompatCopyWithImpl<$Res,
+        _$FundingMetadataCompatImpl>
+    implements _$$FundingMetadataCompatImplCopyWith<$Res> {
+  __$$FundingMetadataCompatImplCopyWithImpl(_$FundingMetadataCompatImpl _value,
+      $Res Function(_$FundingMetadataCompatImpl) _then)
+      : super(_value, _then);
+
+  /// Create a copy of FundingMetadataCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? chainId = null,
+    Object? tokenContract = null,
+    Object? symbol = null,
+    Object? amount = null,
+    Object? bridgingFee = null,
+    Object? decimals = null,
+  }) {
+    return _then(_$FundingMetadataCompatImpl(
+      chainId: null == chainId
+          ? _value.chainId
+          : chainId // ignore: cast_nullable_to_non_nullable
+              as String,
+      tokenContract: null == tokenContract
+          ? _value.tokenContract
+          : tokenContract // ignore: cast_nullable_to_non_nullable
+              as String,
+      symbol: null == symbol
+          ? _value.symbol
+          : symbol // ignore: cast_nullable_to_non_nullable
+              as String,
+      amount: null == amount
+          ? _value.amount
+          : amount // ignore: cast_nullable_to_non_nullable
+              as String,
+      bridgingFee: null == bridgingFee
+          ? _value.bridgingFee
+          : bridgingFee // ignore: cast_nullable_to_non_nullable
+              as String,
+      decimals: null == decimals
+          ? _value.decimals
+          : decimals // ignore: cast_nullable_to_non_nullable
+              as int,
+    ));
+  }
+}
+
+/// @nodoc
+
+class _$FundingMetadataCompatImpl implements _FundingMetadataCompat {
+  const _$FundingMetadataCompatImpl(
+      {required this.chainId,
+      required this.tokenContract,
+      required this.symbol,
+      required this.amount,
+      required this.bridgingFee,
+      required this.decimals});
+
+  @override
+  final String chainId;
+  @override
+  final String tokenContract;
+  @override
+  final String symbol;
+  @override
+  final String amount;
+  @override
+  final String bridgingFee;
+  @override
+  final int decimals;
+
+  @override
+  String toString() {
+    return 'FundingMetadataCompat(chainId: $chainId, tokenContract: $tokenContract, symbol: $symbol, amount: $amount, bridgingFee: $bridgingFee, decimals: $decimals)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$FundingMetadataCompatImpl &&
+            (identical(other.chainId, chainId) || other.chainId == chainId) &&
+            (identical(other.tokenContract, tokenContract) ||
+                other.tokenContract == tokenContract) &&
+            (identical(other.symbol, symbol) || other.symbol == symbol) &&
+            (identical(other.amount, amount) || other.amount == amount) &&
+            (identical(other.bridgingFee, bridgingFee) ||
+                other.bridgingFee == bridgingFee) &&
+            (identical(other.decimals, decimals) ||
+                other.decimals == decimals));
+  }
+
+  @override
+  int get hashCode => Object.hash(runtimeType, chainId, tokenContract, symbol,
+      amount, bridgingFee, decimals);
+
+  /// Create a copy of FundingMetadataCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$FundingMetadataCompatImplCopyWith<_$FundingMetadataCompatImpl>
+      get copyWith => __$$FundingMetadataCompatImplCopyWithImpl<
+          _$FundingMetadataCompatImpl>(this, _$identity);
+}
+
+abstract class _FundingMetadataCompat implements FundingMetadataCompat {
+  const factory _FundingMetadataCompat(
+      {required final String chainId,
+      required final String tokenContract,
+      required final String symbol,
+      required final String amount,
+      required final String bridgingFee,
+      required final int decimals}) = _$FundingMetadataCompatImpl;
+
+  @override
+  String get chainId;
+  @override
+  String get tokenContract;
+  @override
+  String get symbol;
+  @override
+  String get amount;
+  @override
+  String get bridgingFee;
+  @override
+  int get decimals;
+
+  /// Create a copy of FundingMetadataCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  _$$FundingMetadataCompatImplCopyWith<_$FundingMetadataCompatImpl>
+      get copyWith => throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+mixin _$InitialTransactionMetadataCompat {
+  String get transferTo => throw _privateConstructorUsedError;
+  String get amount => throw _privateConstructorUsedError;
+  String get tokenContract => throw _privateConstructorUsedError;
+  String get symbol => throw _privateConstructorUsedError;
+  int get decimals => throw _privateConstructorUsedError;
+
+  /// Create a copy of InitialTransactionMetadataCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  $InitialTransactionMetadataCompatCopyWith<InitialTransactionMetadataCompat>
+      get copyWith => throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class $InitialTransactionMetadataCompatCopyWith<$Res> {
+  factory $InitialTransactionMetadataCompatCopyWith(
+          InitialTransactionMetadataCompat value,
+          $Res Function(InitialTransactionMetadataCompat) then) =
+      _$InitialTransactionMetadataCompatCopyWithImpl<$Res,
+          InitialTransactionMetadataCompat>;
+  @useResult
+  $Res call(
+      {String transferTo,
+      String amount,
+      String tokenContract,
+      String symbol,
+      int decimals});
+}
+
+/// @nodoc
+class _$InitialTransactionMetadataCompatCopyWithImpl<$Res,
+        $Val extends InitialTransactionMetadataCompat>
+    implements $InitialTransactionMetadataCompatCopyWith<$Res> {
+  _$InitialTransactionMetadataCompatCopyWithImpl(this._value, this._then);
+
+  // ignore: unused_field
+  final $Val _value;
+  // ignore: unused_field
+  final $Res Function($Val) _then;
+
+  /// Create a copy of InitialTransactionMetadataCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? transferTo = null,
+    Object? amount = null,
+    Object? tokenContract = null,
+    Object? symbol = null,
+    Object? decimals = null,
+  }) {
+    return _then(_value.copyWith(
+      transferTo: null == transferTo
+          ? _value.transferTo
+          : transferTo // ignore: cast_nullable_to_non_nullable
+              as String,
+      amount: null == amount
+          ? _value.amount
+          : amount // ignore: cast_nullable_to_non_nullable
+              as String,
+      tokenContract: null == tokenContract
+          ? _value.tokenContract
+          : tokenContract // ignore: cast_nullable_to_non_nullable
+              as String,
+      symbol: null == symbol
+          ? _value.symbol
+          : symbol // ignore: cast_nullable_to_non_nullable
+              as String,
+      decimals: null == decimals
+          ? _value.decimals
+          : decimals // ignore: cast_nullable_to_non_nullable
+              as int,
+    ) as $Val);
+  }
+}
+
+/// @nodoc
+abstract class _$$InitialTransactionMetadataCompatImplCopyWith<$Res>
+    implements $InitialTransactionMetadataCompatCopyWith<$Res> {
+  factory _$$InitialTransactionMetadataCompatImplCopyWith(
+          _$InitialTransactionMetadataCompatImpl value,
+          $Res Function(_$InitialTransactionMetadataCompatImpl) then) =
+      __$$InitialTransactionMetadataCompatImplCopyWithImpl<$Res>;
+  @override
+  @useResult
+  $Res call(
+      {String transferTo,
+      String amount,
+      String tokenContract,
+      String symbol,
+      int decimals});
+}
+
+/// @nodoc
+class __$$InitialTransactionMetadataCompatImplCopyWithImpl<$Res>
+    extends _$InitialTransactionMetadataCompatCopyWithImpl<$Res,
+        _$InitialTransactionMetadataCompatImpl>
+    implements _$$InitialTransactionMetadataCompatImplCopyWith<$Res> {
+  __$$InitialTransactionMetadataCompatImplCopyWithImpl(
+      _$InitialTransactionMetadataCompatImpl _value,
+      $Res Function(_$InitialTransactionMetadataCompatImpl) _then)
+      : super(_value, _then);
+
+  /// Create a copy of InitialTransactionMetadataCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? transferTo = null,
+    Object? amount = null,
+    Object? tokenContract = null,
+    Object? symbol = null,
+    Object? decimals = null,
+  }) {
+    return _then(_$InitialTransactionMetadataCompatImpl(
+      transferTo: null == transferTo
+          ? _value.transferTo
+          : transferTo // ignore: cast_nullable_to_non_nullable
+              as String,
+      amount: null == amount
+          ? _value.amount
+          : amount // ignore: cast_nullable_to_non_nullable
+              as String,
+      tokenContract: null == tokenContract
+          ? _value.tokenContract
+          : tokenContract // ignore: cast_nullable_to_non_nullable
+              as String,
+      symbol: null == symbol
+          ? _value.symbol
+          : symbol // ignore: cast_nullable_to_non_nullable
+              as String,
+      decimals: null == decimals
+          ? _value.decimals
+          : decimals // ignore: cast_nullable_to_non_nullable
+              as int,
+    ));
+  }
+}
+
+/// @nodoc
+
+class _$InitialTransactionMetadataCompatImpl
+    implements _InitialTransactionMetadataCompat {
+  const _$InitialTransactionMetadataCompatImpl(
+      {required this.transferTo,
+      required this.amount,
+      required this.tokenContract,
+      required this.symbol,
+      required this.decimals});
+
+  @override
+  final String transferTo;
+  @override
+  final String amount;
+  @override
+  final String tokenContract;
+  @override
+  final String symbol;
+  @override
+  final int decimals;
+
+  @override
+  String toString() {
+    return 'InitialTransactionMetadataCompat(transferTo: $transferTo, amount: $amount, tokenContract: $tokenContract, symbol: $symbol, decimals: $decimals)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$InitialTransactionMetadataCompatImpl &&
+            (identical(other.transferTo, transferTo) ||
+                other.transferTo == transferTo) &&
+            (identical(other.amount, amount) || other.amount == amount) &&
+            (identical(other.tokenContract, tokenContract) ||
+                other.tokenContract == tokenContract) &&
+            (identical(other.symbol, symbol) || other.symbol == symbol) &&
+            (identical(other.decimals, decimals) ||
+                other.decimals == decimals));
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      runtimeType, transferTo, amount, tokenContract, symbol, decimals);
+
+  /// Create a copy of InitialTransactionMetadataCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$InitialTransactionMetadataCompatImplCopyWith<
+          _$InitialTransactionMetadataCompatImpl>
+      get copyWith => __$$InitialTransactionMetadataCompatImplCopyWithImpl<
+          _$InitialTransactionMetadataCompatImpl>(this, _$identity);
+}
+
+abstract class _InitialTransactionMetadataCompat
+    implements InitialTransactionMetadataCompat {
+  const factory _InitialTransactionMetadataCompat(
+      {required final String transferTo,
+      required final String amount,
+      required final String tokenContract,
+      required final String symbol,
+      required final int decimals}) = _$InitialTransactionMetadataCompatImpl;
+
+  @override
+  String get transferTo;
+  @override
+  String get amount;
+  @override
+  String get tokenContract;
+  @override
+  String get symbol;
+  @override
+  int get decimals;
+
+  /// Create a copy of InitialTransactionMetadataCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  _$$InitialTransactionMetadataCompatImplCopyWith<
+          _$InitialTransactionMetadataCompatImpl>
+      get copyWith => throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+mixin _$MetadataCompat {
+  List<FundingMetadataCompat> get fundingFrom =>
+      throw _privateConstructorUsedError;
+  InitialTransactionMetadataCompat get initialTransaction =>
+      throw _privateConstructorUsedError;
+  BigInt get checkIn => throw _privateConstructorUsedError;
+
+  /// Create a copy of MetadataCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  $MetadataCompatCopyWith<MetadataCompat> get copyWith =>
+      throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class $MetadataCompatCopyWith<$Res> {
+  factory $MetadataCompatCopyWith(
+          MetadataCompat value, $Res Function(MetadataCompat) then) =
+      _$MetadataCompatCopyWithImpl<$Res, MetadataCompat>;
+  @useResult
+  $Res call(
+      {List<FundingMetadataCompat> fundingFrom,
+      InitialTransactionMetadataCompat initialTransaction,
+      BigInt checkIn});
+
+  $InitialTransactionMetadataCompatCopyWith<$Res> get initialTransaction;
+}
+
+/// @nodoc
+class _$MetadataCompatCopyWithImpl<$Res, $Val extends MetadataCompat>
+    implements $MetadataCompatCopyWith<$Res> {
+  _$MetadataCompatCopyWithImpl(this._value, this._then);
+
+  // ignore: unused_field
+  final $Val _value;
+  // ignore: unused_field
+  final $Res Function($Val) _then;
+
+  /// Create a copy of MetadataCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? fundingFrom = null,
+    Object? initialTransaction = null,
+    Object? checkIn = null,
+  }) {
+    return _then(_value.copyWith(
+      fundingFrom: null == fundingFrom
+          ? _value.fundingFrom
+          : fundingFrom // ignore: cast_nullable_to_non_nullable
+              as List<FundingMetadataCompat>,
+      initialTransaction: null == initialTransaction
+          ? _value.initialTransaction
+          : initialTransaction // ignore: cast_nullable_to_non_nullable
+              as InitialTransactionMetadataCompat,
+      checkIn: null == checkIn
+          ? _value.checkIn
+          : checkIn // ignore: cast_nullable_to_non_nullable
+              as BigInt,
+    ) as $Val);
+  }
+
+  /// Create a copy of MetadataCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $InitialTransactionMetadataCompatCopyWith<$Res> get initialTransaction {
+    return $InitialTransactionMetadataCompatCopyWith<$Res>(
+        _value.initialTransaction, (value) {
+      return _then(_value.copyWith(initialTransaction: value) as $Val);
+    });
+  }
+}
+
+/// @nodoc
+abstract class _$$MetadataCompatImplCopyWith<$Res>
+    implements $MetadataCompatCopyWith<$Res> {
+  factory _$$MetadataCompatImplCopyWith(_$MetadataCompatImpl value,
+          $Res Function(_$MetadataCompatImpl) then) =
+      __$$MetadataCompatImplCopyWithImpl<$Res>;
+  @override
+  @useResult
+  $Res call(
+      {List<FundingMetadataCompat> fundingFrom,
+      InitialTransactionMetadataCompat initialTransaction,
+      BigInt checkIn});
+
+  @override
+  $InitialTransactionMetadataCompatCopyWith<$Res> get initialTransaction;
+}
+
+/// @nodoc
+class __$$MetadataCompatImplCopyWithImpl<$Res>
+    extends _$MetadataCompatCopyWithImpl<$Res, _$MetadataCompatImpl>
+    implements _$$MetadataCompatImplCopyWith<$Res> {
+  __$$MetadataCompatImplCopyWithImpl(
+      _$MetadataCompatImpl _value, $Res Function(_$MetadataCompatImpl) _then)
+      : super(_value, _then);
+
+  /// Create a copy of MetadataCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? fundingFrom = null,
+    Object? initialTransaction = null,
+    Object? checkIn = null,
+  }) {
+    return _then(_$MetadataCompatImpl(
+      fundingFrom: null == fundingFrom
+          ? _value._fundingFrom
+          : fundingFrom // ignore: cast_nullable_to_non_nullable
+              as List<FundingMetadataCompat>,
+      initialTransaction: null == initialTransaction
+          ? _value.initialTransaction
+          : initialTransaction // ignore: cast_nullable_to_non_nullable
+              as InitialTransactionMetadataCompat,
+      checkIn: null == checkIn
+          ? _value.checkIn
+          : checkIn // ignore: cast_nullable_to_non_nullable
+              as BigInt,
+    ));
+  }
+}
+
+/// @nodoc
+
+class _$MetadataCompatImpl implements _MetadataCompat {
+  const _$MetadataCompatImpl(
+      {required final List<FundingMetadataCompat> fundingFrom,
+      required this.initialTransaction,
+      required this.checkIn})
+      : _fundingFrom = fundingFrom;
+
+  final List<FundingMetadataCompat> _fundingFrom;
+  @override
+  List<FundingMetadataCompat> get fundingFrom {
+    if (_fundingFrom is EqualUnmodifiableListView) return _fundingFrom;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_fundingFrom);
+  }
+
+  @override
+  final InitialTransactionMetadataCompat initialTransaction;
+  @override
+  final BigInt checkIn;
+
+  @override
+  String toString() {
+    return 'MetadataCompat(fundingFrom: $fundingFrom, initialTransaction: $initialTransaction, checkIn: $checkIn)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$MetadataCompatImpl &&
+            const DeepCollectionEquality()
+                .equals(other._fundingFrom, _fundingFrom) &&
+            (identical(other.initialTransaction, initialTransaction) ||
+                other.initialTransaction == initialTransaction) &&
+            (identical(other.checkIn, checkIn) || other.checkIn == checkIn));
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      runtimeType,
+      const DeepCollectionEquality().hash(_fundingFrom),
+      initialTransaction,
+      checkIn);
+
+  /// Create a copy of MetadataCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$MetadataCompatImplCopyWith<_$MetadataCompatImpl> get copyWith =>
+      __$$MetadataCompatImplCopyWithImpl<_$MetadataCompatImpl>(
+          this, _$identity);
+}
+
+abstract class _MetadataCompat implements MetadataCompat {
+  const factory _MetadataCompat(
+      {required final List<FundingMetadataCompat> fundingFrom,
+      required final InitialTransactionMetadataCompat initialTransaction,
+      required final BigInt checkIn}) = _$MetadataCompatImpl;
+
+  @override
+  List<FundingMetadataCompat> get fundingFrom;
+  @override
+  InitialTransactionMetadataCompat get initialTransaction;
+  @override
+  BigInt get checkIn;
+
+  /// Create a copy of MetadataCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  _$$MetadataCompatImplCopyWith<_$MetadataCompatImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
 
@@ -711,6 +2407,8 @@ abstract class _$$PrepareDetailedResponseSuccessCompat_AvailableImplCopyWith<
       __$$PrepareDetailedResponseSuccessCompat_AvailableImplCopyWithImpl<$Res>;
   @useResult
   $Res call({UiFieldsCompat value});
+
+  $UiFieldsCompatCopyWith<$Res> get value;
 }
 
 /// @nodoc
@@ -737,6 +2435,16 @@ class __$$PrepareDetailedResponseSuccessCompat_AvailableImplCopyWithImpl<$Res>
           : value // ignore: cast_nullable_to_non_nullable
               as UiFieldsCompat,
     ));
+  }
+
+  /// Create a copy of PrepareDetailedResponseSuccessCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $UiFieldsCompatCopyWith<$Res> get value {
+    return $UiFieldsCompatCopyWith<$Res>(_value.value, (value) {
+      return _then(_value.copyWith(value: value));
+    });
   }
 }
 
@@ -880,6 +2588,8 @@ abstract class _$$PrepareDetailedResponseSuccessCompat_NotRequiredImplCopyWith<
           $Res>;
   @useResult
   $Res call({PrepareResponseNotRequiredCompat value});
+
+  $PrepareResponseNotRequiredCompatCopyWith<$Res> get value;
 }
 
 /// @nodoc
@@ -907,6 +2617,17 @@ class __$$PrepareDetailedResponseSuccessCompat_NotRequiredImplCopyWithImpl<$Res>
           : value // ignore: cast_nullable_to_non_nullable
               as PrepareResponseNotRequiredCompat,
     ));
+  }
+
+  /// Create a copy of PrepareDetailedResponseSuccessCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $PrepareResponseNotRequiredCompatCopyWith<$Res> get value {
+    return $PrepareResponseNotRequiredCompatCopyWith<$Res>(_value.value,
+        (value) {
+      return _then(_value.copyWith(value: value));
+    });
   }
 }
 
@@ -1040,24 +2761,274 @@ abstract class PrepareDetailedResponseSuccessCompat_NotRequired
 }
 
 /// @nodoc
+mixin _$PrepareResponseAvailableCompat {
+  String get orchestrationId => throw _privateConstructorUsedError;
+  TransactionCompat get initialTransaction =>
+      throw _privateConstructorUsedError;
+  List<TransactionCompat> get transactions =>
+      throw _privateConstructorUsedError;
+  MetadataCompat get metadata => throw _privateConstructorUsedError;
+
+  /// Create a copy of PrepareResponseAvailableCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  $PrepareResponseAvailableCompatCopyWith<PrepareResponseAvailableCompat>
+      get copyWith => throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class $PrepareResponseAvailableCompatCopyWith<$Res> {
+  factory $PrepareResponseAvailableCompatCopyWith(
+          PrepareResponseAvailableCompat value,
+          $Res Function(PrepareResponseAvailableCompat) then) =
+      _$PrepareResponseAvailableCompatCopyWithImpl<$Res,
+          PrepareResponseAvailableCompat>;
+  @useResult
+  $Res call(
+      {String orchestrationId,
+      TransactionCompat initialTransaction,
+      List<TransactionCompat> transactions,
+      MetadataCompat metadata});
+
+  $TransactionCompatCopyWith<$Res> get initialTransaction;
+  $MetadataCompatCopyWith<$Res> get metadata;
+}
+
+/// @nodoc
+class _$PrepareResponseAvailableCompatCopyWithImpl<$Res,
+        $Val extends PrepareResponseAvailableCompat>
+    implements $PrepareResponseAvailableCompatCopyWith<$Res> {
+  _$PrepareResponseAvailableCompatCopyWithImpl(this._value, this._then);
+
+  // ignore: unused_field
+  final $Val _value;
+  // ignore: unused_field
+  final $Res Function($Val) _then;
+
+  /// Create a copy of PrepareResponseAvailableCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? orchestrationId = null,
+    Object? initialTransaction = null,
+    Object? transactions = null,
+    Object? metadata = null,
+  }) {
+    return _then(_value.copyWith(
+      orchestrationId: null == orchestrationId
+          ? _value.orchestrationId
+          : orchestrationId // ignore: cast_nullable_to_non_nullable
+              as String,
+      initialTransaction: null == initialTransaction
+          ? _value.initialTransaction
+          : initialTransaction // ignore: cast_nullable_to_non_nullable
+              as TransactionCompat,
+      transactions: null == transactions
+          ? _value.transactions
+          : transactions // ignore: cast_nullable_to_non_nullable
+              as List<TransactionCompat>,
+      metadata: null == metadata
+          ? _value.metadata
+          : metadata // ignore: cast_nullable_to_non_nullable
+              as MetadataCompat,
+    ) as $Val);
+  }
+
+  /// Create a copy of PrepareResponseAvailableCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $TransactionCompatCopyWith<$Res> get initialTransaction {
+    return $TransactionCompatCopyWith<$Res>(_value.initialTransaction, (value) {
+      return _then(_value.copyWith(initialTransaction: value) as $Val);
+    });
+  }
+
+  /// Create a copy of PrepareResponseAvailableCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $MetadataCompatCopyWith<$Res> get metadata {
+    return $MetadataCompatCopyWith<$Res>(_value.metadata, (value) {
+      return _then(_value.copyWith(metadata: value) as $Val);
+    });
+  }
+}
+
+/// @nodoc
+abstract class _$$PrepareResponseAvailableCompatImplCopyWith<$Res>
+    implements $PrepareResponseAvailableCompatCopyWith<$Res> {
+  factory _$$PrepareResponseAvailableCompatImplCopyWith(
+          _$PrepareResponseAvailableCompatImpl value,
+          $Res Function(_$PrepareResponseAvailableCompatImpl) then) =
+      __$$PrepareResponseAvailableCompatImplCopyWithImpl<$Res>;
+  @override
+  @useResult
+  $Res call(
+      {String orchestrationId,
+      TransactionCompat initialTransaction,
+      List<TransactionCompat> transactions,
+      MetadataCompat metadata});
+
+  @override
+  $TransactionCompatCopyWith<$Res> get initialTransaction;
+  @override
+  $MetadataCompatCopyWith<$Res> get metadata;
+}
+
+/// @nodoc
+class __$$PrepareResponseAvailableCompatImplCopyWithImpl<$Res>
+    extends _$PrepareResponseAvailableCompatCopyWithImpl<$Res,
+        _$PrepareResponseAvailableCompatImpl>
+    implements _$$PrepareResponseAvailableCompatImplCopyWith<$Res> {
+  __$$PrepareResponseAvailableCompatImplCopyWithImpl(
+      _$PrepareResponseAvailableCompatImpl _value,
+      $Res Function(_$PrepareResponseAvailableCompatImpl) _then)
+      : super(_value, _then);
+
+  /// Create a copy of PrepareResponseAvailableCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? orchestrationId = null,
+    Object? initialTransaction = null,
+    Object? transactions = null,
+    Object? metadata = null,
+  }) {
+    return _then(_$PrepareResponseAvailableCompatImpl(
+      orchestrationId: null == orchestrationId
+          ? _value.orchestrationId
+          : orchestrationId // ignore: cast_nullable_to_non_nullable
+              as String,
+      initialTransaction: null == initialTransaction
+          ? _value.initialTransaction
+          : initialTransaction // ignore: cast_nullable_to_non_nullable
+              as TransactionCompat,
+      transactions: null == transactions
+          ? _value._transactions
+          : transactions // ignore: cast_nullable_to_non_nullable
+              as List<TransactionCompat>,
+      metadata: null == metadata
+          ? _value.metadata
+          : metadata // ignore: cast_nullable_to_non_nullable
+              as MetadataCompat,
+    ));
+  }
+}
+
+/// @nodoc
+
+class _$PrepareResponseAvailableCompatImpl
+    implements _PrepareResponseAvailableCompat {
+  const _$PrepareResponseAvailableCompatImpl(
+      {required this.orchestrationId,
+      required this.initialTransaction,
+      required final List<TransactionCompat> transactions,
+      required this.metadata})
+      : _transactions = transactions;
+
+  @override
+  final String orchestrationId;
+  @override
+  final TransactionCompat initialTransaction;
+  final List<TransactionCompat> _transactions;
+  @override
+  List<TransactionCompat> get transactions {
+    if (_transactions is EqualUnmodifiableListView) return _transactions;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_transactions);
+  }
+
+  @override
+  final MetadataCompat metadata;
+
+  @override
+  String toString() {
+    return 'PrepareResponseAvailableCompat(orchestrationId: $orchestrationId, initialTransaction: $initialTransaction, transactions: $transactions, metadata: $metadata)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$PrepareResponseAvailableCompatImpl &&
+            (identical(other.orchestrationId, orchestrationId) ||
+                other.orchestrationId == orchestrationId) &&
+            (identical(other.initialTransaction, initialTransaction) ||
+                other.initialTransaction == initialTransaction) &&
+            const DeepCollectionEquality()
+                .equals(other._transactions, _transactions) &&
+            (identical(other.metadata, metadata) ||
+                other.metadata == metadata));
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      runtimeType,
+      orchestrationId,
+      initialTransaction,
+      const DeepCollectionEquality().hash(_transactions),
+      metadata);
+
+  /// Create a copy of PrepareResponseAvailableCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$PrepareResponseAvailableCompatImplCopyWith<
+          _$PrepareResponseAvailableCompatImpl>
+      get copyWith => __$$PrepareResponseAvailableCompatImplCopyWithImpl<
+          _$PrepareResponseAvailableCompatImpl>(this, _$identity);
+}
+
+abstract class _PrepareResponseAvailableCompat
+    implements PrepareResponseAvailableCompat {
+  const factory _PrepareResponseAvailableCompat(
+          {required final String orchestrationId,
+          required final TransactionCompat initialTransaction,
+          required final List<TransactionCompat> transactions,
+          required final MetadataCompat metadata}) =
+      _$PrepareResponseAvailableCompatImpl;
+
+  @override
+  String get orchestrationId;
+  @override
+  TransactionCompat get initialTransaction;
+  @override
+  List<TransactionCompat> get transactions;
+  @override
+  MetadataCompat get metadata;
+
+  /// Create a copy of PrepareResponseAvailableCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  _$$PrepareResponseAvailableCompatImplCopyWith<
+          _$PrepareResponseAvailableCompatImpl>
+      get copyWith => throw _privateConstructorUsedError;
+}
+
+/// @nodoc
 mixin _$PrepareResponseCompat {
-  Object get field0 => throw _privateConstructorUsedError;
+  Object get value => throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult when<TResult extends Object?>({
-    required TResult Function(PrepareResponseSuccessCompat field0) success,
-    required TResult Function(PrepareResponseErrorCompat field0) error,
+    required TResult Function(PrepareResponseSuccessCompat value) success,
+    required TResult Function(PrepareResponseErrorCompat value) error,
   }) =>
       throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult? whenOrNull<TResult extends Object?>({
-    TResult? Function(PrepareResponseSuccessCompat field0)? success,
-    TResult? Function(PrepareResponseErrorCompat field0)? error,
+    TResult? Function(PrepareResponseSuccessCompat value)? success,
+    TResult? Function(PrepareResponseErrorCompat value)? error,
   }) =>
       throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult maybeWhen<TResult extends Object?>({
-    TResult Function(PrepareResponseSuccessCompat field0)? success,
-    TResult Function(PrepareResponseErrorCompat field0)? error,
+    TResult Function(PrepareResponseSuccessCompat value)? success,
+    TResult Function(PrepareResponseErrorCompat value)? error,
     required TResult orElse(),
   }) =>
       throw _privateConstructorUsedError;
@@ -1111,9 +3082,9 @@ abstract class _$$PrepareResponseCompat_SuccessImplCopyWith<$Res> {
           $Res Function(_$PrepareResponseCompat_SuccessImpl) then) =
       __$$PrepareResponseCompat_SuccessImplCopyWithImpl<$Res>;
   @useResult
-  $Res call({PrepareResponseSuccessCompat field0});
+  $Res call({PrepareResponseSuccessCompat value});
 
-  $PrepareResponseSuccessCompatCopyWith<$Res> get field0;
+  $PrepareResponseSuccessCompatCopyWith<$Res> get value;
 }
 
 /// @nodoc
@@ -1131,12 +3102,12 @@ class __$$PrepareResponseCompat_SuccessImplCopyWithImpl<$Res>
   @pragma('vm:prefer-inline')
   @override
   $Res call({
-    Object? field0 = null,
+    Object? value = null,
   }) {
     return _then(_$PrepareResponseCompat_SuccessImpl(
-      null == field0
-          ? _value.field0
-          : field0 // ignore: cast_nullable_to_non_nullable
+      value: null == value
+          ? _value.value
+          : value // ignore: cast_nullable_to_non_nullable
               as PrepareResponseSuccessCompat,
     ));
   }
@@ -1145,9 +3116,9 @@ class __$$PrepareResponseCompat_SuccessImplCopyWithImpl<$Res>
   /// with the given fields replaced by the non-null parameter values.
   @override
   @pragma('vm:prefer-inline')
-  $PrepareResponseSuccessCompatCopyWith<$Res> get field0 {
-    return $PrepareResponseSuccessCompatCopyWith<$Res>(_value.field0, (value) {
-      return _then(_value.copyWith(field0: value));
+  $PrepareResponseSuccessCompatCopyWith<$Res> get value {
+    return $PrepareResponseSuccessCompatCopyWith<$Res>(_value.value, (value) {
+      return _then(_value.copyWith(value: value));
     });
   }
 }
@@ -1156,14 +3127,14 @@ class __$$PrepareResponseCompat_SuccessImplCopyWithImpl<$Res>
 
 class _$PrepareResponseCompat_SuccessImpl
     extends PrepareResponseCompat_Success {
-  const _$PrepareResponseCompat_SuccessImpl(this.field0) : super._();
+  const _$PrepareResponseCompat_SuccessImpl({required this.value}) : super._();
 
   @override
-  final PrepareResponseSuccessCompat field0;
+  final PrepareResponseSuccessCompat value;
 
   @override
   String toString() {
-    return 'PrepareResponseCompat.success(field0: $field0)';
+    return 'PrepareResponseCompat.success(value: $value)';
   }
 
   @override
@@ -1171,11 +3142,11 @@ class _$PrepareResponseCompat_SuccessImpl
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
             other is _$PrepareResponseCompat_SuccessImpl &&
-            (identical(other.field0, field0) || other.field0 == field0));
+            (identical(other.value, value) || other.value == value));
   }
 
   @override
-  int get hashCode => Object.hash(runtimeType, field0);
+  int get hashCode => Object.hash(runtimeType, value);
 
   /// Create a copy of PrepareResponseCompat
   /// with the given fields replaced by the non-null parameter values.
@@ -1190,30 +3161,30 @@ class _$PrepareResponseCompat_SuccessImpl
   @override
   @optionalTypeArgs
   TResult when<TResult extends Object?>({
-    required TResult Function(PrepareResponseSuccessCompat field0) success,
-    required TResult Function(PrepareResponseErrorCompat field0) error,
+    required TResult Function(PrepareResponseSuccessCompat value) success,
+    required TResult Function(PrepareResponseErrorCompat value) error,
   }) {
-    return success(field0);
+    return success(value);
   }
 
   @override
   @optionalTypeArgs
   TResult? whenOrNull<TResult extends Object?>({
-    TResult? Function(PrepareResponseSuccessCompat field0)? success,
-    TResult? Function(PrepareResponseErrorCompat field0)? error,
+    TResult? Function(PrepareResponseSuccessCompat value)? success,
+    TResult? Function(PrepareResponseErrorCompat value)? error,
   }) {
-    return success?.call(field0);
+    return success?.call(value);
   }
 
   @override
   @optionalTypeArgs
   TResult maybeWhen<TResult extends Object?>({
-    TResult Function(PrepareResponseSuccessCompat field0)? success,
-    TResult Function(PrepareResponseErrorCompat field0)? error,
+    TResult Function(PrepareResponseSuccessCompat value)? success,
+    TResult Function(PrepareResponseErrorCompat value)? error,
     required TResult orElse(),
   }) {
     if (success != null) {
-      return success(field0);
+      return success(value);
     }
     return orElse();
   }
@@ -1252,12 +3223,12 @@ class _$PrepareResponseCompat_SuccessImpl
 
 abstract class PrepareResponseCompat_Success extends PrepareResponseCompat {
   const factory PrepareResponseCompat_Success(
-          final PrepareResponseSuccessCompat field0) =
+          {required final PrepareResponseSuccessCompat value}) =
       _$PrepareResponseCompat_SuccessImpl;
   const PrepareResponseCompat_Success._() : super._();
 
   @override
-  PrepareResponseSuccessCompat get field0;
+  PrepareResponseSuccessCompat get value;
 
   /// Create a copy of PrepareResponseCompat
   /// with the given fields replaced by the non-null parameter values.
@@ -1274,7 +3245,9 @@ abstract class _$$PrepareResponseCompat_ErrorImplCopyWith<$Res> {
           $Res Function(_$PrepareResponseCompat_ErrorImpl) then) =
       __$$PrepareResponseCompat_ErrorImplCopyWithImpl<$Res>;
   @useResult
-  $Res call({PrepareResponseErrorCompat field0});
+  $Res call({PrepareResponseErrorCompat value});
+
+  $PrepareResponseErrorCompatCopyWith<$Res> get value;
 }
 
 /// @nodoc
@@ -1292,28 +3265,38 @@ class __$$PrepareResponseCompat_ErrorImplCopyWithImpl<$Res>
   @pragma('vm:prefer-inline')
   @override
   $Res call({
-    Object? field0 = null,
+    Object? value = null,
   }) {
     return _then(_$PrepareResponseCompat_ErrorImpl(
-      null == field0
-          ? _value.field0
-          : field0 // ignore: cast_nullable_to_non_nullable
+      value: null == value
+          ? _value.value
+          : value // ignore: cast_nullable_to_non_nullable
               as PrepareResponseErrorCompat,
     ));
+  }
+
+  /// Create a copy of PrepareResponseCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $PrepareResponseErrorCompatCopyWith<$Res> get value {
+    return $PrepareResponseErrorCompatCopyWith<$Res>(_value.value, (value) {
+      return _then(_value.copyWith(value: value));
+    });
   }
 }
 
 /// @nodoc
 
 class _$PrepareResponseCompat_ErrorImpl extends PrepareResponseCompat_Error {
-  const _$PrepareResponseCompat_ErrorImpl(this.field0) : super._();
+  const _$PrepareResponseCompat_ErrorImpl({required this.value}) : super._();
 
   @override
-  final PrepareResponseErrorCompat field0;
+  final PrepareResponseErrorCompat value;
 
   @override
   String toString() {
-    return 'PrepareResponseCompat.error(field0: $field0)';
+    return 'PrepareResponseCompat.error(value: $value)';
   }
 
   @override
@@ -1321,11 +3304,11 @@ class _$PrepareResponseCompat_ErrorImpl extends PrepareResponseCompat_Error {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
             other is _$PrepareResponseCompat_ErrorImpl &&
-            (identical(other.field0, field0) || other.field0 == field0));
+            (identical(other.value, value) || other.value == value));
   }
 
   @override
-  int get hashCode => Object.hash(runtimeType, field0);
+  int get hashCode => Object.hash(runtimeType, value);
 
   /// Create a copy of PrepareResponseCompat
   /// with the given fields replaced by the non-null parameter values.
@@ -1339,30 +3322,30 @@ class _$PrepareResponseCompat_ErrorImpl extends PrepareResponseCompat_Error {
   @override
   @optionalTypeArgs
   TResult when<TResult extends Object?>({
-    required TResult Function(PrepareResponseSuccessCompat field0) success,
-    required TResult Function(PrepareResponseErrorCompat field0) error,
+    required TResult Function(PrepareResponseSuccessCompat value) success,
+    required TResult Function(PrepareResponseErrorCompat value) error,
   }) {
-    return error(field0);
+    return error(value);
   }
 
   @override
   @optionalTypeArgs
   TResult? whenOrNull<TResult extends Object?>({
-    TResult? Function(PrepareResponseSuccessCompat field0)? success,
-    TResult? Function(PrepareResponseErrorCompat field0)? error,
+    TResult? Function(PrepareResponseSuccessCompat value)? success,
+    TResult? Function(PrepareResponseErrorCompat value)? error,
   }) {
-    return error?.call(field0);
+    return error?.call(value);
   }
 
   @override
   @optionalTypeArgs
   TResult maybeWhen<TResult extends Object?>({
-    TResult Function(PrepareResponseSuccessCompat field0)? success,
-    TResult Function(PrepareResponseErrorCompat field0)? error,
+    TResult Function(PrepareResponseSuccessCompat value)? success,
+    TResult Function(PrepareResponseErrorCompat value)? error,
     required TResult orElse(),
   }) {
     if (error != null) {
-      return error(field0);
+      return error(value);
     }
     return orElse();
   }
@@ -1401,17 +3384,344 @@ class _$PrepareResponseCompat_ErrorImpl extends PrepareResponseCompat_Error {
 
 abstract class PrepareResponseCompat_Error extends PrepareResponseCompat {
   const factory PrepareResponseCompat_Error(
-          final PrepareResponseErrorCompat field0) =
+          {required final PrepareResponseErrorCompat value}) =
       _$PrepareResponseCompat_ErrorImpl;
   const PrepareResponseCompat_Error._() : super._();
 
   @override
-  PrepareResponseErrorCompat get field0;
+  PrepareResponseErrorCompat get value;
 
   /// Create a copy of PrepareResponseCompat
   /// with the given fields replaced by the non-null parameter values.
   @JsonKey(includeFromJson: false, includeToJson: false)
   _$$PrepareResponseCompat_ErrorImplCopyWith<_$PrepareResponseCompat_ErrorImpl>
+      get copyWith => throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+mixin _$PrepareResponseErrorCompat {
+  BridgingErrorCompat get error => throw _privateConstructorUsedError;
+
+  /// Create a copy of PrepareResponseErrorCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  $PrepareResponseErrorCompatCopyWith<PrepareResponseErrorCompat>
+      get copyWith => throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class $PrepareResponseErrorCompatCopyWith<$Res> {
+  factory $PrepareResponseErrorCompatCopyWith(PrepareResponseErrorCompat value,
+          $Res Function(PrepareResponseErrorCompat) then) =
+      _$PrepareResponseErrorCompatCopyWithImpl<$Res,
+          PrepareResponseErrorCompat>;
+  @useResult
+  $Res call({BridgingErrorCompat error});
+}
+
+/// @nodoc
+class _$PrepareResponseErrorCompatCopyWithImpl<$Res,
+        $Val extends PrepareResponseErrorCompat>
+    implements $PrepareResponseErrorCompatCopyWith<$Res> {
+  _$PrepareResponseErrorCompatCopyWithImpl(this._value, this._then);
+
+  // ignore: unused_field
+  final $Val _value;
+  // ignore: unused_field
+  final $Res Function($Val) _then;
+
+  /// Create a copy of PrepareResponseErrorCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? error = null,
+  }) {
+    return _then(_value.copyWith(
+      error: null == error
+          ? _value.error
+          : error // ignore: cast_nullable_to_non_nullable
+              as BridgingErrorCompat,
+    ) as $Val);
+  }
+}
+
+/// @nodoc
+abstract class _$$PrepareResponseErrorCompatImplCopyWith<$Res>
+    implements $PrepareResponseErrorCompatCopyWith<$Res> {
+  factory _$$PrepareResponseErrorCompatImplCopyWith(
+          _$PrepareResponseErrorCompatImpl value,
+          $Res Function(_$PrepareResponseErrorCompatImpl) then) =
+      __$$PrepareResponseErrorCompatImplCopyWithImpl<$Res>;
+  @override
+  @useResult
+  $Res call({BridgingErrorCompat error});
+}
+
+/// @nodoc
+class __$$PrepareResponseErrorCompatImplCopyWithImpl<$Res>
+    extends _$PrepareResponseErrorCompatCopyWithImpl<$Res,
+        _$PrepareResponseErrorCompatImpl>
+    implements _$$PrepareResponseErrorCompatImplCopyWith<$Res> {
+  __$$PrepareResponseErrorCompatImplCopyWithImpl(
+      _$PrepareResponseErrorCompatImpl _value,
+      $Res Function(_$PrepareResponseErrorCompatImpl) _then)
+      : super(_value, _then);
+
+  /// Create a copy of PrepareResponseErrorCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? error = null,
+  }) {
+    return _then(_$PrepareResponseErrorCompatImpl(
+      error: null == error
+          ? _value.error
+          : error // ignore: cast_nullable_to_non_nullable
+              as BridgingErrorCompat,
+    ));
+  }
+}
+
+/// @nodoc
+
+class _$PrepareResponseErrorCompatImpl implements _PrepareResponseErrorCompat {
+  const _$PrepareResponseErrorCompatImpl({required this.error});
+
+  @override
+  final BridgingErrorCompat error;
+
+  @override
+  String toString() {
+    return 'PrepareResponseErrorCompat(error: $error)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$PrepareResponseErrorCompatImpl &&
+            (identical(other.error, error) || other.error == error));
+  }
+
+  @override
+  int get hashCode => Object.hash(runtimeType, error);
+
+  /// Create a copy of PrepareResponseErrorCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$PrepareResponseErrorCompatImplCopyWith<_$PrepareResponseErrorCompatImpl>
+      get copyWith => __$$PrepareResponseErrorCompatImplCopyWithImpl<
+          _$PrepareResponseErrorCompatImpl>(this, _$identity);
+}
+
+abstract class _PrepareResponseErrorCompat
+    implements PrepareResponseErrorCompat {
+  const factory _PrepareResponseErrorCompat(
+          {required final BridgingErrorCompat error}) =
+      _$PrepareResponseErrorCompatImpl;
+
+  @override
+  BridgingErrorCompat get error;
+
+  /// Create a copy of PrepareResponseErrorCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  _$$PrepareResponseErrorCompatImplCopyWith<_$PrepareResponseErrorCompatImpl>
+      get copyWith => throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+mixin _$PrepareResponseNotRequiredCompat {
+  TransactionCompat get initialTransaction =>
+      throw _privateConstructorUsedError;
+  List<TransactionCompat> get transactions =>
+      throw _privateConstructorUsedError;
+
+  /// Create a copy of PrepareResponseNotRequiredCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  $PrepareResponseNotRequiredCompatCopyWith<PrepareResponseNotRequiredCompat>
+      get copyWith => throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class $PrepareResponseNotRequiredCompatCopyWith<$Res> {
+  factory $PrepareResponseNotRequiredCompatCopyWith(
+          PrepareResponseNotRequiredCompat value,
+          $Res Function(PrepareResponseNotRequiredCompat) then) =
+      _$PrepareResponseNotRequiredCompatCopyWithImpl<$Res,
+          PrepareResponseNotRequiredCompat>;
+  @useResult
+  $Res call(
+      {TransactionCompat initialTransaction,
+      List<TransactionCompat> transactions});
+
+  $TransactionCompatCopyWith<$Res> get initialTransaction;
+}
+
+/// @nodoc
+class _$PrepareResponseNotRequiredCompatCopyWithImpl<$Res,
+        $Val extends PrepareResponseNotRequiredCompat>
+    implements $PrepareResponseNotRequiredCompatCopyWith<$Res> {
+  _$PrepareResponseNotRequiredCompatCopyWithImpl(this._value, this._then);
+
+  // ignore: unused_field
+  final $Val _value;
+  // ignore: unused_field
+  final $Res Function($Val) _then;
+
+  /// Create a copy of PrepareResponseNotRequiredCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? initialTransaction = null,
+    Object? transactions = null,
+  }) {
+    return _then(_value.copyWith(
+      initialTransaction: null == initialTransaction
+          ? _value.initialTransaction
+          : initialTransaction // ignore: cast_nullable_to_non_nullable
+              as TransactionCompat,
+      transactions: null == transactions
+          ? _value.transactions
+          : transactions // ignore: cast_nullable_to_non_nullable
+              as List<TransactionCompat>,
+    ) as $Val);
+  }
+
+  /// Create a copy of PrepareResponseNotRequiredCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $TransactionCompatCopyWith<$Res> get initialTransaction {
+    return $TransactionCompatCopyWith<$Res>(_value.initialTransaction, (value) {
+      return _then(_value.copyWith(initialTransaction: value) as $Val);
+    });
+  }
+}
+
+/// @nodoc
+abstract class _$$PrepareResponseNotRequiredCompatImplCopyWith<$Res>
+    implements $PrepareResponseNotRequiredCompatCopyWith<$Res> {
+  factory _$$PrepareResponseNotRequiredCompatImplCopyWith(
+          _$PrepareResponseNotRequiredCompatImpl value,
+          $Res Function(_$PrepareResponseNotRequiredCompatImpl) then) =
+      __$$PrepareResponseNotRequiredCompatImplCopyWithImpl<$Res>;
+  @override
+  @useResult
+  $Res call(
+      {TransactionCompat initialTransaction,
+      List<TransactionCompat> transactions});
+
+  @override
+  $TransactionCompatCopyWith<$Res> get initialTransaction;
+}
+
+/// @nodoc
+class __$$PrepareResponseNotRequiredCompatImplCopyWithImpl<$Res>
+    extends _$PrepareResponseNotRequiredCompatCopyWithImpl<$Res,
+        _$PrepareResponseNotRequiredCompatImpl>
+    implements _$$PrepareResponseNotRequiredCompatImplCopyWith<$Res> {
+  __$$PrepareResponseNotRequiredCompatImplCopyWithImpl(
+      _$PrepareResponseNotRequiredCompatImpl _value,
+      $Res Function(_$PrepareResponseNotRequiredCompatImpl) _then)
+      : super(_value, _then);
+
+  /// Create a copy of PrepareResponseNotRequiredCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? initialTransaction = null,
+    Object? transactions = null,
+  }) {
+    return _then(_$PrepareResponseNotRequiredCompatImpl(
+      initialTransaction: null == initialTransaction
+          ? _value.initialTransaction
+          : initialTransaction // ignore: cast_nullable_to_non_nullable
+              as TransactionCompat,
+      transactions: null == transactions
+          ? _value._transactions
+          : transactions // ignore: cast_nullable_to_non_nullable
+              as List<TransactionCompat>,
+    ));
+  }
+}
+
+/// @nodoc
+
+class _$PrepareResponseNotRequiredCompatImpl
+    implements _PrepareResponseNotRequiredCompat {
+  const _$PrepareResponseNotRequiredCompatImpl(
+      {required this.initialTransaction,
+      required final List<TransactionCompat> transactions})
+      : _transactions = transactions;
+
+  @override
+  final TransactionCompat initialTransaction;
+  final List<TransactionCompat> _transactions;
+  @override
+  List<TransactionCompat> get transactions {
+    if (_transactions is EqualUnmodifiableListView) return _transactions;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_transactions);
+  }
+
+  @override
+  String toString() {
+    return 'PrepareResponseNotRequiredCompat(initialTransaction: $initialTransaction, transactions: $transactions)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$PrepareResponseNotRequiredCompatImpl &&
+            (identical(other.initialTransaction, initialTransaction) ||
+                other.initialTransaction == initialTransaction) &&
+            const DeepCollectionEquality()
+                .equals(other._transactions, _transactions));
+  }
+
+  @override
+  int get hashCode => Object.hash(runtimeType, initialTransaction,
+      const DeepCollectionEquality().hash(_transactions));
+
+  /// Create a copy of PrepareResponseNotRequiredCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$PrepareResponseNotRequiredCompatImplCopyWith<
+          _$PrepareResponseNotRequiredCompatImpl>
+      get copyWith => __$$PrepareResponseNotRequiredCompatImplCopyWithImpl<
+          _$PrepareResponseNotRequiredCompatImpl>(this, _$identity);
+}
+
+abstract class _PrepareResponseNotRequiredCompat
+    implements PrepareResponseNotRequiredCompat {
+  const factory _PrepareResponseNotRequiredCompat(
+          {required final TransactionCompat initialTransaction,
+          required final List<TransactionCompat> transactions}) =
+      _$PrepareResponseNotRequiredCompatImpl;
+
+  @override
+  TransactionCompat get initialTransaction;
+  @override
+  List<TransactionCompat> get transactions;
+
+  /// Create a copy of PrepareResponseNotRequiredCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  _$$PrepareResponseNotRequiredCompatImplCopyWith<
+          _$PrepareResponseNotRequiredCompatImpl>
       get copyWith => throw _privateConstructorUsedError;
 }
 
@@ -1495,6 +3805,8 @@ abstract class _$$PrepareResponseSuccessCompat_AvailableImplCopyWith<$Res> {
       __$$PrepareResponseSuccessCompat_AvailableImplCopyWithImpl<$Res>;
   @useResult
   $Res call({PrepareResponseAvailableCompat value});
+
+  $PrepareResponseAvailableCompatCopyWith<$Res> get value;
 }
 
 /// @nodoc
@@ -1520,6 +3832,16 @@ class __$$PrepareResponseSuccessCompat_AvailableImplCopyWithImpl<$Res>
           : value // ignore: cast_nullable_to_non_nullable
               as PrepareResponseAvailableCompat,
     ));
+  }
+
+  /// Create a copy of PrepareResponseSuccessCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $PrepareResponseAvailableCompatCopyWith<$Res> get value {
+    return $PrepareResponseAvailableCompatCopyWith<$Res>(_value.value, (value) {
+      return _then(_value.copyWith(value: value));
+    });
   }
 }
 
@@ -1654,6 +3976,8 @@ abstract class _$$PrepareResponseSuccessCompat_NotRequiredImplCopyWith<$Res> {
       __$$PrepareResponseSuccessCompat_NotRequiredImplCopyWithImpl<$Res>;
   @useResult
   $Res call({PrepareResponseNotRequiredCompat value});
+
+  $PrepareResponseNotRequiredCompatCopyWith<$Res> get value;
 }
 
 /// @nodoc
@@ -1679,6 +4003,17 @@ class __$$PrepareResponseSuccessCompat_NotRequiredImplCopyWithImpl<$Res>
           : value // ignore: cast_nullable_to_non_nullable
               as PrepareResponseNotRequiredCompat,
     ));
+  }
+
+  /// Create a copy of PrepareResponseSuccessCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $PrepareResponseNotRequiredCompatCopyWith<$Res> get value {
+    return $PrepareResponseNotRequiredCompatCopyWith<$Res>(_value.value,
+        (value) {
+      return _then(_value.copyWith(value: value));
+    });
   }
 }
 
@@ -1803,4 +4138,1566 @@ abstract class PrepareResponseSuccessCompat_NotRequired
   _$$PrepareResponseSuccessCompat_NotRequiredImplCopyWith<
           _$PrepareResponseSuccessCompat_NotRequiredImpl>
       get copyWith => throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+mixin _$PulseMetadataCompat {
+  String? get url => throw _privateConstructorUsedError;
+  String? get bundleId => throw _privateConstructorUsedError;
+  String? get packageName => throw _privateConstructorUsedError;
+  String get sdkVersion => throw _privateConstructorUsedError;
+  String get sdkPlatform => throw _privateConstructorUsedError;
+
+  /// Create a copy of PulseMetadataCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  $PulseMetadataCompatCopyWith<PulseMetadataCompat> get copyWith =>
+      throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class $PulseMetadataCompatCopyWith<$Res> {
+  factory $PulseMetadataCompatCopyWith(
+          PulseMetadataCompat value, $Res Function(PulseMetadataCompat) then) =
+      _$PulseMetadataCompatCopyWithImpl<$Res, PulseMetadataCompat>;
+  @useResult
+  $Res call(
+      {String? url,
+      String? bundleId,
+      String? packageName,
+      String sdkVersion,
+      String sdkPlatform});
+}
+
+/// @nodoc
+class _$PulseMetadataCompatCopyWithImpl<$Res, $Val extends PulseMetadataCompat>
+    implements $PulseMetadataCompatCopyWith<$Res> {
+  _$PulseMetadataCompatCopyWithImpl(this._value, this._then);
+
+  // ignore: unused_field
+  final $Val _value;
+  // ignore: unused_field
+  final $Res Function($Val) _then;
+
+  /// Create a copy of PulseMetadataCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? url = freezed,
+    Object? bundleId = freezed,
+    Object? packageName = freezed,
+    Object? sdkVersion = null,
+    Object? sdkPlatform = null,
+  }) {
+    return _then(_value.copyWith(
+      url: freezed == url
+          ? _value.url
+          : url // ignore: cast_nullable_to_non_nullable
+              as String?,
+      bundleId: freezed == bundleId
+          ? _value.bundleId
+          : bundleId // ignore: cast_nullable_to_non_nullable
+              as String?,
+      packageName: freezed == packageName
+          ? _value.packageName
+          : packageName // ignore: cast_nullable_to_non_nullable
+              as String?,
+      sdkVersion: null == sdkVersion
+          ? _value.sdkVersion
+          : sdkVersion // ignore: cast_nullable_to_non_nullable
+              as String,
+      sdkPlatform: null == sdkPlatform
+          ? _value.sdkPlatform
+          : sdkPlatform // ignore: cast_nullable_to_non_nullable
+              as String,
+    ) as $Val);
+  }
+}
+
+/// @nodoc
+abstract class _$$PulseMetadataCompatImplCopyWith<$Res>
+    implements $PulseMetadataCompatCopyWith<$Res> {
+  factory _$$PulseMetadataCompatImplCopyWith(_$PulseMetadataCompatImpl value,
+          $Res Function(_$PulseMetadataCompatImpl) then) =
+      __$$PulseMetadataCompatImplCopyWithImpl<$Res>;
+  @override
+  @useResult
+  $Res call(
+      {String? url,
+      String? bundleId,
+      String? packageName,
+      String sdkVersion,
+      String sdkPlatform});
+}
+
+/// @nodoc
+class __$$PulseMetadataCompatImplCopyWithImpl<$Res>
+    extends _$PulseMetadataCompatCopyWithImpl<$Res, _$PulseMetadataCompatImpl>
+    implements _$$PulseMetadataCompatImplCopyWith<$Res> {
+  __$$PulseMetadataCompatImplCopyWithImpl(_$PulseMetadataCompatImpl _value,
+      $Res Function(_$PulseMetadataCompatImpl) _then)
+      : super(_value, _then);
+
+  /// Create a copy of PulseMetadataCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? url = freezed,
+    Object? bundleId = freezed,
+    Object? packageName = freezed,
+    Object? sdkVersion = null,
+    Object? sdkPlatform = null,
+  }) {
+    return _then(_$PulseMetadataCompatImpl(
+      url: freezed == url
+          ? _value.url
+          : url // ignore: cast_nullable_to_non_nullable
+              as String?,
+      bundleId: freezed == bundleId
+          ? _value.bundleId
+          : bundleId // ignore: cast_nullable_to_non_nullable
+              as String?,
+      packageName: freezed == packageName
+          ? _value.packageName
+          : packageName // ignore: cast_nullable_to_non_nullable
+              as String?,
+      sdkVersion: null == sdkVersion
+          ? _value.sdkVersion
+          : sdkVersion // ignore: cast_nullable_to_non_nullable
+              as String,
+      sdkPlatform: null == sdkPlatform
+          ? _value.sdkPlatform
+          : sdkPlatform // ignore: cast_nullable_to_non_nullable
+              as String,
+    ));
+  }
+}
+
+/// @nodoc
+
+class _$PulseMetadataCompatImpl implements _PulseMetadataCompat {
+  const _$PulseMetadataCompatImpl(
+      {this.url,
+      this.bundleId,
+      this.packageName,
+      required this.sdkVersion,
+      required this.sdkPlatform});
+
+  @override
+  final String? url;
+  @override
+  final String? bundleId;
+  @override
+  final String? packageName;
+  @override
+  final String sdkVersion;
+  @override
+  final String sdkPlatform;
+
+  @override
+  String toString() {
+    return 'PulseMetadataCompat(url: $url, bundleId: $bundleId, packageName: $packageName, sdkVersion: $sdkVersion, sdkPlatform: $sdkPlatform)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$PulseMetadataCompatImpl &&
+            (identical(other.url, url) || other.url == url) &&
+            (identical(other.bundleId, bundleId) ||
+                other.bundleId == bundleId) &&
+            (identical(other.packageName, packageName) ||
+                other.packageName == packageName) &&
+            (identical(other.sdkVersion, sdkVersion) ||
+                other.sdkVersion == sdkVersion) &&
+            (identical(other.sdkPlatform, sdkPlatform) ||
+                other.sdkPlatform == sdkPlatform));
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      runtimeType, url, bundleId, packageName, sdkVersion, sdkPlatform);
+
+  /// Create a copy of PulseMetadataCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$PulseMetadataCompatImplCopyWith<_$PulseMetadataCompatImpl> get copyWith =>
+      __$$PulseMetadataCompatImplCopyWithImpl<_$PulseMetadataCompatImpl>(
+          this, _$identity);
+}
+
+abstract class _PulseMetadataCompat implements PulseMetadataCompat {
+  const factory _PulseMetadataCompat(
+      {final String? url,
+      final String? bundleId,
+      final String? packageName,
+      required final String sdkVersion,
+      required final String sdkPlatform}) = _$PulseMetadataCompatImpl;
+
+  @override
+  String? get url;
+  @override
+  String? get bundleId;
+  @override
+  String? get packageName;
+  @override
+  String get sdkVersion;
+  @override
+  String get sdkPlatform;
+
+  /// Create a copy of PulseMetadataCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  _$$PulseMetadataCompatImplCopyWith<_$PulseMetadataCompatImpl> get copyWith =>
+      throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+mixin _$TransactionCompat {
+  String get chainId => throw _privateConstructorUsedError;
+  String get from => throw _privateConstructorUsedError;
+  String get to => throw _privateConstructorUsedError;
+  String get value => throw _privateConstructorUsedError;
+  Uint8List get input => throw _privateConstructorUsedError;
+  BigInt get gasLimit => throw _privateConstructorUsedError;
+  BigInt get nonce => throw _privateConstructorUsedError;
+
+  /// Create a copy of TransactionCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  $TransactionCompatCopyWith<TransactionCompat> get copyWith =>
+      throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class $TransactionCompatCopyWith<$Res> {
+  factory $TransactionCompatCopyWith(
+          TransactionCompat value, $Res Function(TransactionCompat) then) =
+      _$TransactionCompatCopyWithImpl<$Res, TransactionCompat>;
+  @useResult
+  $Res call(
+      {String chainId,
+      String from,
+      String to,
+      String value,
+      Uint8List input,
+      BigInt gasLimit,
+      BigInt nonce});
+}
+
+/// @nodoc
+class _$TransactionCompatCopyWithImpl<$Res, $Val extends TransactionCompat>
+    implements $TransactionCompatCopyWith<$Res> {
+  _$TransactionCompatCopyWithImpl(this._value, this._then);
+
+  // ignore: unused_field
+  final $Val _value;
+  // ignore: unused_field
+  final $Res Function($Val) _then;
+
+  /// Create a copy of TransactionCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? chainId = null,
+    Object? from = null,
+    Object? to = null,
+    Object? value = null,
+    Object? input = null,
+    Object? gasLimit = null,
+    Object? nonce = null,
+  }) {
+    return _then(_value.copyWith(
+      chainId: null == chainId
+          ? _value.chainId
+          : chainId // ignore: cast_nullable_to_non_nullable
+              as String,
+      from: null == from
+          ? _value.from
+          : from // ignore: cast_nullable_to_non_nullable
+              as String,
+      to: null == to
+          ? _value.to
+          : to // ignore: cast_nullable_to_non_nullable
+              as String,
+      value: null == value
+          ? _value.value
+          : value // ignore: cast_nullable_to_non_nullable
+              as String,
+      input: null == input
+          ? _value.input
+          : input // ignore: cast_nullable_to_non_nullable
+              as Uint8List,
+      gasLimit: null == gasLimit
+          ? _value.gasLimit
+          : gasLimit // ignore: cast_nullable_to_non_nullable
+              as BigInt,
+      nonce: null == nonce
+          ? _value.nonce
+          : nonce // ignore: cast_nullable_to_non_nullable
+              as BigInt,
+    ) as $Val);
+  }
+}
+
+/// @nodoc
+abstract class _$$TransactionCompatImplCopyWith<$Res>
+    implements $TransactionCompatCopyWith<$Res> {
+  factory _$$TransactionCompatImplCopyWith(_$TransactionCompatImpl value,
+          $Res Function(_$TransactionCompatImpl) then) =
+      __$$TransactionCompatImplCopyWithImpl<$Res>;
+  @override
+  @useResult
+  $Res call(
+      {String chainId,
+      String from,
+      String to,
+      String value,
+      Uint8List input,
+      BigInt gasLimit,
+      BigInt nonce});
+}
+
+/// @nodoc
+class __$$TransactionCompatImplCopyWithImpl<$Res>
+    extends _$TransactionCompatCopyWithImpl<$Res, _$TransactionCompatImpl>
+    implements _$$TransactionCompatImplCopyWith<$Res> {
+  __$$TransactionCompatImplCopyWithImpl(_$TransactionCompatImpl _value,
+      $Res Function(_$TransactionCompatImpl) _then)
+      : super(_value, _then);
+
+  /// Create a copy of TransactionCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? chainId = null,
+    Object? from = null,
+    Object? to = null,
+    Object? value = null,
+    Object? input = null,
+    Object? gasLimit = null,
+    Object? nonce = null,
+  }) {
+    return _then(_$TransactionCompatImpl(
+      chainId: null == chainId
+          ? _value.chainId
+          : chainId // ignore: cast_nullable_to_non_nullable
+              as String,
+      from: null == from
+          ? _value.from
+          : from // ignore: cast_nullable_to_non_nullable
+              as String,
+      to: null == to
+          ? _value.to
+          : to // ignore: cast_nullable_to_non_nullable
+              as String,
+      value: null == value
+          ? _value.value
+          : value // ignore: cast_nullable_to_non_nullable
+              as String,
+      input: null == input
+          ? _value.input
+          : input // ignore: cast_nullable_to_non_nullable
+              as Uint8List,
+      gasLimit: null == gasLimit
+          ? _value.gasLimit
+          : gasLimit // ignore: cast_nullable_to_non_nullable
+              as BigInt,
+      nonce: null == nonce
+          ? _value.nonce
+          : nonce // ignore: cast_nullable_to_non_nullable
+              as BigInt,
+    ));
+  }
+}
+
+/// @nodoc
+
+class _$TransactionCompatImpl implements _TransactionCompat {
+  const _$TransactionCompatImpl(
+      {required this.chainId,
+      required this.from,
+      required this.to,
+      required this.value,
+      required this.input,
+      required this.gasLimit,
+      required this.nonce});
+
+  @override
+  final String chainId;
+  @override
+  final String from;
+  @override
+  final String to;
+  @override
+  final String value;
+  @override
+  final Uint8List input;
+  @override
+  final BigInt gasLimit;
+  @override
+  final BigInt nonce;
+
+  @override
+  String toString() {
+    return 'TransactionCompat(chainId: $chainId, from: $from, to: $to, value: $value, input: $input, gasLimit: $gasLimit, nonce: $nonce)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$TransactionCompatImpl &&
+            (identical(other.chainId, chainId) || other.chainId == chainId) &&
+            (identical(other.from, from) || other.from == from) &&
+            (identical(other.to, to) || other.to == to) &&
+            (identical(other.value, value) || other.value == value) &&
+            const DeepCollectionEquality().equals(other.input, input) &&
+            (identical(other.gasLimit, gasLimit) ||
+                other.gasLimit == gasLimit) &&
+            (identical(other.nonce, nonce) || other.nonce == nonce));
+  }
+
+  @override
+  int get hashCode => Object.hash(runtimeType, chainId, from, to, value,
+      const DeepCollectionEquality().hash(input), gasLimit, nonce);
+
+  /// Create a copy of TransactionCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$TransactionCompatImplCopyWith<_$TransactionCompatImpl> get copyWith =>
+      __$$TransactionCompatImplCopyWithImpl<_$TransactionCompatImpl>(
+          this, _$identity);
+}
+
+abstract class _TransactionCompat implements TransactionCompat {
+  const factory _TransactionCompat(
+      {required final String chainId,
+      required final String from,
+      required final String to,
+      required final String value,
+      required final Uint8List input,
+      required final BigInt gasLimit,
+      required final BigInt nonce}) = _$TransactionCompatImpl;
+
+  @override
+  String get chainId;
+  @override
+  String get from;
+  @override
+  String get to;
+  @override
+  String get value;
+  @override
+  Uint8List get input;
+  @override
+  BigInt get gasLimit;
+  @override
+  BigInt get nonce;
+
+  /// Create a copy of TransactionCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  _$$TransactionCompatImplCopyWith<_$TransactionCompatImpl> get copyWith =>
+      throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+mixin _$TransactionFeeCompat {
+  AmountCompat get fee => throw _privateConstructorUsedError;
+  AmountCompat get localFee => throw _privateConstructorUsedError;
+
+  /// Create a copy of TransactionFeeCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  $TransactionFeeCompatCopyWith<TransactionFeeCompat> get copyWith =>
+      throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class $TransactionFeeCompatCopyWith<$Res> {
+  factory $TransactionFeeCompatCopyWith(TransactionFeeCompat value,
+          $Res Function(TransactionFeeCompat) then) =
+      _$TransactionFeeCompatCopyWithImpl<$Res, TransactionFeeCompat>;
+  @useResult
+  $Res call({AmountCompat fee, AmountCompat localFee});
+
+  $AmountCompatCopyWith<$Res> get fee;
+  $AmountCompatCopyWith<$Res> get localFee;
+}
+
+/// @nodoc
+class _$TransactionFeeCompatCopyWithImpl<$Res,
+        $Val extends TransactionFeeCompat>
+    implements $TransactionFeeCompatCopyWith<$Res> {
+  _$TransactionFeeCompatCopyWithImpl(this._value, this._then);
+
+  // ignore: unused_field
+  final $Val _value;
+  // ignore: unused_field
+  final $Res Function($Val) _then;
+
+  /// Create a copy of TransactionFeeCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? fee = null,
+    Object? localFee = null,
+  }) {
+    return _then(_value.copyWith(
+      fee: null == fee
+          ? _value.fee
+          : fee // ignore: cast_nullable_to_non_nullable
+              as AmountCompat,
+      localFee: null == localFee
+          ? _value.localFee
+          : localFee // ignore: cast_nullable_to_non_nullable
+              as AmountCompat,
+    ) as $Val);
+  }
+
+  /// Create a copy of TransactionFeeCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $AmountCompatCopyWith<$Res> get fee {
+    return $AmountCompatCopyWith<$Res>(_value.fee, (value) {
+      return _then(_value.copyWith(fee: value) as $Val);
+    });
+  }
+
+  /// Create a copy of TransactionFeeCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $AmountCompatCopyWith<$Res> get localFee {
+    return $AmountCompatCopyWith<$Res>(_value.localFee, (value) {
+      return _then(_value.copyWith(localFee: value) as $Val);
+    });
+  }
+}
+
+/// @nodoc
+abstract class _$$TransactionFeeCompatImplCopyWith<$Res>
+    implements $TransactionFeeCompatCopyWith<$Res> {
+  factory _$$TransactionFeeCompatImplCopyWith(_$TransactionFeeCompatImpl value,
+          $Res Function(_$TransactionFeeCompatImpl) then) =
+      __$$TransactionFeeCompatImplCopyWithImpl<$Res>;
+  @override
+  @useResult
+  $Res call({AmountCompat fee, AmountCompat localFee});
+
+  @override
+  $AmountCompatCopyWith<$Res> get fee;
+  @override
+  $AmountCompatCopyWith<$Res> get localFee;
+}
+
+/// @nodoc
+class __$$TransactionFeeCompatImplCopyWithImpl<$Res>
+    extends _$TransactionFeeCompatCopyWithImpl<$Res, _$TransactionFeeCompatImpl>
+    implements _$$TransactionFeeCompatImplCopyWith<$Res> {
+  __$$TransactionFeeCompatImplCopyWithImpl(_$TransactionFeeCompatImpl _value,
+      $Res Function(_$TransactionFeeCompatImpl) _then)
+      : super(_value, _then);
+
+  /// Create a copy of TransactionFeeCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? fee = null,
+    Object? localFee = null,
+  }) {
+    return _then(_$TransactionFeeCompatImpl(
+      fee: null == fee
+          ? _value.fee
+          : fee // ignore: cast_nullable_to_non_nullable
+              as AmountCompat,
+      localFee: null == localFee
+          ? _value.localFee
+          : localFee // ignore: cast_nullable_to_non_nullable
+              as AmountCompat,
+    ));
+  }
+}
+
+/// @nodoc
+
+class _$TransactionFeeCompatImpl implements _TransactionFeeCompat {
+  const _$TransactionFeeCompatImpl({required this.fee, required this.localFee});
+
+  @override
+  final AmountCompat fee;
+  @override
+  final AmountCompat localFee;
+
+  @override
+  String toString() {
+    return 'TransactionFeeCompat(fee: $fee, localFee: $localFee)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$TransactionFeeCompatImpl &&
+            (identical(other.fee, fee) || other.fee == fee) &&
+            (identical(other.localFee, localFee) ||
+                other.localFee == localFee));
+  }
+
+  @override
+  int get hashCode => Object.hash(runtimeType, fee, localFee);
+
+  /// Create a copy of TransactionFeeCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$TransactionFeeCompatImplCopyWith<_$TransactionFeeCompatImpl>
+      get copyWith =>
+          __$$TransactionFeeCompatImplCopyWithImpl<_$TransactionFeeCompatImpl>(
+              this, _$identity);
+}
+
+abstract class _TransactionFeeCompat implements TransactionFeeCompat {
+  const factory _TransactionFeeCompat(
+      {required final AmountCompat fee,
+      required final AmountCompat localFee}) = _$TransactionFeeCompatImpl;
+
+  @override
+  AmountCompat get fee;
+  @override
+  AmountCompat get localFee;
+
+  /// Create a copy of TransactionFeeCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  _$$TransactionFeeCompatImplCopyWith<_$TransactionFeeCompatImpl>
+      get copyWith => throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+mixin _$TransactionReceiptCompat {
+  String get transactionHash => throw _privateConstructorUsedError;
+  BigInt? get transactionIndex => throw _privateConstructorUsedError;
+  String? get blockHash => throw _privateConstructorUsedError;
+  BigInt? get blockNumber => throw _privateConstructorUsedError;
+  BigInt get gasUsed => throw _privateConstructorUsedError;
+  String get effectiveGasPrice => throw _privateConstructorUsedError;
+  BigInt? get blobGasUsed => throw _privateConstructorUsedError;
+  String? get blobGasPrice => throw _privateConstructorUsedError;
+  String get from => throw _privateConstructorUsedError;
+  String? get to => throw _privateConstructorUsedError;
+  String? get contractAddress => throw _privateConstructorUsedError;
+
+  /// Create a copy of TransactionReceiptCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  $TransactionReceiptCompatCopyWith<TransactionReceiptCompat> get copyWith =>
+      throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class $TransactionReceiptCompatCopyWith<$Res> {
+  factory $TransactionReceiptCompatCopyWith(TransactionReceiptCompat value,
+          $Res Function(TransactionReceiptCompat) then) =
+      _$TransactionReceiptCompatCopyWithImpl<$Res, TransactionReceiptCompat>;
+  @useResult
+  $Res call(
+      {String transactionHash,
+      BigInt? transactionIndex,
+      String? blockHash,
+      BigInt? blockNumber,
+      BigInt gasUsed,
+      String effectiveGasPrice,
+      BigInt? blobGasUsed,
+      String? blobGasPrice,
+      String from,
+      String? to,
+      String? contractAddress});
+}
+
+/// @nodoc
+class _$TransactionReceiptCompatCopyWithImpl<$Res,
+        $Val extends TransactionReceiptCompat>
+    implements $TransactionReceiptCompatCopyWith<$Res> {
+  _$TransactionReceiptCompatCopyWithImpl(this._value, this._then);
+
+  // ignore: unused_field
+  final $Val _value;
+  // ignore: unused_field
+  final $Res Function($Val) _then;
+
+  /// Create a copy of TransactionReceiptCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? transactionHash = null,
+    Object? transactionIndex = freezed,
+    Object? blockHash = freezed,
+    Object? blockNumber = freezed,
+    Object? gasUsed = null,
+    Object? effectiveGasPrice = null,
+    Object? blobGasUsed = freezed,
+    Object? blobGasPrice = freezed,
+    Object? from = null,
+    Object? to = freezed,
+    Object? contractAddress = freezed,
+  }) {
+    return _then(_value.copyWith(
+      transactionHash: null == transactionHash
+          ? _value.transactionHash
+          : transactionHash // ignore: cast_nullable_to_non_nullable
+              as String,
+      transactionIndex: freezed == transactionIndex
+          ? _value.transactionIndex
+          : transactionIndex // ignore: cast_nullable_to_non_nullable
+              as BigInt?,
+      blockHash: freezed == blockHash
+          ? _value.blockHash
+          : blockHash // ignore: cast_nullable_to_non_nullable
+              as String?,
+      blockNumber: freezed == blockNumber
+          ? _value.blockNumber
+          : blockNumber // ignore: cast_nullable_to_non_nullable
+              as BigInt?,
+      gasUsed: null == gasUsed
+          ? _value.gasUsed
+          : gasUsed // ignore: cast_nullable_to_non_nullable
+              as BigInt,
+      effectiveGasPrice: null == effectiveGasPrice
+          ? _value.effectiveGasPrice
+          : effectiveGasPrice // ignore: cast_nullable_to_non_nullable
+              as String,
+      blobGasUsed: freezed == blobGasUsed
+          ? _value.blobGasUsed
+          : blobGasUsed // ignore: cast_nullable_to_non_nullable
+              as BigInt?,
+      blobGasPrice: freezed == blobGasPrice
+          ? _value.blobGasPrice
+          : blobGasPrice // ignore: cast_nullable_to_non_nullable
+              as String?,
+      from: null == from
+          ? _value.from
+          : from // ignore: cast_nullable_to_non_nullable
+              as String,
+      to: freezed == to
+          ? _value.to
+          : to // ignore: cast_nullable_to_non_nullable
+              as String?,
+      contractAddress: freezed == contractAddress
+          ? _value.contractAddress
+          : contractAddress // ignore: cast_nullable_to_non_nullable
+              as String?,
+    ) as $Val);
+  }
+}
+
+/// @nodoc
+abstract class _$$TransactionReceiptCompatImplCopyWith<$Res>
+    implements $TransactionReceiptCompatCopyWith<$Res> {
+  factory _$$TransactionReceiptCompatImplCopyWith(
+          _$TransactionReceiptCompatImpl value,
+          $Res Function(_$TransactionReceiptCompatImpl) then) =
+      __$$TransactionReceiptCompatImplCopyWithImpl<$Res>;
+  @override
+  @useResult
+  $Res call(
+      {String transactionHash,
+      BigInt? transactionIndex,
+      String? blockHash,
+      BigInt? blockNumber,
+      BigInt gasUsed,
+      String effectiveGasPrice,
+      BigInt? blobGasUsed,
+      String? blobGasPrice,
+      String from,
+      String? to,
+      String? contractAddress});
+}
+
+/// @nodoc
+class __$$TransactionReceiptCompatImplCopyWithImpl<$Res>
+    extends _$TransactionReceiptCompatCopyWithImpl<$Res,
+        _$TransactionReceiptCompatImpl>
+    implements _$$TransactionReceiptCompatImplCopyWith<$Res> {
+  __$$TransactionReceiptCompatImplCopyWithImpl(
+      _$TransactionReceiptCompatImpl _value,
+      $Res Function(_$TransactionReceiptCompatImpl) _then)
+      : super(_value, _then);
+
+  /// Create a copy of TransactionReceiptCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? transactionHash = null,
+    Object? transactionIndex = freezed,
+    Object? blockHash = freezed,
+    Object? blockNumber = freezed,
+    Object? gasUsed = null,
+    Object? effectiveGasPrice = null,
+    Object? blobGasUsed = freezed,
+    Object? blobGasPrice = freezed,
+    Object? from = null,
+    Object? to = freezed,
+    Object? contractAddress = freezed,
+  }) {
+    return _then(_$TransactionReceiptCompatImpl(
+      transactionHash: null == transactionHash
+          ? _value.transactionHash
+          : transactionHash // ignore: cast_nullable_to_non_nullable
+              as String,
+      transactionIndex: freezed == transactionIndex
+          ? _value.transactionIndex
+          : transactionIndex // ignore: cast_nullable_to_non_nullable
+              as BigInt?,
+      blockHash: freezed == blockHash
+          ? _value.blockHash
+          : blockHash // ignore: cast_nullable_to_non_nullable
+              as String?,
+      blockNumber: freezed == blockNumber
+          ? _value.blockNumber
+          : blockNumber // ignore: cast_nullable_to_non_nullable
+              as BigInt?,
+      gasUsed: null == gasUsed
+          ? _value.gasUsed
+          : gasUsed // ignore: cast_nullable_to_non_nullable
+              as BigInt,
+      effectiveGasPrice: null == effectiveGasPrice
+          ? _value.effectiveGasPrice
+          : effectiveGasPrice // ignore: cast_nullable_to_non_nullable
+              as String,
+      blobGasUsed: freezed == blobGasUsed
+          ? _value.blobGasUsed
+          : blobGasUsed // ignore: cast_nullable_to_non_nullable
+              as BigInt?,
+      blobGasPrice: freezed == blobGasPrice
+          ? _value.blobGasPrice
+          : blobGasPrice // ignore: cast_nullable_to_non_nullable
+              as String?,
+      from: null == from
+          ? _value.from
+          : from // ignore: cast_nullable_to_non_nullable
+              as String,
+      to: freezed == to
+          ? _value.to
+          : to // ignore: cast_nullable_to_non_nullable
+              as String?,
+      contractAddress: freezed == contractAddress
+          ? _value.contractAddress
+          : contractAddress // ignore: cast_nullable_to_non_nullable
+              as String?,
+    ));
+  }
+}
+
+/// @nodoc
+
+class _$TransactionReceiptCompatImpl implements _TransactionReceiptCompat {
+  const _$TransactionReceiptCompatImpl(
+      {required this.transactionHash,
+      this.transactionIndex,
+      this.blockHash,
+      this.blockNumber,
+      required this.gasUsed,
+      required this.effectiveGasPrice,
+      this.blobGasUsed,
+      this.blobGasPrice,
+      required this.from,
+      this.to,
+      this.contractAddress});
+
+  @override
+  final String transactionHash;
+  @override
+  final BigInt? transactionIndex;
+  @override
+  final String? blockHash;
+  @override
+  final BigInt? blockNumber;
+  @override
+  final BigInt gasUsed;
+  @override
+  final String effectiveGasPrice;
+  @override
+  final BigInt? blobGasUsed;
+  @override
+  final String? blobGasPrice;
+  @override
+  final String from;
+  @override
+  final String? to;
+  @override
+  final String? contractAddress;
+
+  @override
+  String toString() {
+    return 'TransactionReceiptCompat(transactionHash: $transactionHash, transactionIndex: $transactionIndex, blockHash: $blockHash, blockNumber: $blockNumber, gasUsed: $gasUsed, effectiveGasPrice: $effectiveGasPrice, blobGasUsed: $blobGasUsed, blobGasPrice: $blobGasPrice, from: $from, to: $to, contractAddress: $contractAddress)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$TransactionReceiptCompatImpl &&
+            (identical(other.transactionHash, transactionHash) ||
+                other.transactionHash == transactionHash) &&
+            (identical(other.transactionIndex, transactionIndex) ||
+                other.transactionIndex == transactionIndex) &&
+            (identical(other.blockHash, blockHash) ||
+                other.blockHash == blockHash) &&
+            (identical(other.blockNumber, blockNumber) ||
+                other.blockNumber == blockNumber) &&
+            (identical(other.gasUsed, gasUsed) || other.gasUsed == gasUsed) &&
+            (identical(other.effectiveGasPrice, effectiveGasPrice) ||
+                other.effectiveGasPrice == effectiveGasPrice) &&
+            (identical(other.blobGasUsed, blobGasUsed) ||
+                other.blobGasUsed == blobGasUsed) &&
+            (identical(other.blobGasPrice, blobGasPrice) ||
+                other.blobGasPrice == blobGasPrice) &&
+            (identical(other.from, from) || other.from == from) &&
+            (identical(other.to, to) || other.to == to) &&
+            (identical(other.contractAddress, contractAddress) ||
+                other.contractAddress == contractAddress));
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      runtimeType,
+      transactionHash,
+      transactionIndex,
+      blockHash,
+      blockNumber,
+      gasUsed,
+      effectiveGasPrice,
+      blobGasUsed,
+      blobGasPrice,
+      from,
+      to,
+      contractAddress);
+
+  /// Create a copy of TransactionReceiptCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$TransactionReceiptCompatImplCopyWith<_$TransactionReceiptCompatImpl>
+      get copyWith => __$$TransactionReceiptCompatImplCopyWithImpl<
+          _$TransactionReceiptCompatImpl>(this, _$identity);
+}
+
+abstract class _TransactionReceiptCompat implements TransactionReceiptCompat {
+  const factory _TransactionReceiptCompat(
+      {required final String transactionHash,
+      final BigInt? transactionIndex,
+      final String? blockHash,
+      final BigInt? blockNumber,
+      required final BigInt gasUsed,
+      required final String effectiveGasPrice,
+      final BigInt? blobGasUsed,
+      final String? blobGasPrice,
+      required final String from,
+      final String? to,
+      final String? contractAddress}) = _$TransactionReceiptCompatImpl;
+
+  @override
+  String get transactionHash;
+  @override
+  BigInt? get transactionIndex;
+  @override
+  String? get blockHash;
+  @override
+  BigInt? get blockNumber;
+  @override
+  BigInt get gasUsed;
+  @override
+  String get effectiveGasPrice;
+  @override
+  BigInt? get blobGasUsed;
+  @override
+  String? get blobGasPrice;
+  @override
+  String get from;
+  @override
+  String? get to;
+  @override
+  String? get contractAddress;
+
+  /// Create a copy of TransactionReceiptCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  _$$TransactionReceiptCompatImplCopyWith<_$TransactionReceiptCompatImpl>
+      get copyWith => throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+mixin _$TxnDetailsCompat {
+  FeeEstimatedTransactionCompat get transaction =>
+      throw _privateConstructorUsedError;
+  String get transactionHashToSign => throw _privateConstructorUsedError;
+  TransactionFeeCompat get fee => throw _privateConstructorUsedError;
+
+  /// Create a copy of TxnDetailsCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  $TxnDetailsCompatCopyWith<TxnDetailsCompat> get copyWith =>
+      throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class $TxnDetailsCompatCopyWith<$Res> {
+  factory $TxnDetailsCompatCopyWith(
+          TxnDetailsCompat value, $Res Function(TxnDetailsCompat) then) =
+      _$TxnDetailsCompatCopyWithImpl<$Res, TxnDetailsCompat>;
+  @useResult
+  $Res call(
+      {FeeEstimatedTransactionCompat transaction,
+      String transactionHashToSign,
+      TransactionFeeCompat fee});
+
+  $FeeEstimatedTransactionCompatCopyWith<$Res> get transaction;
+  $TransactionFeeCompatCopyWith<$Res> get fee;
+}
+
+/// @nodoc
+class _$TxnDetailsCompatCopyWithImpl<$Res, $Val extends TxnDetailsCompat>
+    implements $TxnDetailsCompatCopyWith<$Res> {
+  _$TxnDetailsCompatCopyWithImpl(this._value, this._then);
+
+  // ignore: unused_field
+  final $Val _value;
+  // ignore: unused_field
+  final $Res Function($Val) _then;
+
+  /// Create a copy of TxnDetailsCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? transaction = null,
+    Object? transactionHashToSign = null,
+    Object? fee = null,
+  }) {
+    return _then(_value.copyWith(
+      transaction: null == transaction
+          ? _value.transaction
+          : transaction // ignore: cast_nullable_to_non_nullable
+              as FeeEstimatedTransactionCompat,
+      transactionHashToSign: null == transactionHashToSign
+          ? _value.transactionHashToSign
+          : transactionHashToSign // ignore: cast_nullable_to_non_nullable
+              as String,
+      fee: null == fee
+          ? _value.fee
+          : fee // ignore: cast_nullable_to_non_nullable
+              as TransactionFeeCompat,
+    ) as $Val);
+  }
+
+  /// Create a copy of TxnDetailsCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $FeeEstimatedTransactionCompatCopyWith<$Res> get transaction {
+    return $FeeEstimatedTransactionCompatCopyWith<$Res>(_value.transaction,
+        (value) {
+      return _then(_value.copyWith(transaction: value) as $Val);
+    });
+  }
+
+  /// Create a copy of TxnDetailsCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $TransactionFeeCompatCopyWith<$Res> get fee {
+    return $TransactionFeeCompatCopyWith<$Res>(_value.fee, (value) {
+      return _then(_value.copyWith(fee: value) as $Val);
+    });
+  }
+}
+
+/// @nodoc
+abstract class _$$TxnDetailsCompatImplCopyWith<$Res>
+    implements $TxnDetailsCompatCopyWith<$Res> {
+  factory _$$TxnDetailsCompatImplCopyWith(_$TxnDetailsCompatImpl value,
+          $Res Function(_$TxnDetailsCompatImpl) then) =
+      __$$TxnDetailsCompatImplCopyWithImpl<$Res>;
+  @override
+  @useResult
+  $Res call(
+      {FeeEstimatedTransactionCompat transaction,
+      String transactionHashToSign,
+      TransactionFeeCompat fee});
+
+  @override
+  $FeeEstimatedTransactionCompatCopyWith<$Res> get transaction;
+  @override
+  $TransactionFeeCompatCopyWith<$Res> get fee;
+}
+
+/// @nodoc
+class __$$TxnDetailsCompatImplCopyWithImpl<$Res>
+    extends _$TxnDetailsCompatCopyWithImpl<$Res, _$TxnDetailsCompatImpl>
+    implements _$$TxnDetailsCompatImplCopyWith<$Res> {
+  __$$TxnDetailsCompatImplCopyWithImpl(_$TxnDetailsCompatImpl _value,
+      $Res Function(_$TxnDetailsCompatImpl) _then)
+      : super(_value, _then);
+
+  /// Create a copy of TxnDetailsCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? transaction = null,
+    Object? transactionHashToSign = null,
+    Object? fee = null,
+  }) {
+    return _then(_$TxnDetailsCompatImpl(
+      transaction: null == transaction
+          ? _value.transaction
+          : transaction // ignore: cast_nullable_to_non_nullable
+              as FeeEstimatedTransactionCompat,
+      transactionHashToSign: null == transactionHashToSign
+          ? _value.transactionHashToSign
+          : transactionHashToSign // ignore: cast_nullable_to_non_nullable
+              as String,
+      fee: null == fee
+          ? _value.fee
+          : fee // ignore: cast_nullable_to_non_nullable
+              as TransactionFeeCompat,
+    ));
+  }
+}
+
+/// @nodoc
+
+class _$TxnDetailsCompatImpl implements _TxnDetailsCompat {
+  const _$TxnDetailsCompatImpl(
+      {required this.transaction,
+      required this.transactionHashToSign,
+      required this.fee});
+
+  @override
+  final FeeEstimatedTransactionCompat transaction;
+  @override
+  final String transactionHashToSign;
+  @override
+  final TransactionFeeCompat fee;
+
+  @override
+  String toString() {
+    return 'TxnDetailsCompat(transaction: $transaction, transactionHashToSign: $transactionHashToSign, fee: $fee)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$TxnDetailsCompatImpl &&
+            (identical(other.transaction, transaction) ||
+                other.transaction == transaction) &&
+            (identical(other.transactionHashToSign, transactionHashToSign) ||
+                other.transactionHashToSign == transactionHashToSign) &&
+            (identical(other.fee, fee) || other.fee == fee));
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(runtimeType, transaction, transactionHashToSign, fee);
+
+  /// Create a copy of TxnDetailsCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$TxnDetailsCompatImplCopyWith<_$TxnDetailsCompatImpl> get copyWith =>
+      __$$TxnDetailsCompatImplCopyWithImpl<_$TxnDetailsCompatImpl>(
+          this, _$identity);
+}
+
+abstract class _TxnDetailsCompat implements TxnDetailsCompat {
+  const factory _TxnDetailsCompat(
+      {required final FeeEstimatedTransactionCompat transaction,
+      required final String transactionHashToSign,
+      required final TransactionFeeCompat fee}) = _$TxnDetailsCompatImpl;
+
+  @override
+  FeeEstimatedTransactionCompat get transaction;
+  @override
+  String get transactionHashToSign;
+  @override
+  TransactionFeeCompat get fee;
+
+  /// Create a copy of TxnDetailsCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  _$$TxnDetailsCompatImplCopyWith<_$TxnDetailsCompatImpl> get copyWith =>
+      throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+mixin _$UiFieldsCompat {
+  PrepareResponseAvailableCompat get routeResponse =>
+      throw _privateConstructorUsedError;
+  List<TxnDetailsCompat> get route => throw _privateConstructorUsedError;
+  AmountCompat get localRouteTotal => throw _privateConstructorUsedError;
+  List<TransactionFeeCompat> get bridge => throw _privateConstructorUsedError;
+  AmountCompat get localBridgeTotal => throw _privateConstructorUsedError;
+  TxnDetailsCompat get initial => throw _privateConstructorUsedError;
+  AmountCompat get localTotal => throw _privateConstructorUsedError;
+
+  /// Create a copy of UiFieldsCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  $UiFieldsCompatCopyWith<UiFieldsCompat> get copyWith =>
+      throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class $UiFieldsCompatCopyWith<$Res> {
+  factory $UiFieldsCompatCopyWith(
+          UiFieldsCompat value, $Res Function(UiFieldsCompat) then) =
+      _$UiFieldsCompatCopyWithImpl<$Res, UiFieldsCompat>;
+  @useResult
+  $Res call(
+      {PrepareResponseAvailableCompat routeResponse,
+      List<TxnDetailsCompat> route,
+      AmountCompat localRouteTotal,
+      List<TransactionFeeCompat> bridge,
+      AmountCompat localBridgeTotal,
+      TxnDetailsCompat initial,
+      AmountCompat localTotal});
+
+  $PrepareResponseAvailableCompatCopyWith<$Res> get routeResponse;
+  $AmountCompatCopyWith<$Res> get localRouteTotal;
+  $AmountCompatCopyWith<$Res> get localBridgeTotal;
+  $TxnDetailsCompatCopyWith<$Res> get initial;
+  $AmountCompatCopyWith<$Res> get localTotal;
+}
+
+/// @nodoc
+class _$UiFieldsCompatCopyWithImpl<$Res, $Val extends UiFieldsCompat>
+    implements $UiFieldsCompatCopyWith<$Res> {
+  _$UiFieldsCompatCopyWithImpl(this._value, this._then);
+
+  // ignore: unused_field
+  final $Val _value;
+  // ignore: unused_field
+  final $Res Function($Val) _then;
+
+  /// Create a copy of UiFieldsCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? routeResponse = null,
+    Object? route = null,
+    Object? localRouteTotal = null,
+    Object? bridge = null,
+    Object? localBridgeTotal = null,
+    Object? initial = null,
+    Object? localTotal = null,
+  }) {
+    return _then(_value.copyWith(
+      routeResponse: null == routeResponse
+          ? _value.routeResponse
+          : routeResponse // ignore: cast_nullable_to_non_nullable
+              as PrepareResponseAvailableCompat,
+      route: null == route
+          ? _value.route
+          : route // ignore: cast_nullable_to_non_nullable
+              as List<TxnDetailsCompat>,
+      localRouteTotal: null == localRouteTotal
+          ? _value.localRouteTotal
+          : localRouteTotal // ignore: cast_nullable_to_non_nullable
+              as AmountCompat,
+      bridge: null == bridge
+          ? _value.bridge
+          : bridge // ignore: cast_nullable_to_non_nullable
+              as List<TransactionFeeCompat>,
+      localBridgeTotal: null == localBridgeTotal
+          ? _value.localBridgeTotal
+          : localBridgeTotal // ignore: cast_nullable_to_non_nullable
+              as AmountCompat,
+      initial: null == initial
+          ? _value.initial
+          : initial // ignore: cast_nullable_to_non_nullable
+              as TxnDetailsCompat,
+      localTotal: null == localTotal
+          ? _value.localTotal
+          : localTotal // ignore: cast_nullable_to_non_nullable
+              as AmountCompat,
+    ) as $Val);
+  }
+
+  /// Create a copy of UiFieldsCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $PrepareResponseAvailableCompatCopyWith<$Res> get routeResponse {
+    return $PrepareResponseAvailableCompatCopyWith<$Res>(_value.routeResponse,
+        (value) {
+      return _then(_value.copyWith(routeResponse: value) as $Val);
+    });
+  }
+
+  /// Create a copy of UiFieldsCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $AmountCompatCopyWith<$Res> get localRouteTotal {
+    return $AmountCompatCopyWith<$Res>(_value.localRouteTotal, (value) {
+      return _then(_value.copyWith(localRouteTotal: value) as $Val);
+    });
+  }
+
+  /// Create a copy of UiFieldsCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $AmountCompatCopyWith<$Res> get localBridgeTotal {
+    return $AmountCompatCopyWith<$Res>(_value.localBridgeTotal, (value) {
+      return _then(_value.copyWith(localBridgeTotal: value) as $Val);
+    });
+  }
+
+  /// Create a copy of UiFieldsCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $TxnDetailsCompatCopyWith<$Res> get initial {
+    return $TxnDetailsCompatCopyWith<$Res>(_value.initial, (value) {
+      return _then(_value.copyWith(initial: value) as $Val);
+    });
+  }
+
+  /// Create a copy of UiFieldsCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $AmountCompatCopyWith<$Res> get localTotal {
+    return $AmountCompatCopyWith<$Res>(_value.localTotal, (value) {
+      return _then(_value.copyWith(localTotal: value) as $Val);
+    });
+  }
+}
+
+/// @nodoc
+abstract class _$$UiFieldsCompatImplCopyWith<$Res>
+    implements $UiFieldsCompatCopyWith<$Res> {
+  factory _$$UiFieldsCompatImplCopyWith(_$UiFieldsCompatImpl value,
+          $Res Function(_$UiFieldsCompatImpl) then) =
+      __$$UiFieldsCompatImplCopyWithImpl<$Res>;
+  @override
+  @useResult
+  $Res call(
+      {PrepareResponseAvailableCompat routeResponse,
+      List<TxnDetailsCompat> route,
+      AmountCompat localRouteTotal,
+      List<TransactionFeeCompat> bridge,
+      AmountCompat localBridgeTotal,
+      TxnDetailsCompat initial,
+      AmountCompat localTotal});
+
+  @override
+  $PrepareResponseAvailableCompatCopyWith<$Res> get routeResponse;
+  @override
+  $AmountCompatCopyWith<$Res> get localRouteTotal;
+  @override
+  $AmountCompatCopyWith<$Res> get localBridgeTotal;
+  @override
+  $TxnDetailsCompatCopyWith<$Res> get initial;
+  @override
+  $AmountCompatCopyWith<$Res> get localTotal;
+}
+
+/// @nodoc
+class __$$UiFieldsCompatImplCopyWithImpl<$Res>
+    extends _$UiFieldsCompatCopyWithImpl<$Res, _$UiFieldsCompatImpl>
+    implements _$$UiFieldsCompatImplCopyWith<$Res> {
+  __$$UiFieldsCompatImplCopyWithImpl(
+      _$UiFieldsCompatImpl _value, $Res Function(_$UiFieldsCompatImpl) _then)
+      : super(_value, _then);
+
+  /// Create a copy of UiFieldsCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? routeResponse = null,
+    Object? route = null,
+    Object? localRouteTotal = null,
+    Object? bridge = null,
+    Object? localBridgeTotal = null,
+    Object? initial = null,
+    Object? localTotal = null,
+  }) {
+    return _then(_$UiFieldsCompatImpl(
+      routeResponse: null == routeResponse
+          ? _value.routeResponse
+          : routeResponse // ignore: cast_nullable_to_non_nullable
+              as PrepareResponseAvailableCompat,
+      route: null == route
+          ? _value._route
+          : route // ignore: cast_nullable_to_non_nullable
+              as List<TxnDetailsCompat>,
+      localRouteTotal: null == localRouteTotal
+          ? _value.localRouteTotal
+          : localRouteTotal // ignore: cast_nullable_to_non_nullable
+              as AmountCompat,
+      bridge: null == bridge
+          ? _value._bridge
+          : bridge // ignore: cast_nullable_to_non_nullable
+              as List<TransactionFeeCompat>,
+      localBridgeTotal: null == localBridgeTotal
+          ? _value.localBridgeTotal
+          : localBridgeTotal // ignore: cast_nullable_to_non_nullable
+              as AmountCompat,
+      initial: null == initial
+          ? _value.initial
+          : initial // ignore: cast_nullable_to_non_nullable
+              as TxnDetailsCompat,
+      localTotal: null == localTotal
+          ? _value.localTotal
+          : localTotal // ignore: cast_nullable_to_non_nullable
+              as AmountCompat,
+    ));
+  }
+}
+
+/// @nodoc
+
+class _$UiFieldsCompatImpl implements _UiFieldsCompat {
+  const _$UiFieldsCompatImpl(
+      {required this.routeResponse,
+      required final List<TxnDetailsCompat> route,
+      required this.localRouteTotal,
+      required final List<TransactionFeeCompat> bridge,
+      required this.localBridgeTotal,
+      required this.initial,
+      required this.localTotal})
+      : _route = route,
+        _bridge = bridge;
+
+  @override
+  final PrepareResponseAvailableCompat routeResponse;
+  final List<TxnDetailsCompat> _route;
+  @override
+  List<TxnDetailsCompat> get route {
+    if (_route is EqualUnmodifiableListView) return _route;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_route);
+  }
+
+  @override
+  final AmountCompat localRouteTotal;
+  final List<TransactionFeeCompat> _bridge;
+  @override
+  List<TransactionFeeCompat> get bridge {
+    if (_bridge is EqualUnmodifiableListView) return _bridge;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_bridge);
+  }
+
+  @override
+  final AmountCompat localBridgeTotal;
+  @override
+  final TxnDetailsCompat initial;
+  @override
+  final AmountCompat localTotal;
+
+  @override
+  String toString() {
+    return 'UiFieldsCompat(routeResponse: $routeResponse, route: $route, localRouteTotal: $localRouteTotal, bridge: $bridge, localBridgeTotal: $localBridgeTotal, initial: $initial, localTotal: $localTotal)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$UiFieldsCompatImpl &&
+            (identical(other.routeResponse, routeResponse) ||
+                other.routeResponse == routeResponse) &&
+            const DeepCollectionEquality().equals(other._route, _route) &&
+            (identical(other.localRouteTotal, localRouteTotal) ||
+                other.localRouteTotal == localRouteTotal) &&
+            const DeepCollectionEquality().equals(other._bridge, _bridge) &&
+            (identical(other.localBridgeTotal, localBridgeTotal) ||
+                other.localBridgeTotal == localBridgeTotal) &&
+            (identical(other.initial, initial) || other.initial == initial) &&
+            (identical(other.localTotal, localTotal) ||
+                other.localTotal == localTotal));
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      runtimeType,
+      routeResponse,
+      const DeepCollectionEquality().hash(_route),
+      localRouteTotal,
+      const DeepCollectionEquality().hash(_bridge),
+      localBridgeTotal,
+      initial,
+      localTotal);
+
+  /// Create a copy of UiFieldsCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$UiFieldsCompatImplCopyWith<_$UiFieldsCompatImpl> get copyWith =>
+      __$$UiFieldsCompatImplCopyWithImpl<_$UiFieldsCompatImpl>(
+          this, _$identity);
+}
+
+abstract class _UiFieldsCompat implements UiFieldsCompat {
+  const factory _UiFieldsCompat(
+      {required final PrepareResponseAvailableCompat routeResponse,
+      required final List<TxnDetailsCompat> route,
+      required final AmountCompat localRouteTotal,
+      required final List<TransactionFeeCompat> bridge,
+      required final AmountCompat localBridgeTotal,
+      required final TxnDetailsCompat initial,
+      required final AmountCompat localTotal}) = _$UiFieldsCompatImpl;
+
+  @override
+  PrepareResponseAvailableCompat get routeResponse;
+  @override
+  List<TxnDetailsCompat> get route;
+  @override
+  AmountCompat get localRouteTotal;
+  @override
+  List<TransactionFeeCompat> get bridge;
+  @override
+  AmountCompat get localBridgeTotal;
+  @override
+  TxnDetailsCompat get initial;
+  @override
+  AmountCompat get localTotal;
+
+  /// Create a copy of UiFieldsCompat
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  _$$UiFieldsCompatImplCopyWith<_$UiFieldsCompatImpl> get copyWith =>
+      throw _privateConstructorUsedError;
 }

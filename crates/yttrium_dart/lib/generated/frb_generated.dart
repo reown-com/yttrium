@@ -748,11 +748,11 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
     switch (raw[0]) {
       case 0:
         return PrepareResponseCompat_Success(
-          dco_decode_box_autoadd_prepare_response_success_compat(raw[1]),
+          value: dco_decode_box_autoadd_prepare_response_success_compat(raw[1]),
         );
       case 1:
         return PrepareResponseCompat_Error(
-          dco_decode_box_autoadd_prepare_response_error_compat(raw[1]),
+          value: dco_decode_box_autoadd_prepare_response_error_compat(raw[1]),
         );
       default:
         throw Exception('unreachable');
@@ -1399,13 +1399,13 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
     var tag_ = sse_decode_i_32(deserializer);
     switch (tag_) {
       case 0:
-        var var_field0 = sse_decode_box_autoadd_prepare_response_success_compat(
+        var var_value = sse_decode_box_autoadd_prepare_response_success_compat(
             deserializer);
-        return PrepareResponseCompat_Success(var_field0);
+        return PrepareResponseCompat_Success(value: var_value);
       case 1:
-        var var_field0 =
+        var var_value =
             sse_decode_box_autoadd_prepare_response_error_compat(deserializer);
-        return PrepareResponseCompat_Error(var_field0);
+        return PrepareResponseCompat_Error(value: var_value);
       default:
         throw UnimplementedError('');
     }
@@ -1968,14 +1968,13 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
       PrepareResponseCompat self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     switch (self) {
-      case PrepareResponseCompat_Success(field0: final field0):
+      case PrepareResponseCompat_Success(value: final value):
         sse_encode_i_32(0, serializer);
         sse_encode_box_autoadd_prepare_response_success_compat(
-            field0, serializer);
-      case PrepareResponseCompat_Error(field0: final field0):
+            value, serializer);
+      case PrepareResponseCompat_Error(value: final value):
         sse_encode_i_32(1, serializer);
-        sse_encode_box_autoadd_prepare_response_error_compat(
-            field0, serializer);
+        sse_encode_box_autoadd_prepare_response_error_compat(value, serializer);
     }
   }
 
