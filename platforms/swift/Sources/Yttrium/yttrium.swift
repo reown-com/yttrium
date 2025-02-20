@@ -2055,16 +2055,14 @@ public func FfiConverterTypePreparedSendTransaction_lower(_ value: PreparedSendT
 public struct PulseMetadata {
     public var url: Url?
     public var bundleId: String?
-    public var packageName: String?
     public var sdkVersion: String
     public var sdkPlatform: String
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(url: Url?, bundleId: String?, packageName: String?, sdkVersion: String, sdkPlatform: String) {
+    public init(url: Url?, bundleId: String?, sdkVersion: String, sdkPlatform: String) {
         self.url = url
         self.bundleId = bundleId
-        self.packageName = packageName
         self.sdkVersion = sdkVersion
         self.sdkPlatform = sdkPlatform
     }
@@ -2083,9 +2081,6 @@ extension PulseMetadata: Equatable, Hashable {
         if lhs.bundleId != rhs.bundleId {
             return false
         }
-        if lhs.packageName != rhs.packageName {
-            return false
-        }
         if lhs.sdkVersion != rhs.sdkVersion {
             return false
         }
@@ -2098,7 +2093,6 @@ extension PulseMetadata: Equatable, Hashable {
     public func hash(into hasher: inout Hasher) {
         hasher.combine(url)
         hasher.combine(bundleId)
-        hasher.combine(packageName)
         hasher.combine(sdkVersion)
         hasher.combine(sdkPlatform)
     }
@@ -2115,7 +2109,6 @@ public struct FfiConverterTypePulseMetadata: FfiConverterRustBuffer {
             try PulseMetadata(
                 url: FfiConverterOptionTypeUrl.read(from: &buf), 
                 bundleId: FfiConverterOptionString.read(from: &buf), 
-                packageName: FfiConverterOptionString.read(from: &buf), 
                 sdkVersion: FfiConverterString.read(from: &buf), 
                 sdkPlatform: FfiConverterString.read(from: &buf)
         )
@@ -2124,7 +2117,6 @@ public struct FfiConverterTypePulseMetadata: FfiConverterRustBuffer {
     public static func write(_ value: PulseMetadata, into buf: inout [UInt8]) {
         FfiConverterOptionTypeUrl.write(value.url, into: &buf)
         FfiConverterOptionString.write(value.bundleId, into: &buf)
-        FfiConverterOptionString.write(value.packageName, into: &buf)
         FfiConverterString.write(value.sdkVersion, into: &buf)
         FfiConverterString.write(value.sdkPlatform, into: &buf)
     }
