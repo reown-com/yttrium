@@ -99,7 +99,7 @@ Future<Directory?> _getPackageRoot() async {
 
     if ((packages ?? []).isNotEmpty) {
       for (final package in packages!) {
-        if (package['name'] == 'yttrium_lib') {
+        if (package['name'] == 'yttrium_dart') {
           final rootUri = package['rootUri'] as String?;
           if (rootUri != null) {
             // Resolve absolute path for relative URIs
