@@ -6,15 +6,17 @@ rust-version.workspace = true
 license.workspace = true
 
 [lib]
-crate-type = ["lib", "cdylib"]
+name = "yttrium_lib"
+crate-type = ["lib", "cdylib", "staticlib"]
 
 [features]
 default = ["erc6492_client", "chain_abstraction_client"]
 full = ["all_platforms", "all_clients"]
 
 # Features enabling FFI bindings for different platforms
-all_platforms = ["uniffi", "wasm"]
-uniffi = ["dep:uniffi", "dep:uniffi_macros", "reqwest/default-tls"]
+all_platforms = ["uniffi", "frb", "wasm"]
+uniffi = ["dep:uniffi", "dep:uniffi_macros"]
+frb = ["dep:flutter_rust_bridge_codegen", "dep:flutter_rust_bridge", "reqwest/default-tls"]
 wasm = [
     "dep:wasm-bindgen",
     "dep:wasm-bindgen-futures",
@@ -43,7 +45,12 @@ transaction_sponsorship_client = []
 test_pimlico_api = []
 test_blockchain_api = []
 
+[build-dependencies]
+flutter_rust_bridge_codegen = { workspace = true, optional = true }
+
 [dependencies]
+flutter_rust_bridge = { workspace = true, optional = true }
+
 uniffi = { workspace = true, optional = true }
 uniffi_macros = { workspace = true, optional = true }
 
@@ -110,6 +117,9 @@ url = { workspace = true, features = ["serde"] }
 # Tiny dependency, could copy source. Pinning to exact version to avoid supply-chain attacks.
 derive_jserror = { version = "=0.1.0", optional = true, default-features = false }
 
+openssl = { version = "0.10", features = ["vendored"] }
+openssl-sys = { version = "0.9.103", features = ["vendored"] }
+
 [dev-dependencies]
 # mocking
 wiremock = { version = "0.6.0", default-features = false }
@@ -124,3 +134,6 @@ serial_test.workspace = true
 
 [package.metadata.wasm-pack.profile.release]
 wasm-opt = ['-Oz']
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(frb_expand)'] }

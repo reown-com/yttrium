@@ -10,6 +10,11 @@ pub mod send_transaction;
 pub mod spawn;
 pub mod ui_fields;
 
+#[cfg(feature = "frb")]
+pub mod dart_compat;
+#[cfg(feature = "frb")]
+pub mod dart_compat_models;
+
 #[cfg(test)]
 mod test_helpers;
 
