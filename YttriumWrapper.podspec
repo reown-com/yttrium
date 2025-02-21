@@ -19,7 +19,7 @@ Pod::Spec.new do |s|
   # Include the vendored framework
   s.prepare_command = <<-SCRIPT
     curl -L -o libuniffi_yttrium.xcframework.zip 'https://github.com/reown-com/yttrium/releases/download/0.8.15/libuniffi_yttrium.xcframework.zip'
-    unzip -o libuniffi_yttrium.xcframework.zip -d platforms/swift/target/ios
+    unzip -o libuniffi_yttrium.xcframework.zip -d platforms/swift/
     rm libuniffi_yttrium.xcframework.zip
   SCRIPT
 
