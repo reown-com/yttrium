@@ -24,4 +24,5 @@ Pod::Spec.new do |s|
   SCRIPT
 
   s.vendored_frameworks = 'platforms/swift/target/ios/libuniffi_yttrium.xcframework'
+  s.module_map = 'platforms/swift/target/ios/libuniffi_yttrium.xcframework/ios-arm64/Headers/yttriumFFI/module.modulemap'
 end
