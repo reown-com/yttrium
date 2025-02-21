@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name         = 'YttriumWrapper'
-  s.version      = '0.8.26'
+  s.version      = '0.8.28'
   s.summary      = '4337 implementation'
   s.description  = '4337 implementation and Chain Abstraction'
   s.homepage     = 'https://reown.com'
@@ -19,7 +19,7 @@ Pod::Spec.new do |s|
   # Include the vendored framework
 s.prepare_command = <<-SCRIPT
   mkdir -p platforms/swift/target/ios
-  curl -L -o libuniffi_yttrium.xcframework.zip 'https://github.com/reown-com/yttrium/releases/download/0.8.27/libuniffi_yttrium.xcframework.zip'
+  curl -L -o libuniffi_yttrium.xcframework.zip 'https://github.com/reown-com/yttrium/releases/download/0.8.28/libuniffi_yttrium.xcframework.zip'
   unzip -o libuniffi_yttrium.xcframework.zip -d platforms/swift/target/ios
   rm libuniffi_yttrium.xcframework.zip
 SCRIPT
