@@ -8,22 +8,23 @@ Pod::Spec.new do |s|
   s.authors      = 'reown inc.'
 
   s.source       = { :git => 'https://github.com/reown-com/yttrium.git', :tag => s.version.to_s }
-
   s.platform     = :ios, '13.0'
-
   s.swift_version = '5.9'
 
-  # Include the Swift source files
-  s.source_files = 'platforms/swift/Sources/Yttrium/**/*.{swift,h}'
 
-  # Include the vendored framework
   s.prepare_command = <<-SCRIPT
-    curl -L -o libuniffi_yttrium.xcframework.zip 'https://github.com/reown-com/yttrium/releases/download/0.8.15/libuniffi_yttrium.xcframework.zip'
+    curl -L -o libuniffi_yttrium.xcframework.zip 'https://github.com/reown-com/yttrium/releases/download/0.8.28/libuniffi_yttrium.xcframework.zip'
     unzip -o libuniffi_yttrium.xcframework.zip -d platforms/swift/
     rm libuniffi_yttrium.xcframework.zip
   SCRIPT
 
   s.vendored_frameworks = 'platforms/swift/target/ios/libuniffi_yttrium.xcframework'
-  s.preserve_paths = 'platforms/swift/target/ios/libuniffi_yttrium.xcframework/**/*.modulemap'
 
+  # Suppress Swift 6 warnings during validation
+  s.pod_target_xcconfig = {
+    'OTHER_SWIFT_FLAGS' => '-suppress-warnings',
+    'SWIFT_SUPPRESS_WARNINGS' => 'YES',
+      'EXCLUDED_ARCHS' => '',
+  'MODULEMAP_FILE' => '$(PODS_ROOT)/YttriumWrapper/platforms/swift/target/ios/libuniffi_yttrium.xcframework/Headers/module.modulemap'
+  }
 end
