@@ -20,13 +20,6 @@ class AmountCompat with _$AmountCompat {
   }) = _AmountCompat;
 }
 
-enum BridgingErrorCompat {
-  noRoutesAvailable,
-  insufficientFunds,
-  insufficientGasFunds,
-  ;
-}
-
 @freezed
 class CallCompat with _$CallCompat {
   const factory CallCompat({
@@ -145,42 +138,11 @@ class PrepareResponseAvailableCompat with _$PrepareResponseAvailableCompat {
 }
 
 @freezed
-sealed class PrepareResponseCompat with _$PrepareResponseCompat {
-  const PrepareResponseCompat._();
-
-  const factory PrepareResponseCompat.success({
-    required PrepareResponseSuccessCompat value,
-  }) = PrepareResponseCompat_Success;
-  const factory PrepareResponseCompat.error({
-    required PrepareResponseErrorCompat value,
-  }) = PrepareResponseCompat_Error;
-}
-
-@freezed
-class PrepareResponseErrorCompat with _$PrepareResponseErrorCompat {
-  const factory PrepareResponseErrorCompat({
-    required BridgingErrorCompat error,
-  }) = _PrepareResponseErrorCompat;
-}
-
-@freezed
 class PrepareResponseNotRequiredCompat with _$PrepareResponseNotRequiredCompat {
   const factory PrepareResponseNotRequiredCompat({
     required TransactionCompat initialTransaction,
     required List<TransactionCompat> transactions,
   }) = _PrepareResponseNotRequiredCompat;
-}
-
-@freezed
-sealed class PrepareResponseSuccessCompat with _$PrepareResponseSuccessCompat {
-  const PrepareResponseSuccessCompat._();
-
-  const factory PrepareResponseSuccessCompat.available({
-    required PrepareResponseAvailableCompat value,
-  }) = PrepareResponseSuccessCompat_Available;
-  const factory PrepareResponseSuccessCompat.notRequired({
-    required PrepareResponseNotRequiredCompat value,
-  }) = PrepareResponseSuccessCompat_NotRequired;
 }
 
 class PrimitiveSignatureCompat {

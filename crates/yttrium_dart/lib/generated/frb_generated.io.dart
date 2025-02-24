@@ -61,24 +61,12 @@ abstract class YttriumDartApiImplPlatform extends BaseApiImpl<YttriumDartWire> {
           dynamic raw);
 
   @protected
-  PrepareResponseAvailableCompat
-      dco_decode_box_autoadd_prepare_response_available_compat(dynamic raw);
-
-  @protected
   PrepareResponseError dco_decode_box_autoadd_prepare_response_error(
       dynamic raw);
 
   @protected
-  PrepareResponseErrorCompat
-      dco_decode_box_autoadd_prepare_response_error_compat(dynamic raw);
-
-  @protected
   PrepareResponseNotRequiredCompat
       dco_decode_box_autoadd_prepare_response_not_required_compat(dynamic raw);
-
-  @protected
-  PrepareResponseSuccessCompat
-      dco_decode_box_autoadd_prepare_response_success_compat(dynamic raw);
 
   @protected
   PrimitiveSignatureCompat dco_decode_box_autoadd_primitive_signature_compat(
@@ -95,9 +83,6 @@ abstract class YttriumDartApiImplPlatform extends BaseApiImpl<YttriumDartWire> {
 
   @protected
   BridgingError dco_decode_bridging_error(dynamic raw);
-
-  @protected
-  BridgingErrorCompat dco_decode_bridging_error_compat(dynamic raw);
 
   @protected
   CallCompat dco_decode_call_compat(dynamic raw);
@@ -171,22 +156,11 @@ abstract class YttriumDartApiImplPlatform extends BaseApiImpl<YttriumDartWire> {
       dynamic raw);
 
   @protected
-  PrepareResponseCompat dco_decode_prepare_response_compat(dynamic raw);
-
-  @protected
   PrepareResponseError dco_decode_prepare_response_error(dynamic raw);
-
-  @protected
-  PrepareResponseErrorCompat dco_decode_prepare_response_error_compat(
-      dynamic raw);
 
   @protected
   PrepareResponseNotRequiredCompat
       dco_decode_prepare_response_not_required_compat(dynamic raw);
-
-  @protected
-  PrepareResponseSuccessCompat dco_decode_prepare_response_success_compat(
-      dynamic raw);
 
   @protected
   PrimitiveSignatureCompat dco_decode_primitive_signature_compat(dynamic raw);
@@ -257,27 +231,12 @@ abstract class YttriumDartApiImplPlatform extends BaseApiImpl<YttriumDartWire> {
           SseDeserializer deserializer);
 
   @protected
-  PrepareResponseAvailableCompat
-      sse_decode_box_autoadd_prepare_response_available_compat(
-          SseDeserializer deserializer);
-
-  @protected
   PrepareResponseError sse_decode_box_autoadd_prepare_response_error(
       SseDeserializer deserializer);
 
   @protected
-  PrepareResponseErrorCompat
-      sse_decode_box_autoadd_prepare_response_error_compat(
-          SseDeserializer deserializer);
-
-  @protected
   PrepareResponseNotRequiredCompat
       sse_decode_box_autoadd_prepare_response_not_required_compat(
-          SseDeserializer deserializer);
-
-  @protected
-  PrepareResponseSuccessCompat
-      sse_decode_box_autoadd_prepare_response_success_compat(
           SseDeserializer deserializer);
 
   @protected
@@ -297,10 +256,6 @@ abstract class YttriumDartApiImplPlatform extends BaseApiImpl<YttriumDartWire> {
 
   @protected
   BridgingError sse_decode_bridging_error(SseDeserializer deserializer);
-
-  @protected
-  BridgingErrorCompat sse_decode_bridging_error_compat(
-      SseDeserializer deserializer);
 
   @protected
   CallCompat sse_decode_call_compat(SseDeserializer deserializer);
@@ -381,25 +336,13 @@ abstract class YttriumDartApiImplPlatform extends BaseApiImpl<YttriumDartWire> {
       SseDeserializer deserializer);
 
   @protected
-  PrepareResponseCompat sse_decode_prepare_response_compat(
-      SseDeserializer deserializer);
-
-  @protected
   PrepareResponseError sse_decode_prepare_response_error(
-      SseDeserializer deserializer);
-
-  @protected
-  PrepareResponseErrorCompat sse_decode_prepare_response_error_compat(
       SseDeserializer deserializer);
 
   @protected
   PrepareResponseNotRequiredCompat
       sse_decode_prepare_response_not_required_compat(
           SseDeserializer deserializer);
-
-  @protected
-  PrepareResponseSuccessCompat sse_decode_prepare_response_success_compat(
-      SseDeserializer deserializer);
 
   @protected
   PrimitiveSignatureCompat sse_decode_primitive_signature_compat(
@@ -474,24 +417,12 @@ abstract class YttriumDartApiImplPlatform extends BaseApiImpl<YttriumDartWire> {
       PrepareDetailedResponseSuccessCompat self, SseSerializer serializer);
 
   @protected
-  void sse_encode_box_autoadd_prepare_response_available_compat(
-      PrepareResponseAvailableCompat self, SseSerializer serializer);
-
-  @protected
   void sse_encode_box_autoadd_prepare_response_error(
       PrepareResponseError self, SseSerializer serializer);
 
   @protected
-  void sse_encode_box_autoadd_prepare_response_error_compat(
-      PrepareResponseErrorCompat self, SseSerializer serializer);
-
-  @protected
   void sse_encode_box_autoadd_prepare_response_not_required_compat(
       PrepareResponseNotRequiredCompat self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_box_autoadd_prepare_response_success_compat(
-      PrepareResponseSuccessCompat self, SseSerializer serializer);
 
   @protected
   void sse_encode_box_autoadd_primitive_signature_compat(
@@ -510,10 +441,6 @@ abstract class YttriumDartApiImplPlatform extends BaseApiImpl<YttriumDartWire> {
 
   @protected
   void sse_encode_bridging_error(BridgingError self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_bridging_error_compat(
-      BridgingErrorCompat self, SseSerializer serializer);
 
   @protected
   void sse_encode_call_compat(CallCompat self, SseSerializer serializer);
@@ -594,24 +521,12 @@ abstract class YttriumDartApiImplPlatform extends BaseApiImpl<YttriumDartWire> {
       PrepareResponseAvailableCompat self, SseSerializer serializer);
 
   @protected
-  void sse_encode_prepare_response_compat(
-      PrepareResponseCompat self, SseSerializer serializer);
-
-  @protected
   void sse_encode_prepare_response_error(
       PrepareResponseError self, SseSerializer serializer);
 
   @protected
-  void sse_encode_prepare_response_error_compat(
-      PrepareResponseErrorCompat self, SseSerializer serializer);
-
-  @protected
   void sse_encode_prepare_response_not_required_compat(
       PrepareResponseNotRequiredCompat self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_prepare_response_success_compat(
-      PrepareResponseSuccessCompat self, SseSerializer serializer);
 
   @protected
   void sse_encode_primitive_signature_compat(
