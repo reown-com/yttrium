@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name         = 'YttriumWrapper'
-  s.version      = '0.8.28'
+  s.version      = '0.8.32'
   s.summary      = '4337 implementation'
   s.description  = '4337 implementation and Chain Abstraction'
   s.homepage     = 'https://reown.com'
@@ -8,23 +8,31 @@ Pod::Spec.new do |s|
   s.authors      = 'reown inc.'
 
   s.source       = { :git => 'https://github.com/reown-com/yttrium.git', :tag => s.version.to_s }
+
   s.platform     = :ios, '13.0'
+
   s.swift_version = '5.9'
 
+  # Include the Swift source files
+  s.source_files = 'platforms/swift/Sources/Yttrium/**/*.{swift,h}'
 
+  # Include the vendored framework with flattened structure
   s.prepare_command = <<-SCRIPT
-    curl -L -o libuniffi_yttrium.xcframework.zip 'https://github.com/reown-com/yttrium/releases/download/0.8.28/libuniffi_yttrium.xcframework.zip'
+    curl -L -o libuniffi_yttrium.xcframework.zip 'https://github.com/reown-com/yttrium/releases/download/0.8.32/libuniffi_yttrium.xcframework.zip'
     unzip -o libuniffi_yttrium.xcframework.zip -d platforms/swift/
     rm libuniffi_yttrium.xcframework.zip
+
+    # Move files from yttriumFFI subdirectory up one level for both architectures
+    if [ -d "platforms/swift/target/ios/libuniffi_yttrium.xcframework/ios-arm64/Headers/yttriumFFI" ]; then
+      mv platforms/swift/target/ios/libuniffi_yttrium.xcframework/ios-arm64/Headers/yttriumFFI/* platforms/swift/target/ios/libuniffi_yttrium.xcframework/ios-arm64/Headers/
+      rm -rf platforms/swift/target/ios/libuniffi_yttrium.xcframework/ios-arm64/Headers/yttriumFFI
+    fi
+
+    if [ -d "platforms/swift/target/ios/libuniffi_yttrium.xcframework/ios-arm64_x86_64-simulator/Headers/yttriumFFI" ]; then
+      mv platforms/swift/target/ios/libuniffi_yttrium.xcframework/ios-arm64_x86_64-simulator/Headers/yttriumFFI/* platforms/swift/target/ios/libuniffi_yttrium.xcframework/ios-arm64_x86_64-simulator/Headers/
+      rm -rf platforms/swift/target/ios/libuniffi_yttrium.xcframework/ios-arm64_x86_64-simulator/Headers/yttriumFFI
+    fi
   SCRIPT
 
   s.vendored_frameworks = 'platforms/swift/target/ios/libuniffi_yttrium.xcframework'
-
-  # Suppress Swift 6 warnings during validation
-  s.pod_target_xcconfig = {
-    'OTHER_SWIFT_FLAGS' => '-suppress-warnings',
-    'SWIFT_SUPPRESS_WARNINGS' => 'YES',
-      'EXCLUDED_ARCHS' => '',
-  'MODULEMAP_FILE' => '$(PODS_ROOT)/YttriumWrapper/platforms/swift/target/ios/libuniffi_yttrium.xcframework/Headers/module.modulemap'
-  }
 end
