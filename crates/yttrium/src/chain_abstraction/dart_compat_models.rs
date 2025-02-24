@@ -304,7 +304,7 @@ impl From<Metadata> for MetadataCompat {
                 .map(FundingMetadataCompat::from)
                 .collect(),
             initial_transaction: original.initial_transaction.into(),
-            check_in: original.check_in.into(),
+            check_in: original.check_in,
         }
     }
 }
@@ -318,7 +318,7 @@ impl From<MetadataCompat> for Metadata {
                 .map(FundingMetadata::from)
                 .collect(),
             initial_transaction: compat.initial_transaction.into(),
-            check_in: compat.check_in.into(),
+            check_in: compat.check_in,
         }
     }
 }

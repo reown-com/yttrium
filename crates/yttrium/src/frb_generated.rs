@@ -32,7 +32,6 @@ use flutter_rust_bridge::for_generated::byteorder::{
 use flutter_rust_bridge::for_generated::{
     transform_result_dco, Lifetimeable, Lockable,
 };
-use flutter_rust_bridge::{Handler, IntoIntoDart};
 
 // Section: boilerplate
 
@@ -2227,7 +2226,6 @@ mod io {
     use flutter_rust_bridge::for_generated::{
         transform_result_dco, Lifetimeable, Lockable,
     };
-    use flutter_rust_bridge::{Handler, IntoIntoDart};
 
     // Section: boilerplate
 

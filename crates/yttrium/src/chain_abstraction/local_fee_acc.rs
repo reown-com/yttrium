@@ -1,7 +1,5 @@
 use alloy::primitives::{utils::Unit, U256};
 
-use super::dart_compat_models::FeeCompat;
-
 struct Fee {
     fungible_amount: U256,
     fungible_decimals: u8,
@@ -75,10 +73,11 @@ impl LocalAmountAcc {
         (total_local_fee_acc, Unit::new(decimals).unwrap())
     }
 
-    pub fn get_fees_compat(&self) -> Vec<FeeCompat> {
+    #[cfg(feature = "frb")]
+    pub fn get_fees_compat(&self) -> Vec<super::dart_compat_models::FeeCompat> {
         self.fees
             .iter()
-            .map(|fee| FeeCompat {
+            .map(|fee| super::dart_compat_models::FeeCompat {
                 fungible_amount: fee.fungible_amount.to_string(),
                 fungible_decimals: fee.fungible_decimals,
                 fungible_price: fee.fungible_price.to_string(),
@@ -86,7 +85,6 @@ impl LocalAmountAcc {
             })
             .collect()
     }
-    
 }
 
 impl Default for LocalAmountAcc {
