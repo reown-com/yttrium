@@ -18,9 +18,9 @@ use {
         },
         currency::Currency,
         error::{
-            ExecuteError, PrepareDetailedError, PrepareDetailedResponse,
-            PrepareDetailedResponseSuccess, PrepareError, StatusError,
-            WaitForSuccessError,
+            ExecuteError, ExecuteErrorReason, PrepareDetailedError,
+            PrepareDetailedResponse, PrepareDetailedResponseSuccess,
+            PrepareError, StatusError, WaitForSuccessError,
         },
         pulse::{PulseMetadata, PULSE_SDK_TYPE},
         send_transaction::{send_transaction, TransactionAnalytics},
@@ -35,6 +35,7 @@ use {
         erc20::ERC20,
         provider_pool::ProviderPool,
         serde::{duration_millis, option_duration_millis, systemtime_millis},
+        time::{sleep, Duration, Instant, SystemTime},
     },
     alloy::{
         network::TransactionBuilder,
@@ -45,11 +46,7 @@ use {
     relay_rpc::domain::ProjectId,
     reqwest::Client as ReqwestClient,
     serde::{Deserialize, Serialize},
-    std::{
-        collections::{HashMap, HashSet},
-        time::Duration,
-    },
-    web_time::{Instant, SystemTime},
+    std::collections::{HashMap, HashSet},
 };
 
 #[derive(Clone)]
@@ -105,8 +102,9 @@ impl Client {
             })
             .query(&RouteQueryParams {
                 project_id: self.provider_pool.project_id.clone(),
-                sdk_type: PULSE_SDK_TYPE.to_string(),
-                sdk_version: self.pulse_metadata.sdk_version.clone(),
+                sdk_type: Some(PULSE_SDK_TYPE.to_string()),
+                sdk_version: Some(self.pulse_metadata.sdk_version.clone()),
+                session_id: Some(self.provider_pool.session_id.to_string()),
             })
             .send()
             .await
@@ -366,8 +364,9 @@ impl Client {
                 .query(&StatusQueryParams {
                     project_id: self.provider_pool.project_id.clone(),
                     orchestration_id,
-                    sdk_type: PULSE_SDK_TYPE.to_string(),
-                    sdk_version: self.pulse_metadata.sdk_version.clone(),
+                    session_id: Some(self.provider_pool.session_id.to_string()),
+                    sdk_type: Some(PULSE_SDK_TYPE.to_string()),
+                    sdk_version: Some(self.pulse_metadata.sdk_version.clone()),
                 });
             // https://github.com/seanmonstar/reqwest/pull/1760
             #[cfg(not(target_arch = "wasm32"))]
@@ -420,7 +419,7 @@ impl Client {
         timeout: Duration,
     ) -> Result<StatusResponseCompleted, WaitForSuccessError> {
         let start = Instant::now();
-        tokio::time::sleep(check_in).await;
+        sleep(check_in).await;
         loop {
             let result = self.status(orchestration_id.clone()).await;
             let (error, check_in) = match result {
@@ -449,7 +448,7 @@ impl Client {
             if start.elapsed() > timeout {
                 return Err(error);
             }
-            tokio::time::sleep(check_in).await;
+            sleep(check_in).await;
         }
     }
 
@@ -522,7 +521,10 @@ impl Client {
                     let route_latency = route_start.elapsed();
                     let latency = start.elapsed();
                     return Err((
-                        ExecuteError::Route(e),
+                        ExecuteError::WithOrchestrationId {
+                            orchestration_id: orchestration_id.clone(),
+                            reason: ExecuteErrorReason::Route(e),
+                        },
                         ExecuteAnalytics {
                             orchestration_id: orchestration_id.clone(),
                             error: None,
@@ -553,7 +555,10 @@ impl Client {
                 let status_latency = status_start.elapsed();
                 let latency = start.elapsed();
                 (
-                    ExecuteError::Bridge(e),
+                    ExecuteError::WithOrchestrationId {
+                        orchestration_id: orchestration_id.clone(),
+                        reason: ExecuteErrorReason::Bridge(e),
+                    },
                     ExecuteAnalytics {
                         orchestration_id: orchestration_id.clone(),
                         error: None,
@@ -578,7 +583,10 @@ impl Client {
         .map_err(|(e, analytics)| {
             let latency = start.elapsed();
             (
-                ExecuteError::Route(e),
+                ExecuteError::WithOrchestrationId {
+                    orchestration_id: orchestration_id.clone(),
+                    reason: ExecuteErrorReason::Initial(e),
+                },
                 ExecuteAnalytics {
                     orchestration_id: orchestration_id.clone(),
                     error: None,

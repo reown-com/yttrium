@@ -18,6 +18,7 @@ pub mod config;
 pub mod eip7702;
 pub mod entry_point;
 pub mod erc20;
+pub mod erc4337;
 #[cfg(feature = "erc6492_client")]
 pub mod erc6492_client;
 pub mod erc7579;
@@ -27,6 +28,7 @@ pub mod provider_pool;
 pub mod serde;
 pub mod smart_accounts;
 pub mod test_helpers;
+pub mod time;
 #[cfg(feature = "transaction_sponsorship_client")]
 pub mod transaction_sponsorship;
 pub mod user_operation;

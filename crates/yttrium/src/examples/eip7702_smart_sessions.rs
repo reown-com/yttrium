@@ -38,7 +38,8 @@ use {
     alloy::{
         network::{EthereumWallet, TransactionBuilder7702},
         primitives::{
-            address, eip191_hash_message, fixed_bytes, Address, B256, U256,
+            address, eip191_hash_message, fixed_bytes, Address, Bytes, B256,
+            U256,
         },
         rlp::Encodable,
         rpc::types::Authorization,
@@ -334,7 +335,7 @@ async fn test_impl(
         .await
         .unwrap();
     println!("User operation hash: {:?}", user_op_hash);
-    assert_eq!(user_op_hash_to_sign.0, user_op_hash);
+    assert_eq!(Bytes::from(user_op_hash_to_sign.0), user_op_hash);
 
     let receipt = bundler_client
         .wait_for_user_operation_receipt(user_op_hash)

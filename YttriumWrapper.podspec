@@ -38,5 +38,6 @@ s.prepare_command = <<-SCRIPT
   cp -R platforms/swift/Sources/Yttrium/*.swift platforms/swift/target/ios/libuniffi_yttrium.xcframework/ios-arm64_x86_64-simulator/Headers/
 SCRIPT
 
+
   s.vendored_frameworks = 'platforms/swift/target/ios/libuniffi_yttrium.xcframework'
 end
