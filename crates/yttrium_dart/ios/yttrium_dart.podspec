@@ -14,7 +14,7 @@ Reown is the onchain UX platform that provides toolkits built on top of the Wall
   s.author           = { 'Reown' => 'mobile@reown.com' }
   s.source           = { :path => '.' }
   s.source_files = 'Classes/**/*'
-  s.vendored_libraries = 'libyttrium_lib_universal.dylib'
+  s.vendored_libraries = 'libyttrium_universal.dylib'
   s.dependency 'Flutter'
   s.platform = :ios, '12.0'
 

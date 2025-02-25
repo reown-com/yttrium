@@ -28,9 +28,9 @@ class YttriumDart implements IYttriumClient {
     try {
       // Locate the native library file
       final yttrium = Platform.isAndroid
-          ? ExternalLibrary.open('libyttrium_lib.so')
+          ? ExternalLibrary.open('libyttrium.so')
           : (Platform.isIOS || Platform.isMacOS)
-              ? ExternalLibrary.open('libyttrium_lib_universal.dylib')
+              ? ExternalLibrary.open('libyttrium_universal.dylib')
               : throw 'Yttrium not yet supported on ${Platform.localeName}';
       // Initialize the Rust library
       await frb.YttriumDart.init(externalLibrary: yttrium);

@@ -64,7 +64,7 @@ Future<void> _setupFiles({
             '-o',
             '-j',
             zipFile,
-            'universal/libyttrium_lib_universal.dylib',
+            'universal/libyttrium_universal.dylib',
             '-d',
             targetDir,
           ]
