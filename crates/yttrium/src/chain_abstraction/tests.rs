@@ -1,5 +1,6 @@
 use {
     crate::{
+        blockchain_api::BLOCKCHAIN_API_URL_PROD,
         call::Call,
         chain_abstraction::{
             amount::Amount,
@@ -1850,7 +1851,15 @@ async fn happy_path_execute_method() {
         .to_owned();
 
     let project_id = std::env::var("REOWN_PROJECT_ID").unwrap().into();
-    let client = Client::new(project_id, get_pulse_metadata());
+    let blockchain_api_url = std::env::var("BLOCKCHAIN_API_URL")
+        .unwrap_or(BLOCKCHAIN_API_URL_PROD.to_string())
+        .parse()
+        .unwrap();
+    let client = Client::with_blockchain_api_url(
+        project_id,
+        get_pulse_metadata(),
+        blockchain_api_url,
+    );
     let result = client
         .prepare_detailed(
             initial_transaction_chain_id.clone(),

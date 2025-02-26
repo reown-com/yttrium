@@ -1,6 +1,6 @@
 use {
     crate::{
-        blockchain_api::{BLOCKCHAIN_API_URL, PROXY_ENDPOINT_PATH},
+        blockchain_api::PROXY_ENDPOINT_PATH,
         chain_abstraction::{
             pulse::{PulseMetadata, PULSE_SDK_TYPE},
             send_transaction::RpcRequestAnalytics,
@@ -41,11 +41,12 @@ impl ProviderPool {
         project_id: ProjectId,
         client: ReqwestClient,
         pulse_metadata: PulseMetadata,
+        blockchain_api_base_url: Url,
     ) -> Self {
         Self {
             client,
             // providers: Arc::new(RwLock::new(HashMap::new())),
-            blockchain_api_base_url: BLOCKCHAIN_API_URL.parse().unwrap(),
+            blockchain_api_base_url,
             project_id,
             rpc_overrides: HashMap::new(),
             session_id: Uuid::new_v4(),
