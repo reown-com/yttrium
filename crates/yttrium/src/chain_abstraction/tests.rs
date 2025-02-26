@@ -1594,6 +1594,17 @@ async fn happy_path_full_dependency_on_ui_fields() {
 #[test_log::test(tokio::test)]
 #[serial(happy_path)]
 async fn happy_path_execute_method() {
+    let project_id = std::env::var("REOWN_PROJECT_ID").unwrap().into();
+    let blockchain_api_url = std::env::var("BLOCKCHAIN_API_URL")
+        .unwrap_or(BLOCKCHAIN_API_URL_PROD.to_string())
+        .parse()
+        .unwrap();
+    let client = Client::with_blockchain_api_url(
+        project_id,
+        get_pulse_metadata(),
+        blockchain_api_url,
+    );
+
     let faucet = private_faucet();
     println!("faucet: {}", faucet.address());
 
@@ -1613,8 +1624,10 @@ async fn happy_path_execute_method() {
     let chain_1 = Chain::Base;
     let chain_2 = Chain::Optimism;
 
-    let chain_1_provider = provider_for_chain(&chain_1);
-    let chain_2_provider = provider_for_chain(&chain_2);
+    let chain_1_provider =
+        client.provider_pool.get_provider(chain_1.eip155_chain_id()).await;
+    let chain_2_provider =
+        client.provider_pool.get_provider(chain_2.eip155_chain_id()).await;
 
     let chain_1_address_1_token = BridgeToken::new(
         BridgeTokenParams {
@@ -1850,16 +1863,6 @@ async fn happy_path_execute_method() {
         .eip155_chain_id()
         .to_owned();
 
-    let project_id = std::env::var("REOWN_PROJECT_ID").unwrap().into();
-    let blockchain_api_url = std::env::var("BLOCKCHAIN_API_URL")
-        .unwrap_or(BLOCKCHAIN_API_URL_PROD.to_string())
-        .parse()
-        .unwrap();
-    let client = Client::with_blockchain_api_url(
-        project_id,
-        get_pulse_metadata(),
-        blockchain_api_url,
-    );
     let result = client
         .prepare_detailed(
             initial_transaction_chain_id.clone(),
@@ -1991,8 +1994,12 @@ async fn happy_path_execute_method() {
             .or_insert(U256::ZERO);
     }
     for ((chain_id, address), total_fee) in prepared_faucet_txns {
-        let provider =
-            provider_for_chain(&Chain::from_eip155_chain_id(&chain_id));
+        let provider = client
+            .provider_pool
+            .get_provider(
+                Chain::from_eip155_chain_id(&chain_id).eip155_chain_id(),
+            )
+            .await;
         let balance = provider.get_balance(address).await.unwrap();
         if total_fee > balance {
             let additional_balance_required = total_fee - balance;
