@@ -211,6 +211,7 @@ impl PrepareResponseSuccess {
 #[serde(rename_all = "camelCase")]
 pub struct PrepareResponseError {
     pub error: BridgingError,
+    pub reason: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

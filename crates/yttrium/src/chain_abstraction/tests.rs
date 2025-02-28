@@ -2142,6 +2142,7 @@ async fn bridging_routes_routes_insufficient_funds() {
         result,
         PrepareResponse::Error(PrepareResponseError {
             error: BridgingError::InsufficientFunds,
+            reason: None,
         })
     );
 }
