@@ -2189,7 +2189,7 @@ async fn happy_path_execute_method() {
         prepared_faucet_txns
             .entry((txn.transaction.chain_id.clone(), txn.transaction.from))
             .and_modify(|f| *f += txn.fee.fee.amount)
-            .or_insert(U256::ZERO);
+            .or_insert(txn.fee.fee.amount);
     }
     for ((chain_id, address), total_fee) in prepared_faucet_txns {
         println!(
