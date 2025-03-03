@@ -1806,6 +1806,9 @@ async fn happy_path_execute_method() {
         }
     }
 
+    // Wait for cache invalidation on balance call
+    tokio::time::sleep(Duration::from_secs(30)).await;
+
     let assets = client
         .provider_pool
         .get_wallet_provider(None)
@@ -1844,6 +1847,9 @@ async fn happy_path_execute_method() {
         chain_1_address_1_token.token_balance().await
             + chain_2_address_1_token.token_balance().await
     );
+
+    // Wait for cache invalidation on balance call
+    tokio::time::sleep(Duration::from_secs(30)).await;
 
     let assets = client
         .provider_pool
@@ -2017,6 +2023,9 @@ async fn happy_path_execute_method() {
         .eip155_chain_id()
         .to_owned();
 
+    // Wait for cache invalidation on balance call
+    tokio::time::sleep(Duration::from_secs(30)).await;
+
     let assets = client
         .provider_pool
         .get_wallet_provider(None)
@@ -2049,7 +2058,7 @@ async fn happy_path_execute_method() {
                 .unwrap_or(false))
             .unwrap()
             .balance(),
-        chain_2_balance
+        source.token_balance(&sources).await
     );
 
     let result = client
@@ -2183,6 +2192,9 @@ async fn happy_path_execute_method() {
             .or_insert(U256::ZERO);
     }
     for ((chain_id, address), total_fee) in prepared_faucet_txns {
+        println!(
+            "chain_id: {chain_id}, address: {address}, total_fee: {total_fee}"
+        );
         let provider = client
             .provider_pool
             .get_provider(
