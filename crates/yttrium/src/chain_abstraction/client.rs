@@ -466,6 +466,26 @@ impl Client {
             "route_txn_sigs length must match route length"
         );
 
+        for (index, (txn, sig)) in
+            ui_fields.route.iter().zip(route_txn_sigs.iter()).enumerate()
+        {
+            let address = sig
+                .recover_address_from_prehash(&txn.transaction_hash_to_sign)
+                .unwrap();
+            let expected_address = txn.transaction.from;
+            assert_eq!(address, expected_address, "invalid route signature at index {index}. Expected recovered address to be {expected_address} but got {address} instead");
+        }
+
+        {
+            let address = initial_txn_sig
+                .recover_address_from_prehash(
+                    &ui_fields.initial.transaction_hash_to_sign,
+                )
+                .unwrap();
+            let expected_address = ui_fields.initial.transaction.from;
+            assert_eq!(address, expected_address, "invalid initial txn signature. Expected recovered address to be {expected_address} but got {address} instead");
+        }
+
         let result = self
             .execute_inner(ui_fields, route_txn_sigs, initial_txn_sig)
             .await;
