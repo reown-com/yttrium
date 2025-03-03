@@ -1,14 +1,15 @@
 use {
     crate::{
-        blockchain_api::PROXY_ENDPOINT_PATH,
+        blockchain_api::{PROXY_ENDPOINT_PATH, WALLET_ENDPOINT_PATH},
         chain_abstraction::{
             pulse::{PulseMetadata, PULSE_SDK_TYPE},
             send_transaction::RpcRequestAnalytics,
         },
+        wallet_provider::WalletProvider,
     },
     alloy::{
         rpc::{
-            client::ClientBuilder,
+            client::{ClientBuilder, RpcClient},
             json_rpc::{RequestPacket, ResponsePacket},
         },
         transports::{
@@ -20,7 +21,7 @@ use {
     reqwest::{Client as ReqwestClient, Url},
     std::{collections::HashMap, task, time::Duration},
     tower::Service,
-    tracing::warn,
+    tracing::{debug, warn},
     uuid::Uuid,
 };
 
@@ -78,6 +79,33 @@ impl ProviderPool {
         chain_id: &str,
         tracing: Option<std::sync::mpsc::Sender<RpcRequestAnalytics>>,
     ) -> RootProvider {
+        self.get_provider_inner(
+            chain_id,
+            tracing,
+            PROXY_ENDPOINT_PATH,
+            vec![("chainId", chain_id)],
+        )
+        .await
+    }
+
+    pub async fn get_wallet_provider(
+        &self,
+        tracing: Option<std::sync::mpsc::Sender<RpcRequestAnalytics>>,
+    ) -> WalletProvider {
+        WalletProvider {
+            client: self
+                .get_rpc_client(tracing, WALLET_ENDPOINT_PATH, vec![], None)
+                .await,
+        }
+    }
+
+    pub async fn get_provider_inner(
+        &self,
+        chain_id: &str,
+        tracing: Option<std::sync::mpsc::Sender<RpcRequestAnalytics>>,
+        path: &str,
+        additional_query_params: impl IntoIterator<Item = (&str, &str)>,
+    ) -> RootProvider {
         // let providers = self.providers.read().await;
         // let cached_provider = providers.get(chain_id);
         let cached_provider = None as Option<&RootProvider>;
@@ -86,39 +114,17 @@ impl ProviderPool {
         } else {
             // std::mem::drop(providers);
 
-            let url = if let Some(rpc_override) =
-                self.rpc_overrides.get(chain_id).cloned()
-            {
-                rpc_override
-            } else {
-                // TODO use universal version: https://linear.app/reown/issue/RES-142/universal-provider-router
-                // TODO i.e. checking if chain is supported ahead of time? - but if we support "all" chains then maybe this is a moot point
-                let mut url = self
-                    .blockchain_api_base_url
-                    .join(PROXY_ENDPOINT_PATH)
-                    .unwrap();
-                url.query_pairs_mut()
-                    .append_pair("chainId", chain_id)
-                    .append_pair("projectId", self.project_id.as_ref())
-                    .append_pair(
-                        "sessionId",
-                        self.session_id.to_string().as_str(),
-                    )
-                    .append_pair("st", PULSE_SDK_TYPE)
-                    .append_pair(
-                        "sv",
-                        self.pulse_metadata.sdk_version.as_str(),
-                    );
-                url
-            };
+            let url_override = self.rpc_overrides.get(chain_id).cloned();
 
             ProviderBuilder::new().disable_recommended_fillers().on_client({
-                let transport =
-                    ProxyReqwestClient::new(self.client.clone(), url, tracing);
-                ClientBuilder::default()
-                    // .layer(RpcRequestModifyingLayer { tracing })
-                    .transport(transport, false)
-                    .with_poll_interval(polling_interval_for_chain_id(chain_id))
+                self.get_rpc_client(
+                    tracing,
+                    path,
+                    additional_query_params,
+                    url_override,
+                )
+                .await
+                .with_poll_interval(polling_interval_for_chain_id(chain_id))
             })
 
             // self.providers
@@ -128,6 +134,35 @@ impl ProviderPool {
 
             // provider
         }
+    }
+
+    pub async fn get_rpc_client(
+        &self,
+        tracing: Option<std::sync::mpsc::Sender<RpcRequestAnalytics>>,
+        path: &str,
+        additional_query_params: impl IntoIterator<Item = (&str, &str)>,
+        url_override: Option<Url>,
+    ) -> RpcClient {
+        let url = if let Some(rpc_override) = url_override {
+            rpc_override
+        } else {
+            // TODO use universal version: https://linear.app/reown/issue/RES-142/universal-provider-router
+            // TODO i.e. checking if chain is supported ahead of time? - but if we support "all" chains then maybe this is a moot point
+            let mut url = self.blockchain_api_base_url.join(path).unwrap();
+            url.query_pairs_mut()
+                .append_pair("projectId", self.project_id.as_ref())
+                .append_pair("sessionId", self.session_id.to_string().as_str())
+                .append_pair("st", PULSE_SDK_TYPE)
+                .append_pair("sv", self.pulse_metadata.sdk_version.as_str());
+            url.query_pairs_mut().extend_pairs(additional_query_params);
+            url
+        };
+
+        let transport =
+            ProxyReqwestClient::new(self.client.clone(), url, tracing);
+        ClientBuilder::default()
+            // .layer(RpcRequestModifyingLayer { tracing })
+            .transport(transport, false)
     }
 }
 
@@ -187,6 +222,7 @@ impl ProxyReqwestClient {
         req: RequestPacket,
         tracing: TracingType,
     ) -> TransportResult<ResponsePacket> {
+        debug!("ProxyReqwestClient: do_reqwest: {req:?}");
         let resp = self
             .client
             .post(self.url)
