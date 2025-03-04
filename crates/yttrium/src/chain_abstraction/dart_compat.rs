@@ -1,22 +1,14 @@
 #[cfg(feature = "chain_abstraction_client")]
 use {
-    super::{
-        dart_compat_models::{
-            CallCompat, Eip1559EstimationCompat, ErrorCompat,
-            ExecuteDetailsCompat, PrepareDetailedResponseCompat,
-            PrepareResponseCompat, PrimitiveSignatureCompat,
-            PulseMetadataCompat, UiFieldsCompat,
-        },
-        ui_fields::UiFields,
+    super::dart_compat_models::{
+        CallCompat, Eip1559EstimationCompat, ErrorCompat, ExecuteDetailsCompat,
+        PrepareDetailedResponseCompat, PrimitiveSignatureCompat,
+        PulseMetadataCompat, UiFieldsCompat,
     },
-    crate::{
-        call::Call,
-        chain_abstraction::{
-            // api::status::{StatusResponse, StatusResponseCompleted},
-            client::Client,
-            currency::Currency,
-            pulse::PulseMetadata,
-        },
+    crate::chain_abstraction::{
+        // api::status::{StatusResponse, StatusResponseCompleted},
+        client::Client,
+        currency::Currency,
     },
     alloy::{
         primitives::PrimitiveSignature,
@@ -45,29 +37,41 @@ impl ChainAbstractionClient {
         project_id: String,
         pulse_metadata: PulseMetadataCompat,
     ) -> Self {
-        let pulse_metadata_orig =
-            PulseMetadata::try_from(pulse_metadata).unwrap();
+        let pulse_metadata_orig = pulse_metadata.into();
         let project_id = ProjectId::from(project_id.clone());
         let client = Client::new(project_id, pulse_metadata_orig);
         Self { client }
     }
 
-    pub async fn prepare(
-        &self,
-        chain_id: String,
-        from: String,
-        call: CallCompat,
-    ) -> Result<PrepareResponseCompat, ErrorCompat> {
-        type Address = alloy::primitives::Address;
-        let ffi_from = Address::from_str(&from).unwrap();
-        let call_orig = Call::try_from(call).unwrap();
+    // pub async fn prepare(
+    //     &self,
+    //     chain_id: String,
+    //     from: String,
+    //     call: FFICall,
+    // ) -> Result<PrepareResponse, ErrorCompat> {
+    //     type Address = alloy::primitives::Address;
+    //     let ffi_from = Address::from_str(&from).unwrap();
+    //     let ffi_call = CallCompat::try_from(call)?;
 
-        self.client
-            .prepare(chain_id, ffi_from, call_orig)
-            .await
-            .map(PrepareResponseCompat::from)
-            .map_err(|e| ErrorCompat::General(e.to_string()))
-    }
+    //     self.client
+    //         .prepare(chain_id, ffi_from, ffi_call)
+    //         .await
+    //         .map_err(|e| ErrorCompat::General(e.to_string()))
+    // }
+
+    // FIXME
+    // pub async fn get_ui_fields(
+    //     &self,
+    //     route_response: PrepareResponseAvailable,
+    //     currency: Currency,
+    // ) -> Result<UiFieldsCompat, ErrorCompat> {
+
+    //     self.client
+    //         .get_ui_fields(route_response, currency)
+    //         .await
+    //         .map(Into::into)
+    //         .map_err(|e| ErrorCompat::General(e.to_string()))
+    // }
 
     pub async fn prepare_detailed(
         &self,
@@ -78,7 +82,7 @@ impl ChainAbstractionClient {
     ) -> Result<PrepareDetailedResponseCompat, ErrorCompat> {
         type Address = alloy::primitives::Address;
         let ffi_from = Address::from_str(&from).unwrap();
-        let call_orig = Call::try_from(call).unwrap();
+        let call_orig = call.into();
 
         self.client
             .prepare_detailed(chain_id, ffi_from, call_orig, local_currency)
@@ -190,11 +194,9 @@ impl ChainAbstractionClient {
         route_txn_sigs: Vec<PrimitiveSignatureCompat>,
         initial_txn_sig: PrimitiveSignatureCompat,
     ) -> Result<ExecuteDetailsCompat, ErrorCompat> {
-        let ui_fields_orig = UiFields::try_from(ui_fields).unwrap();
-        let route_txn_sigs_orig = route_txn_sigs
-            .into_iter()
-            .map(|sig| PrimitiveSignature::from(sig))
-            .collect();
+        let ui_fields_orig = ui_fields.into();
+        let route_txn_sigs_orig =
+            route_txn_sigs.into_iter().map(PrimitiveSignature::from).collect();
 
         let ffi_initial_txn_sig_orig =
             PrimitiveSignature::from(initial_txn_sig);
