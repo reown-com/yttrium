@@ -8,28 +8,38 @@ import 'dart:isolate';
 
 enum _Environment { ios, android }
 
-void main() async {
-  print('Running Yttrium setup script. This could take a while...');
-  // Locate the package directory
-  final packagePath = await _getPackageRoot();
-  if (packagePath == null) {
-    print('Error: Could not locate the package directory.');
+void main(List<String> args) async {
+  if (args.isNotEmpty && (args.length > 1 || args.first != '--local')) {
+    print("Error: Only '--local' is allowed as an argument.");
     exit(1);
   }
 
-  const version = '0.4.5'; // TODO dynamically
-  await Future.wait([
-    _setupFiles(
-      targetDir: '${packagePath.path}/android/src/main/',
-      version: version,
-      platform: _Environment.android,
-    ),
-    _setupFiles(
-      targetDir: '${packagePath.path}/ios/',
-      version: version,
-      platform: _Environment.ios,
-    ),
-  ]);
+  if (args.contains('--local')) {
+    // print('Running Yttrium setup with $args. This could take a while...');
+  } else {
+    print('Running Yttrium setup. This could take a while...');
+    // Locate the package directory
+    final packagePath = await _getPackageRoot();
+    print('packagePath: ${packagePath?.path}');
+    if (packagePath == null) {
+      print('Error: Could not locate the package directory.');
+      exit(1);
+    }
+
+    const version = '0.4.5'; // TODO dynamically
+    await Future.wait([
+      _setupFiles(
+        targetDir: '${packagePath.path}/android/src/main/',
+        version: version,
+        platform: _Environment.android,
+      ),
+      _setupFiles(
+        targetDir: '${packagePath.path}/ios/',
+        version: version,
+        platform: _Environment.ios,
+      ),
+    ]);
+  }
   //
   print('✅ Yttrium setup success!');
 }
