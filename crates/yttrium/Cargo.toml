@@ -22,9 +22,10 @@ wasm = [
     "alloy/wasm-bindgen",
     "dep:tsify-next",
     "dep:derive_jserror",
-    # "getrandom/wasm_js", # for getrandom v0.3.*
-    "getrandom/js",
+    "getrandom/wasm_js",
+    "getrandom2/js",
     "uuid/js",
+    "dep:wasmtimer",
 ]
 
 # Features contributing to bundle size, that you might not need
@@ -74,14 +75,16 @@ relay_rpc.workspace = true
 tower = { version = "0.5", features = ["util"] }
 
 # foundry-block-explorers = "0.2.3"
-getrandom = { version = "0.2", default-features = false }
+getrandom2 = { package = "getrandom", version = "0.2", default-features = false }
+getrandom = { version = "0.3.1", default-features = false }
 
-uuid = { version = "1.12.1", default-features = false, features = [
+uuid = { version = "1.13.1", default-features = false, features = [
     "v4",
     "serde",
+    "rng-getrandom",
 ] }
 
-web-time = { version = "0.1.0", default-features = false }
+wasmtimer = { workspace = true, optional = true }
 
 # Error/Result
 eyre.workspace = true

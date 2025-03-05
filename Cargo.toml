@@ -17,6 +17,10 @@ thiserror = { version = "1.0", default-features = false }
 tokio = { version = "1.17", default-features = false }
 futures = { version = "0.3.31", default-features = false }
 
+wasmtimer = { version = "0.4.1", default-features = false, features = [
+    "tokio",
+] }
+
 # Networking
 reqwest = { version = "0.12.5", features = ["json"], default-features = false }
 url = { version = "2.5.4", default-features = false }
@@ -29,9 +33,9 @@ serde_json = { version = "1.0", default-features = false }
 oslog = { version = "0.2.0", default-features = false }
 log = { version = "0.4.20", default-features = false }
 
-alloy = { version = "0.11.0", default-features = false }
-alloy-provider = { version = "0.11.0", default-features = false }
-erc6492 = { git = "https://github.com/reown-com/erc6492.git", rev = "dc654d3", default-features = false }
+alloy = { version = "0.11.1", default-features = false }
+alloy-provider = { version = "0.11.1", default-features = false }
+erc6492 = { git = "https://github.com/reown-com/erc6492.git", branch = "chore/bump-alloy", default-features = false }
 relay_rpc = { git = "https://github.com/WalletConnect/WalletConnectRust.git", rev = "51e984e", default-features = false }
 
 serial_test = { version = "3.2.0", default-features = false }
@@ -52,7 +56,7 @@ tsify-next = "0.5.4"
 # Used by WASM ONLY, since wasm-pack doesn't support custom profiles
 # https://github.com/rustwasm/wasm-pack/issues/1461
 [profile.release]
-lto = true # Seems to make it slightly larger actually
+lto = true        # Seems to make it slightly larger actually
 opt-level = 'z'
 codegen-units = 1
 strip = true
@@ -236,3 +240,7 @@ strip = false
 
 # [patch."https://github.com/reown-com/erc6492.git"]
 # erc6492 = { path = "../../WalletConnect/erc6492-rs" }
+
+[patch.crates-io]
+alloy = { git = "https://github.com/alloy-rs/alloy.git", rev = "5dcdf0f" }
+alloy-provider = { git = "https://github.com/alloy-rs/alloy.git", rev = "5dcdf0f" }

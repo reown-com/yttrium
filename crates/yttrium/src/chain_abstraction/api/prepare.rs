@@ -14,10 +14,11 @@ pub const ROUTE_ENDPOINT_PATH: &str = "/v1/ca/orchestrator/route";
 #[serde(rename_all = "camelCase")]
 pub struct RouteQueryParams {
     pub project_id: ProjectId,
+    pub session_id: Option<String>,
     #[serde(rename = "st")]
-    pub sdk_type: String,
+    pub sdk_type: Option<String>,
     #[serde(rename = "sv")]
-    pub sdk_version: String,
+    pub sdk_version: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -210,6 +211,7 @@ impl PrepareResponseSuccess {
 #[serde(rename_all = "camelCase")]
 pub struct PrepareResponseError {
     pub error: BridgingError,
+    pub reason: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

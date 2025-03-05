@@ -2055,16 +2055,14 @@ public func FfiConverterTypePreparedSendTransaction_lower(_ value: PreparedSendT
 public struct PulseMetadata {
     public var url: Url?
     public var bundleId: String?
-    public var packageName: String?
     public var sdkVersion: String
     public var sdkPlatform: String
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(url: Url?, bundleId: String?, packageName: String?, sdkVersion: String, sdkPlatform: String) {
+    public init(url: Url?, bundleId: String?, sdkVersion: String, sdkPlatform: String) {
         self.url = url
         self.bundleId = bundleId
-        self.packageName = packageName
         self.sdkVersion = sdkVersion
         self.sdkPlatform = sdkPlatform
     }
@@ -2083,9 +2081,6 @@ extension PulseMetadata: Equatable, Hashable {
         if lhs.bundleId != rhs.bundleId {
             return false
         }
-        if lhs.packageName != rhs.packageName {
-            return false
-        }
         if lhs.sdkVersion != rhs.sdkVersion {
             return false
         }
@@ -2098,7 +2093,6 @@ extension PulseMetadata: Equatable, Hashable {
     public func hash(into hasher: inout Hasher) {
         hasher.combine(url)
         hasher.combine(bundleId)
-        hasher.combine(packageName)
         hasher.combine(sdkVersion)
         hasher.combine(sdkPlatform)
     }
@@ -2115,7 +2109,6 @@ public struct FfiConverterTypePulseMetadata: FfiConverterRustBuffer {
             try PulseMetadata(
                 url: FfiConverterOptionTypeUrl.read(from: &buf), 
                 bundleId: FfiConverterOptionString.read(from: &buf), 
-                packageName: FfiConverterOptionString.read(from: &buf), 
                 sdkVersion: FfiConverterString.read(from: &buf), 
                 sdkPlatform: FfiConverterString.read(from: &buf)
         )
@@ -2124,7 +2117,6 @@ public struct FfiConverterTypePulseMetadata: FfiConverterRustBuffer {
     public static func write(_ value: PulseMetadata, into buf: inout [UInt8]) {
         FfiConverterOptionTypeUrl.write(value.url, into: &buf)
         FfiConverterOptionString.write(value.bundleId, into: &buf)
-        FfiConverterOptionString.write(value.packageName, into: &buf)
         FfiConverterString.write(value.sdkVersion, into: &buf)
         FfiConverterString.write(value.sdkPlatform, into: &buf)
     }
@@ -3544,6 +3536,81 @@ public enum ExecuteError {
 
     
     
+    case WithOrchestrationId(orchestrationId: String, reason: ExecuteErrorReason
+    )
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeExecuteError: FfiConverterRustBuffer {
+    typealias SwiftType = ExecuteError
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ExecuteError {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+
+        
+
+        
+        case 1: return .WithOrchestrationId(
+            orchestrationId: try FfiConverterString.read(from: &buf), 
+            reason: try FfiConverterTypeExecuteErrorReason.read(from: &buf)
+            )
+
+         default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: ExecuteError, into buf: inout [UInt8]) {
+        switch value {
+
+        
+
+        
+        
+        case let .WithOrchestrationId(orchestrationId,reason):
+            writeInt(&buf, Int32(1))
+            FfiConverterString.write(orchestrationId, into: &buf)
+            FfiConverterTypeExecuteErrorReason.write(reason, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeExecuteError_lift(_ buf: RustBuffer) throws -> ExecuteError {
+    return try FfiConverterTypeExecuteError.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeExecuteError_lower(_ value: ExecuteError) -> RustBuffer {
+    return FfiConverterTypeExecuteError.lower(value)
+}
+
+
+extension ExecuteError: Equatable, Hashable {}
+
+
+
+extension ExecuteError: Foundation.LocalizedError {
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+}
+
+
+
+public enum ExecuteErrorReason {
+
+    
+    
     case Route(SendTransactionError
     )
     case Bridge(WaitForSuccessError
@@ -3556,10 +3623,10 @@ public enum ExecuteError {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
-public struct FfiConverterTypeExecuteError: FfiConverterRustBuffer {
-    typealias SwiftType = ExecuteError
+public struct FfiConverterTypeExecuteErrorReason: FfiConverterRustBuffer {
+    typealias SwiftType = ExecuteErrorReason
 
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ExecuteError {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ExecuteErrorReason {
         let variant: Int32 = try readInt(&buf)
         switch variant {
 
@@ -3580,7 +3647,7 @@ public struct FfiConverterTypeExecuteError: FfiConverterRustBuffer {
         }
     }
 
-    public static func write(_ value: ExecuteError, into buf: inout [UInt8]) {
+    public static func write(_ value: ExecuteErrorReason, into buf: inout [UInt8]) {
         switch value {
 
         
@@ -3609,23 +3676,23 @@ public struct FfiConverterTypeExecuteError: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
-public func FfiConverterTypeExecuteError_lift(_ buf: RustBuffer) throws -> ExecuteError {
-    return try FfiConverterTypeExecuteError.lift(buf)
+public func FfiConverterTypeExecuteErrorReason_lift(_ buf: RustBuffer) throws -> ExecuteErrorReason {
+    return try FfiConverterTypeExecuteErrorReason.lift(buf)
 }
 
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
-public func FfiConverterTypeExecuteError_lower(_ value: ExecuteError) -> RustBuffer {
-    return FfiConverterTypeExecuteError.lower(value)
+public func FfiConverterTypeExecuteErrorReason_lower(_ value: ExecuteErrorReason) -> RustBuffer {
+    return FfiConverterTypeExecuteErrorReason.lower(value)
 }
 
 
-extension ExecuteError: Equatable, Hashable {}
+extension ExecuteErrorReason: Equatable, Hashable {}
 
 
 
-extension ExecuteError: Foundation.LocalizedError {
+extension ExecuteErrorReason: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
