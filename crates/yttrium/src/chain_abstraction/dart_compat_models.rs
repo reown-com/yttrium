@@ -72,11 +72,11 @@ impl From<PulseMetadataCompat> for PulseMetadata {
     fn from(compat: PulseMetadataCompat) -> Self {
         let url = compat.url.and_then(|s| url::Url::parse(&s).ok());
         let bundle_id = compat.bundle_id.clone();
-        let package_name = compat.package_name.clone();
+        // let package_name = compat.package_name.clone();
         let sdk_version = compat.sdk_version.clone();
         let sdk_platform = compat.sdk_platform.clone();
 
-        Self { url, bundle_id, package_name, sdk_version, sdk_platform }
+        Self { url, bundle_id, sdk_version, sdk_platform }
     }
 }
 
@@ -113,7 +113,7 @@ impl From<CallCompat> for Call {
         let to = Address::from_str(&compat.to).unwrap();
         let value = U256::from(compat.value);
         // Convert hex string back to Bytes
-        let input = Bytes::from(hex::decode(&compat.input[2..]).unwrap());  // Skip "0x" prefix
+        let input = Bytes::from(hex::decode(&compat.input[2..]).unwrap()); // Skip "0x" prefix
 
         Call { to, value, input }
     }
@@ -493,7 +493,7 @@ impl From<FeeEstimatedTransactionCompat> for FeeEstimatedTransaction {
             to: Address::from_str(&compat.to).unwrap(),
             value: U256::from_str(&compat.value).unwrap(),
             // Convert hex string back to Bytes
-            input: Bytes::from(hex::decode(&compat.input[2..]).unwrap()),  // Skip "0x" prefix
+            input: Bytes::from(hex::decode(&compat.input[2..]).unwrap()), // Skip "0x" prefix
             gas_limit: U64::from_str(&compat.gas_limit).unwrap(),
             nonce: U64::from_str(&compat.nonce).unwrap(),
             max_fee_per_gas: U128::from_str(&compat.max_fee_per_gas).unwrap(),
@@ -787,17 +787,18 @@ impl From<PrepareDetailedResponseSuccessCompat>
 #[frb(dart_metadata=("freezed"))]
 pub struct PrepareResponseErrorCompat {
     pub error: BridgingErrorCompat,
+    pub reason: String,
 }
 
 impl From<PrepareResponseError> for PrepareResponseErrorCompat {
     fn from(original: PrepareResponseError) -> Self {
-        Self { error: original.error.into() }
+        Self { error: original.error.into(), reason: original.reason }
     }
 }
 
 impl From<PrepareResponseErrorCompat> for PrepareResponseError {
     fn from(compat: PrepareResponseErrorCompat) -> Self {
-        Self { error: compat.error.into() }
+        Self { error: compat.error.into(), reason: compat.reason }
     }
 }
 
@@ -893,7 +894,7 @@ pub struct TransactionCompat {
     pub from: String,
     pub to: String,
     pub value: String,
-    pub input: String,  // Changed from Vec<u8> to String
+    pub input: String, // Changed from Vec<u8> to String
     pub gas_limit: u64,
     pub nonce: u64,
 }
@@ -907,7 +908,7 @@ impl From<Transaction> for TransactionCompat {
             to: original.to.to_string(),
             value: original.value.to_string(),
             // Convert Bytes to hex string
-            input: hex::encode(original.input.0),  // or format!("0x{}", hex::encode(original.input.0)) for 0x prefix
+            input: hex::encode(original.input.0), // or format!("0x{}", hex::encode(original.input.0)) for 0x prefix
             gas_limit: original.gas_limit.to(),
             nonce: original.nonce.to(),
         }
@@ -927,7 +928,7 @@ impl From<TransactionCompat> for Transaction {
         let to = Address::from_str(&compat.to).unwrap();
         let value = U256::from_str(&compat.value).unwrap();
         // Convert hex string back to Bytes
-        let input = Bytes::from(hex::decode(&compat.input[2..]).unwrap());  // Skip "0x" prefix
+        let input = Bytes::from(hex::decode(&compat.input[2..]).unwrap()); // Skip "0x" prefix
         let gas_limit = U64::from(compat.gas_limit);
         let nonce = U64::from(compat.nonce);
 

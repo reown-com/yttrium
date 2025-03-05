@@ -591,8 +591,10 @@ impl SseDecode
             <crate::chain_abstraction::api::prepare::BridgingError>::sse_decode(
                 deserializer,
             );
+        let mut var_reason = <String>::sse_decode(deserializer);
         return crate::chain_abstraction::api::prepare::PrepareResponseError {
             error: var_error,
+            reason: var_reason,
         };
     }
 }
@@ -1176,7 +1178,11 @@ impl flutter_rust_bridge::IntoDart
     for crate::chain_abstraction::api::prepare::PrepareResponseError
 {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [self.error.into_into_dart().into_dart()].into_dart()
+        [
+            self.error.into_into_dart().into_dart(),
+            self.reason.into_into_dart().into_dart(),
+        ]
+        .into_dart()
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
@@ -1817,6 +1823,7 @@ impl SseEncode
         <crate::chain_abstraction::api::prepare::BridgingError>::sse_encode(
             self.error, serializer,
         );
+        <String>::sse_encode(self.reason, serializer);
     }
 }
 

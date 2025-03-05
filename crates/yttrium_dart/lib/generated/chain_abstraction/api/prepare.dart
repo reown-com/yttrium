@@ -17,18 +17,21 @@ enum BridgingError {
 /// response
 class PrepareResponseError {
   final BridgingError error;
+  final String reason;
 
   const PrepareResponseError({
     required this.error,
+    required this.reason,
   });
 
   @override
-  int get hashCode => error.hashCode;
+  int get hashCode => error.hashCode ^ reason.hashCode;
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is PrepareResponseError &&
           runtimeType == other.runtimeType &&
-          error == other.error;
+          error == other.error &&
+          reason == other.reason;
 }

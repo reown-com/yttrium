@@ -676,10 +676,11 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
   PrepareResponseError dco_decode_prepare_response_error(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 1)
-      throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
     return PrepareResponseError(
       error: dco_decode_bridging_error(arr[0]),
+      reason: dco_decode_String(arr[1]),
     );
   }
 
@@ -1245,7 +1246,8 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
       SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_error = sse_decode_bridging_error(deserializer);
-    return PrepareResponseError(error: var_error);
+    var var_reason = sse_decode_String(deserializer);
+    return PrepareResponseError(error: var_error, reason: var_reason);
   }
 
   @protected
@@ -1739,6 +1741,7 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
       PrepareResponseError self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_bridging_error(self.error, serializer);
+    sse_encode_String(self.reason, serializer);
   }
 
   @protected
