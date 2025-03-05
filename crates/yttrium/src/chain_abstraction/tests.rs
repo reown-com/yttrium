@@ -2373,10 +2373,11 @@ async fn bridging_routes_routes_insufficient_funds() {
         )
         .await
         .unwrap();
-    assert_eq!(
+    assert!(matches!(
         result,
         PrepareResponse::Error(PrepareResponseError {
             error: BridgingError::InsufficientFunds,
+            ..
         })
-    );
+    ));
 }
