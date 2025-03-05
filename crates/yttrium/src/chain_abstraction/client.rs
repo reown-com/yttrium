@@ -27,6 +27,7 @@ use {
         ui_fields::UiFields,
     },
     crate::{
+        blockchain_api::BLOCKCHAIN_API_URL_PROD,
         call::Call,
         chain_abstraction::{
             api::fungible_price::PriceQueryParams, error::UiFieldsError,
@@ -47,6 +48,7 @@ use {
     reqwest::Client as ReqwestClient,
     serde::{Deserialize, Serialize},
     std::collections::{HashMap, HashSet},
+    url::Url,
 };
 
 #[derive(Clone)]
@@ -59,6 +61,18 @@ pub struct Client {
 
 impl Client {
     pub fn new(project_id: ProjectId, pulse_metadata: PulseMetadata) -> Self {
+        Self::with_blockchain_api_url(
+            project_id,
+            pulse_metadata,
+            BLOCKCHAIN_API_URL_PROD.parse().unwrap(),
+        )
+    }
+
+    pub fn with_blockchain_api_url(
+        project_id: ProjectId,
+        pulse_metadata: PulseMetadata,
+        blockchain_api_base_url: Url,
+    ) -> Self {
         let client = ReqwestClient::builder().build();
         let client = match client {
             Ok(client) => client,
@@ -71,6 +85,7 @@ impl Client {
                 project_id.clone(),
                 client.clone(),
                 pulse_metadata.clone(),
+                blockchain_api_base_url,
             ),
             http_client: client,
             project_id,

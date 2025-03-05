@@ -1,6 +1,6 @@
 use {
     crate::{
-        blockchain_api::{BLOCKCHAIN_API_URL, BUNDLER_ENDPOINT_PATH},
+        blockchain_api::{BLOCKCHAIN_API_URL_PROD, BUNDLER_ENDPOINT_PATH},
         bundler::{
             client::BundlerClient,
             config::BundlerConfig,
@@ -72,7 +72,7 @@ pub struct Client {
 impl Client {
     #[cfg_attr(feature = "uniffi", uniffi::constructor)]
     pub fn new(project_id: ProjectId, pulse_metadata: PulseMetadata) -> Self {
-        let bundler_url = BLOCKCHAIN_API_URL
+        let bundler_url = BLOCKCHAIN_API_URL_PROD
             .parse::<Url>()
             .unwrap()
             .join(BUNDLER_ENDPOINT_PATH)
@@ -83,6 +83,7 @@ impl Client {
                 project_id,
                 reqwest::Client::new(),
                 pulse_metadata,
+                BLOCKCHAIN_API_URL_PROD.parse().unwrap(),
             ),
             paymaster_url: bundler_url.clone(),
             bundler_url,
