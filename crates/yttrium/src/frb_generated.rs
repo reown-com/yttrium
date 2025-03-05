@@ -285,7 +285,7 @@ impl SseDecode for crate::chain_abstraction::dart_compat_models::CallCompat {
     ) -> Self {
         let mut var_to = <String>::sse_decode(deserializer);
         let mut var_value = <u128>::sse_decode(deserializer);
-        let mut var_input = <Vec<u8>>::sse_decode(deserializer);
+        let mut var_input = <String>::sse_decode(deserializer);
         return crate::chain_abstraction::dart_compat_models::CallCompat {
             to: var_to,
             value: var_value,
@@ -365,7 +365,7 @@ impl SseDecode for crate::chain_abstraction::dart_compat_models::FeeEstimatedTra
 let mut var_from = <String>::sse_decode(deserializer);
 let mut var_to = <String>::sse_decode(deserializer);
 let mut var_value = <String>::sse_decode(deserializer);
-let mut var_input = <Vec<u8>>::sse_decode(deserializer);
+let mut var_input = <String>::sse_decode(deserializer);
 let mut var_gasLimit = <String>::sse_decode(deserializer);
 let mut var_nonce = <String>::sse_decode(deserializer);
 let mut var_maxFeePerGas = <String>::sse_decode(deserializer);
@@ -645,7 +645,7 @@ impl SseDecode
         let mut var_from = <String>::sse_decode(deserializer);
         let mut var_to = <String>::sse_decode(deserializer);
         let mut var_value = <String>::sse_decode(deserializer);
-        let mut var_input = <Vec<u8>>::sse_decode(deserializer);
+        let mut var_input = <String>::sse_decode(deserializer);
         let mut var_gasLimit = <u64>::sse_decode(deserializer);
         let mut var_nonce = <u64>::sse_decode(deserializer);
         return crate::chain_abstraction::dart_compat_models::TransactionCompat{chain_id: var_chainId, from: var_from, to: var_to, value: var_value, input: var_input, gas_limit: var_gasLimit, nonce: var_nonce};
@@ -1531,7 +1531,7 @@ impl SseEncode for crate::chain_abstraction::dart_compat_models::CallCompat {
     ) {
         <String>::sse_encode(self.to, serializer);
         <u128>::sse_encode(self.value, serializer);
-        <Vec<u8>>::sse_encode(self.input, serializer);
+        <String>::sse_encode(self.input, serializer);
     }
 }
 
@@ -1605,7 +1605,7 @@ impl SseEncode for crate::chain_abstraction::dart_compat_models::FeeEstimatedTra
 <String>::sse_encode(self.from, serializer);
 <String>::sse_encode(self.to, serializer);
 <String>::sse_encode(self.value, serializer);
-<Vec<u8>>::sse_encode(self.input, serializer);
+<String>::sse_encode(self.input, serializer);
 <String>::sse_encode(self.gas_limit, serializer);
 <String>::sse_encode(self.nonce, serializer);
 <String>::sse_encode(self.max_fee_per_gas, serializer);
@@ -1868,7 +1868,7 @@ impl SseEncode
         <String>::sse_encode(self.from, serializer);
         <String>::sse_encode(self.to, serializer);
         <String>::sse_encode(self.value, serializer);
-        <Vec<u8>>::sse_encode(self.input, serializer);
+        <String>::sse_encode(self.input, serializer);
         <u64>::sse_encode(self.gas_limit, serializer);
         <u64>::sse_encode(self.nonce, serializer);
     }

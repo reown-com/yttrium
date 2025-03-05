@@ -442,7 +442,7 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
     return CallCompat(
       to: dco_decode_String(arr[0]),
       value: dco_decode_U128(arr[1]),
-      input: dco_decode_list_prim_u_8_strict(arr[2]),
+      input: dco_decode_String(arr[2]),
     );
   }
 
@@ -501,7 +501,7 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
       from: dco_decode_String(arr[1]),
       to: dco_decode_String(arr[2]),
       value: dco_decode_String(arr[3]),
-      input: dco_decode_list_prim_u_8_strict(arr[4]),
+      input: dco_decode_String(arr[4]),
       gasLimit: dco_decode_String(arr[5]),
       nonce: dco_decode_String(arr[6]),
       maxFeePerGas: dco_decode_String(arr[7]),
@@ -735,7 +735,7 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
       from: dco_decode_String(arr[1]),
       to: dco_decode_String(arr[2]),
       value: dco_decode_String(arr[3]),
-      input: dco_decode_list_prim_u_8_strict(arr[4]),
+      input: dco_decode_String(arr[4]),
       gasLimit: dco_decode_u_64(arr[5]),
       nonce: dco_decode_u_64(arr[6]),
     );
@@ -959,7 +959,7 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_to = sse_decode_String(deserializer);
     var var_value = sse_decode_U128(deserializer);
-    var var_input = sse_decode_list_prim_u_8_strict(deserializer);
+    var var_input = sse_decode_String(deserializer);
     return CallCompat(to: var_to, value: var_value, input: var_input);
   }
 
@@ -1015,7 +1015,7 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
     var var_from = sse_decode_String(deserializer);
     var var_to = sse_decode_String(deserializer);
     var var_value = sse_decode_String(deserializer);
-    var var_input = sse_decode_list_prim_u_8_strict(deserializer);
+    var var_input = sse_decode_String(deserializer);
     var var_gasLimit = sse_decode_String(deserializer);
     var var_nonce = sse_decode_String(deserializer);
     var var_maxFeePerGas = sse_decode_String(deserializer);
@@ -1295,7 +1295,7 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
     var var_from = sse_decode_String(deserializer);
     var var_to = sse_decode_String(deserializer);
     var var_value = sse_decode_String(deserializer);
-    var var_input = sse_decode_list_prim_u_8_strict(deserializer);
+    var var_input = sse_decode_String(deserializer);
     var var_gasLimit = sse_decode_u_64(deserializer);
     var var_nonce = sse_decode_u_64(deserializer);
     return TransactionCompat(
@@ -1527,7 +1527,7 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.to, serializer);
     sse_encode_U128(self.value, serializer);
-    sse_encode_list_prim_u_8_strict(self.input, serializer);
+    sse_encode_String(self.input, serializer);
   }
 
   @protected
@@ -1570,7 +1570,7 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
     sse_encode_String(self.from, serializer);
     sse_encode_String(self.to, serializer);
     sse_encode_String(self.value, serializer);
-    sse_encode_list_prim_u_8_strict(self.input, serializer);
+    sse_encode_String(self.input, serializer);
     sse_encode_String(self.gasLimit, serializer);
     sse_encode_String(self.nonce, serializer);
     sse_encode_String(self.maxFeePerGas, serializer);
@@ -1777,7 +1777,7 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
     sse_encode_String(self.from, serializer);
     sse_encode_String(self.to, serializer);
     sse_encode_String(self.value, serializer);
-    sse_encode_list_prim_u_8_strict(self.input, serializer);
+    sse_encode_String(self.input, serializer);
     sse_encode_u_64(self.gasLimit, serializer);
     sse_encode_u_64(self.nonce, serializer);
   }

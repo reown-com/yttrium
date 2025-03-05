@@ -8,6 +8,7 @@ import 'api/prepare.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'dart_compat_models.freezed.dart';
+part 'dart_compat_models.g.dart';
 
 @freezed
 class AmountCompat with _$AmountCompat {
@@ -18,6 +19,9 @@ class AmountCompat with _$AmountCompat {
     required String formatted,
     required String formattedAlt,
   }) = _AmountCompat;
+
+  factory AmountCompat.fromJson(Map<String, dynamic> json) =>
+      _$AmountCompatFromJson(json);
 }
 
 @freezed
@@ -25,8 +29,11 @@ class CallCompat with _$CallCompat {
   const factory CallCompat({
     required String to,
     required BigInt value,
-    required Uint8List input,
+    required String input,
   }) = _CallCompat;
+
+  factory CallCompat.fromJson(Map<String, dynamic> json) =>
+      _$CallCompatFromJson(json);
 }
 
 @freezed
@@ -35,6 +42,9 @@ class Eip1559EstimationCompat with _$Eip1559EstimationCompat {
     required String maxFeePerGas,
     required String maxPriorityFeePerGas,
   }) = _Eip1559EstimationCompat;
+
+  factory Eip1559EstimationCompat.fromJson(Map<String, dynamic> json) =>
+      _$Eip1559EstimationCompatFromJson(json);
 }
 
 @freezed
@@ -52,6 +62,9 @@ class ExecuteDetailsCompat with _$ExecuteDetailsCompat {
     required TransactionReceiptCompat initialTxnReceipt,
     required String initialTxnHash,
   }) = _ExecuteDetailsCompat;
+
+  factory ExecuteDetailsCompat.fromJson(Map<String, dynamic> json) =>
+      _$ExecuteDetailsCompatFromJson(json);
 }
 
 @freezed
@@ -61,12 +74,15 @@ class FeeEstimatedTransactionCompat with _$FeeEstimatedTransactionCompat {
     required String from,
     required String to,
     required String value,
-    required Uint8List input,
+    required String input,
     required String gasLimit,
     required String nonce,
     required String maxFeePerGas,
     required String maxPriorityFeePerGas,
   }) = _FeeEstimatedTransactionCompat;
+
+  factory FeeEstimatedTransactionCompat.fromJson(Map<String, dynamic> json) =>
+      _$FeeEstimatedTransactionCompatFromJson(json);
 }
 
 @freezed
@@ -79,6 +95,9 @@ class FundingMetadataCompat with _$FundingMetadataCompat {
     required String bridgingFee,
     required int decimals,
   }) = _FundingMetadataCompat;
+
+  factory FundingMetadataCompat.fromJson(Map<String, dynamic> json) =>
+      _$FundingMetadataCompatFromJson(json);
 }
 
 @freezed
@@ -90,6 +109,10 @@ class InitialTransactionMetadataCompat with _$InitialTransactionMetadataCompat {
     required String symbol,
     required int decimals,
   }) = _InitialTransactionMetadataCompat;
+
+  factory InitialTransactionMetadataCompat.fromJson(
+          Map<String, dynamic> json) =>
+      _$InitialTransactionMetadataCompatFromJson(json);
 }
 
 @freezed
@@ -99,6 +122,9 @@ class MetadataCompat with _$MetadataCompat {
     required InitialTransactionMetadataCompat initialTransaction,
     required BigInt checkIn,
   }) = _MetadataCompat;
+
+  factory MetadataCompat.fromJson(Map<String, dynamic> json) =>
+      _$MetadataCompatFromJson(json);
 }
 
 @freezed
@@ -125,6 +151,10 @@ sealed class PrepareDetailedResponseSuccessCompat
   const factory PrepareDetailedResponseSuccessCompat.notRequired({
     required PrepareResponseNotRequiredCompat value,
   }) = PrepareDetailedResponseSuccessCompat_NotRequired;
+
+  factory PrepareDetailedResponseSuccessCompat.fromJson(
+          Map<String, dynamic> json) =>
+      _$PrepareDetailedResponseSuccessCompatFromJson(json);
 }
 
 @freezed
@@ -135,6 +165,9 @@ class PrepareResponseAvailableCompat with _$PrepareResponseAvailableCompat {
     required List<TransactionCompat> transactions,
     required MetadataCompat metadata,
   }) = _PrepareResponseAvailableCompat;
+
+  factory PrepareResponseAvailableCompat.fromJson(Map<String, dynamic> json) =>
+      _$PrepareResponseAvailableCompatFromJson(json);
 }
 
 @freezed
@@ -143,6 +176,10 @@ class PrepareResponseNotRequiredCompat with _$PrepareResponseNotRequiredCompat {
     required TransactionCompat initialTransaction,
     required List<TransactionCompat> transactions,
   }) = _PrepareResponseNotRequiredCompat;
+
+  factory PrepareResponseNotRequiredCompat.fromJson(
+          Map<String, dynamic> json) =>
+      _$PrepareResponseNotRequiredCompatFromJson(json);
 }
 
 class PrimitiveSignatureCompat {
@@ -178,6 +215,9 @@ class PulseMetadataCompat with _$PulseMetadataCompat {
     required String sdkVersion,
     required String sdkPlatform,
   }) = _PulseMetadataCompat;
+
+  factory PulseMetadataCompat.fromJson(Map<String, dynamic> json) =>
+      _$PulseMetadataCompatFromJson(json);
 }
 
 @freezed
@@ -187,10 +227,13 @@ class TransactionCompat with _$TransactionCompat {
     required String from,
     required String to,
     required String value,
-    required Uint8List input,
+    required String input,
     required BigInt gasLimit,
     required BigInt nonce,
   }) = _TransactionCompat;
+
+  factory TransactionCompat.fromJson(Map<String, dynamic> json) =>
+      _$TransactionCompatFromJson(json);
 }
 
 @freezed
@@ -199,6 +242,9 @@ class TransactionFeeCompat with _$TransactionFeeCompat {
     required AmountCompat fee,
     required AmountCompat localFee,
   }) = _TransactionFeeCompat;
+
+  factory TransactionFeeCompat.fromJson(Map<String, dynamic> json) =>
+      _$TransactionFeeCompatFromJson(json);
 }
 
 @freezed
@@ -216,6 +262,9 @@ class TransactionReceiptCompat with _$TransactionReceiptCompat {
     String? to,
     String? contractAddress,
   }) = _TransactionReceiptCompat;
+
+  factory TransactionReceiptCompat.fromJson(Map<String, dynamic> json) =>
+      _$TransactionReceiptCompatFromJson(json);
 }
 
 @freezed
@@ -225,6 +274,9 @@ class TxnDetailsCompat with _$TxnDetailsCompat {
     required String transactionHashToSign,
     required TransactionFeeCompat fee,
   }) = _TxnDetailsCompat;
+
+  factory TxnDetailsCompat.fromJson(Map<String, dynamic> json) =>
+      _$TxnDetailsCompatFromJson(json);
 }
 
 @freezed
@@ -238,4 +290,7 @@ class UiFieldsCompat with _$UiFieldsCompat {
     required TxnDetailsCompat initial,
     required AmountCompat localTotal,
   }) = _UiFieldsCompat;
+
+  factory UiFieldsCompat.fromJson(Map<String, dynamic> json) =>
+      _$UiFieldsCompatFromJson(json);
 }

@@ -14,6 +14,10 @@ T _$identity<T>(T value) => value;
 final _privateConstructorUsedError = UnsupportedError(
     'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models');
 
+AmountCompat _$AmountCompatFromJson(Map<String, dynamic> json) {
+  return _AmountCompat.fromJson(json);
+}
+
 /// @nodoc
 mixin _$AmountCompat {
   String get symbol => throw _privateConstructorUsedError;
@@ -21,6 +25,9 @@ mixin _$AmountCompat {
   int get unit => throw _privateConstructorUsedError;
   String get formatted => throw _privateConstructorUsedError;
   String get formattedAlt => throw _privateConstructorUsedError;
+
+  /// Serializes this AmountCompat to a JSON map.
+  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
 
   /// Create a copy of AmountCompat
   /// with the given fields replaced by the non-null parameter values.
@@ -150,7 +157,7 @@ class __$$AmountCompatImplCopyWithImpl<$Res>
 }
 
 /// @nodoc
-
+@JsonSerializable()
 class _$AmountCompatImpl implements _AmountCompat {
   const _$AmountCompatImpl(
       {required this.symbol,
@@ -158,6 +165,9 @@ class _$AmountCompatImpl implements _AmountCompat {
       required this.unit,
       required this.formatted,
       required this.formattedAlt});
+
+  factory _$AmountCompatImpl.fromJson(Map<String, dynamic> json) =>
+      _$$AmountCompatImplFromJson(json);
 
   @override
   final String symbol;
@@ -189,6 +199,7 @@ class _$AmountCompatImpl implements _AmountCompat {
                 other.formattedAlt == formattedAlt));
   }
 
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode =>
       Object.hash(runtimeType, symbol, amount, unit, formatted, formattedAlt);
@@ -200,6 +211,13 @@ class _$AmountCompatImpl implements _AmountCompat {
   @pragma('vm:prefer-inline')
   _$$AmountCompatImplCopyWith<_$AmountCompatImpl> get copyWith =>
       __$$AmountCompatImplCopyWithImpl<_$AmountCompatImpl>(this, _$identity);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$AmountCompatImplToJson(
+      this,
+    );
+  }
 }
 
 abstract class _AmountCompat implements AmountCompat {
@@ -209,6 +227,9 @@ abstract class _AmountCompat implements AmountCompat {
       required final int unit,
       required final String formatted,
       required final String formattedAlt}) = _$AmountCompatImpl;
+
+  factory _AmountCompat.fromJson(Map<String, dynamic> json) =
+      _$AmountCompatImpl.fromJson;
 
   @override
   String get symbol;
@@ -229,11 +250,18 @@ abstract class _AmountCompat implements AmountCompat {
       throw _privateConstructorUsedError;
 }
 
+CallCompat _$CallCompatFromJson(Map<String, dynamic> json) {
+  return _CallCompat.fromJson(json);
+}
+
 /// @nodoc
 mixin _$CallCompat {
   String get to => throw _privateConstructorUsedError;
   BigInt get value => throw _privateConstructorUsedError;
-  Uint8List get input => throw _privateConstructorUsedError;
+  String get input => throw _privateConstructorUsedError;
+
+  /// Serializes this CallCompat to a JSON map.
+  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
 
   /// Create a copy of CallCompat
   /// with the given fields replaced by the non-null parameter values.
@@ -248,7 +276,7 @@ abstract class $CallCompatCopyWith<$Res> {
           CallCompat value, $Res Function(CallCompat) then) =
       _$CallCompatCopyWithImpl<$Res, CallCompat>;
   @useResult
-  $Res call({String to, BigInt value, Uint8List input});
+  $Res call({String to, BigInt value, String input});
 }
 
 /// @nodoc
@@ -282,7 +310,7 @@ class _$CallCompatCopyWithImpl<$Res, $Val extends CallCompat>
       input: null == input
           ? _value.input
           : input // ignore: cast_nullable_to_non_nullable
-              as Uint8List,
+              as String,
     ) as $Val);
   }
 }
@@ -295,7 +323,7 @@ abstract class _$$CallCompatImplCopyWith<$Res>
       __$$CallCompatImplCopyWithImpl<$Res>;
   @override
   @useResult
-  $Res call({String to, BigInt value, Uint8List input});
+  $Res call({String to, BigInt value, String input});
 }
 
 /// @nodoc
@@ -327,23 +355,26 @@ class __$$CallCompatImplCopyWithImpl<$Res>
       input: null == input
           ? _value.input
           : input // ignore: cast_nullable_to_non_nullable
-              as Uint8List,
+              as String,
     ));
   }
 }
 
 /// @nodoc
-
+@JsonSerializable()
 class _$CallCompatImpl implements _CallCompat {
   const _$CallCompatImpl(
       {required this.to, required this.value, required this.input});
+
+  factory _$CallCompatImpl.fromJson(Map<String, dynamic> json) =>
+      _$$CallCompatImplFromJson(json);
 
   @override
   final String to;
   @override
   final BigInt value;
   @override
-  final Uint8List input;
+  final String input;
 
   @override
   String toString() {
@@ -357,12 +388,12 @@ class _$CallCompatImpl implements _CallCompat {
             other is _$CallCompatImpl &&
             (identical(other.to, to) || other.to == to) &&
             (identical(other.value, value) || other.value == value) &&
-            const DeepCollectionEquality().equals(other.input, input));
+            (identical(other.input, input) || other.input == input));
   }
 
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(
-      runtimeType, to, value, const DeepCollectionEquality().hash(input));
+  int get hashCode => Object.hash(runtimeType, to, value, input);
 
   /// Create a copy of CallCompat
   /// with the given fields replaced by the non-null parameter values.
@@ -371,20 +402,30 @@ class _$CallCompatImpl implements _CallCompat {
   @pragma('vm:prefer-inline')
   _$$CallCompatImplCopyWith<_$CallCompatImpl> get copyWith =>
       __$$CallCompatImplCopyWithImpl<_$CallCompatImpl>(this, _$identity);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$CallCompatImplToJson(
+      this,
+    );
+  }
 }
 
 abstract class _CallCompat implements CallCompat {
   const factory _CallCompat(
       {required final String to,
       required final BigInt value,
-      required final Uint8List input}) = _$CallCompatImpl;
+      required final String input}) = _$CallCompatImpl;
+
+  factory _CallCompat.fromJson(Map<String, dynamic> json) =
+      _$CallCompatImpl.fromJson;
 
   @override
   String get to;
   @override
   BigInt get value;
   @override
-  Uint8List get input;
+  String get input;
 
   /// Create a copy of CallCompat
   /// with the given fields replaced by the non-null parameter values.
@@ -394,10 +435,18 @@ abstract class _CallCompat implements CallCompat {
       throw _privateConstructorUsedError;
 }
 
+Eip1559EstimationCompat _$Eip1559EstimationCompatFromJson(
+    Map<String, dynamic> json) {
+  return _Eip1559EstimationCompat.fromJson(json);
+}
+
 /// @nodoc
 mixin _$Eip1559EstimationCompat {
   String get maxFeePerGas => throw _privateConstructorUsedError;
   String get maxPriorityFeePerGas => throw _privateConstructorUsedError;
+
+  /// Serializes this Eip1559EstimationCompat to a JSON map.
+  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
 
   /// Create a copy of Eip1559EstimationCompat
   /// with the given fields replaced by the non-null parameter values.
@@ -491,10 +540,13 @@ class __$$Eip1559EstimationCompatImplCopyWithImpl<$Res>
 }
 
 /// @nodoc
-
+@JsonSerializable()
 class _$Eip1559EstimationCompatImpl implements _Eip1559EstimationCompat {
   const _$Eip1559EstimationCompatImpl(
       {required this.maxFeePerGas, required this.maxPriorityFeePerGas});
+
+  factory _$Eip1559EstimationCompatImpl.fromJson(Map<String, dynamic> json) =>
+      _$$Eip1559EstimationCompatImplFromJson(json);
 
   @override
   final String maxFeePerGas;
@@ -517,6 +569,7 @@ class _$Eip1559EstimationCompatImpl implements _Eip1559EstimationCompat {
                 other.maxPriorityFeePerGas == maxPriorityFeePerGas));
   }
 
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode =>
       Object.hash(runtimeType, maxFeePerGas, maxPriorityFeePerGas);
@@ -529,6 +582,13 @@ class _$Eip1559EstimationCompatImpl implements _Eip1559EstimationCompat {
   _$$Eip1559EstimationCompatImplCopyWith<_$Eip1559EstimationCompatImpl>
       get copyWith => __$$Eip1559EstimationCompatImplCopyWithImpl<
           _$Eip1559EstimationCompatImpl>(this, _$identity);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$Eip1559EstimationCompatImplToJson(
+      this,
+    );
+  }
 }
 
 abstract class _Eip1559EstimationCompat implements Eip1559EstimationCompat {
@@ -536,6 +596,9 @@ abstract class _Eip1559EstimationCompat implements Eip1559EstimationCompat {
           {required final String maxFeePerGas,
           required final String maxPriorityFeePerGas}) =
       _$Eip1559EstimationCompatImpl;
+
+  factory _Eip1559EstimationCompat.fromJson(Map<String, dynamic> json) =
+      _$Eip1559EstimationCompatImpl.fromJson;
 
   @override
   String get maxFeePerGas;
@@ -769,11 +832,18 @@ abstract class ErrorCompat_General extends ErrorCompat {
       throw _privateConstructorUsedError;
 }
 
+ExecuteDetailsCompat _$ExecuteDetailsCompatFromJson(Map<String, dynamic> json) {
+  return _ExecuteDetailsCompat.fromJson(json);
+}
+
 /// @nodoc
 mixin _$ExecuteDetailsCompat {
   TransactionReceiptCompat get initialTxnReceipt =>
       throw _privateConstructorUsedError;
   String get initialTxnHash => throw _privateConstructorUsedError;
+
+  /// Serializes this ExecuteDetailsCompat to a JSON map.
+  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
 
   /// Create a copy of ExecuteDetailsCompat
   /// with the given fields replaced by the non-null parameter values.
@@ -882,10 +952,13 @@ class __$$ExecuteDetailsCompatImplCopyWithImpl<$Res>
 }
 
 /// @nodoc
-
+@JsonSerializable()
 class _$ExecuteDetailsCompatImpl implements _ExecuteDetailsCompat {
   const _$ExecuteDetailsCompatImpl(
       {required this.initialTxnReceipt, required this.initialTxnHash});
+
+  factory _$ExecuteDetailsCompatImpl.fromJson(Map<String, dynamic> json) =>
+      _$$ExecuteDetailsCompatImplFromJson(json);
 
   @override
   final TransactionReceiptCompat initialTxnReceipt;
@@ -908,6 +981,7 @@ class _$ExecuteDetailsCompatImpl implements _ExecuteDetailsCompat {
                 other.initialTxnHash == initialTxnHash));
   }
 
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode =>
       Object.hash(runtimeType, initialTxnReceipt, initialTxnHash);
@@ -921,12 +995,22 @@ class _$ExecuteDetailsCompatImpl implements _ExecuteDetailsCompat {
       get copyWith =>
           __$$ExecuteDetailsCompatImplCopyWithImpl<_$ExecuteDetailsCompatImpl>(
               this, _$identity);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$ExecuteDetailsCompatImplToJson(
+      this,
+    );
+  }
 }
 
 abstract class _ExecuteDetailsCompat implements ExecuteDetailsCompat {
   const factory _ExecuteDetailsCompat(
       {required final TransactionReceiptCompat initialTxnReceipt,
       required final String initialTxnHash}) = _$ExecuteDetailsCompatImpl;
+
+  factory _ExecuteDetailsCompat.fromJson(Map<String, dynamic> json) =
+      _$ExecuteDetailsCompatImpl.fromJson;
 
   @override
   TransactionReceiptCompat get initialTxnReceipt;
@@ -941,17 +1025,25 @@ abstract class _ExecuteDetailsCompat implements ExecuteDetailsCompat {
       get copyWith => throw _privateConstructorUsedError;
 }
 
+FeeEstimatedTransactionCompat _$FeeEstimatedTransactionCompatFromJson(
+    Map<String, dynamic> json) {
+  return _FeeEstimatedTransactionCompat.fromJson(json);
+}
+
 /// @nodoc
 mixin _$FeeEstimatedTransactionCompat {
   String get chainId => throw _privateConstructorUsedError;
   String get from => throw _privateConstructorUsedError;
   String get to => throw _privateConstructorUsedError;
   String get value => throw _privateConstructorUsedError;
-  Uint8List get input => throw _privateConstructorUsedError;
+  String get input => throw _privateConstructorUsedError;
   String get gasLimit => throw _privateConstructorUsedError;
   String get nonce => throw _privateConstructorUsedError;
   String get maxFeePerGas => throw _privateConstructorUsedError;
   String get maxPriorityFeePerGas => throw _privateConstructorUsedError;
+
+  /// Serializes this FeeEstimatedTransactionCompat to a JSON map.
+  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
 
   /// Create a copy of FeeEstimatedTransactionCompat
   /// with the given fields replaced by the non-null parameter values.
@@ -973,7 +1065,7 @@ abstract class $FeeEstimatedTransactionCompatCopyWith<$Res> {
       String from,
       String to,
       String value,
-      Uint8List input,
+      String input,
       String gasLimit,
       String nonce,
       String maxFeePerGas,
@@ -1026,7 +1118,7 @@ class _$FeeEstimatedTransactionCompatCopyWithImpl<$Res,
       input: null == input
           ? _value.input
           : input // ignore: cast_nullable_to_non_nullable
-              as Uint8List,
+              as String,
       gasLimit: null == gasLimit
           ? _value.gasLimit
           : gasLimit // ignore: cast_nullable_to_non_nullable
@@ -1061,7 +1153,7 @@ abstract class _$$FeeEstimatedTransactionCompatImplCopyWith<$Res>
       String from,
       String to,
       String value,
-      Uint8List input,
+      String input,
       String gasLimit,
       String nonce,
       String maxFeePerGas,
@@ -1113,7 +1205,7 @@ class __$$FeeEstimatedTransactionCompatImplCopyWithImpl<$Res>
       input: null == input
           ? _value.input
           : input // ignore: cast_nullable_to_non_nullable
-              as Uint8List,
+              as String,
       gasLimit: null == gasLimit
           ? _value.gasLimit
           : gasLimit // ignore: cast_nullable_to_non_nullable
@@ -1135,7 +1227,7 @@ class __$$FeeEstimatedTransactionCompatImplCopyWithImpl<$Res>
 }
 
 /// @nodoc
-
+@JsonSerializable()
 class _$FeeEstimatedTransactionCompatImpl
     implements _FeeEstimatedTransactionCompat {
   const _$FeeEstimatedTransactionCompatImpl(
@@ -1149,6 +1241,10 @@ class _$FeeEstimatedTransactionCompatImpl
       required this.maxFeePerGas,
       required this.maxPriorityFeePerGas});
 
+  factory _$FeeEstimatedTransactionCompatImpl.fromJson(
+          Map<String, dynamic> json) =>
+      _$$FeeEstimatedTransactionCompatImplFromJson(json);
+
   @override
   final String chainId;
   @override
@@ -1158,7 +1254,7 @@ class _$FeeEstimatedTransactionCompatImpl
   @override
   final String value;
   @override
-  final Uint8List input;
+  final String input;
   @override
   final String gasLimit;
   @override
@@ -1182,7 +1278,7 @@ class _$FeeEstimatedTransactionCompatImpl
             (identical(other.from, from) || other.from == from) &&
             (identical(other.to, to) || other.to == to) &&
             (identical(other.value, value) || other.value == value) &&
-            const DeepCollectionEquality().equals(other.input, input) &&
+            (identical(other.input, input) || other.input == input) &&
             (identical(other.gasLimit, gasLimit) ||
                 other.gasLimit == gasLimit) &&
             (identical(other.nonce, nonce) || other.nonce == nonce) &&
@@ -1192,18 +1288,10 @@ class _$FeeEstimatedTransactionCompatImpl
                 other.maxPriorityFeePerGas == maxPriorityFeePerGas));
   }
 
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(
-      runtimeType,
-      chainId,
-      from,
-      to,
-      value,
-      const DeepCollectionEquality().hash(input),
-      gasLimit,
-      nonce,
-      maxFeePerGas,
-      maxPriorityFeePerGas);
+  int get hashCode => Object.hash(runtimeType, chainId, from, to, value, input,
+      gasLimit, nonce, maxFeePerGas, maxPriorityFeePerGas);
 
   /// Create a copy of FeeEstimatedTransactionCompat
   /// with the given fields replaced by the non-null parameter values.
@@ -1214,6 +1302,13 @@ class _$FeeEstimatedTransactionCompatImpl
           _$FeeEstimatedTransactionCompatImpl>
       get copyWith => __$$FeeEstimatedTransactionCompatImplCopyWithImpl<
           _$FeeEstimatedTransactionCompatImpl>(this, _$identity);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$FeeEstimatedTransactionCompatImplToJson(
+      this,
+    );
+  }
 }
 
 abstract class _FeeEstimatedTransactionCompat
@@ -1223,12 +1318,15 @@ abstract class _FeeEstimatedTransactionCompat
           required final String from,
           required final String to,
           required final String value,
-          required final Uint8List input,
+          required final String input,
           required final String gasLimit,
           required final String nonce,
           required final String maxFeePerGas,
           required final String maxPriorityFeePerGas}) =
       _$FeeEstimatedTransactionCompatImpl;
+
+  factory _FeeEstimatedTransactionCompat.fromJson(Map<String, dynamic> json) =
+      _$FeeEstimatedTransactionCompatImpl.fromJson;
 
   @override
   String get chainId;
@@ -1239,7 +1337,7 @@ abstract class _FeeEstimatedTransactionCompat
   @override
   String get value;
   @override
-  Uint8List get input;
+  String get input;
   @override
   String get gasLimit;
   @override
@@ -1258,6 +1356,11 @@ abstract class _FeeEstimatedTransactionCompat
       get copyWith => throw _privateConstructorUsedError;
 }
 
+FundingMetadataCompat _$FundingMetadataCompatFromJson(
+    Map<String, dynamic> json) {
+  return _FundingMetadataCompat.fromJson(json);
+}
+
 /// @nodoc
 mixin _$FundingMetadataCompat {
   String get chainId => throw _privateConstructorUsedError;
@@ -1266,6 +1369,9 @@ mixin _$FundingMetadataCompat {
   String get amount => throw _privateConstructorUsedError;
   String get bridgingFee => throw _privateConstructorUsedError;
   int get decimals => throw _privateConstructorUsedError;
+
+  /// Serializes this FundingMetadataCompat to a JSON map.
+  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
 
   /// Create a copy of FundingMetadataCompat
   /// with the given fields replaced by the non-null parameter values.
@@ -1410,7 +1516,7 @@ class __$$FundingMetadataCompatImplCopyWithImpl<$Res>
 }
 
 /// @nodoc
-
+@JsonSerializable()
 class _$FundingMetadataCompatImpl implements _FundingMetadataCompat {
   const _$FundingMetadataCompatImpl(
       {required this.chainId,
@@ -1419,6 +1525,9 @@ class _$FundingMetadataCompatImpl implements _FundingMetadataCompat {
       required this.amount,
       required this.bridgingFee,
       required this.decimals});
+
+  factory _$FundingMetadataCompatImpl.fromJson(Map<String, dynamic> json) =>
+      _$$FundingMetadataCompatImplFromJson(json);
 
   @override
   final String chainId;
@@ -1454,6 +1563,7 @@ class _$FundingMetadataCompatImpl implements _FundingMetadataCompat {
                 other.decimals == decimals));
   }
 
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(runtimeType, chainId, tokenContract, symbol,
       amount, bridgingFee, decimals);
@@ -1466,6 +1576,13 @@ class _$FundingMetadataCompatImpl implements _FundingMetadataCompat {
   _$$FundingMetadataCompatImplCopyWith<_$FundingMetadataCompatImpl>
       get copyWith => __$$FundingMetadataCompatImplCopyWithImpl<
           _$FundingMetadataCompatImpl>(this, _$identity);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$FundingMetadataCompatImplToJson(
+      this,
+    );
+  }
 }
 
 abstract class _FundingMetadataCompat implements FundingMetadataCompat {
@@ -1476,6 +1593,9 @@ abstract class _FundingMetadataCompat implements FundingMetadataCompat {
       required final String amount,
       required final String bridgingFee,
       required final int decimals}) = _$FundingMetadataCompatImpl;
+
+  factory _FundingMetadataCompat.fromJson(Map<String, dynamic> json) =
+      _$FundingMetadataCompatImpl.fromJson;
 
   @override
   String get chainId;
@@ -1498,6 +1618,11 @@ abstract class _FundingMetadataCompat implements FundingMetadataCompat {
       get copyWith => throw _privateConstructorUsedError;
 }
 
+InitialTransactionMetadataCompat _$InitialTransactionMetadataCompatFromJson(
+    Map<String, dynamic> json) {
+  return _InitialTransactionMetadataCompat.fromJson(json);
+}
+
 /// @nodoc
 mixin _$InitialTransactionMetadataCompat {
   String get transferTo => throw _privateConstructorUsedError;
@@ -1505,6 +1630,9 @@ mixin _$InitialTransactionMetadataCompat {
   String get tokenContract => throw _privateConstructorUsedError;
   String get symbol => throw _privateConstructorUsedError;
   int get decimals => throw _privateConstructorUsedError;
+
+  /// Serializes this InitialTransactionMetadataCompat to a JSON map.
+  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
 
   /// Create a copy of InitialTransactionMetadataCompat
   /// with the given fields replaced by the non-null parameter values.
@@ -1640,7 +1768,7 @@ class __$$InitialTransactionMetadataCompatImplCopyWithImpl<$Res>
 }
 
 /// @nodoc
-
+@JsonSerializable()
 class _$InitialTransactionMetadataCompatImpl
     implements _InitialTransactionMetadataCompat {
   const _$InitialTransactionMetadataCompatImpl(
@@ -1649,6 +1777,10 @@ class _$InitialTransactionMetadataCompatImpl
       required this.tokenContract,
       required this.symbol,
       required this.decimals});
+
+  factory _$InitialTransactionMetadataCompatImpl.fromJson(
+          Map<String, dynamic> json) =>
+      _$$InitialTransactionMetadataCompatImplFromJson(json);
 
   @override
   final String transferTo;
@@ -1681,6 +1813,7 @@ class _$InitialTransactionMetadataCompatImpl
                 other.decimals == decimals));
   }
 
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(
       runtimeType, transferTo, amount, tokenContract, symbol, decimals);
@@ -1694,6 +1827,13 @@ class _$InitialTransactionMetadataCompatImpl
           _$InitialTransactionMetadataCompatImpl>
       get copyWith => __$$InitialTransactionMetadataCompatImplCopyWithImpl<
           _$InitialTransactionMetadataCompatImpl>(this, _$identity);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$InitialTransactionMetadataCompatImplToJson(
+      this,
+    );
+  }
 }
 
 abstract class _InitialTransactionMetadataCompat
@@ -1704,6 +1844,10 @@ abstract class _InitialTransactionMetadataCompat
       required final String tokenContract,
       required final String symbol,
       required final int decimals}) = _$InitialTransactionMetadataCompatImpl;
+
+  factory _InitialTransactionMetadataCompat.fromJson(
+          Map<String, dynamic> json) =
+      _$InitialTransactionMetadataCompatImpl.fromJson;
 
   @override
   String get transferTo;
@@ -1725,6 +1869,10 @@ abstract class _InitialTransactionMetadataCompat
       get copyWith => throw _privateConstructorUsedError;
 }
 
+MetadataCompat _$MetadataCompatFromJson(Map<String, dynamic> json) {
+  return _MetadataCompat.fromJson(json);
+}
+
 /// @nodoc
 mixin _$MetadataCompat {
   List<FundingMetadataCompat> get fundingFrom =>
@@ -1732,6 +1880,9 @@ mixin _$MetadataCompat {
   InitialTransactionMetadataCompat get initialTransaction =>
       throw _privateConstructorUsedError;
   BigInt get checkIn => throw _privateConstructorUsedError;
+
+  /// Serializes this MetadataCompat to a JSON map.
+  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
 
   /// Create a copy of MetadataCompat
   /// with the given fields replaced by the non-null parameter values.
@@ -1853,13 +2004,16 @@ class __$$MetadataCompatImplCopyWithImpl<$Res>
 }
 
 /// @nodoc
-
+@JsonSerializable()
 class _$MetadataCompatImpl implements _MetadataCompat {
   const _$MetadataCompatImpl(
       {required final List<FundingMetadataCompat> fundingFrom,
       required this.initialTransaction,
       required this.checkIn})
       : _fundingFrom = fundingFrom;
+
+  factory _$MetadataCompatImpl.fromJson(Map<String, dynamic> json) =>
+      _$$MetadataCompatImplFromJson(json);
 
   final List<FundingMetadataCompat> _fundingFrom;
   @override
@@ -1891,6 +2045,7 @@ class _$MetadataCompatImpl implements _MetadataCompat {
             (identical(other.checkIn, checkIn) || other.checkIn == checkIn));
   }
 
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(
       runtimeType,
@@ -1906,6 +2061,13 @@ class _$MetadataCompatImpl implements _MetadataCompat {
   _$$MetadataCompatImplCopyWith<_$MetadataCompatImpl> get copyWith =>
       __$$MetadataCompatImplCopyWithImpl<_$MetadataCompatImpl>(
           this, _$identity);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$MetadataCompatImplToJson(
+      this,
+    );
+  }
 }
 
 abstract class _MetadataCompat implements MetadataCompat {
@@ -1913,6 +2075,9 @@ abstract class _MetadataCompat implements MetadataCompat {
       {required final List<FundingMetadataCompat> fundingFrom,
       required final InitialTransactionMetadataCompat initialTransaction,
       required final BigInt checkIn}) = _$MetadataCompatImpl;
+
+  factory _MetadataCompat.fromJson(Map<String, dynamic> json) =
+      _$MetadataCompatImpl.fromJson;
 
   @override
   List<FundingMetadataCompat> get fundingFrom;
@@ -2321,6 +2486,23 @@ abstract class PrepareDetailedResponseCompat_Error
       get copyWith => throw _privateConstructorUsedError;
 }
 
+PrepareDetailedResponseSuccessCompat
+    _$PrepareDetailedResponseSuccessCompatFromJson(Map<String, dynamic> json) {
+  switch (json['runtimeType']) {
+    case 'available':
+      return PrepareDetailedResponseSuccessCompat_Available.fromJson(json);
+    case 'notRequired':
+      return PrepareDetailedResponseSuccessCompat_NotRequired.fromJson(json);
+
+    default:
+      throw CheckedFromJsonException(
+          json,
+          'runtimeType',
+          'PrepareDetailedResponseSuccessCompat',
+          'Invalid union type "${json['runtimeType']}"!');
+  }
+}
+
 /// @nodoc
 mixin _$PrepareDetailedResponseSuccessCompat {
   Object get value => throw _privateConstructorUsedError;
@@ -2371,6 +2553,9 @@ mixin _$PrepareDetailedResponseSuccessCompat {
     required TResult orElse(),
   }) =>
       throw _privateConstructorUsedError;
+
+  /// Serializes this PrepareDetailedResponseSuccessCompat to a JSON map.
+  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
 }
 
 /// @nodoc
@@ -2449,15 +2634,23 @@ class __$$PrepareDetailedResponseSuccessCompat_AvailableImplCopyWithImpl<$Res>
 }
 
 /// @nodoc
-
+@JsonSerializable()
 class _$PrepareDetailedResponseSuccessCompat_AvailableImpl
     extends PrepareDetailedResponseSuccessCompat_Available {
   const _$PrepareDetailedResponseSuccessCompat_AvailableImpl(
-      {required this.value})
-      : super._();
+      {required this.value, final String? $type})
+      : $type = $type ?? 'available',
+        super._();
+
+  factory _$PrepareDetailedResponseSuccessCompat_AvailableImpl.fromJson(
+          Map<String, dynamic> json) =>
+      _$$PrepareDetailedResponseSuccessCompat_AvailableImplFromJson(json);
 
   @override
   final UiFieldsCompat value;
+
+  @JsonKey(name: 'runtimeType')
+  final String $type;
 
   @override
   String toString() {
@@ -2472,6 +2665,7 @@ class _$PrepareDetailedResponseSuccessCompat_AvailableImpl
             (identical(other.value, value) || other.value == value));
   }
 
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(runtimeType, value);
 
@@ -2557,6 +2751,13 @@ class _$PrepareDetailedResponseSuccessCompat_AvailableImpl
     }
     return orElse();
   }
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$PrepareDetailedResponseSuccessCompat_AvailableImplToJson(
+      this,
+    );
+  }
 }
 
 abstract class PrepareDetailedResponseSuccessCompat_Available
@@ -2565,6 +2766,10 @@ abstract class PrepareDetailedResponseSuccessCompat_Available
           {required final UiFieldsCompat value}) =
       _$PrepareDetailedResponseSuccessCompat_AvailableImpl;
   const PrepareDetailedResponseSuccessCompat_Available._() : super._();
+
+  factory PrepareDetailedResponseSuccessCompat_Available.fromJson(
+          Map<String, dynamic> json) =
+      _$PrepareDetailedResponseSuccessCompat_AvailableImpl.fromJson;
 
   @override
   UiFieldsCompat get value;
@@ -2632,15 +2837,23 @@ class __$$PrepareDetailedResponseSuccessCompat_NotRequiredImplCopyWithImpl<$Res>
 }
 
 /// @nodoc
-
+@JsonSerializable()
 class _$PrepareDetailedResponseSuccessCompat_NotRequiredImpl
     extends PrepareDetailedResponseSuccessCompat_NotRequired {
   const _$PrepareDetailedResponseSuccessCompat_NotRequiredImpl(
-      {required this.value})
-      : super._();
+      {required this.value, final String? $type})
+      : $type = $type ?? 'notRequired',
+        super._();
+
+  factory _$PrepareDetailedResponseSuccessCompat_NotRequiredImpl.fromJson(
+          Map<String, dynamic> json) =>
+      _$$PrepareDetailedResponseSuccessCompat_NotRequiredImplFromJson(json);
 
   @override
   final PrepareResponseNotRequiredCompat value;
+
+  @JsonKey(name: 'runtimeType')
+  final String $type;
 
   @override
   String toString() {
@@ -2655,6 +2868,7 @@ class _$PrepareDetailedResponseSuccessCompat_NotRequiredImpl
             (identical(other.value, value) || other.value == value));
   }
 
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(runtimeType, value);
 
@@ -2740,6 +2954,13 @@ class _$PrepareDetailedResponseSuccessCompat_NotRequiredImpl
     }
     return orElse();
   }
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$PrepareDetailedResponseSuccessCompat_NotRequiredImplToJson(
+      this,
+    );
+  }
 }
 
 abstract class PrepareDetailedResponseSuccessCompat_NotRequired
@@ -2748,6 +2969,10 @@ abstract class PrepareDetailedResponseSuccessCompat_NotRequired
           {required final PrepareResponseNotRequiredCompat value}) =
       _$PrepareDetailedResponseSuccessCompat_NotRequiredImpl;
   const PrepareDetailedResponseSuccessCompat_NotRequired._() : super._();
+
+  factory PrepareDetailedResponseSuccessCompat_NotRequired.fromJson(
+          Map<String, dynamic> json) =
+      _$PrepareDetailedResponseSuccessCompat_NotRequiredImpl.fromJson;
 
   @override
   PrepareResponseNotRequiredCompat get value;
@@ -2760,6 +2985,11 @@ abstract class PrepareDetailedResponseSuccessCompat_NotRequired
       get copyWith => throw _privateConstructorUsedError;
 }
 
+PrepareResponseAvailableCompat _$PrepareResponseAvailableCompatFromJson(
+    Map<String, dynamic> json) {
+  return _PrepareResponseAvailableCompat.fromJson(json);
+}
+
 /// @nodoc
 mixin _$PrepareResponseAvailableCompat {
   String get orchestrationId => throw _privateConstructorUsedError;
@@ -2768,6 +2998,9 @@ mixin _$PrepareResponseAvailableCompat {
   List<TransactionCompat> get transactions =>
       throw _privateConstructorUsedError;
   MetadataCompat get metadata => throw _privateConstructorUsedError;
+
+  /// Serializes this PrepareResponseAvailableCompat to a JSON map.
+  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
 
   /// Create a copy of PrepareResponseAvailableCompat
   /// with the given fields replaced by the non-null parameter values.
@@ -2919,7 +3152,7 @@ class __$$PrepareResponseAvailableCompatImplCopyWithImpl<$Res>
 }
 
 /// @nodoc
-
+@JsonSerializable()
 class _$PrepareResponseAvailableCompatImpl
     implements _PrepareResponseAvailableCompat {
   const _$PrepareResponseAvailableCompatImpl(
@@ -2928,6 +3161,10 @@ class _$PrepareResponseAvailableCompatImpl
       required final List<TransactionCompat> transactions,
       required this.metadata})
       : _transactions = transactions;
+
+  factory _$PrepareResponseAvailableCompatImpl.fromJson(
+          Map<String, dynamic> json) =>
+      _$$PrepareResponseAvailableCompatImplFromJson(json);
 
   @override
   final String orchestrationId;
@@ -2964,6 +3201,7 @@ class _$PrepareResponseAvailableCompatImpl
                 other.metadata == metadata));
   }
 
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(
       runtimeType,
@@ -2981,6 +3219,13 @@ class _$PrepareResponseAvailableCompatImpl
           _$PrepareResponseAvailableCompatImpl>
       get copyWith => __$$PrepareResponseAvailableCompatImplCopyWithImpl<
           _$PrepareResponseAvailableCompatImpl>(this, _$identity);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$PrepareResponseAvailableCompatImplToJson(
+      this,
+    );
+  }
 }
 
 abstract class _PrepareResponseAvailableCompat
@@ -2991,6 +3236,9 @@ abstract class _PrepareResponseAvailableCompat
           required final List<TransactionCompat> transactions,
           required final MetadataCompat metadata}) =
       _$PrepareResponseAvailableCompatImpl;
+
+  factory _PrepareResponseAvailableCompat.fromJson(Map<String, dynamic> json) =
+      _$PrepareResponseAvailableCompatImpl.fromJson;
 
   @override
   String get orchestrationId;
@@ -3010,12 +3258,20 @@ abstract class _PrepareResponseAvailableCompat
       get copyWith => throw _privateConstructorUsedError;
 }
 
+PrepareResponseNotRequiredCompat _$PrepareResponseNotRequiredCompatFromJson(
+    Map<String, dynamic> json) {
+  return _PrepareResponseNotRequiredCompat.fromJson(json);
+}
+
 /// @nodoc
 mixin _$PrepareResponseNotRequiredCompat {
   TransactionCompat get initialTransaction =>
       throw _privateConstructorUsedError;
   List<TransactionCompat> get transactions =>
       throw _privateConstructorUsedError;
+
+  /// Serializes this PrepareResponseNotRequiredCompat to a JSON map.
+  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
 
   /// Create a copy of PrepareResponseNotRequiredCompat
   /// with the given fields replaced by the non-null parameter values.
@@ -3130,13 +3386,17 @@ class __$$PrepareResponseNotRequiredCompatImplCopyWithImpl<$Res>
 }
 
 /// @nodoc
-
+@JsonSerializable()
 class _$PrepareResponseNotRequiredCompatImpl
     implements _PrepareResponseNotRequiredCompat {
   const _$PrepareResponseNotRequiredCompatImpl(
       {required this.initialTransaction,
       required final List<TransactionCompat> transactions})
       : _transactions = transactions;
+
+  factory _$PrepareResponseNotRequiredCompatImpl.fromJson(
+          Map<String, dynamic> json) =>
+      _$$PrepareResponseNotRequiredCompatImplFromJson(json);
 
   @override
   final TransactionCompat initialTransaction;
@@ -3164,6 +3424,7 @@ class _$PrepareResponseNotRequiredCompatImpl
                 .equals(other._transactions, _transactions));
   }
 
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(runtimeType, initialTransaction,
       const DeepCollectionEquality().hash(_transactions));
@@ -3177,6 +3438,13 @@ class _$PrepareResponseNotRequiredCompatImpl
           _$PrepareResponseNotRequiredCompatImpl>
       get copyWith => __$$PrepareResponseNotRequiredCompatImplCopyWithImpl<
           _$PrepareResponseNotRequiredCompatImpl>(this, _$identity);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$PrepareResponseNotRequiredCompatImplToJson(
+      this,
+    );
+  }
 }
 
 abstract class _PrepareResponseNotRequiredCompat
@@ -3185,6 +3453,10 @@ abstract class _PrepareResponseNotRequiredCompat
           {required final TransactionCompat initialTransaction,
           required final List<TransactionCompat> transactions}) =
       _$PrepareResponseNotRequiredCompatImpl;
+
+  factory _PrepareResponseNotRequiredCompat.fromJson(
+          Map<String, dynamic> json) =
+      _$PrepareResponseNotRequiredCompatImpl.fromJson;
 
   @override
   TransactionCompat get initialTransaction;
@@ -3200,6 +3472,10 @@ abstract class _PrepareResponseNotRequiredCompat
       get copyWith => throw _privateConstructorUsedError;
 }
 
+PulseMetadataCompat _$PulseMetadataCompatFromJson(Map<String, dynamic> json) {
+  return _PulseMetadataCompat.fromJson(json);
+}
+
 /// @nodoc
 mixin _$PulseMetadataCompat {
   String? get url => throw _privateConstructorUsedError;
@@ -3207,6 +3483,9 @@ mixin _$PulseMetadataCompat {
   String? get packageName => throw _privateConstructorUsedError;
   String get sdkVersion => throw _privateConstructorUsedError;
   String get sdkPlatform => throw _privateConstructorUsedError;
+
+  /// Serializes this PulseMetadataCompat to a JSON map.
+  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
 
   /// Create a copy of PulseMetadataCompat
   /// with the given fields replaced by the non-null parameter values.
@@ -3336,7 +3615,7 @@ class __$$PulseMetadataCompatImplCopyWithImpl<$Res>
 }
 
 /// @nodoc
-
+@JsonSerializable()
 class _$PulseMetadataCompatImpl implements _PulseMetadataCompat {
   const _$PulseMetadataCompatImpl(
       {this.url,
@@ -3344,6 +3623,9 @@ class _$PulseMetadataCompatImpl implements _PulseMetadataCompat {
       this.packageName,
       required this.sdkVersion,
       required this.sdkPlatform});
+
+  factory _$PulseMetadataCompatImpl.fromJson(Map<String, dynamic> json) =>
+      _$$PulseMetadataCompatImplFromJson(json);
 
   @override
   final String? url;
@@ -3377,6 +3659,7 @@ class _$PulseMetadataCompatImpl implements _PulseMetadataCompat {
                 other.sdkPlatform == sdkPlatform));
   }
 
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(
       runtimeType, url, bundleId, packageName, sdkVersion, sdkPlatform);
@@ -3389,6 +3672,13 @@ class _$PulseMetadataCompatImpl implements _PulseMetadataCompat {
   _$$PulseMetadataCompatImplCopyWith<_$PulseMetadataCompatImpl> get copyWith =>
       __$$PulseMetadataCompatImplCopyWithImpl<_$PulseMetadataCompatImpl>(
           this, _$identity);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$PulseMetadataCompatImplToJson(
+      this,
+    );
+  }
 }
 
 abstract class _PulseMetadataCompat implements PulseMetadataCompat {
@@ -3398,6 +3688,9 @@ abstract class _PulseMetadataCompat implements PulseMetadataCompat {
       final String? packageName,
       required final String sdkVersion,
       required final String sdkPlatform}) = _$PulseMetadataCompatImpl;
+
+  factory _PulseMetadataCompat.fromJson(Map<String, dynamic> json) =
+      _$PulseMetadataCompatImpl.fromJson;
 
   @override
   String? get url;
@@ -3418,15 +3711,22 @@ abstract class _PulseMetadataCompat implements PulseMetadataCompat {
       throw _privateConstructorUsedError;
 }
 
+TransactionCompat _$TransactionCompatFromJson(Map<String, dynamic> json) {
+  return _TransactionCompat.fromJson(json);
+}
+
 /// @nodoc
 mixin _$TransactionCompat {
   String get chainId => throw _privateConstructorUsedError;
   String get from => throw _privateConstructorUsedError;
   String get to => throw _privateConstructorUsedError;
   String get value => throw _privateConstructorUsedError;
-  Uint8List get input => throw _privateConstructorUsedError;
+  String get input => throw _privateConstructorUsedError;
   BigInt get gasLimit => throw _privateConstructorUsedError;
   BigInt get nonce => throw _privateConstructorUsedError;
+
+  /// Serializes this TransactionCompat to a JSON map.
+  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
 
   /// Create a copy of TransactionCompat
   /// with the given fields replaced by the non-null parameter values.
@@ -3446,7 +3746,7 @@ abstract class $TransactionCompatCopyWith<$Res> {
       String from,
       String to,
       String value,
-      Uint8List input,
+      String input,
       BigInt gasLimit,
       BigInt nonce});
 }
@@ -3494,7 +3794,7 @@ class _$TransactionCompatCopyWithImpl<$Res, $Val extends TransactionCompat>
       input: null == input
           ? _value.input
           : input // ignore: cast_nullable_to_non_nullable
-              as Uint8List,
+              as String,
       gasLimit: null == gasLimit
           ? _value.gasLimit
           : gasLimit // ignore: cast_nullable_to_non_nullable
@@ -3520,7 +3820,7 @@ abstract class _$$TransactionCompatImplCopyWith<$Res>
       String from,
       String to,
       String value,
-      Uint8List input,
+      String input,
       BigInt gasLimit,
       BigInt nonce});
 }
@@ -3566,7 +3866,7 @@ class __$$TransactionCompatImplCopyWithImpl<$Res>
       input: null == input
           ? _value.input
           : input // ignore: cast_nullable_to_non_nullable
-              as Uint8List,
+              as String,
       gasLimit: null == gasLimit
           ? _value.gasLimit
           : gasLimit // ignore: cast_nullable_to_non_nullable
@@ -3580,7 +3880,7 @@ class __$$TransactionCompatImplCopyWithImpl<$Res>
 }
 
 /// @nodoc
-
+@JsonSerializable()
 class _$TransactionCompatImpl implements _TransactionCompat {
   const _$TransactionCompatImpl(
       {required this.chainId,
@@ -3591,6 +3891,9 @@ class _$TransactionCompatImpl implements _TransactionCompat {
       required this.gasLimit,
       required this.nonce});
 
+  factory _$TransactionCompatImpl.fromJson(Map<String, dynamic> json) =>
+      _$$TransactionCompatImplFromJson(json);
+
   @override
   final String chainId;
   @override
@@ -3600,7 +3903,7 @@ class _$TransactionCompatImpl implements _TransactionCompat {
   @override
   final String value;
   @override
-  final Uint8List input;
+  final String input;
   @override
   final BigInt gasLimit;
   @override
@@ -3620,15 +3923,16 @@ class _$TransactionCompatImpl implements _TransactionCompat {
             (identical(other.from, from) || other.from == from) &&
             (identical(other.to, to) || other.to == to) &&
             (identical(other.value, value) || other.value == value) &&
-            const DeepCollectionEquality().equals(other.input, input) &&
+            (identical(other.input, input) || other.input == input) &&
             (identical(other.gasLimit, gasLimit) ||
                 other.gasLimit == gasLimit) &&
             (identical(other.nonce, nonce) || other.nonce == nonce));
   }
 
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(runtimeType, chainId, from, to, value,
-      const DeepCollectionEquality().hash(input), gasLimit, nonce);
+  int get hashCode => Object.hash(
+      runtimeType, chainId, from, to, value, input, gasLimit, nonce);
 
   /// Create a copy of TransactionCompat
   /// with the given fields replaced by the non-null parameter values.
@@ -3638,6 +3942,13 @@ class _$TransactionCompatImpl implements _TransactionCompat {
   _$$TransactionCompatImplCopyWith<_$TransactionCompatImpl> get copyWith =>
       __$$TransactionCompatImplCopyWithImpl<_$TransactionCompatImpl>(
           this, _$identity);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$TransactionCompatImplToJson(
+      this,
+    );
+  }
 }
 
 abstract class _TransactionCompat implements TransactionCompat {
@@ -3646,9 +3957,12 @@ abstract class _TransactionCompat implements TransactionCompat {
       required final String from,
       required final String to,
       required final String value,
-      required final Uint8List input,
+      required final String input,
       required final BigInt gasLimit,
       required final BigInt nonce}) = _$TransactionCompatImpl;
+
+  factory _TransactionCompat.fromJson(Map<String, dynamic> json) =
+      _$TransactionCompatImpl.fromJson;
 
   @override
   String get chainId;
@@ -3659,7 +3973,7 @@ abstract class _TransactionCompat implements TransactionCompat {
   @override
   String get value;
   @override
-  Uint8List get input;
+  String get input;
   @override
   BigInt get gasLimit;
   @override
@@ -3673,10 +3987,17 @@ abstract class _TransactionCompat implements TransactionCompat {
       throw _privateConstructorUsedError;
 }
 
+TransactionFeeCompat _$TransactionFeeCompatFromJson(Map<String, dynamic> json) {
+  return _TransactionFeeCompat.fromJson(json);
+}
+
 /// @nodoc
 mixin _$TransactionFeeCompat {
   AmountCompat get fee => throw _privateConstructorUsedError;
   AmountCompat get localFee => throw _privateConstructorUsedError;
+
+  /// Serializes this TransactionFeeCompat to a JSON map.
+  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
 
   /// Create a copy of TransactionFeeCompat
   /// with the given fields replaced by the non-null parameter values.
@@ -3795,9 +4116,12 @@ class __$$TransactionFeeCompatImplCopyWithImpl<$Res>
 }
 
 /// @nodoc
-
+@JsonSerializable()
 class _$TransactionFeeCompatImpl implements _TransactionFeeCompat {
   const _$TransactionFeeCompatImpl({required this.fee, required this.localFee});
+
+  factory _$TransactionFeeCompatImpl.fromJson(Map<String, dynamic> json) =>
+      _$$TransactionFeeCompatImplFromJson(json);
 
   @override
   final AmountCompat fee;
@@ -3819,6 +4143,7 @@ class _$TransactionFeeCompatImpl implements _TransactionFeeCompat {
                 other.localFee == localFee));
   }
 
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(runtimeType, fee, localFee);
 
@@ -3831,12 +4156,22 @@ class _$TransactionFeeCompatImpl implements _TransactionFeeCompat {
       get copyWith =>
           __$$TransactionFeeCompatImplCopyWithImpl<_$TransactionFeeCompatImpl>(
               this, _$identity);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$TransactionFeeCompatImplToJson(
+      this,
+    );
+  }
 }
 
 abstract class _TransactionFeeCompat implements TransactionFeeCompat {
   const factory _TransactionFeeCompat(
       {required final AmountCompat fee,
       required final AmountCompat localFee}) = _$TransactionFeeCompatImpl;
+
+  factory _TransactionFeeCompat.fromJson(Map<String, dynamic> json) =
+      _$TransactionFeeCompatImpl.fromJson;
 
   @override
   AmountCompat get fee;
@@ -3849,6 +4184,11 @@ abstract class _TransactionFeeCompat implements TransactionFeeCompat {
   @JsonKey(includeFromJson: false, includeToJson: false)
   _$$TransactionFeeCompatImplCopyWith<_$TransactionFeeCompatImpl>
       get copyWith => throw _privateConstructorUsedError;
+}
+
+TransactionReceiptCompat _$TransactionReceiptCompatFromJson(
+    Map<String, dynamic> json) {
+  return _TransactionReceiptCompat.fromJson(json);
 }
 
 /// @nodoc
@@ -3864,6 +4204,9 @@ mixin _$TransactionReceiptCompat {
   String get from => throw _privateConstructorUsedError;
   String? get to => throw _privateConstructorUsedError;
   String? get contractAddress => throw _privateConstructorUsedError;
+
+  /// Serializes this TransactionReceiptCompat to a JSON map.
+  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
 
   /// Create a copy of TransactionReceiptCompat
   /// with the given fields replaced by the non-null parameter values.
@@ -4069,7 +4412,7 @@ class __$$TransactionReceiptCompatImplCopyWithImpl<$Res>
 }
 
 /// @nodoc
-
+@JsonSerializable()
 class _$TransactionReceiptCompatImpl implements _TransactionReceiptCompat {
   const _$TransactionReceiptCompatImpl(
       {required this.transactionHash,
@@ -4083,6 +4426,9 @@ class _$TransactionReceiptCompatImpl implements _TransactionReceiptCompat {
       required this.from,
       this.to,
       this.contractAddress});
+
+  factory _$TransactionReceiptCompatImpl.fromJson(Map<String, dynamic> json) =>
+      _$$TransactionReceiptCompatImplFromJson(json);
 
   @override
   final String transactionHash;
@@ -4138,6 +4484,7 @@ class _$TransactionReceiptCompatImpl implements _TransactionReceiptCompat {
                 other.contractAddress == contractAddress));
   }
 
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(
       runtimeType,
@@ -4161,6 +4508,13 @@ class _$TransactionReceiptCompatImpl implements _TransactionReceiptCompat {
   _$$TransactionReceiptCompatImplCopyWith<_$TransactionReceiptCompatImpl>
       get copyWith => __$$TransactionReceiptCompatImplCopyWithImpl<
           _$TransactionReceiptCompatImpl>(this, _$identity);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$TransactionReceiptCompatImplToJson(
+      this,
+    );
+  }
 }
 
 abstract class _TransactionReceiptCompat implements TransactionReceiptCompat {
@@ -4176,6 +4530,9 @@ abstract class _TransactionReceiptCompat implements TransactionReceiptCompat {
       required final String from,
       final String? to,
       final String? contractAddress}) = _$TransactionReceiptCompatImpl;
+
+  factory _TransactionReceiptCompat.fromJson(Map<String, dynamic> json) =
+      _$TransactionReceiptCompatImpl.fromJson;
 
   @override
   String get transactionHash;
@@ -4208,12 +4565,19 @@ abstract class _TransactionReceiptCompat implements TransactionReceiptCompat {
       get copyWith => throw _privateConstructorUsedError;
 }
 
+TxnDetailsCompat _$TxnDetailsCompatFromJson(Map<String, dynamic> json) {
+  return _TxnDetailsCompat.fromJson(json);
+}
+
 /// @nodoc
 mixin _$TxnDetailsCompat {
   FeeEstimatedTransactionCompat get transaction =>
       throw _privateConstructorUsedError;
   String get transactionHashToSign => throw _privateConstructorUsedError;
   TransactionFeeCompat get fee => throw _privateConstructorUsedError;
+
+  /// Serializes this TxnDetailsCompat to a JSON map.
+  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
 
   /// Create a copy of TxnDetailsCompat
   /// with the given fields replaced by the non-null parameter values.
@@ -4348,12 +4712,15 @@ class __$$TxnDetailsCompatImplCopyWithImpl<$Res>
 }
 
 /// @nodoc
-
+@JsonSerializable()
 class _$TxnDetailsCompatImpl implements _TxnDetailsCompat {
   const _$TxnDetailsCompatImpl(
       {required this.transaction,
       required this.transactionHashToSign,
       required this.fee});
+
+  factory _$TxnDetailsCompatImpl.fromJson(Map<String, dynamic> json) =>
+      _$$TxnDetailsCompatImplFromJson(json);
 
   @override
   final FeeEstimatedTransactionCompat transaction;
@@ -4379,6 +4746,7 @@ class _$TxnDetailsCompatImpl implements _TxnDetailsCompat {
             (identical(other.fee, fee) || other.fee == fee));
   }
 
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode =>
       Object.hash(runtimeType, transaction, transactionHashToSign, fee);
@@ -4391,6 +4759,13 @@ class _$TxnDetailsCompatImpl implements _TxnDetailsCompat {
   _$$TxnDetailsCompatImplCopyWith<_$TxnDetailsCompatImpl> get copyWith =>
       __$$TxnDetailsCompatImplCopyWithImpl<_$TxnDetailsCompatImpl>(
           this, _$identity);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$TxnDetailsCompatImplToJson(
+      this,
+    );
+  }
 }
 
 abstract class _TxnDetailsCompat implements TxnDetailsCompat {
@@ -4398,6 +4773,9 @@ abstract class _TxnDetailsCompat implements TxnDetailsCompat {
       {required final FeeEstimatedTransactionCompat transaction,
       required final String transactionHashToSign,
       required final TransactionFeeCompat fee}) = _$TxnDetailsCompatImpl;
+
+  factory _TxnDetailsCompat.fromJson(Map<String, dynamic> json) =
+      _$TxnDetailsCompatImpl.fromJson;
 
   @override
   FeeEstimatedTransactionCompat get transaction;
@@ -4414,6 +4792,10 @@ abstract class _TxnDetailsCompat implements TxnDetailsCompat {
       throw _privateConstructorUsedError;
 }
 
+UiFieldsCompat _$UiFieldsCompatFromJson(Map<String, dynamic> json) {
+  return _UiFieldsCompat.fromJson(json);
+}
+
 /// @nodoc
 mixin _$UiFieldsCompat {
   PrepareResponseAvailableCompat get routeResponse =>
@@ -4424,6 +4806,9 @@ mixin _$UiFieldsCompat {
   AmountCompat get localBridgeTotal => throw _privateConstructorUsedError;
   TxnDetailsCompat get initial => throw _privateConstructorUsedError;
   AmountCompat get localTotal => throw _privateConstructorUsedError;
+
+  /// Serializes this UiFieldsCompat to a JSON map.
+  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
 
   /// Create a copy of UiFieldsCompat
   /// with the given fields replaced by the non-null parameter values.
@@ -4645,7 +5030,7 @@ class __$$UiFieldsCompatImplCopyWithImpl<$Res>
 }
 
 /// @nodoc
-
+@JsonSerializable()
 class _$UiFieldsCompatImpl implements _UiFieldsCompat {
   const _$UiFieldsCompatImpl(
       {required this.routeResponse,
@@ -4657,6 +5042,9 @@ class _$UiFieldsCompatImpl implements _UiFieldsCompat {
       required this.localTotal})
       : _route = route,
         _bridge = bridge;
+
+  factory _$UiFieldsCompatImpl.fromJson(Map<String, dynamic> json) =>
+      _$$UiFieldsCompatImplFromJson(json);
 
   @override
   final PrepareResponseAvailableCompat routeResponse;
@@ -4708,6 +5096,7 @@ class _$UiFieldsCompatImpl implements _UiFieldsCompat {
                 other.localTotal == localTotal));
   }
 
+  @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(
       runtimeType,
@@ -4727,6 +5116,13 @@ class _$UiFieldsCompatImpl implements _UiFieldsCompat {
   _$$UiFieldsCompatImplCopyWith<_$UiFieldsCompatImpl> get copyWith =>
       __$$UiFieldsCompatImplCopyWithImpl<_$UiFieldsCompatImpl>(
           this, _$identity);
+
+  @override
+  Map<String, dynamic> toJson() {
+    return _$$UiFieldsCompatImplToJson(
+      this,
+    );
+  }
 }
 
 abstract class _UiFieldsCompat implements UiFieldsCompat {
@@ -4738,6 +5134,9 @@ abstract class _UiFieldsCompat implements UiFieldsCompat {
       required final AmountCompat localBridgeTotal,
       required final TxnDetailsCompat initial,
       required final AmountCompat localTotal}) = _$UiFieldsCompatImpl;
+
+  factory _UiFieldsCompat.fromJson(Map<String, dynamic> json) =
+      _$UiFieldsCompatImpl.fromJson;
 
   @override
   PrepareResponseAvailableCompat get routeResponse;
