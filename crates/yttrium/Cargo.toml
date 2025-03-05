@@ -47,7 +47,7 @@ test_blockchain_api = []
 flutter_rust_bridge_codegen = { workspace = true, optional = true }
 
 [dependencies]
-flutter_rust_bridge = { workspace = true, optional = true }
+flutter_rust_bridge = { optional = true, version = "=2.8.0" }
 
 uniffi = { workspace = true, optional = true }
 uniffi_macros = { workspace = true, optional = true }

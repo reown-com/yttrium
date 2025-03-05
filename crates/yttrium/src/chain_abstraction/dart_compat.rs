@@ -88,7 +88,7 @@ impl ChainAbstractionClient {
             .prepare_detailed(chain_id, ffi_from, call_orig, local_currency)
             .await
             .map(Into::into)
-            .map_err(|e| ErrorCompat::General(e.to_string()))
+            .map_err(|e| ErrorCompat::General { message: e.to_string() })
     }
 
     // FIXME
@@ -142,7 +142,7 @@ impl ChainAbstractionClient {
             .estimate_eip1559_fees(None)
             .await
             .map(Into::into)
-            .map_err(|e| ErrorCompat::General(e.to_string()))
+            .map_err(|e| ErrorCompat::General { message: e.to_string() })
     }
 
     // pub fn prepare_erc20_transfer_call(
@@ -184,7 +184,7 @@ impl ChainAbstractionClient {
             .erc20_token_balance(chain_id, ffi_token, ffi_owner)
             .await
             .map(|balance| balance.to_string())
-            .map_err(|e| ErrorCompat::General(e.to_string()))
+            .map_err(|e| ErrorCompat::General { message: e.to_string() })
     }
 
     // FIXME
@@ -211,6 +211,6 @@ impl ChainAbstractionClient {
             .map(Into::into)
             // TODO wanted to return ExecuteError directly here, but can't because Swift keeps the UniFFI lifer private to the yttrium crate and not available to kotlin-ffi crate
             // This will be fixed when we merge these crates
-            .map_err(|e| ErrorCompat::General(e.to_string()))
+            .map_err(|e| ErrorCompat::General { message: e.to_string() })
     }
 }

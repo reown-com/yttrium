@@ -552,20 +552,20 @@ abstract class _Eip1559EstimationCompat implements Eip1559EstimationCompat {
 
 /// @nodoc
 mixin _$ErrorCompat {
-  String get field0 => throw _privateConstructorUsedError;
+  String get message => throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult when<TResult extends Object?>({
-    required TResult Function(String field0) general,
+    required TResult Function(String message) general,
   }) =>
       throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult? whenOrNull<TResult extends Object?>({
-    TResult? Function(String field0)? general,
+    TResult? Function(String message)? general,
   }) =>
       throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult maybeWhen<TResult extends Object?>({
-    TResult Function(String field0)? general,
+    TResult Function(String message)? general,
     required TResult orElse(),
   }) =>
       throw _privateConstructorUsedError;
@@ -599,7 +599,7 @@ abstract class $ErrorCompatCopyWith<$Res> {
           ErrorCompat value, $Res Function(ErrorCompat) then) =
       _$ErrorCompatCopyWithImpl<$Res, ErrorCompat>;
   @useResult
-  $Res call({String field0});
+  $Res call({String message});
 }
 
 /// @nodoc
@@ -617,12 +617,12 @@ class _$ErrorCompatCopyWithImpl<$Res, $Val extends ErrorCompat>
   @pragma('vm:prefer-inline')
   @override
   $Res call({
-    Object? field0 = null,
+    Object? message = null,
   }) {
     return _then(_value.copyWith(
-      field0: null == field0
-          ? _value.field0
-          : field0 // ignore: cast_nullable_to_non_nullable
+      message: null == message
+          ? _value.message
+          : message // ignore: cast_nullable_to_non_nullable
               as String,
     ) as $Val);
   }
@@ -636,7 +636,7 @@ abstract class _$$ErrorCompat_GeneralImplCopyWith<$Res>
       __$$ErrorCompat_GeneralImplCopyWithImpl<$Res>;
   @override
   @useResult
-  $Res call({String field0});
+  $Res call({String message});
 }
 
 /// @nodoc
@@ -652,12 +652,12 @@ class __$$ErrorCompat_GeneralImplCopyWithImpl<$Res>
   @pragma('vm:prefer-inline')
   @override
   $Res call({
-    Object? field0 = null,
+    Object? message = null,
   }) {
     return _then(_$ErrorCompat_GeneralImpl(
-      null == field0
-          ? _value.field0
-          : field0 // ignore: cast_nullable_to_non_nullable
+      message: null == message
+          ? _value.message
+          : message // ignore: cast_nullable_to_non_nullable
               as String,
     ));
   }
@@ -666,14 +666,14 @@ class __$$ErrorCompat_GeneralImplCopyWithImpl<$Res>
 /// @nodoc
 
 class _$ErrorCompat_GeneralImpl extends ErrorCompat_General {
-  const _$ErrorCompat_GeneralImpl(this.field0) : super._();
+  const _$ErrorCompat_GeneralImpl({required this.message}) : super._();
 
   @override
-  final String field0;
+  final String message;
 
   @override
   String toString() {
-    return 'ErrorCompat.general(field0: $field0)';
+    return 'ErrorCompat.general(message: $message)';
   }
 
   @override
@@ -681,11 +681,11 @@ class _$ErrorCompat_GeneralImpl extends ErrorCompat_General {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
             other is _$ErrorCompat_GeneralImpl &&
-            (identical(other.field0, field0) || other.field0 == field0));
+            (identical(other.message, message) || other.message == message));
   }
 
   @override
-  int get hashCode => Object.hash(runtimeType, field0);
+  int get hashCode => Object.hash(runtimeType, message);
 
   /// Create a copy of ErrorCompat
   /// with the given fields replaced by the non-null parameter values.
@@ -699,27 +699,27 @@ class _$ErrorCompat_GeneralImpl extends ErrorCompat_General {
   @override
   @optionalTypeArgs
   TResult when<TResult extends Object?>({
-    required TResult Function(String field0) general,
+    required TResult Function(String message) general,
   }) {
-    return general(field0);
+    return general(message);
   }
 
   @override
   @optionalTypeArgs
   TResult? whenOrNull<TResult extends Object?>({
-    TResult? Function(String field0)? general,
+    TResult? Function(String message)? general,
   }) {
-    return general?.call(field0);
+    return general?.call(message);
   }
 
   @override
   @optionalTypeArgs
   TResult maybeWhen<TResult extends Object?>({
-    TResult Function(String field0)? general,
+    TResult Function(String message)? general,
     required TResult orElse(),
   }) {
     if (general != null) {
-      return general(field0);
+      return general(message);
     }
     return orElse();
   }
@@ -754,12 +754,12 @@ class _$ErrorCompat_GeneralImpl extends ErrorCompat_General {
 }
 
 abstract class ErrorCompat_General extends ErrorCompat {
-  const factory ErrorCompat_General(final String field0) =
+  const factory ErrorCompat_General({required final String message}) =
       _$ErrorCompat_GeneralImpl;
   const ErrorCompat_General._() : super._();
 
   @override
-  String get field0;
+  String get message;
 
   /// Create a copy of ErrorCompat
   /// with the given fields replaced by the non-null parameter values.

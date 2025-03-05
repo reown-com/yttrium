@@ -25,14 +25,15 @@ use {
         primitives::PrimitiveSignature, providers::utils::Eip1559Estimation,
         rpc::types::TransactionReceipt,
     },
+    flutter_rust_bridge::frb,
+    // hex::{decode, encode},
     std::str::FromStr,
 };
-use flutter_rust_bridge::frb;
 
 #[derive(Debug, thiserror::Error)]
 pub enum ErrorCompat {
-    #[error("General {0}")]
-    General(String),
+    #[error("General {message}")]
+    General { message: String },
 }
 
 #[cfg(feature = "chain_abstraction_client")]
@@ -58,7 +59,7 @@ impl From<PrimitiveSignatureCompat> for PrimitiveSignature {
 
 #[cfg(feature = "chain_abstraction_client")]
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
-#[frb(dart_metadata=("freezed"))]
+#[frb(dart_metadata=("freezed"))] // json_serializable
 pub struct PulseMetadataCompat {
     pub url: Option<String>,
     pub bundle_id: Option<String>,
@@ -69,7 +70,7 @@ pub struct PulseMetadataCompat {
 
 impl From<PulseMetadataCompat> for PulseMetadata {
     fn from(compat: PulseMetadataCompat) -> Self {
-        let url = compat.url.and_then(|s| url::Url::parse(&s).ok()); // Convert only if parsing succeeds
+        let url = compat.url.and_then(|s| url::Url::parse(&s).ok());
         let bundle_id = compat.bundle_id.clone();
         let package_name = compat.package_name.clone();
         let sdk_version = compat.sdk_version.clone();
@@ -83,10 +84,11 @@ impl From<PulseMetadataCompat> for PulseMetadata {
 
 #[cfg(feature = "chain_abstraction_client")]
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
-#[frb(dart_metadata=("freezed"))]
+#[frb(dart_metadata=("freezed"))] // json_serializable
 pub struct CallCompat {
-    pub to: String,     // Convert Address to String
-    pub value: u128,    // Convert U256 to String
+    pub to: String,  // Convert Address to String
+    pub value: u128, // Convert U256 to String
+    // pub input: String, // Convert Bytes to Vec<u8>
     pub input: Vec<u8>, // Convert Bytes to Vec<u8>
 }
 
@@ -96,6 +98,7 @@ impl From<Call> for CallCompat {
         CallCompat {
             to: original.to.to_string(),
             value: original.value.try_into().unwrap(),
+            // input: encode(original.input.0), // ✅ Encode Vec<u8> to Base64
             input: original.input.0.to_vec(),
         }
     }
@@ -110,6 +113,11 @@ impl From<CallCompat> for Call {
 
         let to = Address::from_str(&compat.to).unwrap();
         let value = U256::from(compat.value);
+        // ✅ Handle Base64 decoding errors
+        // let input_bytes = decode(&compat.input)
+        //     .map_err(|e| ErrorCompat::General { message: format!("{} {}", e.to_string(), &compat.input) })
+        //     .unwrap();
+        // let input = Bytes::from(input_bytes);
         let input = Bytes::from(compat.input);
 
         Call { to, value, input }
@@ -120,7 +128,7 @@ impl From<CallCompat> for Call {
 
 #[cfg(feature = "chain_abstraction_client")]
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
-#[frb(dart_metadata=("freezed"))]
+#[frb(dart_metadata=("freezed"))] // json_serializable
 pub struct Eip1559EstimationCompat {
     /// The base fee per gas as a String.
     pub max_fee_per_gas: String,
@@ -155,7 +163,7 @@ impl From<Eip1559EstimationCompat> for Eip1559Estimation {
 
 #[cfg(feature = "chain_abstraction_client")]
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
-#[frb(dart_metadata=("freezed"))]
+#[frb(dart_metadata=("freezed"))] // json_serializable
 pub struct FeeCompat {
     pub fungible_amount: String,
     pub fungible_decimals: u8,
@@ -165,7 +173,7 @@ pub struct FeeCompat {
 
 #[cfg(feature = "chain_abstraction_client")]
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
-#[frb(dart_metadata=("freezed"))]
+#[frb(dart_metadata=("freezed"))] // json_serializable
 pub struct LocalAmountAccCompat {
     pub fees: Vec<FeeCompat>,
 }
@@ -184,10 +192,9 @@ impl From<LocalAmountAcc> for LocalAmountAccCompat {
 
 // -----------------
 
-// #[frb(dart_metadata=("freezed"))]
 #[cfg(feature = "chain_abstraction_client")]
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
-#[frb(dart_metadata=("freezed"))]
+#[frb(dart_metadata=("freezed"))] // json_serializable
 pub struct UiFieldsCompat {
     pub route_response: PrepareResponseAvailableCompat,
     pub route: Vec<TxnDetailsCompat>,
@@ -246,7 +253,7 @@ impl From<UiFieldsCompat> for UiFields {
 
 #[cfg(feature = "chain_abstraction_client")]
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
-#[frb(dart_metadata=("freezed"))]
+#[frb(dart_metadata=("freezed"))] // json_serializable
 pub struct PrepareResponseAvailableCompat {
     pub orchestration_id: String,
     pub initial_transaction: TransactionCompat,
@@ -288,7 +295,7 @@ impl From<PrepareResponseAvailableCompat> for PrepareResponseAvailable {
 
 #[cfg(feature = "chain_abstraction_client")]
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
-#[frb(dart_metadata=("freezed"))]
+#[frb(dart_metadata=("freezed"))] // json_serializable
 pub struct MetadataCompat {
     pub funding_from: Vec<FundingMetadataCompat>,
     pub initial_transaction: InitialTransactionMetadataCompat,
@@ -327,7 +334,7 @@ impl From<MetadataCompat> for Metadata {
 
 #[cfg(feature = "chain_abstraction_client")]
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
-#[frb(dart_metadata=("freezed"))]
+#[frb(dart_metadata=("freezed"))] // json_serializable
 pub struct FundingMetadataCompat {
     pub chain_id: String,
     pub token_contract: String,
@@ -341,10 +348,10 @@ impl From<FundingMetadata> for FundingMetadataCompat {
     fn from(original: FundingMetadata) -> Self {
         Self {
             chain_id: original.chain_id,
-            token_contract: format!("{:?}", original.token_contract), // Convert Address -> String (hex)
+            token_contract: format!("{:?}", original.token_contract),
             symbol: original.symbol,
-            amount: original.amount.to_string(), // Convert U256 -> String
-            bridging_fee: original.bridging_fee.to_string(), // Convert U256 -> String
+            amount: original.amount.to_string(),
+            bridging_fee: original.bridging_fee.to_string(),
             decimals: original.decimals,
         }
     }
@@ -369,11 +376,11 @@ impl From<FundingMetadataCompat> for FundingMetadata {
 
 #[cfg(feature = "chain_abstraction_client")]
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
-#[frb(dart_metadata=("freezed"))]
+#[frb(dart_metadata=("freezed"))] // json_serializable
 pub struct InitialTransactionMetadataCompat {
-    pub transfer_to: String, // Convert Address to String (hex)
-    pub amount: String,      // Convert U256 to String
-    pub token_contract: String, // Convert Address to String (hex)
+    pub transfer_to: String,
+    pub amount: String,
+    pub token_contract: String,
     pub symbol: String,
     pub decimals: u8,
 }
@@ -408,10 +415,10 @@ impl From<InitialTransactionMetadata> for InitialTransactionMetadataCompat {
 
 #[cfg(feature = "chain_abstraction_client")]
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
-#[frb(dart_metadata=("freezed"))]
+#[frb(dart_metadata=("freezed"))] // json_serializable
 pub struct TxnDetailsCompat {
     pub transaction: FeeEstimatedTransactionCompat,
-    pub transaction_hash_to_sign: String, // Convert B256 to String
+    pub transaction_hash_to_sign: String,
     pub fee: TransactionFeeCompat,
 }
 
@@ -446,17 +453,18 @@ impl From<TxnDetailsCompat> for TxnDetails {
 
 #[cfg(feature = "chain_abstraction_client")]
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
-#[frb(dart_metadata=("freezed"))]
+#[frb(dart_metadata=("freezed"))] // json_serializable
 pub struct FeeEstimatedTransactionCompat {
     pub chain_id: String,
-    pub from: String,      // Convert Address to String (hex)
-    pub to: String,        // Convert Address to String (hex)
-    pub value: String,     // Convert U256 to String
-    pub input: Vec<u8>,    // Convert Bytes to Vec<u8>
-    pub gas_limit: String, // Convert U64 to String
-    pub nonce: String,     // Convert U64 to String
-    pub max_fee_per_gas: String, // Convert U128 to String
-    pub max_priority_fee_per_gas: String, // Convert U128 to String
+    pub from: String,
+    pub to: String,
+    pub value: String,
+    // pub input: String,
+    pub input: Vec<u8>,
+    pub gas_limit: String,
+    pub nonce: String,
+    pub max_fee_per_gas: String,
+    pub max_priority_fee_per_gas: String,
 }
 
 impl From<FeeEstimatedTransaction> for FeeEstimatedTransactionCompat {
@@ -466,6 +474,7 @@ impl From<FeeEstimatedTransaction> for FeeEstimatedTransactionCompat {
             from: format!("{:?}", original.from),
             to: format!("{:?}", original.to),
             value: original.value.to_string(),
+            // input: encode(original.input.0),
             input: original.input.to_vec(),
             gas_limit: original.gas_limit.to_string(),
             nonce: original.nonce.to_string(),
@@ -489,6 +498,7 @@ impl From<FeeEstimatedTransactionCompat> for FeeEstimatedTransaction {
             from: Address::from_str(&compat.from).unwrap(),
             to: Address::from_str(&compat.to).unwrap(),
             value: U256::from_str(&compat.value).unwrap(),
+            // input: Bytes::from(decode(&compat.input).unwrap()),
             input: Bytes::from(compat.input),
             gas_limit: U64::from_str(&compat.gas_limit).unwrap(),
             nonce: U64::from_str(&compat.nonce).unwrap(),
@@ -505,7 +515,7 @@ impl From<FeeEstimatedTransactionCompat> for FeeEstimatedTransaction {
 
 #[cfg(feature = "chain_abstraction_client")]
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
-#[frb(dart_metadata=("freezed"))]
+#[frb(dart_metadata=("freezed"))] // json_serializable
 pub struct TransactionFeeCompat {
     pub fee: AmountCompat,
     pub local_fee: AmountCompat,
@@ -527,10 +537,10 @@ impl From<TransactionFeeCompat> for TransactionFee {
 
 #[cfg(feature = "chain_abstraction_client")]
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
-#[frb(dart_metadata=("freezed"))]
+#[frb(dart_metadata=("freezed"))] // json_serializable
 pub struct AmountCompat {
     pub symbol: String,
-    pub amount: String, // Convert U256 to String
+    pub amount: String,
     pub unit: u8,
     pub formatted: String,
     pub formatted_alt: String,
@@ -565,7 +575,7 @@ impl From<AmountCompat> for Amount {
 
 #[cfg(feature = "chain_abstraction_client")]
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
-#[frb(dart_metadata=("freezed"))]
+#[frb(dart_metadata=("freezed"))] // json_serializable
 pub struct ExecuteDetailsCompat {
     pub initial_txn_receipt: TransactionReceiptCompat,
     pub initial_txn_hash: String,
@@ -594,19 +604,19 @@ impl From<ExecuteDetailsCompat> for ExecuteDetails {
 
 #[cfg(feature = "chain_abstraction_client")]
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
-#[frb(dart_metadata=("freezed"))]
+#[frb(dart_metadata=("freezed"))] // json_serializable
 pub struct TransactionReceiptCompat {
-    pub transaction_hash: String, // Convert TxHash to String
-    pub transaction_index: Option<u64>, // Already FRB-compatible
-    pub block_hash: Option<String>, // Convert Option<BlockHash> to Option<String>
-    pub block_number: Option<u64>,  // Already FRB-compatible
-    pub gas_used: u64,              // Already FRB-compatible
-    pub effective_gas_price: String, // Convert u128 to String
-    pub blob_gas_used: Option<u64>, // Already FRB-compatible
-    pub blob_gas_price: Option<String>, // Convert Option<u128> to Option<String>
-    pub from: String,                   // Convert Address to String (hex)
-    pub to: Option<String>, // Convert Option<Address> to Option<String>
-    pub contract_address: Option<String>, // Convert Option<Address> to Option<String>
+    pub transaction_hash: String,
+    pub transaction_index: Option<u64>,
+    pub block_hash: Option<String>,
+    pub block_number: Option<u64>,
+    pub gas_used: u64,
+    pub effective_gas_price: String,
+    pub blob_gas_used: Option<u64>,
+    pub blob_gas_price: Option<String>,
+    pub from: String,
+    pub to: Option<String>,
+    pub contract_address: Option<String>,
 }
 
 impl From<alloy::rpc::types::TransactionReceipt> for TransactionReceiptCompat {
@@ -716,7 +726,7 @@ impl From<PrepareDetailedResponseCompat> for PrepareDetailedResponse {
 
 #[cfg(feature = "chain_abstraction_client")]
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
-#[frb(dart_metadata=("freezed"))]
+#[frb(dart_metadata=("freezed"))] // json_serializable
 pub enum PrepareDetailedResponseSuccessCompat {
     Available { value: UiFieldsCompat },
     NotRequired { value: PrepareResponseNotRequiredCompat },
@@ -801,7 +811,7 @@ impl From<PrepareResponseErrorCompat> for PrepareResponseError {
 
 #[cfg(feature = "chain_abstraction_client")]
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
-#[frb(dart_metadata=("freezed"))]
+#[frb(dart_metadata=("freezed"))] // json_serializable
 pub enum BridgingErrorCompat {
     NoRoutesAvailable,
     InsufficientFunds,
@@ -844,7 +854,7 @@ impl From<BridgingErrorCompat> for BridgingError {
 
 #[cfg(feature = "chain_abstraction_client")]
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
-#[frb(dart_metadata=("freezed"))]
+#[frb(dart_metadata=("freezed"))] // json_serializable
 pub struct PrepareResponseNotRequiredCompat {
     pub initial_transaction: TransactionCompat,
     pub transactions: Vec<TransactionCompat>,
@@ -854,12 +864,12 @@ pub struct PrepareResponseNotRequiredCompat {
 impl From<PrepareResponseNotRequired> for PrepareResponseNotRequiredCompat {
     fn from(original: PrepareResponseNotRequired) -> Self {
         Self {
-            initial_transaction: original.initial_transaction.into(), // Convert Transaction
+            initial_transaction: original.initial_transaction.into(),
             transactions: original
                 .transactions
                 .into_iter()
                 .map(TransactionCompat::from)
-                .collect(), // Convert Vec<Transaction>
+                .collect(),
         }
     }
 }
@@ -868,12 +878,12 @@ impl From<PrepareResponseNotRequired> for PrepareResponseNotRequiredCompat {
 impl From<PrepareResponseNotRequiredCompat> for PrepareResponseNotRequired {
     fn from(compat: PrepareResponseNotRequiredCompat) -> Self {
         Self {
-            initial_transaction: compat.initial_transaction.into(), // Convert TransactionCompat
+            initial_transaction: compat.initial_transaction.into(),
             transactions: compat
                 .transactions
                 .into_iter()
                 .map(Transaction::from)
-                .collect(), // Convert Vec<TransactionCompat>
+                .collect(),
         }
     }
 }
@@ -882,7 +892,7 @@ impl From<PrepareResponseNotRequiredCompat> for PrepareResponseNotRequired {
 
 #[cfg(feature = "chain_abstraction_client")]
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
-#[frb(dart_metadata=("freezed"))]
+#[frb(dart_metadata=("freezed"))] // json_serializable
 pub struct TransactionCompat {
     // CAIP-2 chain ID
     pub chain_id: String,
@@ -890,6 +900,7 @@ pub struct TransactionCompat {
     pub from: String,
     pub to: String,
     pub value: String,
+    // pub input: String,
     pub input: Vec<u8>,
 
     pub gas_limit: u64,
@@ -904,6 +915,7 @@ impl From<Transaction> for TransactionCompat {
             from: original.from.to_string(),
             to: original.to.to_string(),
             value: original.value.to_string(),
+            // input: encode(original.input.0),
             input: original.input.0.to_vec(),
             gas_limit: original.gas_limit.to(),
             nonce: original.nonce.to(),
@@ -923,6 +935,7 @@ impl From<TransactionCompat> for Transaction {
         let from = Address::from_str(&compat.from).unwrap();
         let to = Address::from_str(&compat.to).unwrap();
         let value = U256::from_str(&compat.value).unwrap();
+        // let input = Bytes::from(decode(&compat.input).unwrap());
         let input = Bytes::from(compat.input);
 
         let gas_limit = U64::from(compat.gas_limit);
@@ -980,7 +993,7 @@ impl From<PrepareResponseCompat> for PrepareResponse {
 
 #[cfg(feature = "chain_abstraction_client")]
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
-#[frb(dart_metadata=("freezed"))]
+#[frb(dart_metadata=("freezed"))] // json_serializable
 pub enum PrepareResponseSuccessCompat {
     Available { value: PrepareResponseAvailableCompat },
     NotRequired { value: PrepareResponseNotRequiredCompat },
