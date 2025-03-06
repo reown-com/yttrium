@@ -97,7 +97,7 @@ jobs:
 
   build-android-artifacts:
     needs: install-dependencies
-    runs-on: macos-latest-xlarge
+    runs-on: macos-14
 
     steps:
       # Checkout repository
@@ -115,7 +115,7 @@ jobs:
         shell: bash
         working-directory: crates/yttrium
         run: |
-          rustup target add armv7-linux-androideabi aarch64-linux-android 
+          rustup target add armv7-linux-androideabi aarch64-linux-android
           cargo ndk -t armeabi-v7a -t arm64-v8a build --profile=uniffi-release --features=frb -p yttrium
 
       # Prepare Android artifacts
@@ -136,7 +136,7 @@ jobs:
 
   build-ios-artifacts:
     needs: install-dependencies
-    runs-on: macos-latest-xlarge
+    runs-on: macos-14
 
     steps:
       # Checkout repository
@@ -158,9 +158,14 @@ jobs:
         shell: bash
         run: |
           mkdir -p universal
+          # build for physical device
           lipo -create target/aarch64-apple-ios/uniffi-release/libyttrium.dylib target/x86_64-apple-ios/uniffi-release/libyttrium.dylib -output universal/libyttrium_universal.dylib
           install_name_tool -id @rpath/libyttrium_universal.dylib universal/libyttrium_universal.dylib
           codesign --force --sign - universal/libyttrium_universal.dylib
+          # build for simulator
+          lipo -create target/aarch64-apple-ios-sim/uniffi-release/libyttrium.dylib target/x86_64-apple-ios/uniffi-release/libyttrium.dylib -output universal/libyttrium_universal_sim.dylib
+          install_name_tool -id @rpath/libyttrium_universal_sim.dylib universal/libyttrium_universal_sim.dylib
+          codesign --force --sign - universal/libyttrium_universal_sim.dylib
 
       # Upload iOS artifacts
       - name: Upload iOS artifacts
@@ -171,7 +176,7 @@ jobs:
 
   create-github-release:
     needs: [build-android-artifacts, build-ios-artifacts]
-    runs-on: macos-latest-xlarge
+    runs-on: macos-14
 
     steps:
       # Checkout repository

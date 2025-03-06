@@ -6,5 +6,5 @@ rm -r lib/generated/*
 rm ../yttrium/src/frb_generated.rs
 
 # cargo clean
-flutter_rust_bridge_codegen generate --config-file flutter_rust_bridge.yaml 
+flutter_rust_bridge_codegen generate --config-file flutter_rust_bridge.yaml
 # dart pub run build_runner build

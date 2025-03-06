@@ -4,42 +4,72 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
 
-// flutter pub run yttrium_dart:setup
+// dart run yttrium_dart:setup --sim --version=0.0.1
 
 enum _Environment { ios, android }
 
 void main(List<String> args) async {
-  if (args.isNotEmpty && (args.length > 1 || args.first != '--local')) {
-    print("Error: Only '--local' is allowed as an argument.");
+  if (args.isEmpty || args.length > 2) {
+    print('Error: The only valid command formats are:\n');
+    print('  dart run yttrium_dart:setup --version=X.Y.Z\n'
+        '  dart run yttrium_dart:setup --sim --version=X.Y.Z');
     exit(1);
   }
 
-  if (args.contains('--local')) {
-    // print('Running Yttrium setup with $args. This could take a while...');
-  } else {
-    print('Running Yttrium setup. This could take a while...');
-    // Locate the package directory
-    final packagePath = await _getPackageRoot();
-    print('packagePath: ${packagePath?.path}');
-    if (packagePath == null) {
-      print('Error: Could not locate the package directory.');
-      exit(1);
-    }
+  // Find the --version argument
+  final versionArg =
+      args.firstWhere((arg) => arg.startsWith('--version='), orElse: () => '');
 
-    const version = '0.4.5'; // TODO dynamically
-    await Future.wait([
-      _setupFiles(
-        targetDir: '${packagePath.path}/android/src/main/',
-        version: version,
-        platform: _Environment.android,
-      ),
-      _setupFiles(
-        targetDir: '${packagePath.path}/ios/',
-        version: version,
-        platform: _Environment.ios,
-      ),
-    ]);
+  if (versionArg.isEmpty) {
+    print("Error: Missing required '--version=X.Y.Z' argument.");
+    exit(1);
   }
+
+  // Extract version number
+  final versionValue = versionArg.split('=').last;
+
+  if (versionValue.isEmpty) {
+    print(
+        "Error: '--version' argument must have a value (e.g., '--version=0.4.5').");
+    exit(1);
+  }
+
+  // Validate allowed arguments (only --sim and --version=X.Y.Z)
+  final validArgs = {'--sim', versionArg};
+  if (args.toSet().difference(validArgs).isNotEmpty) {
+    print('Error: Invalid arguments detected.');
+    exit(1);
+  }
+  print('Running setup with version: $versionValue');
+
+  final bool isSimulator = args.contains('--sim');
+  if (isSimulator) {
+    print('Running for simulator.');
+  }
+
+  print('Running Yttrium setup. This could take a while...');
+  // Locate the package directory
+  final packagePath = await _getPackageRoot();
+  print('packagePath: ${packagePath?.path}');
+  if (packagePath == null) {
+    print('Error: Could not locate the package directory.');
+    exit(1);
+  }
+
+  await Future.wait([
+    _setupFiles(
+      targetDir: '${packagePath.path}/android/src/main/',
+      version: versionValue,
+      platform: _Environment.android,
+      isSimulator: isSimulator,
+    ),
+    _setupFiles(
+      targetDir: '${packagePath.path}/ios/',
+      version: versionValue,
+      platform: _Environment.ios,
+      isSimulator: isSimulator,
+    ),
+  ]);
   //
   print('✅ Yttrium setup success!');
 }
@@ -48,6 +78,7 @@ Future<void> _setupFiles({
   required String targetDir,
   required String version,
   required _Environment platform,
+  required bool isSimulator,
 }) async {
   final artifactFile = '${platform.name}-artifacts.zip';
   final releases =
@@ -74,7 +105,9 @@ Future<void> _setupFiles({
             '-o',
             '-j',
             zipFile,
-            'universal/libyttrium_universal.dylib',
+            isSimulator
+                ? 'universal/libyttrium_universal_sim.dylib'
+                : 'universal/libyttrium_universal.dylib',
             '-d',
             targetDir,
           ]

@@ -38,7 +38,6 @@ pwd
 mkdir -p target/universal/ios/uniffi-release
 
 lipo -create target/$TARGET/uniffi-release/libyttrium.dylib target/x86_64-apple-ios/uniffi-release/libyttrium.dylib -output target/universal/ios/uniffi-release/libyttrium_universal.dylib
-
 lipo -info target/universal/ios/uniffi-release/libyttrium_universal.dylib
 
 cp target/universal/ios/uniffi-release/libyttrium_universal.dylib crates/yttrium_dart/ios/libyttrium_universal.dylib
@@ -46,10 +45,9 @@ cp target/universal/ios/uniffi-release/libyttrium_universal.dylib crates/yttrium
 # otool -L crates/yttrium_dart/ios/libyttrium_universal.dylib
 
 install_name_tool -id @rpath/libyttrium_universal.dylib crates/yttrium_dart/ios/libyttrium_universal.dylib
-
 codesign --force --sign - crates/yttrium_dart/ios/libyttrium_universal.dylib
 
-otool -L crates/yttrium_dart/ios/libyttrium_universal.dylib
+# otool -L crates/yttrium_dart/ios/libyttrium_universal.dylib
 
 pwd
 

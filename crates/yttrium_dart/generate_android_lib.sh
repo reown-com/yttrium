@@ -5,8 +5,8 @@
 # cd ..
 # cd yttrium
 
-rustup target add armv7-linux-androideabi aarch64-linux-android x86_64-linux-android i686-linux-android
-cargo ndk -t armeabi-v7a -t arm64-v8a -t x86_64 -t x86 build --profile=uniffi-release --features=frb -p yttrium
+rustup target add armv7-linux-androideabi aarch64-linux-android
+cargo ndk -t armeabi-v7a -t arm64-v8a build --profile=uniffi-release --features=frb -p yttrium
 
 # cd .. #/yttrium_dart
 
