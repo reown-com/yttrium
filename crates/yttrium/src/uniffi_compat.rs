@@ -1,7 +1,10 @@
 #[cfg(feature = "chain_abstraction_client")]
 use crate::chain_abstraction::{amount::Amount, api::prepare::FundingMetadata};
 use {
-    crate::smart_accounts::account_address::AccountAddress,
+    crate::{
+        chain_abstraction::api::prepare::Eip155OrSolanaAddress,
+        smart_accounts::account_address::AccountAddress,
+    },
     alloy::{
         contract::Error as AlloyError,
         dyn_abi::Eip712Domain,
@@ -200,6 +203,12 @@ pub struct FfiAuthorization {
     /// The nonce for the authorization.
     pub nonce: u64,
 }
+
+uniffi::custom_type!(Eip155OrSolanaAddress, String, {
+    remote,
+    try_lift: |_val| unimplemented!("Does not support lifting Eip155OrSolanaAddress"),
+    lower: |obj| obj.to_string(),
+});
 
 #[cfg(test)]
 mod tests {

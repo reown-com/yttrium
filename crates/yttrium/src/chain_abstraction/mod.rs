@@ -10,6 +10,9 @@ pub mod send_transaction;
 pub mod spawn;
 pub mod ui_fields;
 
+#[cfg(feature = "solana")]
+pub mod solana;
+
 #[cfg(test)]
 mod test_helpers;
 

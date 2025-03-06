@@ -4,11 +4,12 @@ use {
     super::Transaction,
     crate::{call::Call, chain_abstraction::amount::Amount},
     alloy::primitives::{utils::Unit, Address, U256},
+    core::fmt,
     relay_rpc::domain::ProjectId,
     serde::{Deserialize, Serialize},
 };
 
-pub const ROUTE_ENDPOINT_PATH: &str = "/v1/ca/orchestrator/route";
+pub const ROUTE_ENDPOINT_PATH: &str = "/v2/ca/orchestrator/route";
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -24,6 +25,9 @@ pub struct RouteQueryParams {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PrepareRequest {
     pub transaction: PrepareRequestTransaction,
+    /// List of CAIP-10 accounts
+    #[serde(default)]
+    pub accounts: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -53,6 +57,25 @@ impl CallOrCalls {
         match self {
             Self::Call { call } => vec![call],
             Self::Calls { calls } => calls,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum Eip155OrSolanaAddress {
+    #[cfg(feature = "eip155")]
+    Eip155(Address),
+    #[cfg(feature = "solana")]
+    Solana(crate::chain_abstraction::solana::SolanaPubkey),
+}
+
+impl fmt::Display for Eip155OrSolanaAddress {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            #[cfg(feature = "eip155")]
+            Self::Eip155(address) => address.fmt(f),
+            #[cfg(feature = "solana")]
+            Self::Solana(address) => address.fmt(f),
         }
     }
 }
@@ -110,7 +133,7 @@ impl InitialTransactionMetadata {
 #[serde(rename_all = "camelCase")]
 pub struct FundingMetadata {
     pub chain_id: String,
-    pub token_contract: Address,
+    pub token_contract: Eip155OrSolanaAddress,
     pub symbol: String,
 
     // The amount that was sourced (includes the bridging fee)
@@ -160,8 +183,37 @@ impl FundingMetadata {
 pub struct PrepareResponseAvailable {
     pub orchestration_id: String,
     pub initial_transaction: Transaction,
-    pub transactions: Vec<Transaction>,
+    pub transactions: Vec<Transactions>,
     pub metadata: Metadata,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Enum))]
+#[cfg_attr(
+    feature = "wasm",
+    derive(tsify_next::Tsify),
+    tsify(into_wasm_abi, from_wasm_abi)
+)]
+#[serde(rename_all = "camelCase", tag = "namespace")]
+pub enum Transactions {
+    #[cfg(feature = "eip155")]
+    Eip155(Vec<Transaction>),
+}
+
+impl Transactions {
+    #[cfg(feature = "eip155")]
+    pub fn into_eip155(self) -> Vec<Transaction> {
+        match self {
+            Self::Eip155(txns) => txns,
+        }
+    }
+
+    #[cfg(feature = "eip155")]
+    pub fn as_eip155(&self) -> &Vec<Transaction> {
+        match self {
+            Self::Eip155(txns) => txns,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -275,6 +327,45 @@ mod tests {
         let result = serde_json::from_value::<PrepareRequest>(json).unwrap();
         assert_eq!(result.transaction.chain_id, chain_id);
         assert_eq!(result.transaction.from, from);
+        assert!(matches!(result.transaction.calls, CallOrCalls::Call { .. }));
+        let calls = result.transaction.calls.into_calls();
+        assert_eq!(calls.len(), 1);
+        assert_eq!(calls[0].to, to);
+        assert_eq!(calls[0].value, value);
+        assert_eq!(calls[0].input, input);
+        assert_eq!(result.accounts, Vec::<String>::new());
+    }
+
+    #[test]
+    fn deserializes_accounts() {
+        let chain_id = "eip155:1";
+        let from = Address::ZERO;
+        let to = Address::ZERO;
+        let value = U256::from(0);
+        let input = Bytes::new();
+        let json = serde_json::json!({
+            "transaction": {
+                "chainId": chain_id,
+                "from": from,
+                "to": to,
+                "value": value,
+                "input": input,
+            },
+            "accounts": [
+                "eip155:1:0x0000000000000000000000000000000000000000",
+                "eip155:1:0x0000000000000000000000000000000000000001",
+            ]
+        });
+        let result = serde_json::from_value::<PrepareRequest>(json).unwrap();
+        assert_eq!(result.transaction.chain_id, chain_id);
+        assert_eq!(result.transaction.from, from);
+        assert_eq!(
+            result.accounts,
+            vec![
+                "eip155:1:0x0000000000000000000000000000000000000000",
+                "eip155:1:0x0000000000000000000000000000000000000001",
+            ]
+        );
         assert!(matches!(result.transaction.calls, CallOrCalls::Call { .. }));
         let calls = result.transaction.calls.into_calls();
         assert_eq!(calls.len(), 1);
