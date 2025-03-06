@@ -41,7 +41,10 @@ abstract class ChainAbstractionClient implements RustOpaqueInterface {
           projectId: projectId, pulseMetadata: pulseMetadata);
 
   Future<PrepareResponse> prepare(
-      {required String chainId, required Address from, required Call call});
+      {required String chainId,
+      required Address from,
+      required Call call,
+      required List<String> accounts});
 
   Future<StatusResponse> status({required String orchestrationId});
 

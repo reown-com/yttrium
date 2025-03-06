@@ -201,7 +201,8 @@ fn wire__crate__ChainAbstractionClient_prepare_impl(
             let api_that = <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ChainAbstractionClient>>>::sse_decode(&mut deserializer);
 let api_chain_id = <String>::sse_decode(&mut deserializer);
 let api_from = <Address>::sse_decode(&mut deserializer);
-let api_call = <Call>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
+let api_call = <Call>::sse_decode(&mut deserializer);
+let api_accounts = <Vec<String>>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
                     transform_result_sse::<_, crate::Error>((move || async move {
                         let mut api_that_guard = None;
 let decode_indices_ = flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![flutter_rust_bridge::for_generated::LockableOrderInfo::new(&api_that, 0, false)]);
@@ -212,7 +213,7 @@ let decode_indices_ = flutter_rust_bridge::for_generated::lockable_compute_decod
             }
         }
         let api_that_guard = api_that_guard.unwrap();
- let output_ok = crate::ChainAbstractionClient::prepare(&*api_that_guard, api_chain_id, api_from, api_call).await?;   Ok(output_ok)
+ let output_ok = crate::ChainAbstractionClient::prepare(&*api_that_guard, api_chain_id, api_from, api_call, api_accounts).await?;   Ok(output_ok)
                     })().await)
                 } })
 }
@@ -629,6 +630,20 @@ impl SseDecode for crate::Error {
                 unimplemented!("");
             }
         }
+    }
+}
+
+impl SseDecode for Vec<String> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = vec![];
+        for idx_ in 0..len_ {
+            ans_.push(<String>::sse_decode(deserializer));
+        }
+        return ans_;
     }
 }
 
@@ -1396,6 +1411,19 @@ impl SseEncode for crate::Error {
             _ => {
                 unimplemented!("");
             }
+        }
+    }
+}
+
+impl SseEncode for Vec<String> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(
+        self,
+        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
+    ) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <String>::sse_encode(item, serializer);
         }
     }
 }
