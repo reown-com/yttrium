@@ -129,9 +129,10 @@ impl ChainAbstractionClient {
         chain_id: String,
         from: Address,
         call: Call,
+        accounts: Vec<String>,
     ) -> Result<PrepareResponse, Error> {
         self.client
-            .prepare(chain_id, from, call)
+            .prepare(chain_id, from, call, accounts)
             .await
             .map_err(|e| Error::General(e.to_string()))
     }

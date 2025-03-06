@@ -6,7 +6,8 @@ use {
             amount::Amount,
             api::{
                 prepare::{
-                    BridgingError, PrepareResponse, PrepareResponseError,
+                    BridgingError, Eip155OrSolanaAddress, PrepareResponse,
+                    PrepareResponseError,
                 },
                 status::StatusResponse,
                 Transaction,
@@ -16,7 +17,7 @@ use {
             l1_data_fee::get_l1_data_fee,
             pulse::PulseMetadata,
             test_helpers::floats_close,
-            ui_fields::{TransactionFee, TxnDetails},
+            ui_fields::{Route, RouteSig, TransactionFee, TxnDetails},
         },
         erc20::{Token, ERC20},
         provider_pool::ProviderPool,
@@ -391,6 +392,7 @@ async fn bridging_routes_routes_available() {
             chain_2.eip155_chain_id().to_owned(),
             source.address(),
             transaction.clone(),
+            vec![],
         )
         .await
         .unwrap()
@@ -426,7 +428,7 @@ async fn bridging_routes_routes_available() {
     println!("checking ui_fields.initial.2.local_fee");
     sanity_check_fee(&ui_fields.initial.fee.local_fee);
     for TxnDetails { fee: TransactionFee { local_fee: fee, .. }, .. } in
-        &ui_fields.route
+        ui_fields.route[0].as_eip155()
     {
         println!("checking ui_fields.route[*].2.local_fee");
         sanity_check_fee(fee);
@@ -450,11 +452,14 @@ async fn bridging_routes_routes_available() {
                     .iter()
                     .map(|f| f.local_fee.as_float_inaccurate()),
             )
-            .chain(ui_fields.route.iter().map(
-                |TxnDetails {
-                     fee: TransactionFee { local_fee, .. }, ..
-                 }| { local_fee.as_float_inaccurate() },
-            ))
+            .chain(ui_fields.route.iter().flat_map(|route| match route {
+                Route::Eip155(route) => route.iter().map(
+                    |TxnDetails {
+                         fee: TransactionFee { local_fee, .. },
+                         ..
+                     }| { local_fee.as_float_inaccurate() },
+                ),
+            }))
             .sum::<f64>();
     println!("total_fee: {total_fee}");
     println!("combined_fees: {combined_fees}");
@@ -761,6 +766,7 @@ async fn happy_path() {
                 .to_owned(),
             source.address(&sources),
             initial_transaction.clone(),
+            vec![],
         )
         .await
         .unwrap()
@@ -797,10 +803,19 @@ async fn happy_path() {
             )
     }
 
+    assert_eq!(ui_fields.route.len(), 1);
+
     let mut total_fees = HashMap::new();
     let mut transactions_with_fees = vec![];
-    for (txn, ui_fields) in
-        result.transactions.into_iter().zip(ui_fields.route).chain(
+    for (txn, ui_fields) in result
+        .transactions
+        .into_iter()
+        .next()
+        .unwrap()
+        .into_eip155()
+        .into_iter()
+        .zip(ui_fields.route.into_iter().next().unwrap().into_eip155())
+        .chain(
             std::iter::once(result.initial_transaction)
                 .zip(std::iter::once(ui_fields.initial)),
         )
@@ -1360,6 +1375,7 @@ async fn happy_path_full_dependency_on_ui_fields() {
             initial_transaction_chain_id.clone(),
             source.address(&sources),
             initial_transaction.clone(),
+            vec![],
         )
         .await
         .unwrap()
@@ -1433,7 +1449,9 @@ async fn happy_path_full_dependency_on_ui_fields() {
     );
     assert_eq!(
         &result.metadata.funding_from.first().unwrap().token_contract,
-        source.bridge_token(&sources).token.address()
+        &Eip155OrSolanaAddress::Eip155(
+            *source.bridge_token(&sources).token.address()
+        )
     );
 
     let start = Instant::now();
@@ -1441,9 +1459,13 @@ async fn happy_path_full_dependency_on_ui_fields() {
         client.get_ui_fields(result.clone(), Currency::Usd).await.unwrap();
     println!("output ui_fields in ({:#?}): {:?}", start.elapsed(), ui_fields);
 
+    assert_eq!(ui_fields.route.len(), 1);
+    let ui_fields_route =
+        ui_fields.route.into_iter().next().unwrap().into_eip155();
+
     // Provide gas for transactions
     let mut prepared_faucet_txns = HashMap::new();
-    for txn in ui_fields.route.iter().chain(std::iter::once(&ui_fields.initial))
+    for txn in ui_fields_route.iter().chain(std::iter::once(&ui_fields.initial))
     {
         assert_eq!(txn.fee.fee.symbol, "ETH");
         prepared_faucet_txns
@@ -1483,8 +1505,8 @@ async fn happy_path_full_dependency_on_ui_fields() {
     let approval_start = Instant::now();
 
     let mut pending_bridge_txn_hashes =
-        Vec::with_capacity(ui_fields.route.len());
-    for TxnDetails { transaction, .. } in ui_fields.route {
+        Vec::with_capacity(ui_fields_route.len());
+    for TxnDetails { transaction, .. } in ui_fields_route {
         let txn = transaction.into_transaction_request();
         let provider = provider_pool
             .get_provider(
@@ -2066,6 +2088,7 @@ async fn happy_path_execute_method() {
             initial_transaction_chain_id.clone(),
             source.address(&sources),
             initial_transaction.clone(),
+            vec![],
             Currency::Usd,
         )
         .await
@@ -2172,19 +2195,23 @@ async fn happy_path_execute_method() {
         source.bridge_token(&sources).params.chain.eip155_chain_id()
     );
     assert_eq!(
-        &result
+        result
             .route_response
             .metadata
             .funding_from
             .first()
             .unwrap()
             .token_contract,
-        source.bridge_token(&sources).token.address()
+        Eip155OrSolanaAddress::Eip155(
+            *source.bridge_token(&sources).token.address()
+        )
     );
+
+    let result_route = result.route.first().unwrap().as_eip155();
 
     // Provide gas for transactions
     let mut prepared_faucet_txns = HashMap::new();
-    for txn in result.route.iter().chain(std::iter::once(&result.initial)) {
+    for txn in result_route.iter().chain(std::iter::once(&result.initial)) {
         assert_eq!(txn.fee.fee.symbol, "ETH");
         prepared_faucet_txns
             .entry((txn.transaction.chain_id.clone(), txn.transaction.from))
@@ -2228,17 +2255,18 @@ async fn happy_path_execute_method() {
         .unwrap();
     assert!(matches!(status, StatusResponse::Pending(_)));
 
-    let route_txn_sigs = result
-        .route
-        .iter()
-        .map(|txn| {
-            wallet_lookup
-                .get(&txn.transaction.from)
-                .unwrap()
-                .sign_hash_sync(&txn.transaction_hash_to_sign)
-                .unwrap()
-        })
-        .collect();
+    let route_txn_sigs = vec![RouteSig::Eip155(
+        result_route
+            .iter()
+            .map(|txn| {
+                wallet_lookup
+                    .get(&txn.transaction.from)
+                    .unwrap()
+                    .sign_hash_sync(&txn.transaction_hash_to_sign)
+                    .unwrap()
+            })
+            .collect(),
+    )];
     let initial_txn_sigs = wallet_lookup
         .get(&result.initial.transaction.from)
         .unwrap()
@@ -2370,6 +2398,7 @@ async fn bridging_routes_routes_insufficient_funds() {
             chain_1.eip155_chain_id().to_owned(),
             account_1.address(),
             transaction.clone(),
+            vec![],
         )
         .await
         .unwrap();

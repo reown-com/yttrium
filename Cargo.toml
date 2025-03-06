@@ -48,6 +48,14 @@ wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
 tsify-next = "0.5.4"
 
+# Solana
+solana-sdk = "2.2.1"
+solana-client = "2.2.1"
+spl-token = "7.0"
+spl-associated-token-account = "6.0.0"
+bincode = "1.3.3"
+data-encoding = "2.8.0"
+
 # Used by WASM ONLY, since wasm-pack doesn't support custom profiles
 # https://github.com/rustwasm/wasm-pack/issues/1461
 [profile.release]

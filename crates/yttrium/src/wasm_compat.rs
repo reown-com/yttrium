@@ -15,7 +15,7 @@ use {
                 WaitForSuccessError,
             },
             pulse::PulseMetadata,
-            ui_fields::UiFields,
+            ui_fields::{RouteSig, UiFields},
         },
     },
     std::time::Duration,
@@ -45,9 +45,10 @@ impl Client {
         chain_id: String,
         from: String,
         call: Call,
+        accounts: Vec<String>,
     ) -> Result<PrepareResponse, JsError> {
         self.inner
-            .prepare(chain_id, from.parse()?, call)
+            .prepare(chain_id, from.parse()?, call, accounts)
             .await
             .map_err(Into::into)
     }
@@ -67,10 +68,17 @@ impl Client {
         chain_id: String,
         from: String,
         call: Call,
+        accounts: Vec<String>,
         local_currency: Currency,
     ) -> Result<PrepareDetailedResponse, JsError> {
         self.inner
-            .prepare_detailed(chain_id, from.parse()?, call, local_currency)
+            .prepare_detailed(
+                chain_id,
+                from.parse()?,
+                call,
+                accounts,
+                local_currency,
+            )
             .await
             .map_err(Into::into)
     }
@@ -116,22 +124,11 @@ impl Client {
     pub async fn execute(
         &self,
         ui_fields: UiFields,
-        route_txn_sigs: Vec<String>,
+        route_txn_sigs: Vec<RouteSig>,
         initial_txn_sig: String,
     ) -> Result<ExecuteDetails, JsError> {
         self.inner
-            .execute(
-                ui_fields,
-                {
-                    // TODO refactor to use try_collect() when it's stable
-                    let mut sigs = Vec::with_capacity(route_txn_sigs.len());
-                    for result in route_txn_sigs.iter().map(|s| s.parse()) {
-                        sigs.push(result?);
-                    }
-                    sigs
-                },
-                initial_txn_sig.parse()?,
-            )
+            .execute(ui_fields, route_txn_sigs, initial_txn_sig.parse()?)
             .await
             .map_err(Into::into)
     }

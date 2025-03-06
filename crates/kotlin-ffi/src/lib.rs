@@ -29,6 +29,7 @@ use {
     },
     yttrium::chain_abstraction::{
         error::PrepareDetailedResponse, pulse::PulseMetadata,
+        ui_fields::RouteSig,
     },
 };
 #[cfg(feature = "chain_abstraction_client")]
@@ -159,7 +160,7 @@ impl ChainAbstractionClient {
         call: Call,
     ) -> Result<PrepareResponse, FFIError> {
         self.client
-            .prepare(chain_id, from, call)
+            .prepare(chain_id, from, call, vec![])
             .await
             .map_err(|e| FFIError::General(e.to_string()))
     }
@@ -180,12 +181,13 @@ impl ChainAbstractionClient {
         chain_id: String,
         from: FFIAddress,
         call: Call,
+        accounts: Vec<String>,
         local_currency: Currency,
         // TODO use this to e.g. modify priority fee
         // _speed: String,
     ) -> Result<PrepareDetailedResponse, FFIError> {
         self.client
-            .prepare_detailed(chain_id, from, call, local_currency)
+            .prepare_detailed(chain_id, from, call, accounts, local_currency)
             .await
             .map_err(|e| FFIError::General(e.to_string()))
     }
@@ -219,7 +221,7 @@ impl ChainAbstractionClient {
     pub async fn execute(
         &self,
         ui_fields: UiFields,
-        route_txn_sigs: Vec<FFIPrimitiveSignature>,
+        route_txn_sigs: Vec<RouteSig>,
         initial_txn_sig: FFIPrimitiveSignature,
     ) -> Result<ExecuteDetails, FFIError> {
         self.client

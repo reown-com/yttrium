@@ -24,14 +24,17 @@ use {
         },
         pulse::{PulseMetadata, PULSE_SDK_TYPE},
         send_transaction::{send_transaction, TransactionAnalytics},
-        ui_fields::UiFields,
+        ui_fields::{RouteSig, UiFields},
     },
     crate::{
         blockchain_api::BLOCKCHAIN_API_URL_PROD,
         call::Call,
         chain_abstraction::{
-            api::fungible_price::PriceQueryParams, error::UiFieldsError,
-            l1_data_fee::get_l1_data_fee, pulse::pulse, ui_fields,
+            api::{fungible_price::PriceQueryParams, prepare::Transactions},
+            error::UiFieldsError,
+            l1_data_fee::get_l1_data_fee,
+            pulse::pulse,
+            ui_fields::{self, Route},
         },
         erc20::ERC20,
         provider_pool::ProviderPool,
@@ -93,11 +96,13 @@ impl Client {
         }
     }
 
+    /// accounts - List of other CAIP-10 accounts that the wallet has signing ability for
     pub async fn prepare(
         &self,
         chain_id: String,
         from: Address,
         call: Call,
+        accounts: Vec<String>,
     ) -> Result<PrepareResponse, PrepareError> {
         let response = self
             .provider_pool
@@ -114,6 +119,7 @@ impl Client {
                     from,
                     calls: CallOrCalls::Call { call },
                 },
+                accounts,
             })
             .query(&RouteQueryParams {
                 project_id: self.provider_pool.project_id.clone(),
@@ -169,8 +175,14 @@ impl Client {
         let chains = prepare_response
             .transactions
             .iter()
-            .chain(std::iter::once(&prepare_response.initial_transaction))
-            .map(|t| t.chain_id.clone())
+            .flat_map(|t| match t {
+                Transactions::Eip155(txns) => {
+                    txns.iter().map(|t| t.chain_id.clone())
+                }
+            })
+            .chain(std::iter::once(
+                prepare_response.initial_transaction.chain_id.clone(),
+            ))
             .collect::<HashSet<_>>();
         println!("chains: {chains:?}");
 
@@ -271,7 +283,10 @@ impl Client {
             prepare_response
                 .transactions
                 .iter()
-                .map(|txn| l1_data_fee(txn.clone(), self)),
+                .flat_map(|t| match t {
+                    Transactions::Eip155(txns) => txns.iter().cloned(),
+                })
+                .map(|txn| l1_data_fee(txn, self)),
         );
         let initial_l1_data_fee_future =
             l1_data_fee(prepare_response.initial_transaction.clone(), self);
@@ -304,9 +319,11 @@ impl Client {
         let mut estimated_transactions =
             Vec::with_capacity(prepare_response.transactions.len());
         for (txn, l1_data_fee) in prepare_response
-            .clone()
             .transactions
-            .into_iter()
+            .iter()
+            .flat_map(|t| match t {
+                Transactions::Eip155(txns) => txns.iter().cloned(),
+            })
             .zip(route_l1_data_fees.into_iter())
         {
             estimated_transactions.push(estimate_gas_fees(
@@ -335,12 +352,13 @@ impl Client {
         chain_id: String,
         from: Address,
         call: Call,
+        accounts: Vec<String>,
         local_currency: Currency,
         // TODO use this to e.g. modify priority fee
         // _speed: String,
     ) -> Result<PrepareDetailedResponse, PrepareDetailedError> {
         let response = self
-            .prepare(chain_id, from, call)
+            .prepare(chain_id, from, call, accounts)
             .await
             .map_err(PrepareDetailedError::Prepare)?;
         match response {
@@ -472,7 +490,7 @@ impl Client {
     pub async fn execute(
         &self,
         ui_fields: UiFields,
-        route_txn_sigs: Vec<PrimitiveSignature>,
+        route_txn_sigs: Vec<RouteSig>,
         initial_txn_sig: PrimitiveSignature,
     ) -> Result<ExecuteDetails, ExecuteError> {
         assert_eq!(
@@ -481,14 +499,24 @@ impl Client {
             "route_txn_sigs length must match route length"
         );
 
-        for (index, (txn, sig)) in
+        for (route_index, (route, route_sig)) in
             ui_fields.route.iter().zip(route_txn_sigs.iter()).enumerate()
         {
-            let address = sig
-                .recover_address_from_prehash(&txn.transaction_hash_to_sign)
-                .unwrap();
-            let expected_address = txn.transaction.from;
-            assert_eq!(address, expected_address, "invalid route signature at index {index}. Expected recovered address to be {expected_address} but got {address} instead");
+            match (route, route_sig) {
+                (Route::Eip155(route), RouteSig::Eip155(route_sig)) => {
+                    for (index, (txn, sig)) in
+                        route.iter().zip(route_sig.iter()).enumerate()
+                    {
+                        let address = sig
+                            .recover_address_from_prehash(
+                                &txn.transaction_hash_to_sign,
+                            )
+                            .unwrap();
+                        let expected_address = txn.transaction.from;
+                        assert_eq!(address, expected_address, "invalid route signature at index {route_index}:eip155:{index}. Expected recovered address to be {expected_address} but got {address} instead");
+                    }
+                }
+            }
         }
 
         {
@@ -528,7 +556,7 @@ impl Client {
     async fn execute_inner(
         &self,
         ui_fields: UiFields,
-        route_txn_sigs: Vec<PrimitiveSignature>,
+        route_txn_sigs: Vec<RouteSig>,
         initial_txn_sig: PrimitiveSignature,
     ) -> Result<
         (ExecuteDetails, ExecuteAnalytics),
@@ -541,37 +569,49 @@ impl Client {
 
         let route_start = start;
         let mut route = Vec::with_capacity(ui_fields.route.len());
+        // TODO run in parallel
         for (txn, sig) in
             ui_fields.route.into_iter().zip(route_txn_sigs.into_iter())
         {
-            let result =
-                send_transaction(txn.transaction, sig, &self.provider_pool)
-                    .await;
-            match result {
-                Ok((_receipt, analytics)) => {
-                    route.push(analytics); // TODO refactor to avoid non-dry `route.push(analytics)` as it risks us forgettting it
-                }
-                Err((e, analytics)) => {
-                    route.push(analytics);
-                    let route_latency = route_start.elapsed();
-                    let latency = start.elapsed();
-                    return Err((
-                        ExecuteError::WithOrchestrationId {
-                            orchestration_id: orchestration_id.clone(),
-                            reason: ExecuteErrorReason::Route(e),
-                        },
-                        ExecuteAnalytics {
-                            orchestration_id: orchestration_id.clone(),
-                            error: None,
-                            start: start_time,
-                            route_latency,
-                            route,
-                            status_latency: None,
-                            initial_txn: None,
-                            latency,
-                            end: SystemTime::now(),
-                        },
-                    ));
+            match (txn, sig) {
+                (Route::Eip155(txn), RouteSig::Eip155(sig)) => {
+                    for (txn, sig) in txn.into_iter().zip(sig.into_iter()) {
+                        let result = send_transaction(
+                            txn.transaction,
+                            sig,
+                            &self.provider_pool,
+                        )
+                        .await;
+                        match result {
+                            Ok((_receipt, analytics)) => {
+                                route.push(analytics); // TODO refactor to avoid non-dry `route.push(analytics)` as it risks us forgettting it
+                            }
+                            Err((e, analytics)) => {
+                                route.push(analytics);
+                                let route_latency = route_start.elapsed();
+                                let latency = start.elapsed();
+                                return Err((
+                                    ExecuteError::WithOrchestrationId {
+                                        orchestration_id: orchestration_id
+                                            .clone(),
+                                        reason: ExecuteErrorReason::Route(e),
+                                    },
+                                    ExecuteAnalytics {
+                                        orchestration_id: orchestration_id
+                                            .clone(),
+                                        error: None,
+                                        start: start_time,
+                                        route_latency,
+                                        route,
+                                        status_latency: None,
+                                        initial_txn: None,
+                                        latency,
+                                        end: SystemTime::now(),
+                                    },
+                                ));
+                            }
+                        }
+                    }
                 }
             }
         }
