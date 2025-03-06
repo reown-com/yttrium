@@ -1,14 +1,16 @@
 import 'dart:io';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
-// import 'package:yttrium_dart/generated/chain_abstraction/api/status.dart';
 import 'package:yttrium_dart/generated/chain_abstraction/currency.dart';
 import 'package:yttrium_dart/generated/chain_abstraction/dart_compat.dart';
 import 'package:yttrium_dart/generated/chain_abstraction/dart_compat_models.dart';
 import 'package:yttrium_dart/generated/frb_generated.dart' as frb;
 
 abstract class IYttriumClient extends ChainAbstractionClient {
-  Future<void> init({required String projectId});
+  Future<void> init({
+    required String projectId,
+    required PulseMetadataCompat pulseMetadata,
+  });
 }
 
 class YttriumDart implements IYttriumClient {
@@ -24,7 +26,10 @@ class YttriumDart implements IYttriumClient {
   late final ChainAbstractionClient _chainAbstractionClient;
 
   @override
-  Future<void> init({required String projectId}) async {
+  Future<void> init({
+    required String projectId,
+    required PulseMetadataCompat pulseMetadata,
+  }) async {
     try {
       // Locate the native library file
       final yttrium = Platform.isAndroid
@@ -37,13 +42,7 @@ class YttriumDart implements IYttriumClient {
       // Create ChainAbstractionClient instance
       _chainAbstractionClient = await ChainAbstractionClient.newInstance(
         projectId: projectId,
-        pulseMetadata: PulseMetadataCompat(
-          url: 'https://appkit-lab.reown.com/flutter_appkit',
-          bundleId: 'com.walletconnect.flutterdapp.internal',
-          packageName: 'com.walletconnect.flutterdapp.internal',
-          sdkVersion: '1.0.0',
-          sdkPlatform: Platform.operatingSystem,
-        ),
+        pulseMetadata: pulseMetadata,
       );
     } catch (e) {
       rethrow;

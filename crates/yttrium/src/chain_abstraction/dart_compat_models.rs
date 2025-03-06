@@ -26,7 +26,6 @@ use {
         rpc::types::TransactionReceipt,
     },
     flutter_rust_bridge::frb,
-    // hex::{decode, encode},
     std::str::FromStr,
 };
 

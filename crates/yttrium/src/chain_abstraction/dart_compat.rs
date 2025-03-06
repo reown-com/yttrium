@@ -5,29 +5,16 @@ use {
         PrepareDetailedResponseCompat, PrimitiveSignatureCompat,
         PulseMetadataCompat, UiFieldsCompat,
     },
-    crate::chain_abstraction::{
-        // api::status::{StatusResponse, StatusResponseCompleted},
-        client::Client,
-        currency::Currency,
-    },
-    alloy::{
-        primitives::PrimitiveSignature,
-        // signers::Signature,
-        providers::{
-            // utils::Eip1559Estimation,
-            Provider,
-        },
-    },
+    crate::chain_abstraction::{client::Client, currency::Currency},
+    alloy::{primitives::PrimitiveSignature, providers::Provider},
     relay_rpc::domain::ProjectId,
     std::str::FromStr,
-    // std::time::Duration,
 };
 
 // -----------------
 
 #[cfg(feature = "chain_abstraction_client")]
 pub struct ChainAbstractionClient {
-    // project_id: String,
     client: Client,
 }
 

@@ -91,35 +91,55 @@ Future<void> _setupFiles({
     final request = await HttpClient().getUrl(Uri.parse(downloadUrl));
     final response = await request.close();
 
-    if (response.statusCode == 200) {
-      await response.pipe(File(zipFile).openWrite());
-    } else {
+    if (response.statusCode != 200) {
       throw Exception(
         'Failed to download file. Status code: ${response.statusCode}',
       );
     }
 
-    // Step 2: Unzip the file using system command
-    final args = platform == _Environment.ios
-        ? [
-            '-o',
-            '-j',
-            zipFile,
-            isSimulator
-                ? 'universal/libyttrium_universal_sim.dylib'
-                : 'universal/libyttrium_universal.dylib',
-            '-d',
-            targetDir,
-          ]
-        : ['-o', zipFile, '-d', targetDir];
+    await response.pipe(File(zipFile).openWrite());
+
+    // Step 2: Unzip the required file
+    late final List<String> args;
+    late final String extractedFile;
+    late final String finalFile;
+
+    if (platform == _Environment.ios) {
+      // Determine which file to extract based on isSimulator flag
+      final extractedFileName = isSimulator
+          ? 'universal/libyttrium_universal_sim.dylib'
+          : 'universal/libyttrium_universal.dylib';
+
+      extractedFile = '$targetDir/${extractedFileName.split('/').last}';
+      finalFile = '$targetDir/libyttrium_universal.dylib';
+
+      args = ['-o', '-j', zipFile, extractedFileName, '-d', targetDir];
+    } else {
+      // Extract the full archive
+      args = ['-o', zipFile, '-d', targetDir];
+    }
+
     final result = await Process.run('unzip', args);
+
     if (result.exitCode != 0) {
       print('❌ $platform error: ${result.stderr}');
+      return;
+    }
+
+    // Step 3: Rename the extracted file if needed (only for iOS)
+    if (platform == _Environment.ios) {
+      final file = File(extractedFile);
+      if (await file.exists()) {
+        await file.rename(finalFile);
+        print('✅ Renamed $extractedFile → $finalFile');
+      } else {
+        print('❌ File not found for renaming: $extractedFile');
+      }
     }
   } catch (e) {
     print('❌ $platform error: $e');
   } finally {
-    // Cleanup temporary file
+    // Cleanup temporary ZIP file
     File(zipFile).deleteSync();
     print('Cleaning up unneeded files...');
   }
