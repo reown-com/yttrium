@@ -47,11 +47,19 @@ pub struct PrimitiveSignatureCompat {
 impl From<PrimitiveSignatureCompat> for PrimitiveSignature {
     fn from(compat: PrimitiveSignatureCompat) -> Self {
         type U256 = alloy::primitives::U256;
-        PrimitiveSignature::new(
-            U256::from_str(&compat.r).unwrap(),
-            U256::from_str(&compat.s).unwrap(),
-            compat.y_parity,
-        )
+
+        fn parse_u256(value: &str) -> U256 {
+            if value.starts_with("0x") {
+                U256::from_str_radix(&value[2..], 16).unwrap()
+            } else {
+                U256::from_str_radix(&value, 16).unwrap()
+            }
+        }
+
+        let r = parse_u256(&compat.r);
+        let s = parse_u256(&compat.s);
+
+        PrimitiveSignature::new(r, s, compat.y_parity)
     }
 }
 
@@ -108,12 +116,12 @@ impl From<CallCompat> for Call {
     fn from(compat: CallCompat) -> Self {
         type Address = alloy::primitives::Address;
         type U256 = alloy::primitives::U256;
-        type Bytes = alloy::primitives::Bytes;
 
         let to = Address::from_str(&compat.to).unwrap();
         let value = U256::from(compat.value);
         // Convert hex string back to Bytes
-        let input = Bytes::from(hex::decode(&compat.input[2..]).unwrap()); // Skip "0x" prefix
+        // let input = Bytes::from(hex::decode(&compat.input[2..]).unwrap()); // Skip "0x" prefix
+        let input = parse_input(&compat.input);
 
         Call { to, value, input }
     }
@@ -486,14 +494,14 @@ impl From<FeeEstimatedTransactionCompat> for FeeEstimatedTransaction {
         type U256 = alloy::primitives::U256;
         type U64 = alloy::primitives::U64;
         type U128 = alloy::primitives::U128;
-        type Bytes = alloy::primitives::Bytes;
+
         Self {
             chain_id: compat.chain_id,
             from: Address::from_str(&compat.from).unwrap(),
             to: Address::from_str(&compat.to).unwrap(),
             value: U256::from_str(&compat.value).unwrap(),
             // Convert hex string back to Bytes
-            input: Bytes::from(hex::decode(&compat.input[2..]).unwrap()), // Skip "0x" prefix
+            input: parse_input(&compat.input),
             gas_limit: U64::from_str(&compat.gas_limit).unwrap(),
             nonce: U64::from_str(&compat.nonce).unwrap(),
             max_fee_per_gas: U128::from_str(&compat.max_fee_per_gas).unwrap(),
@@ -921,14 +929,13 @@ impl From<TransactionCompat> for Transaction {
         type Address = alloy::primitives::Address;
         type U256 = alloy::primitives::U256;
         type U64 = alloy::primitives::U64;
-        type Bytes = alloy::primitives::Bytes;
 
         let chain_id = compat.chain_id;
         let from = Address::from_str(&compat.from).unwrap();
         let to = Address::from_str(&compat.to).unwrap();
         let value = U256::from_str(&compat.value).unwrap();
         // Convert hex string back to Bytes
-        let input = Bytes::from(hex::decode(&compat.input[2..]).unwrap()); // Skip "0x" prefix
+        let input = parse_input(&compat.input);
         let gas_limit = U64::from(compat.gas_limit);
         let nonce = U64::from(compat.nonce);
 
@@ -1026,5 +1033,14 @@ impl PrepareResponseSuccessCompat {
             Self::Available { value } => Some(value),
             Self::NotRequired { .. } => None,
         }
+    }
+}
+
+// Function to detect and parse hex or decimal
+fn parse_input(value: &str) -> alloy::primitives::Bytes {
+    if value.starts_with("0x") {
+        alloy::primitives::Bytes::from(hex::decode(&value[2..]).unwrap())
+    } else {
+        alloy::primitives::Bytes::from(hex::decode(&value).unwrap())
     }
 }
