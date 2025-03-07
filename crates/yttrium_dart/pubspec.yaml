@@ -8,6 +8,7 @@ environment:
   sdk: ">=3.0.0 <4.0.0"
 
 dependencies:
+  eth_sig_util: ^0.0.9
   flutter:
     sdk: flutter
   flutter_rust_bridge: 2.8.0
