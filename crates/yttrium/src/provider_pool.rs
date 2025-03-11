@@ -91,10 +91,17 @@ impl ProviderPool {
     pub async fn get_wallet_provider(
         &self,
         tracing: Option<std::sync::mpsc::Sender<RpcRequestAnalytics>>,
+        blockchain_api_base_url_override: Option<&Url>,
     ) -> WalletProvider {
         WalletProvider {
             client: self
-                .get_rpc_client(tracing, WALLET_ENDPOINT_PATH, vec![], None)
+                .get_rpc_client(
+                    tracing,
+                    WALLET_ENDPOINT_PATH,
+                    vec![],
+                    None,
+                    blockchain_api_base_url_override,
+                )
                 .await,
         }
     }
@@ -122,6 +129,7 @@ impl ProviderPool {
                     path,
                     additional_query_params,
                     url_override,
+                    None,
                 )
                 .await
                 .with_poll_interval(polling_interval_for_chain_id(chain_id))
@@ -142,13 +150,24 @@ impl ProviderPool {
         path: &str,
         additional_query_params: impl IntoIterator<Item = (&str, &str)>,
         url_override: Option<Url>,
+        blockchain_api_base_url_override: Option<&Url>,
     ) -> RpcClient {
         let url = if let Some(rpc_override) = url_override {
             rpc_override
         } else {
             // TODO use universal version: https://linear.app/reown/issue/RES-142/universal-provider-router
             // TODO i.e. checking if chain is supported ahead of time? - but if we support "all" chains then maybe this is a moot point
-            let mut url = self.blockchain_api_base_url.join(path).unwrap();
+
+            let blockchain_api_base_url =
+                if let Some(blockchain_api_base_url_override) =
+                    blockchain_api_base_url_override
+                {
+                    blockchain_api_base_url_override
+                } else {
+                    &self.blockchain_api_base_url
+                };
+
+            let mut url = blockchain_api_base_url.join(path).unwrap();
             url.query_pairs_mut()
                 .append_pair("projectId", self.project_id.as_ref())
                 .append_pair("sessionId", self.session_id.to_string().as_str())

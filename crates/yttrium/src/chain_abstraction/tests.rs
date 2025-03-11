@@ -1,4 +1,5 @@
 use {
+    super::solana::{self, usdc_mint, SOLANA_CHAIN_ID},
     crate::{
         blockchain_api::BLOCKCHAIN_API_URL_PROD,
         call::Call,
@@ -17,7 +18,7 @@ use {
             l1_data_fee::get_l1_data_fee,
             pulse::PulseMetadata,
             test_helpers::floats_close,
-            ui_fields::{Route, RouteSig, TransactionFee, TxnDetails},
+            ui_fields::{RouteSig, TransactionFee, TxnDetails},
         },
         erc20::{Token, ERC20},
         provider_pool::ProviderPool,
@@ -43,7 +44,7 @@ use {
     ERC20::ERC20Instance,
 };
 
-fn get_pulse_metadata() -> PulseMetadata {
+pub fn get_pulse_metadata() -> PulseMetadata {
     PulseMetadata {
         url: None,
         bundle_id: Some("com.reown.yttrium.tests".to_owned()),
@@ -52,11 +53,11 @@ fn get_pulse_metadata() -> PulseMetadata {
     }
 }
 
-const USDC_CONTRACT_OPTIMISM: Address =
+pub const USDC_CONTRACT_OPTIMISM: Address =
     address!("0b2c639c533813f4aa9d7837caf62653d097ff85");
-const USDC_CONTRACT_BASE: Address =
+pub const USDC_CONTRACT_BASE: Address =
     address!("833589fCD6eDb6E08f4c7C32D4f71b54bdA02913");
-const USDC_CONTRACT_ARBITRUM: Address =
+pub const USDC_CONTRACT_ARBITRUM: Address =
     address!("af88d065e77c8cC2239327C5EDb3A432268e5831");
 
 const TOPOFF: f64 = 1.55; // 50% in the server
@@ -66,14 +67,14 @@ const TOPOFF: f64 = 1.55; // 50% in the server
 pub const BRIDGING_AMOUNT_MULTIPLIER: i8 = 55; // 50% in the server
 
 #[derive(Debug, Clone, PartialEq, Eq, Copy)]
-enum Chain {
+pub enum Chain {
     Base,
     Optimism,
     Arbitrum,
 }
 
 impl Chain {
-    fn eip155_chain_id(&self) -> &'static str {
+    pub fn eip155_chain_id(&self) -> &'static str {
         match self {
             Chain::Base => CHAIN_ID_BASE,
             Chain::Optimism => CHAIN_ID_OPTIMISM,
@@ -82,11 +83,11 @@ impl Chain {
     }
 
     #[allow(unused)]
-    fn chain_id(&self) -> &'static str {
+    pub fn chain_id(&self) -> &'static str {
         self.eip155_chain_id().strip_prefix("eip155:").unwrap()
     }
 
-    fn token_address(&self, token: &Token) -> Address {
+    pub fn token_address(&self, token: &Token) -> Address {
         match self {
             Chain::Base => match token {
                 Token::Usdc => USDC_CONTRACT_BASE,
@@ -100,13 +101,50 @@ impl Chain {
         }
     }
 
-    fn from_eip155_chain_id(chain_id: &str) -> Chain {
+    pub fn from_eip155_chain_id(chain_id: &str) -> Chain {
         match chain_id {
             CHAIN_ID_BASE => Chain::Base,
             CHAIN_ID_OPTIMISM => Chain::Optimism,
             CHAIN_ID_ARBITRUM => Chain::Arbitrum,
             _ => unimplemented!(),
         }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Copy)]
+pub enum SolanaChain {
+    Mainnet,
+}
+
+impl SolanaChain {
+    pub fn eip155_chain_id(&self) -> &'static str {
+        match self {
+            SolanaChain::Mainnet => SOLANA_CHAIN_ID,
+        }
+    }
+
+    #[allow(unused)]
+    pub fn chain_id(&self) -> &'static str {
+        self.eip155_chain_id().strip_prefix("solana:").unwrap()
+    }
+
+    pub fn token_address(&self, token: &Token) -> solana_sdk::pubkey::Pubkey {
+        match self {
+            SolanaChain::Mainnet => match token {
+                Token::Usdc => usdc_mint(),
+            },
+        }
+    }
+
+    pub fn from_eip155_chain_id(chain_id: &str) -> SolanaChain {
+        match chain_id {
+            SOLANA_CHAIN_ID => SolanaChain::Mainnet,
+            _ => unimplemented!(),
+        }
+    }
+
+    pub fn get_caip10(&self, account_address: solana::SolanaPubkey) -> String {
+        format!("{}:{}", self.eip155_chain_id(), account_address)
     }
 }
 
@@ -376,8 +414,8 @@ async fn bridging_routes_routes_available() {
         to: *chain_2_address_1_token.token.address(),
         value: U256::ZERO,
         input: ERC20::transferCall {
-            to: destination.address(),
-            amount: send_amount,
+            _to: destination.address(),
+            _value: send_amount,
         }
         .abi_encode()
         .into(),
@@ -428,7 +466,7 @@ async fn bridging_routes_routes_available() {
     println!("checking ui_fields.initial.2.local_fee");
     sanity_check_fee(&ui_fields.initial.fee.local_fee);
     for TxnDetails { fee: TransactionFee { local_fee: fee, .. }, .. } in
-        ui_fields.route[0].as_eip155()
+        ui_fields.route[0].as_eip155().unwrap()
     {
         println!("checking ui_fields.route[*].2.local_fee");
         sanity_check_fee(fee);
@@ -452,13 +490,13 @@ async fn bridging_routes_routes_available() {
                     .iter()
                     .map(|f| f.local_fee.as_float_inaccurate()),
             )
-            .chain(ui_fields.route.iter().flat_map(|route| match route {
-                Route::Eip155(route) => route.iter().map(
+            .chain(ui_fields.route.iter().flat_map(|route| {
+                route.as_eip155().unwrap().iter().map(
                     |TxnDetails {
                          fee: TransactionFee { local_fee, .. },
                          ..
                      }| { local_fee.as_float_inaccurate() },
-                ),
+                )
             }))
             .sum::<f64>();
     println!("total_fee: {total_fee}");
@@ -644,8 +682,8 @@ async fn happy_path() {
                 .with_to(*chain_1_address_2_token.token.address())
                 .with_input(
                     ERC20::transferCall {
-                        to: chain_1_address_1_token.params.account_address,
-                        amount: via1,
+                        _to: chain_1_address_1_token.params.account_address,
+                        _value: via1,
                     }
                     .abi_encode(),
                 ),
@@ -664,8 +702,8 @@ async fn happy_path() {
                 .with_to(*chain_2_address_1_token.token.address())
                 .with_input(
                     ERC20::transferCall {
-                        to: chain_2_address_2_token.params.account_address,
-                        amount: via2,
+                        _to: chain_2_address_2_token.params.account_address,
+                        _value: via2,
                     }
                     .abi_encode(),
                 ),
@@ -745,8 +783,8 @@ async fn happy_path() {
         to: *source.other().bridge_token(&sources).token.address(),
         value: U256::ZERO,
         input: ERC20::transferCall {
-            to: source.other().address(&sources),
-            amount: send_amount,
+            _to: source.other().address(&sources),
+            _value: send_amount,
         }
         .abi_encode()
         .into(),
@@ -813,8 +851,9 @@ async fn happy_path() {
         .next()
         .unwrap()
         .into_eip155()
+        .unwrap()
         .into_iter()
-        .zip(ui_fields.route.into_iter().next().unwrap().into_eip155())
+        .zip(ui_fields.route.into_iter().next().unwrap().into_eip155().unwrap())
         .chain(
             std::iter::once(result.initial_transaction)
                 .zip(std::iter::once(ui_fields.initial)),
@@ -1251,8 +1290,8 @@ async fn happy_path_full_dependency_on_ui_fields() {
                 .with_to(*chain_1_address_2_token.token.address())
                 .with_input(
                     ERC20::transferCall {
-                        to: chain_1_address_1_token.params.account_address,
-                        amount: via1,
+                        _to: chain_1_address_1_token.params.account_address,
+                        _value: via1,
                     }
                     .abi_encode(),
                 ),
@@ -1271,8 +1310,8 @@ async fn happy_path_full_dependency_on_ui_fields() {
                 .with_to(*chain_2_address_1_token.token.address())
                 .with_input(
                     ERC20::transferCall {
-                        to: chain_2_address_2_token.params.account_address,
-                        amount: via2,
+                        _to: chain_2_address_2_token.params.account_address,
+                        _value: via2,
                     }
                     .abi_encode(),
                 ),
@@ -1352,8 +1391,8 @@ async fn happy_path_full_dependency_on_ui_fields() {
         to: *source.other().bridge_token(&sources).token.address(),
         value: U256::ZERO,
         input: ERC20::transferCall {
-            to: source.other().address(&sources),
-            amount: send_amount,
+            _to: source.other().address(&sources),
+            _value: send_amount,
         }
         .abi_encode()
         .into(),
@@ -1461,7 +1500,7 @@ async fn happy_path_full_dependency_on_ui_fields() {
 
     assert_eq!(ui_fields.route.len(), 1);
     let ui_fields_route =
-        ui_fields.route.into_iter().next().unwrap().into_eip155();
+        ui_fields.route.into_iter().next().unwrap().into_eip155().unwrap();
 
     // Provide gas for transactions
     let mut prepared_faucet_txns = HashMap::new();
@@ -1833,7 +1872,7 @@ async fn happy_path_execute_method() {
 
     let assets = client
         .provider_pool
-        .get_wallet_provider(None)
+        .get_wallet_provider(None, None)
         .await
         .wallet_get_assets(GetAssetsParams {
             account: chain_1_address_1_token.params.account_address,
@@ -1875,7 +1914,7 @@ async fn happy_path_execute_method() {
 
     let assets = client
         .provider_pool
-        .get_wallet_provider(None)
+        .get_wallet_provider(None, None)
         .await
         .wallet_get_assets(GetAssetsParams {
             account: chain_1_address_2_token.params.account_address,
@@ -1928,8 +1967,8 @@ async fn happy_path_execute_method() {
                 .with_to(*chain_1_address_2_token.token.address())
                 .with_input(
                     ERC20::transferCall {
-                        to: chain_1_address_1_token.params.account_address,
-                        amount: via1,
+                        _to: chain_1_address_1_token.params.account_address,
+                        _value: via1,
                     }
                     .abi_encode(),
                 ),
@@ -1948,8 +1987,8 @@ async fn happy_path_execute_method() {
                 .with_to(*chain_2_address_1_token.token.address())
                 .with_input(
                     ERC20::transferCall {
-                        to: chain_2_address_2_token.params.account_address,
-                        amount: via2,
+                        _to: chain_2_address_2_token.params.account_address,
+                        _value: via2,
                     }
                     .abi_encode(),
                 ),
@@ -2029,8 +2068,8 @@ async fn happy_path_execute_method() {
         to: *source.other().bridge_token(&sources).token.address(),
         value: U256::ZERO,
         input: ERC20::transferCall {
-            to: source.other().address(&sources),
-            amount: send_amount,
+            _to: source.other().address(&sources),
+            _value: send_amount,
         }
         .abi_encode()
         .into(),
@@ -2050,7 +2089,7 @@ async fn happy_path_execute_method() {
 
     let assets = client
         .provider_pool
-        .get_wallet_provider(None)
+        .get_wallet_provider(None, None)
         .await
         .wallet_get_assets(GetAssetsParams {
             account: source.address(&sources),
@@ -2207,7 +2246,7 @@ async fn happy_path_execute_method() {
         )
     );
 
-    let result_route = result.route.first().unwrap().as_eip155();
+    let result_route = result.route.first().unwrap().as_eip155().unwrap();
 
     // Provide gas for transactions
     let mut prepared_faucet_txns = HashMap::new();
@@ -2383,8 +2422,8 @@ async fn bridging_routes_routes_insufficient_funds() {
         to: *chain_1_address_2_token.token.address(),
         value: U256::ZERO,
         input: ERC20::transferCall {
-            to: account_2.address(),
-            amount: send_amount,
+            _to: account_2.address(),
+            _value: send_amount,
         }
         .abi_encode()
         .into(),

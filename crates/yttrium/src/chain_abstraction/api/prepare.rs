@@ -7,6 +7,7 @@ use {
     core::fmt,
     relay_rpc::domain::ProjectId,
     serde::{Deserialize, Serialize},
+    solana_sdk::transaction::VersionedTransaction,
 };
 
 pub const ROUTE_ENDPOINT_PATH: &str = "/v2/ca/orchestrator/route";
@@ -76,6 +77,24 @@ impl fmt::Display for Eip155OrSolanaAddress {
             Self::Eip155(address) => address.fmt(f),
             #[cfg(feature = "solana")]
             Self::Solana(address) => address.fmt(f),
+        }
+    }
+}
+
+impl Eip155OrSolanaAddress {
+    pub fn as_solana(
+        &self,
+    ) -> Option<&crate::chain_abstraction::solana::SolanaPubkey> {
+        match self {
+            Self::Solana(address) => Some(address),
+            Self::Eip155(_) => None,
+        }
+    }
+
+    pub fn as_eip155(&self) -> Option<&Address> {
+        match self {
+            Self::Eip155(address) => Some(address),
+            Self::Solana(_) => None,
         }
     }
 }
@@ -198,22 +217,55 @@ pub struct PrepareResponseAvailable {
 pub enum Transactions {
     #[cfg(feature = "eip155")]
     Eip155(Vec<Transaction>),
+    #[cfg(feature = "solana")]
+    Solana(Vec<SolanaTransaction>),
 }
 
 impl Transactions {
     #[cfg(feature = "eip155")]
-    pub fn into_eip155(self) -> Vec<Transaction> {
+    pub fn into_eip155(self) -> Option<Vec<Transaction>> {
         match self {
-            Self::Eip155(txns) => txns,
+            Self::Eip155(txns) => Some(txns),
+            Self::Solana(_) => None,
         }
     }
 
     #[cfg(feature = "eip155")]
-    pub fn as_eip155(&self) -> &Vec<Transaction> {
+    pub fn as_eip155(&self) -> Option<&Vec<Transaction>> {
         match self {
-            Self::Eip155(txns) => txns,
+            Self::Eip155(txns) => Some(txns),
+            Self::Solana(_) => None,
         }
     }
+
+    #[cfg(feature = "solana")]
+    pub fn into_solana(self) -> Option<Vec<SolanaTransaction>> {
+        match self {
+            Self::Solana(txns) => Some(txns),
+            Self::Eip155(_) => None,
+        }
+    }
+
+    #[cfg(feature = "solana")]
+    pub fn as_solana(&self) -> Option<&Vec<SolanaTransaction>> {
+        match self {
+            Self::Solana(txns) => Some(txns),
+            Self::Eip155(_) => None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
+#[cfg_attr(
+    feature = "wasm",
+    derive(tsify_next::Tsify),
+    tsify(into_wasm_abi, from_wasm_abi)
+)]
+#[serde(rename_all = "camelCase")]
+pub struct SolanaTransaction {
+    pub chain_id: String,
+    pub transaction: VersionedTransaction,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

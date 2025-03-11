@@ -24,6 +24,7 @@ use {
         },
         pulse::{PulseMetadata, PULSE_SDK_TYPE},
         send_transaction::{send_transaction, TransactionAnalytics},
+        solana,
         ui_fields::{RouteSig, UiFields},
     },
     crate::{
@@ -50,6 +51,7 @@ use {
     relay_rpc::domain::ProjectId,
     reqwest::Client as ReqwestClient,
     serde::{Deserialize, Serialize},
+    solana_sdk::transaction::VersionedTransaction,
     std::collections::{HashMap, HashSet},
     url::Url,
 };
@@ -177,7 +179,10 @@ impl Client {
             .iter()
             .flat_map(|t| match t {
                 Transactions::Eip155(txns) => {
-                    txns.iter().map(|t| t.chain_id.clone())
+                    txns.iter().map(|t| t.chain_id.clone()).collect::<Vec<_>>()
+                }
+                Transactions::Solana(txns) => {
+                    txns.iter().map(|t| t.chain_id.clone()).collect::<Vec<_>>()
                 }
             })
             .chain(std::iter::once(
@@ -284,7 +289,8 @@ impl Client {
                 .transactions
                 .iter()
                 .flat_map(|t| match t {
-                    Transactions::Eip155(txns) => txns.iter().cloned(),
+                    Transactions::Eip155(txns) => txns.clone(),
+                    Transactions::Solana(_txns) => Vec::new(),
                 })
                 .map(|txn| l1_data_fee(txn, self)),
         );
@@ -322,7 +328,8 @@ impl Client {
             .transactions
             .iter()
             .flat_map(|t| match t {
-                Transactions::Eip155(txns) => txns.iter().cloned(),
+                Transactions::Eip155(txns) => txns.clone(),
+                Transactions::Solana(_txns) => Vec::new(),
             })
             .zip(route_l1_data_fees.into_iter())
         {
@@ -516,6 +523,18 @@ impl Client {
                         assert_eq!(address, expected_address, "invalid route signature at index {route_index}:eip155:{index}. Expected recovered address to be {expected_address} but got {address} instead");
                     }
                 }
+                (Route::Solana(route), RouteSig::Solana(route_sig)) => {
+                    for (index, (txn, sig)) in
+                        route.iter().zip(route_sig.iter()).enumerate()
+                    {
+                        assert!(
+                            sig.verify(txn.from.as_array(), txn.transaction_hash_to_sign.as_ref()),
+                            "invalid route signature at index {route_index}:solana:{index}. Signature is invalid");
+                    }
+                }
+                _ => {
+                    panic!("mis-matched route signature type for route transaction type at index {route_index}");
+                }
             }
         }
 
@@ -570,8 +589,11 @@ impl Client {
         let route_start = start;
         let mut route = Vec::with_capacity(ui_fields.route.len());
         // TODO run in parallel
-        for (txn, sig) in
-            ui_fields.route.into_iter().zip(route_txn_sigs.into_iter())
+        for (route_index, (txn, sig)) in ui_fields
+            .route
+            .into_iter()
+            .zip(route_txn_sigs.into_iter())
+            .enumerate()
         {
             match (txn, sig) {
                 (Route::Eip155(txn), RouteSig::Eip155(sig)) => {
@@ -612,6 +634,37 @@ impl Client {
                             }
                         }
                     }
+                }
+                (Route::Solana(txn), RouteSig::Solana(sig)) => {
+                    let sol_rpc = "https://api.mainnet-beta.solana.com";
+                    let solana_rpc_client =
+                        solana::SolanaRpcClient::new_with_commitment(
+                            sol_rpc.to_string(),
+                            solana::SolanaCommitmentConfig::confirmed(), // TODO what commitment level should we use?
+                        );
+
+                    for (txn, sig) in txn.into_iter().zip(sig.into_iter()) {
+                        let transaction = VersionedTransaction {
+                            signatures: vec![sig],
+                            message: txn.transaction.message,
+                        };
+
+                        match solana_rpc_client
+                            .send_and_confirm_transaction(&transaction)
+                            .await
+                        {
+                            Ok(signature) => println!(
+                                "Transfer successful! Signature: {}",
+                                signature
+                            ),
+                            Err(e) => {
+                                panic!("Error sending transaction: {}", e)
+                            }
+                        }
+                    }
+                }
+                _ => {
+                    panic!("mis-matched route transaction type for route signature type at index {route_index}");
                 }
             }
         }

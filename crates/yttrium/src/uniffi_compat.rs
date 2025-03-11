@@ -2,7 +2,10 @@
 use crate::chain_abstraction::{amount::Amount, api::prepare::FundingMetadata};
 use {
     crate::{
-        chain_abstraction::api::prepare::Eip155OrSolanaAddress,
+        chain_abstraction::{
+            api::prepare::Eip155OrSolanaAddress,
+            solana::{SolanaPubkey, SolanaSignature},
+        },
         smart_accounts::account_address::AccountAddress,
     },
     alloy::{
@@ -21,6 +24,7 @@ use {
     relay_rpc::domain::ProjectId,
     reqwest::{Error as ReqwestError, Url},
     serde_json::Error as SerdeJsonError,
+    solana_sdk::transaction::VersionedTransaction,
 };
 
 // TODO use https://mozilla.github.io/uniffi-rs/next/udl/remote_ext_types.html#remote-types when it's available
@@ -35,6 +39,12 @@ uniffi::custom_type!(AccountAddress, Address, {
     lower: |obj| obj.into(),
 });
 
+uniffi::custom_type!(SolanaPubkey, String, {
+    remote,
+    try_lift: |val| Ok(val.parse()?),
+    lower: |obj| obj.to_string(),
+});
+
 uniffi::custom_type!(PrivateKeySigner, String, {
     remote,
     try_lift: |val| Ok(val.parse()?),
@@ -45,6 +55,12 @@ uniffi::custom_type!(PrimitiveSignature, String, {
     remote,
     try_lift: |val| Ok(val.parse()?),
     lower: |obj| format!("0x{}", hex::encode(obj.as_bytes())),
+});
+
+uniffi::custom_type!(SolanaSignature, String, {
+    remote,
+    try_lift: |val| Ok(val.parse()?),
+    lower: |obj| obj.to_string(),
 });
 
 uniffi::custom_type!(Eip712Domain, String, {
@@ -210,6 +226,12 @@ uniffi::custom_type!(Eip155OrSolanaAddress, String, {
     lower: |obj| obj.to_string(),
 });
 
+uniffi::custom_type!(VersionedTransaction, String, {
+    remote,
+    try_lift: |data| Ok(bincode::deserialize::<VersionedTransaction>(&data_encoding::BASE64.decode(data.as_bytes())?)?),
+    lower: |obj| data_encoding::BASE64.encode(&bincode::serialize(&obj).unwrap()),
+});
+
 #[cfg(test)]
 mod tests {
     use {
@@ -259,6 +281,15 @@ mod tests {
     #[test]
     fn test_bytes_lower() {
         let ffi_u64 = bytes!("aabbccdd");
+        let u = ::uniffi::FfiConverter::<crate::UniFfiTag>::lower(ffi_u64);
+        let s: String =
+            ::uniffi::FfiConverter::<crate::UniFfiTag>::try_lift(u).unwrap();
+        assert_eq!(s, format!("0xaabbccdd"));
+    }
+
+    #[test]
+    fn test_solana_signature_lower() {
+        let ffi_u64 = solana_sdk::signature::Signature::from([0xab; 64]);
         let u = ::uniffi::FfiConverter::<crate::UniFfiTag>::lower(ffi_u64);
         let s: String =
             ::uniffi::FfiConverter::<crate::UniFfiTag>::try_lift(u).unwrap();

@@ -5,15 +5,17 @@ use {
             prepare::PrepareResponseAvailable, FeeEstimatedTransaction,
             Transaction,
         },
+        solana,
     },
     crate::chain_abstraction::{
         amount::from_float,
         api::fungible_price::{FungiblePriceItem, NATIVE_TOKEN_ADDRESS},
         local_fee_acc::LocalAmountAcc,
     },
-    alloy::primitives::{PrimitiveSignature, B256, U256},
+    alloy::primitives::{Bytes, PrimitiveSignature, B256, U256},
     alloy_provider::utils::Eip1559Estimation,
     serde::{Deserialize, Serialize},
+    solana_sdk::transaction::VersionedTransaction,
     tracing::warn,
 };
 
@@ -46,20 +48,40 @@ pub struct UiFields {
 pub enum Route {
     #[cfg(feature = "eip155")]
     Eip155(Vec<TxnDetails>),
+    #[cfg(feature = "solana")]
+    Solana(Vec<SolanaTxnDetails>),
 }
 
 impl Route {
     #[cfg(feature = "eip155")]
-    pub fn into_eip155(self) -> Vec<TxnDetails> {
+    pub fn into_eip155(self) -> Option<Vec<TxnDetails>> {
         match self {
-            Self::Eip155(route) => route,
+            Self::Eip155(route) => Some(route),
+            Self::Solana(_) => None,
         }
     }
 
     #[cfg(feature = "eip155")]
-    pub fn as_eip155(&self) -> &Vec<TxnDetails> {
+    pub fn as_eip155(&self) -> Option<&Vec<TxnDetails>> {
         match self {
-            Self::Eip155(route) => route,
+            Self::Eip155(route) => Some(route),
+            Self::Solana(_) => None,
+        }
+    }
+
+    #[cfg(feature = "solana")]
+    pub fn into_solana(self) -> Option<Vec<SolanaTxnDetails>> {
+        match self {
+            Self::Solana(route) => Some(route),
+            Self::Eip155(_) => None,
+        }
+    }
+
+    #[cfg(feature = "solana")]
+    pub fn as_solana(&self) -> Option<&Vec<SolanaTxnDetails>> {
+        match self {
+            Self::Solana(route) => Some(route),
+            Self::Eip155(_) => None,
         }
     }
 }
@@ -89,6 +111,21 @@ pub struct TxnDetails {
 pub struct TransactionFee {
     pub fee: Amount,
     pub local_fee: Amount,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
+#[cfg_attr(
+    feature = "wasm",
+    derive(tsify_next::Tsify),
+    tsify(into_wasm_abi, from_wasm_abi)
+)]
+#[serde(rename_all = "camelCase")]
+pub struct SolanaTxnDetails {
+    pub from: solana::SolanaPubkey,
+    pub transaction: VersionedTransaction,
+    pub transaction_hash_to_sign: Bytes,
+    // pub fee: TransactionFee,
 }
 
 pub fn ui_fields(
@@ -269,6 +306,8 @@ pub fn ui_fields(
 pub enum RouteSig {
     #[cfg(feature = "eip155")]
     Eip155(Vec<PrimitiveSignature>),
+    #[cfg(feature = "solana")]
+    Solana(Vec<solana::SolanaSignature>),
 }
 
 #[cfg(test)]
@@ -414,28 +453,28 @@ mod tests {
         println!("fields: {fields:?}");
 
         assert_eq!(
-            fields.route[0].as_eip155()[0]
+            fields.route[0].as_eip155().unwrap()[0]
                 .transaction
                 .max_fee_per_gas
                 .to::<u128>(),
             chain_1_estimated_fees.max_fee_per_gas
         );
         assert_eq!(
-            fields.route[0].as_eip155()[0]
+            fields.route[0].as_eip155().unwrap()[0]
                 .transaction
                 .max_priority_fee_per_gas
                 .to::<u128>(),
             chain_1_estimated_fees.max_priority_fee_per_gas
         );
         assert_eq!(
-            fields.route[0].as_eip155()[1]
+            fields.route[0].as_eip155().unwrap()[1]
                 .transaction
                 .max_fee_per_gas
                 .to::<u128>(),
             chain_1_estimated_fees.max_fee_per_gas
         );
         assert_eq!(
-            fields.route[0].as_eip155()[1]
+            fields.route[0].as_eip155().unwrap()[1]
                 .transaction
                 .max_priority_fee_per_gas
                 .to::<u128>(),
@@ -459,15 +498,15 @@ mod tests {
                         .iter()
                         .map(|f| f.local_fee.as_float_inaccurate()),
                 )
-                .chain(fields.route.iter().flat_map(|route| match route {
-                    Route::Eip155(route) => route.iter().map(
+                .chain(fields.route.iter().flat_map(|route| {
+                    route.as_eip155().unwrap().iter().map(
                         |TxnDetails {
                              fee: TransactionFee { local_fee, .. },
                              ..
                          }| {
                             local_fee.as_float_inaccurate()
                         },
-                    ),
+                    )
                 }))
                 .sum::<f64>();
         println!("total_fee: {total_fee}");
