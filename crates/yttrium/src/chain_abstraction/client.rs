@@ -35,7 +35,7 @@ use {
             error::UiFieldsError,
             l1_data_fee::get_l1_data_fee,
             pulse::pulse,
-            ui_fields::{self, Route},
+            ui_fields::{self, EstimatedRouteTransaction, Route},
         },
         erc20::ERC20,
         provider_pool::ProviderPool,
@@ -193,8 +193,13 @@ impl Client {
 
         // TODO run fungible lookup, eip1559_fees, and l1 data fee, in parallel
 
+        let eip155_chains = chains
+            .iter()
+            .filter(|t| t.starts_with("eip155:"))
+            .collect::<Vec<_>>();
+
         let addresses =
-            chains
+            eip155_chains
                 .iter()
                 .map(|t| format!("{}:{}", t, NATIVE_TOKEN_ADDRESS))
                 .chain(
@@ -244,8 +249,8 @@ impl Client {
             }),
         );
 
-        let estimate_future = futures::future::try_join_all(chains.iter().map(
-            |chain_id| async move {
+        let estimate_future = futures::future::try_join_all(
+            eip155_chains.into_iter().map(|chain_id| async move {
                 self.provider_pool
                     .get_provider(chain_id)
                     .await
@@ -253,8 +258,8 @@ impl Client {
                     .await
                     .map_err(UiFieldsError::Eip1559Estimation)
                     .map(|estimate| (chain_id, estimate))
-            },
-        ));
+            }),
+        );
 
         async fn l1_data_fee(
             txn: Transaction,
@@ -324,19 +329,34 @@ impl Client {
 
         let mut estimated_transactions =
             Vec::with_capacity(prepare_response.transactions.len());
-        for (txn, l1_data_fee) in prepare_response
+        for (txns, l1_data_fee) in prepare_response
             .transactions
             .iter()
-            .flat_map(|t| match t {
-                Transactions::Eip155(txns) => txns.clone(),
-                Transactions::Solana(_txns) => Vec::new(),
+            .filter_map(|t| match t {
+                Transactions::Eip155(txns) => Some(txns.clone()),
+                Transactions::Solana(_txns) => None,
             })
             .zip(route_l1_data_fees.into_iter())
         {
-            estimated_transactions.push(estimate_gas_fees(
-                txn,
-                &eip1559_fees,
-                l1_data_fee,
+            let mut route_estimates = Vec::with_capacity(txns.len());
+            for txn in txns {
+                route_estimates.push(estimate_gas_fees(
+                    txn,
+                    &eip1559_fees,
+                    l1_data_fee,
+                ));
+            }
+            estimated_transactions
+                .push(EstimatedRouteTransaction::Eip155(route_estimates));
+        }
+        for txn in
+            prepare_response.transactions.iter().filter_map(|t| match t {
+                Transactions::Eip155(_txns) => None,
+                Transactions::Solana(txns) => Some(txns.clone()),
+            })
+        {
+            estimated_transactions.push(EstimatedRouteTransaction::Solana(
+                txn.into_iter().map(|t| (t,)).collect::<Vec<_>>(),
             ));
         }
         let estimated_initial_transaction = estimate_gas_fees(
@@ -528,7 +548,7 @@ impl Client {
                         route.iter().zip(route_sig.iter()).enumerate()
                     {
                         assert!(
-                            sig.verify(txn.from.as_array(), txn.transaction_hash_to_sign.as_ref()),
+                            sig.verify(txn.transaction.from.as_array(), txn.transaction_hash_to_sign.as_ref()),
                             "invalid route signature at index {route_index}:solana:{index}. Signature is invalid");
                     }
                 }
@@ -646,8 +666,13 @@ impl Client {
                     for (txn, sig) in txn.into_iter().zip(sig.into_iter()) {
                         let transaction = VersionedTransaction {
                             signatures: vec![sig],
-                            message: txn.transaction.message,
+                            message: txn.transaction.transaction.message,
                         };
+
+                        // let simulation = solana_rpc_client
+                        //     .simulate_transaction(&transaction)
+                        //     .await;
+                        // println!("simulation: {:?}", simulation);
 
                         match solana_rpc_client
                             .send_and_confirm_transaction(&transaction)

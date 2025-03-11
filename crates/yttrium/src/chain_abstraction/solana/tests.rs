@@ -89,14 +89,7 @@ async fn solana_happy_path() {
             ),
     );
 
-    let original_faucet_balance = usdc_erc20_faucet
-        .balanceOf(faucet.address())
-        .call()
-        .await
-        .unwrap()
-        .balance;
     let send_amount = U256::from(1_500_000); // 1.5 USDC (6 decimals)
-    let expected_faucet_balance = original_faucet_balance + send_amount;
 
     let initial_transaction = Call {
         to: chain_eth.token_address(&token),
@@ -109,6 +102,34 @@ async fn solana_happy_path() {
         .abi_encode()
         .into(),
     };
+
+    let account_sol_sol_balance =
+        client_sol.get_balance(&account_solana.pubkey()).await.unwrap();
+    let data_len = client_sol
+        .get_account(&account_solana.pubkey())
+        .await
+        .unwrap()
+        .data
+        .len();
+    println!("data_len: {}", data_len);
+    let minimum_balance_for_rent_exemption = client_sol
+        .get_minimum_balance_for_rent_exemption(data_len)
+        .await
+        .unwrap();
+    println!(
+        "minimum_balance_for_rent_exemption: {}",
+        minimum_balance_for_rent_exemption
+    );
+    let next_txn_fee = 100_000;
+    let min_balance = minimum_balance_for_rent_exemption + next_txn_fee;
+
+    if account_sol_sol_balance < min_balance {
+        println!(
+            "need additional {} lamports to fund account",
+            min_balance - account_sol_sol_balance
+        );
+        todo!()
+    }
 
     let account_sol_token_account =
         get_associated_token_address(&account_solana.pubkey(), &usdc_mint());
@@ -127,9 +148,16 @@ async fn solana_happy_path() {
                 }
             }
         };
-    if account_sol_usdc_balance_ui_amount < 2.0 {
+    let faucet_usdc_balance = usdc_erc20_faucet
+        .balanceOf(faucet.address())
+        .call()
+        .await
+        .unwrap()
+        .balance;
+    let needs_usdc = account_sol_usdc_balance_ui_amount < 2.0;
+    if needs_usdc {
         // Check if sender has enough USDC
-        if original_faucet_balance < U256::from(send_amount) {
+        if faucet_usdc_balance < U256::from(send_amount) {
             panic!("Faucet doesn't have enough USDC");
         }
 
@@ -192,7 +220,7 @@ async fn solana_happy_path() {
             .unwrap()
             .remaining;
         println!("Allowance: {}", allowance);
-        if allowance < U256::from(send_amount) {
+        if allowance < send_amount * U256::from(2) {
             assert!(usdc_erc20_faucet
                 .approve(
                     bridge_contract,
@@ -303,6 +331,42 @@ async fn solana_happy_path() {
             status: String,
         }
     }
+    let new_account_sol_sol_balance =
+        client_sol.get_balance(&account_solana.pubkey()).await.unwrap();
+    println!("new_account_sol_sol_balance: {}", new_account_sol_sol_balance);
+    assert!(new_account_sol_sol_balance >= min_balance);
+
+    let min_eth_balance = U256::from(1_000_000_000_000u64);
+    let account_eth_eth_balance = client
+        .provider_pool
+        .get_provider(chain_eth.eip155_chain_id())
+        .await
+        .get_balance(account_eth.address())
+        .await
+        .unwrap();
+    if account_eth_eth_balance < min_eth_balance {
+        assert!(ProviderBuilder::new()
+            .wallet(EthereumWallet::new(faucet.clone()))
+            .on_provider(
+                client
+                    .provider_pool
+                    .get_provider(chain_eth.eip155_chain_id())
+                    .await
+            )
+            .send_transaction(
+                TransactionRequest::default()
+                    .with_chain_id(chain_eth.chain_id().parse().unwrap())
+                    .with_from(faucet.address())
+                    .with_to(account_eth.address())
+                    .with_value(min_eth_balance),
+            )
+            .await
+            .unwrap()
+            .get_receipt()
+            .await
+            .unwrap()
+            .status());
+    }
 
     // Assert balance of EVM account USDC < $1
     // If higher, send to faucet address
@@ -312,9 +376,9 @@ async fn solana_happy_path() {
         .await
         .unwrap()
         .balance;
-    if account_eth_usdc_balance >= U256::from(1_000_000) {
+    if account_eth_usdc_balance >= send_amount.div_ceil(U256::from(2)) {
         assert!(usdc_erc20_account_eth
-            .transfer(faucet.address(), send_amount)
+            .transfer(faucet.address(), account_eth_usdc_balance)
             .send()
             .await
             .unwrap()
@@ -369,7 +433,14 @@ async fn solana_happy_path() {
         })
         .collect();
 
-    // TODO check fees to fund the EVM account with enough ETH gas (from faucet account)
+    let original_faucet_balance = usdc_erc20_faucet
+        .balanceOf(faucet.address())
+        .call()
+        .await
+        .unwrap()
+        .balance;
+    let expected_faucet_balance = original_faucet_balance + send_amount;
+
     let initial_txn_sigs = account_eth
         .sign_hash_sync(&result.initial.transaction_hash_to_sign)
         .unwrap();

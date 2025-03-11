@@ -2,10 +2,10 @@ use {
     super::{
         amount::Amount,
         api::{
-            prepare::PrepareResponseAvailable, FeeEstimatedTransaction,
-            Transaction,
+            prepare::{PrepareResponseAvailable, SolanaTransaction},
+            FeeEstimatedTransaction, Transaction,
         },
-        solana,
+        solana::{self},
     },
     crate::chain_abstraction::{
         amount::from_float,
@@ -15,7 +15,6 @@ use {
     alloy::primitives::{Bytes, PrimitiveSignature, B256, U256},
     alloy_provider::utils::Eip1559Estimation,
     serde::{Deserialize, Serialize},
-    solana_sdk::transaction::VersionedTransaction,
     tracing::warn,
 };
 
@@ -122,15 +121,19 @@ pub struct TransactionFee {
 )]
 #[serde(rename_all = "camelCase")]
 pub struct SolanaTxnDetails {
-    pub from: solana::SolanaPubkey,
-    pub transaction: VersionedTransaction,
+    pub transaction: SolanaTransaction,
     pub transaction_hash_to_sign: Bytes,
     // pub fee: TransactionFee,
 }
 
+pub enum EstimatedRouteTransaction {
+    Eip155(Vec<(Transaction, Eip1559Estimation, U256)>),
+    Solana(Vec<(SolanaTransaction,)>),
+}
+
 pub fn ui_fields(
     route_response: PrepareResponseAvailable,
-    estimated_transactions: Vec<(Transaction, Eip1559Estimation, U256)>,
+    estimated_transactions: Vec<EstimatedRouteTransaction>,
     estimated_initial_transaction: (Transaction, Eip1559Estimation, U256),
     fungibles: Vec<FungiblePriceItem>,
 ) -> UiFields {
@@ -179,38 +182,61 @@ pub fn ui_fields(
 
     let mut routes = Vec::new();
 
-    for estimated_transactions in [estimated_transactions] {
-        let mut route = Vec::with_capacity(estimated_transactions.len());
-        for item in estimated_transactions {
-            let fee = compute_amounts(
-                item.2,
-                &mut vec![&mut total_local_fee, &mut local_route_total_acc],
-                fungibles
-                    .iter()
-                    .find(|f| {
-                        f.address
-                            == format!(
-                                "{}:{}",
-                                item.0.chain_id,
-                                NATIVE_TOKEN_ADDRESS.to_checksum(None)
-                            )
-                    })
-                    .unwrap(),
-            );
-            let transaction =
-                FeeEstimatedTransaction::from_transaction_and_estimate(
-                    item.0, item.1,
-                );
-            route.push(TxnDetails {
-                transaction_hash_to_sign: transaction
-                    .clone()
-                    .into_signing_hash(),
-                transaction,
-                fee,
-            });
-        }
+    for estimated_route_transactions in estimated_transactions {
+        match estimated_route_transactions {
+            EstimatedRouteTransaction::Eip155(estimated_transactions) => {
+                let mut route =
+                    Vec::with_capacity(estimated_transactions.len());
+                for item in estimated_transactions {
+                    let fee = compute_amounts(
+                        item.2,
+                        &mut vec![
+                            &mut total_local_fee,
+                            &mut local_route_total_acc,
+                        ],
+                        fungibles
+                            .iter()
+                            .find(|f| {
+                                f.address
+                                    == format!(
+                                        "{}:{}",
+                                        item.0.chain_id,
+                                        NATIVE_TOKEN_ADDRESS.to_checksum(None)
+                                    )
+                            })
+                            .unwrap(),
+                    );
+                    let transaction =
+                        FeeEstimatedTransaction::from_transaction_and_estimate(
+                            item.0, item.1,
+                        );
+                    route.push(TxnDetails {
+                        transaction_hash_to_sign: transaction
+                            .clone()
+                            .into_signing_hash(),
+                        transaction,
+                        fee,
+                    });
+                }
 
-        routes.push(Route::Eip155(route));
+                routes.push(Route::Eip155(route));
+            }
+            EstimatedRouteTransaction::Solana(estimated_transactions) => {
+                let mut route =
+                    Vec::with_capacity(estimated_transactions.len());
+                for (estimated_transaction,) in estimated_transactions {
+                    route.push(SolanaTxnDetails {
+                        transaction_hash_to_sign: estimated_transaction
+                            .transaction
+                            .message
+                            .serialize()
+                            .into(),
+                        transaction: estimated_transaction,
+                    });
+                }
+                routes.push(Route::Solana(route));
+            }
+        }
     }
 
     let initial_fee = compute_amounts(
@@ -398,7 +424,7 @@ mod tests {
                     route_transaction_2.clone(),
                 ])],
             },
-            vec![
+            vec![EstimatedRouteTransaction::Eip155(vec![
                 (
                     route_transaction_1,
                     chain_1_estimated_fees,
@@ -409,7 +435,7 @@ mod tests {
                     chain_1_estimated_fees,
                     U256::from(0x1b5e96a07aca_u64),
                 ),
-            ],
+            ])],
             (
                 initial_transaction,
                 chain_2_estimated_fees,

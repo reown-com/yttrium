@@ -2,7 +2,10 @@
 use wasm_bindgen::prelude::*;
 use {
     super::Transaction,
-    crate::{call::Call, chain_abstraction::amount::Amount},
+    crate::{
+        call::Call,
+        chain_abstraction::{amount::Amount, solana},
+    },
     alloy::primitives::{utils::Unit, Address, U256},
     core::fmt,
     relay_rpc::domain::ProjectId,
@@ -213,7 +216,7 @@ pub struct PrepareResponseAvailable {
     derive(tsify_next::Tsify),
     tsify(into_wasm_abi, from_wasm_abi)
 )]
-#[serde(rename_all = "camelCase", tag = "namespace")]
+#[serde(rename_all = "camelCase")]
 pub enum Transactions {
     #[cfg(feature = "eip155")]
     Eip155(Vec<Transaction>),
@@ -265,6 +268,7 @@ impl Transactions {
 #[serde(rename_all = "camelCase")]
 pub struct SolanaTransaction {
     pub chain_id: String,
+    pub from: solana::SolanaPubkey,
     pub transaction: VersionedTransaction,
 }
 
