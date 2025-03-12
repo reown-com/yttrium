@@ -5,7 +5,7 @@ pub use {
     solana_sdk::{
         commitment_config::CommitmentConfig as SolanaCommitmentConfig,
         pubkey::Pubkey as SolanaPubkey,
-        signature::Signature as SolanaSignature,
+        signature::{Keypair as SolanaKeypair, Signature as SolanaSignature},
         transaction::VersionedTransaction as SolanaVersionedTransaction,
     },
     spl_associated_token_account::get_associated_token_address,
