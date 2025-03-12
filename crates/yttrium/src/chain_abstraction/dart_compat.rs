@@ -7,6 +7,7 @@ use {
     },
     crate::chain_abstraction::{client::Client, currency::Currency},
     alloy::{primitives::PrimitiveSignature, providers::Provider},
+    flutter_rust_bridge::frb,
     relay_rpc::domain::ProjectId,
     std::str::FromStr,
 };
@@ -14,12 +15,16 @@ use {
 // -----------------
 
 #[cfg(feature = "chain_abstraction_client")]
+#[frb]
 pub struct ChainAbstractionClient {
     client: Client,
 }
 
 #[cfg(feature = "chain_abstraction_client")]
+#[frb]
 impl ChainAbstractionClient {
+
+    #[frb]
     pub fn new(
         project_id: String,
         pulse_metadata: PulseMetadataCompat,
@@ -59,7 +64,8 @@ impl ChainAbstractionClient {
     //         .map(Into::into)
     //         .map_err(|e| ErrorCompat::General(e.to_string()))
     // }
-
+    
+    #[frb]
     pub async fn prepare_detailed(
         &self,
         chain_id: String,
@@ -118,6 +124,7 @@ impl ChainAbstractionClient {
     //         .map_err(|e| ErrorCompat::General(e.to_string()))
     // }
 
+    #[frb]
     pub async fn estimate_fees(
         &self,
         chain_id: String,
@@ -155,6 +162,7 @@ impl ChainAbstractionClient {
     //     }.into()
     // }
 
+    #[frb]
     pub async fn erc20_token_balance(
         &self,
         chain_id: &str,
@@ -174,7 +182,7 @@ impl ChainAbstractionClient {
             .map_err(|e| ErrorCompat::General { message: e.to_string() })
     }
 
-    // FIXME
+    #[frb]
     pub async fn execute(
         &self,
         ui_fields: UiFieldsCompat,

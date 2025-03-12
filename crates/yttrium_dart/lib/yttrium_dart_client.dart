@@ -25,14 +25,17 @@ class YttriumClient implements IYttriumClient {
     required PulseMetadataCompat pulseMetadata,
   }) async {
     try {
-      // Locate the native library file
-      final yttrium = Platform.isAndroid
-          ? ExternalLibrary.open('libyttrium.so')
-          : (Platform.isIOS || Platform.isMacOS)
-              ? ExternalLibrary.open('libyttrium_universal.dylib')
-              : throw 'Yttrium not yet supported on ${Platform.localeName}';
-      // Initialize the Rust library
-      await frb.YttriumDart.init(externalLibrary: yttrium);
+      if (Platform.isAndroid) {
+        final libName = 'libyttrium.so';
+        final yttrium = ExternalLibrary.open(libName);
+        await frb.YttriumDart.init(externalLibrary: yttrium);
+      } else if (Platform.isIOS || Platform.isMacOS) {
+        final libName = 'yttrium_dart.framework/yttrium_dart';
+        final yttrium = ExternalLibrary.open(libName);
+        await frb.YttriumDart.init(externalLibrary: yttrium);
+      } else {
+        throw 'Yttrium not yet supported on ${Platform.localeName}';
+      }
       // Create ChainAbstractionClient instance
       _chainAbstractionClient = await ChainAbstractionClient.newInstance(
         projectId: projectId,

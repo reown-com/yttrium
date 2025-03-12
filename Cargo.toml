@@ -94,6 +94,13 @@ inherits = "uniffi-release-v1"
 inherits = "uniffi-release-v1"
 debug = false
 
+[profile.dart-release-v1]
+inherits = "uniffi-release"
+opt-level = 0
+debug = true
+lto = false
+strip = false
+    
 # TODO: consider more profiles for Kotlin vs Swift, and for Flutter, etc.
 
 [profile.uniffi-release-v1]

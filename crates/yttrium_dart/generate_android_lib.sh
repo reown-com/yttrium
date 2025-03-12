@@ -1,9 +1,9 @@
 #!/bin/bash
 # run this script from inside /crates/yttrium_dart/
 
-# cd rust
-# cd ..
-# cd yttrium
+set -e
+
+rm -Rf android/src/main/jniLibs/*
 
 rustup target add armv7-linux-androideabi aarch64-linux-android
 cargo ndk -t armeabi-v7a -t arm64-v8a build --profile=uniffi-release --features=frb -p yttrium

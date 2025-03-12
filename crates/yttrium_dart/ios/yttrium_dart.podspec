@@ -14,17 +14,30 @@ Reown is the onchain UX platform that provides toolkits built on top of the Wall
   s.author           = { 'Reown' => 'mobile@reown.com' }
   s.source           = { :path => '.' }
   s.source_files = 'Classes/**/*'
-  s.vendored_libraries = 'libyttrium_universal.dylib'
   s.dependency 'Flutter'
-  s.platform = :ios, '12.0'
+  s.platform            = :ios, '13.0'
 
-  # Flutter.framework does not contain a i386 slice.
+  # Explicitly reference `yttrium.xcframework` to prevent renaming
+  s.vendored_frameworks = 'yttrium_dart.xcframework'
+  # # Prevent CocoaPods from renaming the framework
+  s.module_name = 'yttrium_dart'
+  # Preserve the xcframework structure
+  s.preserve_paths = 'yttrium_dart.xcframework/**/*'
+
+  s.swift_version = '5.0'
+
   s.pod_target_xcconfig = {
     'DEFINES_MODULE' => 'YES',
+    # Flutter.framework does not contain a i386 slice.
     'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'i386',
-    'LD_RUNPATH_SEARCH_PATHS' => '$(inherited) @executable_path/Frameworks',
+    'ENABLE_BITCODE' => 'NO',
+    'STRIP_INSTALLED_PRODUCT' => 'NO',
+    'STRIP_STYLE' => 'non-global',
+    'DEAD_CODE_STRIPPING' => 'NO',
+    'STRIP_SWIFT_SYMBOLS' => 'NO',
   }
-  s.swift_version = '5.0'
+
+  # s.xcconfig = { 'OTHER_LDFLAGS' => '-framework yttrium' }
 
   # If your plugin requires a privacy manifest, for example if it uses any
   # required reason APIs, update the PrivacyInfo.xcprivacy file to describe your

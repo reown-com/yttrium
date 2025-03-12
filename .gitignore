@@ -37,3 +37,5 @@ Utilities/InstalledSwiftPMConfiguration/config.json
 benchmark-profile-output-sizes.csv
 benchmark*.csv
 benchmark/
+
+crates/reown_yttrium
