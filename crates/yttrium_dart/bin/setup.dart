@@ -4,30 +4,70 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
 
-// flutter pub run yttrium_dart:setup
+// dart run yttrium_dart:setup --sim --version=0.0.1
 
 enum _Environment { ios, android }
 
-void main() async {
-  print('Running Yttrium setup script. This could take a while...');
+void main(List<String> args) async {
+  if (args.isEmpty || args.length > 2) {
+    print('Error: The only valid command formats are:\n');
+    print('  dart run yttrium_dart:setup --version=X.Y.Z\n'
+        '  dart run yttrium_dart:setup --sim --version=X.Y.Z');
+    exit(1);
+  }
+
+  // Find the --version argument
+  final versionArg =
+      args.firstWhere((arg) => arg.startsWith('--version='), orElse: () => '');
+
+  if (versionArg.isEmpty) {
+    print("Error: Missing required '--version=X.Y.Z' argument.");
+    exit(1);
+  }
+
+  // Extract version number
+  final versionValue = versionArg.split('=').last;
+
+  if (versionValue.isEmpty) {
+    print(
+        "Error: '--version' argument must have a value (e.g., '--version=0.4.5').");
+    exit(1);
+  }
+
+  // Validate allowed arguments (only --sim and --version=X.Y.Z)
+  final validArgs = {'--sim', versionArg};
+  if (args.toSet().difference(validArgs).isNotEmpty) {
+    print('Error: Invalid arguments detected.');
+    exit(1);
+  }
+  print('Running setup with version: $versionValue');
+
+  final bool isSimulator = args.contains('--sim');
+  if (isSimulator) {
+    print('Running for simulator.');
+  }
+
+  print('Running Yttrium setup. This could take a while...');
   // Locate the package directory
   final packagePath = await _getPackageRoot();
+  print('packagePath: ${packagePath?.path}');
   if (packagePath == null) {
     print('Error: Could not locate the package directory.');
     exit(1);
   }
 
-  const version = '0.4.5'; // TODO dynamically
   await Future.wait([
     _setupFiles(
       targetDir: '${packagePath.path}/android/src/main/',
-      version: version,
+      version: versionValue,
       platform: _Environment.android,
+      isSimulator: isSimulator,
     ),
     _setupFiles(
       targetDir: '${packagePath.path}/ios/',
-      version: version,
+      version: versionValue,
       platform: _Environment.ios,
+      isSimulator: isSimulator,
     ),
   ]);
   //
@@ -38,6 +78,7 @@ Future<void> _setupFiles({
   required String targetDir,
   required String version,
   required _Environment platform,
+  required bool isSimulator,
 }) async {
   final artifactFile = '${platform.name}-artifacts.zip';
   final releases =
@@ -50,33 +91,55 @@ Future<void> _setupFiles({
     final request = await HttpClient().getUrl(Uri.parse(downloadUrl));
     final response = await request.close();
 
-    if (response.statusCode == 200) {
-      await response.pipe(File(zipFile).openWrite());
-    } else {
+    if (response.statusCode != 200) {
       throw Exception(
         'Failed to download file. Status code: ${response.statusCode}',
       );
     }
 
-    // Step 2: Unzip the file using system command
-    final args = platform == _Environment.ios
-        ? [
-            '-o',
-            '-j',
-            zipFile,
-            'universal/libyttrium_dart_universal.dylib',
-            '-d',
-            targetDir,
-          ]
-        : ['-o', zipFile, '-d', targetDir];
+    await response.pipe(File(zipFile).openWrite());
+
+    // Step 2: Unzip the required file
+    late final List<String> args;
+    late final String extractedFile;
+    late final String finalFile;
+
+    if (platform == _Environment.ios) {
+      // Determine which file to extract based on isSimulator flag
+      final extractedFileName = isSimulator
+          ? 'universal/libyttrium_universal_sim.dylib'
+          : 'universal/libyttrium_universal.dylib';
+
+      extractedFile = '$targetDir/${extractedFileName.split('/').last}';
+      finalFile = '$targetDir/libyttrium_universal.dylib';
+
+      args = ['-o', '-j', zipFile, extractedFileName, '-d', targetDir];
+    } else {
+      // Extract the full archive
+      args = ['-o', zipFile, '-d', targetDir];
+    }
+
     final result = await Process.run('unzip', args);
+
     if (result.exitCode != 0) {
       print('❌ $platform error: ${result.stderr}');
+      return;
+    }
+
+    // Step 3: Rename the extracted file if needed (only for iOS)
+    if (platform == _Environment.ios) {
+      final file = File(extractedFile);
+      if (await file.exists()) {
+        await file.rename(finalFile);
+        print('✅ Renamed $extractedFile → $finalFile');
+      } else {
+        print('❌ File not found for renaming: $extractedFile');
+      }
     }
   } catch (e) {
     print('❌ $platform error: $e');
   } finally {
-    // Cleanup temporary file
+    // Cleanup temporary ZIP file
     File(zipFile).deleteSync();
     print('Cleaning up unneeded files...');
   }

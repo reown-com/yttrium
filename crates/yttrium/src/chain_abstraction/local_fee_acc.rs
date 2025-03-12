@@ -72,6 +72,19 @@ impl LocalAmountAcc {
         }
         (total_local_fee_acc, Unit::new(decimals).unwrap())
     }
+
+    #[cfg(feature = "frb")]
+    pub fn get_fees_compat(&self) -> Vec<super::dart_compat_models::FeeCompat> {
+        self.fees
+            .iter()
+            .map(|fee| super::dart_compat_models::FeeCompat {
+                fungible_amount: fee.fungible_amount.to_string(),
+                fungible_decimals: fee.fungible_decimals,
+                fungible_price: fee.fungible_price.to_string(),
+                fungible_price_decimals: fee.fungible_price_decimals,
+            })
+            .collect()
+    }
 }
 
 impl Default for LocalAmountAcc {
