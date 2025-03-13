@@ -153,6 +153,20 @@ impl ChainAbstractionClient {
         Self { project_id, client }
     }
 
+    #[uniffi::constructor]
+    pub fn new_with_blockchain_api_url(
+        project_id: String,
+        pulse_metadata: PulseMetadata,
+        blockchain_api_url: String,
+    ) -> Self {
+        let client = Client::with_blockchain_api_url(
+            ProjectId::from(project_id.clone()),
+            pulse_metadata,
+            blockchain_api_url.parse().unwrap(),
+        );
+        Self { project_id, client }
+    }
+
     pub async fn prepare(
         &self,
         chain_id: String,
