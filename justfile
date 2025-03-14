@@ -53,6 +53,10 @@ test-blockchain-api-debug:
 test-blockchain-api-debug-solana:
   RUST_BACKTRACE=1 RUST_LOG=yttrium=debug cargo test -p yttrium --features=test_blockchain_api,solana chain_abstraction::solana::tests::solana_happy_path -- --nocapture
 
+canary:
+  RUST_BACKTRACE=1 RUST_LOG=yttrium=debug cargo test -p yttrium --features=test_blockchain_api chain_abstraction::tests::happy_path_execute_method -- --nocapture
+  RUST_BACKTRACE=1 RUST_LOG=yttrium=debug cargo test -p yttrium --features=test_blockchain_api,solana chain_abstraction::solana::tests::solana_happy_path -- --nocapture
+
 lint: fmt clippy
 
 clippy:

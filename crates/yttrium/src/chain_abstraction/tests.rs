@@ -2254,6 +2254,7 @@ async fn happy_path_execute_method() {
         )
     );
 
+    assert_eq!(result.route.len(), 1);
     let result_route = result.route.first().unwrap().as_eip155().unwrap();
 
     // Provide gas for transactions
