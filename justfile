@@ -48,6 +48,7 @@ test-pimlico-api:
 
 test-blockchain-api:
   RUST_BACKTRACE=1 RUST_LOG=yttrium=debug cargo test --features=test_blockchain_api --lib --bins chain_abstraction::tests
+  RUST_BACKTRACE=1 RUST_LOG=yttrium=debug cargo test --features=test_blockchain_api,solana --lib --bins chain_abstraction::solana::tests
 test-blockchain-api-debug:
   RUST_BACKTRACE=1 RUST_LOG=yttrium=debug cargo test -p yttrium --features=test_blockchain_api chain_abstraction::tests::happy_path_execute_method -- --nocapture
 test-blockchain-api-debug-solana:
