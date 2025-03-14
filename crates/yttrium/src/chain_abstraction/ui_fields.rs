@@ -2,20 +2,24 @@ use {
     super::{
         amount::Amount,
         api::{
-            prepare::{PrepareResponseAvailable, SolanaTransaction},
-            FeeEstimatedTransaction, Transaction,
+            prepare::PrepareResponseAvailable, FeeEstimatedTransaction,
+            Transaction,
         },
-        solana::{self},
     },
     crate::chain_abstraction::{
         amount::from_float,
         api::fungible_price::{FungiblePriceItem, NATIVE_TOKEN_ADDRESS},
         local_fee_acc::LocalAmountAcc,
     },
-    alloy::primitives::{Bytes, PrimitiveSignature, B256, U256},
+    alloy::primitives::{PrimitiveSignature, B256, U256},
     alloy_provider::utils::Eip1559Estimation,
     serde::{Deserialize, Serialize},
     tracing::warn,
+};
+#[cfg(feature = "solana")]
+use {
+    crate::chain_abstraction::{api::prepare::SolanaTransaction, solana},
+    alloy::primitives::Bytes,
 };
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -56,6 +60,7 @@ impl Route {
     pub fn into_eip155(self) -> Option<Vec<TxnDetails>> {
         match self {
             Self::Eip155(route) => Some(route),
+            #[cfg(feature = "solana")]
             Self::Solana(_) => None,
         }
     }
@@ -64,6 +69,7 @@ impl Route {
     pub fn as_eip155(&self) -> Option<&Vec<TxnDetails>> {
         match self {
             Self::Eip155(route) => Some(route),
+            #[cfg(feature = "solana")]
             Self::Solana(_) => None,
         }
     }
@@ -120,6 +126,7 @@ pub struct TransactionFee {
     tsify(into_wasm_abi, from_wasm_abi)
 )]
 #[serde(rename_all = "camelCase")]
+#[cfg(feature = "solana")]
 pub struct SolanaTxnDetails {
     pub transaction: SolanaTransaction,
     pub transaction_hash_to_sign: Bytes,
@@ -127,7 +134,9 @@ pub struct SolanaTxnDetails {
 }
 
 pub enum EstimatedRouteTransaction {
+    #[cfg(feature = "eip155")]
     Eip155(Vec<(Transaction, Eip1559Estimation, U256)>),
+    #[cfg(feature = "solana")]
     Solana(Vec<(SolanaTransaction,)>),
 }
 
@@ -184,6 +193,7 @@ pub fn ui_fields(
 
     for estimated_route_transactions in estimated_transactions {
         match estimated_route_transactions {
+            #[cfg(feature = "eip155")]
             EstimatedRouteTransaction::Eip155(estimated_transactions) => {
                 let mut route =
                     Vec::with_capacity(estimated_transactions.len());
@@ -221,6 +231,7 @@ pub fn ui_fields(
 
                 routes.push(Route::Eip155(route));
             }
+            #[cfg(feature = "solana")]
             EstimatedRouteTransaction::Solana(estimated_transactions) => {
                 let mut route =
                     Vec::with_capacity(estimated_transactions.len());

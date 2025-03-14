@@ -336,7 +336,7 @@ async fn solana_happy_path() {
     println!("new_account_sol_sol_balance: {}", new_account_sol_sol_balance);
     assert!(new_account_sol_sol_balance >= min_balance);
 
-    let min_eth_balance = U256::from(1_000_000_000_000u64);
+    let min_eth_balance = U256::from(5_000_000_000_000u64); // $0.01 @ $2k ETH price
     let account_eth_eth_balance = client
         .provider_pool
         .get_provider(chain_eth.eip155_chain_id())

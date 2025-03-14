@@ -1,5 +1,6 @@
+#[cfg(feature = "solana")]
+use super::solana::{self, usdc_mint, SOLANA_CHAIN_ID};
 use {
-    super::solana::{self, usdc_mint, SOLANA_CHAIN_ID},
     crate::{
         blockchain_api::BLOCKCHAIN_API_URL_PROD,
         call::Call,
@@ -60,11 +61,11 @@ pub const USDC_CONTRACT_BASE: Address =
 pub const USDC_CONTRACT_ARBITRUM: Address =
     address!("af88d065e77c8cC2239327C5EDb3A432268e5831");
 
-const TOPOFF: f64 = 1.55; // 50% in the server
+const TOPOFF: f64 = 3.05; // 200% in the server
 
 /// How much to multiply the amount by when bridging to cover bridging
 /// differences
-pub const BRIDGING_AMOUNT_MULTIPLIER: i8 = 55; // 50% in the server
+pub const BRIDGING_AMOUNT_MULTIPLIER: u64 = 205; // 200% in the server
 
 #[derive(Debug, Clone, PartialEq, Eq, Copy)]
 pub enum Chain {
@@ -111,11 +112,13 @@ impl Chain {
     }
 }
 
+#[cfg(feature = "solana")]
 #[derive(Debug, Clone, PartialEq, Eq, Copy)]
 pub enum SolanaChain {
     Mainnet,
 }
 
+#[cfg(feature = "solana")]
 impl SolanaChain {
     pub fn eip155_chain_id(&self) -> &'static str {
         match self {
@@ -381,7 +384,7 @@ async fn bridging_routes_routes_available() {
     println!("required_amount: {required_amount}");
 
     if current_balance < required_amount {
-        assert!(required_amount < U256::from(4000000));
+        assert!(required_amount < U256::from(5000000));
         println!(
                 "using token faucet {} on chain {} for amount {current_balance} on token {:?} ({}). Send tokens to faucet at: {}",
                 faucet.address(),
@@ -2034,8 +2037,9 @@ async fn happy_path_execute_method() {
     };
     println!("source: {:?}", source);
 
+    println!("required_amount: {}", required_amount);
     if faucet_required {
-        assert!(required_amount < U256::from(4000000));
+        assert!(required_amount < U256::from(5000000));
         println!(
             "using token faucet {} on chain {} for amount {required_amount} on token {:?} ({}). Send tokens to faucet at: {}",
             faucet.address(),
@@ -2083,6 +2087,10 @@ async fn happy_path_execute_method() {
         .chain
         .eip155_chain_id()
         .to_owned();
+    println!("initial_transaction_chain_id: {}", initial_transaction_chain_id);
+
+    let initial_transaction_from = source.address(&sources);
+    println!("initial_transaction_from: {}", initial_transaction_from);
 
     // Wait for cache invalidation on balance call
     tokio::time::sleep(Duration::from_secs(30)).await;
@@ -2125,7 +2133,7 @@ async fn happy_path_execute_method() {
     let result = client
         .prepare_detailed(
             initial_transaction_chain_id.clone(),
-            source.address(&sources),
+            initial_transaction_from,
             initial_transaction.clone(),
             vec![],
             Currency::Usd,

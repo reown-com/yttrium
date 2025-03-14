@@ -1,3 +1,9 @@
+#[cfg(feature = "solana")]
+use solana_sdk::{
+    derivation_path::DerivationPath,
+    signature::{generate_seed_from_seed_phrase_and_passphrase, Keypair},
+    signer::{SeedDerivable, Signer},
+};
 use {
     crate::time::Instant,
     alloy::{
@@ -7,11 +13,6 @@ use {
         signers::{k256::ecdsa::SigningKey, local::LocalSigner},
     },
     alloy_provider::{ext::AnvilApi, Provider, ProviderBuilder},
-    solana_sdk::{
-        derivation_path::DerivationPath,
-        signature::{generate_seed_from_seed_phrase_and_passphrase, Keypair},
-        signer::{SeedDerivable, Signer},
-    },
     std::time::Duration,
 };
 
@@ -45,6 +46,7 @@ pub fn use_account(name: Option<&str>) -> LocalSigner<SigningKey> {
     builder.build().unwrap()
 }
 
+#[cfg(feature = "solana")]
 pub fn use_solana_account(index: u32) -> Keypair {
     // use alloy::signers::local::{coins_bip39::English, MnemonicBuilder};
     // pub const BIP32_HARDEN: u32 = 0x8000_0000;

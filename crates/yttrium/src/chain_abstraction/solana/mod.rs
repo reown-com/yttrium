@@ -12,6 +12,7 @@ pub use {
 };
 
 #[cfg(test)]
+#[cfg(feature = "test_blockchain_api")]
 mod tests;
 
 pub const SOLANA_CHAIN_ID: &str = "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp";

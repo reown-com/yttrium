@@ -463,13 +463,13 @@ public protocol ChainAbstractionClientProtocol: AnyObject {
     
     func estimateFees(chainId: String) async throws  -> Eip1559Estimation
     
-    func execute(uiFields: UiFields, routeTxnSigs: [FfiPrimitiveSignature], initialTxnSig: FfiPrimitiveSignature) async throws  -> ExecuteDetails
+    func execute(uiFields: UiFields, routeTxnSigs: [RouteSig], initialTxnSig: FfiPrimitiveSignature) async throws  -> ExecuteDetails
     
     func getUiFields(routeResponse: PrepareResponseAvailable, localCurrency: Currency) async throws  -> UiFields
     
     func prepare(chainId: String, from: FfiAddress, call: Call) async throws  -> PrepareResponse
     
-    func prepareDetailed(chainId: String, from: FfiAddress, call: Call, localCurrency: Currency) async throws  -> PrepareDetailedResponse
+    func prepareDetailed(chainId: String, from: FfiAddress, call: Call, accounts: [String], localCurrency: Currency) async throws  -> PrepareDetailedResponse
     
     func prepareErc20TransferCall(erc20Address: FfiAddress, to: FfiAddress, amount: Ffiu256)  -> Call
     
@@ -534,6 +534,16 @@ public convenience init(projectId: String, pulseMetadata: PulseMetadata) {
     }
 
     
+public static func newWithBlockchainApiUrl(projectId: String, pulseMetadata: PulseMetadata, blockchainApiUrl: String) -> ChainAbstractionClient  {
+    return try!  FfiConverterTypeChainAbstractionClient_lift(try! rustCall() {
+    uniffi_uniffi_yttrium_fn_constructor_chainabstractionclient_new_with_blockchain_api_url(
+        FfiConverterString.lower(projectId),
+        FfiConverterTypePulseMetadata_lower(pulseMetadata),
+        FfiConverterString.lower(blockchainApiUrl),$0
+    )
+})
+}
+    
 
     
 open func erc20TokenBalance(chainId: String, token: FfiAddress, owner: FfiAddress)async throws  -> Ffiu256  {
@@ -570,13 +580,13 @@ open func estimateFees(chainId: String)async throws  -> Eip1559Estimation  {
         )
 }
     
-open func execute(uiFields: UiFields, routeTxnSigs: [FfiPrimitiveSignature], initialTxnSig: FfiPrimitiveSignature)async throws  -> ExecuteDetails  {
+open func execute(uiFields: UiFields, routeTxnSigs: [RouteSig], initialTxnSig: FfiPrimitiveSignature)async throws  -> ExecuteDetails  {
     return
         try  await uniffiRustCallAsync(
             rustFutureFunc: {
                 uniffi_uniffi_yttrium_fn_method_chainabstractionclient_execute(
                     self.uniffiClonePointer(),
-                    FfiConverterTypeUiFields_lower(uiFields),FfiConverterSequenceTypeFFIPrimitiveSignature.lower(routeTxnSigs),FfiConverterTypeFFIPrimitiveSignature_lower(initialTxnSig)
+                    FfiConverterTypeUiFields_lower(uiFields),FfiConverterSequenceTypeRouteSig.lower(routeTxnSigs),FfiConverterTypeFFIPrimitiveSignature_lower(initialTxnSig)
                 )
             },
             pollFunc: ffi_uniffi_yttrium_rust_future_poll_rust_buffer,
@@ -621,13 +631,13 @@ open func prepare(chainId: String, from: FfiAddress, call: Call)async throws  ->
         )
 }
     
-open func prepareDetailed(chainId: String, from: FfiAddress, call: Call, localCurrency: Currency)async throws  -> PrepareDetailedResponse  {
+open func prepareDetailed(chainId: String, from: FfiAddress, call: Call, accounts: [String], localCurrency: Currency)async throws  -> PrepareDetailedResponse  {
     return
         try  await uniffiRustCallAsync(
             rustFutureFunc: {
                 uniffi_uniffi_yttrium_fn_method_chainabstractionclient_prepare_detailed(
                     self.uniffiClonePointer(),
-                    FfiConverterString.lower(chainId),FfiConverterTypeFFIAddress_lower(from),FfiConverterTypeCall_lower(call),FfiConverterTypeCurrency_lower(localCurrency)
+                    FfiConverterString.lower(chainId),FfiConverterTypeFFIAddress_lower(from),FfiConverterTypeCall_lower(call),FfiConverterSequenceString.lower(accounts),FfiConverterTypeCurrency_lower(localCurrency)
                 )
             },
             pollFunc: ffi_uniffi_yttrium_rust_future_poll_rust_buffer,
@@ -957,23 +967,48 @@ extension FfiError: Foundation.LocalizedError {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
-fileprivate struct FfiConverterSequenceTypeFFIPrimitiveSignature: FfiConverterRustBuffer {
-    typealias SwiftType = [FfiPrimitiveSignature]
+fileprivate struct FfiConverterSequenceString: FfiConverterRustBuffer {
+    typealias SwiftType = [String]
 
-    public static func write(_ value: [FfiPrimitiveSignature], into buf: inout [UInt8]) {
+    public static func write(_ value: [String], into buf: inout [UInt8]) {
         let len = Int32(value.count)
         writeInt(&buf, len)
         for item in value {
-            FfiConverterTypeFFIPrimitiveSignature.write(item, into: &buf)
+            FfiConverterString.write(item, into: &buf)
         }
     }
 
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [FfiPrimitiveSignature] {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [String] {
         let len: Int32 = try readInt(&buf)
-        var seq = [FfiPrimitiveSignature]()
+        var seq = [String]()
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
-            seq.append(try FfiConverterTypeFFIPrimitiveSignature.read(from: &buf))
+            seq.append(try FfiConverterString.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeRouteSig: FfiConverterRustBuffer {
+    typealias SwiftType = [RouteSig]
+
+    public static func write(_ value: [RouteSig], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeRouteSig.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [RouteSig] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [RouteSig]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeRouteSig.read(from: &buf))
         }
         return seq
     }
@@ -1310,7 +1345,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_uniffi_yttrium_checksum_method_chainabstractionclient_estimate_fees() != 51281) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_uniffi_yttrium_checksum_method_chainabstractionclient_execute() != 10965) {
+    if (uniffi_uniffi_yttrium_checksum_method_chainabstractionclient_execute() != 32417) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_uniffi_yttrium_checksum_method_chainabstractionclient_get_ui_fields() != 40860) {
@@ -1319,7 +1354,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_uniffi_yttrium_checksum_method_chainabstractionclient_prepare() != 48357) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_uniffi_yttrium_checksum_method_chainabstractionclient_prepare_detailed() != 27799) {
+    if (uniffi_uniffi_yttrium_checksum_method_chainabstractionclient_prepare_detailed() != 51890) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_uniffi_yttrium_checksum_method_chainabstractionclient_prepare_erc20_transfer_call() != 58309) {
@@ -1332,6 +1367,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_uniffi_yttrium_checksum_constructor_chainabstractionclient_new() != 20017) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_uniffi_yttrium_checksum_constructor_chainabstractionclient_new_with_blockchain_api_url() != 43573) {
         return InitializationResult.apiChecksumMismatch
     }
 

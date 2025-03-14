@@ -24,7 +24,6 @@ use {
         },
         pulse::{PulseMetadata, PULSE_SDK_TYPE},
         send_transaction::{send_transaction, TransactionAnalytics},
-        solana,
         ui_fields::{RouteSig, UiFields},
     },
     crate::{
@@ -51,9 +50,13 @@ use {
     relay_rpc::domain::ProjectId,
     reqwest::Client as ReqwestClient,
     serde::{Deserialize, Serialize},
-    solana_sdk::transaction::VersionedTransaction,
     std::collections::{HashMap, HashSet},
     url::Url,
+};
+#[cfg(feature = "solana")]
+use {
+    crate::chain_abstraction::solana,
+    solana_sdk::transaction::VersionedTransaction,
 };
 
 #[derive(Clone)]
@@ -134,8 +137,10 @@ impl Client {
             .map_err(PrepareError::Request)?;
         let status = response.status();
         if status.is_success() {
-            let text =
-                response.text().await.map_err(PrepareError::DecodingText)?;
+            let text = response
+                .text()
+                .await
+                .map_err(|e| PrepareError::DecodingText(status, e))?;
             serde_json::from_str(&text)
                 // .map(|mut response| {
                 //     if let PrepareResponse::Success(
@@ -154,11 +159,11 @@ impl Client {
                 //     }
                 //     response
                 // })
-                .map_err(|e| PrepareError::DecodingJson(e, text))
+                .map_err(|e| PrepareError::DecodingJson(status, e, text))
         } else {
             match response.text().await {
-                Ok(text) => Err(PrepareError::RequestFailed(text)),
-                Err(e) => Err(PrepareError::RequestFailedText(e)),
+                Ok(text) => Err(PrepareError::RequestFailed(status, text)),
+                Err(e) => Err(PrepareError::RequestFailedText(status, e)),
             }
         }
     }
@@ -181,6 +186,7 @@ impl Client {
                 Transactions::Eip155(txns) => {
                     txns.iter().map(|t| t.chain_id.clone()).collect::<Vec<_>>()
                 }
+                #[cfg(feature = "solana")]
                 Transactions::Solana(txns) => {
                     txns.iter().map(|t| t.chain_id.clone()).collect::<Vec<_>>()
                 }
@@ -295,6 +301,7 @@ impl Client {
                 .iter()
                 .flat_map(|t| match t {
                     Transactions::Eip155(txns) => txns.clone(),
+                    #[cfg(feature = "solana")]
                     Transactions::Solana(_txns) => Vec::new(),
                 })
                 .map(|txn| l1_data_fee(txn, self)),
@@ -329,11 +336,14 @@ impl Client {
 
         let mut estimated_transactions =
             Vec::with_capacity(prepare_response.transactions.len());
+        #[allow(clippy::unnecessary_filter_map)]
         for (txns, l1_data_fee) in prepare_response
             .transactions
             .iter()
             .filter_map(|t| match t {
+                #[cfg(feature = "eip155")]
                 Transactions::Eip155(txns) => Some(txns.clone()),
+                #[cfg(feature = "solana")]
                 Transactions::Solana(_txns) => None,
             })
             .zip(route_l1_data_fees.into_iter())
@@ -349,6 +359,7 @@ impl Client {
             estimated_transactions
                 .push(EstimatedRouteTransaction::Eip155(route_estimates));
         }
+        #[cfg(feature = "solana")]
         for txn in
             prepare_response.transactions.iter().filter_map(|t| match t {
                 Transactions::Eip155(_txns) => None,
@@ -543,6 +554,7 @@ impl Client {
                         assert_eq!(address, expected_address, "invalid route signature at index {route_index}:eip155:{index}. Expected recovered address to be {expected_address} but got {address} instead");
                     }
                 }
+                #[cfg(feature = "solana")]
                 (Route::Solana(route), RouteSig::Solana(route_sig)) => {
                     for (index, (txn, sig)) in
                         route.iter().zip(route_sig.iter()).enumerate()
@@ -552,6 +564,7 @@ impl Client {
                             "invalid route signature at index {route_index}:solana:{index}. Signature is invalid");
                     }
                 }
+                #[allow(unreachable_patterns)]
                 _ => {
                     panic!("mis-matched route signature type for route transaction type at index {route_index}");
                 }
@@ -655,6 +668,7 @@ impl Client {
                         }
                     }
                 }
+                #[cfg(feature = "solana")]
                 (Route::Solana(txn), RouteSig::Solana(sig)) => {
                     let sol_rpc = "https://api.mainnet-beta.solana.com";
                     let solana_rpc_client =
@@ -688,6 +702,7 @@ impl Client {
                         }
                     }
                 }
+                #[allow(unreachable_patterns)]
                 _ => {
                     panic!("mis-matched route transaction type for route signature type at index {route_index}");
                 }

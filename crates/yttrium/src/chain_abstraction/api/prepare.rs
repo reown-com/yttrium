@@ -2,14 +2,16 @@
 use wasm_bindgen::prelude::*;
 use {
     super::Transaction,
-    crate::{
-        call::Call,
-        chain_abstraction::{amount::Amount, solana},
-    },
+    crate::{call::Call, chain_abstraction::amount::Amount},
     alloy::primitives::{utils::Unit, Address, U256},
     core::fmt,
     relay_rpc::domain::ProjectId,
     serde::{Deserialize, Serialize},
+    std::str::FromStr,
+};
+#[cfg(feature = "solana")]
+use {
+    crate::chain_abstraction::solana,
     solana_sdk::transaction::VersionedTransaction,
 };
 
@@ -85,6 +87,7 @@ impl fmt::Display for Eip155OrSolanaAddress {
 }
 
 impl Eip155OrSolanaAddress {
+    #[cfg(feature = "solana")]
     pub fn as_solana(
         &self,
     ) -> Option<&crate::chain_abstraction::solana::SolanaPubkey> {
@@ -94,10 +97,48 @@ impl Eip155OrSolanaAddress {
         }
     }
 
+    #[cfg(feature = "eip155")]
     pub fn as_eip155(&self) -> Option<&Address> {
         match self {
             Self::Eip155(address) => Some(address),
+            #[cfg(feature = "solana")]
             Self::Solana(_) => None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, thiserror::Error)]
+pub enum Eip155OrSolanaAddressParseError {
+    #[error("Invalid EIP-155 address: {0}")]
+    #[cfg(feature = "eip155")]
+    Eip155(alloy::hex::FromHexError),
+
+    #[error("Invalid Solana address: {0}")]
+    #[cfg(feature = "solana")]
+    Solana(solana_sdk::pubkey::ParsePubkeyError),
+}
+
+impl FromStr for Eip155OrSolanaAddress {
+    type Err = Eip155OrSolanaAddressParseError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s.starts_with("0x") {
+            Ok(Self::Eip155(
+                Address::from_str(s)
+                    .map_err(Eip155OrSolanaAddressParseError::Eip155)?,
+            ))
+        } else {
+            #[cfg(feature = "solana")]
+            {
+                Ok(Self::Solana(
+                    crate::chain_abstraction::solana::SolanaPubkey::from_str(s)
+                        .map_err(Eip155OrSolanaAddressParseError::Solana)?,
+                ))
+            }
+            #[cfg(not(feature = "solana"))]
+            {
+                panic!("solana feature is not enabled");
+            }
         }
     }
 }
@@ -229,6 +270,7 @@ impl Transactions {
     pub fn into_eip155(self) -> Option<Vec<Transaction>> {
         match self {
             Self::Eip155(txns) => Some(txns),
+            #[cfg(feature = "solana")]
             Self::Solana(_) => None,
         }
     }
@@ -237,6 +279,7 @@ impl Transactions {
     pub fn as_eip155(&self) -> Option<&Vec<Transaction>> {
         match self {
             Self::Eip155(txns) => Some(txns),
+            #[cfg(feature = "solana")]
             Self::Solana(_) => None,
         }
     }
@@ -266,6 +309,7 @@ impl Transactions {
     tsify(into_wasm_abi, from_wasm_abi)
 )]
 #[serde(rename_all = "camelCase")]
+#[cfg(feature = "solana")]
 pub struct SolanaTransaction {
     pub chain_id: String,
     pub from: solana::SolanaPubkey,

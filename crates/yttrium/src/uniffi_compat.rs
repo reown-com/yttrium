@@ -1,11 +1,21 @@
 #[cfg(feature = "chain_abstraction_client")]
 use crate::chain_abstraction::{amount::Amount, api::prepare::FundingMetadata};
+#[cfg(feature = "solana")]
+use {
+    crate::chain_abstraction::solana::{
+        self, SolanaKeypair, SolanaPubkey, SolanaSignature,
+    },
+    solana_sdk::{
+        bs58,
+        derivation_path::DerivationPath,
+        signature::generate_seed_from_seed_phrase_and_passphrase,
+        signer::{SeedDerivable, Signer},
+        transaction::VersionedTransaction,
+    },
+};
 use {
     crate::{
-        chain_abstraction::{
-            api::prepare::Eip155OrSolanaAddress,
-            solana::{self, SolanaKeypair, SolanaPubkey, SolanaSignature},
-        },
+        chain_abstraction::api::prepare::Eip155OrSolanaAddress,
         smart_accounts::account_address::AccountAddress,
     },
     alloy::{
@@ -21,16 +31,9 @@ use {
     },
     alloy_provider::PendingTransactionError,
     eyre::Report as EyreError,
-    relay_rpc::{auth::ed25519_dalek, domain::ProjectId},
+    relay_rpc::domain::ProjectId,
     reqwest::{Error as ReqwestError, Url},
     serde_json::Error as SerdeJsonError,
-    solana_sdk::{
-        bs58,
-        derivation_path::DerivationPath,
-        signature::generate_seed_from_seed_phrase_and_passphrase,
-        signer::{SeedDerivable, Signer},
-        transaction::VersionedTransaction,
-    },
 };
 
 // TODO use https://mozilla.github.io/uniffi-rs/next/udl/remote_ext_types.html#remote-types when it's available
@@ -45,16 +48,18 @@ uniffi::custom_type!(AccountAddress, Address, {
     lower: |obj| obj.into(),
 });
 
+#[cfg(feature = "solana")]
 uniffi::custom_type!(SolanaPubkey, String, {
     remote,
     try_lift: |val| Ok(val.parse()?),
     lower: |obj| obj.to_string(),
 });
 
+#[cfg(feature = "solana")]
 uniffi::custom_type!(SolanaKeypair, String, {
     remote,
     try_lift: |val| {
-        let mut buf = [0u8; ed25519_dalek::KEYPAIR_LENGTH];
+        let mut buf = [0u8; relay_rpc::auth::ed25519_dalek::KEYPAIR_LENGTH];
         bs58::decode(val).onto(&mut buf)?;
         SolanaKeypair::from_bytes(&buf).map_err(Into::into)
     },
@@ -73,6 +78,7 @@ uniffi::custom_type!(PrimitiveSignature, String, {
     lower: |obj| format!("0x{}", hex::encode(obj.as_bytes())),
 });
 
+#[cfg(feature = "solana")]
 uniffi::custom_type!(SolanaSignature, String, {
     remote,
     try_lift: |val| Ok(val.parse()?),
@@ -238,57 +244,73 @@ pub struct FfiAuthorization {
 
 uniffi::custom_type!(Eip155OrSolanaAddress, String, {
     remote,
-    try_lift: |_val| unimplemented!("Does not support lifting Eip155OrSolanaAddress"),
+    try_lift: |val| Ok(val.parse()?),
     lower: |obj| obj.to_string(),
 });
 
+#[cfg(feature = "solana")]
 uniffi::custom_type!(VersionedTransaction, String, {
     remote,
     try_lift: |data| Ok(bincode::deserialize::<VersionedTransaction>(&data_encoding::BASE64.decode(data.as_bytes())?)?),
     lower: |obj| data_encoding::BASE64.encode(&bincode::serialize(&obj).unwrap()),
 });
 
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Error, thiserror::Error)]
+pub enum SolanaDeriveKeypairFromMnemonicError {
+    #[error("Derivation path: {0}")]
+    DerivationPath(String),
+
+    #[error("Derive: {0}")]
+    Derive(String),
+}
+
+#[cfg(feature = "solana")]
 #[uniffi::export]
 fn solana_pubkey_for_keypair(keypair: SolanaKeypair) -> solana::SolanaPubkey {
     keypair.pubkey()
 }
 
+#[cfg(feature = "solana")]
 #[uniffi::export]
 fn solana_sign_prehash(
     keypair: SolanaKeypair,
     message: Bytes,
-) -> Result<SolanaSignature, String> {
-    Ok(keypair.sign_message(&message))
+) -> SolanaSignature {
+    keypair.sign_message(&message)
 }
 
+#[cfg(feature = "solana")]
 #[uniffi::export]
 fn solana_generate_keypair() -> SolanaKeypair {
     SolanaKeypair::new()
 }
 
+#[cfg(feature = "solana")]
 #[uniffi::export]
 fn solana_phantom_derivation_path_with_account(account: u32) -> String {
     format!("m/44'/501'/{account}'/0'")
 }
 
+#[cfg(feature = "solana")]
 #[uniffi::export]
 fn solana_derive_keypair_from_mnemonic(
     mnemonic: String,
     derivation_path: Option<String>,
-) -> Result<SolanaKeypair, String> {
+) -> Result<SolanaKeypair, SolanaDeriveKeypairFromMnemonicError> {
     let seed = generate_seed_from_seed_phrase_and_passphrase(&mnemonic, "");
 
     let derivation_path = if let Some(path) = derivation_path {
-        Some(
-            DerivationPath::from_absolute_path_str(&path)
-                .map_err(|e| e.to_string())?,
-        )
+        Some(DerivationPath::from_absolute_path_str(&path).map_err(|e| {
+            SolanaDeriveKeypairFromMnemonicError::DerivationPath(e.to_string())
+        })?)
     } else {
         None
     };
 
     SolanaKeypair::from_seed_and_derivation_path(&seed, derivation_path)
-        .map_err(|e| e.to_string())
+        .map_err(|e| {
+            SolanaDeriveKeypairFromMnemonicError::Derive(e.to_string())
+        })
 }
 
 #[cfg(test)]
@@ -346,6 +368,7 @@ mod tests {
         assert_eq!(s, format!("0xaabbccdd"));
     }
 
+    #[cfg(feature = "solana")]
     #[test]
     fn test_solana_signature_lower() {
         let ffi_u64 = solana_sdk::signature::Signature::from([0xab; 64]);

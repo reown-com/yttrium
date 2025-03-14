@@ -9,7 +9,7 @@ license.workspace = true
 crate-type = ["lib", "cdylib"]
 
 [features]
-default = ["eip155", "solana", "erc6492_client", "chain_abstraction_client"]
+default = ["eip155", "erc6492_client", "chain_abstraction_client"]
 full = ["all_platforms", "all_clients", "all_namespaces"]
 
 # Features enabling FFI bindings for different platforms

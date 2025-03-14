@@ -21,7 +21,7 @@ use {
     reqwest::{Client as ReqwestClient, Url},
     std::{collections::HashMap, task, time::Duration},
     tower::Service,
-    tracing::{debug, warn},
+    tracing::{trace, warn},
     uuid::Uuid,
 };
 
@@ -241,7 +241,7 @@ impl ProxyReqwestClient {
         req: RequestPacket,
         tracing: TracingType,
     ) -> TransportResult<ResponsePacket> {
-        debug!("ProxyReqwestClient: do_reqwest: {req:?}");
+        trace!("ProxyReqwestClient: do_reqwest: {req:?}");
         let resp = self
             .client
             .post(self.url)
