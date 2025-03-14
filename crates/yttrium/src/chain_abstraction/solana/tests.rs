@@ -60,6 +60,7 @@ async fn solana_happy_path() {
     let account_eth = use_account(Some(BRIDGE_ACCOUNT_SOLANA_1));
     println!("account_eth: {}", account_eth.address());
     let account_solana = use_solana_account(BRIDGE_ACCOUNT_SOLANA_2);
+    let faucet_solana = use_solana_account(0);
     println!("account_solana: {}", account_solana.pubkey());
 
     let chain_eth = Chain::Base;
@@ -102,34 +103,6 @@ async fn solana_happy_path() {
         .abi_encode()
         .into(),
     };
-
-    let account_sol_sol_balance =
-        client_sol.get_balance(&account_solana.pubkey()).await.unwrap();
-    let data_len = client_sol
-        .get_account(&account_solana.pubkey())
-        .await
-        .unwrap()
-        .data
-        .len();
-    println!("data_len: {}", data_len);
-    let minimum_balance_for_rent_exemption = client_sol
-        .get_minimum_balance_for_rent_exemption(data_len)
-        .await
-        .unwrap();
-    println!(
-        "minimum_balance_for_rent_exemption: {}",
-        minimum_balance_for_rent_exemption
-    );
-    let next_txn_fee = 100_000;
-    let min_balance = minimum_balance_for_rent_exemption + next_txn_fee;
-
-    if account_sol_sol_balance < min_balance {
-        println!(
-            "need additional {} lamports to fund account",
-            min_balance - account_sol_sol_balance
-        );
-        todo!()
-    }
 
     let account_sol_token_account =
         get_associated_token_address(&account_solana.pubkey(), &usdc_mint());
@@ -330,6 +303,72 @@ async fn solana_happy_path() {
         struct Status {
             status: String,
         }
+    }
+    let new_account_sol_usdc_balance = client_sol
+        .get_token_account_balance(&account_sol_token_account)
+        .await
+        .unwrap();
+    println!(
+        "new_account_sol_usdc_balance: {}",
+        new_account_sol_usdc_balance.ui_amount.unwrap()
+    );
+    assert!(new_account_sol_usdc_balance.ui_amount.unwrap() >= 2.0);
+
+    let account_sol_sol_balance =
+        client_sol.get_balance(&account_solana.pubkey()).await.unwrap();
+    let data_len = client_sol
+        .get_account(&account_solana.pubkey())
+        .await
+        .unwrap()
+        .data
+        .len();
+    println!("data_len: {}", data_len);
+    let minimum_balance_for_rent_exemption = client_sol
+        .get_minimum_balance_for_rent_exemption(data_len)
+        .await
+        .unwrap();
+    println!(
+        "minimum_balance_for_rent_exemption: {}",
+        minimum_balance_for_rent_exemption
+    );
+    let next_txn_fee = 100_000;
+    let min_balance = minimum_balance_for_rent_exemption + next_txn_fee;
+
+    if account_sol_sol_balance < min_balance {
+        println!(
+            "need additional {} lamports to fund account",
+            min_balance - account_sol_sol_balance
+        );
+
+        println!("funding from faucet: {}", faucet_solana.pubkey());
+
+        println!("Preparing transfer transaction...");
+        // Create transfer instruction
+        let transfer_ix = solana_sdk::system_instruction::transfer(
+            &faucet_solana.pubkey(),
+            &account_solana.pubkey(),
+            (min_balance - account_sol_sol_balance) * 2,
+        );
+
+        // Get recent blockhash
+        let recent_blockhash = client_sol.get_latest_blockhash().await.unwrap();
+
+        // Create and sign transaction
+        let transaction =
+            solana_sdk::transaction::Transaction::new_signed_with_payer(
+                &[transfer_ix],
+                Some(&faucet_solana.pubkey()),
+                &[&faucet_solana],
+                recent_blockhash,
+            );
+
+        println!("Sending transaction...");
+        // Send and confirm transaction
+        let signature = client_sol
+            .send_and_confirm_transaction(&transaction)
+            .await
+            .unwrap();
+        println!("signature: {signature}");
     }
     let new_account_sol_sol_balance =
         client_sol.get_balance(&account_solana.pubkey()).await.unwrap();
