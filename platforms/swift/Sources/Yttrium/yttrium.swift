@@ -6649,6 +6649,13 @@ public func solanaGenerateKeypair() -> SolanaKeypair  {
     )
 })
 }
+public func solanaKeypairFromBase58(base58Key: String)throws  -> SolanaKeypair  {
+    return try  FfiConverterTypeSolanaKeypair_lift(try rustCallWithError(FfiConverterTypeSolanaDeriveKeypairFromMnemonicError_lift) {
+    uniffi_yttrium_fn_func_solana_keypair_from_base58(
+        FfiConverterString.lower(base58Key),$0
+    )
+})
+}
 public func solanaPhantomDerivationPathWithAccount(account: UInt32) -> String  {
     return try!  FfiConverterString.lift(try! rustCall() {
     uniffi_yttrium_fn_func_solana_phantom_derivation_path_with_account(
@@ -6667,6 +6674,14 @@ public func solanaSignPrehash(keypair: SolanaKeypair, message: Bytes) -> SolanaS
     return try!  FfiConverterTypeSolanaSignature_lift(try! rustCall() {
     uniffi_yttrium_fn_func_solana_sign_prehash(
         FfiConverterTypeSolanaKeypair_lower(keypair),
+        FfiConverterTypeBytes_lower(message),$0
+    )
+})
+}
+public func solanaSignPrehashWithBase58Key(base58Key: String, message: Bytes)throws  -> SolanaSignature  {
+    return try  FfiConverterTypeSolanaSignature_lift(try rustCallWithError(FfiConverterTypeSolanaDeriveKeypairFromMnemonicError_lift) {
+    uniffi_yttrium_fn_func_solana_sign_prehash_with_base58_key(
+        FfiConverterString.lower(base58Key),
         FfiConverterTypeBytes_lower(message),$0
     )
 })
@@ -6699,6 +6714,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_yttrium_checksum_func_solana_generate_keypair() != 30305) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_yttrium_checksum_func_solana_keypair_from_base58() != 34446) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_yttrium_checksum_func_solana_phantom_derivation_path_with_account() != 15080) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -6706,6 +6724,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_yttrium_checksum_func_solana_sign_prehash() != 19355) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_func_solana_sign_prehash_with_base58_key() != 62145) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_yttrium_checksum_method_erc6492client_verify_signature() != 43990) {

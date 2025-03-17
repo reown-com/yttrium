@@ -272,6 +272,18 @@ fn solana_pubkey_for_keypair(keypair: SolanaKeypair) -> solana::SolanaPubkey {
 
 #[cfg(feature = "solana")]
 #[uniffi::export]
+fn solana_keypair_from_base58(base58_key: String) -> Result<SolanaKeypair, SolanaDeriveKeypairFromMnemonicError> {
+    let mut buf = [0u8; relay_rpc::auth::ed25519_dalek::KEYPAIR_LENGTH];
+    bs58::decode(&base58_key)
+        .onto(&mut buf)
+        .map_err(|e| SolanaDeriveKeypairFromMnemonicError::Derive(e.to_string()))?;
+    
+    SolanaKeypair::from_bytes(&buf)
+        .map_err(|e| SolanaDeriveKeypairFromMnemonicError::Derive(e.to_string()))
+}
+
+#[cfg(feature = "solana")]
+#[uniffi::export]
 fn solana_sign_prehash(
     keypair: SolanaKeypair,
     message: Bytes,
@@ -311,6 +323,16 @@ fn solana_derive_keypair_from_mnemonic(
         .map_err(|e| {
             SolanaDeriveKeypairFromMnemonicError::Derive(e.to_string())
         })
+}
+
+#[cfg(feature = "solana")]
+#[uniffi::export]
+fn solana_sign_prehash_with_base58_key(
+    base58_key: String,
+    message: Bytes,
+) -> Result<SolanaSignature, SolanaDeriveKeypairFromMnemonicError> {
+    let keypair = solana_keypair_from_base58(base58_key)?;
+    Ok(keypair.sign_message(&message))
 }
 
 #[cfg(test)]
