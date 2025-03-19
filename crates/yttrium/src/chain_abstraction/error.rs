@@ -6,7 +6,7 @@ use {
         },
         ui_fields::UiFields,
     },
-    alloy::transports::{RpcError, TransportErrorKind},
+    alloy::{primitives::B256, transports::{RpcError, TransportErrorKind}},
     alloy_provider::PendingTransactionError,
     reqwest::StatusCode,
     serde::{Deserialize, Serialize},
@@ -183,6 +183,6 @@ pub enum SendTransactionError {
     #[error("PendingTransaction: {0}")]
     PendingTransaction(PendingTransactionError),
 
-    #[error("Failed")]
-    Failed,
+    #[error("Failed, txn hash: {txn_hash}")]
+    Failed { txn_hash: B256 },
 }

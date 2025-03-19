@@ -45,7 +45,7 @@ pub enum AssetType {
 pub type Eip155ChainId = U64;
 pub type GetAssetsResult = HashMap<Eip155ChainId, Vec<Asset>>;
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(
     rename_all = "camelCase",
     rename_all_fields = "camelCase",
@@ -144,16 +144,33 @@ pub struct AssetData<M> {
     pub metadata: M,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct NativeMetadata {}
+pub struct NativeMetadata {
+    // Also non-standard data (for now?)
+    pub name: String,
+    pub symbol: String,
+    pub decimals: u8,
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+    // Non-standard data
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub value: Option<f64>,
+    pub price: f64,
+    pub icon_url: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Erc20Metadata {
     pub name: String,
     pub symbol: String,
     pub decimals: u8,
+
+    // Non-standard data
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub value: Option<f64>,
+    pub price: f64,
+    pub icon_url: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
