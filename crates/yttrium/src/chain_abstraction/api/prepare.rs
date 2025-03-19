@@ -379,6 +379,8 @@ pub enum BridgingError {
     NoRoutesAvailable,
     InsufficientFunds,
     InsufficientGasFunds,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -535,5 +537,27 @@ mod tests {
         assert_eq!(calls[0].to, to);
         assert_eq!(calls[0].value, value);
         assert_eq!(calls[0].input, input);
+    }
+
+    #[test]
+    fn deserializes_unknown_bridging_error() {
+        let json = serde_json::json!({
+            "error": "NEW_ERROR_TYPE",
+            "reason": "Some new error type we don't know about"
+        });
+        let result = serde_json::from_value::<PrepareResponseError>(json).unwrap();
+        assert!(matches!(result.error, BridgingError::Unknown));
+        assert_eq!(result.reason, "Some new error type we don't know about");
+    }
+
+    #[test]
+    fn serializes_unknown_bridging_error() {
+        let error = PrepareResponseError {
+            error: BridgingError::Unknown,
+            reason: "Test reason".to_string(),
+        };
+        let json = serde_json::to_value(&error).unwrap();
+        assert_eq!(json["error"], "UNKNOWN");
+        assert_eq!(json["reason"], "Test reason");
     }
 }
