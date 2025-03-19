@@ -91,7 +91,7 @@ impl ProviderPool {
     pub async fn get_wallet_provider(
         &self,
         tracing: Option<std::sync::mpsc::Sender<RpcRequestAnalytics>>,
-        blockchain_api_base_url_override: Option<&Url>,
+        url_override: Option<Url>,
     ) -> WalletProvider {
         WalletProvider {
             client: self
@@ -99,8 +99,8 @@ impl ProviderPool {
                     tracing,
                     WALLET_ENDPOINT_PATH,
                     vec![],
+                    url_override,
                     None,
-                    blockchain_api_base_url_override,
                 )
                 .await,
         }

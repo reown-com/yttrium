@@ -1,5 +1,5 @@
 #[cfg(feature = "solana")]
-use super::solana::{self, usdc_mint, SOLANA_CHAIN_ID};
+use super::solana::{self, usdc_mint, SOLANA_MAINNET_CHAIN_ID};
 use {
     crate::{
         blockchain_api::BLOCKCHAIN_API_URL_PROD,
@@ -122,7 +122,7 @@ pub enum SolanaChain {
 impl SolanaChain {
     pub fn eip155_chain_id(&self) -> &'static str {
         match self {
-            SolanaChain::Mainnet => SOLANA_CHAIN_ID,
+            SolanaChain::Mainnet => SOLANA_MAINNET_CHAIN_ID,
         }
     }
 
@@ -141,7 +141,7 @@ impl SolanaChain {
 
     pub fn from_eip155_chain_id(chain_id: &str) -> SolanaChain {
         match chain_id {
-            SOLANA_CHAIN_ID => SolanaChain::Mainnet,
+            SOLANA_MAINNET_CHAIN_ID => SolanaChain::Mainnet,
             _ => unimplemented!(),
         }
     }

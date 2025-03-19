@@ -195,6 +195,7 @@ impl InitialTransactionMetadata {
 )]
 #[serde(rename_all = "camelCase")]
 pub struct FundingMetadata {
+    // TODO consolidate into a single CAIP-10 account ID
     pub chain_id: String,
     pub token_contract: Eip155OrSolanaAddress,
     pub symbol: String,
