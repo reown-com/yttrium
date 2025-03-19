@@ -375,12 +375,12 @@ pub struct PrepareResponseError {
     tsify(into_wasm_abi, from_wasm_abi)
 )]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-#[serde(untagged)]
 pub enum BridgingError {
     NoRoutesAvailable,
     InsufficientFunds,
     InsufficientGasFunds,
-    Unknown(String),
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -546,23 +546,18 @@ mod tests {
             "reason": "Some new error type we don't know about"
         });
         let result = serde_json::from_value::<PrepareResponseError>(json).unwrap();
-        match result.error {
-            BridgingError::Unknown(original) => {
-                assert_eq!(original, "NEW_ERROR_TYPE");
-            }
-            _ => panic!("Expected Unknown variant"),
-        }
+        assert!(matches!(result.error, BridgingError::Unknown));
         assert_eq!(result.reason, "Some new error type we don't know about");
     }
 
     #[test]
     fn serializes_unknown_bridging_error() {
         let error = PrepareResponseError {
-            error: BridgingError::Unknown("CUSTOM_ERROR".to_string()),
+            error: BridgingError::Unknown,
             reason: "Test reason".to_string(),
         };
         let json = serde_json::to_value(&error).unwrap();
-        assert_eq!(json["error"], "CUSTOM_ERROR");
+        assert_eq!(json["error"], "UNKNOWN");
         assert_eq!(json["reason"], "Test reason");
     }
 
@@ -610,7 +605,7 @@ mod tests {
             BridgingError::NoRoutesAvailable,
             BridgingError::InsufficientFunds,
             BridgingError::InsufficientGasFunds,
-            BridgingError::Unknown("CUSTOM_ERROR".to_string()),
+            BridgingError::Unknown,
         ];
 
         for error in test_cases {
