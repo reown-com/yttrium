@@ -24,14 +24,17 @@ use {
         },
         pulse::{PulseMetadata, PULSE_SDK_TYPE},
         send_transaction::{send_transaction, TransactionAnalytics},
-        ui_fields::UiFields,
+        ui_fields::{RouteSig, UiFields},
     },
     crate::{
         blockchain_api::BLOCKCHAIN_API_URL_PROD,
         call::Call,
         chain_abstraction::{
-            api::fungible_price::PriceQueryParams, error::UiFieldsError,
-            l1_data_fee::get_l1_data_fee, pulse::pulse, ui_fields,
+            api::{fungible_price::PriceQueryParams, prepare::Transactions},
+            error::UiFieldsError,
+            l1_data_fee::get_l1_data_fee,
+            pulse::pulse,
+            ui_fields::{self, EstimatedRouteTransaction, Route},
         },
         erc20::ERC20,
         provider_pool::ProviderPool,
@@ -49,6 +52,11 @@ use {
     serde::{Deserialize, Serialize},
     std::collections::{HashMap, HashSet},
     url::Url,
+};
+#[cfg(feature = "solana")]
+use {
+    crate::chain_abstraction::solana,
+    solana_sdk::transaction::VersionedTransaction,
 };
 
 #[derive(Clone)]
@@ -93,11 +101,13 @@ impl Client {
         }
     }
 
+    /// accounts - List of other CAIP-10 accounts that the wallet has signing ability for
     pub async fn prepare(
         &self,
         chain_id: String,
         from: Address,
         call: Call,
+        accounts: Vec<String>,
     ) -> Result<PrepareResponse, PrepareError> {
         let response = self
             .provider_pool
@@ -114,6 +124,7 @@ impl Client {
                     from,
                     calls: CallOrCalls::Call { call },
                 },
+                accounts,
             })
             .query(&RouteQueryParams {
                 project_id: self.provider_pool.project_id.clone(),
@@ -126,8 +137,10 @@ impl Client {
             .map_err(PrepareError::Request)?;
         let status = response.status();
         if status.is_success() {
-            let text =
-                response.text().await.map_err(PrepareError::DecodingText)?;
+            let text = response
+                .text()
+                .await
+                .map_err(|e| PrepareError::DecodingText(status, e))?;
             serde_json::from_str(&text)
                 // .map(|mut response| {
                 //     if let PrepareResponse::Success(
@@ -146,11 +159,11 @@ impl Client {
                 //     }
                 //     response
                 // })
-                .map_err(|e| PrepareError::DecodingJson(e, text))
+                .map_err(|e| PrepareError::DecodingJson(status, e, text))
         } else {
             match response.text().await {
-                Ok(text) => Err(PrepareError::RequestFailed(text)),
-                Err(e) => Err(PrepareError::RequestFailedText(e)),
+                Ok(text) => Err(PrepareError::RequestFailed(status, text)),
+                Err(e) => Err(PrepareError::RequestFailedText(status, e)),
             }
         }
     }
@@ -169,15 +182,30 @@ impl Client {
         let chains = prepare_response
             .transactions
             .iter()
-            .chain(std::iter::once(&prepare_response.initial_transaction))
-            .map(|t| t.chain_id.clone())
+            .flat_map(|t| match t {
+                Transactions::Eip155(txns) => {
+                    txns.iter().map(|t| t.chain_id.clone()).collect::<Vec<_>>()
+                }
+                #[cfg(feature = "solana")]
+                Transactions::Solana(txns) => {
+                    txns.iter().map(|t| t.chain_id.clone()).collect::<Vec<_>>()
+                }
+            })
+            .chain(std::iter::once(
+                prepare_response.initial_transaction.chain_id.clone(),
+            ))
             .collect::<HashSet<_>>();
         println!("chains: {chains:?}");
 
         // TODO run fungible lookup, eip1559_fees, and l1 data fee, in parallel
 
+        let eip155_chains = chains
+            .iter()
+            .filter(|t| t.starts_with("eip155:"))
+            .collect::<Vec<_>>();
+
         let addresses =
-            chains
+            eip155_chains
                 .iter()
                 .map(|t| format!("{}:{}", t, NATIVE_TOKEN_ADDRESS))
                 .chain(
@@ -227,8 +255,8 @@ impl Client {
             }),
         );
 
-        let estimate_future = futures::future::try_join_all(chains.iter().map(
-            |chain_id| async move {
+        let estimate_future = futures::future::try_join_all(
+            eip155_chains.into_iter().map(|chain_id| async move {
                 self.provider_pool
                     .get_provider(chain_id)
                     .await
@@ -236,8 +264,8 @@ impl Client {
                     .await
                     .map_err(UiFieldsError::Eip1559Estimation)
                     .map(|estimate| (chain_id, estimate))
-            },
-        ));
+            }),
+        );
 
         async fn l1_data_fee(
             txn: Transaction,
@@ -271,7 +299,12 @@ impl Client {
             prepare_response
                 .transactions
                 .iter()
-                .map(|txn| l1_data_fee(txn.clone(), self)),
+                .flat_map(|t| match t {
+                    Transactions::Eip155(txns) => txns.clone(),
+                    #[cfg(feature = "solana")]
+                    Transactions::Solana(_txns) => Vec::new(),
+                })
+                .map(|txn| l1_data_fee(txn, self)),
         );
         let initial_l1_data_fee_future =
             l1_data_fee(prepare_response.initial_transaction.clone(), self);
@@ -303,16 +336,38 @@ impl Client {
 
         let mut estimated_transactions =
             Vec::with_capacity(prepare_response.transactions.len());
-        for (txn, l1_data_fee) in prepare_response
-            .clone()
+        #[allow(clippy::unnecessary_filter_map)]
+        for (txns, l1_data_fee) in prepare_response
             .transactions
-            .into_iter()
+            .iter()
+            .filter_map(|t| match t {
+                #[cfg(feature = "eip155")]
+                Transactions::Eip155(txns) => Some(txns.clone()),
+                #[cfg(feature = "solana")]
+                Transactions::Solana(_txns) => None,
+            })
             .zip(route_l1_data_fees.into_iter())
         {
-            estimated_transactions.push(estimate_gas_fees(
-                txn,
-                &eip1559_fees,
-                l1_data_fee,
+            let mut route_estimates = Vec::with_capacity(txns.len());
+            for txn in txns {
+                route_estimates.push(estimate_gas_fees(
+                    txn,
+                    &eip1559_fees,
+                    l1_data_fee,
+                ));
+            }
+            estimated_transactions
+                .push(EstimatedRouteTransaction::Eip155(route_estimates));
+        }
+        #[cfg(feature = "solana")]
+        for txn in
+            prepare_response.transactions.iter().filter_map(|t| match t {
+                Transactions::Eip155(_txns) => None,
+                Transactions::Solana(txns) => Some(txns.clone()),
+            })
+        {
+            estimated_transactions.push(EstimatedRouteTransaction::Solana(
+                txn.into_iter().map(|t| (t,)).collect::<Vec<_>>(),
             ));
         }
         let estimated_initial_transaction = estimate_gas_fees(
@@ -335,12 +390,13 @@ impl Client {
         chain_id: String,
         from: Address,
         call: Call,
+        accounts: Vec<String>,
         local_currency: Currency,
         // TODO use this to e.g. modify priority fee
         // _speed: String,
     ) -> Result<PrepareDetailedResponse, PrepareDetailedError> {
         let response = self
-            .prepare(chain_id, from, call)
+            .prepare(chain_id, from, call, accounts)
             .await
             .map_err(PrepareDetailedError::Prepare)?;
         match response {
@@ -472,7 +528,7 @@ impl Client {
     pub async fn execute(
         &self,
         ui_fields: UiFields,
-        route_txn_sigs: Vec<PrimitiveSignature>,
+        route_txn_sigs: Vec<RouteSig>,
         initial_txn_sig: PrimitiveSignature,
     ) -> Result<ExecuteDetails, ExecuteError> {
         assert_eq!(
@@ -481,14 +537,38 @@ impl Client {
             "route_txn_sigs length must match route length"
         );
 
-        for (index, (txn, sig)) in
+        for (route_index, (route, route_sig)) in
             ui_fields.route.iter().zip(route_txn_sigs.iter()).enumerate()
         {
-            let address = sig
-                .recover_address_from_prehash(&txn.transaction_hash_to_sign)
-                .unwrap();
-            let expected_address = txn.transaction.from;
-            assert_eq!(address, expected_address, "invalid route signature at index {index}. Expected recovered address to be {expected_address} but got {address} instead");
+            match (route, route_sig) {
+                (Route::Eip155(route), RouteSig::Eip155(route_sig)) => {
+                    for (index, (txn, sig)) in
+                        route.iter().zip(route_sig.iter()).enumerate()
+                    {
+                        let address = sig
+                            .recover_address_from_prehash(
+                                &txn.transaction_hash_to_sign,
+                            )
+                            .unwrap();
+                        let expected_address = txn.transaction.from;
+                        assert_eq!(address, expected_address, "invalid route signature at index {route_index}:eip155:{index}. Expected recovered address to be {expected_address} but got {address} instead");
+                    }
+                }
+                #[cfg(feature = "solana")]
+                (Route::Solana(route), RouteSig::Solana(route_sig)) => {
+                    for (index, (txn, sig)) in
+                        route.iter().zip(route_sig.iter()).enumerate()
+                    {
+                        assert!(
+                            sig.verify(txn.transaction.from.as_array(), txn.transaction_hash_to_sign.as_ref()),
+                            "invalid route signature at index {route_index}:solana:{index}. Signature is invalid");
+                    }
+                }
+                #[allow(unreachable_patterns)]
+                _ => {
+                    panic!("mis-matched route signature type for route transaction type at index {route_index}");
+                }
+            }
         }
 
         {
@@ -528,7 +608,7 @@ impl Client {
     async fn execute_inner(
         &self,
         ui_fields: UiFields,
-        route_txn_sigs: Vec<PrimitiveSignature>,
+        route_txn_sigs: Vec<RouteSig>,
         initial_txn_sig: PrimitiveSignature,
     ) -> Result<
         (ExecuteDetails, ExecuteAnalytics),
@@ -541,37 +621,90 @@ impl Client {
 
         let route_start = start;
         let mut route = Vec::with_capacity(ui_fields.route.len());
-        for (txn, sig) in
-            ui_fields.route.into_iter().zip(route_txn_sigs.into_iter())
+        // TODO run in parallel
+        for (route_index, (txn, sig)) in ui_fields
+            .route
+            .into_iter()
+            .zip(route_txn_sigs.into_iter())
+            .enumerate()
         {
-            let result =
-                send_transaction(txn.transaction, sig, &self.provider_pool)
-                    .await;
-            match result {
-                Ok((_receipt, analytics)) => {
-                    route.push(analytics); // TODO refactor to avoid non-dry `route.push(analytics)` as it risks us forgettting it
+            match (txn, sig) {
+                (Route::Eip155(txn), RouteSig::Eip155(sig)) => {
+                    for (txn, sig) in txn.into_iter().zip(sig.into_iter()) {
+                        let result = send_transaction(
+                            txn.transaction,
+                            sig,
+                            &self.provider_pool,
+                        )
+                        .await;
+                        match result {
+                            Ok((_receipt, analytics)) => {
+                                route.push(analytics); // TODO refactor to avoid non-dry `route.push(analytics)` as it risks us forgettting it
+                            }
+                            Err((e, analytics)) => {
+                                route.push(analytics);
+                                let route_latency = route_start.elapsed();
+                                let latency = start.elapsed();
+                                return Err((
+                                    ExecuteError::WithOrchestrationId {
+                                        orchestration_id: orchestration_id
+                                            .clone(),
+                                        reason: ExecuteErrorReason::Route(e),
+                                    },
+                                    ExecuteAnalytics {
+                                        orchestration_id: orchestration_id
+                                            .clone(),
+                                        error: None,
+                                        start: start_time,
+                                        route_latency,
+                                        route,
+                                        status_latency: None,
+                                        initial_txn: None,
+                                        latency,
+                                        end: SystemTime::now(),
+                                    },
+                                ));
+                            }
+                        }
+                    }
                 }
-                Err((e, analytics)) => {
-                    route.push(analytics);
-                    let route_latency = route_start.elapsed();
-                    let latency = start.elapsed();
-                    return Err((
-                        ExecuteError::WithOrchestrationId {
-                            orchestration_id: orchestration_id.clone(),
-                            reason: ExecuteErrorReason::Route(e),
-                        },
-                        ExecuteAnalytics {
-                            orchestration_id: orchestration_id.clone(),
-                            error: None,
-                            start: start_time,
-                            route_latency,
-                            route,
-                            status_latency: None,
-                            initial_txn: None,
-                            latency,
-                            end: SystemTime::now(),
-                        },
-                    ));
+                #[cfg(feature = "solana")]
+                (Route::Solana(txn), RouteSig::Solana(sig)) => {
+                    let sol_rpc = "https://api.mainnet-beta.solana.com";
+                    let solana_rpc_client =
+                        solana::SolanaRpcClient::new_with_commitment(
+                            sol_rpc.to_string(),
+                            solana::SolanaCommitmentConfig::confirmed(), // TODO what commitment level should we use?
+                        );
+
+                    for (txn, sig) in txn.into_iter().zip(sig.into_iter()) {
+                        let transaction = VersionedTransaction {
+                            signatures: vec![sig],
+                            message: txn.transaction.transaction.message,
+                        };
+
+                        // let simulation = solana_rpc_client
+                        //     .simulate_transaction(&transaction)
+                        //     .await;
+                        // println!("simulation: {:?}", simulation);
+
+                        match solana_rpc_client
+                            .send_and_confirm_transaction(&transaction)
+                            .await
+                        {
+                            Ok(signature) => println!(
+                                "Transfer successful! Signature: {}",
+                                signature
+                            ),
+                            Err(e) => {
+                                panic!("Error sending transaction: {}", e)
+                            }
+                        }
+                    }
+                }
+                #[allow(unreachable_patterns)]
+                _ => {
+                    panic!("mis-matched route transaction type for route signature type at index {route_index}");
                 }
             }
         }

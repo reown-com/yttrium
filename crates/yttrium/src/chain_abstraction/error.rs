@@ -21,17 +21,17 @@ pub enum PrepareError {
 
     /// Retryable error
     #[error("HTTP request failed: {0}")]
-    RequestFailed(String),
+    RequestFailed(StatusCode, String),
     #[error("HTTP request text failed: {0}")]
-    RequestFailedText(reqwest::Error),
+    RequestFailedText(StatusCode, reqwest::Error),
 
     /// Retryable error
     #[error("Decoding response as text failed: {0}")]
-    DecodingText(reqwest::Error),
+    DecodingText(StatusCode, reqwest::Error),
 
     /// Retryable error
     #[error("Decoding response as json failed: {0}")]
-    DecodingJson(serde_json::Error, String),
+    DecodingJson(StatusCode, serde_json::Error, String),
 }
 
 #[derive(thiserror::Error, Debug)]

@@ -47,9 +47,16 @@ test-pimlico-api:
   cargo test --features=test_pimlico_api --lib --bins pimlico
 
 test-blockchain-api:
-  RUST_BACKTRACE=1 RUST_LOG=yttrium=trace cargo test --features=test_blockchain_api --lib --bins chain_abstraction::tests
+  RUST_BACKTRACE=1 RUST_LOG=yttrium=debug cargo test --features=test_blockchain_api --lib --bins chain_abstraction::tests
+  RUST_BACKTRACE=1 RUST_LOG=yttrium=debug cargo test --features=test_blockchain_api,solana --lib --bins chain_abstraction::solana::tests
 test-blockchain-api-debug:
-  RUST_BACKTRACE=1 RUST_LOG=yttrium=trace cargo test -p yttrium --features=test_blockchain_api chain_abstraction::tests::happy_path_execute_method -- --nocapture
+  RUST_BACKTRACE=1 RUST_LOG=yttrium=debug cargo test -p yttrium --features=test_blockchain_api chain_abstraction::tests::happy_path_execute_method -- --nocapture
+test-blockchain-api-debug-solana:
+  RUST_BACKTRACE=1 RUST_LOG=yttrium=debug cargo test -p yttrium --features=test_blockchain_api,solana chain_abstraction::solana::tests::solana_happy_path -- --nocapture
+
+canary:
+  RUST_BACKTRACE=1 RUST_LOG=yttrium=debug cargo test -p yttrium --features=test_blockchain_api chain_abstraction::tests::happy_path_execute_method -- --nocapture
+  RUST_BACKTRACE=1 RUST_LOG=yttrium=debug cargo test -p yttrium --features=test_blockchain_api,solana chain_abstraction::solana::tests::solana_happy_path -- --nocapture
 
 lint: fmt clippy
 

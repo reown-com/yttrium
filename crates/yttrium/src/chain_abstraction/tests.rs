@@ -1,3 +1,5 @@
+#[cfg(feature = "solana")]
+use super::solana::{self, usdc_mint, SOLANA_CHAIN_ID};
 use {
     crate::{
         blockchain_api::BLOCKCHAIN_API_URL_PROD,
@@ -6,7 +8,8 @@ use {
             amount::Amount,
             api::{
                 prepare::{
-                    BridgingError, PrepareResponse, PrepareResponseError,
+                    BridgingError, Eip155OrSolanaAddress, PrepareResponse,
+                    PrepareResponseError,
                 },
                 status::StatusResponse,
                 Transaction,
@@ -16,7 +19,7 @@ use {
             l1_data_fee::get_l1_data_fee,
             pulse::PulseMetadata,
             test_helpers::floats_close,
-            ui_fields::{TransactionFee, TxnDetails},
+            ui_fields::{RouteSig, TransactionFee, TxnDetails},
         },
         erc20::{Token, ERC20},
         provider_pool::ProviderPool,
@@ -42,7 +45,7 @@ use {
     ERC20::ERC20Instance,
 };
 
-fn get_pulse_metadata() -> PulseMetadata {
+pub fn get_pulse_metadata() -> PulseMetadata {
     PulseMetadata {
         url: None,
         bundle_id: Some("com.reown.yttrium.tests".to_owned()),
@@ -51,28 +54,28 @@ fn get_pulse_metadata() -> PulseMetadata {
     }
 }
 
-const USDC_CONTRACT_OPTIMISM: Address =
+pub const USDC_CONTRACT_OPTIMISM: Address =
     address!("0b2c639c533813f4aa9d7837caf62653d097ff85");
-const USDC_CONTRACT_BASE: Address =
+pub const USDC_CONTRACT_BASE: Address =
     address!("833589fCD6eDb6E08f4c7C32D4f71b54bdA02913");
-const USDC_CONTRACT_ARBITRUM: Address =
+pub const USDC_CONTRACT_ARBITRUM: Address =
     address!("af88d065e77c8cC2239327C5EDb3A432268e5831");
 
-const TOPOFF: f64 = 1.55; // 50% in the server
+const TOPOFF: f64 = 3.05; // 200% in the server
 
 /// How much to multiply the amount by when bridging to cover bridging
 /// differences
-pub const BRIDGING_AMOUNT_MULTIPLIER: i8 = 55; // 50% in the server
+pub const BRIDGING_AMOUNT_MULTIPLIER: u64 = 205; // 200% in the server
 
 #[derive(Debug, Clone, PartialEq, Eq, Copy)]
-enum Chain {
+pub enum Chain {
     Base,
     Optimism,
     Arbitrum,
 }
 
 impl Chain {
-    fn eip155_chain_id(&self) -> &'static str {
+    pub fn eip155_chain_id(&self) -> &'static str {
         match self {
             Chain::Base => CHAIN_ID_BASE,
             Chain::Optimism => CHAIN_ID_OPTIMISM,
@@ -81,11 +84,11 @@ impl Chain {
     }
 
     #[allow(unused)]
-    fn chain_id(&self) -> &'static str {
+    pub fn chain_id(&self) -> &'static str {
         self.eip155_chain_id().strip_prefix("eip155:").unwrap()
     }
 
-    fn token_address(&self, token: &Token) -> Address {
+    pub fn token_address(&self, token: &Token) -> Address {
         match self {
             Chain::Base => match token {
                 Token::Usdc => USDC_CONTRACT_BASE,
@@ -99,13 +102,52 @@ impl Chain {
         }
     }
 
-    fn from_eip155_chain_id(chain_id: &str) -> Chain {
+    pub fn from_eip155_chain_id(chain_id: &str) -> Chain {
         match chain_id {
             CHAIN_ID_BASE => Chain::Base,
             CHAIN_ID_OPTIMISM => Chain::Optimism,
             CHAIN_ID_ARBITRUM => Chain::Arbitrum,
             _ => unimplemented!(),
         }
+    }
+}
+
+#[cfg(feature = "solana")]
+#[derive(Debug, Clone, PartialEq, Eq, Copy)]
+pub enum SolanaChain {
+    Mainnet,
+}
+
+#[cfg(feature = "solana")]
+impl SolanaChain {
+    pub fn eip155_chain_id(&self) -> &'static str {
+        match self {
+            SolanaChain::Mainnet => SOLANA_CHAIN_ID,
+        }
+    }
+
+    #[allow(unused)]
+    pub fn chain_id(&self) -> &'static str {
+        self.eip155_chain_id().strip_prefix("solana:").unwrap()
+    }
+
+    pub fn token_address(&self, token: &Token) -> solana_sdk::pubkey::Pubkey {
+        match self {
+            SolanaChain::Mainnet => match token {
+                Token::Usdc => usdc_mint(),
+            },
+        }
+    }
+
+    pub fn from_eip155_chain_id(chain_id: &str) -> SolanaChain {
+        match chain_id {
+            SOLANA_CHAIN_ID => SolanaChain::Mainnet,
+            _ => unimplemented!(),
+        }
+    }
+
+    pub fn get_caip10(&self, account_address: solana::SolanaPubkey) -> String {
+        format!("{}:{}", self.eip155_chain_id(), account_address)
     }
 }
 
@@ -342,7 +384,7 @@ async fn bridging_routes_routes_available() {
     println!("required_amount: {required_amount}");
 
     if current_balance < required_amount {
-        assert!(required_amount < U256::from(4000000));
+        assert!(required_amount < U256::from(5000000));
         println!(
                 "using token faucet {} on chain {} for amount {current_balance} on token {:?} ({}). Send tokens to faucet at: {}",
                 faucet.address(),
@@ -375,8 +417,8 @@ async fn bridging_routes_routes_available() {
         to: *chain_2_address_1_token.token.address(),
         value: U256::ZERO,
         input: ERC20::transferCall {
-            to: destination.address(),
-            amount: send_amount,
+            _to: destination.address(),
+            _value: send_amount,
         }
         .abi_encode()
         .into(),
@@ -391,6 +433,7 @@ async fn bridging_routes_routes_available() {
             chain_2.eip155_chain_id().to_owned(),
             source.address(),
             transaction.clone(),
+            vec![],
         )
         .await
         .unwrap()
@@ -426,7 +469,7 @@ async fn bridging_routes_routes_available() {
     println!("checking ui_fields.initial.2.local_fee");
     sanity_check_fee(&ui_fields.initial.fee.local_fee);
     for TxnDetails { fee: TransactionFee { local_fee: fee, .. }, .. } in
-        &ui_fields.route
+        ui_fields.route[0].as_eip155().unwrap()
     {
         println!("checking ui_fields.route[*].2.local_fee");
         sanity_check_fee(fee);
@@ -450,11 +493,14 @@ async fn bridging_routes_routes_available() {
                     .iter()
                     .map(|f| f.local_fee.as_float_inaccurate()),
             )
-            .chain(ui_fields.route.iter().map(
-                |TxnDetails {
-                     fee: TransactionFee { local_fee, .. }, ..
-                 }| { local_fee.as_float_inaccurate() },
-            ))
+            .chain(ui_fields.route.iter().flat_map(|route| {
+                route.as_eip155().unwrap().iter().map(
+                    |TxnDetails {
+                         fee: TransactionFee { local_fee, .. },
+                         ..
+                     }| { local_fee.as_float_inaccurate() },
+                )
+            }))
             .sum::<f64>();
     println!("total_fee: {total_fee}");
     println!("combined_fees: {combined_fees}");
@@ -639,8 +685,8 @@ async fn happy_path() {
                 .with_to(*chain_1_address_2_token.token.address())
                 .with_input(
                     ERC20::transferCall {
-                        to: chain_1_address_1_token.params.account_address,
-                        amount: via1,
+                        _to: chain_1_address_1_token.params.account_address,
+                        _value: via1,
                     }
                     .abi_encode(),
                 ),
@@ -659,8 +705,8 @@ async fn happy_path() {
                 .with_to(*chain_2_address_1_token.token.address())
                 .with_input(
                     ERC20::transferCall {
-                        to: chain_2_address_2_token.params.account_address,
-                        amount: via2,
+                        _to: chain_2_address_2_token.params.account_address,
+                        _value: via2,
                     }
                     .abi_encode(),
                 ),
@@ -740,8 +786,8 @@ async fn happy_path() {
         to: *source.other().bridge_token(&sources).token.address(),
         value: U256::ZERO,
         input: ERC20::transferCall {
-            to: source.other().address(&sources),
-            amount: send_amount,
+            _to: source.other().address(&sources),
+            _value: send_amount,
         }
         .abi_encode()
         .into(),
@@ -761,6 +807,7 @@ async fn happy_path() {
                 .to_owned(),
             source.address(&sources),
             initial_transaction.clone(),
+            vec![],
         )
         .await
         .unwrap()
@@ -797,10 +844,20 @@ async fn happy_path() {
             )
     }
 
+    assert_eq!(ui_fields.route.len(), 1);
+
     let mut total_fees = HashMap::new();
     let mut transactions_with_fees = vec![];
-    for (txn, ui_fields) in
-        result.transactions.into_iter().zip(ui_fields.route).chain(
+    for (txn, ui_fields) in result
+        .transactions
+        .into_iter()
+        .next()
+        .unwrap()
+        .into_eip155()
+        .unwrap()
+        .into_iter()
+        .zip(ui_fields.route.into_iter().next().unwrap().into_eip155().unwrap())
+        .chain(
             std::iter::once(result.initial_transaction)
                 .zip(std::iter::once(ui_fields.initial)),
         )
@@ -1236,8 +1293,8 @@ async fn happy_path_full_dependency_on_ui_fields() {
                 .with_to(*chain_1_address_2_token.token.address())
                 .with_input(
                     ERC20::transferCall {
-                        to: chain_1_address_1_token.params.account_address,
-                        amount: via1,
+                        _to: chain_1_address_1_token.params.account_address,
+                        _value: via1,
                     }
                     .abi_encode(),
                 ),
@@ -1256,8 +1313,8 @@ async fn happy_path_full_dependency_on_ui_fields() {
                 .with_to(*chain_2_address_1_token.token.address())
                 .with_input(
                     ERC20::transferCall {
-                        to: chain_2_address_2_token.params.account_address,
-                        amount: via2,
+                        _to: chain_2_address_2_token.params.account_address,
+                        _value: via2,
                     }
                     .abi_encode(),
                 ),
@@ -1337,8 +1394,8 @@ async fn happy_path_full_dependency_on_ui_fields() {
         to: *source.other().bridge_token(&sources).token.address(),
         value: U256::ZERO,
         input: ERC20::transferCall {
-            to: source.other().address(&sources),
-            amount: send_amount,
+            _to: source.other().address(&sources),
+            _value: send_amount,
         }
         .abi_encode()
         .into(),
@@ -1360,6 +1417,7 @@ async fn happy_path_full_dependency_on_ui_fields() {
             initial_transaction_chain_id.clone(),
             source.address(&sources),
             initial_transaction.clone(),
+            vec![],
         )
         .await
         .unwrap()
@@ -1433,7 +1491,9 @@ async fn happy_path_full_dependency_on_ui_fields() {
     );
     assert_eq!(
         &result.metadata.funding_from.first().unwrap().token_contract,
-        source.bridge_token(&sources).token.address()
+        &Eip155OrSolanaAddress::Eip155(
+            *source.bridge_token(&sources).token.address()
+        )
     );
 
     let start = Instant::now();
@@ -1441,9 +1501,13 @@ async fn happy_path_full_dependency_on_ui_fields() {
         client.get_ui_fields(result.clone(), Currency::Usd).await.unwrap();
     println!("output ui_fields in ({:#?}): {:?}", start.elapsed(), ui_fields);
 
+    assert_eq!(ui_fields.route.len(), 1);
+    let ui_fields_route =
+        ui_fields.route.into_iter().next().unwrap().into_eip155().unwrap();
+
     // Provide gas for transactions
     let mut prepared_faucet_txns = HashMap::new();
-    for txn in ui_fields.route.iter().chain(std::iter::once(&ui_fields.initial))
+    for txn in ui_fields_route.iter().chain(std::iter::once(&ui_fields.initial))
     {
         assert_eq!(txn.fee.fee.symbol, "ETH");
         prepared_faucet_txns
@@ -1483,8 +1547,8 @@ async fn happy_path_full_dependency_on_ui_fields() {
     let approval_start = Instant::now();
 
     let mut pending_bridge_txn_hashes =
-        Vec::with_capacity(ui_fields.route.len());
-    for TxnDetails { transaction, .. } in ui_fields.route {
+        Vec::with_capacity(ui_fields_route.len());
+    for TxnDetails { transaction, .. } in ui_fields_route {
         let txn = transaction.into_transaction_request();
         let provider = provider_pool
             .get_provider(
@@ -1811,7 +1875,7 @@ async fn happy_path_execute_method() {
 
     let assets = client
         .provider_pool
-        .get_wallet_provider(None)
+        .get_wallet_provider(None, None)
         .await
         .wallet_get_assets(GetAssetsParams {
             account: chain_1_address_1_token.params.account_address,
@@ -1853,7 +1917,7 @@ async fn happy_path_execute_method() {
 
     let assets = client
         .provider_pool
-        .get_wallet_provider(None)
+        .get_wallet_provider(None, None)
         .await
         .wallet_get_assets(GetAssetsParams {
             account: chain_1_address_2_token.params.account_address,
@@ -1906,8 +1970,8 @@ async fn happy_path_execute_method() {
                 .with_to(*chain_1_address_2_token.token.address())
                 .with_input(
                     ERC20::transferCall {
-                        to: chain_1_address_1_token.params.account_address,
-                        amount: via1,
+                        _to: chain_1_address_1_token.params.account_address,
+                        _value: via1,
                     }
                     .abi_encode(),
                 ),
@@ -1926,8 +1990,8 @@ async fn happy_path_execute_method() {
                 .with_to(*chain_2_address_1_token.token.address())
                 .with_input(
                     ERC20::transferCall {
-                        to: chain_2_address_2_token.params.account_address,
-                        amount: via2,
+                        _to: chain_2_address_2_token.params.account_address,
+                        _value: via2,
                     }
                     .abi_encode(),
                 ),
@@ -1973,8 +2037,9 @@ async fn happy_path_execute_method() {
     };
     println!("source: {:?}", source);
 
+    println!("required_amount: {}", required_amount);
     if faucet_required {
-        assert!(required_amount < U256::from(4000000));
+        assert!(required_amount < U256::from(5000000));
         println!(
             "using token faucet {} on chain {} for amount {required_amount} on token {:?} ({}). Send tokens to faucet at: {}",
             faucet.address(),
@@ -2007,8 +2072,8 @@ async fn happy_path_execute_method() {
         to: *source.other().bridge_token(&sources).token.address(),
         value: U256::ZERO,
         input: ERC20::transferCall {
-            to: source.other().address(&sources),
-            amount: send_amount,
+            _to: source.other().address(&sources),
+            _value: send_amount,
         }
         .abi_encode()
         .into(),
@@ -2022,13 +2087,17 @@ async fn happy_path_execute_method() {
         .chain
         .eip155_chain_id()
         .to_owned();
+    println!("initial_transaction_chain_id: {}", initial_transaction_chain_id);
+
+    let initial_transaction_from = source.address(&sources);
+    println!("initial_transaction_from: {}", initial_transaction_from);
 
     // Wait for cache invalidation on balance call
     tokio::time::sleep(Duration::from_secs(30)).await;
 
     let assets = client
         .provider_pool
-        .get_wallet_provider(None)
+        .get_wallet_provider(None, None)
         .await
         .wallet_get_assets(GetAssetsParams {
             account: source.address(&sources),
@@ -2064,8 +2133,9 @@ async fn happy_path_execute_method() {
     let result = client
         .prepare_detailed(
             initial_transaction_chain_id.clone(),
-            source.address(&sources),
+            initial_transaction_from,
             initial_transaction.clone(),
+            vec![],
             Currency::Usd,
         )
         .await
@@ -2172,19 +2242,24 @@ async fn happy_path_execute_method() {
         source.bridge_token(&sources).params.chain.eip155_chain_id()
     );
     assert_eq!(
-        &result
+        result
             .route_response
             .metadata
             .funding_from
             .first()
             .unwrap()
             .token_contract,
-        source.bridge_token(&sources).token.address()
+        Eip155OrSolanaAddress::Eip155(
+            *source.bridge_token(&sources).token.address()
+        )
     );
+
+    assert_eq!(result.route.len(), 1);
+    let result_route = result.route.first().unwrap().as_eip155().unwrap();
 
     // Provide gas for transactions
     let mut prepared_faucet_txns = HashMap::new();
-    for txn in result.route.iter().chain(std::iter::once(&result.initial)) {
+    for txn in result_route.iter().chain(std::iter::once(&result.initial)) {
         assert_eq!(txn.fee.fee.symbol, "ETH");
         prepared_faucet_txns
             .entry((txn.transaction.chain_id.clone(), txn.transaction.from))
@@ -2228,17 +2303,18 @@ async fn happy_path_execute_method() {
         .unwrap();
     assert!(matches!(status, StatusResponse::Pending(_)));
 
-    let route_txn_sigs = result
-        .route
-        .iter()
-        .map(|txn| {
-            wallet_lookup
-                .get(&txn.transaction.from)
-                .unwrap()
-                .sign_hash_sync(&txn.transaction_hash_to_sign)
-                .unwrap()
-        })
-        .collect();
+    let route_txn_sigs = vec![RouteSig::Eip155(
+        result_route
+            .iter()
+            .map(|txn| {
+                wallet_lookup
+                    .get(&txn.transaction.from)
+                    .unwrap()
+                    .sign_hash_sync(&txn.transaction_hash_to_sign)
+                    .unwrap()
+            })
+            .collect(),
+    )];
     let initial_txn_sigs = wallet_lookup
         .get(&result.initial.transaction.from)
         .unwrap()
@@ -2355,8 +2431,8 @@ async fn bridging_routes_routes_insufficient_funds() {
         to: *chain_1_address_2_token.token.address(),
         value: U256::ZERO,
         input: ERC20::transferCall {
-            to: account_2.address(),
-            amount: send_amount,
+            _to: account_2.address(),
+            _value: send_amount,
         }
         .abi_encode()
         .into(),
@@ -2370,6 +2446,7 @@ async fn bridging_routes_routes_insufficient_funds() {
             chain_1.eip155_chain_id().to_owned(),
             account_1.address(),
             transaction.clone(),
+            vec![],
         )
         .await
         .unwrap();

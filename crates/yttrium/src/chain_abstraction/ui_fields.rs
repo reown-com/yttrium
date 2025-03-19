@@ -11,10 +11,15 @@ use {
         api::fungible_price::{FungiblePriceItem, NATIVE_TOKEN_ADDRESS},
         local_fee_acc::LocalAmountAcc,
     },
-    alloy::primitives::{B256, U256},
+    alloy::primitives::{PrimitiveSignature, B256, U256},
     alloy_provider::utils::Eip1559Estimation,
     serde::{Deserialize, Serialize},
     tracing::warn,
+};
+#[cfg(feature = "solana")]
+use {
+    crate::chain_abstraction::{api::prepare::SolanaTransaction, solana},
+    alloy::primitives::Bytes,
 };
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -27,12 +32,63 @@ use {
 )]
 pub struct UiFields {
     pub route_response: PrepareResponseAvailable,
-    pub route: Vec<TxnDetails>,
+    pub route: Vec<Route>,
     pub local_route_total: Amount,
     pub bridge: Vec<TransactionFee>,
     pub local_bridge_total: Amount,
     pub initial: TxnDetails,
     pub local_total: Amount,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Enum))]
+#[cfg_attr(
+    feature = "wasm",
+    derive(tsify_next::Tsify),
+    tsify(into_wasm_abi, from_wasm_abi)
+)]
+#[serde(rename_all = "camelCase", tag = "namespace")]
+pub enum Route {
+    #[cfg(feature = "eip155")]
+    Eip155(Vec<TxnDetails>),
+    #[cfg(feature = "solana")]
+    Solana(Vec<SolanaTxnDetails>),
+}
+
+impl Route {
+    #[cfg(feature = "eip155")]
+    pub fn into_eip155(self) -> Option<Vec<TxnDetails>> {
+        match self {
+            Self::Eip155(route) => Some(route),
+            #[cfg(feature = "solana")]
+            Self::Solana(_) => None,
+        }
+    }
+
+    #[cfg(feature = "eip155")]
+    pub fn as_eip155(&self) -> Option<&Vec<TxnDetails>> {
+        match self {
+            Self::Eip155(route) => Some(route),
+            #[cfg(feature = "solana")]
+            Self::Solana(_) => None,
+        }
+    }
+
+    #[cfg(feature = "solana")]
+    pub fn into_solana(self) -> Option<Vec<SolanaTxnDetails>> {
+        match self {
+            Self::Solana(route) => Some(route),
+            Self::Eip155(_) => None,
+        }
+    }
+
+    #[cfg(feature = "solana")]
+    pub fn as_solana(&self) -> Option<&Vec<SolanaTxnDetails>> {
+        match self {
+            Self::Solana(route) => Some(route),
+            Self::Eip155(_) => None,
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -62,9 +118,31 @@ pub struct TransactionFee {
     pub local_fee: Amount,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
+#[cfg_attr(
+    feature = "wasm",
+    derive(tsify_next::Tsify),
+    tsify(into_wasm_abi, from_wasm_abi)
+)]
+#[serde(rename_all = "camelCase")]
+#[cfg(feature = "solana")]
+pub struct SolanaTxnDetails {
+    pub transaction: SolanaTransaction,
+    pub transaction_hash_to_sign: Bytes,
+    // pub fee: TransactionFee,
+}
+
+pub enum EstimatedRouteTransaction {
+    #[cfg(feature = "eip155")]
+    Eip155(Vec<(Transaction, Eip1559Estimation, U256)>),
+    #[cfg(feature = "solana")]
+    Solana(Vec<(SolanaTransaction,)>),
+}
+
 pub fn ui_fields(
     route_response: PrepareResponseAvailable,
-    estimated_transactions: Vec<(Transaction, Eip1559Estimation, U256)>,
+    estimated_transactions: Vec<EstimatedRouteTransaction>,
     estimated_initial_transaction: (Transaction, Eip1559Estimation, U256),
     fungibles: Vec<FungiblePriceItem>,
 ) -> UiFields {
@@ -111,32 +189,65 @@ pub fn ui_fields(
         }
     }
 
-    let mut route = Vec::with_capacity(estimated_transactions.len());
-    for item in estimated_transactions {
-        let fee = compute_amounts(
-            item.2,
-            &mut vec![&mut total_local_fee, &mut local_route_total_acc],
-            fungibles
-                .iter()
-                .find(|f| {
-                    f.address
-                        == format!(
-                            "{}:{}",
-                            item.0.chain_id,
-                            NATIVE_TOKEN_ADDRESS.to_checksum(None)
-                        )
-                })
-                .unwrap(),
-        );
-        let transaction =
-            FeeEstimatedTransaction::from_transaction_and_estimate(
-                item.0, item.1,
-            );
-        route.push(TxnDetails {
-            transaction_hash_to_sign: transaction.clone().into_signing_hash(),
-            transaction,
-            fee,
-        });
+    let mut routes = Vec::new();
+
+    for estimated_route_transactions in estimated_transactions {
+        match estimated_route_transactions {
+            #[cfg(feature = "eip155")]
+            EstimatedRouteTransaction::Eip155(estimated_transactions) => {
+                let mut route =
+                    Vec::with_capacity(estimated_transactions.len());
+                for item in estimated_transactions {
+                    let fee = compute_amounts(
+                        item.2,
+                        &mut vec![
+                            &mut total_local_fee,
+                            &mut local_route_total_acc,
+                        ],
+                        fungibles
+                            .iter()
+                            .find(|f| {
+                                f.address
+                                    == format!(
+                                        "{}:{}",
+                                        item.0.chain_id,
+                                        NATIVE_TOKEN_ADDRESS.to_checksum(None)
+                                    )
+                            })
+                            .unwrap(),
+                    );
+                    let transaction =
+                        FeeEstimatedTransaction::from_transaction_and_estimate(
+                            item.0, item.1,
+                        );
+                    route.push(TxnDetails {
+                        transaction_hash_to_sign: transaction
+                            .clone()
+                            .into_signing_hash(),
+                        transaction,
+                        fee,
+                    });
+                }
+
+                routes.push(Route::Eip155(route));
+            }
+            #[cfg(feature = "solana")]
+            EstimatedRouteTransaction::Solana(estimated_transactions) => {
+                let mut route =
+                    Vec::with_capacity(estimated_transactions.len());
+                for (estimated_transaction,) in estimated_transactions {
+                    route.push(SolanaTxnDetails {
+                        transaction_hash_to_sign: estimated_transaction
+                            .transaction
+                            .message
+                            .serialize()
+                            .into(),
+                        transaction: estimated_transaction,
+                    });
+                }
+                routes.push(Route::Solana(route));
+            }
+        }
     }
 
     let initial_fee = compute_amounts(
@@ -200,7 +311,7 @@ pub fn ui_fields(
         local_bridge_total_acc.compute();
     UiFields {
         route_response,
-        route,
+        route: routes,
         local_route_total: Amount::new(
             "USD".to_owned(),
             local_route_total_fee,
@@ -221,12 +332,28 @@ pub fn ui_fields(
     }
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Enum))]
+#[cfg_attr(
+    feature = "wasm",
+    derive(tsify_next::Tsify),
+    tsify(into_wasm_abi, from_wasm_abi)
+)]
+#[serde(rename_all = "camelCase", tag = "namespace")]
+pub enum RouteSig {
+    #[cfg(feature = "eip155")]
+    Eip155(Vec<PrimitiveSignature>),
+    #[cfg(feature = "solana")]
+    Solana(Vec<solana::SolanaSignature>),
+}
+
 #[cfg(test)]
 mod tests {
     use {
         super::*,
         crate::chain_abstraction::api::prepare::{
-            FundingMetadata, InitialTransactionMetadata, Metadata,
+            Eip155OrSolanaAddress, FundingMetadata, InitialTransactionMetadata,
+            Metadata, Transactions,
         },
         alloy::primitives::{address, bytes, utils::Unit, Address, U64},
         std::iter,
@@ -284,7 +411,9 @@ mod tests {
                 metadata: Metadata {
                     funding_from: vec![FundingMetadata {
                         chain_id: chain_id_1.clone(),
-                        token_contract: token_contract_1,
+                        token_contract: Eip155OrSolanaAddress::Eip155(
+                            token_contract_1,
+                        ),
                         bridging_fee: U256::from(0x71a7),
                         symbol: "USDC".to_owned(),
                         amount: U256::ZERO,
@@ -301,12 +430,12 @@ mod tests {
                     check_in: 0,
                 },
                 initial_transaction: initial_transaction.clone(),
-                transactions: vec![
+                transactions: vec![Transactions::Eip155(vec![
                     route_transaction_1.clone(),
                     route_transaction_2.clone(),
-                ],
+                ])],
             },
-            vec![
+            vec![EstimatedRouteTransaction::Eip155(vec![
                 (
                     route_transaction_1,
                     chain_1_estimated_fees,
@@ -317,7 +446,7 @@ mod tests {
                     chain_1_estimated_fees,
                     U256::from(0x1b5e96a07aca_u64),
                 ),
-            ],
+            ])],
             (
                 initial_transaction,
                 chain_2_estimated_fees,
@@ -361,19 +490,31 @@ mod tests {
         println!("fields: {fields:?}");
 
         assert_eq!(
-            fields.route[0].transaction.max_fee_per_gas.to::<u128>(),
+            fields.route[0].as_eip155().unwrap()[0]
+                .transaction
+                .max_fee_per_gas
+                .to::<u128>(),
             chain_1_estimated_fees.max_fee_per_gas
         );
         assert_eq!(
-            fields.route[0].transaction.max_priority_fee_per_gas.to::<u128>(),
+            fields.route[0].as_eip155().unwrap()[0]
+                .transaction
+                .max_priority_fee_per_gas
+                .to::<u128>(),
             chain_1_estimated_fees.max_priority_fee_per_gas
         );
         assert_eq!(
-            fields.route[1].transaction.max_fee_per_gas.to::<u128>(),
+            fields.route[0].as_eip155().unwrap()[1]
+                .transaction
+                .max_fee_per_gas
+                .to::<u128>(),
             chain_1_estimated_fees.max_fee_per_gas
         );
         assert_eq!(
-            fields.route[1].transaction.max_priority_fee_per_gas.to::<u128>(),
+            fields.route[0].as_eip155().unwrap()[1]
+                .transaction
+                .max_priority_fee_per_gas
+                .to::<u128>(),
             chain_1_estimated_fees.max_priority_fee_per_gas
         );
         assert_eq!(
@@ -394,12 +535,16 @@ mod tests {
                         .iter()
                         .map(|f| f.local_fee.as_float_inaccurate()),
                 )
-                .chain(fields.route.iter().map(
-                    |TxnDetails {
-                         fee: TransactionFee { local_fee, .. },
-                         ..
-                     }| { local_fee.as_float_inaccurate() },
-                ))
+                .chain(fields.route.iter().flat_map(|route| {
+                    route.as_eip155().unwrap().iter().map(
+                        |TxnDetails {
+                             fee: TransactionFee { local_fee, .. },
+                             ..
+                         }| {
+                            local_fee.as_float_inaccurate()
+                        },
+                    )
+                }))
                 .sum::<f64>();
         println!("total_fee: {total_fee}");
         println!("combined_fees: {combined_fees}");

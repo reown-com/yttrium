@@ -1,3 +1,9 @@
+#[cfg(feature = "solana")]
+use solana_sdk::{
+    derivation_path::DerivationPath,
+    signature::{generate_seed_from_seed_phrase_and_passphrase, Keypair},
+    signer::{SeedDerivable, Signer},
+};
 use {
     crate::time::Instant,
     alloy::{
@@ -19,6 +25,8 @@ pub const BRIDGE_ACCOUNT_1: &str = "bridge_1";
 pub const BRIDGE_ACCOUNT_2: &str = "bridge_2";
 pub const BRIDGE_ACCOUNT_USDC_1557_1: &str = "bridge_3";
 pub const BRIDGE_ACCOUNT_USDC_1557_2: &str = "bridge_4";
+pub const BRIDGE_ACCOUNT_SOLANA_1: &str = "bridge_5";
+pub const BRIDGE_ACCOUNT_SOLANA_2: u32 = 1;
 
 pub fn use_account(name: Option<&str>) -> LocalSigner<SigningKey> {
     use alloy::signers::local::{coins_bip39::English, MnemonicBuilder};
@@ -36,6 +44,63 @@ pub fn use_account(name: Option<&str>) -> LocalSigner<SigningKey> {
     }
 
     builder.build().unwrap()
+}
+
+#[cfg(feature = "solana")]
+pub fn use_solana_account(index: u32) -> Keypair {
+    // use alloy::signers::local::{coins_bip39::English, MnemonicBuilder};
+    // pub const BIP32_HARDEN: u32 = 0x8000_0000;
+    let phrase = std::env::var("FAUCET_MNEMONIC")
+        .expect("You've not set the FAUCET_MNEMONIC environment variable");
+    // use bip39::{Language, Mnemonic};
+    // let mnemonic = Mnemonic::parse_in(Language::English, seed).unwrap();
+    // let seed = mnemonic.to_seed("");
+    // let keypair = keypair_from_seed(&seed).unwrap();
+    let seed = generate_seed_from_seed_phrase_and_passphrase(&phrase, "");
+    let keypair = Keypair::from_seed_and_derivation_path(
+        &seed,
+        Some(
+            DerivationPath::from_absolute_path_str(&format!(
+                "m/44'/501'/{index}'/0'",
+            ))
+            .unwrap(),
+        ),
+    )
+    .unwrap();
+    // let keypair = Keypair::from_seed_and_derivation_path(
+    //     &seed,
+    //     Some(
+    //         DerivationPath::from_absolute_path_str(&format!(
+    //             "m/44'/501'/0'/0/{}'",
+    //             u32::from_be_bytes(
+    //                 keccak256(name).as_slice()[..4].try_into().unwrap(),
+    //             )
+    //             .div_ceil(BIP32_HARDEN),
+    //         ))
+    //         .unwrap(),
+    //     ),
+    // )
+    // .unwrap();
+    // let c =
+    //     MnemonicBuilder::<English>::default()
+    //         .phrase(std::env::var("FAUCET_MNEMONIC").expect(
+    //             "You've not set the FAUCET_MNEMONIC environment variable",
+    //         ))
+    //         .derivation_path(format!(
+    //             "m/44'/501'/0'/0/{}'",
+    //             u32::from_be_bytes(
+    //                 keccak256(name).as_slice()[..4].try_into().unwrap(),
+    //             )
+    //             .div_ceil(BIP32_HARDEN)
+    //         ))
+    //         .unwrap()
+    //         .build()
+    //         .unwrap()
+    //         .into_credential();
+
+    // let keypair = Keypair::from_bytes(&c.to_bytes()).unwrap();
+    println!("use_solana_account keypair: {}", keypair.pubkey());
+    keypair
 }
 
 pub async fn anvil_faucet(provider: &impl Provider) -> LocalSigner<SigningKey> {
