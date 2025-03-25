@@ -1,6 +1,7 @@
 #[cfg(feature = "solana")]
 use super::solana::{self, usdc_mint, SOLANA_MAINNET_CHAIN_ID};
 use {
+    super::solana::SOLANA_MAINNET_CAIP2,
     crate::{
         blockchain_api::BLOCKCHAIN_API_URL_PROD,
         call::Call,
@@ -75,7 +76,7 @@ pub enum Chain {
 }
 
 impl Chain {
-    pub fn eip155_chain_id(&self) -> &'static str {
+    pub fn caip2(&self) -> &'static str {
         match self {
             Chain::Base => CHAIN_ID_BASE,
             Chain::Optimism => CHAIN_ID_OPTIMISM,
@@ -85,7 +86,7 @@ impl Chain {
 
     #[allow(unused)]
     pub fn chain_id(&self) -> &'static str {
-        self.eip155_chain_id().strip_prefix("eip155:").unwrap()
+        self.caip2().strip_prefix("eip155:").unwrap()
     }
 
     pub fn token_address(&self, token: &Token) -> Address {
@@ -120,15 +121,15 @@ pub enum SolanaChain {
 
 #[cfg(feature = "solana")]
 impl SolanaChain {
-    pub fn eip155_chain_id(&self) -> &'static str {
+    pub fn caip2(&self) -> &'static str {
         match self {
-            SolanaChain::Mainnet => SOLANA_MAINNET_CHAIN_ID,
+            SolanaChain::Mainnet => SOLANA_MAINNET_CAIP2,
         }
     }
 
     #[allow(unused)]
     pub fn chain_id(&self) -> &'static str {
-        self.eip155_chain_id().strip_prefix("solana:").unwrap()
+        self.caip2().strip_prefix("solana:").unwrap()
     }
 
     pub fn token_address(&self, token: &Token) -> solana_sdk::pubkey::Pubkey {
@@ -139,7 +140,7 @@ impl SolanaChain {
         }
     }
 
-    pub fn from_eip155_chain_id(chain_id: &str) -> SolanaChain {
+    pub fn from_solana_chain_id(chain_id: &str) -> SolanaChain {
         match chain_id {
             SOLANA_MAINNET_CHAIN_ID => SolanaChain::Mainnet,
             _ => unimplemented!(),
@@ -147,7 +148,7 @@ impl SolanaChain {
     }
 
     pub fn get_caip10(&self, account_address: solana::SolanaPubkey) -> String {
-        format!("{}:{}", self.eip155_chain_id(), account_address)
+        format!("{}:{}", self.caip2(), account_address)
     }
 }
 
@@ -173,11 +174,7 @@ impl BridgeToken {
     ) -> BridgeToken {
         let provider = ProviderBuilder::new()
             .wallet(EthereumWallet::new(account))
-            .on_provider(
-                provider_pool
-                    .get_provider(params.chain.eip155_chain_id())
-                    .await,
-            )
+            .on_provider(provider_pool.get_provider(params.chain.caip2()).await)
             .erased();
 
         let token_address = params.chain.token_address(&params.token);
@@ -388,7 +385,7 @@ async fn bridging_routes_routes_available() {
         println!(
                 "using token faucet {} on chain {} for amount {current_balance} on token {:?} ({}). Send tokens to faucet at: {}",
                 faucet.address(),
-                chain_1_address_1_token.params.chain.eip155_chain_id(),
+                chain_1_address_1_token.params.chain.caip2(),
                 token,
                 chain_1_address_1_token.token.address(),
                 faucet.address(),
@@ -430,7 +427,7 @@ async fn bridging_routes_routes_available() {
     let start = Instant::now();
     let result = client
         .prepare(
-            chain_2.eip155_chain_id().to_owned(),
+            chain_2.caip2().to_owned(),
             source.address(),
             transaction.clone(),
             vec![],
@@ -553,10 +550,8 @@ async fn happy_path() {
     let chain_1 = Chain::Base;
     let chain_2 = Chain::Optimism;
 
-    let chain_1_provider =
-        provider_pool.get_provider(chain_1.eip155_chain_id()).await;
-    let chain_2_provider =
-        provider_pool.get_provider(chain_2.eip155_chain_id()).await;
+    let chain_1_provider = provider_pool.get_provider(chain_1.caip2()).await;
+    let chain_2_provider = provider_pool.get_provider(chain_2.caip2()).await;
 
     let chain_1_address_1_token = BridgeToken::new(
         BridgeTokenParams {
@@ -757,7 +752,7 @@ async fn happy_path() {
         println!(
             "using token faucet {} on chain {} for amount {required_amount} on token {:?} ({}). Send tokens to faucet at: {}",
             faucet.address(),
-            chain_1_address_1_token.params.chain.eip155_chain_id(),
+            chain_1_address_1_token.params.chain.caip2(),
             token,
             chain_1_address_1_token.token.address(),
             faucet.address(),
@@ -803,7 +798,7 @@ async fn happy_path() {
                 .bridge_token(&sources)
                 .params
                 .chain
-                .eip155_chain_id()
+                .caip2()
                 .to_owned(),
             source.address(&sources),
             initial_transaction.clone(),
@@ -863,9 +858,7 @@ async fn happy_path() {
         )
     {
         let provider = provider_pool
-            .get_provider(
-                Chain::from_eip155_chain_id(&txn.chain_id).eip155_chain_id(),
-            )
+            .get_provider(Chain::from_eip155_chain_id(&txn.chain_id).caip2())
             .await;
         // TODO use fees from response of ui_fields: https://linear.app/reown/issue/RES-140/use-fees-from-response-of-route-ui-fields-for-happy-path-ca-tests
         let fees = provider.estimate_eip1559_fees(None).await.unwrap();
@@ -920,9 +913,7 @@ async fn happy_path() {
 
     for ((chain_id, address), total_fee) in total_fees {
         let provider = provider_pool
-            .get_provider(
-                Chain::from_eip155_chain_id(&chain_id).eip155_chain_id(),
-            )
+            .get_provider(Chain::from_eip155_chain_id(&chain_id).caip2())
             .await;
         let balance = provider.get_balance(address).await.unwrap();
         if total_fee > balance {
@@ -963,7 +954,7 @@ async fn happy_path() {
                     "eip155:{}",
                     txn.chain_id.unwrap()
                 ))
-                .eip155_chain_id(),
+                .caip2(),
             )
             .await;
         let start = Instant::now();
@@ -1046,7 +1037,7 @@ async fn happy_path() {
                 "eip155:{}",
                 original.chain_id.unwrap()
             ))
-            .eip155_chain_id(),
+            .caip2(),
         )
         .await;
 
@@ -1161,10 +1152,8 @@ async fn happy_path_full_dependency_on_ui_fields() {
     let chain_1 = Chain::Base;
     let chain_2 = Chain::Optimism;
 
-    let chain_1_provider =
-        provider_pool.get_provider(chain_1.eip155_chain_id()).await;
-    let chain_2_provider =
-        provider_pool.get_provider(chain_2.eip155_chain_id()).await;
+    let chain_1_provider = provider_pool.get_provider(chain_1.caip2()).await;
+    let chain_2_provider = provider_pool.get_provider(chain_2.caip2()).await;
 
     let chain_1_address_1_token = BridgeToken::new(
         BridgeTokenParams {
@@ -1365,7 +1354,7 @@ async fn happy_path_full_dependency_on_ui_fields() {
         println!(
             "using token faucet {} on chain {} for amount {required_amount} on token {:?} ({}). Send tokens to faucet at: {}",
             faucet.address(),
-            chain_1_address_1_token.params.chain.eip155_chain_id(),
+            chain_1_address_1_token.params.chain.caip2(),
             token,
             chain_1_address_1_token.token.address(),
             faucet.address(),
@@ -1402,13 +1391,8 @@ async fn happy_path_full_dependency_on_ui_fields() {
     };
     println!("input transaction: {:?}", initial_transaction);
 
-    let initial_transaction_chain_id = source
-        .other()
-        .bridge_token(&sources)
-        .params
-        .chain
-        .eip155_chain_id()
-        .to_owned();
+    let initial_transaction_chain_id =
+        source.other().bridge_token(&sources).params.chain.caip2().to_owned();
 
     let project_id = std::env::var("REOWN_PROJECT_ID").unwrap().into();
     let client = Client::new(project_id, get_pulse_metadata());
@@ -1487,7 +1471,7 @@ async fn happy_path_full_dependency_on_ui_fields() {
     );
     assert_eq!(
         result.metadata.funding_from.first().unwrap().chain_id,
-        source.bridge_token(&sources).params.chain.eip155_chain_id()
+        source.bridge_token(&sources).params.chain.caip2()
     );
     assert_eq!(
         &result.metadata.funding_from.first().unwrap().token_contract,
@@ -1517,9 +1501,7 @@ async fn happy_path_full_dependency_on_ui_fields() {
     }
     for ((chain_id, address), total_fee) in prepared_faucet_txns {
         let provider = provider_pool
-            .get_provider(
-                Chain::from_eip155_chain_id(&chain_id).eip155_chain_id(),
-            )
+            .get_provider(Chain::from_eip155_chain_id(&chain_id).caip2())
             .await;
         let balance = provider.get_balance(address).await.unwrap();
         if total_fee > balance {
@@ -1556,7 +1538,7 @@ async fn happy_path_full_dependency_on_ui_fields() {
                     "eip155:{}",
                     txn.chain_id.unwrap()
                 ))
-                .eip155_chain_id(),
+                .caip2(),
             )
             .await;
         let start = Instant::now();
@@ -1635,8 +1617,7 @@ async fn happy_path_full_dependency_on_ui_fields() {
 
     let provider = provider_pool
         .get_provider(
-            Chain::from_eip155_chain_id(&initial_transaction_chain_id)
-                .eip155_chain_id(),
+            Chain::from_eip155_chain_id(&initial_transaction_chain_id).caip2(),
         )
         .await;
 
@@ -1755,9 +1736,9 @@ async fn happy_path_execute_method() {
     let chain_2 = Chain::Optimism;
 
     let chain_1_provider =
-        client.provider_pool.get_provider(chain_1.eip155_chain_id()).await;
+        client.provider_pool.get_provider(chain_1.caip2()).await;
     let chain_2_provider =
-        client.provider_pool.get_provider(chain_2.eip155_chain_id()).await;
+        client.provider_pool.get_provider(chain_2.caip2()).await;
 
     let chain_1_address_1_token = BridgeToken::new(
         BridgeTokenParams {
@@ -1894,7 +1875,7 @@ async fn happy_path_execute_method() {
                 chain_1_address_1_token
                     .params
                     .chain
-                    .eip155_chain_id()
+                    .caip2()
                     .strip_prefix("eip155:")
                     .unwrap()
                     .parse::<u64>()
@@ -1936,7 +1917,7 @@ async fn happy_path_execute_method() {
                 chain_1_address_2_token
                     .params
                     .chain
-                    .eip155_chain_id()
+                    .caip2()
                     .strip_prefix("eip155:")
                     .unwrap()
                     .parse::<u64>()
@@ -2043,7 +2024,7 @@ async fn happy_path_execute_method() {
         println!(
             "using token faucet {} on chain {} for amount {required_amount} on token {:?} ({}). Send tokens to faucet at: {}",
             faucet.address(),
-            chain_1_address_1_token.params.chain.eip155_chain_id(),
+            chain_1_address_1_token.params.chain.caip2(),
             token,
             chain_1_address_1_token.token.address(),
             faucet.address(),
@@ -2080,13 +2061,8 @@ async fn happy_path_execute_method() {
     };
     println!("input transaction: {:?}", initial_transaction);
 
-    let initial_transaction_chain_id = source
-        .other()
-        .bridge_token(&sources)
-        .params
-        .chain
-        .eip155_chain_id()
-        .to_owned();
+    let initial_transaction_chain_id =
+        source.other().bridge_token(&sources).params.chain.caip2().to_owned();
     println!("initial_transaction_chain_id: {}", initial_transaction_chain_id);
 
     let initial_transaction_from = source.address(&sources);
@@ -2239,7 +2215,7 @@ async fn happy_path_execute_method() {
     );
     assert_eq!(
         result.route_response.metadata.funding_from.first().unwrap().chain_id,
-        source.bridge_token(&sources).params.chain.eip155_chain_id()
+        source.bridge_token(&sources).params.chain.caip2()
     );
     assert_eq!(
         result
@@ -2272,9 +2248,7 @@ async fn happy_path_execute_method() {
         );
         let provider = client
             .provider_pool
-            .get_provider(
-                Chain::from_eip155_chain_id(&chain_id).eip155_chain_id(),
-            )
+            .get_provider(Chain::from_eip155_chain_id(&chain_id).caip2())
             .await;
         let balance = provider.get_balance(address).await.unwrap();
         if total_fee > balance {
@@ -2443,7 +2417,7 @@ async fn bridging_routes_routes_insufficient_funds() {
     let client = Client::new(project_id, get_pulse_metadata());
     let result = client
         .prepare(
-            chain_1.eip155_chain_id().to_owned(),
+            chain_1.caip2().to_owned(),
             account_1.address(),
             transaction.clone(),
             vec![],
