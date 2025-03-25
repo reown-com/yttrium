@@ -545,7 +545,8 @@ mod tests {
             "error": "NEW_ERROR_TYPE",
             "reason": "Some new error type we don't know about"
         });
-        let result = serde_json::from_value::<PrepareResponseError>(json).unwrap();
+        let result =
+            serde_json::from_value::<PrepareResponseError>(json).unwrap();
         assert!(matches!(result.error, BridgingError::Unknown));
         assert_eq!(result.reason, "Some new error type we don't know about");
     }
@@ -574,7 +575,8 @@ mod tests {
                 "error": error_str,
                 "reason": "Test reason"
             });
-            let result = serde_json::from_value::<PrepareResponseError>(json).unwrap();
+            let result =
+                serde_json::from_value::<PrepareResponseError>(json).unwrap();
             assert_eq!(result.error, expected);
             assert_eq!(result.reason, "Test reason");
         }
@@ -614,7 +616,8 @@ mod tests {
                 reason: "Test reason".to_string(),
             };
             let json = serde_json::to_value(&error).unwrap();
-            let deserialized = serde_json::from_value::<PrepareResponseError>(json).unwrap();
+            let deserialized =
+                serde_json::from_value::<PrepareResponseError>(json).unwrap();
             assert_eq!(deserialized, error);
         }
     }

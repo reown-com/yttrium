@@ -6,7 +6,10 @@ use {
         },
         ui_fields::UiFields,
     },
-    alloy::{primitives::B256, transports::{RpcError, TransportErrorKind}},
+    alloy::{
+        primitives::B256,
+        transports::{RpcError, TransportErrorKind},
+    },
     alloy_provider::PendingTransactionError,
     reqwest::StatusCode,
     serde::{Deserialize, Serialize},

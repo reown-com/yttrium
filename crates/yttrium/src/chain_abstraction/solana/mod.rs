@@ -1,5 +1,3 @@
-use const_format::formatcp;
-use std::str::FromStr;
 pub use {
     bincode,
     solana_client::nonblocking::rpc_client::RpcClient as SolanaRpcClient,
@@ -13,6 +11,7 @@ pub use {
     },
     spl_associated_token_account::get_associated_token_address,
 };
+use {const_format::formatcp, std::str::FromStr};
 
 #[cfg(test)]
 #[cfg(feature = "test_blockchain_api")]
