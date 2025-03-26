@@ -9,7 +9,7 @@ use {
         jsonrpc::{JSONRPCResponse, Request, Response},
     },
     serde_json,
-    tracing::debug,
+    tracing::{debug, error},
 };
 
 pub struct PaymasterClient {
@@ -28,6 +28,7 @@ impl PaymasterClient {
         entry_point: &EntryPointAddress,
         sponsorship_policy_id: Option<String>,
     ) -> eyre::Result<SponsorshipResultV07> {
+        error!("sponsor_user_operation_v07");
         let params = {
             let mut params = vec![
                 serde_json::to_value(user_operation)?,
@@ -51,12 +52,12 @@ impl PaymasterClient {
             self.client.post(self.config.url()).json(&req_body).send().await?;
         debug!("pm_sponsorUserOperation post: {:?}", post);
         let res = post.text().await?;
-        debug!("pm_sponsorUserOperation res: {:?}", res);
+        error!("pm_sponsorUserOperation res: {:?}", res);
         let v = serde_json::from_str::<JSONRPCResponse<SponsorshipResponseV07>>(
             &res,
         )?;
 
-        debug!("pm_sponsorUserOperation json: {:?}", v);
+        error!("pm_sponsorUserOperation json: {:?}", v);
 
         let response: Response<SponsorshipResponseV07> = v.into();
 
