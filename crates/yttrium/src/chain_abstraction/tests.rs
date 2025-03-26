@@ -1,7 +1,8 @@
 #[cfg(feature = "solana")]
-use super::solana::{self, usdc_mint, SOLANA_MAINNET_CHAIN_ID};
+use super::solana::{
+    self, usdc_mint, SOLANA_MAINNET_CAIP2, SOLANA_MAINNET_CHAIN_ID,
+};
 use {
-    super::solana::SOLANA_MAINNET_CAIP2,
     crate::{
         blockchain_api::BLOCKCHAIN_API_URL_PROD,
         call::Call,
