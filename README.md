@@ -79,9 +79,14 @@ To contribute to this project, ensure you have the following dependencies instal
 - `swiftc` and Xcode
 - `make`
 
+For Android (`./build-kotlin.sh`):
+
 ```bash
-rustup toolchain install nightly -t armv7-linux-androideabi,aarch64-linux-android -c rust-src
+rustup toolchain install stable -t armv7-linux-androideabi,aarch64-linux-android -c rust-src
+cargo install cargo-ndk --locked
 ```
+
+You will also need to install Android Studio and the "NDK (Side by side)" SDK Tools.
 
 ### Setup
 

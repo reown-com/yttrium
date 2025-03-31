@@ -111,7 +111,7 @@ jobs:
 
       - name: Build Rust library
         run: |
-          cargo ndk -t ${{ matrix.target }} build --profile=uniffi-release --features=uniffi/cli
+          cargo ndk -t ${{ matrix.target }} build --package=kotlin-ffi --profile=uniffi-release --features=uniffi/cli
 
       - name: Generate Kotlin bindings (once)
         if: ${{ matrix.target == 'aarch64-linux-android' }}

@@ -128,6 +128,7 @@ spl-token = { workspace = true, optional = true }
 spl-associated-token-account = { workspace = true, optional = true }
 bincode = { workspace = true, optional = true }
 data-encoding = { workspace = true, optional = true }
+const_format = "0.2.34"
 
 [dev-dependencies]
 # mocking

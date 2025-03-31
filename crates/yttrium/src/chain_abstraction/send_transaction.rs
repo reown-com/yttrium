@@ -73,7 +73,7 @@ pub async fn send_transaction(
     })?;
 
     if !receipt.status() {
-        Err((SendTransactionError::Failed, final_analytics))
+        Err((SendTransactionError::Failed { txn_hash }, final_analytics))
     } else {
         Ok((receipt, final_analytics))
     }

@@ -1,10 +1,12 @@
 use {
     crate::{
-        blockchain_api::BLOCKCHAIN_API_URL_PROD,
+        blockchain_api::{BLOCKCHAIN_API_URL_PROD, WALLET_ENDPOINT_PATH},
         call::Call,
         chain_abstraction::{
+            amount::Amount,
             client::Client,
             currency::Currency,
+            pulse::PULSE_SDK_TYPE,
             solana::usdc_mint,
             tests::{
                 get_pulse_metadata, Chain, SolanaChain, USDC_CONTRACT_BASE,
@@ -16,36 +18,42 @@ use {
             private_faucet, use_account, use_solana_account,
             BRIDGE_ACCOUNT_SOLANA_1, BRIDGE_ACCOUNT_SOLANA_2,
         },
+        wallet_service_api::{
+            AddressOrNative, Asset, GetAssetsFilters, GetAssetsParams,
+        },
     },
     alloy::{
         network::{EthereumWallet, TransactionBuilder},
-        primitives::{U128, U256, U64},
+        primitives::{utils::Unit, U128, U256, U64},
         rpc::types::TransactionRequest,
         signers::SignerSync,
         sol_types::SolCall,
     },
     alloy_provider::{Provider, ProviderBuilder},
     eyre::eyre,
+    relay_rpc::domain::ProjectId,
     serde::Deserialize,
     serde_json::json,
     serial_test::serial,
     solana_client::nonblocking::rpc_client::RpcClient,
     solana_sdk::{commitment_config::CommitmentConfig, signer::Signer},
     spl_associated_token_account::get_associated_token_address,
+    url::Url,
 };
 
 #[test_log::test(tokio::test)]
 #[serial(happy_path)]
 async fn solana_happy_path() {
-    let project_id = std::env::var("REOWN_PROJECT_ID").unwrap().into();
+    let project_id: ProjectId =
+        std::env::var("REOWN_PROJECT_ID").unwrap().into();
     let blockchain_api_url = std::env::var("BLOCKCHAIN_API_URL")
         .unwrap_or(BLOCKCHAIN_API_URL_PROD.to_string())
-        .parse()
+        .parse::<Url>()
         .unwrap();
     let client = Client::with_blockchain_api_url(
-        project_id,
+        project_id.clone(),
         get_pulse_metadata(),
-        blockchain_api_url,
+        blockchain_api_url.clone(),
     );
     let sol_rpc = "https://api.mainnet-beta.solana.com";
     let client_sol = RpcClient::new_with_commitment(
@@ -72,10 +80,7 @@ async fn solana_happy_path() {
         ProviderBuilder::new()
             .wallet(EthereumWallet::new(faucet.clone()))
             .on_provider(
-                client
-                    .provider_pool
-                    .get_provider(chain_eth.eip155_chain_id())
-                    .await,
+                client.provider_pool.get_provider(chain_eth.caip2()).await,
             ),
     );
     let usdc_erc20_account_eth = ERC20::new(
@@ -83,10 +88,7 @@ async fn solana_happy_path() {
         ProviderBuilder::new()
             .wallet(EthereumWallet::new(account_eth.clone()))
             .on_provider(
-                client
-                    .provider_pool
-                    .get_provider(chain_eth.eip155_chain_id())
-                    .await,
+                client.provider_pool.get_provider(chain_eth.caip2()).await,
             ),
     );
 
@@ -246,10 +248,7 @@ async fn solana_happy_path() {
         let receipt = ProviderBuilder::new()
             .wallet(EthereumWallet::new(faucet.clone()))
             .on_provider(
-                client
-                    .provider_pool
-                    .get_provider(chain_eth.eip155_chain_id())
-                    .await,
+                client.provider_pool.get_provider(chain_eth.caip2()).await,
             )
             .send_transaction(transaction_request)
             .await
@@ -378,7 +377,7 @@ async fn solana_happy_path() {
     let min_eth_balance = U256::from(5_000_000_000_000u64); // $0.01 @ $2k ETH price
     let account_eth_eth_balance = client
         .provider_pool
-        .get_provider(chain_eth.eip155_chain_id())
+        .get_provider(chain_eth.caip2())
         .await
         .get_balance(account_eth.address())
         .await
@@ -387,10 +386,7 @@ async fn solana_happy_path() {
         assert!(ProviderBuilder::new()
             .wallet(EthereumWallet::new(faucet.clone()))
             .on_provider(
-                client
-                    .provider_pool
-                    .get_provider(chain_eth.eip155_chain_id())
-                    .await
+                client.provider_pool.get_provider(chain_eth.caip2()).await
             )
             .send_transaction(
                 TransactionRequest::default()
@@ -439,9 +435,68 @@ async fn solana_happy_path() {
 
     // TODO assert total spendable amount of USDC (EIP-7811) is enough to cover the spend amount: $1
 
+    let mut wallet_service_url =
+        blockchain_api_url.join(WALLET_ENDPOINT_PATH).unwrap();
+    wallet_service_url
+        .query_pairs_mut()
+        .append_pair("projectId", project_id.as_ref())
+        .append_pair(
+            "sessionId",
+            client.provider_pool.session_id.to_string().as_str(),
+        )
+        .append_pair("st", PULSE_SDK_TYPE)
+        .append_pair("sv", get_pulse_metadata().sdk_version.as_str())
+        .append_pair(
+            "accounts",
+            &[chain_solana.get_caip10(account_solana.pubkey())].join(","),
+        );
+
+    let assets = client
+        .provider_pool
+        .get_wallet_provider(None, Some(wallet_service_url))
+        .await
+        .wallet_get_assets(GetAssetsParams {
+            account: account_eth.address(),
+            filters: GetAssetsFilters {
+                asset_filter: None,
+                asset_type_filter: None,
+                chain_filter: None,
+            },
+        })
+        .await
+        .unwrap();
+    println!("assets: {:?}", assets);
+    let asset = assets
+        .get(&U64::from(chain_eth.chain_id().parse::<u64>().unwrap()))
+        .unwrap()
+        .iter()
+        .find_map(|asset| match asset {
+            Asset::Erc20 { data } => {
+                if data.address
+                    == AddressOrNative::Address(chain_eth.token_address(&token))
+                {
+                    Some(data)
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        })
+        .unwrap();
+    println!("asset: {:?}", asset);
+    let amount = Amount::new(
+        asset.metadata.symbol.clone(),
+        asset.balance,
+        Unit::try_from(asset.metadata.decimals).unwrap(),
+    );
+    // TODO fix asset test
+    println!("amount: {:?}", amount);
+    // assert!(amount.as_float_inaccurate() >= 1.0);
+    // assert!(asset.balance >= send_amount);
+
     let result = client
         .prepare_detailed(
-            chain_eth.eip155_chain_id().to_string(),
+            chain_eth.caip2().to_string(),
             account_eth.address(),
             initial_transaction.clone(),
             vec![chain_solana.get_caip10(account_solana.pubkey())],

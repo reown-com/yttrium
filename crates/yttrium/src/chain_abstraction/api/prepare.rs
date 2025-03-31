@@ -195,6 +195,7 @@ impl InitialTransactionMetadata {
 )]
 #[serde(rename_all = "camelCase")]
 pub struct FundingMetadata {
+    // TODO consolidate into a single CAIP-10 account ID
     pub chain_id: String,
     pub token_contract: Eip155OrSolanaAddress,
     pub symbol: String,
@@ -378,6 +379,8 @@ pub enum BridgingError {
     NoRoutesAvailable,
     InsufficientFunds,
     InsufficientGasFunds,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -534,5 +537,88 @@ mod tests {
         assert_eq!(calls[0].to, to);
         assert_eq!(calls[0].value, value);
         assert_eq!(calls[0].input, input);
+    }
+
+    #[test]
+    fn deserializes_unknown_bridging_error() {
+        let json = serde_json::json!({
+            "error": "NEW_ERROR_TYPE",
+            "reason": "Some new error type we don't know about"
+        });
+        let result =
+            serde_json::from_value::<PrepareResponseError>(json).unwrap();
+        assert!(matches!(result.error, BridgingError::Unknown));
+        assert_eq!(result.reason, "Some new error type we don't know about");
+    }
+
+    #[test]
+    fn serializes_unknown_bridging_error() {
+        let error = PrepareResponseError {
+            error: BridgingError::Unknown,
+            reason: "Test reason".to_string(),
+        };
+        let json = serde_json::to_value(&error).unwrap();
+        assert_eq!(json["error"], "UNKNOWN");
+        assert_eq!(json["reason"], "Test reason");
+    }
+
+    #[test]
+    fn deserializes_known_bridging_errors() {
+        let test_cases = vec![
+            ("NO_ROUTES_AVAILABLE", BridgingError::NoRoutesAvailable),
+            ("INSUFFICIENT_FUNDS", BridgingError::InsufficientFunds),
+            ("INSUFFICIENT_GAS_FUNDS", BridgingError::InsufficientGasFunds),
+        ];
+
+        for (error_str, expected) in test_cases {
+            let json = serde_json::json!({
+                "error": error_str,
+                "reason": "Test reason"
+            });
+            let result =
+                serde_json::from_value::<PrepareResponseError>(json).unwrap();
+            assert_eq!(result.error, expected);
+            assert_eq!(result.reason, "Test reason");
+        }
+    }
+
+    #[test]
+    fn serializes_known_bridging_errors() {
+        let test_cases = vec![
+            (BridgingError::NoRoutesAvailable, "NO_ROUTES_AVAILABLE"),
+            (BridgingError::InsufficientFunds, "INSUFFICIENT_FUNDS"),
+            (BridgingError::InsufficientGasFunds, "INSUFFICIENT_GAS_FUNDS"),
+        ];
+
+        for (error, expected) in test_cases {
+            let error = PrepareResponseError {
+                error,
+                reason: "Test reason".to_string(),
+            };
+            let json = serde_json::to_value(&error).unwrap();
+            assert_eq!(json["error"], expected);
+            assert_eq!(json["reason"], "Test reason");
+        }
+    }
+
+    #[test]
+    fn roundtrip_serialization() {
+        let test_cases = vec![
+            BridgingError::NoRoutesAvailable,
+            BridgingError::InsufficientFunds,
+            BridgingError::InsufficientGasFunds,
+            BridgingError::Unknown,
+        ];
+
+        for error in test_cases {
+            let error = PrepareResponseError {
+                error,
+                reason: "Test reason".to_string(),
+            };
+            let json = serde_json::to_value(&error).unwrap();
+            let deserialized =
+                serde_json::from_value::<PrepareResponseError>(json).unwrap();
+            assert_eq!(deserialized, error);
+        }
     }
 }
