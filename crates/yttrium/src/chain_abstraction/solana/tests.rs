@@ -489,10 +489,9 @@ async fn solana_happy_path() {
         asset.balance,
         Unit::try_from(asset.metadata.decimals).unwrap(),
     );
-    // TODO fix asset test
     println!("amount: {:?}", amount);
-    // assert!(amount.as_float_inaccurate() >= 1.0);
-    // assert!(asset.balance >= send_amount);
+    assert!(amount.as_float_inaccurate() >= 1.0);
+    assert!(asset.balance >= send_amount);
 
     let result = client
         .prepare_detailed(
