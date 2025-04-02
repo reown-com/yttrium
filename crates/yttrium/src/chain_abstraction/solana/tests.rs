@@ -451,6 +451,8 @@ async fn solana_happy_path() {
             &[chain_solana.get_caip10(account_solana.pubkey())].join(","),
         );
 
+    tokio::time::sleep(tokio::time::Duration::from_secs(30)).await;
+
     let assets = client
         .provider_pool
         .get_wallet_provider(None, Some(wallet_service_url))
@@ -489,10 +491,9 @@ async fn solana_happy_path() {
         asset.balance,
         Unit::try_from(asset.metadata.decimals).unwrap(),
     );
-    // TODO fix asset test
     println!("amount: {:?}", amount);
-    // assert!(amount.as_float_inaccurate() >= 1.0);
-    // assert!(asset.balance >= send_amount);
+    assert!(amount.as_float_inaccurate() >= 1.0);
+    assert!(asset.balance >= send_amount);
 
     let result = client
         .prepare_detailed(
