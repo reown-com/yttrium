@@ -8,7 +8,7 @@ android:
     - platforms;android-33
 
 before_install:
-    - VERSION=$(git tag --sort=committerdate | tail -1 `git rev-list --tags --max-count=1` || echo "unspecified")
+    - VERSION=$(git tag --sort=committerdate | tail -1  || echo "unspecified")
     - echo "VERSION=${VERSION}"
     - RELEASE_URL="https://github.com/reown-com/yttrium/releases/download/${VERSION}/kotlin-artifacts.zip"
     - echo "Fetching binaries and bindings from $RELEASE_URL"
