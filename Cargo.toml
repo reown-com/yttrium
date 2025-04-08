@@ -14,7 +14,7 @@ eyre = { version = "0.6.12", features = ["default"], default-features = false }
 thiserror = { version = "1.0", default-features = false }
 
 # Async
-tokio = { version = "1.17", default-features = false }
+tokio = { version = "1.44", default-features = false }
 futures = { version = "0.3.31", default-features = false }
 
 wasmtimer = { version = "0.4.1", default-features = false, features = [
