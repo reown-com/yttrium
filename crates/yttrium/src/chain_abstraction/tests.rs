@@ -269,41 +269,17 @@ async fn send_sponsored_txn(
         println!("funded");
     }
 
-    let start = Instant::now();
-    loop {
-        println!("sending txn: {:?}", txn);
-        let txn_sent = ProviderBuilder::new()
-            .wallet(wallet.clone())
-            .on_provider(provider)
-            .send_transaction(txn.clone())
-            .await
-            .unwrap()
-            // .with_required_confirmations(3)
-            .with_timeout(Some(Duration::from_secs(15)));
-        println!(
-            "txn hash: {} on chain {provider_chain_id}",
-            txn_sent.tx_hash()
-        );
-        // if provider
-        //     .get_transaction_by_hash(*txn_sent.tx_hash())
-        //     .await
-        //     .unwrap()
-        //     .is_none()
-        // {
-        //     println!("get_transaction_by_hash returned None,
-        // retrying...");     continue;
-        // }
-        let receipt = txn_sent.get_receipt().await;
-        if let Ok(receipt) = receipt {
-            assert!(receipt.status());
-            break;
-        }
-
-        println!("error getting receipt: {:?}", receipt);
-        if start.elapsed() > Duration::from_secs(30) {
-            panic!("timed out");
-        }
-    }
+    println!("sending txn: {:?}", txn);
+    let txn_sent = ProviderBuilder::new()
+        .wallet(wallet.clone())
+        .on_provider(provider)
+        .send_transaction(txn.clone())
+        .await
+        .unwrap()
+        .with_timeout(Some(Duration::from_secs(30)));
+    println!("txn hash: {} on chain {provider_chain_id}", txn_sent.tx_hash());
+    let receipt = txn_sent.get_receipt().await.unwrap();
+    assert!(receipt.status());
 }
 
 #[tokio::test]
@@ -958,56 +934,22 @@ async fn happy_path() {
                 .caip2(),
             )
             .await;
-        let start = Instant::now();
-        loop {
-            println!("sending txn: {:?}", txn);
-            let txn_sent = ProviderBuilder::new()
-                .wallet(EthereumWallet::new(
-                    wallet_lookup.get(&txn.from.unwrap()).unwrap().clone(),
-                ))
-                .on_provider(provider.clone())
-                .send_transaction(txn.clone())
-                .await
-                .unwrap()
-                // .with_required_confirmations(3)
-                .with_timeout(Some(Duration::from_secs(15)));
+        println!("sending txn: {:?}", txn);
+        let txn_sent = ProviderBuilder::new()
+            .wallet(EthereumWallet::new(
+                wallet_lookup.get(&txn.from.unwrap()).unwrap().clone(),
+            ))
+            .on_provider(provider.clone())
+            .send_transaction(txn.clone())
+            .await
+            .unwrap()
+            .with_timeout(Some(Duration::from_secs(30)));
 
-            let tx_hash = *txn_sent.tx_hash();
-            println!(
-                "txn hash: {} on chain {}",
-                tx_hash,
-                txn.chain_id.unwrap()
-            );
-            // if provider
-            //     .get_transaction_by_hash(tx_hash)
-            //     .await
-            //     .unwrap()
-            //     .is_none()
-            // {
-            //     println!("get_transaction_by_hash returned None,
-            // retrying...");     continue;
-            // }
-            let receipt = txn_sent.get_receipt().await;
-            if let Ok(receipt) = receipt {
-                assert!(receipt.status());
-                pending_bridge_txn_hashes.push((provider.clone(), tx_hash));
-                break;
-            }
-
-            println!("error getting receipt: {:?}", receipt);
-            if start.elapsed() > Duration::from_secs(30) {
-                panic!("timed out");
-            }
-
-            // let receipt = pending_txn
-            //     .provider()
-            //     .get_transaction_receipt(*hash)
-            //     .await
-            //     .unwrap()
-            //     .unwrap();
-            // let status = receipt.status();
-            // assert!(status);
-        }
+        let tx_hash = *txn_sent.tx_hash();
+        println!("txn hash: {} on chain {}", tx_hash, txn.chain_id.unwrap());
+        let receipt = txn_sent.get_receipt().await.unwrap();
+        assert!(receipt.status());
+        pending_bridge_txn_hashes.push((provider.clone(), tx_hash));
     }
 
     let status = client
@@ -1042,53 +984,32 @@ async fn happy_path() {
         )
         .await;
 
-    let start = Instant::now();
-    loop {
-        println!("sending txn: {:?}", original);
-        let txn_sent = match ProviderBuilder::new()
-            .wallet(EthereumWallet::new(
-                wallet_lookup.get(&original.from.unwrap()).unwrap().clone(),
-            ))
-            .on_provider(provider.clone())
-            .send_transaction(original.clone())
-            .await
-        {
-            Ok(txn_sent) => {
-                txn_sent
-                    // .with_required_confirmations(3)
-                    .with_timeout(Some(Duration::from_secs(15)))
-            }
-            Err(e) => {
-                println!("error sending txn: {:?}", e);
-                crate::time::sleep(Duration::from_secs(1)).await;
-                continue;
-            }
-        };
-        println!(
-            "txn hash: {} on chain {}",
-            txn_sent.tx_hash(),
-            original.chain_id.unwrap()
-        );
-        // if provider
-        //     .get_transaction_by_hash(*txn_sent.tx_hash())
-        //     .await
-        //     .unwrap()
-        //     .is_none()
-        // {
-        //     println!("get_transaction_by_hash returned None, retrying...");
-        //     continue;
-        // }
-        let receipt = txn_sent.get_receipt().await;
-        if let Ok(receipt) = receipt {
-            assert!(receipt.status());
-            break;
-        }
+    println!("sending txn: {:?}", original);
+    let txn_sent = ProviderBuilder::new()
+        .wallet(EthereumWallet::new(
+            wallet_lookup.get(&original.from.unwrap()).unwrap().clone(),
+        ))
+        .on_provider(provider.clone())
+        .send_transaction(original.clone())
+        .await
+        .unwrap();
+    println!(
+        "txn hash: {} on chain {}",
+        txn_sent.tx_hash(),
+        original.chain_id.unwrap()
+    );
+    // if provider
+    //     .get_transaction_by_hash(*txn_sent.tx_hash())
+    //     .await
+    //     .unwrap()
+    //     .is_none()
+    // {
+    //     println!("get_transaction_by_hash returned None, retrying...");
+    //     continue;
+    // }
+    let receipt = txn_sent.get_receipt().await.unwrap();
+    assert!(receipt.status());
 
-        println!("error getting receipt: {:?}", receipt);
-        if start.elapsed() > Duration::from_secs(30) {
-            panic!("timed out");
-        }
-    }
     println!("original txn finished in {:?}", approval_start.elapsed());
 
     println!("final token balances:");
@@ -1542,56 +1463,22 @@ async fn happy_path_full_dependency_on_ui_fields() {
                 .caip2(),
             )
             .await;
-        let start = Instant::now();
-        loop {
-            println!("sending txn: {:?}", txn);
-            let txn_sent = ProviderBuilder::new()
-                .wallet(EthereumWallet::new(
-                    wallet_lookup.get(&txn.from.unwrap()).unwrap().clone(),
-                ))
-                .on_provider(provider.clone())
-                .send_transaction(txn.clone())
-                .await
-                .unwrap()
-                // .with_required_confirmations(3)
-                .with_timeout(Some(Duration::from_secs(15)));
 
-            let tx_hash = *txn_sent.tx_hash();
-            println!(
-                "txn hash: {} on chain {}",
-                tx_hash,
-                txn.chain_id.unwrap()
-            );
-            // if provider
-            //     .get_transaction_by_hash(tx_hash)
-            //     .await
-            //     .unwrap()
-            //     .is_none()
-            // {
-            //     println!("get_transaction_by_hash returned None,
-            // retrying...");     continue;
-            // }
-            let receipt = txn_sent.get_receipt().await;
-            if let Ok(receipt) = receipt {
-                assert!(receipt.status());
-                pending_bridge_txn_hashes.push((provider.clone(), tx_hash));
-                break;
-            }
-
-            println!("error getting receipt: {:?}", receipt);
-            if start.elapsed() > Duration::from_secs(30) {
-                panic!("timed out");
-            }
-
-            // let receipt = pending_txn
-            //     .provider()
-            //     .get_transaction_receipt(*hash)
-            //     .await
-            //     .unwrap()
-            //     .unwrap();
-            // let status = receipt.status();
-            // assert!(status);
-        }
+        println!("sending txn: {:?}", txn);
+        let txn_sent = ProviderBuilder::new()
+            .wallet(EthereumWallet::new(
+                wallet_lookup.get(&txn.from.unwrap()).unwrap().clone(),
+            ))
+            .on_provider(provider.clone())
+            .send_transaction(txn.clone())
+            .await
+            .unwrap()
+            .with_timeout(Some(Duration::from_secs(30)));
+        let tx_hash = *txn_sent.tx_hash();
+        println!("txn hash: {} on chain {}", tx_hash, txn.chain_id.unwrap());
+        let receipt = txn_sent.get_receipt().await.unwrap();
+        assert!(receipt.status());
+        pending_bridge_txn_hashes.push((provider.clone(), tx_hash));
     }
 
     let status = client
@@ -1624,53 +1511,33 @@ async fn happy_path_full_dependency_on_ui_fields() {
 
     let original = ui_fields.initial.transaction.into_transaction_request();
 
-    let start = Instant::now();
-    loop {
-        println!("sending txn: {:?}", original);
-        let txn_sent = match ProviderBuilder::new()
-            .wallet(EthereumWallet::new(
-                wallet_lookup.get(&original.from.unwrap()).unwrap().clone(),
-            ))
-            .on_provider(provider.clone())
-            .send_transaction(original.clone())
-            .await
-        {
-            Ok(txn_sent) => {
-                txn_sent
-                    // .with_required_confirmations(3)
-                    .with_timeout(Some(Duration::from_secs(15)))
-            }
-            Err(e) => {
-                println!("error sending txn: {:?}", e);
-                crate::time::sleep(Duration::from_secs(1)).await;
-                continue;
-            }
-        };
-        println!(
-            "txn hash: {} on chain {}",
-            txn_sent.tx_hash(),
-            original.chain_id.unwrap()
-        );
-        // if provider
-        //     .get_transaction_by_hash(*txn_sent.tx_hash())
-        //     .await
-        //     .unwrap()
-        //     .is_none()
-        // {
-        //     println!("get_transaction_by_hash returned None, retrying...");
-        //     continue;
-        // }
-        let receipt = txn_sent.get_receipt().await;
-        if let Ok(receipt) = receipt {
-            assert!(receipt.status());
-            break;
-        }
+    println!("sending txn: {:?}", original);
+    let txn_sent = ProviderBuilder::new()
+        .wallet(EthereumWallet::new(
+            wallet_lookup.get(&original.from.unwrap()).unwrap().clone(),
+        ))
+        .on_provider(provider.clone())
+        .send_transaction(original.clone())
+        .await
+        .unwrap();
+    println!(
+        "txn hash: {} on chain {}",
+        txn_sent.tx_hash(),
+        original.chain_id.unwrap()
+    );
+    // if provider
+    //     .get_transaction_by_hash(*txn_sent.tx_hash())
+    //     .await
+    //     .unwrap()
+    //     .is_none()
+    // {
+    //     println!("get_transaction_by_hash returned None, retrying...");
+    //     continue;
+    // }
+    let receipt = txn_sent.get_receipt().await.unwrap();
 
-        println!("error getting receipt: {:?}", receipt);
-        if start.elapsed() > Duration::from_secs(30) {
-            panic!("timed out");
-        }
-    }
+    assert!(receipt.status());
+
     println!("original txn finished in {:?}", approval_start.elapsed());
 
     println!("final token balances:");
