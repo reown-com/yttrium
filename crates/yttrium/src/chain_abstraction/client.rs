@@ -40,11 +40,13 @@ use {
         provider_pool::ProviderPool,
         serde::{duration_millis, option_duration_millis, systemtime_millis},
         time::{sleep, Duration, Instant, SystemTime},
+        wallet_service_api::{GetAssetsParams, GetAssetsResult},
     },
     alloy::{
         network::TransactionBuilder,
         primitives::{Address, PrimitiveSignature, B256, U256, U64},
         rpc::types::{TransactionReceipt, TransactionRequest},
+        transports::TransportResult,
     },
     alloy_provider::{utils::Eip1559Estimation, Provider},
     relay_rpc::domain::ProjectId,
@@ -801,6 +803,17 @@ impl Client {
         let erc20 = ERC20::new(token, provider);
         let balance = erc20.balanceOf(owner).call().await?;
         Ok(balance.balance)
+    }
+
+    pub async fn get_wallet_assets(
+        &self,
+        params: GetAssetsParams,
+    ) -> TransportResult<GetAssetsResult> {
+        self.provider_pool
+            .get_wallet_provider(None, None)
+            .await
+            .wallet_get_assets(params)
+            .await
     }
 }
 

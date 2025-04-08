@@ -27,9 +27,12 @@ use {
             U256 as FFIU256, U64 as FFIU64,
         },
     },
-    yttrium::chain_abstraction::{
-        error::PrepareDetailedResponse, pulse::PulseMetadata,
-        ui_fields::RouteSig,
+    yttrium::{
+        chain_abstraction::{
+            error::PrepareDetailedResponse, pulse::PulseMetadata,
+            ui_fields::RouteSig,
+        },
+        wallet_service_api::{GetAssetsParams, GetAssetsResult},
     },
 };
 #[cfg(feature = "chain_abstraction_client")]
@@ -283,6 +286,16 @@ impl ChainAbstractionClient {
     ) -> Result<FFIU256, FFIError> {
         self.client
             .erc20_token_balance(chain_id, token, owner)
+            .await
+            .map_err(|e| FFIError::General(e.to_string()))
+    }
+
+    pub async fn get_wallet_assets(
+        &self,
+        params: GetAssetsParams,
+    ) -> Result<GetAssetsResult, FFIError> {
+        self.client
+            .get_wallet_assets(params)
             .await
             .map_err(|e| FFIError::General(e.to_string()))
     }

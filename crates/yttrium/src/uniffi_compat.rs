@@ -17,6 +17,10 @@ use {
     crate::{
         chain_abstraction::api::prepare::Eip155OrSolanaAddress,
         smart_accounts::account_address::AccountAddress,
+        wallet_service_api::{
+            AddressOrNative, Asset, AssetData, Erc20Metadata, Erc721Metadata,
+            NativeMetadata,
+        },
     },
     alloy::{
         contract::Error as AlloyError,
@@ -311,6 +315,50 @@ fn solana_derive_keypair_from_mnemonic(
         .map_err(|e| {
             SolanaDeriveKeypairFromMnemonicError::Derive(e.to_string())
         })
+}
+
+uniffi::custom_type!(Asset, AssetFfi, {
+    try_lift: |val| Ok(val.into()),
+    lower: |obj| obj.into(),
+});
+
+#[derive(Debug, Clone, PartialEq, uniffi_macros::Enum)]
+pub enum AssetFfi {
+    Native { address: AddressOrNative, balance: U256, metadata: NativeMetadata },
+    Erc20 { address: AddressOrNative, balance: U256, metadata: Erc20Metadata },
+    Erc721 { address: AddressOrNative, balance: U256, metadata: Erc721Metadata },
+}
+
+impl From<AssetFfi> for Asset {
+    fn from(value: AssetFfi) -> Self {
+        match value {
+            AssetFfi::Native { address, balance, metadata } => {
+                Self::Native { data: AssetData { address, balance, metadata } }
+            }
+            AssetFfi::Erc20 { address, balance, metadata } => {
+                Self::Erc20 { data: AssetData { address, balance, metadata } }
+            }
+            AssetFfi::Erc721 { address, balance, metadata } => {
+                Self::Erc721 { data: AssetData { address, balance, metadata } }
+            }
+        }
+    }
+}
+
+impl From<Asset> for AssetFfi {
+    fn from(value: Asset) -> Self {
+        match value {
+            Asset::Native {
+                data: AssetData { address, balance, metadata },
+            } => Self::Native { address, balance, metadata },
+            Asset::Erc20 { data: AssetData { address, balance, metadata } } => {
+                Self::Erc20 { address, balance, metadata }
+            }
+            Asset::Erc721 {
+                data: AssetData { address, balance, metadata },
+            } => Self::Erc721 { address, balance, metadata },
+        }
+    }
 }
 
 #[cfg(test)]

@@ -7,7 +7,13 @@ use {
 pub const WALLET_GET_ASSETS: &str = "wallet_getAssets";
 
 // https://github.com/ethereum/ERCs/pull/709/files#diff-be675f3ce6b6aa5616dd1bccf5e50f44ad65775afb967a47aaffb8f5eb51b849R35
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(
+    feature = "wasm",
+    derive(tsify_next::Tsify),
+    tsify(into_wasm_abi, from_wasm_abi)
+)]
 #[serde(rename_all = "camelCase")]
 pub struct GetAssetsParams {
     pub account: Address,
@@ -15,7 +21,13 @@ pub struct GetAssetsParams {
     pub filters: GetAssetsFilters,
 }
 
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(
+    feature = "wasm",
+    derive(tsify_next::Tsify),
+    tsify(into_wasm_abi, from_wasm_abi)
+)]
 #[serde(rename_all = "camelCase")]
 pub struct GetAssetsFilters {
     #[serde(default)]
@@ -30,7 +42,13 @@ pub type AssetFilter = HashMap<Eip155ChainId, Vec<AddressOrNative>>;
 pub type AssetTypeFilter = Vec<AssetType>;
 pub type ChainFilter = Vec<Eip155ChainId>;
 
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Enum))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(
+    feature = "wasm",
+    derive(tsify_next::Tsify),
+    tsify(into_wasm_abi, from_wasm_abi)
+)]
 #[serde(
     rename_all = "camelCase",
     rename_all_fields = "camelCase",
@@ -46,6 +64,11 @@ pub type Eip155ChainId = U64;
 pub type GetAssetsResult = HashMap<Eip155ChainId, Vec<Asset>>;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(
+    feature = "wasm",
+    derive(tsify_next::Tsify),
+    tsify(into_wasm_abi, from_wasm_abi)
+)]
 #[serde(
     rename_all = "camelCase",
     rename_all_fields = "camelCase",
@@ -92,6 +115,12 @@ impl Asset {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Enum))]
+#[cfg_attr(
+    feature = "wasm",
+    derive(tsify_next::Tsify),
+    tsify(into_wasm_abi, from_wasm_abi)
+)]
 pub enum AddressOrNative {
     Address(Address),
     Native,
@@ -136,7 +165,12 @@ impl<'de> Deserialize<'de> for AddressOrNative {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(
+    feature = "wasm",
+    derive(tsify_next::Tsify),
+    tsify(into_wasm_abi, from_wasm_abi)
+)]
 #[serde(rename_all = "camelCase")]
 pub struct AssetData<M> {
     pub address: AddressOrNative,
@@ -144,7 +178,13 @@ pub struct AssetData<M> {
     pub metadata: M,
 }
 
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(
+    feature = "wasm",
+    derive(tsify_next::Tsify),
+    tsify(into_wasm_abi, from_wasm_abi)
+)]
 #[serde(rename_all = "camelCase")]
 pub struct NativeMetadata {
     // Also non-standard data (for now?)
@@ -159,7 +199,13 @@ pub struct NativeMetadata {
     pub icon_url: String,
 }
 
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(
+    feature = "wasm",
+    derive(tsify_next::Tsify),
+    tsify(into_wasm_abi, from_wasm_abi)
+)]
 #[serde(rename_all = "camelCase")]
 pub struct Erc20Metadata {
     pub name: String,
@@ -173,7 +219,13 @@ pub struct Erc20Metadata {
     pub icon_url: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(
+    feature = "wasm",
+    derive(tsify_next::Tsify),
+    tsify(into_wasm_abi, from_wasm_abi)
+)]
 #[serde(rename_all = "camelCase")]
 pub struct Erc721Metadata {
     pub name: String,
