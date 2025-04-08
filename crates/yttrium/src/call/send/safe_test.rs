@@ -233,7 +233,7 @@ pub async fn prepare_send_transactions_inner(
         if let Some(address) = address { address } else { contract_address };
 
     let deployed =
-        provider.get_code_at(account_address.into()).await?.len() > 0;
+        !provider.get_code_at(account_address.into()).await?.is_empty();
     println!("Deployed: {}", deployed);
     // permissionless: signerToSafeSmartAccount -> encodeCallData
     let call_data = if deployed
@@ -597,10 +597,11 @@ mod tests {
         // The UserOp is successful, but the transaction actually failed. See
         // note above near `Safe7579Launchpad::setupSafe`
         assert!(receipt.success);
-        assert!(
-            provider.get_code_at(sender_address.into()).await.unwrap().len()
-                > 0
-        );
+        assert!(!provider
+            .get_code_at(sender_address.into())
+            .await
+            .unwrap()
+            .is_empty());
         assert_eq!(
             provider
                 .get_storage_at(sender_address.into(), Uint::from(0))

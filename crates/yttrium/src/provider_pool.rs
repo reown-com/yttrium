@@ -177,8 +177,7 @@ impl ProviderPool {
             url
         };
 
-        let transport =
-            ProxyReqwestClient::new(self.client.clone(), url, tracing);
+        let transport = CustomClient::new(self.client.clone(), url, tracing);
         ClientBuilder::default()
             // .layer(RpcRequestModifyingLayer { tracing })
             .transport(transport, false)
@@ -201,20 +200,21 @@ mod network {
 
 type TracingType = Option<std::sync::mpsc::Sender<RpcRequestAnalytics>>;
 
+/// Custom client that enables adding things like tracing to the requests.
 #[derive(Clone)]
-pub struct ProxyReqwestClient {
+pub struct CustomClient {
     client: ReqwestClient,
     url: Url,
     tracing: TracingType,
 }
 
-impl ProxyReqwestClient {
+impl CustomClient {
     pub fn new(client: ReqwestClient, url: Url, tracing: TracingType) -> Self {
         Self { client, url, tracing }
     }
 }
 
-impl Service<RequestPacket> for ProxyReqwestClient {
+impl Service<RequestPacket> for CustomClient {
     type Response = ResponsePacket;
     type Error = TransportError;
     type Future = TransportFut<'static>;
@@ -234,14 +234,15 @@ impl Service<RequestPacket> for ProxyReqwestClient {
     }
 }
 
-impl ProxyReqwestClient {
+impl CustomClient {
     // Copied from alloy `Http<RequestClient>` impl
+    #[tracing::instrument(skip_all)]
     async fn do_reqwest(
         self,
         req: RequestPacket,
         tracing: TracingType,
     ) -> TransportResult<ResponsePacket> {
-        trace!("ProxyReqwestClient: do_reqwest: {req:?}");
+        trace!("req: {}", serde_json::to_string(&req).unwrap());
         let resp = self
             .client
             .post(self.url)
@@ -250,12 +251,15 @@ impl ProxyReqwestClient {
             .await
             .map_err(TransportErrorKind::custom)?;
         let status = resp.status();
+        trace!("res_status: {}", status);
 
         let req_id = resp
             .headers()
             .get("x-request-id")
             .and_then(|hv| hv.to_str().ok())
             .map(|s| s.to_string());
+        trace!("req_id: {}", req_id.as_deref().unwrap_or("none"));
+
         if let Some(tracing) = tracing {
             let rpcs = match req {
                 RequestPacket::Single(req) => {
@@ -280,6 +284,7 @@ impl ProxyReqwestClient {
         // the status code, as we want to return the error in the body
         // if there is one.
         let body = resp.bytes().await.map_err(TransportErrorKind::custom)?;
+        trace!("res_body: {}", String::from_utf8_lossy(&body));
 
         if !status.is_success() {
             return Err(TransportErrorKind::http_error(
