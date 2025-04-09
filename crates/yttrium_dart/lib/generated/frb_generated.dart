@@ -106,7 +106,8 @@ abstract class YttriumDartApi extends BaseApi {
       required String chainId,
       required Address from,
       required Call call,
-      required List<String> accounts});
+      required List<String> accounts,
+      required bool useLifi});
 
   Future<StatusResponse> crateChainAbstractionClientStatus(
       {required ChainAbstractionClient that, required String orchestrationId});
@@ -397,7 +398,8 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
       required String chainId,
       required Address from,
       required Call call,
-      required List<String> accounts}) {
+      required List<String> accounts,
+      required bool useLifi}) {
     return handler.executeNormal(NormalTask(
       callFfi: (port_) {
         final serializer = SseSerializer(generalizedFrbRustBinding);
@@ -409,6 +411,7 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
         sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCall(
             call, serializer);
         sse_encode_list_String(accounts, serializer);
+        sse_encode_bool(useLifi, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
             funcId: 7, port: port_);
       },
@@ -418,7 +421,7 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
         decodeErrorData: sse_decode_error,
       ),
       constMeta: kCrateChainAbstractionClientPrepareConstMeta,
-      argValues: [that, chainId, from, call, accounts],
+      argValues: [that, chainId, from, call, accounts, useLifi],
       apiImpl: this,
     ));
   }
@@ -426,7 +429,7 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
   TaskConstMeta get kCrateChainAbstractionClientPrepareConstMeta =>
       const TaskConstMeta(
         debugName: 'ChainAbstractionClient_prepare',
-        argNames: ['that', 'chainId', 'from', 'call', 'accounts'],
+        argNames: ['that', 'chainId', 'from', 'call', 'accounts', 'useLifi'],
       );
 
   @override
@@ -763,6 +766,12 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
   }
 
   @protected
+  bool dco_decode_bool(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw as bool;
+  }
+
+  @protected
   Eip1559Estimation dco_decode_eip_1559_estimation(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -1029,6 +1038,12 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
   }
 
   @protected
+  bool sse_decode_bool(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return deserializer.buffer.getUint8() != 0;
+  }
+
+  @protected
   Eip1559Estimation sse_decode_eip_1559_estimation(
       SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -1099,12 +1114,6 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
   int sse_decode_i_32(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getInt32();
-  }
-
-  @protected
-  bool sse_decode_bool(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return deserializer.buffer.getUint8() != 0;
   }
 
   @protected
@@ -1326,6 +1335,12 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
   }
 
   @protected
+  void sse_encode_bool(bool self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    serializer.buffer.putUint8(self ? 1 : 0);
+  }
+
+  @protected
   void sse_encode_eip_1559_estimation(
       Eip1559Estimation self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -1387,12 +1402,6 @@ class YttriumDartApiImpl extends YttriumDartApiImplPlatform
   void sse_encode_i_32(int self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putInt32(self);
-  }
-
-  @protected
-  void sse_encode_bool(bool self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    serializer.buffer.putUint8(self ? 1 : 0);
   }
 }
 
@@ -1487,13 +1496,15 @@ class ChainAbstractionClientImpl extends RustOpaque
           {required String chainId,
           required Address from,
           required Call call,
-          required List<String> accounts}) =>
+          required List<String> accounts,
+          required bool useLifi}) =>
       YttriumDart.instance.api.crateChainAbstractionClientPrepare(
           that: this,
           chainId: chainId,
           from: from,
           call: call,
-          accounts: accounts);
+          accounts: accounts,
+          useLifi: useLifi);
 
   Future<StatusResponse> status({required String orchestrationId}) =>
       YttriumDart.instance.api.crateChainAbstractionClientStatus(

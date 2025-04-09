@@ -202,7 +202,8 @@ fn wire__crate__ChainAbstractionClient_prepare_impl(
 let api_chain_id = <String>::sse_decode(&mut deserializer);
 let api_from = <Address>::sse_decode(&mut deserializer);
 let api_call = <Call>::sse_decode(&mut deserializer);
-let api_accounts = <Vec<String>>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
+let api_accounts = <Vec<String>>::sse_decode(&mut deserializer);
+let api_use_lifi = <bool>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
                     transform_result_sse::<_, crate::Error>((move || async move {
                         let mut api_that_guard = None;
 let decode_indices_ = flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![flutter_rust_bridge::for_generated::LockableOrderInfo::new(&api_that, 0, false)]);
@@ -213,7 +214,7 @@ let decode_indices_ = flutter_rust_bridge::for_generated::lockable_compute_decod
             }
         }
         let api_that_guard = api_that_guard.unwrap();
- let output_ok = crate::ChainAbstractionClient::prepare(&*api_that_guard, api_chain_id, api_from, api_call, api_accounts).await?;   Ok(output_ok)
+ let output_ok = crate::ChainAbstractionClient::prepare(&*api_that_guard, api_chain_id, api_from, api_call, api_accounts, api_use_lifi).await?;   Ok(output_ok)
                     })().await)
                 } })
 }
@@ -601,6 +602,15 @@ impl SseDecode for String {
     }
 }
 
+impl SseDecode for bool {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(
+        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
+    ) -> Self {
+        deserializer.cursor.read_u8().unwrap() != 0
+    }
+}
+
 impl SseDecode for crate::Eip1559Estimation {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(
@@ -702,15 +712,6 @@ impl SseDecode for i32 {
         deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
     ) -> Self {
         deserializer.cursor.read_i32::<NativeEndian>().unwrap()
-    }
-}
-
-impl SseDecode for bool {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(
-        deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer,
-    ) -> Self {
-        deserializer.cursor.read_u8().unwrap() != 0
     }
 }
 
@@ -1386,6 +1387,16 @@ impl SseEncode for String {
     }
 }
 
+impl SseEncode for bool {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(
+        self,
+        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
+    ) {
+        serializer.cursor.write_u8(self as _).unwrap();
+    }
+}
+
 impl SseEncode for crate::Eip1559Estimation {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(
@@ -1487,16 +1498,6 @@ impl SseEncode for i32 {
         serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
     ) {
         serializer.cursor.write_i32::<NativeEndian>(self).unwrap();
-    }
-}
-
-impl SseEncode for bool {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(
-        self,
-        serializer: &mut flutter_rust_bridge::for_generated::SseSerializer,
-    ) {
-        serializer.cursor.write_u8(self as _).unwrap();
     }
 }
 

@@ -26,6 +26,8 @@ pub struct RouteQueryParams {
     pub sdk_type: Option<String>,
     #[serde(rename = "sv")]
     pub sdk_version: Option<String>,
+    #[serde(default)]
+    pub use_lifi: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
