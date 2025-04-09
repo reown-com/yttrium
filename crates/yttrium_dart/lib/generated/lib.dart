@@ -44,7 +44,8 @@ abstract class ChainAbstractionClient implements RustOpaqueInterface {
       {required String chainId,
       required Address from,
       required Call call,
-      required List<String> accounts});
+      required List<String> accounts,
+      required bool useLifi});
 
   Future<StatusResponse> status({required String orchestrationId});
 
