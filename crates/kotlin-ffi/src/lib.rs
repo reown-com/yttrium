@@ -203,7 +203,14 @@ impl ChainAbstractionClient {
         use_lifi: bool,
     ) -> Result<PrepareDetailedResponse, FFIError> {
         self.client
-            .prepare_detailed(chain_id, from, call, accounts, local_currency, use_lifi)
+            .prepare_detailed(
+                chain_id,
+                from,
+                call,
+                accounts,
+                local_currency,
+                use_lifi,
+            )
             .await
             .map_err(|e| FFIError::General(e.to_string()))
     }
