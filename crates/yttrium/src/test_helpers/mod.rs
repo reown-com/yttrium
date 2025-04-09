@@ -5,7 +5,6 @@ use solana_sdk::{
     signer::{SeedDerivable, Signer},
 };
 use {
-    crate::time::Instant,
     alloy::{
         network::{EthereumWallet, TransactionBuilder},
         primitives::{keccak256, Address, U256},
@@ -160,42 +159,22 @@ async fn use_faucet_unlimited(
         panic!("not enough funds in faucet. Needed to send {amount} but only had {faucet_balance} available. Please add more funds to the faucet at {chain_id}:{faucet_address}");
     }
     let txn = TransactionRequest::default().with_to(to).with_value(amount);
-    let start = Instant::now();
-    loop {
-        println!("sending txn: {:?}", txn);
-        let txn_sent = ProviderBuilder::new()
-            .wallet(EthereumWallet::new(faucet.clone()))
-            .on_provider(provider)
-            .send_transaction(txn.clone())
-            .await
-            .unwrap()
-            // .with_required_confirmations(3)
-            .with_timeout(Some(Duration::from_secs(15)));
-        println!(
-            "txn hash: {} on chain {}",
-            txn_sent.tx_hash(),
-            provider.get_chain_id().await.unwrap()
-        );
-        // if provider
-        //     .get_transaction_by_hash(*txn_sent.tx_hash())
-        //     .await
-        //     .unwrap()
-        //     .is_none()
-        // {
-        //     println!("get_transaction_by_hash returned None, retrying...");
-        //     continue;
-        // }
-        let receipt = txn_sent.get_receipt().await;
-        if let Ok(receipt) = receipt {
-            assert!(receipt.status());
-            break;
-        }
+    println!("sending txn: {:?}", txn);
+    let txn_sent = ProviderBuilder::new()
+        .wallet(EthereumWallet::new(faucet.clone()))
+        .on_provider(provider)
+        .send_transaction(txn.clone())
+        .await
+        .unwrap()
+        .with_timeout(Some(Duration::from_secs(30)));
+    println!(
+        "txn hash: {} on chain {}",
+        txn_sent.tx_hash(),
+        provider.get_chain_id().await.unwrap()
+    );
+    let receipt = txn_sent.get_receipt().await.unwrap();
+    assert!(receipt.status());
 
-        println!("error getting receipt: {:?}", receipt);
-        if start.elapsed() > Duration::from_secs(30) {
-            panic!("timed out");
-        }
-    }
     let balance = provider.get_balance(to).await.unwrap();
     println!("Balance of {}: {}", to, balance);
     println!("amount: {}", amount);
