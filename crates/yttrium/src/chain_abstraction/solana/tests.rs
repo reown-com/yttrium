@@ -501,6 +501,7 @@ async fn solana_happy_path() {
             initial_transaction.clone(),
             vec![chain_solana.get_caip10(account_solana.pubkey())],
             Currency::Usd,
+            false,
         )
         .await
         .unwrap()

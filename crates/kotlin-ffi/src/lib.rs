@@ -172,9 +172,10 @@ impl ChainAbstractionClient {
         chain_id: String,
         from: FFIAddress,
         call: Call,
+        use_lifi: bool,
     ) -> Result<PrepareResponse, FFIError> {
         self.client
-            .prepare(chain_id, from, call, vec![])
+            .prepare(chain_id, from, call, vec![], use_lifi)
             .await
             .map_err(|e| FFIError::General(e.to_string()))
     }
@@ -199,9 +200,10 @@ impl ChainAbstractionClient {
         local_currency: Currency,
         // TODO use this to e.g. modify priority fee
         // _speed: String,
+        use_lifi: bool,
     ) -> Result<PrepareDetailedResponse, FFIError> {
         self.client
-            .prepare_detailed(chain_id, from, call, accounts, local_currency)
+            .prepare_detailed(chain_id, from, call, accounts, local_currency, use_lifi)
             .await
             .map_err(|e| FFIError::General(e.to_string()))
     }

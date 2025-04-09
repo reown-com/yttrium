@@ -53,6 +53,8 @@ test-blockchain-api-debug:
   RUST_BACKTRACE=1 RUST_LOG=yttrium=trace cargo test -p yttrium --features=test_blockchain_api chain_abstraction::tests::happy_path_execute_method -- --nocapture
 test-blockchain-api-debug-solana:
   RUST_BACKTRACE=1 RUST_LOG=yttrium=trace cargo test -p yttrium --features=test_blockchain_api,solana chain_abstraction::solana::tests::solana_happy_path -- --nocapture
+test-blockchain-api-debug-uselifi:
+  RUST_BACKTRACE=1 RUST_LOG=yttrium=trace cargo test -p yttrium --features=test_blockchain_api chain_abstraction::tests::happy_path_lifi -- --nocapture
 
 canary:
   RUST_BACKTRACE=1 RUST_LOG=yttrium=trace cargo test -p yttrium --features=test_blockchain_api chain_abstraction::tests::happy_path_execute_method -- --nocapture
