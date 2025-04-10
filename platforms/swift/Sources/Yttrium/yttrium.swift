@@ -448,6 +448,22 @@ fileprivate struct FfiConverterUInt64: FfiConverterPrimitive {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterDouble: FfiConverterPrimitive {
+    typealias FfiType = Double
+    typealias SwiftType = Double
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Double {
+        return try lift(readDouble(&buf))
+    }
+
+    public static func write(_ value: Double, into buf: inout [UInt8]) {
+        writeDouble(&buf, lower(value))
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterBool : FfiConverter {
     typealias FfiType = Int8
     typealias SwiftType = Bool
@@ -1114,6 +1130,178 @@ public func FfiConverterTypeEndpoints_lower(_ value: Endpoints) -> RustBuffer {
 }
 
 
+public struct Erc20Metadata {
+    public var name: String
+    public var symbol: String
+    public var decimals: UInt8
+    public var value: Double?
+    public var price: Double
+    public var iconUrl: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(name: String, symbol: String, decimals: UInt8, value: Double?, price: Double, iconUrl: String) {
+        self.name = name
+        self.symbol = symbol
+        self.decimals = decimals
+        self.value = value
+        self.price = price
+        self.iconUrl = iconUrl
+    }
+}
+
+#if compiler(>=6)
+extension Erc20Metadata: Sendable {}
+#endif
+
+
+extension Erc20Metadata: Equatable, Hashable {
+    public static func ==(lhs: Erc20Metadata, rhs: Erc20Metadata) -> Bool {
+        if lhs.name != rhs.name {
+            return false
+        }
+        if lhs.symbol != rhs.symbol {
+            return false
+        }
+        if lhs.decimals != rhs.decimals {
+            return false
+        }
+        if lhs.value != rhs.value {
+            return false
+        }
+        if lhs.price != rhs.price {
+            return false
+        }
+        if lhs.iconUrl != rhs.iconUrl {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(name)
+        hasher.combine(symbol)
+        hasher.combine(decimals)
+        hasher.combine(value)
+        hasher.combine(price)
+        hasher.combine(iconUrl)
+    }
+}
+
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeErc20Metadata: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Erc20Metadata {
+        return
+            try Erc20Metadata(
+                name: FfiConverterString.read(from: &buf), 
+                symbol: FfiConverterString.read(from: &buf), 
+                decimals: FfiConverterUInt8.read(from: &buf), 
+                value: FfiConverterOptionDouble.read(from: &buf), 
+                price: FfiConverterDouble.read(from: &buf), 
+                iconUrl: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: Erc20Metadata, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.name, into: &buf)
+        FfiConverterString.write(value.symbol, into: &buf)
+        FfiConverterUInt8.write(value.decimals, into: &buf)
+        FfiConverterOptionDouble.write(value.value, into: &buf)
+        FfiConverterDouble.write(value.price, into: &buf)
+        FfiConverterString.write(value.iconUrl, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeErc20Metadata_lift(_ buf: RustBuffer) throws -> Erc20Metadata {
+    return try FfiConverterTypeErc20Metadata.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeErc20Metadata_lower(_ value: Erc20Metadata) -> RustBuffer {
+    return FfiConverterTypeErc20Metadata.lower(value)
+}
+
+
+public struct Erc721Metadata {
+    public var name: String
+    public var symbol: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(name: String, symbol: String) {
+        self.name = name
+        self.symbol = symbol
+    }
+}
+
+#if compiler(>=6)
+extension Erc721Metadata: Sendable {}
+#endif
+
+
+extension Erc721Metadata: Equatable, Hashable {
+    public static func ==(lhs: Erc721Metadata, rhs: Erc721Metadata) -> Bool {
+        if lhs.name != rhs.name {
+            return false
+        }
+        if lhs.symbol != rhs.symbol {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(name)
+        hasher.combine(symbol)
+    }
+}
+
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeErc721Metadata: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Erc721Metadata {
+        return
+            try Erc721Metadata(
+                name: FfiConverterString.read(from: &buf), 
+                symbol: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: Erc721Metadata, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.name, into: &buf)
+        FfiConverterString.write(value.symbol, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeErc721Metadata_lift(_ buf: RustBuffer) throws -> Erc721Metadata {
+    return try FfiConverterTypeErc721Metadata.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeErc721Metadata_lower(_ value: Erc721Metadata) -> RustBuffer {
+    return FfiConverterTypeErc721Metadata.lower(value)
+}
+
+
 public struct ExecuteDetails {
     public var initialTxnReceipt: TransactionReceipt
     public var initialTxnHash: B256
@@ -1508,6 +1696,154 @@ public func FfiConverterTypeFundingMetadata_lower(_ value: FundingMetadata) -> R
 }
 
 
+public struct GetAssetsFilters {
+    public var assetFilter: [U64: [AddressOrNative]]?
+    public var assetTypeFilter: [AssetType]?
+    public var chainFilter: [U64]?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(assetFilter: [U64: [AddressOrNative]]?, assetTypeFilter: [AssetType]?, chainFilter: [U64]?) {
+        self.assetFilter = assetFilter
+        self.assetTypeFilter = assetTypeFilter
+        self.chainFilter = chainFilter
+    }
+}
+
+#if compiler(>=6)
+extension GetAssetsFilters: Sendable {}
+#endif
+
+
+extension GetAssetsFilters: Equatable, Hashable {
+    public static func ==(lhs: GetAssetsFilters, rhs: GetAssetsFilters) -> Bool {
+        if lhs.assetFilter != rhs.assetFilter {
+            return false
+        }
+        if lhs.assetTypeFilter != rhs.assetTypeFilter {
+            return false
+        }
+        if lhs.chainFilter != rhs.chainFilter {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(assetFilter)
+        hasher.combine(assetTypeFilter)
+        hasher.combine(chainFilter)
+    }
+}
+
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeGetAssetsFilters: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> GetAssetsFilters {
+        return
+            try GetAssetsFilters(
+                assetFilter: FfiConverterOptionDictionaryTypeU64SequenceTypeAddressOrNative.read(from: &buf), 
+                assetTypeFilter: FfiConverterOptionSequenceTypeAssetType.read(from: &buf), 
+                chainFilter: FfiConverterOptionSequenceTypeU64.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: GetAssetsFilters, into buf: inout [UInt8]) {
+        FfiConverterOptionDictionaryTypeU64SequenceTypeAddressOrNative.write(value.assetFilter, into: &buf)
+        FfiConverterOptionSequenceTypeAssetType.write(value.assetTypeFilter, into: &buf)
+        FfiConverterOptionSequenceTypeU64.write(value.chainFilter, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeGetAssetsFilters_lift(_ buf: RustBuffer) throws -> GetAssetsFilters {
+    return try FfiConverterTypeGetAssetsFilters.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeGetAssetsFilters_lower(_ value: GetAssetsFilters) -> RustBuffer {
+    return FfiConverterTypeGetAssetsFilters.lower(value)
+}
+
+
+public struct GetAssetsParams {
+    public var account: Address
+    public var filters: GetAssetsFilters
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(account: Address, filters: GetAssetsFilters) {
+        self.account = account
+        self.filters = filters
+    }
+}
+
+#if compiler(>=6)
+extension GetAssetsParams: Sendable {}
+#endif
+
+
+extension GetAssetsParams: Equatable, Hashable {
+    public static func ==(lhs: GetAssetsParams, rhs: GetAssetsParams) -> Bool {
+        if lhs.account != rhs.account {
+            return false
+        }
+        if lhs.filters != rhs.filters {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(account)
+        hasher.combine(filters)
+    }
+}
+
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeGetAssetsParams: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> GetAssetsParams {
+        return
+            try GetAssetsParams(
+                account: FfiConverterTypeAddress.read(from: &buf), 
+                filters: FfiConverterTypeGetAssetsFilters.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: GetAssetsParams, into buf: inout [UInt8]) {
+        FfiConverterTypeAddress.write(value.account, into: &buf)
+        FfiConverterTypeGetAssetsFilters.write(value.filters, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeGetAssetsParams_lift(_ buf: RustBuffer) throws -> GetAssetsParams {
+    return try FfiConverterTypeGetAssetsParams.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeGetAssetsParams_lower(_ value: GetAssetsParams) -> RustBuffer {
+    return FfiConverterTypeGetAssetsParams.lower(value)
+}
+
+
 public struct InitialTransactionMetadata {
     public var transferTo: Address
     public var amount: U256
@@ -1687,6 +2023,108 @@ public func FfiConverterTypeMetadata_lift(_ buf: RustBuffer) throws -> Metadata 
 #endif
 public func FfiConverterTypeMetadata_lower(_ value: Metadata) -> RustBuffer {
     return FfiConverterTypeMetadata.lower(value)
+}
+
+
+public struct NativeMetadata {
+    public var name: String
+    public var symbol: String
+    public var decimals: UInt8
+    public var value: Double?
+    public var price: Double
+    public var iconUrl: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(name: String, symbol: String, decimals: UInt8, value: Double?, price: Double, iconUrl: String) {
+        self.name = name
+        self.symbol = symbol
+        self.decimals = decimals
+        self.value = value
+        self.price = price
+        self.iconUrl = iconUrl
+    }
+}
+
+#if compiler(>=6)
+extension NativeMetadata: Sendable {}
+#endif
+
+
+extension NativeMetadata: Equatable, Hashable {
+    public static func ==(lhs: NativeMetadata, rhs: NativeMetadata) -> Bool {
+        if lhs.name != rhs.name {
+            return false
+        }
+        if lhs.symbol != rhs.symbol {
+            return false
+        }
+        if lhs.decimals != rhs.decimals {
+            return false
+        }
+        if lhs.value != rhs.value {
+            return false
+        }
+        if lhs.price != rhs.price {
+            return false
+        }
+        if lhs.iconUrl != rhs.iconUrl {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(name)
+        hasher.combine(symbol)
+        hasher.combine(decimals)
+        hasher.combine(value)
+        hasher.combine(price)
+        hasher.combine(iconUrl)
+    }
+}
+
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeNativeMetadata: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> NativeMetadata {
+        return
+            try NativeMetadata(
+                name: FfiConverterString.read(from: &buf), 
+                symbol: FfiConverterString.read(from: &buf), 
+                decimals: FfiConverterUInt8.read(from: &buf), 
+                value: FfiConverterOptionDouble.read(from: &buf), 
+                price: FfiConverterDouble.read(from: &buf), 
+                iconUrl: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: NativeMetadata, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.name, into: &buf)
+        FfiConverterString.write(value.symbol, into: &buf)
+        FfiConverterUInt8.write(value.decimals, into: &buf)
+        FfiConverterOptionDouble.write(value.value, into: &buf)
+        FfiConverterDouble.write(value.price, into: &buf)
+        FfiConverterString.write(value.iconUrl, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeMetadata_lift(_ buf: RustBuffer) throws -> NativeMetadata {
+    return try FfiConverterTypeNativeMetadata.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeMetadata_lower(_ value: NativeMetadata) -> RustBuffer {
+    return FfiConverterTypeNativeMetadata.lower(value)
 }
 
 
@@ -3443,11 +3881,246 @@ public func FfiConverterTypeUserOperationV07_lower(_ value: UserOperationV07) ->
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
 
+public enum AddressOrNative {
+    
+    case address(Address
+    )
+    case native
+}
+
+
+#if compiler(>=6)
+extension AddressOrNative: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeAddressOrNative: FfiConverterRustBuffer {
+    typealias SwiftType = AddressOrNative
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> AddressOrNative {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .address(try FfiConverterTypeAddress.read(from: &buf)
+        )
+        
+        case 2: return .native
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: AddressOrNative, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case let .address(v1):
+            writeInt(&buf, Int32(1))
+            FfiConverterTypeAddress.write(v1, into: &buf)
+            
+        
+        case .native:
+            writeInt(&buf, Int32(2))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeAddressOrNative_lift(_ buf: RustBuffer) throws -> AddressOrNative {
+    return try FfiConverterTypeAddressOrNative.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeAddressOrNative_lower(_ value: AddressOrNative) -> RustBuffer {
+    return FfiConverterTypeAddressOrNative.lower(value)
+}
+
+
+extension AddressOrNative: Equatable, Hashable {}
+
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+
+public enum AssetFfi {
+    
+    case native(address: AddressOrNative, balance: U256, metadata: NativeMetadata
+    )
+    case erc20(address: AddressOrNative, balance: U256, metadata: Erc20Metadata
+    )
+    case erc721(address: AddressOrNative, balance: U256, metadata: Erc721Metadata
+    )
+}
+
+
+#if compiler(>=6)
+extension AssetFfi: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeAssetFfi: FfiConverterRustBuffer {
+    typealias SwiftType = AssetFfi
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> AssetFfi {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .native(address: try FfiConverterTypeAddressOrNative.read(from: &buf), balance: try FfiConverterTypeU256.read(from: &buf), metadata: try FfiConverterTypeNativeMetadata.read(from: &buf)
+        )
+        
+        case 2: return .erc20(address: try FfiConverterTypeAddressOrNative.read(from: &buf), balance: try FfiConverterTypeU256.read(from: &buf), metadata: try FfiConverterTypeErc20Metadata.read(from: &buf)
+        )
+        
+        case 3: return .erc721(address: try FfiConverterTypeAddressOrNative.read(from: &buf), balance: try FfiConverterTypeU256.read(from: &buf), metadata: try FfiConverterTypeErc721Metadata.read(from: &buf)
+        )
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: AssetFfi, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case let .native(address,balance,metadata):
+            writeInt(&buf, Int32(1))
+            FfiConverterTypeAddressOrNative.write(address, into: &buf)
+            FfiConverterTypeU256.write(balance, into: &buf)
+            FfiConverterTypeNativeMetadata.write(metadata, into: &buf)
+            
+        
+        case let .erc20(address,balance,metadata):
+            writeInt(&buf, Int32(2))
+            FfiConverterTypeAddressOrNative.write(address, into: &buf)
+            FfiConverterTypeU256.write(balance, into: &buf)
+            FfiConverterTypeErc20Metadata.write(metadata, into: &buf)
+            
+        
+        case let .erc721(address,balance,metadata):
+            writeInt(&buf, Int32(3))
+            FfiConverterTypeAddressOrNative.write(address, into: &buf)
+            FfiConverterTypeU256.write(balance, into: &buf)
+            FfiConverterTypeErc721Metadata.write(metadata, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeAssetFfi_lift(_ buf: RustBuffer) throws -> AssetFfi {
+    return try FfiConverterTypeAssetFfi.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeAssetFfi_lower(_ value: AssetFfi) -> RustBuffer {
+    return FfiConverterTypeAssetFfi.lower(value)
+}
+
+
+extension AssetFfi: Equatable, Hashable {}
+
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+
+public enum AssetType {
+    
+    case native
+    case erc20
+    case erc721
+}
+
+
+#if compiler(>=6)
+extension AssetType: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeAssetType: FfiConverterRustBuffer {
+    typealias SwiftType = AssetType
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> AssetType {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .native
+        
+        case 2: return .erc20
+        
+        case 3: return .erc721
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: AssetType, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .native:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .erc20:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .erc721:
+            writeInt(&buf, Int32(3))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeAssetType_lift(_ buf: RustBuffer) throws -> AssetType {
+    return try FfiConverterTypeAssetType.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeAssetType_lower(_ value: AssetType) -> RustBuffer {
+    return FfiConverterTypeAssetType.lower(value)
+}
+
+
+extension AssetType: Equatable, Hashable {}
+
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+
 public enum BridgingError {
     
+    case assetNotSupported
     case noRoutesAvailable
     case insufficientFunds
     case insufficientGasFunds
+    case unknown
 }
 
 
@@ -3465,11 +4138,15 @@ public struct FfiConverterTypeBridgingError: FfiConverterRustBuffer {
         let variant: Int32 = try readInt(&buf)
         switch variant {
         
-        case 1: return .noRoutesAvailable
+        case 1: return .assetNotSupported
         
-        case 2: return .insufficientFunds
+        case 2: return .noRoutesAvailable
         
-        case 3: return .insufficientGasFunds
+        case 3: return .insufficientFunds
+        
+        case 4: return .insufficientGasFunds
+        
+        case 5: return .unknown
         
         default: throw UniffiInternalError.unexpectedEnumCase
         }
@@ -3479,16 +4156,24 @@ public struct FfiConverterTypeBridgingError: FfiConverterRustBuffer {
         switch value {
         
         
-        case .noRoutesAvailable:
+        case .assetNotSupported:
             writeInt(&buf, Int32(1))
         
         
-        case .insufficientFunds:
+        case .noRoutesAvailable:
             writeInt(&buf, Int32(2))
         
         
-        case .insufficientGasFunds:
+        case .insufficientFunds:
             writeInt(&buf, Int32(3))
+        
+        
+        case .insufficientGasFunds:
+            writeInt(&buf, Int32(4))
+        
+        
+        case .unknown:
+            writeInt(&buf, Int32(5))
         
         }
     }
@@ -4318,7 +5003,8 @@ public enum SendTransactionError {
     )
     case PendingTransaction(PendingTransactionError
     )
-    case Failed
+    case Failed(txnHash: B256
+    )
 }
 
 
@@ -4341,7 +5027,9 @@ public struct FfiConverterTypeSendTransactionError: FfiConverterRustBuffer {
         case 2: return .PendingTransaction(
             try FfiConverterTypePendingTransactionError.read(from: &buf)
             )
-        case 3: return .Failed
+        case 3: return .Failed(
+            txnHash: try FfiConverterTypeB256.read(from: &buf)
+            )
 
          default: throw UniffiInternalError.unexpectedEnumCase
         }
@@ -4364,9 +5052,10 @@ public struct FfiConverterTypeSendTransactionError: FfiConverterRustBuffer {
             FfiConverterTypePendingTransactionError.write(v1, into: &buf)
             
         
-        case .Failed:
+        case let .Failed(txnHash):
             writeInt(&buf, Int32(3))
-        
+            FfiConverterTypeB256.write(txnHash, into: &buf)
+            
         }
     }
 }
@@ -4933,6 +5622,30 @@ extension WaitForSuccessError: Foundation.LocalizedError {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionDouble: FfiConverterRustBuffer {
+    typealias SwiftType = Double?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterDouble.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterDouble.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionString: FfiConverterRustBuffer {
     typealias SwiftType = String?
 
@@ -4949,6 +5662,78 @@ fileprivate struct FfiConverterOptionString: FfiConverterRustBuffer {
         switch try readInt(&buf) as Int8 {
         case 0: return nil
         case 1: return try FfiConverterString.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionSequenceTypeAssetType: FfiConverterRustBuffer {
+    typealias SwiftType = [AssetType]?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterSequenceTypeAssetType.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterSequenceTypeAssetType.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionSequenceTypeU64: FfiConverterRustBuffer {
+    typealias SwiftType = [U64]?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterSequenceTypeU64.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterSequenceTypeU64.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionDictionaryTypeU64SequenceTypeAddressOrNative: FfiConverterRustBuffer {
+    typealias SwiftType = [U64: [AddressOrNative]]?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterDictionaryTypeU64SequenceTypeAddressOrNative.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterDictionaryTypeU64SequenceTypeAddressOrNative.read(from: &buf)
         default: throw UniffiInternalError.unexpectedOptionalTag
         }
     }
@@ -5203,6 +5988,56 @@ fileprivate struct FfiConverterSequenceTypeTxnDetails: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeAddressOrNative: FfiConverterRustBuffer {
+    typealias SwiftType = [AddressOrNative]
+
+    public static func write(_ value: [AddressOrNative], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeAddressOrNative.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [AddressOrNative] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [AddressOrNative]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeAddressOrNative.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeAssetType: FfiConverterRustBuffer {
+    typealias SwiftType = [AssetType]
+
+    public static func write(_ value: [AssetType], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeAssetType.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [AssetType] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [AssetType]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeAssetType.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeRoute: FfiConverterRustBuffer {
     typealias SwiftType = [Route]
 
@@ -5297,6 +6132,57 @@ fileprivate struct FfiConverterSequenceTypeSolanaSignature: FfiConverterRustBuff
             seq.append(try FfiConverterTypeSolanaSignature.read(from: &buf))
         }
         return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeU64: FfiConverterRustBuffer {
+    typealias SwiftType = [U64]
+
+    public static func write(_ value: [U64], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeU64.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [U64] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [U64]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeU64.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterDictionaryTypeU64SequenceTypeAddressOrNative: FfiConverterRustBuffer {
+    public static func write(_ value: [U64: [AddressOrNative]], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for (key, value) in value {
+            FfiConverterTypeU64.write(key, into: &buf)
+            FfiConverterSequenceTypeAddressOrNative.write(value, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [U64: [AddressOrNative]] {
+        let len: Int32 = try readInt(&buf)
+        var dict = [U64: [AddressOrNative]]()
+        dict.reserveCapacity(Int(len))
+        for _ in 0..<len {
+            let key = try FfiConverterTypeU64.read(from: &buf)
+            let value = try FfiConverterSequenceTypeAddressOrNative.read(from: &buf)
+            dict[key] = value
+        }
+        return dict
     }
 }
 
@@ -5429,6 +6315,50 @@ public func FfiConverterTypeAlloyError_lift(_ value: RustBuffer) throws -> Alloy
 #endif
 public func FfiConverterTypeAlloyError_lower(_ value: AlloyError) -> RustBuffer {
     return FfiConverterTypeAlloyError.lower(value)
+}
+
+
+
+/**
+ * Typealias from the type name used in the UDL file to the builtin type.  This
+ * is needed because the UDL type name is used in function/method signatures.
+ */
+public typealias Asset = AssetFfi
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeAsset: FfiConverter {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Asset {
+        return try FfiConverterTypeAssetFfi.read(from: &buf)
+    }
+
+    public static func write(_ value: Asset, into buf: inout [UInt8]) {
+        return FfiConverterTypeAssetFfi.write(value, into: &buf)
+    }
+
+    public static func lift(_ value: RustBuffer) throws -> Asset {
+        return try FfiConverterTypeAssetFfi_lift(value)
+    }
+
+    public static func lower(_ value: Asset) -> RustBuffer {
+        return FfiConverterTypeAssetFfi_lower(value)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeAsset_lift(_ value: RustBuffer) throws -> Asset {
+    return try FfiConverterTypeAsset.lift(value)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeAsset_lower(_ value: Asset) -> RustBuffer {
+    return FfiConverterTypeAsset.lower(value)
 }
 
 
