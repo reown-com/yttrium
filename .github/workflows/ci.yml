@@ -100,10 +100,6 @@ jobs:
           build-tools: 35.0.0
           ndk-version: 27.2.12479018
 
-      - name: Build with Gradle
-        run: |
-          ./gradlew clean assembleRelease -Pversion=${{ env.VERSION }}
-
       - name: Install cargo-ndk
         run: |
           # --locked to bypass this pipeline error: https://github.com/reown-com/yttrium/actions/runs/12717232881/job/35453267940?pr=110
@@ -117,6 +113,10 @@ jobs:
         if: ${{ matrix.target == 'aarch64-linux-android' }}
         run: |
           cargo run --features=uniffi/cli --bin uniffi-bindgen generate --library target/${{ matrix.target }}/uniffi-release/libuniffi_yttrium.so --language kotlin --out-dir yttrium/kotlin-bindings
+
+      - name: Build with Gradle
+        run: |
+          ./gradlew assembleRelease -Pversion=${{ env.VERSION }}
 
       - name: Prepare artifacts
         run: |
