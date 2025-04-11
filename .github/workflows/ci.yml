@@ -72,10 +72,6 @@ jobs:
   build-kotlin:
     runs-on: ubuntu-latest
 
-    strategy:
-      matrix:
-        target: [aarch64-linux-android, armv7-linux-androideabi]
-
     steps:
       - uses: actions/checkout@v3
 
@@ -83,7 +79,14 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
-          target: ${{ matrix.target }}
+          target: aarch64-linux-android
+          override: true
+          components: rust-src
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: armv7-linux-androideabi
           override: true
           components: rust-src
 
