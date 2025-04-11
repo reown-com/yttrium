@@ -143,7 +143,9 @@ impl Serialize for AddressOrNative {
     {
         match self {
             AddressOrNative::Native => serializer.serialize_str("native"),
-            AddressOrNative::AddressVariant(address) => address.serialize(serializer),
+            AddressOrNative::AddressVariant(address) => {
+                address.serialize(serializer)
+            }
         }
     }
 }

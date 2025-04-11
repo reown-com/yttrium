@@ -344,6 +344,7 @@ async fn solana_happy_path() {
         println!("funding from faucet: {}", faucet_solana.pubkey());
 
         let faucet_amount = (min_balance - account_sol_sol_balance) * 2;
+        #[allow(clippy::zero_prefixed_literal)]
         if faucet_sol_sol_balance - faucet_amount < 0_001_000_000 {
             // 0.001 SOL = ~$0.15
             panic!(
