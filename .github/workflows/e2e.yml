@@ -8,6 +8,9 @@ on:
   workflow_dispatch:
   # TODO input for yttrium commit to test against
 
+permissions:
+  contents: read
+
 env:
   CARGO_TERM_COLOR: always
 
