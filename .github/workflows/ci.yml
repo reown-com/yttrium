@@ -209,3 +209,11 @@ jobs:
             git commit -m "chore: update Flutter bindings"
             git push origin HEAD:${{ github.head_ref }}
           fi
+
+  merge_check:
+    name: Merge Check
+    needs: [ build_rust_and_test, build_swift_and_test, build-kotlin, flutter ]
+    if: ${{ always() && !cancelled() && !failure() }}
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "CI is successful"
