@@ -313,6 +313,8 @@ async fn solana_happy_path() {
     );
     assert!(new_account_sol_usdc_balance.ui_amount.unwrap() >= 2.0);
 
+    let faucet_sol_sol_balance =
+        client_sol.get_balance(&faucet_solana.pubkey()).await.unwrap();
     let account_sol_sol_balance =
         client_sol.get_balance(&account_solana.pubkey()).await.unwrap();
     let data_len = client_sol
@@ -341,12 +343,24 @@ async fn solana_happy_path() {
 
         println!("funding from faucet: {}", faucet_solana.pubkey());
 
-        println!("Preparing transfer transaction...");
+        let faucet_amount = (min_balance - account_sol_sol_balance) * 2;
+        if faucet_sol_sol_balance - faucet_amount < 0_001_000_000 {
+            // 0.001 SOL = ~$0.15
+            panic!(
+                "!!!!! Faucet doesn't have enough SOL. Please send at least 0.001 SOL to {}",
+                faucet_solana.pubkey()
+            );
+        }
+
+        println!(
+            "Preparing transfer transaction... faucet_amount: {}",
+            faucet_amount
+        );
         // Create transfer instruction
         let transfer_ix = solana_sdk::system_instruction::transfer(
             &faucet_solana.pubkey(),
             &account_solana.pubkey(),
-            (min_balance - account_sol_sol_balance) * 2,
+            faucet_amount,
         );
 
         // Get recent blockhash
