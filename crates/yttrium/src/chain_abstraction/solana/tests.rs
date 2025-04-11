@@ -133,7 +133,7 @@ async fn solana_happy_path() {
     if needs_usdc {
         // Check if sender has enough USDC
         if faucet_usdc_balance < U256::from(send_amount) {
-            panic!("Faucet doesn't have enough USDC");
+            panic!("Faucet doesn't have enough USDC. Please send at least 1.5 USDC to {} on Base chain", faucet.address());
         }
 
         let quote = reqwest::Client::new()
@@ -313,6 +313,8 @@ async fn solana_happy_path() {
     );
     assert!(new_account_sol_usdc_balance.ui_amount.unwrap() >= 2.0);
 
+    let faucet_sol_sol_balance =
+        client_sol.get_balance(&faucet_solana.pubkey()).await.unwrap();
     let account_sol_sol_balance =
         client_sol.get_balance(&account_solana.pubkey()).await.unwrap();
     let data_len = client_sol
@@ -341,12 +343,25 @@ async fn solana_happy_path() {
 
         println!("funding from faucet: {}", faucet_solana.pubkey());
 
-        println!("Preparing transfer transaction...");
+        let faucet_amount = (min_balance - account_sol_sol_balance) * 2;
+        #[allow(clippy::zero_prefixed_literal)]
+        if faucet_sol_sol_balance - faucet_amount < 0_001_000_000 {
+            // 0.001 SOL = ~$0.15
+            panic!(
+                "!!!!! Faucet doesn't have enough SOL. Please send at least 0.001 SOL to {}",
+                faucet_solana.pubkey()
+            );
+        }
+
+        println!(
+            "Preparing transfer transaction... faucet_amount: {}",
+            faucet_amount
+        );
         // Create transfer instruction
         let transfer_ix = solana_sdk::system_instruction::transfer(
             &faucet_solana.pubkey(),
             &account_solana.pubkey(),
-            (min_balance - account_sol_sol_balance) * 2,
+            faucet_amount,
         );
 
         // Get recent blockhash
@@ -473,7 +488,9 @@ async fn solana_happy_path() {
         .find_map(|asset| match asset {
             Asset::Erc20 { data } => {
                 if data.address
-                    == AddressOrNative::Address(chain_eth.token_address(&token))
+                    == AddressOrNative::AddressVariant(
+                        chain_eth.token_address(&token),
+                    )
                 {
                     Some(data)
                 } else {
