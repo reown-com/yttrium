@@ -28,8 +28,11 @@ jobs:
       - run: docker compose up -d
         working-directory: test/scripts/forked_state
       - run: while ! curl localhost:8545/health; do sleep 1; done
+        timeout-minutes: 1
       - run: while ! curl localhost:4337/health; do sleep 1; done
+        timeout-minutes: 2
       - run: while ! curl localhost:3000/ping; do sleep 1; done
+        timeout-minutes: 1
       - run: cargo build --workspace --all-features --all-targets
       - run: cargo build -p yttrium --features=wasm --lib --target wasm32-unknown-unknown
       - run: RUST_BACKTRACE=1 RUST_LOG=yttrium=trace cargo test --features=full --lib --bins
