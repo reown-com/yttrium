@@ -1,0 +1,11 @@
+# .codeqlignore
+#
+# This file tells CodeQL which files or directories to ignore during analysis.
+# Adjust the patterns below to match the directories shown in your screenshot.
+
+# Ignore build output directories (compiled code)
+build/**
+out/**
+bin/**
+release/**
+target/**
