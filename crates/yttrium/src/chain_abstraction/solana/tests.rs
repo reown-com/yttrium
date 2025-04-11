@@ -487,7 +487,9 @@ async fn solana_happy_path() {
         .find_map(|asset| match asset {
             Asset::Erc20 { data } => {
                 if data.address
-                    == AddressOrNative::Address(chain_eth.token_address(&token))
+                    == AddressOrNative::AddressVariant(
+                        chain_eth.token_address(&token),
+                    )
                 {
                     Some(data)
                 } else {
