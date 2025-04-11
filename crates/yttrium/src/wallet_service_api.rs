@@ -122,14 +122,15 @@ impl Asset {
     tsify(into_wasm_abi, from_wasm_abi)
 )]
 pub enum AddressOrNative {
-    Address(Address),
+    // https://github.com/mozilla/uniffi-rs/issues/2402
+    AddressVariant(Address),
     Native,
 }
 
 impl AddressOrNative {
     pub fn as_address(&self) -> Option<&Address> {
         match self {
-            Self::Address(address) => Some(address),
+            Self::AddressVariant(address) => Some(address),
             Self::Native => None,
         }
     }
@@ -142,7 +143,7 @@ impl Serialize for AddressOrNative {
     {
         match self {
             AddressOrNative::Native => serializer.serialize_str("native"),
-            AddressOrNative::Address(address) => address.serialize(serializer),
+            AddressOrNative::AddressVariant(address) => address.serialize(serializer),
         }
     }
 }
@@ -160,7 +161,7 @@ impl<'de> Deserialize<'de> for AddressOrNative {
         } else {
             s.parse::<Address>()
                 .map_err(de::Error::custom)
-                .map(AddressOrNative::Address)
+                .map(AddressOrNative::AddressVariant)
         }
     }
 }
