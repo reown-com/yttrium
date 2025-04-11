@@ -416,6 +416,30 @@ fileprivate struct FfiConverterUInt64: FfiConverterPrimitive {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterBool : FfiConverter {
+    typealias FfiType = Int8
+    typealias SwiftType = Bool
+
+    public static func lift(_ value: Int8) throws -> Bool {
+        return value != 0
+    }
+
+    public static func lower(_ value: Bool) -> Int8 {
+        return value ? 1 : 0
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Bool {
+        return try lift(readInt(&buf))
+    }
+
+    public static func write(_ value: Bool, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterString: FfiConverter {
     typealias SwiftType = String
     typealias FfiType = RustBuffer
@@ -467,9 +491,11 @@ public protocol ChainAbstractionClientProtocol: AnyObject {
     
     func getUiFields(routeResponse: PrepareResponseAvailable, localCurrency: Currency) async throws  -> UiFields
     
-    func prepare(chainId: String, from: FfiAddress, call: Call) async throws  -> PrepareResponse
+    func getWalletAssets(params: GetAssetsParams) async throws  -> [Ffiu64: [Asset]]
     
-    func prepareDetailed(chainId: String, from: FfiAddress, call: Call, accounts: [String], localCurrency: Currency) async throws  -> PrepareDetailedResponse
+    func prepare(chainId: String, from: FfiAddress, call: Call, useLifi: Bool) async throws  -> PrepareResponse
+    
+    func prepareDetailed(chainId: String, from: FfiAddress, call: Call, accounts: [String], localCurrency: Currency, useLifi: Bool) async throws  -> PrepareDetailedResponse
     
     func prepareErc20TransferCall(erc20Address: FfiAddress, to: FfiAddress, amount: Ffiu256)  -> Call
     
@@ -614,13 +640,30 @@ open func getUiFields(routeResponse: PrepareResponseAvailable, localCurrency: Cu
         )
 }
     
-open func prepare(chainId: String, from: FfiAddress, call: Call)async throws  -> PrepareResponse  {
+open func getWalletAssets(params: GetAssetsParams)async throws  -> [Ffiu64: [Asset]]  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_uniffi_yttrium_fn_method_chainabstractionclient_get_wallet_assets(
+                    self.uniffiClonePointer(),
+                    FfiConverterTypeGetAssetsParams_lower(params)
+                )
+            },
+            pollFunc: ffi_uniffi_yttrium_rust_future_poll_rust_buffer,
+            completeFunc: ffi_uniffi_yttrium_rust_future_complete_rust_buffer,
+            freeFunc: ffi_uniffi_yttrium_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterDictionaryTypeFFIU64SequenceTypeAsset.lift,
+            errorHandler: FfiConverterTypeFFIError.lift
+        )
+}
+    
+open func prepare(chainId: String, from: FfiAddress, call: Call, useLifi: Bool)async throws  -> PrepareResponse  {
     return
         try  await uniffiRustCallAsync(
             rustFutureFunc: {
                 uniffi_uniffi_yttrium_fn_method_chainabstractionclient_prepare(
                     self.uniffiClonePointer(),
-                    FfiConverterString.lower(chainId),FfiConverterTypeFFIAddress_lower(from),FfiConverterTypeCall_lower(call)
+                    FfiConverterString.lower(chainId),FfiConverterTypeFFIAddress_lower(from),FfiConverterTypeCall_lower(call),FfiConverterBool.lower(useLifi)
                 )
             },
             pollFunc: ffi_uniffi_yttrium_rust_future_poll_rust_buffer,
@@ -631,13 +674,13 @@ open func prepare(chainId: String, from: FfiAddress, call: Call)async throws  ->
         )
 }
     
-open func prepareDetailed(chainId: String, from: FfiAddress, call: Call, accounts: [String], localCurrency: Currency)async throws  -> PrepareDetailedResponse  {
+open func prepareDetailed(chainId: String, from: FfiAddress, call: Call, accounts: [String], localCurrency: Currency, useLifi: Bool)async throws  -> PrepareDetailedResponse  {
     return
         try  await uniffiRustCallAsync(
             rustFutureFunc: {
                 uniffi_uniffi_yttrium_fn_method_chainabstractionclient_prepare_detailed(
                     self.uniffiClonePointer(),
-                    FfiConverterString.lower(chainId),FfiConverterTypeFFIAddress_lower(from),FfiConverterTypeCall_lower(call),FfiConverterSequenceString.lower(accounts),FfiConverterTypeCurrency_lower(localCurrency)
+                    FfiConverterString.lower(chainId),FfiConverterTypeFFIAddress_lower(from),FfiConverterTypeCall_lower(call),FfiConverterSequenceString.lower(accounts),FfiConverterTypeCurrency_lower(localCurrency),FfiConverterBool.lower(useLifi)
                 )
             },
             pollFunc: ffi_uniffi_yttrium_rust_future_poll_rust_buffer,
@@ -1014,6 +1057,57 @@ fileprivate struct FfiConverterSequenceTypeRouteSig: FfiConverterRustBuffer {
     }
 }
 
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeAsset: FfiConverterRustBuffer {
+    typealias SwiftType = [Asset]
+
+    public static func write(_ value: [Asset], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeAsset.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [Asset] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [Asset]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeAsset.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterDictionaryTypeFFIU64SequenceTypeAsset: FfiConverterRustBuffer {
+    public static func write(_ value: [Ffiu64: [Asset]], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for (key, value) in value {
+            FfiConverterTypeFFIU64.write(key, into: &buf)
+            FfiConverterSequenceTypeAsset.write(value, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [Ffiu64: [Asset]] {
+        let len: Int32 = try readInt(&buf)
+        var dict = [Ffiu64: [Asset]]()
+        dict.reserveCapacity(Int(len))
+        for _ in 0..<len {
+            let key = try FfiConverterTypeFFIU64.read(from: &buf)
+            let value = try FfiConverterSequenceTypeAsset.read(from: &buf)
+            dict[key] = value
+        }
+        return dict
+    }
+}
+
 
 /**
  * Typealias from the type name used in the UDL file to the builtin type.  This
@@ -1351,10 +1445,13 @@ private let initializationResult: InitializationResult = {
     if (uniffi_uniffi_yttrium_checksum_method_chainabstractionclient_get_ui_fields() != 40860) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_uniffi_yttrium_checksum_method_chainabstractionclient_prepare() != 48357) {
+    if (uniffi_uniffi_yttrium_checksum_method_chainabstractionclient_get_wallet_assets() != 45088) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_uniffi_yttrium_checksum_method_chainabstractionclient_prepare_detailed() != 51890) {
+    if (uniffi_uniffi_yttrium_checksum_method_chainabstractionclient_prepare() != 53795) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_uniffi_yttrium_checksum_method_chainabstractionclient_prepare_detailed() != 61025) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_uniffi_yttrium_checksum_method_chainabstractionclient_prepare_erc20_transfer_call() != 58309) {

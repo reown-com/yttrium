@@ -110,6 +110,7 @@ impl Client {
         from: Address,
         call: Call,
         accounts: Vec<String>,
+        use_lifi: bool,
     ) -> Result<PrepareResponse, PrepareError> {
         let response = self
             .provider_pool
@@ -133,6 +134,7 @@ impl Client {
                 sdk_type: Some(PULSE_SDK_TYPE.to_string()),
                 sdk_version: Some(self.pulse_metadata.sdk_version.clone()),
                 session_id: Some(self.provider_pool.session_id.to_string()),
+                use_lifi,
             })
             .send()
             .await
@@ -396,9 +398,10 @@ impl Client {
         local_currency: Currency,
         // TODO use this to e.g. modify priority fee
         // _speed: String,
+        use_lifi: bool,
     ) -> Result<PrepareDetailedResponse, PrepareDetailedError> {
         let response = self
-            .prepare(chain_id, from, call, accounts)
+            .prepare(chain_id, from, call, accounts, use_lifi)
             .await
             .map_err(PrepareDetailedError::Prepare)?;
         match response {

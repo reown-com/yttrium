@@ -46,9 +46,10 @@ impl Client {
         from: String,
         call: Call,
         accounts: Vec<String>,
+        use_lifi: bool,
     ) -> Result<PrepareResponse, JsError> {
         self.inner
-            .prepare(chain_id, from.parse()?, call, accounts)
+            .prepare(chain_id, from.parse()?, call, accounts, use_lifi)
             .await
             .map_err(Into::into)
     }
@@ -70,6 +71,7 @@ impl Client {
         call: Call,
         accounts: Vec<String>,
         local_currency: Currency,
+        use_lifi: bool,
     ) -> Result<PrepareDetailedResponse, JsError> {
         self.inner
             .prepare_detailed(
@@ -78,6 +80,7 @@ impl Client {
                 call,
                 accounts,
                 local_currency,
+                use_lifi,
             )
             .await
             .map_err(Into::into)

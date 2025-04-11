@@ -1,6 +1,6 @@
 services:
   anvil:
-    image: ghcr.io/foundry-rs/foundry:nightly-f6208d8db68f9acbe4ff8cd76958309efb61ea0b
+    image: ghcr.io/foundry-rs/foundry:stable
     ports: ["8545:8545"]
     entrypoint: ["anvil", "--host", "0.0.0.0", "--block-time", "0.1", "--silent"]
     platform: linux/amd64
