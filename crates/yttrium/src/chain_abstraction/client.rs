@@ -675,6 +675,7 @@ impl Client {
                 }
                 #[cfg(feature = "solana")]
                 (Route::Solana(txn), RouteSig::Solana(sig)) => {
+                    // TODO use Blockchain API
                     let sol_rpc = "https://api.mainnet-beta.solana.com";
                     let solana_rpc_client =
                         solana::SolanaRpcClient::new_with_commitment(
@@ -702,6 +703,7 @@ impl Client {
                                 signature
                             ),
                             Err(e) => {
+                                // TODO handle error without panic
                                 panic!("Error sending transaction: {}", e)
                             }
                         }
