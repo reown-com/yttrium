@@ -133,7 +133,7 @@ async fn solana_happy_path() {
     if needs_usdc {
         // Check if sender has enough USDC
         if faucet_usdc_balance < U256::from(send_amount) {
-            panic!("Faucet doesn't have enough USDC");
+            panic!("Faucet doesn't have enough USDC. Please send at least 1.5 USDC to {} on Base chain", faucet.address());
         }
 
         let quote = reqwest::Client::new()
