@@ -132,8 +132,20 @@ async fn solana_happy_path() {
     let needs_usdc = account_sol_usdc_balance_ui_amount < 2.0;
     if needs_usdc {
         // Check if sender has enough USDC
-        if faucet_usdc_balance < U256::from(send_amount) {
-            panic!("Faucet doesn't have enough USDC. Please send at least 1.5 USDC to {} on Base chain", faucet.address());
+        if faucet_usdc_balance < send_amount * U256::from(2) {
+            let want_amount = send_amount;
+            let result = reqwest::Client::new().post("https://faucetbot-virid.vercel.app/api/faucet-request")
+                .json(&serde_json::json!({
+                    "key": std::env::var("FAUCET_REQUEST_API_KEY").unwrap(),
+                    "text": format!("Yttrium tests running low on USDC. Please send {want_amount} to {} on {}", faucet.address(), chain_eth.caip2()),
+                }))
+                .send()
+                .await
+                .unwrap()
+                .text()
+                .await
+                .unwrap();
+            println!("requested funds from faucetbot: {result}");
         }
 
         let quote = reqwest::Client::new()
