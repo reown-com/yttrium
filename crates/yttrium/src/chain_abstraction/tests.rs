@@ -1900,22 +1900,41 @@ async fn happy_path_execute_method() {
             chain_1_address_1_token.token.address(),
             faucet.address(),
         );
-        let status = BridgeToken::new(
+
+        let faucet_usdc = BridgeToken::new(
             chain_1_address_1_token.params.clone(),
             faucet.clone(),
             &client.provider_pool,
         )
-        .await
-        .token
-        .transfer(account_1.address(), required_amount)
-        .send()
-        .await
-        .unwrap()
-        .with_timeout(Some(Duration::from_secs(30)))
-        .get_receipt()
-        .await
-        .unwrap()
-        .status();
+        .await;
+
+        if faucet_usdc.token_balance().await < required_amount * U256::from(2) {
+            let want_amount = required_amount * U256::from(10);
+            let result = reqwest::Client::new().post("https://faucetbot-virid.vercel.app/api/faucet-request")
+                .json(&serde_json::json!({
+                    "key": std::env::var("FAUCET_REQUEST_API_KEY").unwrap(),
+                    "text": format!("Yttrium tests running low on USDC. Please send {want_amount} to {} on {}", faucet.address(), chain_1_address_1_token.params.chain.caip2()),
+                }))
+                .send()
+                .await
+                .unwrap()
+                .text()
+                .await
+                .unwrap();
+            println!("requessting funds from faucetbot: {result}");
+        }
+
+        let status = faucet_usdc
+            .token
+            .transfer(account_1.address(), required_amount)
+            .send()
+            .await
+            .unwrap()
+            .with_timeout(Some(Duration::from_secs(30)))
+            .get_receipt()
+            .await
+            .unwrap()
+            .status();
         assert!(status);
     }
     assert!(source.token_balance(&sources).await >= required_amount);

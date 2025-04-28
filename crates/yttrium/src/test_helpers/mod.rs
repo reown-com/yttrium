@@ -158,14 +158,18 @@ async fn use_faucet_unlimited(
 
     if faucet_balance < amount * U256::from(2) {
         let want_amount = amount * U256::from(10);
-        reqwest::Client::new().post("https://faucetbot-virid.vercel.app/api/request")
+        let result = reqwest::Client::new().post("https://faucetbot-virid.vercel.app/api/faucet-request")
             .json(&serde_json::json!({
                 "key": std::env::var("FAUCET_REQUEST_API_KEY").unwrap(),
                 "text": format!("Yttrium tests running low on native token (ETH). Please send {want_amount} to {faucet_address} on {chain_id}"),
             }))
             .send()
             .await
+            .unwrap()
+            .text()
+            .await
             .unwrap();
+        println!("requessting funds from faucetbot: {result}");
     }
 
     if amount > faucet_balance {
