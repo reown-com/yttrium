@@ -332,7 +332,7 @@ async fn solana_happy_path() {
         "minimum_balance_for_rent_exemption: {}",
         minimum_balance_for_rent_exemption
     );
-    let next_txn_fee = 100_000;
+    let next_txn_fee = 200_000;
     let min_balance = minimum_balance_for_rent_exemption + next_txn_fee;
 
     if account_sol_sol_balance < min_balance {
