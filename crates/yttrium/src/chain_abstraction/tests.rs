@@ -1921,7 +1921,7 @@ async fn happy_path_execute_method() {
                 .text()
                 .await
                 .unwrap();
-            println!("requessting funds from faucetbot: {result}");
+            println!("requesting funds from faucetbot: {result}");
         }
 
         let status = faucet_usdc

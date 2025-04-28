@@ -169,7 +169,7 @@ async fn use_faucet_unlimited(
             .text()
             .await
             .unwrap();
-        println!("requessting funds from faucetbot: {result}");
+        println!("requesting funds from faucetbot: {result}");
     }
 
     if amount > faucet_balance {
