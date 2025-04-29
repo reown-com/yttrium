@@ -7,7 +7,11 @@ use solana_sdk::{
 use {
     alloy::{
         network::{EthereumWallet, TransactionBuilder},
-        primitives::{keccak256, Address, U256},
+        primitives::{
+            keccak256,
+            utils::{ParseUnits, Unit},
+            Address, U256,
+        },
         rpc::types::TransactionRequest,
         signers::{k256::ecdsa::SigningKey, local::LocalSigner},
     },
@@ -157,7 +161,9 @@ async fn use_faucet_unlimited(
     let faucet_balance = provider.get_balance(faucet_address).await.unwrap();
 
     if faucet_balance < amount * U256::from(2) {
-        let want_amount = amount * U256::from(10);
+        let unit = Unit::WEI;
+        let want_amount =
+            ParseUnits::from(amount * U256::from(10)).format_units(unit);
         let result = reqwest::Client::new().post("https://faucetbot-virid.vercel.app/api/faucet-request")
             .json(&serde_json::json!({
                 "key": std::env::var("FAUCET_REQUEST_API_KEY").unwrap(),
@@ -169,7 +175,7 @@ async fn use_faucet_unlimited(
             .text()
             .await
             .unwrap();
-        println!("requesting funds from faucetbot: {result}");
+        println!("requested funds from faucetbot: {result}");
     }
 
     if amount > faucet_balance {

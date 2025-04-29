@@ -24,7 +24,10 @@ use {
     },
     alloy::{
         network::{EthereumWallet, TransactionBuilder},
-        primitives::{utils::Unit, U128, U256, U64},
+        primitives::{
+            utils::{ParseUnits, Unit},
+            U128, U256, U64,
+        },
         rpc::types::TransactionRequest,
         signers::SignerSync,
         sol_types::SolCall,
@@ -133,7 +136,11 @@ async fn solana_happy_path() {
     if needs_usdc {
         // Check if sender has enough USDC
         if faucet_usdc_balance < send_amount * U256::from(2) {
-            let want_amount = send_amount;
+            let unit = Unit::new(
+                usdc_erc20_faucet.decimals().call().await.unwrap()._0,
+            )
+            .unwrap();
+            let want_amount = ParseUnits::from(send_amount).format_units(unit);
             let result = reqwest::Client::new().post("https://faucetbot-virid.vercel.app/api/faucet-request")
                 .json(&serde_json::json!({
                     "key": std::env::var("FAUCET_REQUEST_API_KEY").unwrap(),

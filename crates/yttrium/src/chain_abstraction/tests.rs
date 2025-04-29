@@ -35,7 +35,11 @@ use {
     },
     alloy::{
         network::{Ethereum, EthereumWallet, TransactionBuilder},
-        primitives::{address, utils::Unit, Address, TxKind, U256, U64},
+        primitives::{
+            address,
+            utils::{ParseUnits, Unit},
+            Address, TxKind, U256, U64,
+        },
         rpc::types::TransactionRequest,
         signers::{k256::ecdsa::SigningKey, local::LocalSigner, SignerSync},
         sol_types::SolCall,
@@ -1909,7 +1913,13 @@ async fn happy_path_execute_method() {
         .await;
 
         if faucet_usdc.token_balance().await < required_amount * U256::from(2) {
-            let want_amount = required_amount * U256::from(10);
+            let unit = Unit::new(
+                faucet_usdc.token.decimals().call().await.unwrap()._0,
+            )
+            .unwrap();
+            let want_amount =
+                ParseUnits::from(required_amount * U256::from(10))
+                    .format_units(unit);
             let result = reqwest::Client::new().post("https://faucetbot-virid.vercel.app/api/faucet-request")
                 .json(&serde_json::json!({
                     "key": std::env::var("FAUCET_REQUEST_API_KEY").unwrap(),
@@ -1921,7 +1931,7 @@ async fn happy_path_execute_method() {
                 .text()
                 .await
                 .unwrap();
-            println!("requesting funds from faucetbot: {result}");
+            println!("requested funds from faucetbot: {result}");
         }
 
         let status = faucet_usdc
