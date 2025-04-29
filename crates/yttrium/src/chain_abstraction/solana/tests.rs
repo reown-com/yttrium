@@ -41,6 +41,7 @@ use {
     solana_client::nonblocking::rpc_client::RpcClient,
     solana_sdk::{commitment_config::CommitmentConfig, signer::Signer},
     spl_associated_token_account::get_associated_token_address,
+    std::time::Duration,
     url::Url,
 };
 
@@ -223,6 +224,7 @@ async fn solana_happy_path() {
                 .send()
                 .await
                 .unwrap()
+                .with_timeout(Some(Duration::from_secs(60)))
                 .get_receipt()
                 .await
                 .unwrap()
@@ -272,6 +274,7 @@ async fn solana_happy_path() {
             .send_transaction(transaction_request)
             .await
             .unwrap()
+            .with_timeout(Some(Duration::from_secs(60)))
             .get_receipt()
             .await
             .unwrap();
@@ -425,6 +428,7 @@ async fn solana_happy_path() {
             )
             .await
             .unwrap()
+            .with_timeout(Some(Duration::from_secs(60)))
             .get_receipt()
             .await
             .unwrap()
@@ -445,6 +449,7 @@ async fn solana_happy_path() {
             .send()
             .await
             .unwrap()
+            .with_timeout(Some(Duration::from_secs(60)))
             .get_receipt()
             .await
             .unwrap()

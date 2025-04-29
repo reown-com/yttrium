@@ -1013,7 +1013,11 @@ async fn happy_path() {
     //     println!("get_transaction_by_hash returned None, retrying...");
     //     continue;
     // }
-    let receipt = txn_sent.get_receipt().await.unwrap();
+    let receipt = txn_sent
+        .with_timeout(Some(Duration::from_secs(60)))
+        .get_receipt()
+        .await
+        .unwrap();
     assert!(receipt.status());
 
     println!("original txn finished in {:?}", approval_start.elapsed());
@@ -1541,7 +1545,11 @@ async fn happy_path_full_dependency_on_ui_fields() {
     //     println!("get_transaction_by_hash returned None, retrying...");
     //     continue;
     // }
-    let receipt = txn_sent.get_receipt().await.unwrap();
+    let receipt = txn_sent
+        .with_timeout(Some(Duration::from_secs(60)))
+        .get_receipt()
+        .await
+        .unwrap();
 
     assert!(receipt.status());
 
