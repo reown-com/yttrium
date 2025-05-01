@@ -332,7 +332,7 @@ async fn solana_happy_path() {
         "minimum_balance_for_rent_exemption: {}",
         minimum_balance_for_rent_exemption
     );
-    let next_txn_fee = 100_000;
+    let next_txn_fee = 200_000; // TODO use actual estimated gas fee
     let min_balance = minimum_balance_for_rent_exemption + next_txn_fee;
 
     if account_sol_sol_balance < min_balance {
@@ -344,6 +344,7 @@ async fn solana_happy_path() {
         println!("funding from faucet: {}", faucet_solana.pubkey());
 
         let faucet_amount = (min_balance - account_sol_sol_balance) * 2;
+        // TODO use actual estimated gas fee + minimum balance for rent instead of arbitrary 0.001 SOL
         #[allow(clippy::zero_prefixed_literal)]
         if faucet_sol_sol_balance - faucet_amount < 0_001_000_000 {
             // 0.001 SOL = ~$0.15

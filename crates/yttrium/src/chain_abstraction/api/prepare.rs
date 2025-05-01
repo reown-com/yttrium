@@ -77,6 +77,14 @@ pub enum Eip155OrSolanaAddress {
     Solana(crate::chain_abstraction::solana::SolanaPubkey),
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum Eip155OrSolanaAddressKind {
+    #[cfg(feature = "eip155")]
+    Eip155,
+    #[cfg(feature = "solana")]
+    Solana,
+}
+
 impl fmt::Display for Eip155OrSolanaAddress {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -106,6 +114,19 @@ impl Eip155OrSolanaAddress {
             #[cfg(feature = "solana")]
             Self::Solana(_) => None,
         }
+    }
+
+    pub fn kind(&self) -> Eip155OrSolanaAddressKind {
+        match self {
+            #[cfg(feature = "eip155")]
+            Self::Eip155(_) => Eip155OrSolanaAddressKind::Eip155,
+            #[cfg(feature = "solana")]
+            Self::Solana(_) => Eip155OrSolanaAddressKind::Solana,
+        }
+    }
+
+    pub fn same_kind_as(&self, other: &Self) -> bool {
+        self.kind() == other.kind()
     }
 }
 
