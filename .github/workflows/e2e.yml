@@ -31,5 +31,6 @@ jobs:
         env:
           REOWN_PROJECT_ID: ${{ vars.REOWN_PROJECT_ID }}
           FAUCET_MNEMONIC: ${{ secrets.FAUCET_MNEMONIC }}
+          FAUCET_REQUEST_API_KEY: ${{ secrets.FAUCET_REQUEST_API_KEY }}
           RUST_BACKTRACE: 1
           RUST_LOG: yttrium=trace

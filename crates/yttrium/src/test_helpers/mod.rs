@@ -7,7 +7,11 @@ use solana_sdk::{
 use {
     alloy::{
         network::{EthereumWallet, TransactionBuilder},
-        primitives::{keccak256, Address, U256},
+        primitives::{
+            keccak256,
+            utils::{ParseUnits, Unit},
+            Address, U256,
+        },
         rpc::types::TransactionRequest,
         signers::{k256::ecdsa::SigningKey, local::LocalSigner},
     },
@@ -155,6 +159,25 @@ async fn use_faucet_unlimited(
     let chain_id = format!("eip155:{}", provider.get_chain_id().await.unwrap());
     let faucet_address = faucet.address();
     let faucet_balance = provider.get_balance(faucet_address).await.unwrap();
+
+    if faucet_balance < amount * U256::from(2) {
+        let unit = Unit::WEI;
+        let want_amount =
+            ParseUnits::from(amount * U256::from(10)).format_units(unit);
+        let result = reqwest::Client::new().post("https://faucetbot-virid.vercel.app/api/faucet-request")
+            .json(&serde_json::json!({
+                "key": std::env::var("FAUCET_REQUEST_API_KEY").unwrap(),
+                "text": format!("Yttrium tests running low on native token (ETH). Please send {want_amount} to {faucet_address} on {chain_id}"),
+            }))
+            .send()
+            .await
+            .unwrap()
+            .text()
+            .await
+            .unwrap();
+        println!("requested funds from faucetbot: {result}");
+    }
+
     if amount > faucet_balance {
         panic!("not enough funds in faucet. Needed to send {amount} but only had {faucet_balance} available. Please add more funds to the faucet at {chain_id}:{faucet_address}");
     }

@@ -35,7 +35,11 @@ use {
     },
     alloy::{
         network::{Ethereum, EthereumWallet, TransactionBuilder},
-        primitives::{address, utils::Unit, Address, TxKind, U256, U64},
+        primitives::{
+            address,
+            utils::{ParseUnits, Unit},
+            Address, TxKind, U256, U64,
+        },
         rpc::types::TransactionRequest,
         signers::{k256::ecdsa::SigningKey, local::LocalSigner, SignerSync},
         sol_types::SolCall,
@@ -1009,7 +1013,11 @@ async fn happy_path() {
     //     println!("get_transaction_by_hash returned None, retrying...");
     //     continue;
     // }
-    let receipt = txn_sent.get_receipt().await.unwrap();
+    let receipt = txn_sent
+        .with_timeout(Some(Duration::from_secs(60)))
+        .get_receipt()
+        .await
+        .unwrap();
     assert!(receipt.status());
 
     println!("original txn finished in {:?}", approval_start.elapsed());
@@ -1537,7 +1545,11 @@ async fn happy_path_full_dependency_on_ui_fields() {
     //     println!("get_transaction_by_hash returned None, retrying...");
     //     continue;
     // }
-    let receipt = txn_sent.get_receipt().await.unwrap();
+    let receipt = txn_sent
+        .with_timeout(Some(Duration::from_secs(60)))
+        .get_receipt()
+        .await
+        .unwrap();
 
     assert!(receipt.status());
 
@@ -1900,22 +1912,47 @@ async fn happy_path_execute_method() {
             chain_1_address_1_token.token.address(),
             faucet.address(),
         );
-        let status = BridgeToken::new(
+
+        let faucet_usdc = BridgeToken::new(
             chain_1_address_1_token.params.clone(),
             faucet.clone(),
             &client.provider_pool,
         )
-        .await
-        .token
-        .transfer(account_1.address(), required_amount)
-        .send()
-        .await
-        .unwrap()
-        .with_timeout(Some(Duration::from_secs(30)))
-        .get_receipt()
-        .await
-        .unwrap()
-        .status();
+        .await;
+
+        if faucet_usdc.token_balance().await < required_amount * U256::from(2) {
+            let unit = Unit::new(
+                faucet_usdc.token.decimals().call().await.unwrap()._0,
+            )
+            .unwrap();
+            let want_amount =
+                ParseUnits::from(required_amount * U256::from(10))
+                    .format_units(unit);
+            let result = reqwest::Client::new().post("https://faucetbot-virid.vercel.app/api/faucet-request")
+                .json(&serde_json::json!({
+                    "key": std::env::var("FAUCET_REQUEST_API_KEY").unwrap(),
+                    "text": format!("Yttrium tests running low on USDC. Please send {want_amount} to {} on {}", faucet.address(), chain_1_address_1_token.params.chain.caip2()),
+                }))
+                .send()
+                .await
+                .unwrap()
+                .text()
+                .await
+                .unwrap();
+            println!("requested funds from faucetbot: {result}");
+        }
+
+        let status = faucet_usdc
+            .token
+            .transfer(account_1.address(), required_amount)
+            .send()
+            .await
+            .unwrap()
+            .with_timeout(Some(Duration::from_secs(30)))
+            .get_receipt()
+            .await
+            .unwrap()
+            .status();
         assert!(status);
     }
     assert!(source.token_balance(&sources).await >= required_amount);

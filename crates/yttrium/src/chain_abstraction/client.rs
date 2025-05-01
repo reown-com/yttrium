@@ -476,7 +476,7 @@ impl Client {
         self.wait_for_success_with_timeout(
             orchestration_id,
             check_in,
-            Duration::from_secs(120),
+            Duration::from_secs(300),
         )
         .await
     }

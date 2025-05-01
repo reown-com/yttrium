@@ -24,7 +24,10 @@ use {
     },
     alloy::{
         network::{EthereumWallet, TransactionBuilder},
-        primitives::{utils::Unit, U128, U256, U64},
+        primitives::{
+            utils::{ParseUnits, Unit},
+            U128, U256, U64,
+        },
         rpc::types::TransactionRequest,
         signers::SignerSync,
         sol_types::SolCall,
@@ -38,6 +41,7 @@ use {
     solana_client::nonblocking::rpc_client::RpcClient,
     solana_sdk::{commitment_config::CommitmentConfig, signer::Signer},
     spl_associated_token_account::get_associated_token_address,
+    std::time::Duration,
     url::Url,
 };
 
@@ -132,8 +136,24 @@ async fn solana_happy_path() {
     let needs_usdc = account_sol_usdc_balance_ui_amount < 2.0;
     if needs_usdc {
         // Check if sender has enough USDC
-        if faucet_usdc_balance < U256::from(send_amount) {
-            panic!("Faucet doesn't have enough USDC. Please send at least 1.5 USDC to {} on Base chain", faucet.address());
+        if faucet_usdc_balance < send_amount * U256::from(2) {
+            let unit = Unit::new(
+                usdc_erc20_faucet.decimals().call().await.unwrap()._0,
+            )
+            .unwrap();
+            let want_amount = ParseUnits::from(send_amount).format_units(unit);
+            let result = reqwest::Client::new().post("https://faucetbot-virid.vercel.app/api/faucet-request")
+                .json(&serde_json::json!({
+                    "key": std::env::var("FAUCET_REQUEST_API_KEY").unwrap(),
+                    "text": format!("Yttrium tests running low on USDC. Please send {want_amount} to {} on {}", faucet.address(), chain_eth.caip2()),
+                }))
+                .send()
+                .await
+                .unwrap()
+                .text()
+                .await
+                .unwrap();
+            println!("requested funds from faucetbot: {result}");
         }
 
         let quote = reqwest::Client::new()
@@ -204,6 +224,7 @@ async fn solana_happy_path() {
                 .send()
                 .await
                 .unwrap()
+                .with_timeout(Some(Duration::from_secs(60)))
                 .get_receipt()
                 .await
                 .unwrap()
@@ -253,6 +274,7 @@ async fn solana_happy_path() {
             .send_transaction(transaction_request)
             .await
             .unwrap()
+            .with_timeout(Some(Duration::from_secs(60)))
             .get_receipt()
             .await
             .unwrap();
@@ -332,19 +354,12 @@ async fn solana_happy_path() {
         "minimum_balance_for_rent_exemption: {}",
         minimum_balance_for_rent_exemption
     );
-    let next_txn_fee = 200_000; // TODO use actual estimated gas fee
-    let min_balance = minimum_balance_for_rent_exemption + next_txn_fee;
+    let min_balance = minimum_balance_for_rent_exemption * 2;
 
     if account_sol_sol_balance < min_balance {
-        println!(
-            "need additional {} lamports to fund account",
-            min_balance - account_sol_sol_balance
-        );
-
         println!("funding from faucet: {}", faucet_solana.pubkey());
 
-        let faucet_amount = (min_balance - account_sol_sol_balance) * 2;
-        // TODO use actual estimated gas fee + minimum balance for rent instead of arbitrary 0.001 SOL
+        let faucet_amount = min_balance;
         #[allow(clippy::zero_prefixed_literal)]
         if faucet_sol_sol_balance - faucet_amount < 0_001_000_000 {
             // 0.001 SOL = ~$0.15
@@ -413,6 +428,7 @@ async fn solana_happy_path() {
             )
             .await
             .unwrap()
+            .with_timeout(Some(Duration::from_secs(60)))
             .get_receipt()
             .await
             .unwrap()
@@ -433,6 +449,7 @@ async fn solana_happy_path() {
             .send()
             .await
             .unwrap()
+            .with_timeout(Some(Duration::from_secs(60)))
             .get_receipt()
             .await
             .unwrap()
