@@ -161,9 +161,8 @@ async fn use_faucet_unlimited(
     let faucet_balance = provider.get_balance(faucet_address).await.unwrap();
 
     if faucet_balance < amount * U256::from(2) {
-        let unit = Unit::WEI;
         let want_amount =
-            ParseUnits::from(amount * U256::from(10)).format_units(unit);
+            ParseUnits::from(amount * U256::from(10)).format_units(Unit::ETHER);
         let result = reqwest::Client::new().post("https://faucetbot-virid.vercel.app/api/faucet-request")
             .json(&serde_json::json!({
                 "key": std::env::var("FAUCET_REQUEST_API_KEY").unwrap(),
