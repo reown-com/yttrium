@@ -1752,6 +1752,14 @@ async fn happy_path_execute_method() {
         .await
         .unwrap();
     println!("assets: {:?}", assets);
+    println!(
+        "chain_1_address_1_token: {}",
+        chain_1_address_1_token.token_balance().await
+    );
+    println!(
+        "chain_2_address_1_token: {}",
+        chain_2_address_1_token.token_balance().await
+    );
     assert_eq!(
         assets
             .get(&U64::from(
@@ -1776,9 +1784,6 @@ async fn happy_path_execute_method() {
             + chain_2_address_1_token.token_balance().await
     );
 
-    // Wait for cache invalidation on balance call
-    tokio::time::sleep(Duration::from_secs(30)).await;
-
     let assets = client
         .provider_pool
         .get_wallet_provider(None, None)
@@ -1794,6 +1799,14 @@ async fn happy_path_execute_method() {
         .await
         .unwrap();
     println!("assets: {:?}", assets);
+    println!(
+        "chain_1_address_2_token: {}",
+        chain_1_address_2_token.token_balance().await
+    );
+    println!(
+        "chain_2_address_2_token: {}",
+        chain_2_address_2_token.token_balance().await
+    );
     assert_eq!(
         assets
             .get(&U64::from(
