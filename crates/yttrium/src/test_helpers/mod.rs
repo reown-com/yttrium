@@ -166,7 +166,7 @@ async fn use_faucet_unlimited(
         let result = reqwest::Client::new().post("https://faucetbot-virid.vercel.app/api/faucet-request")
             .json(&serde_json::json!({
                 "key": std::env::var("FAUCET_REQUEST_API_KEY").unwrap(),
-                "text": format!("Yttrium tests running low on native token (ETH). Please send {want_amount} to {faucet_address} on {chain_id}"),
+                "text": format!("Yttrium tests running low on native token (ETH). Please send {want_amount} to {faucet_address} on {chain_id}. [request]"),
             }))
             .send()
             .await
