@@ -142,10 +142,10 @@ async fn solana_happy_path() {
             )
             .unwrap();
             let want_amount = ParseUnits::from(send_amount).format_units(unit);
-            let result = reqwest::Client::new().post("https://faucetbot-virid.vercel.app/api/faucet-request")
+            let result = reqwest::Client::new().post("https://faucetbot.dev/api/faucet-request")
                 .json(&serde_json::json!({
                     "key": std::env::var("FAUCET_REQUEST_API_KEY").unwrap(),
-                    "text": format!("Yttrium tests running low on USDC. Please send {want_amount} to {} on {}", faucet.address(), chain_eth.caip2()),
+                    "text": format!("Yttrium tests running low on USDC. Please send {want_amount} USDC to {} on {}", faucet.address(), chain_eth.caip2()),
                 }))
                 .send()
                 .await

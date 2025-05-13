@@ -1941,10 +1941,10 @@ async fn happy_path_execute_method() {
             let want_amount =
                 ParseUnits::from(required_amount * U256::from(10))
                     .format_units(unit);
-            let result = reqwest::Client::new().post("https://faucetbot-virid.vercel.app/api/faucet-request")
+            let result = reqwest::Client::new().post("https://faucetbot.dev/api/faucet-request")
                 .json(&serde_json::json!({
                     "key": std::env::var("FAUCET_REQUEST_API_KEY").unwrap(),
-                    "text": format!("Yttrium tests running low on USDC. Please send {want_amount} to {} on {}", faucet.address(), chain_1_address_1_token.params.chain.caip2()),
+                    "text": format!("Yttrium tests running low on USDC. Please send {want_amount} USDC to {} on {}", faucet.address(), chain_1_address_1_token.params.chain.caip2()),
                 }))
                 .send()
                 .await
