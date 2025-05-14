@@ -21,7 +21,7 @@ use {
     reqwest::{Client as ReqwestClient, Url},
     std::{collections::HashMap, task, time::Duration},
     tower::Service,
-    tracing::{trace, warn},
+    tracing::{info, trace, warn},
     uuid::Uuid,
 };
 
@@ -44,13 +44,15 @@ impl ProviderPool {
         pulse_metadata: PulseMetadata,
         blockchain_api_base_url: Url,
     ) -> Self {
+        let session_id = Uuid::new_v4();
+        info!("ProviderPool session_id: {}", session_id);
         Self {
             client,
             // providers: Arc::new(RwLock::new(HashMap::new())),
             blockchain_api_base_url,
             project_id,
             rpc_overrides: HashMap::new(),
-            session_id: Uuid::new_v4(),
+            session_id,
             pulse_metadata,
         }
     }
