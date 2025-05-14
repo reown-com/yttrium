@@ -1807,6 +1807,18 @@ async fn happy_path_execute_method() {
         "chain_2_address_2_token: {}",
         chain_2_address_2_token.token_balance().await
     );
+    let chain_1_address_2_token_balance =
+        chain_1_address_2_token.token_balance().await;
+    let chain_2_address_2_token_balance =
+        chain_2_address_2_token.token_balance().await;
+    println!(
+        "chain_1_address_2_token (second): {}",
+        chain_1_address_2_token_balance
+    );
+    println!(
+        "chain_2_address_2_token (second): {}",
+        chain_2_address_2_token_balance
+    );
     assert_eq!(
         assets
             .get(&U64::from(
@@ -1827,8 +1839,7 @@ async fn happy_path_execute_method() {
                 .unwrap_or(false))
             .unwrap()
             .balance(),
-        chain_1_address_2_token.token_balance().await
-            + chain_2_address_2_token.token_balance().await
+        chain_1_address_2_token_balance + chain_2_address_2_token_balance
     );
 
     // Consolidate balances if necessary to the source and destination accounts.
