@@ -1736,7 +1736,6 @@ async fn happy_path_execute_method() {
 
     // Wait for cache invalidation on balance call
     tokio::time::sleep(Duration::from_secs(30)).await;
-
     let assets = client
         .provider_pool
         .get_wallet_provider(None, None)
@@ -2002,7 +2001,6 @@ async fn happy_path_execute_method() {
 
     // Wait for cache invalidation on balance call
     tokio::time::sleep(Duration::from_secs(30)).await;
-
     let assets = client
         .provider_pool
         .get_wallet_provider(None, None)
@@ -2518,7 +2516,6 @@ async fn happy_path_lifi() {
 
     // Wait for cache invalidation on balance call
     tokio::time::sleep(Duration::from_secs(30)).await;
-
     let assets = client
         .provider_pool
         .get_wallet_provider(None, None)
@@ -2560,7 +2557,6 @@ async fn happy_path_lifi() {
 
     // Wait for cache invalidation on balance call
     tokio::time::sleep(Duration::from_secs(30)).await;
-
     let assets = client
         .provider_pool
         .get_wallet_provider(None, None)
@@ -2735,7 +2731,6 @@ async fn happy_path_lifi() {
 
     // Wait for cache invalidation on balance call
     tokio::time::sleep(Duration::from_secs(30)).await;
-
     let assets = client
         .provider_pool
         .get_wallet_provider(None, None)

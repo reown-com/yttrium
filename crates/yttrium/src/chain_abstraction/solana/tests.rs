@@ -484,6 +484,8 @@ async fn solana_happy_path() {
             &[chain_solana.get_caip10(account_solana.pubkey())].join(","),
         );
 
+    // Wait for cache invalidation on balance call
+    tokio::time::sleep(Duration::from_secs(30)).await;
     let assets = client
         .provider_pool
         .get_wallet_provider(None, Some(wallet_service_url))
