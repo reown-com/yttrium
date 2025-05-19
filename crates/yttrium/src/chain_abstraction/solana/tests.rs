@@ -145,7 +145,7 @@ async fn solana_happy_path() {
             let result = reqwest::Client::new().post("https://faucetbot.dev/api/faucet-request")
                 .json(&serde_json::json!({
                     "key": std::env::var("FAUCET_REQUEST_API_KEY").unwrap(),
-                    "text": format!("Yttrium tests running low on USDC. Please send {want_amount} USDC to {} on {}", faucet.address(), chain_eth.caip2()),
+                    "text": format!("Yttrium tests running low on USDC. Please send {want_amount} USDC to {} on {}. [request]", faucet.address(), chain_eth.caip2()),
                 }))
                 .send()
                 .await
@@ -181,10 +181,9 @@ async fn solana_happy_path() {
             faucet.address().to_string()
         );
         assert_eq!(route["fromChainId"].as_u64().unwrap(), 8453);
-        assert!(
-            route["fromAmount"].as_str().unwrap().parse::<u64>().unwrap()
-                >= 2000000
-        );
+        let from_amount =
+            route["fromAmount"].as_str().unwrap().parse::<u64>().unwrap();
+        assert!(from_amount >= 2000000);
         let from_token = route["fromToken"].clone();
         assert_eq!(
             from_token["address"].as_str().unwrap(),
@@ -202,6 +201,10 @@ async fn solana_happy_path() {
         assert_eq!(to_token["chainId"].as_u64().unwrap(), 1151111081099710);
         assert_eq!(to_token["symbol"].as_str().unwrap(), "USDC");
         assert_eq!(to_token["decimals"].as_u64().unwrap(), 6);
+
+        if U256::from(from_amount) > faucet_usdc_balance {
+            panic!("Faucet doesn't have enough USDC. Please send at least {} USDC to {}", from_amount, faucet.address());
+        }
 
         let transaction_request = quote["transactionRequest"].clone();
 
