@@ -7,9 +7,12 @@ use {
         rngs::{OsRng, StdRng},
         SeedableRng,
     },
-    sui_sdk::types::{
-        base_types::SuiAddress,
-        crypto::{PublicKey, SuiKeyPair},
+    sui_sdk::{
+        types::{
+            base_types::SuiAddress,
+            crypto::{PublicKey, SuiKeyPair},
+        },
+        SuiClientBuilder,
     },
     uniffi::deps::anyhow,
 };
@@ -48,6 +51,17 @@ pub fn sui_get_public_key(keypair: &SuiKeyPair) -> PublicKey {
 #[uniffi::export]
 pub fn sui_get_address(keypair: &SuiKeyPair) -> SuiAddress {
     SuiAddress::from(&keypair.public())
+}
+
+// TODO support other coins
+// TODO get all_balances?
+#[uniffi::export(async_runtime = "tokio")]
+pub async fn sui_get_balance(
+    address: SuiAddress,
+) -> Result<u64, anyhow::Error> {
+    let sui = SuiClientBuilder::default().build_mainnet().await?;
+    let balance = sui.coin_read_api().get_balance(address, None).await?;
+    Ok(u64::try_from(balance.total_balance)?)
 }
 
 #[cfg(test)]
@@ -106,5 +120,20 @@ mod tests {
             address.to_string(),
             SuiAddress::from(&keypair.public()).to_string()
         );
+    }
+
+    #[tokio::test]
+    async fn test_sui_get_balance() {
+        let keypair = sui_generate_keypair();
+        let address = sui_get_address(&keypair);
+        let balance = sui_get_balance(address).await.unwrap();
+        assert_eq!(balance, 0);
+    }
+
+    #[tokio::test]
+    async fn test_sui_get_balance_zero_address() {
+        let zero_address = SuiAddress::ZERO;
+        let balance = sui_get_balance(zero_address).await.unwrap();
+        assert_ne!(balance, 0);
     }
 }
