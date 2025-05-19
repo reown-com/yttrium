@@ -14757,6 +14757,7 @@ dependencies = [
  "getrandom 0.2.15",
  "getrandom 0.3.1",
  "hex",
+ "quinn",
  "rand 0.8.5",
  "relay_rpc",
  "reqwest 0.12.12",

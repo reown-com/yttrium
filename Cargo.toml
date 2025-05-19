@@ -55,6 +55,8 @@ spl-token = "8.0.0"
 spl-associated-token-account = "7.0.0"
 bincode = "1.3.3"
 data-encoding = "2.9.0"
+# Pin quinn to fix rustls-platform-verifier issue: https://github.com/rustls/rustls-platform-verifier/issues/164#issuecomment-2732380093
+quinn = "0.11.8"
 
 # SUI
 sui_sdk = { git = "https://github.com/mystenlabs/sui", package = "sui-sdk"}

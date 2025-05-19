@@ -36,6 +36,7 @@ solana = [
     "dep:spl-associated-token-account",
     "dep:bincode",
     "dep:data-encoding",
+    "dep:quinn",
 ]
 sui = ["dep:sui_sdk", "dep:sui_keys", "dep:fastcrypto", "dep:rand"]
 
@@ -137,6 +138,7 @@ sui_types = { workspace = true, optional = true }
 sui_keys = { workspace = true, optional = true }
 fastcrypto = { workspace = true, optional = true }
 rand = { workspace = true, optional = true }
+quinn = { workspace = true, optional = true }
 
 [dev-dependencies]
 # mocking
