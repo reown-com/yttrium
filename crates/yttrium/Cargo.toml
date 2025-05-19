@@ -27,7 +27,7 @@ wasm = [
     "dep:wasmtimer",
 ]
 
-all_namespaces = ["eip155", "solana"]
+all_namespaces = ["eip155", "solana", "sui"]
 eip155 = []
 solana = [
     "dep:solana-sdk",
@@ -37,6 +37,7 @@ solana = [
     "dep:bincode",
     "dep:data-encoding",
 ]
+sui = ["dep:sui_sdk", "dep:sui_keys", "dep:fastcrypto", "dep:rand"]
 
 # Features contributing to bundle size, that you might not need
 all_clients = [
@@ -129,6 +130,13 @@ spl-associated-token-account = { workspace = true, optional = true }
 bincode = { workspace = true, optional = true }
 data-encoding = { workspace = true, optional = true }
 const_format = "0.2.34"
+
+# SUI
+sui_sdk = { workspace = true, optional = true }
+sui_types = { workspace = true, optional = true }
+sui_keys = { workspace = true, optional = true }
+fastcrypto = { workspace = true, optional = true }
+rand = { workspace = true, optional = true }
 
 [dev-dependencies]
 # mocking
