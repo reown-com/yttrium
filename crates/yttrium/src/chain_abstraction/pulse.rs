@@ -133,3 +133,13 @@ pub struct PulseMetadata {
     pub sdk_version: String,
     pub sdk_platform: String,
 }
+
+#[cfg(test)]
+pub fn get_pulse_metadata() -> PulseMetadata {
+    PulseMetadata {
+        url: None,
+        bundle_id: Some("com.reown.yttrium.tests".to_owned()),
+        sdk_version: "yttrium-tests-0.0.0".to_owned(),
+        sdk_platform: "mobile".to_owned(),
+    }
+}
