@@ -11,10 +11,38 @@ permissions:
 
 env:
   CARGO_TERM_COLOR: always
+  RUST_MSRV: 1.86.0
 
 jobs:
-  build_rust_and_test:
-    name: Rust project - latest
+  rust_RUST_MSRV:
+    name: Rust project - RUST_MSRV (${{ env.RUST_MSRV }})
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Run sccache-cache
+        uses: mozilla-actions/sccache-action@v0.0.4
+      - run: rustup install ${{ env.RUST_MSRV }} && rustup default ${{ env.RUST_MSRV }}
+      - run: rustup toolchain install nightly -c rustfmt
+      - run: rustup target add wasm32-unknown-unknown
+      - run: docker compose up -d
+        working-directory: test/scripts/forked_state
+      - run: while ! curl localhost:8545/health; do sleep 1; done
+      - run: while ! curl localhost:4337/health; do sleep 1; done
+      - run: while ! curl localhost:3000/ping; do sleep 1; done
+      - run: cargo build --workspace --all-features --all-targets
+      - run: cargo build -p yttrium --features=wasm --lib --target wasm32-unknown-unknown
+      - run: RUST_BACKTRACE=1 RUST_LOG=yttrium=trace cargo test --features=full --lib --bins
+        env:
+          REOWN_PROJECT_ID: ${{ vars.REOWN_PROJECT_ID }}
+      - run: cargo clippy --workspace --all-features --all-targets -- -D warnings
+      - run: cargo clippy -p yttrium --all-targets -- -D warnings # `-p yttrium` to avoid feature unification; kotlin-ffi enables uniffi feature and we want to test without that
+      - run: cargo install cargo-udeps --locked
+      - run: just _rust_ci
+
+  rust_stable:
+    name: Rust project - stable
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -23,6 +51,7 @@ jobs:
       - run: rustup update stable && rustup default stable
       - uses: Swatinem/rust-cache@v2
       - run: rustup toolchain install nightly -c rustfmt
+      # == below is a duplicate of the pinned job above. Keep them in-sync. ==
       - run: rustup target add wasm32-unknown-unknown
       - run: docker compose up -d
         working-directory: test/scripts/forked_state
@@ -39,9 +68,8 @@ jobs:
           REOWN_PROJECT_ID: ${{ vars.REOWN_PROJECT_ID }}
       - run: cargo clippy --workspace --all-features --all-targets -- -D warnings
       - run: cargo clippy -p yttrium --all-targets -- -D warnings # `-p yttrium` to avoid feature unification; kotlin-ffi enables uniffi feature and we want to test without that
-      - run: cargo +nightly fmt --all -- --check
       - run: cargo install cargo-udeps --locked
-      - run: cargo +nightly udeps --workspace
+      - run: just _rust_ci
       - run: docker logs forked_state-anvil-1
         working-directory: test/scripts/forked_state
         if: failure()
@@ -65,7 +93,7 @@ jobs:
           submodules: recursive
       - name: Run sccache-cache
         uses: mozilla-actions/sccache-action@v0.0.4
-      - run: rustup update stable && rustup default stable
+      - run: rustup update ${{ env.RUST_MSRV }} && rustup default ${{ env.RUST_MSRV }}
       - name: Select Xcode 15.4
         run: sudo xcode-select -s /Applications/Xcode_15.4.app
 
@@ -89,14 +117,14 @@ jobs:
       - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: stable
+          toolchain: ${{ env.RUST_MSRV }}
           target: aarch64-linux-android
           override: true
           components: rust-src
       - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: stable
+          toolchain: ${{ env.RUST_MSRV }}
           target: armv7-linux-androideabi
           override: true
           components: rust-src
@@ -122,3 +150,11 @@ jobs:
       - name: Build Rust library
         run: |
           ./generate_kotlin_locally.sh
+
+  merge_check:
+    name: Merge Check
+    needs: [ rust_RUST_MSRV, build_swift_and_test, build-kotlin ]
+    if: ${{ always() && !cancelled() && !failure() }}
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "CI is successful"

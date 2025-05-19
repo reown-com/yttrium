@@ -454,8 +454,3 @@ mod tests {
         assert_eq!(n, Uint::from(1));
     }
 }
-%%%%%%% Changes from base to side #2
--#[cfg(feature = "sui")]
--pub mod sui;
--
->>>>>>> Conflict 1 of 1 ends
