@@ -37,6 +37,7 @@ solana = [
     "dep:bincode",
     "dep:data-encoding",
     "dep:quinn",
+    "dep:const_format",
 ]
 sui = ["dep:sui_sdk", "dep:sui_keys", "dep:fastcrypto", "dep:rand"]
 
@@ -124,13 +125,15 @@ url = { workspace = true, features = ["serde"] }
 derive_jserror = { version = "=0.1.0", optional = true, default-features = false }
 
 # Solana
-solana-sdk = { workspace = true, optional = true }
+solana-sdk = { workspace = true, optional = true, features = ["full"] } # TODO try to remove "full" feature
 solana-client = { workspace = true, optional = true }
+solana-seed-phrase = { workspace = true, optional = true }
 spl-token = { workspace = true, optional = true }
 spl-associated-token-account = { workspace = true, optional = true }
 bincode = { workspace = true, optional = true }
 data-encoding = { workspace = true, optional = true }
-const_format = "0.2.34"
+quinn = { workspace = true, optional = true, default-features = false }
+const_format = { workspace = true, optional = true }
 
 # SUI
 sui_sdk = { workspace = true, optional = true }
@@ -138,7 +141,6 @@ sui_types = { workspace = true, optional = true }
 sui_keys = { workspace = true, optional = true }
 fastcrypto = { workspace = true, optional = true }
 rand = { workspace = true, optional = true }
-quinn = { workspace = true, optional = true }
 
 [dev-dependencies]
 # mocking
