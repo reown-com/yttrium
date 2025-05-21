@@ -407,6 +407,7 @@ pub enum BridgingError {
     Unknown,
 }
 
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Enum))]
 #[cfg_attr(

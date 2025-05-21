@@ -383,6 +383,7 @@ pub fn prepare_sign(
     PreparedSignature { safe_message, domain }
 }
 
+#[allow(clippy::large_enum_variant)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Enum))]
 pub enum SignOutputEnum {
     Signature(Bytes),

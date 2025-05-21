@@ -98,6 +98,7 @@ pub enum PrepareDetailedError {
 }
 
 // TODO this response type shouldn't be in `error` module
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug, Serialize, Deserialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Enum))]
 #[cfg_attr(
@@ -111,6 +112,7 @@ pub enum PrepareDetailedResponse {
     Error(PrepareResponseError),
 }
 
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug, Serialize, Deserialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Enum))]
 #[cfg_attr(
