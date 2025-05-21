@@ -237,9 +237,9 @@ async fn solana_happy_path() {
                 transaction_request["from"].as_str().unwrap().parse().unwrap(),
             )
             .with_to(bridge_contract)
-            .with_value(
-                transaction_request["value"].as_str().unwrap().parse().unwrap(),
-            )
+            // .with_value(
+            //     transaction_request["value"].as_str().unwrap().parse().unwrap(),
+            // )
             .with_input(
                 hex::decode(
                     transaction_request["data"]
