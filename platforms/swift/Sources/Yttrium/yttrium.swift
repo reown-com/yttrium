@@ -3883,7 +3883,7 @@ public func FfiConverterTypeUserOperationV07_lower(_ value: UserOperationV07) ->
 
 public enum AddressOrNative {
     
-    case address(Address
+    case addressVariant(Address
     )
     case native
 }
@@ -3903,7 +3903,7 @@ public struct FfiConverterTypeAddressOrNative: FfiConverterRustBuffer {
         let variant: Int32 = try readInt(&buf)
         switch variant {
         
-        case 1: return .address(try FfiConverterTypeAddress.read(from: &buf)
+        case 1: return .addressVariant(try FfiConverterTypeAddress.read(from: &buf)
         )
         
         case 2: return .native
@@ -3916,7 +3916,7 @@ public struct FfiConverterTypeAddressOrNative: FfiConverterRustBuffer {
         switch value {
         
         
-        case let .address(v1):
+        case let .addressVariant(v1):
             writeInt(&buf, Int32(1))
             FfiConverterTypeAddress.write(v1, into: &buf)
             
