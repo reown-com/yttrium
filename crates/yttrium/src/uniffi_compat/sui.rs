@@ -14,10 +14,13 @@ use {
     relay_rpc::domain::ProjectId,
     reqwest::Client as ReqwestClient,
     sui_sdk::{
-        rpc_types::Balance,
+        rpc_types::{Balance, SuiTransactionBlockResponseOptions},
         types::{
             base_types::SuiAddress,
             crypto::{PublicKey, Signature, SuiKeyPair},
+            digests::TransactionDigest,
+            signature::GenericSignature,
+            transaction::TransactionData,
         },
     },
     sui_shared_crypto::intent::{Intent, IntentMessage, PersonalMessage},
@@ -49,6 +52,12 @@ uniffi::custom_type!(Signature, String, {
     lower: |obj| obj.encode_base64(),
 });
 
+uniffi::custom_type!(TransactionDigest, String, {
+    remote,
+    try_lift: |val| val.parse::<TransactionDigest>().map_err(|e| anyhow::anyhow!(e)),
+    lower: |obj| obj.to_string(),
+});
+
 // TODO support other key types
 #[uniffi::export]
 pub fn sui_generate_keypair() -> SuiKeyPair {
@@ -68,11 +77,21 @@ pub fn sui_get_address(public_key: &PublicKey) -> SuiAddress {
 }
 
 #[uniffi::export]
-pub fn sui_sign(keypair: &SuiKeyPair, message: Vec<u8>) -> Signature {
+pub fn sui_personal_sign(keypair: &SuiKeyPair, message: Vec<u8>) -> Signature {
     let intent_msg = IntentMessage::new(
         Intent::personal_message(),
         PersonalMessage { message },
     );
+    Signature::new_secure(&intent_msg, keypair)
+}
+
+#[uniffi::export]
+pub fn sui_sign_transaction(
+    keypair: &SuiKeyPair,
+    tx_data: Vec<u8>,
+) -> Signature {
+    let data = bcs::from_bytes::<TransactionData>(&tx_data).unwrap();
+    let intent_msg = IntentMessage::new(Intent::sui_transaction(), data);
     Signature::new_secure(&intent_msg, keypair)
 }
 
@@ -136,6 +155,30 @@ impl SuiClient {
             .coin_read_api()
             .get_all_balances(address)
             .await?)
+    }
+
+    pub async fn sign_and_execute_transaction(
+        &self,
+        chain_id: String,
+        keypair: &SuiKeyPair,
+        tx_data: &[u8],
+    ) -> Result<TransactionDigest, anyhow::Error> {
+        let data = bcs::from_bytes::<TransactionData>(tx_data).unwrap();
+        let intent_msg = IntentMessage::new(Intent::sui_transaction(), data);
+        let sig = Signature::new_secure(&intent_msg, keypair);
+        let sui_client = self.provider_pool.get_sui_client(chain_id).await;
+        let result = sui_client
+            .quorum_driver_api()
+            .execute_transaction_block(
+                sui_sdk::types::transaction::Transaction::from_generic_sig_data(
+                    intent_msg.value,
+                    vec![GenericSignature::Signature(sig)],
+                ),
+                SuiTransactionBlockResponseOptions::default(),
+                None,
+            )
+            .await?;
+        Ok(result.digest)
     }
 }
 
@@ -278,7 +321,7 @@ mod tests {
 
     #[test]
     fn test_signature_uniffi() {
-        let signature = sui_sign(
+        let signature = sui_personal_sign(
             &sui_generate_keypair(),
             "Hello, world!".as_bytes().to_vec(),
         );
@@ -294,7 +337,7 @@ mod tests {
     fn test_sui_sign() {
         let keypair = sui_generate_keypair();
         let message = "Hello, world!".as_bytes().to_vec();
-        let signature = sui_sign(&keypair, message.clone());
+        let signature = sui_personal_sign(&keypair, message.clone());
         let verification = signature.verify_secure(
             &IntentMessage::new(
                 Intent::personal_message(),

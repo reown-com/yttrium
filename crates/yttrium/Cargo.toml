@@ -45,6 +45,7 @@ sui = [
     "dep:sui_shared_crypto",
     "dep:fastcrypto",
     "dep:rand",
+    "dep:bcs",
 ]
 
 # Features contributing to bundle size, that you might not need
@@ -151,6 +152,7 @@ sui_keys = { workspace = true, optional = true }
 sui_shared_crypto = { workspace = true, optional = true }
 fastcrypto = { workspace = true, optional = true }
 rand = { workspace = true, optional = true }
+bcs = { workspace = true, optional = true }
 
 [dev-dependencies]
 # mocking
