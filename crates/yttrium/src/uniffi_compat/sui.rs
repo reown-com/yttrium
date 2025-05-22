@@ -17,10 +17,9 @@ use {
         rpc_types::Balance,
         types::{
             base_types::SuiAddress,
-            crypto::{PublicKey, Signature, SuiKeyPair},
+            crypto::{PublicKey, SuiKeyPair},
         },
     },
-    sui_shared_crypto::intent::{Intent, IntentMessage, PersonalMessage},
     uniffi::deps::anyhow,
     url::Url,
 };
@@ -43,12 +42,6 @@ uniffi::custom_type!(SuiAddress, String, {
     lower: |obj| obj.to_string(),
 });
 
-uniffi::custom_type!(Signature, String, {
-    remote,
-    try_lift: |val| val.parse::<Signature>().map_err(|e| anyhow::anyhow!(e)),
-    lower: |obj| obj.encode_base64(),
-});
-
 // TODO support other key types
 #[uniffi::export]
 pub fn sui_generate_keypair() -> SuiKeyPair {
@@ -63,17 +56,8 @@ pub fn sui_get_public_key(keypair: &SuiKeyPair) -> PublicKey {
 }
 
 #[uniffi::export]
-pub fn sui_get_address(public_key: &PublicKey) -> SuiAddress {
-    SuiAddress::from(public_key)
-}
-
-#[uniffi::export]
-pub fn sui_sign(keypair: &SuiKeyPair, message: Vec<u8>) -> Signature {
-    let intent_msg = IntentMessage::new(
-        Intent::personal_message(),
-        PersonalMessage { message },
-    );
-    Signature::new_secure(&intent_msg, keypair)
+pub fn sui_get_address(keypair: &SuiKeyPair) -> SuiAddress {
+    SuiAddress::from(&keypair.public())
 }
 
 #[derive(uniffi::Object)]
@@ -162,7 +146,6 @@ mod tests {
             chain_abstraction::pulse::get_pulse_metadata,
             provider_pool::network::sui::{DEVNET, MAINNET, TESTNET},
         },
-        sui_sdk::types::crypto::{SignatureScheme, SuiSignature},
     };
 
     #[test]
@@ -202,7 +185,7 @@ mod tests {
     #[test]
     fn test_sui_address_uniffi() {
         let keypair = sui_generate_keypair();
-        let address = sui_get_address(&keypair.public());
+        let address = sui_get_address(&keypair);
         let u = ::uniffi::FfiConverter::<crate::UniFfiTag>::lower(address);
         let s =
             ::uniffi::FfiConverter::<crate::UniFfiTag>::try_lift(u).unwrap();
@@ -212,7 +195,7 @@ mod tests {
     #[test]
     fn test_sui_get_address() {
         let keypair = sui_generate_keypair();
-        let address = sui_get_address(&keypair.public());
+        let address = sui_get_address(&keypair);
         assert_eq!(
             address.to_string(),
             SuiAddress::from(&keypair.public()).to_string()
@@ -238,7 +221,7 @@ mod tests {
     #[cfg(feature = "test_depends_on_env_REOWN_PROJECT_ID")]
     async fn test_sui_get_balance_devnet() {
         let keypair = sui_generate_keypair();
-        let address = sui_get_address(&keypair.public());
+        let address = sui_get_address(&keypair);
         let client = SuiClient::new(
             std::env::var("REOWN_PROJECT_ID").unwrap().into(),
             get_pulse_metadata(),
@@ -252,7 +235,7 @@ mod tests {
     #[cfg(feature = "test_depends_on_env_REOWN_PROJECT_ID")]
     async fn test_sui_get_balance_testnet() {
         let keypair = sui_generate_keypair();
-        let address = sui_get_address(&keypair.public());
+        let address = sui_get_address(&keypair);
         let client = SuiClient::new(
             std::env::var("REOWN_PROJECT_ID").unwrap().into(),
             get_pulse_metadata(),
@@ -266,7 +249,7 @@ mod tests {
     #[cfg(feature = "test_depends_on_env_REOWN_PROJECT_ID")]
     async fn test_sui_get_balance_mainnet() {
         let keypair = sui_generate_keypair();
-        let address = sui_get_address(&keypair.public());
+        let address = sui_get_address(&keypair);
         let client = SuiClient::new(
             std::env::var("REOWN_PROJECT_ID").unwrap().into(),
             get_pulse_metadata(),
@@ -274,35 +257,5 @@ mod tests {
         let balances =
             client.get_all_balances(MAINNET.to_owned(), address).await.unwrap();
         assert!(balances.is_empty());
-    }
-
-    #[test]
-    fn test_signature_uniffi() {
-        let signature = sui_sign(
-            &sui_generate_keypair(),
-            "Hello, world!".as_bytes().to_vec(),
-        );
-        let u = ::uniffi::FfiConverter::<crate::UniFfiTag>::lower(
-            signature.clone(),
-        );
-        let s =
-            ::uniffi::FfiConverter::<crate::UniFfiTag>::try_lift(u).unwrap();
-        assert_eq!(signature, s);
-    }
-
-    #[test]
-    fn test_sui_sign() {
-        let keypair = sui_generate_keypair();
-        let message = "Hello, world!".as_bytes().to_vec();
-        let signature = sui_sign(&keypair, message.clone());
-        let verification = signature.verify_secure(
-            &IntentMessage::new(
-                Intent::personal_message(),
-                PersonalMessage { message },
-            ),
-            sui_get_address(&keypair.public()),
-            SignatureScheme::ED25519,
-        );
-        assert!(verification.is_ok());
     }
 }
