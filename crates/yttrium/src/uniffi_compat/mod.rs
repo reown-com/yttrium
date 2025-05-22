@@ -1,3 +1,6 @@
+#[cfg(feature = "sui")]
+pub mod sui;
+
 #[cfg(feature = "chain_abstraction_client")]
 use crate::chain_abstraction::{amount::Amount, api::prepare::FundingMetadata};
 #[cfg(feature = "solana")]
