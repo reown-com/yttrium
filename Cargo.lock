@@ -14755,6 +14755,7 @@ dependencies = [
  "alloy",
  "alloy-provider",
  "async-trait",
+ "bcs",
  "bincode",
  "const_format",
  "data-encoding",
