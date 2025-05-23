@@ -29,7 +29,8 @@ use {
 #[derive(Clone)]
 pub struct ProviderPool {
     pub client: ReqwestClient,
-    // pub providers: Arc<RwLock<HashMap<String, RootProvider>>>,
+    pub eip155_providers:
+        std::sync::Arc<tokio::sync::RwLock<HashMap<String, RootProvider>>>,
     pub blockchain_api_base_url: Url,
     pub project_id: ProjectId,
     pub rpc_overrides: HashMap<String, Url>,
@@ -52,7 +53,9 @@ impl ProviderPool {
         info!("ProviderPool session_id: {}", session_id);
         Self {
             client,
-            // providers: Arc::new(RwLock::new(HashMap::new())),
+            eip155_providers: std::sync::Arc::new(tokio::sync::RwLock::new(
+                HashMap::new(),
+            )),
             blockchain_api_base_url,
             project_id,
             rpc_overrides: HashMap::new(),
@@ -123,34 +126,33 @@ impl ProviderPool {
         path: &str,
         additional_query_params: impl IntoIterator<Item = (&str, &str)>,
     ) -> RootProvider {
-        // let providers = self.providers.read().await;
-        // let cached_provider = providers.get(chain_id);
-        let cached_provider = None as Option<&RootProvider>;
+        let cached_provider =
+            self.eip155_providers.read().await.get(chain_id).cloned();
         if let Some(provider) = cached_provider {
-            provider.clone()
+            provider
         } else {
-            // std::mem::drop(providers);
-
             let url_override = self.rpc_overrides.get(chain_id).cloned();
 
-            ProviderBuilder::new().disable_recommended_fillers().on_client({
-                self.get_rpc_client(
-                    tracing,
-                    path,
-                    additional_query_params,
-                    url_override,
-                    None,
-                )
+            let provider = ProviderBuilder::new()
+                .disable_recommended_fillers()
+                .on_client({
+                    self.get_rpc_client(
+                        tracing,
+                        path,
+                        additional_query_params,
+                        url_override,
+                        None,
+                    )
+                    .await
+                    .with_poll_interval(polling_interval_for_chain_id(chain_id))
+                });
+
+            self.eip155_providers
+                .write()
                 .await
-                .with_poll_interval(polling_interval_for_chain_id(chain_id))
-            })
+                .insert(chain_id.to_owned(), provider.clone());
 
-            // self.providers
-            //     .write()
-            //     .await
-            //     .insert(chain_id.to_owned(), provider.clone());
-
-            // provider
+            provider
         }
     }
 
