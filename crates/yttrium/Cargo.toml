@@ -27,7 +27,7 @@ wasm = [
     "dep:wasmtimer",
 ]
 
-all_namespaces = ["eip155", "solana", "sui"]
+all_namespaces = ["eip155", "solana", "sui", "stacks"]
 eip155 = []
 solana = [
     "dep:solana-sdk",
@@ -47,6 +47,7 @@ sui = [
     "dep:rand",
     "dep:bcs",
 ]
+stacks = []
 
 # Features contributing to bundle size, that you might not need
 all_clients = [
