@@ -1984,6 +1984,36 @@ dependencies = [
 ]
 
 [[package]]
+name = "bip32"
+version = "0.5.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "db40d3dfbeab4e031d78c844642fa0caa0b0db11ce1607ac9d2986dff1405c69"
+dependencies = [
+ "bs58 0.5.1",
+ "hmac 0.12.1",
+ "k256 0.13.4",
+ "once_cell",
+ "pbkdf2 0.12.2",
+ "rand_core 0.6.4",
+ "ripemd",
+ "secp256k1 0.27.0",
+ "sha2 0.10.8",
+ "subtle",
+ "zeroize",
+]
+
+[[package]]
+name = "bip39"
+version = "2.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "33415e24172c1b7d6066f6d999545375ab8e1d95421d6784bdfff9496f292387"
+dependencies = [
+ "bitcoin_hashes",
+ "serde",
+ "unicode-normalization",
+]
+
+[[package]]
 name = "bit-set"
 version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3990,7 +4020,7 @@ dependencies = [
  "rfc6979 0.4.0",
  "rsa",
  "schemars",
- "secp256k1",
+ "secp256k1 0.27.0",
  "serde",
  "serde_json",
  "serde_with",
@@ -9165,7 +9195,17 @@ checksum = "25996b82292a7a57ed3508f052cfff8640d38d32018784acd714758b43da9c8f"
 dependencies = [
  "bitcoin_hashes",
  "rand 0.8.5",
- "secp256k1-sys",
+ "secp256k1-sys 0.8.1",
+]
+
+[[package]]
+name = "secp256k1"
+version = "0.28.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d24b59d129cdadea20aea4fb2352fa053712e5d713eee47d700cd4b2bc002f10"
+dependencies = [
+ "bitcoin_hashes",
+ "secp256k1-sys 0.9.2",
 ]
 
 [[package]]
@@ -9173,6 +9213,15 @@ name = "secp256k1-sys"
 version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "70a129b9e9efbfb223753b9163c4ab3b13cff7fd9c7f010fbac25ab4099fa07e"
+dependencies = [
+ "cc",
+]
+
+[[package]]
+name = "secp256k1-sys"
+version = "0.9.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e5d1746aae42c19d583c3c1a8c646bfad910498e2051c551a7f2e3c0c9fbb7eb"
 dependencies = [
  "cc",
 ]
@@ -12196,6 +12245,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "stacks-rs"
+version = "0.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "409cab32384646874ffbfbcd0ceedec2bafad8354a253691656f5ffd3768bb4d"
+dependencies = [
+ "bip32 0.5.3",
+ "bip39",
+ "dyn-clone",
+ "ring 0.17.8",
+ "ripemd",
+ "secp256k1 0.28.2",
+ "thiserror 1.0.69",
+]
+
+[[package]]
 name = "starlark"
 version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -12530,7 +12594,7 @@ version = "0.0.0"
 source = "git+https://github.com/mystenlabs/sui#a2e4f5d2cf17ddca99c118f0dc80e7e20994d4d2"
 dependencies = [
  "anyhow",
- "bip32",
+ "bip32 0.4.0",
  "fastcrypto",
  "rand 0.8.5",
  "regex",
@@ -13774,9 +13838,9 @@ checksum = "adb9e6ca4f869e1180728b7950e35922a7fc6397f7b641499e8f3ef06e50dc83"
 
 [[package]]
 name = "unicode-normalization"
-version = "0.1.24"
+version = "0.1.22"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5033c97c4262335cded6d6fc3e5c18ab755e1a3dc96376350f3d8e9f009ad956"
+checksum = "5c5713f0fc4b5db668a2ac63cdb7bb4469d8c9fed047b1d0292cc7b0ce2ba921"
 dependencies = [
  "tinyvec",
 ]
@@ -14757,6 +14821,8 @@ dependencies = [
  "async-trait",
  "bcs",
  "bincode",
+ "bip32 0.5.3",
+ "bip39",
  "const_format",
  "data-encoding",
  "derive_jserror",
@@ -14772,6 +14838,7 @@ dependencies = [
  "rand 0.8.5",
  "relay_rpc",
  "reqwest 0.12.12",
+ "secp256k1 0.28.2",
  "serde",
  "serde_json",
  "serial_test 3.2.0",
@@ -14781,6 +14848,7 @@ dependencies = [
  "solana-seed-phrase",
  "spl-associated-token-account",
  "spl-token",
+ "stacks-rs",
  "sui-keys",
  "sui-sdk",
  "sui-types",

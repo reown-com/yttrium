@@ -70,6 +70,12 @@ fastcrypto = { git = "https://github.com/MystenLabs/fastcrypto", rev = "69d496c7
 rand = { version = "0.8.5", default-features = false }
 bcs = { version = "0.1.4", default-features = false }
 
+# Stacks
+stacks-rs = { version = "0.3.3", default-features = false }
+bip32 = { version = "0.5.1", default-features = false }
+bip39 = { version = "2.1.0", default-features = false }
+stacks_secp256k1 = { version = "0.28.2", package = "secp256k1", default-features = false }
+
 # Used by WASM ONLY, since wasm-pack doesn't support custom profiles
 # https://github.com/rustwasm/wasm-pack/issues/1461
 [profile.release]

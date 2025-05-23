@@ -247,6 +247,11 @@ pub mod network {
         pub const DEVNET: &str = "sui:devnet";
         pub const TESTNET: &str = "sui:testnet";
     }
+
+    pub mod stacks {
+        pub const MAINNET: &str = "stacks:1";
+        pub const TESTNET: &str = "stacks:2147483648";
+    }
 }
 
 type TracingType = Option<std::sync::mpsc::Sender<RpcRequestAnalytics>>;

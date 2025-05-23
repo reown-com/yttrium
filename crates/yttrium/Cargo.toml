@@ -27,7 +27,7 @@ wasm = [
     "dep:wasmtimer",
 ]
 
-all_namespaces = ["eip155", "solana", "sui"]
+all_namespaces = ["eip155", "solana", "sui", "stacks"]
 eip155 = []
 solana = [
     "dep:solana-sdk",
@@ -46,6 +46,12 @@ sui = [
     "dep:fastcrypto",
     "dep:rand",
     "dep:bcs",
+]
+stacks = [
+    "dep:stacks-rs",
+    "dep:bip32",
+    "dep:bip39",
+    "dep:stacks_secp256k1",
 ]
 
 # Features contributing to bundle size, that you might not need
@@ -153,6 +159,12 @@ sui_shared_crypto = { workspace = true, optional = true }
 fastcrypto = { workspace = true, optional = true }
 rand = { workspace = true, optional = true }
 bcs = { workspace = true, optional = true }
+
+# Stacks
+stacks-rs = { workspace = true, optional = true, features = ["crypto", "wallet-sdk"] }
+bip32 = { workspace = true, optional = true }
+bip39 = { workspace = true, optional = true }
+stacks_secp256k1 = { workspace = true, optional = true, features = ["hashes"] }
 
 [dev-dependencies]
 # mocking
