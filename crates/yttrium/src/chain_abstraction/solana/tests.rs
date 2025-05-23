@@ -6,11 +6,9 @@ use {
             amount::Amount,
             client::Client,
             currency::Currency,
-            pulse::PULSE_SDK_TYPE,
+            pulse::{get_pulse_metadata, PULSE_SDK_TYPE},
             solana::usdc_mint,
-            tests::{
-                get_pulse_metadata, Chain, SolanaChain, USDC_CONTRACT_BASE,
-            },
+            tests::{Chain, SolanaChain, USDC_CONTRACT_BASE},
             ui_fields::RouteSig,
         },
         erc20::{Token, ERC20},

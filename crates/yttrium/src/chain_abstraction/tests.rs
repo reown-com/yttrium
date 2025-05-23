@@ -19,7 +19,7 @@ use {
             client::Client,
             currency::Currency,
             l1_data_fee::get_l1_data_fee,
-            pulse::PulseMetadata,
+            pulse::get_pulse_metadata,
             test_helpers::floats_close,
             ui_fields::{RouteSig, TransactionFee, TxnDetails},
         },
@@ -50,15 +50,6 @@ use {
     std::{cmp::max, collections::HashMap, iter, time::Duration},
     ERC20::ERC20Instance,
 };
-
-pub fn get_pulse_metadata() -> PulseMetadata {
-    PulseMetadata {
-        url: None,
-        bundle_id: Some("com.reown.yttrium.tests".to_owned()),
-        sdk_version: "yttrium-tests-0.0.0".to_owned(),
-        sdk_platform: "mobile".to_owned(),
-    }
-}
 
 pub const USDC_CONTRACT_OPTIMISM: Address =
     address!("0b2c639c533813f4aa9d7837caf62653d097ff85");

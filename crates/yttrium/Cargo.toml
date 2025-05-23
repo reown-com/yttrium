@@ -56,6 +56,7 @@ transaction_sponsorship_client = []
 # Features enabling test coverage
 test_pimlico_api = []
 test_blockchain_api = []
+test_depends_on_env_REOWN_PROJECT_ID = []
 
 [dependencies]
 uniffi = { workspace = true, optional = true }

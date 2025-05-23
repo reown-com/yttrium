@@ -35,6 +35,10 @@ pub struct ProviderPool {
     pub rpc_overrides: HashMap<String, Url>,
     pub session_id: Uuid,
     pub pulse_metadata: PulseMetadata,
+    #[cfg(feature = "sui")]
+    pub sui_clients: std::sync::Arc<
+        tokio::sync::RwLock<HashMap<String, sui_sdk::SuiClient>>,
+    >,
 }
 
 impl ProviderPool {
@@ -54,6 +58,10 @@ impl ProviderPool {
             rpc_overrides: HashMap::new(),
             session_id,
             pulse_metadata,
+            #[cfg(feature = "sui")]
+            sui_clients: std::sync::Arc::new(tokio::sync::RwLock::new(
+                HashMap::new(),
+            )),
         }
     }
 
@@ -184,20 +192,59 @@ impl ProviderPool {
             // .layer(RpcRequestModifyingLayer { tracing })
             .transport(transport, false)
     }
+
+    #[cfg(feature = "sui")]
+    pub async fn get_sui_client(
+        &self,
+        sui_chain_id: String,
+    ) -> sui_sdk::SuiClient {
+        assert!(sui_chain_id.starts_with("sui:"), "Invalid Sui chain ID");
+        let sui_client =
+            self.sui_clients.read().await.get(&sui_chain_id).cloned();
+        if let Some(sui_client) = sui_client {
+            sui_client
+        } else {
+            let mut url =
+                self.blockchain_api_base_url.join(PROXY_ENDPOINT_PATH).unwrap();
+            url.query_pairs_mut()
+                .append_pair("projectId", self.project_id.as_ref())
+                .append_pair("sessionId", self.session_id.to_string().as_str())
+                .append_pair("st", PULSE_SDK_TYPE)
+                .append_pair("sv", self.pulse_metadata.sdk_version.as_str())
+                .append_pair("chainId", sui_chain_id.as_str());
+            let sui_client =
+                sui_sdk::SuiClientBuilder::default().build(url).await.unwrap();
+            self.sui_clients
+                .write()
+                .await
+                .insert(sui_chain_id, sui_client.clone());
+            sui_client
+        }
+    }
 }
 
 fn polling_interval_for_chain_id(chain_id: &str) -> Duration {
     const ONE: Duration = Duration::from_secs(1);
     match chain_id {
-        network::BASE | network::OPTIMISM | network::ARBITRUM => ONE,
+        network::eip155::BASE
+        | network::eip155::OPTIMISM
+        | network::eip155::ARBITRUM => ONE,
         _ => Duration::from_secs(7), // alloy's current default
     }
 }
 
-mod network {
-    pub const BASE: &str = "eip155:8453";
-    pub const OPTIMISM: &str = "eip155:10";
-    pub const ARBITRUM: &str = "eip155:42161";
+pub mod network {
+    pub mod eip155 {
+        pub const BASE: &str = "eip155:8453";
+        pub const OPTIMISM: &str = "eip155:10";
+        pub const ARBITRUM: &str = "eip155:42161";
+    }
+
+    pub mod sui {
+        pub const MAINNET: &str = "sui:mainnet";
+        pub const DEVNET: &str = "sui:devnet";
+        pub const TESTNET: &str = "sui:testnet";
+    }
 }
 
 type TracingType = Option<std::sync::mpsc::Sender<RpcRequestAnalytics>>;

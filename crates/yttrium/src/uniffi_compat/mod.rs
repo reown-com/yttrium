@@ -41,6 +41,7 @@ use {
     relay_rpc::domain::ProjectId,
     reqwest::{Error as ReqwestError, Url},
     serde_json::Error as SerdeJsonError,
+    uniffi::deps::anyhow::Error as AnyhowError,
 };
 
 // TODO use https://mozilla.github.io/uniffi-rs/next/udl/remote_ext_types.html#remote-types when it's available
@@ -175,6 +176,11 @@ uniffi::custom_type!(RpcError, String, {
 uniffi::custom_type!(EyreError, String, {
     remote,
     try_lift: |_val| unimplemented!("Does not support lifting EyreError"),
+    lower: |obj| obj.to_string(),
+});
+uniffi::custom_type!(AnyhowError, String, {
+    remote,
+    try_lift: |_val| unimplemented!("Does not support lifting AnyhowError"),
     lower: |obj| obj.to_string(),
 });
 uniffi::custom_type!(AlloyError, String, {

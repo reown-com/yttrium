@@ -1,4 +1,8 @@
 use {
+    crate::{
+        blockchain_api::BLOCKCHAIN_API_URL_PROD,
+        chain_abstraction::pulse::PulseMetadata, provider_pool::ProviderPool,
+    },
     fastcrypto::{
         ed25519::Ed25519KeyPair,
         traits::{EncodeDecodeBase64, KeyPair},
@@ -7,11 +11,17 @@ use {
         rngs::{OsRng, StdRng},
         SeedableRng,
     },
-    sui_sdk::types::{
-        base_types::SuiAddress,
-        crypto::{PublicKey, SuiKeyPair},
+    relay_rpc::domain::ProjectId,
+    reqwest::Client as ReqwestClient,
+    sui_sdk::{
+        rpc_types::Balance,
+        types::{
+            base_types::SuiAddress,
+            crypto::{PublicKey, SuiKeyPair},
+        },
     },
     uniffi::deps::anyhow,
+    url::Url,
 };
 
 uniffi::custom_type!(SuiKeyPair, String, {
@@ -50,9 +60,93 @@ pub fn sui_get_address(keypair: &SuiKeyPair) -> SuiAddress {
     SuiAddress::from(&keypair.public())
 }
 
+#[derive(uniffi::Object)]
+pub struct SuiClient {
+    provider_pool: ProviderPool,
+    #[allow(unused)]
+    http_client: ReqwestClient,
+    #[allow(unused)]
+    project_id: ProjectId,
+    #[allow(unused)]
+    pulse_metadata: PulseMetadata,
+}
+
+#[uniffi::export(async_runtime = "tokio")]
+impl SuiClient {
+    #[uniffi::constructor]
+    pub fn new(project_id: ProjectId, pulse_metadata: PulseMetadata) -> Self {
+        Self::with_blockchain_api_url(
+            project_id,
+            pulse_metadata,
+            BLOCKCHAIN_API_URL_PROD.parse().unwrap(),
+        )
+    }
+
+    #[uniffi::constructor]
+    pub fn with_blockchain_api_url(
+        project_id: ProjectId,
+        pulse_metadata: PulseMetadata,
+        blockchain_api_base_url: Url,
+    ) -> Self {
+        let client = ReqwestClient::builder().build();
+        let client = match client {
+            Ok(client) => client,
+            Err(e) => {
+                panic!("Failed to create reqwest client: {} ... {:?}", e, e)
+            }
+        };
+        Self {
+            provider_pool: ProviderPool::new(
+                project_id.clone(),
+                client.clone(),
+                pulse_metadata.clone(),
+                blockchain_api_base_url,
+            ),
+            http_client: client,
+            project_id,
+            pulse_metadata,
+        }
+    }
+
+    pub async fn get_all_balances(
+        &self,
+        chain_id: String,
+        address: SuiAddress,
+    ) -> Result<Vec<Balance>, anyhow::Error> {
+        Ok(self
+            .provider_pool
+            .get_sui_client(chain_id)
+            .await
+            .coin_read_api()
+            .get_all_balances(address)
+            .await?)
+    }
+}
+
+#[derive(uniffi::Record)]
+pub struct BalanceFfi {
+    pub coin_type: String,
+    pub total_balance: u64,
+}
+
+uniffi::custom_type!(Balance, BalanceFfi, {
+    remote,
+    try_lift: |_val| unimplemented!("Does not support lifting Balance"),
+    lower: |obj| BalanceFfi {
+        coin_type: obj.coin_type,
+        total_balance: u64::try_from(obj.total_balance).unwrap(),
+    },
+});
+
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use {
+        super::*,
+        crate::{
+            chain_abstraction::pulse::get_pulse_metadata,
+            provider_pool::network::sui::{DEVNET, MAINNET, TESTNET},
+        },
+    };
 
     #[test]
     fn test_sui_generate_keypair() {
@@ -106,5 +200,62 @@ mod tests {
             address.to_string(),
             SuiAddress::from(&keypair.public()).to_string()
         );
+    }
+
+    #[tokio::test]
+    #[cfg(feature = "test_depends_on_env_REOWN_PROJECT_ID")]
+    async fn test_sui_get_balance_random_address() {
+        let zero_address = SuiAddress::random_for_testing_only();
+        let client = SuiClient::new(
+            std::env::var("REOWN_PROJECT_ID").unwrap().into(),
+            get_pulse_metadata(),
+        );
+        let balances = client
+            .get_all_balances("sui:mainnet".to_owned(), zero_address)
+            .await
+            .unwrap();
+        assert!(balances.is_empty());
+    }
+
+    #[tokio::test]
+    #[cfg(feature = "test_depends_on_env_REOWN_PROJECT_ID")]
+    async fn test_sui_get_balance_devnet() {
+        let keypair = sui_generate_keypair();
+        let address = sui_get_address(&keypair);
+        let client = SuiClient::new(
+            std::env::var("REOWN_PROJECT_ID").unwrap().into(),
+            get_pulse_metadata(),
+        );
+        let balances =
+            client.get_all_balances(DEVNET.to_owned(), address).await.unwrap();
+        assert!(balances.is_empty());
+    }
+
+    #[tokio::test]
+    #[cfg(feature = "test_depends_on_env_REOWN_PROJECT_ID")]
+    async fn test_sui_get_balance_testnet() {
+        let keypair = sui_generate_keypair();
+        let address = sui_get_address(&keypair);
+        let client = SuiClient::new(
+            std::env::var("REOWN_PROJECT_ID").unwrap().into(),
+            get_pulse_metadata(),
+        );
+        let balances =
+            client.get_all_balances(TESTNET.to_owned(), address).await.unwrap();
+        assert!(balances.is_empty());
+    }
+
+    #[tokio::test]
+    #[cfg(feature = "test_depends_on_env_REOWN_PROJECT_ID")]
+    async fn test_sui_get_balance_mainnet() {
+        let keypair = sui_generate_keypair();
+        let address = sui_get_address(&keypair);
+        let client = SuiClient::new(
+            std::env::var("REOWN_PROJECT_ID").unwrap().into(),
+            get_pulse_metadata(),
+        );
+        let balances =
+            client.get_all_balances(MAINNET.to_owned(), address).await.unwrap();
+        assert!(balances.is_empty());
     }
 }
