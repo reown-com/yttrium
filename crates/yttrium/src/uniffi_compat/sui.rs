@@ -1,4 +1,3 @@
-#[cfg(feature = "sui")]
 use {
     crate::{
         blockchain_api::BLOCKCHAIN_API_URL_PROD,
@@ -25,21 +24,24 @@ use {
     url::Url,
 };
 
-#[cfg(feature = "sui")]
+#[derive(Debug, thiserror::Error, uniffi::Error)]
+pub enum SuiError {
+    #[error("General {0}")]
+    General(String),
+}
+
 uniffi::custom_type!(SuiKeyPair, String, {
     remote,
     try_lift: |val| SuiKeyPair::decode(&val).map_err(|e| anyhow::anyhow!(e)),
     lower: |obj| obj.encode().unwrap(),
 });
 
-#[cfg(feature = "sui")]
 uniffi::custom_type!(PublicKey, String, {
     remote,
     try_lift: |val| val.parse::<PublicKey>().map_err(|e| anyhow::anyhow!(e)),
     lower: |obj| obj.encode_base64(),
 });
 
-#[cfg(feature = "sui")]
 uniffi::custom_type!(SuiAddress, String, {
     remote,
     try_lift: |val| val.parse(),
@@ -47,7 +49,6 @@ uniffi::custom_type!(SuiAddress, String, {
 });
 
 // TODO support other key types
-#[cfg(feature = "sui")]
 #[uniffi::export]
 pub fn sui_generate_keypair() -> SuiKeyPair {
     SuiKeyPair::Ed25519(Ed25519KeyPair::generate(
@@ -55,19 +56,16 @@ pub fn sui_generate_keypair() -> SuiKeyPair {
     ))
 }
 
-#[cfg(feature = "sui")]
 #[uniffi::export]
 pub fn sui_get_public_key(keypair: &SuiKeyPair) -> PublicKey {
     keypair.public()
 }
 
-#[cfg(feature = "sui")]
 #[uniffi::export]
 pub fn sui_get_address(keypair: &SuiKeyPair) -> SuiAddress {
     SuiAddress::from(&keypair.public())
 }
 
-#[cfg(feature = "sui")]
 #[derive(uniffi::Object)]
 pub struct SuiClient {
     provider_pool: ProviderPool,
@@ -79,7 +77,6 @@ pub struct SuiClient {
     pulse_metadata: PulseMetadata,
 }
 
-#[cfg(feature = "sui")]
 #[uniffi::export(async_runtime = "tokio")]
 impl SuiClient {
     #[uniffi::constructor]
@@ -121,7 +118,7 @@ impl SuiClient {
         &self,
         chain_id: String,
         address: SuiAddress,
-    ) -> Vec<Balance> {
+    ) -> Result<Vec<Balance>, SuiError> {
         self
             .provider_pool
             .get_sui_client(chain_id)
@@ -129,18 +126,16 @@ impl SuiClient {
             .coin_read_api()
             .get_all_balances(address)
             .await
-            .unwrap_or_default()
+            .map_err(|e| SuiError::General(e.to_string()))
     }
 }
 
-#[cfg(feature = "sui")]
 #[derive(uniffi::Record)]
 pub struct BalanceFfi {
     pub coin_type: String,
     pub total_balance: u64,
 }
 
-#[cfg(feature = "sui")]
 uniffi::custom_type!(Balance, BalanceFfi, {
     remote,
     try_lift: |_val| unimplemented!("Does not support lifting Balance"),
