@@ -119,8 +119,7 @@ impl SuiClient {
         chain_id: String,
         address: SuiAddress,
     ) -> Result<Vec<Balance>, SuiError> {
-        self
-            .provider_pool
+        self.provider_pool
             .get_sui_client(chain_id)
             .await
             .coin_read_api()
