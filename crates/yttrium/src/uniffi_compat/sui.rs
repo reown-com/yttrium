@@ -28,6 +28,12 @@ use {
     url::Url,
 };
 
+#[derive(Debug, thiserror::Error, uniffi::Error)]
+pub enum SuiError {
+    #[error("General {0}")]
+    General(String),
+}
+
 uniffi::custom_type!(SuiKeyPair, String, {
     remote,
     try_lift: |val| SuiKeyPair::decode(&val).map_err(|e| anyhow::anyhow!(e)),
@@ -147,14 +153,14 @@ impl SuiClient {
         &self,
         chain_id: String,
         address: SuiAddress,
-    ) -> Result<Vec<Balance>, anyhow::Error> {
-        Ok(self
-            .provider_pool
+    ) -> Result<Vec<Balance>, SuiError> {
+        self.provider_pool
             .get_sui_client(chain_id)
             .await
             .coin_read_api()
             .get_all_balances(address)
-            .await?)
+            .await
+            .map_err(|e| SuiError::General(e.to_string()))
     }
 
     pub async fn sign_and_execute_transaction(
@@ -162,7 +168,7 @@ impl SuiClient {
         chain_id: String,
         keypair: &SuiKeyPair,
         tx_data: &[u8],
-    ) -> Result<TransactionDigest, anyhow::Error> {
+    ) -> Result<TransactionDigest, SuiError> {
         let data = bcs::from_bytes::<TransactionData>(tx_data).unwrap();
         let intent_msg = IntentMessage::new(Intent::sui_transaction(), data);
         let sig = Signature::new_secure(&intent_msg, keypair);
@@ -177,7 +183,8 @@ impl SuiClient {
                 SuiTransactionBlockResponseOptions::default(),
                 None,
             )
-            .await?;
+            .await
+            .map_err(|e| SuiError::General(e.to_string()))?;
         Ok(result.digest)
     }
 }
