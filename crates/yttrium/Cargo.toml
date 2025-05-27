@@ -27,7 +27,7 @@ wasm = [
     "dep:wasmtimer",
 ]
 
-all_namespaces = ["eip155", "solana"]
+all_namespaces = ["eip155", "solana", "sui"]
 eip155 = []
 solana = [
     "dep:solana-sdk",
@@ -36,6 +36,16 @@ solana = [
     "dep:spl-associated-token-account",
     "dep:bincode",
     "dep:data-encoding",
+    "dep:quinn",
+    "dep:const_format",
+]
+sui = [
+    "dep:sui_sdk",
+    "dep:sui_keys",
+    "dep:sui_shared_crypto",
+    "dep:fastcrypto",
+    "dep:rand",
+    "dep:bcs",
 ]
 
 # Features contributing to bundle size, that you might not need
@@ -53,6 +63,7 @@ transaction_sponsorship_client = []
 # Features enabling test coverage
 test_pimlico_api = []
 test_blockchain_api = []
+test_depends_on_env_REOWN_PROJECT_ID = []
 
 [dependencies]
 uniffi = { workspace = true, optional = true }
@@ -122,13 +133,26 @@ url = { workspace = true, features = ["serde"] }
 derive_jserror = { version = "=0.1.0", optional = true, default-features = false }
 
 # Solana
-solana-sdk = { workspace = true, optional = true }
+solana-sdk = { workspace = true, optional = true, features = [
+    "full",
+] } # TODO try to remove "full" feature
 solana-client = { workspace = true, optional = true }
+solana-seed-phrase = { workspace = true, optional = true }
 spl-token = { workspace = true, optional = true }
 spl-associated-token-account = { workspace = true, optional = true }
 bincode = { workspace = true, optional = true }
 data-encoding = { workspace = true, optional = true }
-const_format = "0.2.34"
+quinn = { workspace = true, optional = true, default-features = false }
+const_format = { workspace = true, optional = true }
+
+# SUI
+sui_sdk = { workspace = true, optional = true }
+sui_types = { workspace = true, optional = true }
+sui_keys = { workspace = true, optional = true }
+sui_shared_crypto = { workspace = true, optional = true }
+fastcrypto = { workspace = true, optional = true }
+rand = { workspace = true, optional = true }
+bcs = { workspace = true, optional = true }
 
 [dev-dependencies]
 # mocking

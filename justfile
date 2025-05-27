@@ -68,9 +68,13 @@ clippy:
 
 fmt:
   cargo +nightly fmt --all
+fmt-check:
+  cargo +nightly fmt --all -- --check
 
 udeps:
   cargo +nightly udeps --workspace
+
+_rust_ci: fmt-check udeps
 
 infra:
   make local-infra-forked

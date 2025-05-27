@@ -29,12 +29,17 @@ use {
 #[derive(Clone)]
 pub struct ProviderPool {
     pub client: ReqwestClient,
-    // pub providers: Arc<RwLock<HashMap<String, RootProvider>>>,
+    pub eip155_providers:
+        std::sync::Arc<tokio::sync::RwLock<HashMap<String, RootProvider>>>,
     pub blockchain_api_base_url: Url,
     pub project_id: ProjectId,
     pub rpc_overrides: HashMap<String, Url>,
     pub session_id: Uuid,
     pub pulse_metadata: PulseMetadata,
+    #[cfg(feature = "sui")]
+    pub sui_clients: std::sync::Arc<
+        tokio::sync::RwLock<HashMap<String, sui_sdk::SuiClient>>,
+    >,
 }
 
 impl ProviderPool {
@@ -48,12 +53,18 @@ impl ProviderPool {
         info!("ProviderPool session_id: {}", session_id);
         Self {
             client,
-            // providers: Arc::new(RwLock::new(HashMap::new())),
+            eip155_providers: std::sync::Arc::new(tokio::sync::RwLock::new(
+                HashMap::new(),
+            )),
             blockchain_api_base_url,
             project_id,
             rpc_overrides: HashMap::new(),
             session_id,
             pulse_metadata,
+            #[cfg(feature = "sui")]
+            sui_clients: std::sync::Arc::new(tokio::sync::RwLock::new(
+                HashMap::new(),
+            )),
         }
     }
 
@@ -115,34 +126,33 @@ impl ProviderPool {
         path: &str,
         additional_query_params: impl IntoIterator<Item = (&str, &str)>,
     ) -> RootProvider {
-        // let providers = self.providers.read().await;
-        // let cached_provider = providers.get(chain_id);
-        let cached_provider = None as Option<&RootProvider>;
+        let cached_provider =
+            self.eip155_providers.read().await.get(chain_id).cloned();
         if let Some(provider) = cached_provider {
-            provider.clone()
+            provider
         } else {
-            // std::mem::drop(providers);
-
             let url_override = self.rpc_overrides.get(chain_id).cloned();
 
-            ProviderBuilder::new().disable_recommended_fillers().on_client({
-                self.get_rpc_client(
-                    tracing,
-                    path,
-                    additional_query_params,
-                    url_override,
-                    None,
-                )
+            let provider = ProviderBuilder::new()
+                .disable_recommended_fillers()
+                .on_client({
+                    self.get_rpc_client(
+                        tracing,
+                        path,
+                        additional_query_params,
+                        url_override,
+                        None,
+                    )
+                    .await
+                    .with_poll_interval(polling_interval_for_chain_id(chain_id))
+                });
+
+            self.eip155_providers
+                .write()
                 .await
-                .with_poll_interval(polling_interval_for_chain_id(chain_id))
-            })
+                .insert(chain_id.to_owned(), provider.clone());
 
-            // self.providers
-            //     .write()
-            //     .await
-            //     .insert(chain_id.to_owned(), provider.clone());
-
-            // provider
+            provider
         }
     }
 
@@ -184,20 +194,59 @@ impl ProviderPool {
             // .layer(RpcRequestModifyingLayer { tracing })
             .transport(transport, false)
     }
+
+    #[cfg(feature = "sui")]
+    pub async fn get_sui_client(
+        &self,
+        sui_chain_id: String,
+    ) -> sui_sdk::SuiClient {
+        assert!(sui_chain_id.starts_with("sui:"), "Invalid Sui chain ID");
+        let sui_client =
+            self.sui_clients.read().await.get(&sui_chain_id).cloned();
+        if let Some(sui_client) = sui_client {
+            sui_client
+        } else {
+            let mut url =
+                self.blockchain_api_base_url.join(PROXY_ENDPOINT_PATH).unwrap();
+            url.query_pairs_mut()
+                .append_pair("projectId", self.project_id.as_ref())
+                .append_pair("sessionId", self.session_id.to_string().as_str())
+                .append_pair("st", PULSE_SDK_TYPE)
+                .append_pair("sv", self.pulse_metadata.sdk_version.as_str())
+                .append_pair("chainId", sui_chain_id.as_str());
+            let sui_client =
+                sui_sdk::SuiClientBuilder::default().build(url).await.unwrap();
+            self.sui_clients
+                .write()
+                .await
+                .insert(sui_chain_id, sui_client.clone());
+            sui_client
+        }
+    }
 }
 
 fn polling_interval_for_chain_id(chain_id: &str) -> Duration {
     const ONE: Duration = Duration::from_secs(1);
     match chain_id {
-        network::BASE | network::OPTIMISM | network::ARBITRUM => ONE,
+        network::eip155::BASE
+        | network::eip155::OPTIMISM
+        | network::eip155::ARBITRUM => ONE,
         _ => Duration::from_secs(7), // alloy's current default
     }
 }
 
-mod network {
-    pub const BASE: &str = "eip155:8453";
-    pub const OPTIMISM: &str = "eip155:10";
-    pub const ARBITRUM: &str = "eip155:42161";
+pub mod network {
+    pub mod eip155 {
+        pub const BASE: &str = "eip155:8453";
+        pub const OPTIMISM: &str = "eip155:10";
+        pub const ARBITRUM: &str = "eip155:42161";
+    }
+
+    pub mod sui {
+        pub const MAINNET: &str = "sui:mainnet";
+        pub const DEVNET: &str = "sui:devnet";
+        pub const TESTNET: &str = "sui:testnet";
+    }
 }
 
 type TracingType = Option<std::sync::mpsc::Sender<RpcRequestAnalytics>>;
