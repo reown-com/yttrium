@@ -1,7 +1,8 @@
 use {
     crate::{
         blockchain_api::BLOCKCHAIN_API_URL_PROD,
-        chain_abstraction::pulse::PulseMetadata, provider_pool::ProviderPool,
+        chain_abstraction::pulse::PulseMetadata,
+        provider_pool::{network, ProviderPool},
     },
     rand::{
         rngs::{OsRng, StdRng},
@@ -9,7 +10,12 @@ use {
     },
     relay_rpc::domain::ProjectId,
     reqwest::Client as ReqwestClient,
-    stacks_rs::{crypto::c32::Version, wallet::StacksWallet},
+    stacks_rs::{
+        clarity,
+        crypto::c32::Version,
+        transaction::{STXTokenTransfer, StacksMainnet},
+        wallet::StacksWallet,
+    },
     stacks_secp256k1::{
         ecdsa::Signature as StacksSignature, hashes::sha256, Message, Secp256k1,
     },
@@ -30,6 +36,7 @@ fn stacks_generate_wallet() -> String {
     )
     .phrase()
     .to_owned()
+    // Return the mnemonic instead of StacksWallet because we can't UniFFI lower a StacksWallet (i.e. can't get the mnemonic from it)
 }
 
 #[uniffi::export]
@@ -114,7 +121,47 @@ impl StacksClient {
         }
     }
 
-    pub async fn test(&self) {}
+    pub async fn transfer_stx(
+        &self,
+        wallet: &str,
+        network: &str,
+        request: TransferStxRequest,
+    ) -> Result<TransferStxResponse, eyre::Report> {
+        let sender_key =
+            StacksWallet::from_secret_key(wallet)?.private_key()?;
+        // https://github.com/52/stacks.rs/blob/c6455fe5eeae04b2f0e3a88fe6e6c803949a8417/README.md?plain=1#L24
+        let transfer = STXTokenTransfer::builder()
+            .recipient(clarity!(PrincipalStandard, request.recipient))
+            .amount(request.amount)
+            .memo(request.memo)
+            .sender(sender_key)
+            .network(match network {
+                network::stacks::MAINNET => StacksMainnet::new(),
+                // network::stacks::TESTNET => StacksTestnet::new(),
+                _ => return Err(eyre::eyre!("Invalid network")),
+            })
+            .build()
+            .transaction();
+        let tx = transfer.sign(sender_key)?;
+        let txid = hex::encode(tx.hash()?);
+        let transaction = hex::encode(clarity::Codec::encode(&tx)?);
+        // TODO broadcast tx
+        // https://github.com/hirosystems/stacks.js/blob/c9aef8772c579ed233df8e3702f77f82c4f30718/packages/transactions/src/fetch.ts#L36
+        Ok(TransferStxResponse { txid, transaction })
+    }
+}
+
+#[derive(uniffi::Record, Debug, Clone)]
+pub struct TransferStxRequest {
+    amount: u64,
+    recipient: String, // address
+    memo: String,
+}
+
+#[derive(uniffi::Record, Debug, Clone)]
+pub struct TransferStxResponse {
+    txid: String,
+    transaction: String,
 }
 
 #[cfg(test)]
