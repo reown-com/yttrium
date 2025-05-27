@@ -403,6 +403,7 @@ pub enum BridgingError {
     NoRoutesAvailable,
     InsufficientFunds,
     InsufficientGasFunds,
+    TransactionSimulationFailed,
     #[serde(other)]
     Unknown,
 }
