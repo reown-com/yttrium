@@ -142,12 +142,32 @@ impl StacksClient {
             })
             .build()
             .transaction();
-        let tx = transfer.sign(sender_key)?;
-        let txid = hex::encode(tx.hash()?);
-        let transaction = hex::encode(clarity::Codec::encode(&tx)?);
-        // TODO broadcast tx
-        // https://github.com/hirosystems/stacks.js/blob/c9aef8772c579ed233df8e3702f77f82c4f30718/packages/transactions/src/fetch.ts#L36
-        Ok(TransferStxResponse { txid, transaction })
+
+        let (response, tx_encoded) = {
+            // Scope `signed_transaction` so that it isn't held across the await boundary
+            // This is needed because `Transaction` is not `Send`
+            let signed_transaction = transfer.sign(sender_key)?;
+
+            let txid = signed_transaction.hash()?;
+            let tx_encoded = clarity::Codec::encode(&signed_transaction)?;
+            (
+                TransferStxResponse {
+                    txid: hex::encode(txid),
+                    transaction: hex::encode(&tx_encoded),
+                },
+                tx_encoded.into(),
+            )
+        };
+
+        let broadcast_tx_response = self
+            .provider_pool
+            .get_stacks_client(None, None)
+            .await
+            .stacks_transactions(tx_encoded)
+            .await?;
+        println!("broadcast tx response: {:?}", broadcast_tx_response);
+
+        Ok(response)
     }
 }
 

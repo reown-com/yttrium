@@ -223,6 +223,25 @@ impl ProviderPool {
             sui_client
         }
     }
+
+    #[cfg(feature = "stacks")]
+    pub async fn get_stacks_client(
+        &self,
+        tracing: Option<std::sync::mpsc::Sender<RpcRequestAnalytics>>,
+        url_override: Option<Url>,
+    ) -> crate::stacks_provider::StacksProvider {
+        crate::stacks_provider::StacksProvider {
+            client: self
+                .get_rpc_client(
+                    tracing,
+                    PROXY_ENDPOINT_PATH,
+                    vec![],
+                    url_override,
+                    None,
+                )
+                .await,
+        }
+    }
 }
 
 fn polling_interval_for_chain_id(chain_id: &str) -> Duration {
