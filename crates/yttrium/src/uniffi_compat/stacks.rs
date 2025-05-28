@@ -4,6 +4,7 @@ use {
         chain_abstraction::pulse::PulseMetadata,
         provider_pool::{network, ProviderPool},
     },
+    alloy::primitives::Bytes,
     rand::{
         rngs::{OsRng, StdRng},
         SeedableRng,
@@ -13,7 +14,7 @@ use {
     stacks_rs::{
         clarity,
         crypto::c32::Version,
-        transaction::{STXTokenTransfer, StacksMainnet},
+        transaction::{STXTokenTransfer, StacksMainnet, StacksTestnet},
         wallet::StacksWallet,
     },
     stacks_secp256k1::{
@@ -72,6 +73,49 @@ fn stacks_sign_message(
     Ok(signature)
 }
 
+fn sign_transaction(
+    wallet: &str,
+    network: &str,
+    request: TransferStxRequest,
+) -> Result<(TransferStxResponse, Bytes), eyre::Report> {
+    let sender_key = StacksWallet::from_secret_key(wallet)?.private_key()?;
+    // https://github.com/52/stacks.rs/blob/c6455fe5eeae04b2f0e3a88fe6e6c803949a8417/README.md?plain=1#L24
+    let transfer = match network {
+        network::stacks::MAINNET => STXTokenTransfer::builder()
+            .recipient(clarity!(PrincipalStandard, request.recipient))
+            .amount(request.amount)
+            .memo(request.memo)
+            .sender(sender_key)
+            .network(StacksMainnet::new())
+            .build()
+            .transaction(),
+        network::stacks::TESTNET => STXTokenTransfer::builder()
+            .recipient(clarity!(PrincipalStandard, request.recipient))
+            .amount(request.amount)
+            .memo(request.memo)
+            .sender(sender_key)
+            .network(StacksTestnet::new())
+            .build()
+            .transaction(),
+        _ => return Err(eyre::eyre!("Invalid network")),
+    };
+
+    // Scope `signed_transaction` so that it isn't held across the await boundary
+    // This is needed because `Transaction` is not `Send`
+    let signed_transaction = transfer.sign(sender_key)?;
+
+    let txid = signed_transaction.hash()?;
+    let tx_encoded = clarity::Codec::encode(&signed_transaction)?;
+
+    Ok((
+        TransferStxResponse {
+            txid: hex::encode(txid),
+            transaction: hex::encode(&tx_encoded),
+        },
+        tx_encoded.into(),
+    ))
+}
+
 #[derive(uniffi::Object)]
 pub struct StacksClient {
     #[allow(unused)]
@@ -127,37 +171,8 @@ impl StacksClient {
         network: &str,
         request: TransferStxRequest,
     ) -> Result<TransferStxResponse, eyre::Report> {
-        let sender_key =
-            StacksWallet::from_secret_key(wallet)?.private_key()?;
-        // https://github.com/52/stacks.rs/blob/c6455fe5eeae04b2f0e3a88fe6e6c803949a8417/README.md?plain=1#L24
-        let transfer = STXTokenTransfer::builder()
-            .recipient(clarity!(PrincipalStandard, request.recipient))
-            .amount(request.amount)
-            .memo(request.memo)
-            .sender(sender_key)
-            .network(match network {
-                network::stacks::MAINNET => StacksMainnet::new(),
-                // network::stacks::TESTNET => StacksTestnet::new(),
-                _ => return Err(eyre::eyre!("Invalid network")),
-            })
-            .build()
-            .transaction();
-
-        let (response, tx_encoded) = {
-            // Scope `signed_transaction` so that it isn't held across the await boundary
-            // This is needed because `Transaction` is not `Send`
-            let signed_transaction = transfer.sign(sender_key)?;
-
-            let txid = signed_transaction.hash()?;
-            let tx_encoded = clarity::Codec::encode(&signed_transaction)?;
-            (
-                TransferStxResponse {
-                    txid: hex::encode(txid),
-                    transaction: hex::encode(&tx_encoded),
-                },
-                tx_encoded.into(),
-            )
-        };
+        let (response, tx_encoded) =
+            sign_transaction(wallet, network, request)?;
 
         let broadcast_tx_response = self
             .provider_pool
