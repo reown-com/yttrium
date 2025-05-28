@@ -14843,7 +14843,6 @@ dependencies = [
  "bcs",
  "bincode",
  "bip32 0.5.3",
- "bip39",
  "const_format",
  "data-encoding",
  "derive_jserror",
