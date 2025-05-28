@@ -50,7 +50,6 @@ sui = [
 stacks = [
     "dep:stacks-rs",
     "dep:bip32",
-    "dep:bip39",
     "dep:stacks_secp256k1",
 ]
 
@@ -163,7 +162,6 @@ bcs = { workspace = true, optional = true }
 # Stacks
 stacks-rs = { workspace = true, optional = true, features = ["crypto", "wallet-sdk", "transaction", "clarity"] }
 bip32 = { workspace = true, optional = true }
-bip39 = { workspace = true, optional = true }
 stacks_secp256k1 = { workspace = true, optional = true, features = ["hashes"] }
 
 [dev-dependencies]
