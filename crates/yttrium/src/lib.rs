@@ -27,6 +27,8 @@ pub mod jsonrpc;
 pub mod provider_pool;
 pub mod serde;
 pub mod smart_accounts;
+#[cfg(feature = "stacks")]
+pub mod stacks_provider;
 pub mod test_helpers;
 pub mod time;
 #[cfg(feature = "transaction_sponsorship_client")]
