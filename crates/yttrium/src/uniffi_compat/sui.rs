@@ -304,19 +304,10 @@ impl SuiClient {
         pulse_metadata: PulseMetadata,
         blockchain_api_base_url: Url,
     ) -> Self {
-        // Configure reqwest client with reasonable defaults and error handling
-        let client = ReqwestClient::builder()
-            .timeout(std::time::Duration::from_secs(30))
-            .connect_timeout(std::time::Duration::from_secs(10))
-            // Ensure we use built-in root certificates 
-            .tls_built_in_root_certs(true)
-            // Force use of native-tls to avoid rustls-platform-verifier issues
-            .use_native_tls()
-            .build();
+        let client = ReqwestClient::builder().build();
         let client = match client {
             Ok(client) => client,
             Err(e) => {
-                eprintln!("Failed to create reqwest client with native TLS: {}", e);
                 panic!("Failed to create reqwest client: {} ... {:?}", e, e)
             }
         };
