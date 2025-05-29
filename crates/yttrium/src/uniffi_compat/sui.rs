@@ -100,21 +100,21 @@ pub fn sui_personal_sign(keypair: &SuiKeyPair, message: Vec<u8>) -> Signature {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 struct SignTransactionRequest {
+    pub version: u8,
     pub sender: String,
-    // pub gas_data: GasData,
-    // #[serde(default)]
-    // pub expiration: Option<u64>,
-    #[serde(flatten)]
-    pub programmable_transaction: ProgrammableTransactionFfi,
+    pub expiration: Option<u64>,
+    pub gas_data: GasDataFfi,
+    pub inputs: Vec<CallArgFfi>,
+    pub commands: Vec<CommandFfi>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct ProgrammableTransactionFfi {
-    /// Input objects or primitive values
-    pub inputs: Vec<CallArgFfi>,
-    /// The commands to be executed sequentially. A failure in any command will
-    /// result in the failure of the entire transaction.
-    pub commands: Vec<Command>,
+#[serde(rename_all = "camelCase")]
+pub struct GasDataFfi {
+    pub budget: Option<u64>,
+    pub price: Option<u64>,
+    pub owner: Option<String>,
+    pub payment: Option<Vec<String>>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -122,7 +122,33 @@ pub enum CallArgFfi {
     // contains no structs or objects
     Pure { bytes: String },
     // an object
-    Object(ObjectArg),
+    Object(ObjectArgFfi),
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub enum CommandFfi {
+    SplitCoins {
+        coin: ObjectArgFfi,
+        amounts: Vec<CallArgRefFfi>,
+    },
+    TransferObjects {
+        objects: Vec<ObjectArgFfi>,
+        address: CallArgRefFfi,
+    },
+    // Add other command types as needed
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub enum ObjectArgFfi {
+    GasCoin(bool),
+    NestedResult(Vec<u16>),
+    // Add other object arg types as needed
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub enum CallArgRefFfi {
+    Input(u16),
+    // Add other call arg ref types as needed
 }
 
 #[derive(thiserror::Error, Debug, uniffi::Error)]
@@ -146,9 +172,9 @@ pub fn sui_sign_transaction(
             ProgrammableTransaction {
                 inputs: {
                     let mut results = Vec::with_capacity(
-                        request.programmable_transaction.inputs.len(),
+                        request.inputs.len(),
                     );
-                    for input in request.programmable_transaction.inputs {
+                    for input in request.inputs {
                         results.push(match input {
                             CallArgFfi::Pure { bytes } => CallArg::Pure(
                                 BASE64.decode(bytes.as_bytes()).map_err(
@@ -160,26 +186,86 @@ pub fn sui_sign_transaction(
                                 )?,
                             ),
                             CallArgFfi::Object(object) => {
-                                CallArg::Object(object)
+                                CallArg::Object(convert_object_arg_ffi(object))
                             }
                         });
                     }
                     results
                 },
-                commands: vec![],
+                commands: {
+                    let mut results = Vec::with_capacity(request.commands.len());
+                    for command in request.commands {
+                        results.push(convert_command_ffi(command));
+                    }
+                    results
+                },
             },
         ),
         sender: request.sender.parse().unwrap(),
         gas_data: GasData {
-            price: 0,
-            owner: request.sender.parse().unwrap(),
-            payment: vec![],
-            budget: 0,
+            price: request.gas_data.price.unwrap_or(1000),
+            owner: request.gas_data.owner.unwrap_or(request.sender.clone()).parse().unwrap(),
+            payment: vec![], // TODO: parse payment objects if needed
+            budget: request.gas_data.budget.unwrap_or(10000000),
         },
         expiration: TransactionExpiration::None,
     });
     let intent_msg = IntentMessage::new(Intent::sui_transaction(), data);
     Ok(Signature::new_secure(&intent_msg, keypair))
+}
+
+fn convert_object_arg_ffi(obj: ObjectArgFfi) -> ObjectArg {
+    match obj {
+        ObjectArgFfi::GasCoin(_) => {
+            // For GasCoin, we need to create a proper ObjectArg
+            // This is a placeholder - in a real implementation, you'd need the actual object reference
+            ObjectArg::ImmOrOwnedObject((
+                sui_sdk::types::base_types::ObjectID::ZERO,
+                sui_sdk::types::base_types::SequenceNumber::new(),
+                sui_sdk::types::base_types::ObjectDigest::new([0; 32]),
+            ))
+        },
+        ObjectArgFfi::NestedResult(_indices) => {
+            // For NestedResult, we need to use the correct ObjectArg variant
+            // This should be handled differently - NestedResult is not a valid ObjectArg variant
+            // Let's use a placeholder for now
+            ObjectArg::ImmOrOwnedObject((
+                sui_sdk::types::base_types::ObjectID::ZERO,
+                sui_sdk::types::base_types::SequenceNumber::new(),
+                sui_sdk::types::base_types::ObjectDigest::new([0; 32]),
+            ))
+        },
+    }
+}
+
+fn convert_command_ffi(cmd: CommandFfi) -> Command {
+    match cmd {
+        CommandFfi::SplitCoins { coin, amounts } => {
+            Command::SplitCoins(
+                convert_object_arg_ref_ffi(coin),
+                amounts.into_iter().map(convert_call_arg_ref_ffi).collect(),
+            )
+        },
+        CommandFfi::TransferObjects { objects, address } => {
+            Command::TransferObjects(
+                objects.into_iter().map(convert_object_arg_ref_ffi).collect(),
+                convert_call_arg_ref_ffi(address),
+            )
+        },
+    }
+}
+
+fn convert_object_arg_ref_ffi(obj: ObjectArgFfi) -> sui_sdk::types::transaction::Argument {
+    match obj {
+        ObjectArgFfi::GasCoin(_) => sui_sdk::types::transaction::Argument::GasCoin,
+        ObjectArgFfi::NestedResult(indices) => sui_sdk::types::transaction::Argument::NestedResult(indices[0], indices[1]),
+    }
+}
+
+fn convert_call_arg_ref_ffi(arg: CallArgRefFfi) -> sui_sdk::types::transaction::Argument {
+    match arg {
+        CallArgRefFfi::Input(index) => sui_sdk::types::transaction::Argument::Input(index),
+    }
 }
 
 #[derive(uniffi::Object)]
@@ -441,8 +527,12 @@ mod tests {
     #[test]
     fn test_sui_sign_transaction() {
         let tx_data = BASE64.decode(b"ewogICJ2ZXJzaW9uIjogMiwKICAic2VuZGVyIjogIjB4YTg2NjljYzg0ZjM2N2Y3MzBlYTVkYmRiOTA5NTViYTZkNDYxMzcyMDk0ZTNjZmY4MGI3ZjI2N2M4ZWI4MWE1OSIsCiAgImV4cGlyYXRpb24iOiBudWxsLAogICJnYXNEYXRhIjogewogICAgImJ1ZGdldCI6IG51bGwsCiAgICAicHJpY2UiOiBudWxsLAogICAgIm93bmVyIjogbnVsbCwKICAgICJwYXltZW50IjogbnVsbAogIH0sCiAgImlucHV0cyI6IFsKICAgIHsKICAgICAgIlB1cmUiOiB7CiAgICAgICAgImJ5dGVzIjogIlpBQUFBQUFBQUFBPSIKICAgICAgfQogICAgfSwKICAgIHsKICAgICAgIlB1cmUiOiB7CiAgICAgICAgImJ5dGVzIjogInFHYWN5RTgyZjNNT3BkdmJrSlZicHRSaE55Q1U0OC80QzM4bWZJNjRHbGs9IgogICAgICB9CiAgICB9CiAgXSwKICAiY29tbWFuZHMiOiBbCiAgICB7CiAgICAgICJTcGxpdENvaW5zIjogewogICAgICAgICJjb2luIjogewogICAgICAgICAgIkdhc0NvaW4iOiB0cnVlCiAgICAgICAgfSwKICAgICAgICAiYW1vdW50cyI6IFsKICAgICAgICAgIHsKICAgICAgICAgICAgIklucHV0IjogMAogICAgICAgICAgfQogICAgICAgIF0KICAgICAgfQogICAgfSwKICAgIHsKICAgICAgIlRyYW5zZmVyT2JqZWN0cyI6IHsKICAgICAgICAib2JqZWN0cyI6IFsKICAgICAgICAgIHsKICAgICAgICAgICAgIk5lc3RlZFJlc3VsdCI6IFsKICAgICAgICAgICAgICAwLAogICAgICAgICAgICAgIDAKICAgICAgICAgICAgXQogICAgICAgICAgfQogICAgICAgIF0sCiAgICAgICAgImFkZHJlc3MiOiB7CiAgICAgICAgICAiSW5wdXQiOiAxCiAgICAgICAgfQogICAgICB9CiAgICB9CiAgXQp9").unwrap();
+        println!("tx_data: {}", String::from_utf8_lossy(&tx_data));
         let keypair = SuiKeyPair::decode("suiprivkey1qz3889tm677q5ns478amrva66xjzl3qpnujjersm0ps948etrs5g795ce7t").unwrap();
         let signature = sui_sign_transaction(&keypair, &tx_data);
         println!("signature: {:?}", signature);
+        let expected_signature = "APmr9wpBF5CAN/D8KAAh2pWZhthS2DR7wnkFPYx64Cyi7FpJYixqQu55fs/rbhBLEhKbLXsCKCxJO155iFQfqAgYx38fs+hcoDU9W5MkJXvAl/AuuaggN96d6c7wdhYV+w==";
+        assert_eq!(signature.unwrap().encode_base64(), expected_signature);
     }
+
 }
