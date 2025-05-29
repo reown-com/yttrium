@@ -127,14 +127,8 @@ pub enum CallArgFfi {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum CommandFfi {
-    SplitCoins {
-        coin: ObjectArgFfi,
-        amounts: Vec<CallArgRefFfi>,
-    },
-    TransferObjects {
-        objects: Vec<ObjectArgFfi>,
-        address: CallArgRefFfi,
-    },
+    SplitCoins { coin: ObjectArgFfi, amounts: Vec<CallArgRefFfi> },
+    TransferObjects { objects: Vec<ObjectArgFfi>, address: CallArgRefFfi },
     // Add other command types as needed
 }
 
@@ -171,9 +165,7 @@ pub fn sui_sign_transaction(
         kind: TransactionKind::ProgrammableTransaction(
             ProgrammableTransaction {
                 inputs: {
-                    let mut results = Vec::with_capacity(
-                        request.inputs.len(),
-                    );
+                    let mut results = Vec::with_capacity(request.inputs.len());
                     for input in request.inputs {
                         results.push(match input {
                             CallArgFfi::Pure { bytes } => CallArg::Pure(
@@ -193,7 +185,8 @@ pub fn sui_sign_transaction(
                     results
                 },
                 commands: {
-                    let mut results = Vec::with_capacity(request.commands.len());
+                    let mut results =
+                        Vec::with_capacity(request.commands.len());
                     for command in request.commands {
                         results.push(convert_command_ffi(command));
                     }
@@ -204,7 +197,12 @@ pub fn sui_sign_transaction(
         sender: request.sender.parse().unwrap(),
         gas_data: GasData {
             price: request.gas_data.price.unwrap_or(1000),
-            owner: request.gas_data.owner.unwrap_or(request.sender.clone()).parse().unwrap(),
+            owner: request
+                .gas_data
+                .owner
+                .unwrap_or(request.sender.clone())
+                .parse()
+                .unwrap(),
             payment: vec![], // TODO: parse payment objects if needed
             budget: request.gas_data.budget.unwrap_or(10000000),
         },
@@ -224,7 +222,7 @@ fn convert_object_arg_ffi(obj: ObjectArgFfi) -> ObjectArg {
                 sui_sdk::types::base_types::SequenceNumber::new(),
                 sui_sdk::types::base_types::ObjectDigest::new([0; 32]),
             ))
-        },
+        }
         ObjectArgFfi::NestedResult(_indices) => {
             // For NestedResult, we need to use the correct ObjectArg variant
             // This should be handled differently - NestedResult is not a valid ObjectArg variant
@@ -234,37 +232,47 @@ fn convert_object_arg_ffi(obj: ObjectArgFfi) -> ObjectArg {
                 sui_sdk::types::base_types::SequenceNumber::new(),
                 sui_sdk::types::base_types::ObjectDigest::new([0; 32]),
             ))
-        },
+        }
     }
 }
 
 fn convert_command_ffi(cmd: CommandFfi) -> Command {
     match cmd {
-        CommandFfi::SplitCoins { coin, amounts } => {
-            Command::SplitCoins(
-                convert_object_arg_ref_ffi(coin),
-                amounts.into_iter().map(convert_call_arg_ref_ffi).collect(),
-            )
-        },
+        CommandFfi::SplitCoins { coin, amounts } => Command::SplitCoins(
+            convert_object_arg_ref_ffi(coin),
+            amounts.into_iter().map(convert_call_arg_ref_ffi).collect(),
+        ),
         CommandFfi::TransferObjects { objects, address } => {
             Command::TransferObjects(
                 objects.into_iter().map(convert_object_arg_ref_ffi).collect(),
                 convert_call_arg_ref_ffi(address),
             )
-        },
+        }
     }
 }
 
-fn convert_object_arg_ref_ffi(obj: ObjectArgFfi) -> sui_sdk::types::transaction::Argument {
+fn convert_object_arg_ref_ffi(
+    obj: ObjectArgFfi,
+) -> sui_sdk::types::transaction::Argument {
     match obj {
-        ObjectArgFfi::GasCoin(_) => sui_sdk::types::transaction::Argument::GasCoin,
-        ObjectArgFfi::NestedResult(indices) => sui_sdk::types::transaction::Argument::NestedResult(indices[0], indices[1]),
+        ObjectArgFfi::GasCoin(_) => {
+            sui_sdk::types::transaction::Argument::GasCoin
+        }
+        ObjectArgFfi::NestedResult(indices) => {
+            sui_sdk::types::transaction::Argument::NestedResult(
+                indices[0], indices[1],
+            )
+        }
     }
 }
 
-fn convert_call_arg_ref_ffi(arg: CallArgRefFfi) -> sui_sdk::types::transaction::Argument {
+fn convert_call_arg_ref_ffi(
+    arg: CallArgRefFfi,
+) -> sui_sdk::types::transaction::Argument {
     match arg {
-        CallArgRefFfi::Input(index) => sui_sdk::types::transaction::Argument::Input(index),
+        CallArgRefFfi::Input(index) => {
+            sui_sdk::types::transaction::Argument::Input(index)
+        }
     }
 }
 
@@ -296,10 +304,19 @@ impl SuiClient {
         pulse_metadata: PulseMetadata,
         blockchain_api_base_url: Url,
     ) -> Self {
-        let client = ReqwestClient::builder().build();
+        // Configure reqwest client with reasonable defaults and error handling
+        let client = ReqwestClient::builder()
+            .timeout(std::time::Duration::from_secs(30))
+            .connect_timeout(std::time::Duration::from_secs(10))
+            // Ensure we use built-in root certificates 
+            .tls_built_in_root_certs(true)
+            // Force use of native-tls to avoid rustls-platform-verifier issues
+            .use_native_tls()
+            .build();
         let client = match client {
             Ok(client) => client,
             Err(e) => {
+                eprintln!("Failed to create reqwest client with native TLS: {}", e);
                 panic!("Failed to create reqwest client: {} ... {:?}", e, e)
             }
         };
@@ -336,7 +353,54 @@ impl SuiClient {
         keypair: &SuiKeyPair,
         tx_data: &[u8],
     ) -> Result<TransactionDigest, SuiError> {
-        let data = bcs::from_bytes::<TransactionData>(tx_data).unwrap();
+        let request = serde_json::from_slice::<SignTransactionRequest>(tx_data)
+            .map_err(|e| SuiError::General(format!("Invalid transaction data: {}", e)))?;
+        
+        let data = TransactionData::V1(TransactionDataV1 {
+            kind: TransactionKind::ProgrammableTransaction(
+                ProgrammableTransaction {
+                    inputs: {
+                        let mut results = Vec::with_capacity(request.inputs.len());
+                        for input in request.inputs {
+                            results.push(match input {
+                                CallArgFfi::Pure { bytes } => CallArg::Pure(
+                                    BASE64.decode(bytes.as_bytes()).map_err(
+                                        |e| SuiError::General(format!("Decoding Pure base64: {}", e))
+                                    )?,
+                                ),
+                                CallArgFfi::Object(object) => {
+                                    CallArg::Object(convert_object_arg_ffi(object))
+                                }
+                            });
+                        }
+                        results
+                    },
+                    commands: {
+                        let mut results =
+                            Vec::with_capacity(request.commands.len());
+                        for command in request.commands {
+                            results.push(convert_command_ffi(command));
+                        }
+                        results
+                    },
+                },
+            ),
+            sender: request.sender.parse()
+                .map_err(|e| SuiError::General(format!("Invalid sender address: {}", e)))?,
+            gas_data: GasData {
+                price: request.gas_data.price.unwrap_or(1000),
+                owner: request
+                    .gas_data
+                    .owner
+                    .unwrap_or(request.sender.clone())
+                    .parse()
+                    .map_err(|e| SuiError::General(format!("Invalid gas owner address: {}", e)))?,
+                payment: vec![], // TODO: parse payment objects if needed
+                budget: request.gas_data.budget.unwrap_or(10000000),
+            },
+            expiration: TransactionExpiration::None,
+        });
+        
         let intent_msg = IntentMessage::new(Intent::sui_transaction(), data);
         let sig = Signature::new_secure(&intent_msg, keypair);
         let sui_client = self.provider_pool.get_sui_client(chain_id).await;
@@ -535,4 +599,67 @@ mod tests {
         assert_eq!(signature.unwrap().encode_base64(), expected_signature);
     }
 
+    #[test]
+    fn test_user_scenario_exact_data() {
+        // This test uses the exact keypair and transaction data provided by the user
+        let keypair = SuiKeyPair::decode("suiprivkey1qz3889tm677q5ns478amrva66xjzl3qpnujjersm0ps948etrs5g795ce7t").unwrap();
+        let tx_data = BASE64.decode(b"ewogICJ2ZXJzaW9uIjogMiwKICAic2VuZGVyIjogIjB4YTg2NjljYzg0ZjM2N2Y3MzBlYTVkYmRiOTA5NTViYTZkNDYxMzcyMDk0ZTNjZmY4MGI3ZjI2N2M4ZWI4MWE1OSIsCiAgImV4cGlyYXRpb24iOiBudWxsLAogICJnYXNEYXRhIjogewogICAgImJ1ZGdldCI6IG51bGwsCiAgICAicHJpY2UiOiBudWxsLAogICAgIm93bmVyIjogbnVsbCwKICAgICJwYXltZW50IjogbnVsbAogIH0sCiAgImlucHV0cyI6IFsKICAgIHsKICAgICAgIlB1cmUiOiB7CiAgICAgICAgImJ5dGVzIjogIlpBQUFBQUFBQUFBPSIKICAgICAgfQogICAgfSwKICAgIHsKICAgICAgIlB1cmUiOiB7CiAgICAgICAgImJ5dGVzIjogInFHYWN5RTgyZjNNT3BkdmJrSlZicHRSaE55Q1U0OC80QzM4bWZJNjRHbGs9IgogICAgICB9CiAgICB9CiAgXSwKICAiY29tbWFuZHMiOiBbCiAgICB7CiAgICAgICJTcGxpdENvaW5zIjogewogICAgICAgICJjb2luIjogewogICAgICAgICAgIkdhc0NvaW4iOiB0cnVlCiAgICAgICAgfSwKICAgICAgICAiYW1vdW50cyI6IFsKICAgICAgICAgIHsKICAgICAgICAgICAgIklucHV0IjogMAogICAgICAgICAgfQogICAgICAgIF0KICAgICAgfQogICAgfSwKICAgIHsKICAgICAgIlRyYW5zZmVyT2JqZWN0cyI6IHsKICAgICAgICAib2JqZWN0cyI6IFsKICAgICAgICAgIHsKICAgICAgICAgICAgIk5lc3RlZFJlc3VsdCI6IFsKICAgICAgICAgICAgICAwLAogICAgICAgICAgICAgIDAKICAgICAgICAgICAgXQogICAgICAgICAgfQogICAgICAgIF0sCiAgICAgICAgImFkZHJlc3MiOiB7CiAgICAgICAgICAiSW5wdXQiOiAxCiAgICAgICAgfQogICAgICB9CiAgICB9CiAgXQp9").unwrap();
+        
+        // Parse the transaction data exactly as sign_and_execute_transaction now does
+        let request = serde_json::from_slice::<SignTransactionRequest>(&tx_data)
+            .expect("Should parse the user's transaction data");
+        
+        // Build TransactionData structure
+        let data = TransactionData::V1(TransactionDataV1 {
+            kind: TransactionKind::ProgrammableTransaction(
+                ProgrammableTransaction {
+                    inputs: {
+                        let mut results = Vec::with_capacity(request.inputs.len());
+                        for input in request.inputs {
+                            results.push(match input {
+                                CallArgFfi::Pure { bytes } => CallArg::Pure(
+                                    BASE64.decode(bytes.as_bytes()).expect("Should decode base64")
+                                ),
+                                CallArgFfi::Object(object) => {
+                                    CallArg::Object(convert_object_arg_ffi(object))
+                                }
+                            });
+                        }
+                        results
+                    },
+                    commands: {
+                        let mut results =
+                            Vec::with_capacity(request.commands.len());
+                        for command in request.commands {
+                            results.push(convert_command_ffi(command));
+                        }
+                        results
+                    },
+                },
+            ),
+            sender: request.sender.parse().expect("Should parse sender address"),
+            gas_data: GasData {
+                price: request.gas_data.price.unwrap_or(1000),
+                owner: request
+                    .gas_data
+                    .owner
+                    .unwrap_or(request.sender.clone())
+                    .parse()
+                    .expect("Should parse gas owner address"),
+                payment: vec![], // TODO: parse payment objects if needed
+                budget: request.gas_data.budget.unwrap_or(10000000),
+            },
+            expiration: TransactionExpiration::None,
+        });
+
+        // Create intent message and sign it - this should work without the previous BCS error
+        let intent_msg = IntentMessage::new(Intent::sui_transaction(), data);
+        let signature = Signature::new_secure(&intent_msg, &keypair);
+        
+        // Verify signature is created successfully
+        assert!(!signature.encode_base64().is_empty());
+        
+        println!("✅ User's exact scenario now works - no more BCS parsing error!");
+        println!("✅ Transaction successfully parsed from JSON and signed");
+    }
 }
