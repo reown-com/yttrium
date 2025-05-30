@@ -8,11 +8,12 @@ name = "uniffi_yttrium"
 crate-type = ["staticlib", "cdylib"]
 
 [features]
-default = ["chain_abstraction_client", "solana", "sui"]
+default = ["chain_abstraction_client", "solana", "sui", "stacks"]
 account_client = ["yttrium/account_client"]
 chain_abstraction_client = ["yttrium/chain_abstraction_client"]
 solana = ["yttrium/solana"]
 sui = ["yttrium/sui"]
+stacks = ["yttrium/stacks"]
 
 [build-dependencies]
 uniffi_build.workspace = true

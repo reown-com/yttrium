@@ -16,15 +16,15 @@ env:
 jobs:
   rust_RUST_MSRV:
     name: Rust project - Rust MSRV
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, aws-ecs-16cpu-64mem-30disk-30m]
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
-      - run: rustup install ${{ env.RUST_MSRV }} -c clippy && rustup default ${{ env.RUST_MSRV }}
-      - uses: Swatinem/rust-cache@v2
+      - run: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+      - run: rustup install ${{ env.RUST_MSRV }} -c clippy -t wasm32-unknown-unknown && rustup default ${{ env.RUST_MSRV }}
       - run: rustup toolchain install nightly -c rustfmt
-      - run: rustup target add wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
       - uses: extractions/setup-just@v2
       - run: docker compose up -d
         working-directory: test/scripts/forked_state
@@ -47,16 +47,16 @@ jobs:
 
   rust_stable:
     name: Rust project - stable
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, aws-ecs-16cpu-64mem-30disk-30m]
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
-      - run: rustup update stable && rustup default stable
+      - run: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+      - run: rustup install stable -c clippy -t wasm32-unknown-unknown && rustup default stable
+      - run: rustup toolchain install nightly -c rustfmt
       # == below is a duplicate of the pinned job above. Keep them in-sync. ==
       - uses: Swatinem/rust-cache@v2
-      - run: rustup toolchain install nightly -c rustfmt
-      - run: rustup target add wasm32-unknown-unknown
       - uses: extractions/setup-just@v2
       - run: docker compose up -d
         working-directory: test/scripts/forked_state
@@ -100,6 +100,7 @@ jobs:
       - name: Run sccache-cache
         uses: mozilla-actions/sccache-action@v0.0.4
       - run: rustup update ${{ env.RUST_MSRV }} && rustup default ${{ env.RUST_MSRV }}
+      - uses: Swatinem/rust-cache@v2
       - name: Select Xcode 15.4
         run: sudo xcode-select -s /Applications/Xcode_15.4.app
 
@@ -134,6 +135,7 @@ jobs:
           target: armv7-linux-androideabi
           override: true
           components: rust-src
+      - uses: Swatinem/rust-cache@v2
 
       - name: Set up Java
         uses: actions/setup-java@v3
