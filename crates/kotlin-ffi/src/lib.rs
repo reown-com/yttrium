@@ -127,8 +127,32 @@ pub struct FfiPreparedSignature {
 
 #[derive(Debug, thiserror::Error, uniffi::Error)]
 pub enum FFIError {
-    #[error("General {0}")]
-    General(String),
+    #[error("Prepare: {0}")]
+    Prepare(String),
+
+    #[error("GetUiFields: {0}")]
+    GetUiFields(String),
+
+    #[error("PrepareDetailed: {0}")]
+    PrepareDetailed(String),
+
+    #[error("Status: {0}")]
+    Status(String),
+
+    #[error("WaitForSuccessWithTimeout: {0}")]
+    WaitForSuccessWithTimeout(String),
+
+    #[error("Execute: {0}")]
+    Execute(String),
+
+    #[error("EstimateFees: {0}")]
+    EstimateFees(String),
+
+    #[error("Erc20TokenBalance: {0}")]
+    Erc20TokenBalance(String),
+
+    #[error("GetWalletAssets: {0}")]
+    GetWalletAssets(String),
 }
 
 #[cfg(feature = "account_client")]
@@ -180,7 +204,7 @@ impl ChainAbstractionClient {
         self.client
             .prepare(chain_id, from, call, vec![], use_lifi)
             .await
-            .map_err(|e| FFIError::General(e.to_string()))
+            .map_err(|e| FFIError::Prepare(e.to_string()))
     }
 
     pub async fn get_ui_fields(
@@ -191,7 +215,7 @@ impl ChainAbstractionClient {
         self.client
             .get_ui_fields(route_response, local_currency)
             .await
-            .map_err(|e| FFIError::General(e.to_string()))
+            .map_err(|e| FFIError::GetUiFields(e.to_string()))
     }
 
     pub async fn prepare_detailed(
@@ -215,7 +239,7 @@ impl ChainAbstractionClient {
                 use_lifi,
             )
             .await
-            .map_err(|e| FFIError::General(e.to_string()))
+            .map_err(|e| FFIError::PrepareDetailed(e.to_string()))
     }
 
     pub async fn status(
@@ -225,7 +249,7 @@ impl ChainAbstractionClient {
         self.client
             .status(orchestration_id)
             .await
-            .map_err(|e| FFIError::General(e.to_string()))
+            .map_err(|e| FFIError::Status(e.to_string()))
     }
 
     pub async fn wait_for_success_with_timeout(
@@ -241,7 +265,7 @@ impl ChainAbstractionClient {
                 Duration::from_secs(timeout),
             )
             .await
-            .map_err(|e| FFIError::General(e.to_string()))
+            .map_err(|e| FFIError::WaitForSuccessWithTimeout(e.to_string()))
     }
 
     pub async fn execute(
@@ -255,7 +279,7 @@ impl ChainAbstractionClient {
             .await
             // TODO wanted to return ExecuteError directly here, but can't because Swift keeps the UniFFI lifer private to the yttrium crate and not available to kotlin-ffi crate
             // This will be fixed when we merge these crates
-            .map_err(|e| FFIError::General(e.to_string()))
+            .map_err(|e| FFIError::Execute(e.to_string()))
     }
 
     pub async fn estimate_fees(
@@ -269,7 +293,7 @@ impl ChainAbstractionClient {
             .estimate_eip1559_fees(None)
             .await
             .map(Into::into)
-            .map_err(|e| FFIError::General(e.to_string()))
+            .map_err(|e| FFIError::EstimateFees(e.to_string()))
     }
 
     pub fn prepare_erc20_transfer_call(
@@ -296,7 +320,7 @@ impl ChainAbstractionClient {
         self.client
             .erc20_token_balance(chain_id, token, owner)
             .await
-            .map_err(|e| FFIError::General(e.to_string()))
+            .map_err(|e| FFIError::Erc20TokenBalance(e.to_string()))
     }
 
     pub async fn get_wallet_assets(
@@ -306,7 +330,7 @@ impl ChainAbstractionClient {
         self.client
             .get_wallet_assets(params)
             .await
-            .map_err(|e| FFIError::General(e.to_string()))
+            .map_err(|e| FFIError::GetWalletAssets(e.to_string()))
     }
 }
 
@@ -332,7 +356,7 @@ impl FFIAccountClient {
             .get_address()
             .await
             .map(|address| address.to_string())
-            .map_err(|e| FFIError::General(e.to_string()))
+            .map_err(|e| FFIError::Prepare(e.to_string()))
     }
 
     pub fn prepare_sign_message(
@@ -353,7 +377,7 @@ impl FFIAccountClient {
         self.account_client
             .do_sign_message(signatures)
             .await
-            .map_err(|e| FFIError::General(e.to_string()))
+            .map_err(|e| FFIError::Prepare(e.to_string()))
     }
 
     pub async fn finalize_sign_message(
@@ -364,7 +388,7 @@ impl FFIAccountClient {
         self.account_client
             .finalize_sign_message(signatures, sign_step_3_params)
             .await
-            .map_err(|e| FFIError::General(e.to_string()))
+            .map_err(|e| FFIError::Prepare(e.to_string()))
     }
 
     pub async fn prepare_send_transactions(
@@ -374,7 +398,7 @@ impl FFIAccountClient {
         self.account_client
             .prepare_send_transactions(transactions)
             .await
-            .map_err(|e| FFIError::General(e.to_string()))
+            .map_err(|e| FFIError::Prepare(e.to_string()))
     }
 
     pub async fn do_send_transactions(
@@ -386,7 +410,7 @@ impl FFIAccountClient {
             .account_client
             .do_send_transactions(signatures, do_send_transaction_params)
             .await
-            .map_err(|e| FFIError::General(e.to_string()))?
+            .map_err(|e| FFIError::Prepare(e.to_string()))?
             .to_string())
     }
 
@@ -397,7 +421,7 @@ impl FFIAccountClient {
         self.account_client
             .wait_for_user_operation_receipt(
                 user_operation_hash.parse().map_err(|e| {
-                    FFIError::General(format!(
+                    FFIError::Prepare(format!(
                         "Parsing user_operation_hash: {e}"
                     ))
                 })?,
@@ -406,7 +430,7 @@ impl FFIAccountClient {
             .iter()
             .map(serde_json::to_string)
             .collect::<Result<String, serde_json::Error>>()
-            .map_err(|e| FFIError::General(e.to_string()))
+            .map_err(|e| FFIError::Prepare(e.to_string()))
     }
 }
 
