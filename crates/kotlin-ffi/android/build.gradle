@@ -1,5 +1,9 @@
 import groovy.json.JsonSlurper
 
+apply plugin: 'com.android.library'
+apply plugin: 'org.jetbrains.kotlin.android'
+apply plugin: 'maven-publish'
+
 String findRustlsPlatformVerifierProject() {
     try {
         def projectRoot = new File(project.projectDir, "../../..")
@@ -30,13 +34,6 @@ String findRustlsPlatformVerifierProject() {
     }
 }
 
-repositories {
-    maven {
-        url = findRustlsPlatformVerifierProject()
-        metadataSources.artifact()
-    }
-}
-
 buildscript {
     repositories {
         google()
@@ -47,10 +44,6 @@ buildscript {
         classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:1.8.10'
     }
 }
-
-apply plugin: 'com.android.library'
-apply plugin: 'org.jetbrains.kotlin.android'
-apply plugin: 'maven-publish'
 
 repositories {
     google()
@@ -103,15 +96,7 @@ android {
         jvmTarget = "11"
     }
 
-    dependencies {
-        // Note: rustls-platform-verifier is handled on the Rust side via JNI
-        // The Rust code already includes the initialization call:
-        // rustls_platform_verifier::android::init_hosted() in lib.rs
-        //
-        // The TLS initialization must be called from Kotlin using:
-        // YttriumKt.initializeTls(context) - this calls the JNI function
-        // Java_com_yttrium_YttriumKt_initializeTls
-        
+    dependencies { 
         implementation 'rustls:rustls-platform-verifier:0.1.1'
         implementation 'net.java.dev.jna:jna:5.12.0@aar'
         implementation 'androidx.core:core-ktx:1.10.1'
@@ -146,31 +131,6 @@ publishing {
                         url.set("https://github.com/reown-com/yttrium")
                     }
             }
-            
-            // // Include dependencies in the POM so they're pulled transitively
-            // pom.withXml {
-            //     def dependenciesNode = asNode().appendNode('dependencies')
-                
-            //     // Add rustls-platform-verifier dependency
-            //     def rustlsDep = dependenciesNode.appendNode('dependency')
-            //     rustlsDep.appendNode('groupId', 'rustls')
-            //     rustlsDep.appendNode('artifactId', 'rustls-platform-verifier')
-            //     rustlsDep.appendNode('version', '0.1.1')
-            //     rustlsDep.appendNode('type', 'aar')
-                
-            //     // Add other dependencies
-            //     configurations.implementation.dependencies.each { dep ->
-            //         if (dep.group != null && dep.name != 'rustls-platform-verifier') {
-            //             def dependency = dependenciesNode.appendNode('dependency')
-            //             dependency.appendNode('groupId', dep.group)
-            //             dependency.appendNode('artifactId', dep.name)
-            //             dependency.appendNode('version', dep.version)
-            //             if (dep.name.endsWith('@aar')) {
-            //                 dependency.appendNode('type', 'aar')
-            //             }
-            //         }
-            //     }
-            // }
         }
     }
 }
