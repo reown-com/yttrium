@@ -1,3 +1,42 @@
+import groovy.json.JsonSlurper
+
+String findRustlsPlatformVerifierProject() {
+    try {
+        def projectRoot = new File(project.projectDir, "../../..")
+        def yttriumCargoToml = new File(projectRoot, "crates/yttrium/Cargo.toml")
+        
+        def dependencyText = providers.exec {
+            it.workingDir = projectRoot
+            commandLine("cargo", "metadata", "--format-version", "1", "--filter-platform", "aarch64-linux-android", "--manifest-path", yttriumCargoToml.absolutePath, "--features", "android-tls")
+        }.standardOutput.asText.get()
+
+        def dependencyJson = new JsonSlurper().parseText(dependencyText)
+        def verifierPackage = dependencyJson.packages.find { it.name == "rustls-platform-verifier-android" }
+        
+        if (verifierPackage != null) {
+            def manifestPath = file(verifierPackage.manifest_path)
+            def mavenPath = new File(manifestPath.parentFile, "maven")
+            if (mavenPath.exists()) {
+                println("Found rustls-platform-verifier maven directory at: ${mavenPath.absolutePath}")
+                return mavenPath.absolutePath
+            } else {
+                throw new GradleException("rustls-platform-verifier maven directory not found at: ${mavenPath.absolutePath}")
+            }
+        } else {
+            throw new GradleException("rustls-platform-verifier-android package not found in cargo metadata")
+        }
+    } catch (Exception e) {
+        throw new GradleException("Could not locate rustls-platform-verifier maven repository: ${e.message}")
+    }
+}
+
+repositories {
+    maven {
+        url = findRustlsPlatformVerifierProject()
+        metadataSources.artifact()
+    }
+}
+
 buildscript {
     repositories {
         google()
@@ -12,6 +51,15 @@ buildscript {
 apply plugin: 'com.android.library'
 apply plugin: 'org.jetbrains.kotlin.android'
 apply plugin: 'maven-publish'
+
+repositories {
+    google()
+    mavenCentral()
+    maven {
+        url = findRustlsPlatformVerifierProject()
+        metadataSources.artifact()
+    }
+}
 
 android {
     namespace "com.reown.yttrium.uniffi"
@@ -56,6 +104,15 @@ android {
     }
 
     dependencies {
+        // Note: rustls-platform-verifier is handled on the Rust side via JNI
+        // The Rust code already includes the initialization call:
+        // rustls_platform_verifier::android::init_hosted() in lib.rs
+        //
+        // The TLS initialization must be called from Kotlin using:
+        // YttriumKt.initializeTls(context) - this calls the JNI function
+        // Java_com_yttrium_YttriumKt_initializeTls
+        
+        implementation 'rustls:rustls-platform-verifier:latest.release'
         implementation 'net.java.dev.jna:jna:5.12.0@aar'
         implementation 'androidx.core:core-ktx:1.10.1'
         implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.1'

@@ -14,7 +14,7 @@ full = ["all_platforms", "all_clients", "all_namespaces"]
 
 # Features enabling FFI bindings for different platforms
 all_platforms = ["uniffi", "wasm"]
-uniffi = ["dep:uniffi", "dep:uniffi_macros", "reqwest/default-tls"]
+uniffi = ["dep:uniffi", "dep:uniffi_macros", "reqwest/default-tls", "android-tls"]
 wasm = [
     "dep:wasm-bindgen",
     "dep:wasm-bindgen-futures",
@@ -47,6 +47,9 @@ sui = [
     "dep:rand",
     "dep:bcs",
 ]
+
+# Android TLS support
+android-tls = ["dep:rustls-platform-verifier", "dep:jni"]
 
 # Features contributing to bundle size, that you might not need
 all_clients = [
@@ -128,6 +131,10 @@ tracing = { version = "0.1.40", default-features = false, features = [
 # Networking
 reqwest.workspace = true
 url = { workspace = true, features = ["serde"] }
+
+# TLS platform verifier for Android
+rustls-platform-verifier = { version = "0.5", optional = true }
+jni = { version = "0.21", optional = true }
 
 # Tiny dependency, could copy source. Pinning to exact version to avoid supply-chain attacks.
 derive_jserror = { version = "=0.1.0", optional = true, default-features = false }

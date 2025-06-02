@@ -426,6 +426,19 @@ uniffi::custom_type!(Balance, BalanceFfi, {
     },
 });
 
+// Android TLS initialization
+// #[cfg(all(target_os = "android", feature = "android-tls"))]
+#[uniffi::export]
+pub fn initialize_android_tls() {
+    // rustls_platform_verifier::android::init_hosted(&env, context).unwrap();
+}
+
+// #[cfg(not(all(target_os = "android", feature = "android-tls")))]
+// #[uniffi::export] 
+// pub fn initialize_android_tls() {
+//     // No-op on non-Android platforms or when android-tls feature is disabled
+// }
+
 #[cfg(test)]
 mod tests {
     use {

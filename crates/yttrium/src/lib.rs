@@ -38,3 +38,15 @@ pub mod wallet_service_api;
 
 #[cfg(test)]
 pub mod examples;
+
+// Android JNI initialization for rustls-platform-verifier
+#[cfg(all(target_os = "android", feature = "android-tls"))]
+#[uniffi::export] 
+#[no_mangle]
+pub extern "C" fn Java_com_yttrium_YttriumKt_initializeTls(
+    mut env: jni::JNIEnv,
+    _class: jni::objects::JClass,
+    context: jni::objects::JObject,
+) {
+    rustls_platform_verifier::android::init_hosted(&mut env, context).unwrap();
+}
