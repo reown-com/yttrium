@@ -112,7 +112,7 @@ android {
         // YttriumKt.initializeTls(context) - this calls the JNI function
         // Java_com_yttrium_YttriumKt_initializeTls
         
-        implementation 'rustls:rustls-platform-verifier:latest.release'
+        implementation 'rustls:rustls-platform-verifier:0.1.1'
         implementation 'net.java.dev.jna:jna:5.12.0@aar'
         implementation 'androidx.core:core-ktx:1.10.1'
         implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.1'
@@ -146,6 +146,31 @@ publishing {
                         url.set("https://github.com/reown-com/yttrium")
                     }
             }
+            
+            // // Include dependencies in the POM so they're pulled transitively
+            // pom.withXml {
+            //     def dependenciesNode = asNode().appendNode('dependencies')
+                
+            //     // Add rustls-platform-verifier dependency
+            //     def rustlsDep = dependenciesNode.appendNode('dependency')
+            //     rustlsDep.appendNode('groupId', 'rustls')
+            //     rustlsDep.appendNode('artifactId', 'rustls-platform-verifier')
+            //     rustlsDep.appendNode('version', '0.1.1')
+            //     rustlsDep.appendNode('type', 'aar')
+                
+            //     // Add other dependencies
+            //     configurations.implementation.dependencies.each { dep ->
+            //         if (dep.group != null && dep.name != 'rustls-platform-verifier') {
+            //             def dependency = dependenciesNode.appendNode('dependency')
+            //             dependency.appendNode('groupId', dep.group)
+            //             dependency.appendNode('artifactId', dep.name)
+            //             dependency.appendNode('version', dep.version)
+            //             if (dep.name.endsWith('@aar')) {
+            //                 dependency.appendNode('type', 'aar')
+            //             }
+            //         }
+            //     }
+            // }
         }
     }
 }
