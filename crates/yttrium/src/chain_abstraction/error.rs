@@ -23,17 +23,19 @@ pub enum PrepareError {
     Request(reqwest::Error),
 
     /// Retryable error
-    #[error("HTTP request failed: {0}")]
+    #[error("HTTP request failed: {0}, {1}")]
     RequestFailed(StatusCode, String),
-    #[error("HTTP request text failed: {0}")]
+
+    /// Retryable error
+    #[error("HTTP request text failed: {0}, {1}")]
     RequestFailedText(StatusCode, reqwest::Error),
 
     /// Retryable error
-    #[error("Decoding response as text failed: {0}")]
+    #[error("Decoding response as text failed: {0}, {1}")]
     DecodingText(StatusCode, reqwest::Error),
 
     /// Retryable error
-    #[error("Decoding response as json failed: {0}")]
+    #[error("Decoding response as json failed: {0}, {1}, {2}")]
     DecodingJson(StatusCode, serde_json::Error, String),
 }
 
@@ -46,18 +48,20 @@ pub enum StatusError {
     Request(reqwest::Error),
 
     /// Retryable error
-    #[error("HTTP request failed: {0}")]
-    RequestFailed(String),
-    #[error("HTTP request text failed: {0}")]
-    RequestFailedText(reqwest::Error),
+    #[error("HTTP request failed: {0}, {1}")]
+    RequestFailed(StatusCode, String),
 
     /// Retryable error
-    #[error("Decoding response as text failed: {0}")]
-    DecodingText(reqwest::Error),
+    #[error("HTTP request text failed: {0}, {1}")]
+    RequestFailedText(StatusCode, reqwest::Error),
 
     /// Retryable error
-    #[error("Decoding response as json failed: {0}")]
-    DecodingJson(serde_json::Error, String),
+    #[error("Decoding response as text failed: {0}, {1}")]
+    DecodingText(StatusCode, reqwest::Error),
+
+    /// Retryable error
+    #[error("Decoding response as json failed: {0}, {1}, {2}")]
+    DecodingJson(StatusCode, serde_json::Error, String),
 }
 
 #[derive(thiserror::Error, Debug)]
