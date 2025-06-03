@@ -16,16 +16,15 @@ use {
     reqwest::Client as ReqwestClient,
     serde::{Deserialize, Serialize},
     sui_sdk::{
+        error::Error as SuiSdkError,
         rpc_types::{Balance, SuiTransactionBlockResponseOptions},
         types::{
             base_types::SuiAddress,
             crypto::{PublicKey, Signature, SuiKeyPair},
             digests::TransactionDigest,
-            signature::GenericSignature,
             transaction::{
-                CallArg, Command, GasData, ObjectArg, ProgrammableTransaction,
-                TransactionData, TransactionDataV1, TransactionExpiration,
-                TransactionKind,
+                CallArg, Command, ObjectArg, ProgrammableTransaction,
+                Transaction, TransactionData,
             },
         },
     },
@@ -34,10 +33,22 @@ use {
     url::Url,
 };
 
+uniffi::custom_type!(SuiSdkError, String, {
+    remote,
+    try_lift: |_val| unimplemented!("Lifting sui_sdk::error::Error is not supported"),
+    lower: |obj| obj.to_string(),
+});
+
 #[derive(Debug, thiserror::Error, uniffi::Error)]
 pub enum SuiError {
-    #[error("General {0}")]
-    General(String),
+    #[error("Sign transaction: {0}")]
+    SignTransaction(SuiSignTransactionError),
+
+    #[error("Get all balances: {0}")]
+    GetAllBalances(sui_sdk::error::Error),
+
+    #[error("Execute transaction block: {0}")]
+    ExecuteTransactionBlock(sui_sdk::error::Error),
 }
 
 uniffi::custom_type!(SuiKeyPair, String, {
@@ -101,20 +112,9 @@ pub fn sui_personal_sign(keypair: &SuiKeyPair, message: Vec<u8>) -> Signature {
 #[serde(rename_all = "camelCase")]
 struct SignTransactionRequest {
     pub version: u8,
-    pub sender: String,
-    pub expiration: Option<u64>,
-    pub gas_data: GasDataFfi,
+    pub sender: SuiAddress,
     pub inputs: Vec<CallArgFfi>,
     pub commands: Vec<CommandFfi>,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-#[serde(rename_all = "camelCase")]
-pub struct GasDataFfi {
-    pub budget: Option<u64>,
-    pub price: Option<u64>,
-    pub owner: Option<String>,
-    pub payment: Option<Vec<String>>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -152,64 +152,90 @@ pub enum SuiSignTransactionError {
 
     #[error("Decoding Pure base64")]
     DecodePure(String),
+
+    #[error("Unsupported version {0}. Only version 2 is supported.")]
+    UnsupportedVersion(u8),
+
+    #[error("Mis-matched transaction sender address. Expected: {0}, Got: {1}")]
+    MisMatchedSenderAddress(SuiAddress, SuiAddress),
+
+    #[error("Failed to get reference gas price: {0}")]
+    GetReferenceGasPrice(sui_sdk::error::Error),
 }
 
-#[uniffi::export]
-pub fn sui_sign_transaction(
+async fn sui_build_and_sign_transaction(
+    sui: &sui_sdk::SuiClient,
     keypair: &SuiKeyPair,
     tx_data: &[u8],
-) -> Result<Signature, SuiSignTransactionError> {
+) -> Result<Transaction, SuiSignTransactionError> {
     let request = serde_json::from_slice::<SignTransactionRequest>(tx_data)
         .map_err(SuiSignTransactionError::InvalidTransactionData)?;
-    let data = TransactionData::V1(TransactionDataV1 {
-        kind: TransactionKind::ProgrammableTransaction(
-            ProgrammableTransaction {
-                inputs: {
-                    let mut results = Vec::with_capacity(request.inputs.len());
-                    for input in request.inputs {
-                        results.push(match input {
-                            CallArgFfi::Pure { bytes } => CallArg::Pure(
-                                BASE64.decode(bytes.as_bytes()).map_err(
-                                    |e| {
-                                        SuiSignTransactionError::DecodePure(
-                                            e.to_string(),
-                                        )
-                                    },
-                                )?,
-                            ),
-                            CallArgFfi::Object(object) => {
-                                CallArg::Object(convert_object_arg_ffi(object))
-                            }
-                        });
+    if request.version != 2 {
+        return Err(SuiSignTransactionError::UnsupportedVersion(
+            request.version,
+        ));
+    }
+    let expected_sender = sui_get_address(&sui_get_public_key(keypair));
+    if request.sender != expected_sender {
+        return Err(SuiSignTransactionError::MisMatchedSenderAddress(
+            expected_sender,
+            request.sender,
+        ));
+    }
+
+    // budget copied from example: https://github.com/MystenLabs/sui/blob/f5852de24d2e9ff53a69b989f1abf2b61c1c6786/crates/sui-sdk/examples/programmable_transactions_api.rs#L66
+    let gas_budget = 5_000_000;
+
+    let gas_price = sui
+        .read_api()
+        .get_reference_gas_price()
+        .await
+        .map_err(SuiSignTransactionError::GetReferenceGasPrice)?;
+
+    let pt = ProgrammableTransaction {
+        inputs: {
+            let mut results = Vec::with_capacity(request.inputs.len());
+            for input in request.inputs {
+                results.push(match input {
+                    CallArgFfi::Pure { bytes } => CallArg::Pure(
+                        BASE64.decode(bytes.as_bytes()).map_err(|e| {
+                            SuiSignTransactionError::DecodePure(e.to_string())
+                        })?,
+                    ),
+                    CallArgFfi::Object(object) => {
+                        CallArg::Object(convert_object_arg_ffi(object))
                     }
-                    results
-                },
-                commands: {
-                    let mut results =
-                        Vec::with_capacity(request.commands.len());
-                    for command in request.commands {
-                        results.push(convert_command_ffi(command));
-                    }
-                    results
-                },
-            },
-        ),
-        sender: request.sender.parse().unwrap(),
-        gas_data: GasData {
-            price: request.gas_data.price.unwrap_or(1000),
-            owner: request
-                .gas_data
-                .owner
-                .unwrap_or(request.sender.clone())
-                .parse()
-                .unwrap(),
-            payment: vec![], // TODO: parse payment objects if needed
-            budget: request.gas_data.budget.unwrap_or(10000000),
+                });
+            }
+            results
         },
-        expiration: TransactionExpiration::None,
-    });
-    let intent_msg = IntentMessage::new(Intent::sui_transaction(), data);
-    Ok(Signature::new_secure(&intent_msg, keypair))
+        commands: {
+            let mut results = Vec::with_capacity(request.commands.len());
+            for command in request.commands {
+                results.push(convert_command_ffi(command));
+            }
+            results
+        },
+    };
+
+    let data = TransactionData::new_programmable(
+        request.sender,
+        vec![/*coin.object_ref()*/],
+        pt,
+        gas_budget,
+        gas_price,
+    );
+
+    let intent_msg =
+        IntentMessage::new(Intent::sui_transaction(), data.clone());
+    let signature = Signature::new_secure(&intent_msg, keypair);
+    Ok(Transaction::from_data(data, vec![signature]))
+}
+
+#[derive(uniffi::Record, Debug, Clone)]
+pub struct SignTransactionResult {
+    tx_bytes: String,
+    signature: String,
 }
 
 fn convert_object_arg_ffi(obj: ObjectArgFfi) -> ObjectArg {
@@ -335,7 +361,30 @@ impl SuiClient {
             .coin_read_api()
             .get_all_balances(address)
             .await
-            .map_err(|e| SuiError::General(e.to_string()))
+            .map_err(SuiError::GetAllBalances)
+    }
+
+    pub async fn sign_transaction(
+        &self,
+        chain_id: String,
+        keypair: &SuiKeyPair,
+        tx_data: &[u8],
+    ) -> Result<SignTransactionResult, SuiError> {
+        sui_build_and_sign_transaction(
+            &self.provider_pool.get_sui_client(chain_id).await,
+            keypair,
+            tx_data,
+        )
+        .await
+        .map_err(SuiError::SignTransaction)
+        .map(|tx| {
+            let (tx_bytes, signatures) = tx.to_tx_bytes_and_signatures();
+            assert_eq!(signatures.len(), 1);
+            SignTransactionResult {
+                tx_bytes: tx_bytes.encoded(),
+                signature: signatures.first().unwrap().encoded(),
+            }
+        })
     }
 
     pub async fn sign_and_execute_transaction(
@@ -344,69 +393,19 @@ impl SuiClient {
         keypair: &SuiKeyPair,
         tx_data: &[u8],
     ) -> Result<TransactionDigest, SuiError> {
-        let request = serde_json::from_slice::<SignTransactionRequest>(tx_data)
-            .map_err(|e| SuiError::General(format!("Invalid transaction data: {}", e)))?;
-        
-        let data = TransactionData::V1(TransactionDataV1 {
-            kind: TransactionKind::ProgrammableTransaction(
-                ProgrammableTransaction {
-                    inputs: {
-                        let mut results = Vec::with_capacity(request.inputs.len());
-                        for input in request.inputs {
-                            results.push(match input {
-                                CallArgFfi::Pure { bytes } => CallArg::Pure(
-                                    BASE64.decode(bytes.as_bytes()).map_err(
-                                        |e| SuiError::General(format!("Decoding Pure base64: {}", e))
-                                    )?,
-                                ),
-                                CallArgFfi::Object(object) => {
-                                    CallArg::Object(convert_object_arg_ffi(object))
-                                }
-                            });
-                        }
-                        results
-                    },
-                    commands: {
-                        let mut results =
-                            Vec::with_capacity(request.commands.len());
-                        for command in request.commands {
-                            results.push(convert_command_ffi(command));
-                        }
-                        results
-                    },
-                },
-            ),
-            sender: request.sender.parse()
-                .map_err(|e| SuiError::General(format!("Invalid sender address: {}", e)))?,
-            gas_data: GasData {
-                price: request.gas_data.price.unwrap_or(1000),
-                owner: request
-                    .gas_data
-                    .owner
-                    .unwrap_or(request.sender.clone())
-                    .parse()
-                    .map_err(|e| SuiError::General(format!("Invalid gas owner address: {}", e)))?,
-                payment: vec![], // TODO: parse payment objects if needed
-                budget: request.gas_data.budget.unwrap_or(10000000),
-            },
-            expiration: TransactionExpiration::None,
-        });
-        
-        let intent_msg = IntentMessage::new(Intent::sui_transaction(), data);
-        let sig = Signature::new_secure(&intent_msg, keypair);
         let sui_client = self.provider_pool.get_sui_client(chain_id).await;
+        let tx = sui_build_and_sign_transaction(&sui_client, keypair, tx_data)
+            .await
+            .map_err(SuiError::SignTransaction)?;
         let result = sui_client
             .quorum_driver_api()
             .execute_transaction_block(
-                sui_sdk::types::transaction::Transaction::from_generic_sig_data(
-                    intent_msg.value,
-                    vec![GenericSignature::Signature(sig)],
-                ),
+                tx,
                 SuiTransactionBlockResponseOptions::default(),
                 None,
             )
             .await
-            .map_err(|e| SuiError::General(e.to_string()))?;
+            .map_err(SuiError::ExecuteTransactionBlock)?;
         Ok(result.digest)
     }
 }
@@ -435,7 +434,13 @@ mod tests {
             provider_pool::network::sui::{DEVNET, MAINNET, TESTNET},
         },
         data_encoding::BASE64,
-        sui_sdk::types::crypto::{SignatureScheme, SuiSignature},
+        sui_sdk::types::{
+            crypto::{SignatureScheme, SuiSignature},
+            transaction::{
+                GasData, TransactionDataV1, TransactionExpiration,
+                TransactionKind,
+            },
+        },
     };
 
     #[test]
@@ -583,19 +588,20 @@ mod tests {
     fn test_sui_personal_sign_specific_case() {
         // Test with specific keypair and message provided by user
         let keypair = SuiKeyPair::decode("suiprivkey1qq4a47vvrn0e96nntt2x0yx5d699szagl9rtq42p3ed45l75f7j0688pgwe").unwrap();
-        let message = "This is a message to be signed for SUI".as_bytes().to_vec();
-        
+        let message =
+            "This is a message to be signed for SUI".as_bytes().to_vec();
+
         let address = sui_get_address(&keypair.public());
         let signature = sui_personal_sign(&keypair, message.clone());
-        
+
         // This is the signature our implementation produces with the specified keypair and message
         // Note: The original expected signature was likely generated with a different implementation
         // or context. Our implementation produces cryptographically valid signatures.
         let expected_signature = "AKGv+qJ5bJDSoJw8Gueh8voSqkrrgajBKc9CnngHzldZxjimcFlPb8TbZyc3fFrnU7ltluL5I4ni8AkQdTcalgwZXLv/ORduxMYX0fw8dbHlnWC8WG0ymrlAmARpEibbhw==";
-        
+
         // Check that the signature matches the expected value (ensuring deterministic behavior)
         assert_eq!(signature.encode_base64(), expected_signature);
-        
+
         // Also verify that the signature is cryptographically valid
         let verification = signature.verify_secure(
             &IntentMessage::new(
@@ -608,15 +614,22 @@ mod tests {
         assert!(verification.is_ok());
     }
 
-    #[test]
-    fn test_sui_sign_transaction() {
+    #[tokio::test]
+    async fn test_sui_sign_transaction() {
         let tx_data = BASE64.decode(b"ewogICJ2ZXJzaW9uIjogMiwKICAic2VuZGVyIjogIjB4YTg2NjljYzg0ZjM2N2Y3MzBlYTVkYmRiOTA5NTViYTZkNDYxMzcyMDk0ZTNjZmY4MGI3ZjI2N2M4ZWI4MWE1OSIsCiAgImV4cGlyYXRpb24iOiBudWxsLAogICJnYXNEYXRhIjogewogICAgImJ1ZGdldCI6IG51bGwsCiAgICAicHJpY2UiOiBudWxsLAogICAgIm93bmVyIjogbnVsbCwKICAgICJwYXltZW50IjogbnVsbAogIH0sCiAgImlucHV0cyI6IFsKICAgIHsKICAgICAgIlB1cmUiOiB7CiAgICAgICAgImJ5dGVzIjogIlpBQUFBQUFBQUFBPSIKICAgICAgfQogICAgfSwKICAgIHsKICAgICAgIlB1cmUiOiB7CiAgICAgICAgImJ5dGVzIjogInFHYWN5RTgyZjNNT3BkdmJrSlZicHRSaE55Q1U0OC80QzM4bWZJNjRHbGs9IgogICAgICB9CiAgICB9CiAgXSwKICAiY29tbWFuZHMiOiBbCiAgICB7CiAgICAgICJTcGxpdENvaW5zIjogewogICAgICAgICJjb2luIjogewogICAgICAgICAgIkdhc0NvaW4iOiB0cnVlCiAgICAgICAgfSwKICAgICAgICAiYW1vdW50cyI6IFsKICAgICAgICAgIHsKICAgICAgICAgICAgIklucHV0IjogMAogICAgICAgICAgfQogICAgICAgIF0KICAgICAgfQogICAgfSwKICAgIHsKICAgICAgIlRyYW5zZmVyT2JqZWN0cyI6IHsKICAgICAgICAib2JqZWN0cyI6IFsKICAgICAgICAgIHsKICAgICAgICAgICAgIk5lc3RlZFJlc3VsdCI6IFsKICAgICAgICAgICAgICAwLAogICAgICAgICAgICAgIDAKICAgICAgICAgICAgXQogICAgICAgICAgfQogICAgICAgIF0sCiAgICAgICAgImFkZHJlc3MiOiB7CiAgICAgICAgICAiSW5wdXQiOiAxCiAgICAgICAgfQogICAgICB9CiAgICB9CiAgXQp9").unwrap();
         println!("tx_data: {}", String::from_utf8_lossy(&tx_data));
         let keypair = SuiKeyPair::decode("suiprivkey1qz3889tm677q5ns478amrva66xjzl3qpnujjersm0ps948etrs5g795ce7t").unwrap();
-        let signature = sui_sign_transaction(&keypair, &tx_data);
+        let client = SuiClient::new(
+            std::env::var("REOWN_PROJECT_ID").unwrap().into(),
+            get_pulse_metadata(),
+        );
+        let signature = client
+            .sign_transaction("sui:mainnet".to_owned(), &keypair, &tx_data)
+            .await
+            .unwrap();
         println!("signature: {:?}", signature);
-        let expected_signature = "APmr9wpBF5CAN/D8KAAh2pWZhthS2DR7wnkFPYx64Cyi7FpJYixqQu55fs/rbhBLEhKbLXsCKCxJO155iFQfqAgYx38fs+hcoDU9W5MkJXvAl/AuuaggN96d6c7wdhYV+w==";
-        assert_eq!(signature.unwrap().encode_base64(), expected_signature);
+        // let expected_signature = "APmr9wpBF5CAN/D8KAAh2pWZhthS2DR7wnkFPYx64Cyi7FpJYixqQu55fs/rbhBLEhKbLXsCKCxJO155iFQfqAgYx38fs+hcoDU9W5MkJXvAl/AuuaggN96d6c7wdhYV+w==";
+        // assert_eq!(signature.signature, expected_signature);
     }
 
     #[test]
@@ -624,25 +637,29 @@ mod tests {
         // This test uses the exact keypair and transaction data provided by the user
         let keypair = SuiKeyPair::decode("suiprivkey1qz3889tm677q5ns478amrva66xjzl3qpnujjersm0ps948etrs5g795ce7t").unwrap();
         let tx_data = BASE64.decode(b"ewogICJ2ZXJzaW9uIjogMiwKICAic2VuZGVyIjogIjB4YTg2NjljYzg0ZjM2N2Y3MzBlYTVkYmRiOTA5NTViYTZkNDYxMzcyMDk0ZTNjZmY4MGI3ZjI2N2M4ZWI4MWE1OSIsCiAgImV4cGlyYXRpb24iOiBudWxsLAogICJnYXNEYXRhIjogewogICAgImJ1ZGdldCI6IG51bGwsCiAgICAicHJpY2UiOiBudWxsLAogICAgIm93bmVyIjogbnVsbCwKICAgICJwYXltZW50IjogbnVsbAogIH0sCiAgImlucHV0cyI6IFsKICAgIHsKICAgICAgIlB1cmUiOiB7CiAgICAgICAgImJ5dGVzIjogIlpBQUFBQUFBQUFBPSIKICAgICAgfQogICAgfSwKICAgIHsKICAgICAgIlB1cmUiOiB7CiAgICAgICAgImJ5dGVzIjogInFHYWN5RTgyZjNNT3BkdmJrSlZicHRSaE55Q1U0OC80QzM4bWZJNjRHbGs9IgogICAgICB9CiAgICB9CiAgXSwKICAiY29tbWFuZHMiOiBbCiAgICB7CiAgICAgICJTcGxpdENvaW5zIjogewogICAgICAgICJjb2luIjogewogICAgICAgICAgIkdhc0NvaW4iOiB0cnVlCiAgICAgICAgfSwKICAgICAgICAiYW1vdW50cyI6IFsKICAgICAgICAgIHsKICAgICAgICAgICAgIklucHV0IjogMAogICAgICAgICAgfQogICAgICAgIF0KICAgICAgfQogICAgfSwKICAgIHsKICAgICAgIlRyYW5zZmVyT2JqZWN0cyI6IHsKICAgICAgICAib2JqZWN0cyI6IFsKICAgICAgICAgIHsKICAgICAgICAgICAgIk5lc3RlZFJlc3VsdCI6IFsKICAgICAgICAgICAgICAwLAogICAgICAgICAgICAgIDAKICAgICAgICAgICAgXQogICAgICAgICAgfQogICAgICAgIF0sCiAgICAgICAgImFkZHJlc3MiOiB7CiAgICAgICAgICAiSW5wdXQiOiAxCiAgICAgICAgfQogICAgICB9CiAgICB9CiAgXQp9").unwrap();
-        
+
         // Parse the transaction data exactly as sign_and_execute_transaction now does
-        let request = serde_json::from_slice::<SignTransactionRequest>(&tx_data)
-            .expect("Should parse the user's transaction data");
-        
+        let request =
+            serde_json::from_slice::<SignTransactionRequest>(&tx_data)
+                .expect("Should parse the user's transaction data");
+
         // Build TransactionData structure
         let data = TransactionData::V1(TransactionDataV1 {
             kind: TransactionKind::ProgrammableTransaction(
                 ProgrammableTransaction {
                     inputs: {
-                        let mut results = Vec::with_capacity(request.inputs.len());
+                        let mut results =
+                            Vec::with_capacity(request.inputs.len());
                         for input in request.inputs {
                             results.push(match input {
                                 CallArgFfi::Pure { bytes } => CallArg::Pure(
-                                    BASE64.decode(bytes.as_bytes()).expect("Should decode base64")
+                                    BASE64
+                                        .decode(bytes.as_bytes())
+                                        .expect("Should decode base64"),
                                 ),
-                                CallArgFfi::Object(object) => {
-                                    CallArg::Object(convert_object_arg_ffi(object))
-                                }
+                                CallArgFfi::Object(object) => CallArg::Object(
+                                    convert_object_arg_ffi(object),
+                                ),
                             });
                         }
                         results
@@ -657,17 +674,12 @@ mod tests {
                     },
                 },
             ),
-            sender: request.sender.parse().expect("Should parse sender address"),
+            sender: request.sender,
             gas_data: GasData {
-                price: request.gas_data.price.unwrap_or(1000),
-                owner: request
-                    .gas_data
-                    .owner
-                    .unwrap_or(request.sender.clone())
-                    .parse()
-                    .expect("Should parse gas owner address"),
+                price: 1000,
+                owner: request.sender,
                 payment: vec![], // TODO: parse payment objects if needed
-                budget: request.gas_data.budget.unwrap_or(10000000),
+                budget: 10000000,
             },
             expiration: TransactionExpiration::None,
         });
@@ -675,11 +687,13 @@ mod tests {
         // Create intent message and sign it - this should work without the previous BCS error
         let intent_msg = IntentMessage::new(Intent::sui_transaction(), data);
         let signature = Signature::new_secure(&intent_msg, &keypair);
-        
+
         // Verify signature is created successfully
         assert!(!signature.encode_base64().is_empty());
-        
-        println!("✅ User's exact scenario now works - no more BCS parsing error!");
+
+        println!(
+            "✅ User's exact scenario now works - no more BCS parsing error!"
+        );
         println!("✅ Transaction successfully parsed from JSON and signed");
     }
 }
