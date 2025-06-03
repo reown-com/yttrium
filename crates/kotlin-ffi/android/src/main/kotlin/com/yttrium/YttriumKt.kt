@@ -16,4 +16,4 @@ object YttriumKt {
      * @param context Android application context
      */
     external fun initializeTls(context: Context)
-} 
+}
