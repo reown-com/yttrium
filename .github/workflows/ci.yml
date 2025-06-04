@@ -115,7 +115,7 @@ jobs:
         run: make CONFIG=${{ matrix.config }} build-swift-apple-platforms
 
   build-kotlin:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, aws-ecs-4cpu-8mem-20disk-30m]
 
     steps:
       - uses: actions/checkout@v3
