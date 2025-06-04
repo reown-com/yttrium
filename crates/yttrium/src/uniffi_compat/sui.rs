@@ -161,6 +161,12 @@ pub enum SuiSignTransactionError {
 
     #[error("Failed to get reference gas price: {0}")]
     GetReferenceGasPrice(sui_sdk::error::Error),
+
+    #[error("Failed to get coins for gas payment: {0}")]
+    GetCoinsForGas(sui_sdk::error::Error),
+
+    #[error("No coins available for gas payment. The address {0} has no SUI coins available. Please fund the account first.")]
+    NoCoinsAvailableForGas(SuiAddress),
 }
 
 async fn sui_build_and_sign_transaction(
@@ -192,6 +198,20 @@ async fn sui_build_and_sign_transaction(
         .await
         .map_err(SuiSignTransactionError::GetReferenceGasPrice)?;
 
+
+    let coins = sui
+        .coin_read_api()
+        .get_coins(request.sender, None, None, None)
+        .await
+        .map_err(SuiSignTransactionError::GetCoinsForGas)?;
+    
+    
+    let gas_coins = if let Some(coin) = coins.data.first() {
+        vec![coin.object_ref()]
+    } else {
+        return Err(SuiSignTransactionError::NoCoinsAvailableForGas(request.sender));
+    };
+
     let pt = ProgrammableTransaction {
         inputs: {
             let mut results = Vec::with_capacity(request.inputs.len());
@@ -220,7 +240,7 @@ async fn sui_build_and_sign_transaction(
 
     let data = TransactionData::new_programmable(
         request.sender,
-        vec![/*coin.object_ref()*/],
+        gas_coins,
         pt,
         gas_budget,
         gas_price,
@@ -695,5 +715,23 @@ mod tests {
             "✅ User's exact scenario now works - no more BCS parsing error!"
         );
         println!("✅ Transaction successfully parsed from JSON and signed");
+    }
+
+    #[test]
+    fn test_keypair_address_match() {
+        let keypair = SuiKeyPair::decode("suiprivkey1qz3889tm677q5ns478amrva66xjzl3qpnujjersm0ps948etrs5g795ce7t").unwrap();
+        let address = sui_get_address(&sui_get_public_key(&keypair));
+        let tx_sender = "0xa8669cc84f367f730ea5dbdb90955ba6d461372094e3cff80b7f267c8eb81a59";
+        
+        println!("Keypair generates address: {}", address);
+        println!("Transaction sender:        {}", tx_sender);
+        println!("Match: {}", address.to_string() == tx_sender);
+        
+        if address.to_string() != tx_sender {
+            println!("❌ MISMATCH: The keypair doesn't match the transaction sender!");
+            println!("This is why you're getting the MisMatchedSenderAddress error.");
+        } else {
+            println!("✅ Addresses match!");
+        }
     }
 }
