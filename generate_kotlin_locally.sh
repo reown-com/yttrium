@@ -6,12 +6,17 @@ rm -rf crates/kotlin-ffi/android/src/main/jniLibs/armeabi-v7a/
 rm -rf crates/kotlin-ffi/android/src/main/kotlin/com/reown/yttrium/
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 cargo ndk -t armv7-linux-androideabi -t aarch64-linux-android build --profile=profile1 --features=android,uniffi/cli -p kotlin-ffi
 cargo run --features=android,uniffi/cli --bin uniffi-bindgen generate --library target/aarch64-linux-android/profile1/libuniffi_yttrium.so --language kotlin --out-dir yttrium/kotlin-bindings
 =======
 cargo ndk -t armv7-linux-androideabi -t aarch64-linux-android build --profile=profile1 --features=uniffi/cli -p kotlin-ffi
 cargo run --features=uniffi/cli --bin uniffi-bindgen generate --library target/aarch64-linux-android/profile1/libuniffi_yttrium.so --language kotlin --out-dir yttrium/kotlin-bindings
 >>>>>>> f706034 (fix: CI)
+=======
+cargo ndk -t armv7-linux-androideabi -t aarch64-linux-android build --profile=profile1 --features=android,uniffi/cli -p kotlin-ffi
+cargo run --features=android,uniffi/cli --bin uniffi-bindgen generate --library target/aarch64-linux-android/profile1/libuniffi_yttrium.so --language kotlin --out-dir yttrium/kotlin-bindings
+>>>>>>> 3141979 (fix: CI)
 
 mkdir -p crates/kotlin-ffi/android/src/main/jniLibs/arm64-v8a
 mkdir -p crates/kotlin-ffi/android/src/main/jniLibs/armeabi-v7a
