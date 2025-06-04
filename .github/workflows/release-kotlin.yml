@@ -50,33 +50,8 @@ jobs:
       - name: Generate Kotlin bindings (once, on aarch64 only)
         if: ${{ matrix.target == 'aarch64-linux-android' }}
         run: |
+<<<<<<< HEAD
           cargo run --features=android,uniffi/cli --bin uniffi-bindgen generate --library target/${{ matrix.target }}/uniffi-release-kotlin/libuniffi_yttrium.so --language kotlin --out-dir yttrium/kotlin-bindings
-      - name: Extract rustls-platform-verifier maven repository (once, on aarch64 only)
-        if: ${{ matrix.target == 'aarch64-linux-android' }}
-        run: |
-            # Get the rustls-platform-verifier maven repository for JitPack builds
-            echo "Extracting rustls-platform-verifier maven repository..."
-            
-            # Use cargo metadata to find the rustls-platform-verifier-android package
-            METADATA=$(cargo metadata --format-version 1 --filter-platform aarch64-linux-android --manifest-path crates/yttrium/Cargo.toml --features android-tls)
-            VERIFIER_MANIFEST=$(echo "$METADATA" | jq -r '.packages[] | select(.name == "rustls-platform-verifier-android") | .manifest_path')
-            
-            if [ "$VERIFIER_MANIFEST" != "null" ] && [ -n "$VERIFIER_MANIFEST" ]; then
-              VERIFIER_DIR=$(dirname "$VERIFIER_MANIFEST")
-              MAVEN_PATH="$VERIFIER_DIR/maven"
-              
-              if [ -d "$MAVEN_PATH" ]; then
-                echo "Found rustls-platform-verifier maven directory at: $MAVEN_PATH"
-                mkdir -p yttrium/rustls-platform-verifier-maven
-                cp -r "$MAVEN_PATH"/* yttrium/rustls-platform-verifier-maven/
-                echo "Copied maven repository to yttrium/rustls-platform-verifier-maven/"
-                ls -la yttrium/rustls-platform-verifier-maven/
-              else
-                echo "Warning: rustls-platform-verifier maven directory not found at: $MAVEN_PATH"
-              fi
-            else
-              echo "Warning: rustls-platform-verifier-android package not found in cargo metadata"
-            fi
       - name: Strip binaries
         run: |
             NDK_PATH=$ANDROID_HOME/ndk/27.2.12479018
