@@ -20,6 +20,7 @@ build_rust_libraries() {
   # Build
   cargo build \
     --lib --profile=uniffi-release-swift \
+    --features=ios \
     --target aarch64-apple-ios \
     -p kotlin-ffi \
     -p yttrium
@@ -41,6 +42,7 @@ build_rust_libraries() {
 
   cargo build \
     --lib --profile=uniffi-release-swift \
+    --features=ios \
     --target x86_64-apple-ios \
     -p kotlin-ffi \
     -p yttrium
@@ -62,6 +64,7 @@ build_rust_libraries() {
 
   cargo build \
     --lib --profile=uniffi-release-swift \
+    --features=ios \
     --target aarch64-apple-ios-sim \
     -p kotlin-ffi \
     -p yttrium
@@ -75,7 +78,7 @@ build_rust_libraries() {
 
 generate_ffi() {
   echo "Generating framework module mapping and FFI bindings..."
-  cargo run --features uniffi/cli --bin uniffi-bindgen generate \
+  cargo run --features=ios,uniffi/cli --bin uniffi-bindgen generate \
       --library "target/aarch64-apple-ios/uniffi-release-swift/lib$1.dylib" \
       --language swift \
       --out-dir target/uniffi-xcframework-staging
