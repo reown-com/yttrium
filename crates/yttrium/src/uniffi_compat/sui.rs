@@ -198,18 +198,18 @@ async fn sui_build_and_sign_transaction(
         .await
         .map_err(SuiSignTransactionError::GetReferenceGasPrice)?;
 
-
     let coins = sui
         .coin_read_api()
         .get_coins(request.sender, None, None, None)
         .await
         .map_err(SuiSignTransactionError::GetCoinsForGas)?;
-    
-    
+
     let gas_coins = if let Some(coin) = coins.data.first() {
         vec![coin.object_ref()]
     } else {
-        return Err(SuiSignTransactionError::NoCoinsAvailableForGas(request.sender));
+        return Err(SuiSignTransactionError::NoCoinsAvailableForGas(
+            request.sender,
+        ));
     };
 
     let pt = ProgrammableTransaction {
@@ -634,7 +634,6 @@ mod tests {
         assert!(verification.is_ok());
     }
 
-
     #[test]
     fn test_user_scenario_exact_data() {
         // This test uses the exact keypair and transaction data provided by the user
@@ -705,14 +704,16 @@ mod tests {
         let keypair = SuiKeyPair::decode("suiprivkey1qz3889tm677q5ns478amrva66xjzl3qpnujjersm0ps948etrs5g795ce7t").unwrap();
         let address = sui_get_address(&sui_get_public_key(&keypair));
         let tx_sender = "0xa8669cc84f367f730ea5dbdb90955ba6d461372094e3cff80b7f267c8eb81a59";
-        
+
         println!("Keypair generates address: {}", address);
         println!("Transaction sender:        {}", tx_sender);
         println!("Match: {}", address.to_string() == tx_sender);
-        
+
         if address.to_string() != tx_sender {
             println!("❌ MISMATCH: The keypair doesn't match the transaction sender!");
-            println!("This is why you're getting the MisMatchedSenderAddress error.");
+            println!(
+                "This is why you're getting the MisMatchedSenderAddress error."
+            );
         } else {
             println!("✅ Addresses match!");
         }

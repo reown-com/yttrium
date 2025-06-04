@@ -72,7 +72,7 @@ fmt-check:
   cargo +nightly fmt --all -- --check
 
 udeps:
-  cargo +nightly udeps --workspace
+  cargo +nightly udeps --workspace --all-targets
 
 _rust_ci: fmt-check udeps
 
