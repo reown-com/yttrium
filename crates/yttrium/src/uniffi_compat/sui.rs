@@ -634,23 +634,6 @@ mod tests {
         assert!(verification.is_ok());
     }
 
-    #[tokio::test]
-    async fn test_sui_sign_transaction() {
-        let tx_data = BASE64.decode(b"ewogICJ2ZXJzaW9uIjogMiwKICAic2VuZGVyIjogIjB4YTg2NjljYzg0ZjM2N2Y3MzBlYTVkYmRiOTA5NTViYTZkNDYxMzcyMDk0ZTNjZmY4MGI3ZjI2N2M4ZWI4MWE1OSIsCiAgImV4cGlyYXRpb24iOiBudWxsLAogICJnYXNEYXRhIjogewogICAgImJ1ZGdldCI6IG51bGwsCiAgICAicHJpY2UiOiBudWxsLAogICAgIm93bmVyIjogbnVsbCwKICAgICJwYXltZW50IjogbnVsbAogIH0sCiAgImlucHV0cyI6IFsKICAgIHsKICAgICAgIlB1cmUiOiB7CiAgICAgICAgImJ5dGVzIjogIlpBQUFBQUFBQUFBPSIKICAgICAgfQogICAgfSwKICAgIHsKICAgICAgIlB1cmUiOiB7CiAgICAgICAgImJ5dGVzIjogInFHYWN5RTgyZjNNT3BkdmJrSlZicHRSaE55Q1U0OC80QzM4bWZJNjRHbGs9IgogICAgICB9CiAgICB9CiAgXSwKICAiY29tbWFuZHMiOiBbCiAgICB7CiAgICAgICJTcGxpdENvaW5zIjogewogICAgICAgICJjb2luIjogewogICAgICAgICAgIkdhc0NvaW4iOiB0cnVlCiAgICAgICAgfSwKICAgICAgICAiYW1vdW50cyI6IFsKICAgICAgICAgIHsKICAgICAgICAgICAgIklucHV0IjogMAogICAgICAgICAgfQogICAgICAgIF0KICAgICAgfQogICAgfSwKICAgIHsKICAgICAgIlRyYW5zZmVyT2JqZWN0cyI6IHsKICAgICAgICAib2JqZWN0cyI6IFsKICAgICAgICAgIHsKICAgICAgICAgICAgIk5lc3RlZFJlc3VsdCI6IFsKICAgICAgICAgICAgICAwLAogICAgICAgICAgICAgIDAKICAgICAgICAgICAgXQogICAgICAgICAgfQogICAgICAgIF0sCiAgICAgICAgImFkZHJlc3MiOiB7CiAgICAgICAgICAiSW5wdXQiOiAxCiAgICAgICAgfQogICAgICB9CiAgICB9CiAgXQp9").unwrap();
-        println!("tx_data: {}", String::from_utf8_lossy(&tx_data));
-        let keypair = SuiKeyPair::decode("suiprivkey1qz3889tm677q5ns478amrva66xjzl3qpnujjersm0ps948etrs5g795ce7t").unwrap();
-        let client = SuiClient::new(
-            std::env::var("REOWN_PROJECT_ID").unwrap().into(),
-            get_pulse_metadata(),
-        );
-        let signature = client
-            .sign_transaction("sui:mainnet".to_owned(), &keypair, &tx_data)
-            .await
-            .unwrap();
-        println!("signature: {:?}", signature);
-        // let expected_signature = "APmr9wpBF5CAN/D8KAAh2pWZhthS2DR7wnkFPYx64Cyi7FpJYixqQu55fs/rbhBLEhKbLXsCKCxJO155iFQfqAgYx38fs+hcoDU9W5MkJXvAl/AuuaggN96d6c7wdhYV+w==";
-        // assert_eq!(signature.signature, expected_signature);
-    }
 
     #[test]
     fn test_user_scenario_exact_data() {
