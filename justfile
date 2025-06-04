@@ -72,7 +72,16 @@ fmt-check:
   cargo +nightly fmt --all -- --check
 
 udeps:
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+  # Not building `all_platforms` because then there are unused Android and WASM dependencies
+  # These dependencies are not used because the code that uses it is disabled from `#[cfg(target_os = "<non-CI-target>")]`
+>>>>>>> f546a2d (fix: CI)
   cargo +nightly udeps --workspace --all-targets --features=test_full,all_clients,all_namespaces
+=======
+  cargo +nightly udeps --workspace --all-targets
+>>>>>>> f706034 (fix: CI)
 
 _rust_ci: fmt-check udeps
 
