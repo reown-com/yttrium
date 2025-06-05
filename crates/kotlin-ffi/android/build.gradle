@@ -43,7 +43,7 @@ String findRustlsPlatformVerifierProject() {
         
         def dependencyText = providers.exec {
             it.workingDir = projectRoot
-            commandLine("cargo", "metadata", "--format-version", "1", "--filter-platform", "aarch64-linux-android", "--manifest-path", yttriumCargoToml.absolutePath, "--features", "android-tls")
+            commandLine("cargo", "metadata", "--format-version", "1", "--filter-platform", "aarch64-linux-android", "--manifest-path", yttriumCargoToml.absolutePath, "--features", "android")
         }.standardOutput.asText.get()
 
         def dependencyJson = new JsonSlurper().parseText(dependencyText)

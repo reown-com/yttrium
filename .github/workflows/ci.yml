@@ -14,8 +14,31 @@ env:
   RUST_MSRV: 1.86.0
 
 jobs:
+
   rust_RUST_MSRV:
-    name: Rust project - Rust MSRV
+    name: Rust MSRV - build & lint
+    runs-on: [self-hosted, aws-ecs-16cpu-64mem-30disk-40m]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain=none
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+      - run: rustup install ${{ env.RUST_MSRV }} -c clippy -t wasm32-unknown-unknown && rustup default ${{ env.RUST_MSRV }}
+      - run: rustup toolchain install nightly -c rustfmt
+      - uses: Swatinem/rust-cache@v2
+      - uses: extractions/setup-just@v2
+      - run: cargo clippy --workspace --all-features --all-targets -- -D warnings
+      - run: cargo clippy -p yttrium --all-targets -- -D warnings # `-p yttrium` to avoid feature unification; kotlin-ffi enables uniffi feature and we want to test without that
+      - run: rm -rf target/
+      - run: cargo build --jobs=1 --workspace --all-features --all-targets
+      - run: cargo build -p yttrium --features=wasm --lib --target wasm32-unknown-unknown
+      - run: cargo install cargo-udeps --locked
+      - run: just _rust_ci
+
+  rust_RUST_MSRV_test:
+    name: Rust MSRV - test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -34,19 +57,43 @@ jobs:
         timeout-minutes: 5
       - run: while ! curl localhost:3000/ping; do sleep 1; done
         timeout-minutes: 5
-      - run: cargo clippy --workspace --all-features --all-targets -- -D warnings
-      - run: cargo clippy -p yttrium --all-targets -- -D warnings # `-p yttrium` to avoid feature unification; kotlin-ffi enables uniffi feature and we want to test without that
       - run: RUST_BACKTRACE=1 RUST_LOG=yttrium=trace cargo test --features=full,test_depends_on_env_REOWN_PROJECT_ID --lib --bins
         env:
           REOWN_PROJECT_ID: ${{ vars.REOWN_PROJECT_ID }}
-      - run: rm -rf target/
+      - run: docker logs forked_state-anvil-1
+        working-directory: test/scripts/forked_state
+        if: failure()
+      - run: docker logs forked_state-alto-1
+        working-directory: test/scripts/forked_state
+        if: failure()
+      - run: docker logs forked_state-mock-paymaster-1
+        working-directory: test/scripts/forked_state
+        if: failure()
+
+  rust_stable:
+    name: Rust stable - build & lint
+    runs-on: [self-hosted, aws-ecs-16cpu-64mem-30disk-40m]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain=none
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+      - run: rustup install stable -c clippy -t wasm32-unknown-unknown && rustup default stable
+      - run: rustup toolchain install nightly -c rustfmt
+      # == below is a duplicate of the pinned job above. Keep them in-sync. ==
+      - uses: Swatinem/rust-cache@v2
+      - uses: extractions/setup-just@v2
+      - run: cargo clippy --workspace --all-features --all-targets -- -D warnings
+      - run: cargo clippy -p yttrium --all-targets -- -D warnings # `-p yttrium` to avoid feature unification; kotlin-ffi enables uniffi feature and we want to test without that
       - run: cargo build --jobs=1 --workspace --all-features --all-targets
       - run: cargo build -p yttrium --features=wasm --lib --target wasm32-unknown-unknown
       - run: cargo install cargo-udeps --locked
       - run: just _rust_ci
 
-  rust_stable:
-    name: Rust project - stable
+  rust_stable_test:
+    name: Rust stable - test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -66,16 +113,9 @@ jobs:
         timeout-minutes: 5
       - run: while ! curl localhost:3000/ping; do sleep 1; done
         timeout-minutes: 5
-      - run: cargo clippy --workspace --all-features --all-targets -- -D warnings
-      - run: cargo clippy -p yttrium --all-targets -- -D warnings # `-p yttrium` to avoid feature unification; kotlin-ffi enables uniffi feature and we want to test without that
       - run: RUST_BACKTRACE=1 RUST_LOG=yttrium=trace cargo test --features=full,test_depends_on_env_REOWN_PROJECT_ID --lib --bins
         env:
           REOWN_PROJECT_ID: ${{ vars.REOWN_PROJECT_ID }}
-      - run: rm -rf target/
-      - run: cargo build --jobs=1 --workspace --all-features --all-targets
-      - run: cargo build -p yttrium --features=wasm --lib --target wasm32-unknown-unknown
-      - run: cargo install cargo-udeps --locked
-      - run: just _rust_ci
       - run: docker logs forked_state-anvil-1
         working-directory: test/scripts/forked_state
         if: failure()
@@ -100,6 +140,7 @@ jobs:
       - name: Run sccache-cache
         uses: mozilla-actions/sccache-action@v0.0.4
       - run: rustup update ${{ env.RUST_MSRV }} && rustup default ${{ env.RUST_MSRV }}
+      - uses: Swatinem/rust-cache@v2
       - name: Select Xcode 15.4
         run: sudo xcode-select -s /Applications/Xcode_15.4.app
 
@@ -114,8 +155,9 @@ jobs:
       - name: Build ${{ matrix.config }}
         run: make CONFIG=${{ matrix.config }} build-swift-apple-platforms
 
+
   build-kotlin:
-    runs-on: [self-hosted, aws-ecs-4cpu-8mem-20disk-30m]
+    runs-on: [self-hosted, aws-ecs-8cpu-32mem-40disk-30m]
 
     steps:
       - uses: actions/checkout@v3
@@ -141,7 +183,13 @@ jobs:
           override: true
           components: rust-src
 
-      - name: Set up Java
+      - name: Set up Java 11
+        uses: actions/setup-java@v3
+        with:
+          distribution: "temurin"
+          java-version: "11"
+
+      - name: Set up Java 17
         uses: actions/setup-java@v3
         with:
           distribution: "temurin"
