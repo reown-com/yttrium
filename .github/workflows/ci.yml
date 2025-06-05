@@ -120,6 +120,12 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
+      - name: Install Android NDK
+        id: setup-ndk
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r27c
+
       - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
@@ -156,6 +162,8 @@ jobs:
       - name: Build Rust library
         run: |
           ./generate_kotlin_locally.sh
+        env:
+          ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
 
   merge_check:
     name: Merge Check
