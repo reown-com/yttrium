@@ -449,10 +449,6 @@ uniffi::custom_type!(Balance, BalanceFfi, {
 mod tests {
     use {
         super::*,
-        crate::{
-            chain_abstraction::pulse::get_pulse_metadata,
-            provider_pool::network::sui::{DEVNET, MAINNET, TESTNET},
-        },
         data_encoding::BASE64,
         sui_sdk::types::{
             crypto::{SignatureScheme, SuiSignature},
@@ -517,61 +513,74 @@ mod tests {
         );
     }
 
-    #[tokio::test]
     #[cfg(feature = "test_depends_on_env_REOWN_PROJECT_ID")]
-    async fn test_sui_get_balance_random_address() {
-        let zero_address = SuiAddress::random_for_testing_only();
-        let client = SuiClient::new(
-            std::env::var("REOWN_PROJECT_ID").unwrap().into(),
-            get_pulse_metadata(),
-        );
-        let balances = client
-            .get_all_balances("sui:mainnet".to_owned(), zero_address)
-            .await
-            .unwrap();
-        assert!(balances.is_empty());
-    }
+    mod project_id {
+        use {
+            super::*,
+            crate::{
+                chain_abstraction::pulse::get_pulse_metadata,
+                provider_pool::network::sui::{DEVNET, MAINNET, TESTNET},
+            },
+        };
 
-    #[tokio::test]
-    #[cfg(feature = "test_depends_on_env_REOWN_PROJECT_ID")]
-    async fn test_sui_get_balance_devnet() {
-        let keypair = sui_generate_keypair();
-        let address = sui_get_address(&keypair.public());
-        let client = SuiClient::new(
-            std::env::var("REOWN_PROJECT_ID").unwrap().into(),
-            get_pulse_metadata(),
-        );
-        let balances =
-            client.get_all_balances(DEVNET.to_owned(), address).await.unwrap();
-        assert!(balances.is_empty());
-    }
+        #[tokio::test]
+        async fn test_sui_get_balance_random_address() {
+            let zero_address = SuiAddress::random_for_testing_only();
+            let client = SuiClient::new(
+                std::env::var("REOWN_PROJECT_ID").unwrap().into(),
+                get_pulse_metadata(),
+            );
+            let balances = client
+                .get_all_balances("sui:mainnet".to_owned(), zero_address)
+                .await
+                .unwrap();
+            assert!(balances.is_empty());
+        }
 
-    #[tokio::test]
-    #[cfg(feature = "test_depends_on_env_REOWN_PROJECT_ID")]
-    async fn test_sui_get_balance_testnet() {
-        let keypair = sui_generate_keypair();
-        let address = sui_get_address(&keypair.public());
-        let client = SuiClient::new(
-            std::env::var("REOWN_PROJECT_ID").unwrap().into(),
-            get_pulse_metadata(),
-        );
-        let balances =
-            client.get_all_balances(TESTNET.to_owned(), address).await.unwrap();
-        assert!(balances.is_empty());
-    }
+        #[tokio::test]
+        async fn test_sui_get_balance_devnet() {
+            let keypair = sui_generate_keypair();
+            let address = sui_get_address(&keypair.public());
+            let client = SuiClient::new(
+                std::env::var("REOWN_PROJECT_ID").unwrap().into(),
+                get_pulse_metadata(),
+            );
+            let balances = client
+                .get_all_balances(DEVNET.to_owned(), address)
+                .await
+                .unwrap();
+            assert!(balances.is_empty());
+        }
 
-    #[tokio::test]
-    #[cfg(feature = "test_depends_on_env_REOWN_PROJECT_ID")]
-    async fn test_sui_get_balance_mainnet() {
-        let keypair = sui_generate_keypair();
-        let address = sui_get_address(&keypair.public());
-        let client = SuiClient::new(
-            std::env::var("REOWN_PROJECT_ID").unwrap().into(),
-            get_pulse_metadata(),
-        );
-        let balances =
-            client.get_all_balances(MAINNET.to_owned(), address).await.unwrap();
-        assert!(balances.is_empty());
+        #[tokio::test]
+        async fn test_sui_get_balance_testnet() {
+            let keypair = sui_generate_keypair();
+            let address = sui_get_address(&keypair.public());
+            let client = SuiClient::new(
+                std::env::var("REOWN_PROJECT_ID").unwrap().into(),
+                get_pulse_metadata(),
+            );
+            let balances = client
+                .get_all_balances(TESTNET.to_owned(), address)
+                .await
+                .unwrap();
+            assert!(balances.is_empty());
+        }
+
+        #[tokio::test]
+        async fn test_sui_get_balance_mainnet() {
+            let keypair = sui_generate_keypair();
+            let address = sui_get_address(&keypair.public());
+            let client = SuiClient::new(
+                std::env::var("REOWN_PROJECT_ID").unwrap().into(),
+                get_pulse_metadata(),
+            );
+            let balances = client
+                .get_all_balances(MAINNET.to_owned(), address)
+                .await
+                .unwrap();
+            assert!(balances.is_empty());
+        }
     }
 
     #[test]
