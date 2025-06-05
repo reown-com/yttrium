@@ -3,6 +3,7 @@ use {
         blockchain_api::BLOCKCHAIN_API_URL_PROD,
         chain_abstraction::pulse::PulseMetadata, provider_pool::ProviderPool,
     },
+    bip39::{Language, Mnemonic, Seed},
     data_encoding::BASE64,
     fastcrypto::{
         ed25519::Ed25519KeyPair,
@@ -15,12 +16,13 @@ use {
     relay_rpc::domain::ProjectId,
     reqwest::Client as ReqwestClient,
     serde::{Deserialize, Serialize},
+    sui_keys::key_derive::derive_key_pair_from_path,
     sui_sdk::{
         error::Error as SuiSdkError,
         rpc_types::{Balance, SuiTransactionBlockResponseOptions},
         types::{
             base_types::SuiAddress,
-            crypto::{PublicKey, Signature, SuiKeyPair},
+            crypto::{PublicKey, Signature, SignatureScheme, SuiKeyPair},
             digests::TransactionDigest,
             transaction::{
                 CallArg, Command, ObjectArg, ProgrammableTransaction,
@@ -80,6 +82,35 @@ uniffi::custom_type!(TransactionDigest, String, {
     try_lift: |val| val.parse::<TransactionDigest>().map_err(|e| anyhow::anyhow!(e)),
     lower: |obj| obj.to_string(),
 });
+
+#[derive(thiserror::Error, Debug, uniffi::Error)]
+pub enum DeriveKeypairFromMnemonicError {
+    #[error("Invalid mnemonic phrase: {0}")]
+    InvalidMnemonicPhrase(String),
+
+    #[error("Derive: {0}")]
+    Derive(String),
+}
+
+#[uniffi::export]
+pub fn sui_derive_keypair_from_mnemonic(
+    mnemonic: &str,
+) -> Result<SuiKeyPair, DeriveKeypairFromMnemonicError> {
+    // Copied from sui-keys::keystore::Keystore::import_from_mnemonic
+    let mnemonic =
+        Mnemonic::from_phrase(mnemonic, Language::English).map_err(|e| {
+            DeriveKeypairFromMnemonicError::InvalidMnemonicPhrase(e.to_string())
+        })?;
+    let seed = Seed::new(&mnemonic, "");
+    let (_address, kp) = derive_key_pair_from_path(
+        seed.as_bytes(),
+        None,
+        // TODO support other key types
+        &SignatureScheme::ED25519,
+    )
+    .map_err(|e| DeriveKeypairFromMnemonicError::Derive(e.to_string()))?;
+    Ok(kp)
+}
 
 // TODO support other key types
 #[uniffi::export]
@@ -726,5 +757,13 @@ mod tests {
         } else {
             println!("✅ Addresses match!");
         }
+    }
+
+    #[test]
+    fn test_sui_derive_keypair_from_mnemonic() {
+        let _keypair = sui_derive_keypair_from_mnemonic(
+            "test test test test test test test test test test test junk",
+        )
+        .unwrap();
     }
 }
