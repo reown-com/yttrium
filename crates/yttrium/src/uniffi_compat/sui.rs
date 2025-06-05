@@ -83,23 +83,33 @@ uniffi::custom_type!(TransactionDigest, String, {
     lower: |obj| obj.to_string(),
 });
 
+#[derive(thiserror::Error, Debug, uniffi::Error)]
+pub enum DeriveKeypairFromMnemonicError {
+    #[error("Invalid mnemonic phrase: {0}")]
+    InvalidMnemonicPhrase(String),
+
+    #[error("Derive: {0}")]
+    Derive(String),
+}
+
 #[uniffi::export]
 pub fn sui_derive_keypair_from_mnemonic(
     mnemonic: &str,
-) -> Result<SuiKeyPair, anyhow::Error> {
+) -> Result<SuiKeyPair, DeriveKeypairFromMnemonicError> {
     // Copied from sui-keys::keystore::Keystore::import_from_mnemonic
-    let mnemonic = Mnemonic::from_phrase(mnemonic, Language::English)
-        .map_err(|e| anyhow::anyhow!("Invalid mnemonic phrase: {:?}", e))?;
+    let mnemonic =
+        Mnemonic::from_phrase(mnemonic, Language::English).map_err(|e| {
+            DeriveKeypairFromMnemonicError::InvalidMnemonicPhrase(e.to_string())
+        })?;
     let seed = Seed::new(&mnemonic, "");
-    match derive_key_pair_from_path(
+    let (_address, kp) = derive_key_pair_from_path(
         seed.as_bytes(),
         None,
         // TODO support other key types
         &SignatureScheme::ED25519,
-    ) {
-        Ok((_address, kp)) => Ok(kp),
-        Err(e) => Err(anyhow::anyhow!("error getting keypair {:?}", e)),
-    }
+    )
+    .map_err(|e| DeriveKeypairFromMnemonicError::Derive(e.to_string()))?;
+    Ok(kp)
 }
 
 // TODO support other key types
