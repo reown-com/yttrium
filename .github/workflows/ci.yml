@@ -157,7 +157,7 @@ jobs:
 
 
   build-kotlin:
-    runs-on: [self-hosted, aws-ecs-4cpu-8mem-20disk-30m]
+    runs-on: [self-hosted, aws-ecs-8cpu-32mem-40disk-30m]
 
     steps:
       - uses: actions/checkout@v3
