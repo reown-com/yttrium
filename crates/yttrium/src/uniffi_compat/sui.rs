@@ -665,11 +665,6 @@ mod tests {
         assert!(verification.is_ok());
     }
 
-<<<<<<< HEAD
-=======
-
-    
->>>>>>> 17270f9 (update)
     #[test]
     fn test_user_scenario_exact_data() {
         // This test uses the exact keypair and transaction data provided by the user
