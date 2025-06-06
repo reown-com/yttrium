@@ -132,6 +132,12 @@ jobs:
             cp -r combined/aarch64/kotlin-bindings merged/yttrium/
           fi
 
+          # Copy rustls-platform-verifier maven repository if it exists in the aarch64 artifact
+          if [ -d combined/aarch64/rustls-platform-verifier-maven ]; then
+            cp -r combined/aarch64/rustls-platform-verifier-maven merged/yttrium/
+            echo "Included rustls-platform-verifier maven repository in final artifacts"
+          fi
+
       - name: Debug listing of merged folder
         run: |
             echo "Merged final content:"
@@ -186,3 +192,4 @@ jobs:
           asset_path: kotlin-artifacts.zip
           asset_name: kotlin-artifacts.zip
           asset_content_type: application/zip
+          

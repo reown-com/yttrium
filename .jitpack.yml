@@ -27,3 +27,6 @@ before_install:
     - mv binaries/yttrium/libs/armeabi-v7a/libuniffi_yttrium.so crates/kotlin-ffi/android/src/main/jniLibs/armeabi-v7a/ || echo "Failed to move armeabi-v7a.so"
     - mv binaries/yttrium/kotlin-bindings/uniffi/uniffi_yttrium/uniffi_yttrium.kt crates/kotlin-ffi/android/src/main/kotlin/com/reown/yttrium/ || echo "Failed to move uniffi_yttrium.kt"
     - mv binaries/yttrium/kotlin-bindings/uniffi/yttrium/yttrium.kt crates/kotlin-ffi/android/src/main/kotlin/com/reown/yttrium/ || echo "Failed to move yttrium.kt"
+    - echo "Setting up rustls-platform-verifier maven repository"
+    - mkdir -p crates/kotlin-ffi/android/src/main/rustls-platform-verifier-maven
+    - if [ -d "binaries/yttrium/rustls-platform-verifier-maven" ]; then cp -r binaries/yttrium/rustls-platform-verifier-maven/* crates/kotlin-ffi/android/src/main/rustls-platform-verifier-maven/ && echo "Copied rustls-platform-verifier maven repository"; else echo "rustls-platform-verifier maven repository not found in binaries"; fi
