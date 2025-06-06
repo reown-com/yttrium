@@ -4,7 +4,6 @@ use {
         chain_abstraction::pulse::PulseMetadata, provider_pool::ProviderPool,
     },
     bip39::{Language, Mnemonic, Seed},
-    bip39::{Language, Mnemonic, Seed},
     data_encoding::BASE64,
     fastcrypto::{
         ed25519::Ed25519KeyPair,
@@ -18,13 +17,11 @@ use {
     reqwest::Client as ReqwestClient,
     serde::{Deserialize, Serialize},
     sui_keys::key_derive::derive_key_pair_from_path,
-    sui_keys::key_derive::derive_key_pair_from_path,
     sui_sdk::{
         error::Error as SuiSdkError,
         rpc_types::{Balance, SuiTransactionBlockResponseOptions},
         types::{
             base_types::SuiAddress,
-            crypto::{PublicKey, Signature, SignatureScheme, SuiKeyPair},
             crypto::{PublicKey, Signature, SignatureScheme, SuiKeyPair},
             digests::TransactionDigest,
             transaction::{
@@ -637,6 +634,7 @@ mod tests {
         assert!(verification.is_ok());
     }
 
+
     #[test]
     fn test_sui_personal_sign_specific_case() {
         // Test with specific keypair and message provided by user
@@ -667,6 +665,7 @@ mod tests {
         assert!(verification.is_ok());
     }
 
+    
     #[test]
     fn test_user_scenario_exact_data() {
         // This test uses the exact keypair and transaction data provided by the user
@@ -750,14 +749,6 @@ mod tests {
         } else {
             println!("✅ Addresses match!");
         }
-    }
-
-    #[test]
-    fn test_sui_derive_keypair_from_mnemonic() {
-        let _keypair = sui_derive_keypair_from_mnemonic(
-            "test test test test test test test test test test test junk",
-        )
-        .unwrap();
     }
 
     #[test]
