@@ -50,7 +50,6 @@ jobs:
       - name: Generate Kotlin bindings (once, on aarch64 only)
         if: ${{ matrix.target == 'aarch64-linux-android' }}
         run: |
-<<<<<<< HEAD
           cargo run --features=android,uniffi/cli --bin uniffi-bindgen generate --library target/${{ matrix.target }}/uniffi-release-kotlin/libuniffi_yttrium.so --language kotlin --out-dir yttrium/kotlin-bindings
       - name: Strip binaries
         run: |
