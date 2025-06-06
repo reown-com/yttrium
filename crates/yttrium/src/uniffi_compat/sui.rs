@@ -634,7 +634,6 @@ mod tests {
         assert!(verification.is_ok());
     }
 
-
     #[test]
     fn test_sui_personal_sign_specific_case() {
         // Test with specific keypair and message provided by user
