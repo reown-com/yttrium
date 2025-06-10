@@ -33,10 +33,10 @@ jobs:
           java-version: "17"
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
-      - name: Install Android components
-        run: |
-          yes | sdkmanager --licenses
-          sdkmanager "platforms;android-35" "build-tools;35.0.0" "ndk;27.2.12479018"
+        with:
+          api-level: 35
+          build-tools: 35.0.0
+          ndk-version: 27.2.12479018
       - name: Build with Gradle
         run: |
           ./gradlew clean assembleRelease -Pversion=${{ env.VERSION }}
