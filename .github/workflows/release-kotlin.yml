@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        target: [aarch64-linux-android, armv7-linux-androideabi]
+        target: [aarch64-linux-android, armv7-linux-androideabi, x86_64-linux-android]
     steps:
       - uses: actions/checkout@v3
       - name: Install Rust toolchain
@@ -33,10 +33,10 @@ jobs:
           java-version: "17"
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
-        with:
-          api-level: 35
-          build-tools: 35.0.0
-          ndk-version: 27.2.12479018
+      - name: Install Android components
+        run: |
+          yes | sdkmanager --licenses
+          sdkmanager "platforms;android-35" "build-tools;35.0.0" "ndk;27.2.12479018"
       - name: Build with Gradle
         run: |
           ./gradlew clean assembleRelease -Pversion=${{ env.VERSION }}
@@ -64,6 +64,7 @@ jobs:
           declare -A abi_map
           abi_map[aarch64-linux-android]="arm64-v8a"
           abi_map[armv7-linux-androideabi]="armeabi-v7a"
+          abi_map[x86_64-linux-android]="x86_64"
 
           abi_name=${abi_map[${{ matrix.target }}]}
 
@@ -115,6 +116,17 @@ jobs:
               echo "Contents of combined/armv7:"
               ls -R combined/armv7
 
+      - name: Download x86_64 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: artifacts-x86_64-linux-android
+          path: combined/x86_64
+
+      - name: Debug listing of downloaded artifact x86_64
+        run: |
+              echo "Contents of combined/x86_64:"
+              ls -R combined/x86_64
+
       - name: Merge artifacts
         run: |
           # We'll create one combined folder that contains all ABIs. 
@@ -126,6 +138,9 @@ jobs:
 
           # Copy armv7's libs
           cp -r combined/armv7/libs/armeabi-v7a merged/yttrium/libs/
+          
+          # Copy x86_64's libs
+          cp -r combined/x86_64/libs/x86_64 merged/yttrium/libs/
           
           # Copy Kotlin bindings if it exists in the aarch64 artifact
           if [ -d combined/aarch64/kotlin-bindings ]; then
