@@ -4,12 +4,12 @@ on:
     inputs:
       version:
         description: "Version to release (e.g. 0.0.1-e2e)"
-        required: false
-        default: "e2e-latest"
+        required: true
 
 env:
   CARGO_TERM_COLOR: always
   VERSION: ${{ github.event.inputs.version || 'e2e-latest' }}
+  TARGET_BRANCH: ${{ github.ref_name }}
 
 permissions:
   contents: write
