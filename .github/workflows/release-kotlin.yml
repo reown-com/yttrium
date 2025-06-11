@@ -58,7 +58,7 @@ jobs:
 
       - name: Prepare local artifacts folder
         run: |
-         echo "kobe Matrix ${{ matrix.target }}"
+         echo "Matrix ${{ matrix.target }}"
 
           # Map Rust targets to Android ABI names
           declare -A abi_map
@@ -127,6 +127,7 @@ jobs:
           # Copy armv7's libs
           cp -r combined/armv7/libs/armeabi-v7a merged/yttrium/libs/
           
+          
           # Copy Kotlin bindings if it exists in the aarch64 artifact
           if [ -d combined/aarch64/kotlin-bindings ]; then
             cp -r combined/aarch64/kotlin-bindings merged/yttrium/
@@ -173,7 +174,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ env.VERSION }}
-          release_name: "Yttrium ${{ env.VERSION }}"
+          release_name: "Yttrium Kotlin ${{ env.VERSION }}"
           draft: false
           prerelease: false
 
