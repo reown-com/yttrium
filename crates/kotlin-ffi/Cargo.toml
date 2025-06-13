@@ -14,6 +14,9 @@ chain_abstraction_client = ["yttrium/chain_abstraction_client"]
 solana = ["yttrium/solana"]
 sui = ["yttrium/sui"]
 
+android = ["yttrium/android"]
+ios = ["yttrium/ios"]
+
 [build-dependencies]
 uniffi_build.workspace = true
 
