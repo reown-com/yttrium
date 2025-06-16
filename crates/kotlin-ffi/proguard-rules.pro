@@ -8,3 +8,6 @@
 
 # Preserve all Rust FFI bindings
 -keep class com.reown.yttrium.** { *; }
+
+# Preserve all org.rustls.platformverifier classes
+-keep, includedescriptorclasses class org.rustls.platformverifier.** { *; }

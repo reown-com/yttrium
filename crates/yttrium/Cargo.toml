@@ -13,7 +13,9 @@ default = ["eip155", "erc6492_client", "chain_abstraction_client"]
 full = ["all_platforms", "all_clients", "all_namespaces"]
 
 # Features enabling FFI bindings for different platforms
-all_platforms = ["uniffi", "wasm"]
+all_platforms = ["android", "ios", "wasm"]
+ios = ["uniffi"]
+android = ["uniffi", "dep:rustls-platform-verifier", "dep:jni"]
 uniffi = ["dep:uniffi", "dep:uniffi_macros", "reqwest/default-tls"]
 wasm = [
     "dep:wasm-bindgen",
@@ -46,6 +48,7 @@ sui = [
     "dep:fastcrypto",
     "dep:rand",
     "dep:bcs",
+    "dep:tiny-bip39",
 ]
 stacks = [
     "dep:stacks-rs",
@@ -66,6 +69,11 @@ chain_abstraction_client = []
 transaction_sponsorship_client = []
 
 # Features enabling test coverage
+test_full = [
+    "test_pimlico_api",
+    "test_blockchain_api",
+    "test_depends_on_env_REOWN_PROJECT_ID",
+]
 test_pimlico_api = []
 test_blockchain_api = []
 test_depends_on_env_REOWN_PROJECT_ID = []
@@ -134,6 +142,10 @@ tracing = { version = "0.1.40", default-features = false, features = [
 reqwest.workspace = true
 url = { workspace = true, features = ["serde"] }
 
+# TLS platform verifier for Android
+rustls-platform-verifier = { version = "0.5", optional = true }
+jni = { version = "0.21", optional = true }
+
 # Tiny dependency, could copy source. Pinning to exact version to avoid supply-chain attacks.
 derive_jserror = { version = "=0.1.0", optional = true, default-features = false }
 
@@ -158,6 +170,7 @@ sui_shared_crypto = { workspace = true, optional = true }
 fastcrypto = { workspace = true, optional = true }
 rand = { workspace = true, optional = true }
 bcs = { workspace = true, optional = true }
+tiny-bip39 = { workspace = true, optional = true }
 
 # Stacks
 stacks-rs = { workspace = true, optional = true, features = ["crypto", "wallet-sdk", "transaction", "clarity"] }

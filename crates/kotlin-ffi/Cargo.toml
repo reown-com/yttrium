@@ -15,6 +15,9 @@ solana = ["yttrium/solana"]
 sui = ["yttrium/sui"]
 stacks = ["yttrium/stacks"]
 
+android = ["yttrium/android"]
+ios = ["yttrium/ios"]
+
 [build-dependencies]
 uniffi_build.workspace = true
 
