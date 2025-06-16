@@ -16,17 +16,15 @@ env:
 jobs:
   rust_RUST_MSRV:
     name: Rust project - Rust MSRV
-    runs-on: [self-hosted, aws-ecs-16cpu-64mem-30disk-30m]
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
-      - run: |
-          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain=none
-          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
-      - run: rustup install ${{ env.RUST_MSRV }} -c clippy -t wasm32-unknown-unknown && rustup default ${{ env.RUST_MSRV }}
-      - run: rustup toolchain install nightly -c rustfmt
+      - run: rustup install ${{ env.RUST_MSRV }} -c clippy && rustup default ${{ env.RUST_MSRV }}
       - uses: Swatinem/rust-cache@v2
+      - run: rustup toolchain install nightly -c rustfmt
+      - run: rustup target add wasm32-unknown-unknown
       - uses: extractions/setup-just@v2
       - run: docker compose up -d
         working-directory: test/scripts/forked_state
@@ -49,18 +47,16 @@ jobs:
 
   rust_stable:
     name: Rust project - stable
-    runs-on: [self-hosted, aws-ecs-16cpu-64mem-30disk-30m]
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
-      - run: |
-          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain=none
-          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
-      - run: rustup install stable -c clippy -t wasm32-unknown-unknown && rustup default stable
-      - run: rustup toolchain install nightly -c rustfmt
+      - run: rustup update stable && rustup default stable
       # == below is a duplicate of the pinned job above. Keep them in-sync. ==
       - uses: Swatinem/rust-cache@v2
+      - run: rustup toolchain install nightly -c rustfmt
+      - run: rustup target add wasm32-unknown-unknown
       - uses: extractions/setup-just@v2
       - run: docker compose up -d
         working-directory: test/scripts/forked_state
