@@ -5,6 +5,7 @@ use {
         provider_pool::{network, ProviderPool},
     },
     alloy::primitives::Bytes,
+    clarity::Error as ClarityError,
     rand::{
         rngs::{OsRng, StdRng},
         SeedableRng,
@@ -14,14 +15,35 @@ use {
     stacks_rs::{
         clarity,
         crypto::c32::Version,
-        transaction::{STXTokenTransfer, StacksMainnet, StacksTestnet},
-        wallet::StacksWallet,
+        transaction::{
+            Error as StacksTransactionError, STXTokenTransfer, StacksMainnet,
+            StacksTestnet,
+        },
+        wallet::{Error as StacksWalletError, StacksWallet},
     },
     stacks_secp256k1::{
         ecdsa::Signature as StacksSignature, hashes::sha256, Message, Secp256k1,
     },
     url::Url,
 };
+
+uniffi::custom_type!(StacksWalletError, String, {
+    remote,
+    try_lift: |_val| unimplemented!("Does not support lifting StacksWalletError"),
+    lower: |obj| obj.to_string(),
+});
+
+uniffi::custom_type!(StacksTransactionError, String, {
+    remote,
+    try_lift: |_val| unimplemented!("Does not support lifting StacksTransactionError"),
+    lower: |obj| obj.to_string(),
+});
+
+uniffi::custom_type!(ClarityError, String, {
+    remote,
+    try_lift: |_val| unimplemented!("Does not support lifting ClarityError"),
+    lower: |obj| obj.to_string(),
+});
 
 uniffi::custom_type!(StacksSignature, String, {
     remote,
@@ -40,23 +62,52 @@ fn stacks_generate_wallet() -> String {
     // Return the mnemonic instead of StacksWallet because we can't UniFFI lower a StacksWallet (i.e. can't get the mnemonic from it)
 }
 
+#[derive(thiserror::Error, Debug, uniffi::Error)]
+pub enum StacksGetAddressError {
+    #[error("Invalid secret key: {0}")]
+    InvalidSecretKey(StacksWalletError),
+
+    #[error("Failed to get account: {0}")]
+    GetAccount(StacksWalletError),
+
+    #[error("Failed to get address: {0}")]
+    GetAddress(StacksWalletError),
+
+    #[error("Invalid version: {0}")]
+    InvalidVersion(String),
+}
+
 #[uniffi::export]
 fn stacks_get_address(
     wallet: &str,
     version: &str,
-) -> Result<String, eyre::Report> {
-    let mut wallet = StacksWallet::from_secret_key(wallet)?;
+) -> Result<String, StacksGetAddressError> {
+    let mut wallet = StacksWallet::from_secret_key(wallet)
+        .map_err(StacksGetAddressError::InvalidSecretKey)?;
     wallet
         .get_account(0)
-        .unwrap()
+        .map_err(StacksGetAddressError::GetAccount)?
         .get_address(match version {
             "mainnet-p2pkh" => Version::MainnetP2PKH,
             "mainnet-p2sh" => Version::MainnetP2SH,
             "testnet-p2pkh" => Version::TestnetP2PKH,
             "testnet-p2sh" => Version::TestnetP2SH,
-            _ => return Err(eyre::eyre!("Invalid version")),
+            _ => {
+                return Err(StacksGetAddressError::InvalidVersion(
+                    version.to_string(),
+                ))
+            }
         })
-        .map_err(Into::into)
+        .map_err(StacksGetAddressError::GetAddress)
+}
+
+#[derive(thiserror::Error, Debug, uniffi::Error)]
+pub enum StacksSignMessageError {
+    #[error("Invalid secret key: {0}")]
+    InvalidSecretKey(StacksWalletError),
+
+    #[error("Failed to get private key: {0}")]
+    UnwrapPrivateKey(StacksWalletError),
 }
 
 #[uniffi::export]
@@ -64,21 +115,49 @@ fn stacks_sign_message(
     wallet: &str,
     // A UTF-8 encoded string. NOT hex encoded, etc.
     message: &str,
-) -> Result<StacksSignature, eyre::Report> {
-    let wallet = StacksWallet::from_secret_key(wallet)?;
+) -> Result<StacksSignature, StacksSignMessageError> {
+    let wallet = StacksWallet::from_secret_key(wallet)
+        .map_err(StacksSignMessageError::InvalidSecretKey)?;
+    let sk = wallet
+        .private_key()
+        .map_err(StacksSignMessageError::UnwrapPrivateKey)?;
     let signature = Secp256k1::new().sign_ecdsa(
         &Message::from_hashed_data::<sha256::Hash>(message.as_bytes()),
-        &wallet.private_key().unwrap(),
+        &sk,
     );
     Ok(signature)
+}
+
+#[derive(thiserror::Error, Debug, uniffi::Error)]
+pub enum StacksSignTransactionError {
+    #[error("Invalid secret key: {0}")]
+    InvalidSecretKey(StacksWalletError),
+
+    #[error("Failed to get private key: {0}")]
+    UnwrapPrivateKey(StacksWalletError),
+
+    #[error("Invalid network: {0}")]
+    InvalidNetwork(String),
+
+    #[error("Failed to sign transaction: {0}")]
+    SignTransaction(StacksTransactionError),
+
+    #[error("Failed to hash transaction: {0}")]
+    Hash(StacksTransactionError),
+
+    #[error("Failed to encode transaction: {0}")]
+    Encode(ClarityError),
 }
 
 fn sign_transaction(
     wallet: &str,
     network: &str,
     request: TransferStxRequest,
-) -> Result<(TransferStxResponse, Bytes), eyre::Report> {
-    let sender_key = StacksWallet::from_secret_key(wallet)?.private_key()?;
+) -> Result<(TransferStxResponse, Bytes), StacksSignTransactionError> {
+    let sender_key = StacksWallet::from_secret_key(wallet)
+        .map_err(StacksSignTransactionError::InvalidSecretKey)?
+        .private_key()
+        .map_err(StacksSignTransactionError::UnwrapPrivateKey)?;
     // https://github.com/52/stacks.rs/blob/c6455fe5eeae04b2f0e3a88fe6e6c803949a8417/README.md?plain=1#L24
     let transfer = match network {
         network::stacks::MAINNET => STXTokenTransfer::builder()
@@ -97,15 +176,23 @@ fn sign_transaction(
             .network(StacksTestnet::new())
             .build()
             .transaction(),
-        _ => return Err(eyre::eyre!("Invalid network")),
+        _ => {
+            return Err(StacksSignTransactionError::InvalidNetwork(
+                network.to_string(),
+            ))
+        }
     };
 
     // Scope `signed_transaction` so that it isn't held across the await boundary
     // This is needed because `Transaction` is not `Send`
-    let signed_transaction = transfer.sign(sender_key)?;
+    let signed_transaction = transfer
+        .sign(sender_key)
+        .map_err(StacksSignTransactionError::SignTransaction)?;
 
-    let txid = signed_transaction.hash()?;
-    let tx_encoded = clarity::Codec::encode(&signed_transaction)?;
+    let txid =
+        signed_transaction.hash().map_err(StacksSignTransactionError::Hash)?;
+    let tx_encoded = clarity::Codec::encode(&signed_transaction)
+        .map_err(StacksSignTransactionError::Encode)?;
 
     Ok((
         TransferStxResponse {
@@ -126,6 +213,15 @@ pub struct StacksClient {
     project_id: ProjectId,
     #[allow(unused)]
     pulse_metadata: PulseMetadata,
+}
+
+#[derive(thiserror::Error, Debug, uniffi::Error)]
+pub enum StacksTransferStxError {
+    #[error("Failed to sign transaction: {0}")]
+    SignTransaction(StacksSignTransactionError),
+
+    #[error("Failed to broadcast transaction: {0}")]
+    BroadcastTransaction(String),
 }
 
 #[uniffi::export(async_runtime = "tokio")]
@@ -170,16 +266,19 @@ impl StacksClient {
         wallet: &str,
         network: &str,
         request: TransferStxRequest,
-    ) -> Result<TransferStxResponse, eyre::Report> {
-        let (response, tx_encoded) =
-            sign_transaction(wallet, network, request)?;
+    ) -> Result<TransferStxResponse, StacksTransferStxError> {
+        let (response, tx_encoded) = sign_transaction(wallet, network, request)
+            .map_err(StacksTransferStxError::SignTransaction)?;
 
         let broadcast_tx_response = self
             .provider_pool
             .get_stacks_client(None, None)
             .await
             .stacks_transactions(tx_encoded)
-            .await?;
+            .await
+            .map_err(|e| {
+                StacksTransferStxError::BroadcastTransaction(e.to_string())
+            })?;
         println!("broadcast tx response: {:?}", broadcast_tx_response);
 
         Ok(response)
