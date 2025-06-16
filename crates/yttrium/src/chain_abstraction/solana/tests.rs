@@ -133,27 +133,6 @@ async fn solana_happy_path() {
         .balance;
     let needs_usdc = account_sol_usdc_balance_ui_amount < 2.0;
     if needs_usdc {
-        // Check if sender has enough USDC
-        if faucet_usdc_balance < send_amount * U256::from(2) {
-            let unit = Unit::new(
-                usdc_erc20_faucet.decimals().call().await.unwrap()._0,
-            )
-            .unwrap();
-            let want_amount = ParseUnits::from(send_amount).format_units(unit);
-            let result = reqwest::Client::new().post("https://faucetbot.dev/api/faucet-request")
-                .json(&serde_json::json!({
-                    "key": std::env::var("FAUCET_REQUEST_API_KEY").unwrap(),
-                    "text": format!("Yttrium tests running low on USDC. Please send {want_amount} USDC to {} on {}. [request]", faucet.address(), chain_eth.caip2()),
-                }))
-                .send()
-                .await
-                .unwrap()
-                .text()
-                .await
-                .unwrap();
-            println!("requested funds from faucetbot: {result}");
-        }
-
         let quote = reqwest::Client::new()
             .get("https://li.quest/v1/quote/toAmount")
             .query(&json!({
@@ -199,6 +178,27 @@ async fn solana_happy_path() {
         assert_eq!(to_token["chainId"].as_u64().unwrap(), 1151111081099710);
         assert_eq!(to_token["symbol"].as_str().unwrap(), "USDC");
         assert_eq!(to_token["decimals"].as_u64().unwrap(), 6);
+
+        // Check if sender has enough USDC
+        if faucet_usdc_balance < U256::from(from_amount) * U256::from(2) {
+            let unit = Unit::new(
+                usdc_erc20_faucet.decimals().call().await.unwrap()._0,
+            )
+            .unwrap();
+            let want_amount = ParseUnits::from(from_amount).format_units(unit);
+            let result = reqwest::Client::new().post("https://faucetbot.dev/api/faucet-request")
+                .json(&serde_json::json!({
+                    "key": std::env::var("FAUCET_REQUEST_API_KEY").unwrap(),
+                    "text": format!("Yttrium tests running low on USDC. Please send {want_amount} USDC to {} on {}. [request]", faucet.address(), chain_eth.caip2()),
+                }))
+                .send()
+                .await
+                .unwrap()
+                .text()
+                .await
+                .unwrap();
+            println!("requested funds from faucetbot: {result}");
+        }
 
         if U256::from(from_amount) > faucet_usdc_balance {
             panic!("Faucet doesn't have enough USDC. Please send at least {} USDC to {}", from_amount, faucet.address());
@@ -361,6 +361,27 @@ async fn solana_happy_path() {
         println!("funding from faucet: {}", faucet_solana.pubkey());
 
         let faucet_amount = min_balance;
+
+        // Check if sender has enough USDC
+        #[allow(clippy::zero_prefixed_literal)]
+        if faucet_sol_sol_balance < (faucet_amount + 0_001_000_000) * 2 {
+            let unit = Unit::new(9).unwrap();
+            let want_amount =
+                ParseUnits::from(faucet_amount).format_units(unit);
+            let result = reqwest::Client::new().post("https://faucetbot.dev/api/faucet-request")
+        .json(&serde_json::json!({
+            "key": std::env::var("FAUCET_REQUEST_API_KEY").unwrap(),
+            "text": format!("Yttrium tests running low on SOL. Please send {want_amount} SOL to {} on {}. [request]", faucet_solana.pubkey(), chain_solana.caip2()),
+        }))
+        .send()
+        .await
+        .unwrap()
+        .text()
+        .await
+        .unwrap();
+            println!("requested funds from faucetbot: {result}");
+        }
+
         #[allow(clippy::zero_prefixed_literal)]
         if faucet_sol_sol_balance - faucet_amount < 0_001_000_000 {
             // 0.001 SOL = ~$0.15
