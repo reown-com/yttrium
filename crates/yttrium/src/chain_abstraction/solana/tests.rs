@@ -361,6 +361,27 @@ async fn solana_happy_path() {
         println!("funding from faucet: {}", faucet_solana.pubkey());
 
         let faucet_amount = min_balance;
+
+        // Check if sender has enough USDC
+        #[allow(clippy::zero_prefixed_literal)]
+        if faucet_sol_sol_balance < (faucet_amount + 0_001_000_000) * 2 {
+            let unit = Unit::new(9).unwrap();
+            let want_amount =
+                ParseUnits::from(faucet_amount).format_units(unit);
+            let result = reqwest::Client::new().post("https://faucetbot.dev/api/faucet-request")
+        .json(&serde_json::json!({
+            "key": std::env::var("FAUCET_REQUEST_API_KEY").unwrap(),
+            "text": format!("Yttrium tests running low on SOL. Please send {want_amount} SOL to {} on {}. [request]", faucet_solana.pubkey(), chain_solana.caip2()),
+        }))
+        .send()
+        .await
+        .unwrap()
+        .text()
+        .await
+        .unwrap();
+            println!("requested funds from faucetbot: {result}");
+        }
+
         #[allow(clippy::zero_prefixed_literal)]
         if faucet_sol_sol_balance - faucet_amount < 0_001_000_000 {
             // 0.001 SOL = ~$0.15
