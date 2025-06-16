@@ -13,8 +13,10 @@ default = ["eip155", "erc6492_client", "chain_abstraction_client"]
 full = ["all_platforms", "all_clients", "all_namespaces"]
 
 # Features enabling FFI bindings for different platforms
-all_platforms = ["uniffi", "wasm"]
-uniffi = ["dep:uniffi", "dep:uniffi_macros", "reqwest/default-tls", "android-tls"]
+all_platforms = ["android", "ios", "wasm"]
+ios = ["uniffi"]
+android = ["uniffi", "dep:rustls-platform-verifier", "dep:jni"]
+uniffi = ["dep:uniffi", "dep:uniffi_macros", "reqwest/default-tls"]
 wasm = [
     "dep:wasm-bindgen",
     "dep:wasm-bindgen-futures",
@@ -46,10 +48,8 @@ sui = [
     "dep:fastcrypto",
     "dep:rand",
     "dep:bcs",
+    "dep:tiny-bip39",
 ]
-
-# Android TLS support
-android-tls = ["dep:rustls-platform-verifier", "dep:jni"]
 
 # Features contributing to bundle size, that you might not need
 all_clients = [
@@ -64,6 +64,11 @@ chain_abstraction_client = []
 transaction_sponsorship_client = []
 
 # Features enabling test coverage
+test_full = [
+    "test_pimlico_api",
+    "test_blockchain_api",
+    "test_depends_on_env_REOWN_PROJECT_ID",
+]
 test_pimlico_api = []
 test_blockchain_api = []
 test_depends_on_env_REOWN_PROJECT_ID = []
@@ -160,6 +165,7 @@ sui_shared_crypto = { workspace = true, optional = true }
 fastcrypto = { workspace = true, optional = true }
 rand = { workspace = true, optional = true }
 bcs = { workspace = true, optional = true }
+tiny-bip39 = { workspace = true, optional = true }
 
 [dev-dependencies]
 # mocking
