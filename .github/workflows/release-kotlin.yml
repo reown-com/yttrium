@@ -57,30 +57,38 @@ jobs:
           # Get the rustls-platform-verifier maven repository for JitPack builds
           echo "Extracting rustls-platform-verifier maven repository..."
           
+          # First ensure rustls-platform-verifier is built
+          echo "Building rustls-platform-verifier..."
+          cargo build --target ${{ matrix.target }} --features android-tls --manifest-path crates/yttrium/Cargo.toml
+          
           # Use cargo metadata to find the rustls-platform-verifier-android package
-          METADATA=$(cargo metadata --format-version 1 --filter-platform aarch64-linux-android --manifest-path crates/yttrium/Cargo.toml --features android-tls)
+          echo "Running cargo metadata..."
+          METADATA=$(cargo metadata --format-version 1 --filter-platform ${{ matrix.target }} --manifest-path crates/yttrium/Cargo.toml --features android-tls)
+          
+          echo "Parsing metadata with jq..."
           VERIFIER_MANIFEST=$(echo "$METADATA" | jq -r '.packages[] | select(.name == "rustls-platform-verifier-android") | .manifest_path')
           
-          if [ "$VERIFIER_MANIFEST" != "null" ] && [ -n "$VERIFIER_MANIFEST" ]; then
-            VERIFIER_DIR=$(dirname "$VERIFIER_MANIFEST")
-            MAVEN_PATH="$VERIFIER_DIR/maven"
-            
-            if [ -d "$MAVEN_PATH" ]; then
-              echo "Found rustls-platform-verifier maven directory at: $MAVEN_PATH"
-              mkdir -p yttrium/rustls-platform-verifier-maven
-              cp -r "$MAVEN_PATH"/* yttrium/rustls-platform-verifier-maven/
-              echo "Copied maven repository to yttrium/rustls-platform-verifier-maven/"
-              ls -la yttrium/rustls-platform-verifier-maven/
-            else
-              echo "Warning: rustls-platform-verifier maven directory not found at: $MAVEN_PATH"
-              # Create empty directory to prevent later steps from failing
-              mkdir -p yttrium/rustls-platform-verifier-maven
-            fi
-          else
-            echo "Warning: rustls-platform-verifier-android package not found in cargo metadata"
-            # Create empty directory to prevent later steps from failing
-            mkdir -p yttrium/rustls-platform-verifier-maven
+          if [ -z "$VERIFIER_MANIFEST" ] || [ "$VERIFIER_MANIFEST" = "null" ]; then
+            echo "Error: rustls-platform-verifier-android package not found in cargo metadata"
+            echo "Metadata output:"
+            echo "$METADATA" | jq '.'
+            exit 1
           fi
+          
+          echo "Found verifier manifest at: $VERIFIER_MANIFEST"
+          VERIFIER_DIR=$(dirname "$VERIFIER_MANIFEST")
+          MAVEN_PATH="$VERIFIER_DIR/maven"
+          
+          if [ ! -d "$MAVEN_PATH" ]; then
+            echo "Error: rustls-platform-verifier maven directory not found at: $MAVEN_PATH"
+            exit 1
+          fi
+          
+          echo "Found rustls-platform-verifier maven directory at: $MAVEN_PATH"
+          mkdir -p yttrium/rustls-platform-verifier-maven
+          cp -r "$MAVEN_PATH"/* yttrium/rustls-platform-verifier-maven/
+          echo "Copied maven repository to yttrium/rustls-platform-verifier-maven/"
+          ls -la yttrium/rustls-platform-verifier-maven/
       - name: Strip binaries
         run: |
             NDK_PATH=$ANDROID_HOME/ndk/27.2.12479018
