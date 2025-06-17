@@ -24,13 +24,13 @@ String findRustlsPlatformVerifierProject() {
                 println("Found rustls-platform-verifier maven directory at: ${mavenPath.absolutePath}")
                 return mavenPath.absolutePath
             } else {
-                throw new GradleException("rustls-platform-verifier maven directory not found at: ${mavenPath.absolutePath}")
+                println("rustls-platform-verifier maven directory not found at: ${mavenPath.absolutePath}")
             }
         } else {
-            throw new GradleException("rustls-platform-verifier-android package not found in cargo metadata")
+            println("rustls-platform-verifier-android package not found in cargo metadata")
         }
     } catch (Exception e) {
-        throw new GradleException("Could not locate rustls-platform-verifier maven repository: ${e.message}")
+        println("Could not locate rustls-platform-verifier maven repository: ${e.message}")
     }
 }
 
