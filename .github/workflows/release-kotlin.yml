@@ -73,9 +73,13 @@ jobs:
               ls -la yttrium/rustls-platform-verifier-maven/
             else
               echo "Warning: rustls-platform-verifier maven directory not found at: $MAVEN_PATH"
+              # Create empty directory to prevent later steps from failing
+              mkdir -p yttrium/rustls-platform-verifier-maven
             fi
           else
             echo "Warning: rustls-platform-verifier-android package not found in cargo metadata"
+            # Create empty directory to prevent later steps from failing
+            mkdir -p yttrium/rustls-platform-verifier-maven
           fi
       - name: Strip binaries
         run: |
