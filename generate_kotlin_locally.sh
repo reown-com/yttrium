@@ -21,4 +21,4 @@ mv yttrium/kotlin-bindings/uniffi/yttrium/yttrium.kt crates/kotlin-ffi/android/s
 $ANDROID_NDK_HOME/toolchains/llvm/prebuilt/*/bin/llvm-strip crates/kotlin-ffi/android/src/main/jniLibs/arm64-v8a/libuniffi_yttrium.so
 $ANDROID_NDK_HOME/toolchains/llvm/prebuilt/*/bin/llvm-strip crates/kotlin-ffi/android/src/main/jniLibs/armeabi-v7a/libuniffi_yttrium.so
 
-# ./gradlew clean assembleRelease # publishToMavenLocal
+./gradlew clean assembleRelease # publishToMavenLocal
