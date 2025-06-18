@@ -6,8 +6,40 @@ apply plugin: 'maven-publish'
 
 String findRustlsPlatformVerifierProject() {
     try {
+        // First, try to find a pre-built maven repository (for JitPack builds)
+        def prebuiltMavenPath = new File(project.projectDir, "src/main/rustls-platform-verifier-maven")
+        if (prebuiltMavenPath.exists()) {
+            println("Using pre-built rustls-platform-verifier maven directory at: ${prebuiltMavenPath.absolutePath}")
+            return prebuiltMavenPath.absolutePath
+        }
+        
+        // For local builds, check if this is explicitly a JitPack build
+        def isJitPack = System.getenv("JITPACK") != null || project.hasProperty("jitpack.build")
+        if (isJitPack) {
+            throw new GradleException("JitPack build detected but no pre-built maven repository found. Please ensure rustls-platform-verifier-maven is included in the release artifacts.")
+        }
+        
+        // If pre-built doesn't exist and this is not JitPack, try cargo metadata (for local builds with cargo available)
         def projectRoot = new File(project.projectDir, "../../..")
         def yttriumCargoToml = new File(projectRoot, "crates/yttrium/Cargo.toml")
+        
+        // Check if cargo is available before trying to execute it
+        def cargoAvailable = false
+        try {
+            def result = providers.exec {
+                it.workingDir = projectRoot
+                commandLine("cargo", "--version")
+                it.isIgnoreExitValue = true
+            }
+            cargoAvailable = result.getResult().get().getExitValue() == 0
+        } catch (Exception cargoCheckEx) {
+            println("Cargo not available: ${cargoCheckEx.message}")
+        }
+        
+        if (!cargoAvailable) {
+            println("Cargo not available for local build, rustls-platform-verifier will be skipped")
+            return null
+        }
         
         def dependencyText = providers.exec {
             it.workingDir = projectRoot
@@ -24,13 +56,21 @@ String findRustlsPlatformVerifierProject() {
                 println("Found rustls-platform-verifier maven directory at: ${mavenPath.absolutePath}")
                 return mavenPath.absolutePath
             } else {
-                throw new GradleException("rustls-platform-verifier maven directory not found at: ${mavenPath.absolutePath}")
+                println("rustls-platform-verifier maven directory not found at: ${mavenPath.absolutePath}, skipping for local build")
+                return null
             }
         } else {
-            throw new GradleException("rustls-platform-verifier-android package not found in cargo metadata")
+            println("rustls-platform-verifier-android package not found in cargo metadata, skipping for local build")
+            return null
         }
     } catch (Exception e) {
-        throw new GradleException("Could not locate rustls-platform-verifier maven repository: ${e.message}")
+        def isJitPack = System.getenv("JITPACK") != null || project.hasProperty("jitpack.build")
+        if (isJitPack) {
+            throw new GradleException("Could not locate rustls-platform-verifier maven repository: ${e.message}")
+        } else {
+            println("Could not locate rustls-platform-verifier maven repository for local build: ${e.message}")
+            return null
+        }
     }
 }
 
@@ -48,9 +88,14 @@ buildscript {
 repositories {
     google()
     mavenCentral()
-    maven {
-        url = findRustlsPlatformVerifierProject()
-        metadataSources.artifact()
+    
+    // Only add rustls-platform-verifier maven repository if it exists
+    def rustlsMavenPath = findRustlsPlatformVerifierProject()
+    if (rustlsMavenPath != null) {
+        maven {
+            url = rustlsMavenPath
+            metadataSources.artifact()
+        }
     }
 }
 
@@ -97,7 +142,12 @@ android {
     }
 
     dependencies { 
-        implementation 'rustls:rustls-platform-verifier:0.1.1'
+        // Only include rustls-platform-verifier if we found the maven repository
+        def rustlsMavenPath = findRustlsPlatformVerifierProject()
+        if (rustlsMavenPath != null) {
+            implementation 'rustls:rustls-platform-verifier:0.1.1'
+        }
+        
         implementation 'net.java.dev.jna:jna:5.12.0@aar'
         implementation 'androidx.core:core-ktx:1.10.1'
         implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.1'
