@@ -317,10 +317,8 @@ pub struct TransferStxResponse {
 
 #[cfg(test)]
 mod tests {
-    use {
-        crate::uniffi_compat::stacks::{
-            stacks_generate_wallet, stacks_get_address, stacks_sign_message,
-        }
+    use crate::uniffi_compat::stacks::{
+        stacks_generate_wallet, stacks_get_address, stacks_sign_message,
     };
 
     #[test]
