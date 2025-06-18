@@ -320,9 +320,7 @@ mod tests {
     use {
         crate::uniffi_compat::stacks::{
             stacks_generate_wallet, stacks_get_address, stacks_sign_message,
-        },
-        stacks_rs::wallet::StacksWallet,
-        stacks_secp256k1::{hashes::sha256, Message, Secp256k1},
+        }
     };
 
     #[test]
