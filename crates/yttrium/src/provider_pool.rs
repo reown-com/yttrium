@@ -227,6 +227,7 @@ impl ProviderPool {
     #[cfg(feature = "stacks")]
     pub async fn get_stacks_client(
         &self,
+        network: &str,
         tracing: Option<std::sync::mpsc::Sender<RpcRequestAnalytics>>,
         url_override: Option<Url>,
     ) -> crate::stacks_provider::StacksProvider {
@@ -235,7 +236,7 @@ impl ProviderPool {
                 .get_rpc_client(
                     tracing,
                     PROXY_ENDPOINT_PATH,
-                    vec![],
+                    vec![("chainId", network)],
                     url_override,
                     None,
                 )

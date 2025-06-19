@@ -170,6 +170,7 @@ fn sign_transaction(
     wallet: &str,
     network: &str,
     request: TransferStxRequest,
+    fee: u64,
 ) -> Result<(TransferStxResponse, Bytes), StacksSignTransactionError> {
     let sender_key = StacksWallet::from_secret_key(wallet)
         .map_err(StacksSignTransactionError::InvalidSecretKey)?
@@ -183,6 +184,7 @@ fn sign_transaction(
             .memo(request.memo)
             .sender(sender_key)
             .network(StacksMainnet::new())
+            .fee(fee)
             .build()
             .transaction(),
         network::stacks::TESTNET => STXTokenTransfer::builder()
@@ -191,6 +193,7 @@ fn sign_transaction(
             .memo(request.memo)
             .sender(sender_key)
             .network(StacksTestnet::new())
+            .fee(fee)
             .build()
             .transaction(),
         _ => {
@@ -284,16 +287,25 @@ impl StacksClient {
         network: &str,
         request: TransferStxRequest,
     ) -> Result<TransferStxResponse, StacksTransferStxError> {
-        let (response, tx_encoded) = sign_transaction(wallet, network, request)
-            .map_err(StacksTransferStxError::SignTransaction)?;
+        let stacks_client =
+            self.provider_pool.get_stacks_client(network, None, None).await;
 
-        let broadcast_tx_response = self
-            .provider_pool
-            .get_stacks_client(None, None)
-            .await
-            .stacks_transactions(tx_encoded)
-            .await
-            .map_err(|e| {
+        // TODO Once the method is ready on backend side we will be able to estimate fees
+        // let fee = stacks_client.estimate_fee().await.map_err(|e| {
+        //     StacksTransferStxError::BroadcastTransaction(e.to_string())
+        // })?;
+        // TODO We hardcode the minimun fee right now until we can estimate them
+        let fee = 180;
+
+        let (response, tx_encoded) =
+            sign_transaction(wallet, network, request, fee)
+                .map_err(StacksTransferStxError::SignTransaction)?;
+
+        // Convert raw bytes to hex string for RPC call
+        let tx_hex = hex::encode(&tx_encoded);
+
+        let broadcast_tx_response =
+            stacks_client.stacks_transactions(tx_hex).await.map_err(|e| {
                 StacksTransferStxError::BroadcastTransaction(e.to_string())
             })?;
         println!("broadcast tx response: {:?}", broadcast_tx_response);
