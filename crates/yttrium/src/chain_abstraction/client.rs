@@ -456,14 +456,16 @@ impl Client {
         .map_err(StatusError::Request)?;
         let status = response.status();
         if status.is_success() {
-            let text =
-                response.text().await.map_err(StatusError::DecodingText)?;
+            let text = response
+                .text()
+                .await
+                .map_err(|e| StatusError::DecodingText(status, e))?;
             serde_json::from_str(&text)
-                .map_err(|e| StatusError::DecodingJson(e, text))
+                .map_err(|e| StatusError::DecodingJson(status, e, text))
         } else {
             match response.text().await {
-                Ok(text) => Err(StatusError::RequestFailed(text)),
-                Err(e) => Err(StatusError::RequestFailedText(e)),
+                Ok(text) => Err(StatusError::RequestFailed(status, text)),
+                Err(e) => Err(StatusError::RequestFailedText(status, e)),
             }
         }
     }

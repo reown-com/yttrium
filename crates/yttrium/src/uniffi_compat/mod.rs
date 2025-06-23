@@ -42,7 +42,7 @@ use {
     alloy_provider::PendingTransactionError,
     eyre::Report as EyreError,
     relay_rpc::domain::ProjectId,
-    reqwest::{Error as ReqwestError, Url},
+    reqwest::{Error as ReqwestError, StatusCode, Url},
     serde_json::Error as SerdeJsonError,
     uniffi::deps::anyhow::Error as AnyhowError,
 };
@@ -372,6 +372,12 @@ impl From<Asset> for AssetFfi {
         }
     }
 }
+
+uniffi::custom_type!(StatusCode, u16, {
+    remote,
+    try_lift: |val| StatusCode::from_u16(val).map_err(Into::into),
+    lower: |obj| obj.as_u16(),
+});
 
 #[cfg(test)]
 mod tests {
