@@ -178,10 +178,10 @@ pub enum CallArgRefFfi {
 
 #[derive(thiserror::Error, Debug, uniffi::Error)]
 pub enum SuiSignTransactionError {
-    #[error("Invalid transaction data")]
-    InvalidTransactionData(serde_json::Error),
+    #[error("Invalid transaction data: {0}")]
+    InvalidTransactionData(String),
 
-    #[error("Decoding Pure base64")]
+    #[error("Decoding Pure base64: {0}")]
     DecodePure(String),
 
     #[error("Unsupported version {0}. Only version 2 is supported.")]
@@ -205,8 +205,10 @@ async fn sui_build_and_sign_transaction(
     keypair: &SuiKeyPair,
     tx_data: &[u8],
 ) -> Result<Transaction, SuiSignTransactionError> {
-    let request = serde_json::from_slice::<SignTransactionRequest>(tx_data)
-        .map_err(SuiSignTransactionError::InvalidTransactionData)?;
+    let request =
+        bcs::from_bytes::<SignTransactionRequest>(tx_data).map_err(|e| {
+            SuiSignTransactionError::InvalidTransactionData(e.to_string())
+        })?;
     if request.version != 2 {
         return Err(SuiSignTransactionError::UnsupportedVersion(
             request.version,
