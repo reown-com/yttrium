@@ -4,7 +4,6 @@ use {
         chain_abstraction::pulse::PulseMetadata, provider_pool::ProviderPool,
     },
     bip39::{Language, Mnemonic, Seed},
-    data_encoding::BASE64,
     fastcrypto::{
         ed25519::Ed25519KeyPair,
         traits::{EncodeDecodeBase64, KeyPair},
@@ -15,7 +14,6 @@ use {
     },
     relay_rpc::domain::ProjectId,
     reqwest::Client as ReqwestClient,
-    serde::{Deserialize, Serialize},
     sui_keys::key_derive::derive_key_pair_from_path,
     sui_sdk::{
         error::Error as SuiSdkError,
@@ -24,10 +22,7 @@ use {
             base_types::SuiAddress,
             crypto::{PublicKey, Signature, SignatureScheme, SuiKeyPair},
             digests::TransactionDigest,
-            transaction::{
-                CallArg, Command, ObjectArg, ProgrammableTransaction,
-                Transaction, TransactionData, TransactionDataAPI,
-            },
+            transaction::{Transaction, TransactionData, TransactionDataAPI},
         },
     },
     sui_shared_crypto::intent::{Intent, IntentMessage, PersonalMessage},
@@ -355,14 +350,7 @@ uniffi::custom_type!(Balance, BalanceFfi, {
 mod tests {
     use {
         super::*,
-        data_encoding::BASE64,
-        sui_sdk::types::{
-            crypto::{SignatureScheme, SuiSignature},
-            transaction::{
-                GasData, TransactionDataV1, TransactionExpiration,
-                TransactionKind,
-            },
-        },
+        sui_sdk::types::crypto::{SignatureScheme, SuiSignature},
     };
 
     #[test]
