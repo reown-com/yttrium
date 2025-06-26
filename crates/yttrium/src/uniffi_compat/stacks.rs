@@ -4,7 +4,6 @@ use {
         chain_abstraction::pulse::PulseMetadata,
         provider_pool::{network, ProviderPool},
     },
-    alloy::primitives::Bytes,
     clarity::Error as ClarityError,
     rand::{
         rngs::{OsRng, StdRng},
@@ -171,7 +170,7 @@ fn sign_transaction(
     network: &str,
     request: TransferStxRequest,
     fee: u64,
-) -> Result<(TransferStxResponse, Bytes), StacksSignTransactionError> {
+) -> Result<TransferStxResponse, StacksSignTransactionError> {
     let sender_key = StacksWallet::from_secret_key(wallet)
         .map_err(StacksSignTransactionError::InvalidSecretKey)?
         .private_key()
@@ -214,13 +213,10 @@ fn sign_transaction(
     let tx_encoded = clarity::Codec::encode(&signed_transaction)
         .map_err(StacksSignTransactionError::Encode)?;
 
-    Ok((
-        TransferStxResponse {
-            txid: hex::encode(txid),
-            transaction: hex::encode(&tx_encoded),
-        },
-        tx_encoded.into(),
-    ))
+    Ok(TransferStxResponse {
+        txid: hex::encode(txid),
+        transaction: hex::encode(&tx_encoded),
+    })
 }
 
 #[derive(uniffi::Object)]
@@ -242,6 +238,18 @@ pub enum StacksTransferStxError {
 
     #[error("Failed to broadcast transaction: {0}")]
     BroadcastTransaction(String),
+}
+
+#[derive(thiserror::Error, Debug, uniffi::Error)]
+pub enum StacksFeesError {
+    #[error("Failed to estimate fees: {0}")]
+    EstimateFees(String),
+}
+
+#[derive(thiserror::Error, Debug, uniffi::Error)]
+pub enum StacksAccountError {
+    #[error("Failed to fetch account: {0}")]
+    FetchAccount(String),
 }
 
 #[uniffi::export(async_runtime = "tokio")]
@@ -289,28 +297,88 @@ impl StacksClient {
     ) -> Result<TransferStxResponse, StacksTransferStxError> {
         let stacks_client =
             self.provider_pool.get_stacks_client(network, None, None).await;
-
-        // TODO Once the method is ready on backend side we will be able to estimate fees
-        // let fee = stacks_client.estimate_fee().await.map_err(|e| {
-        //     StacksTransferStxError::BroadcastTransaction(e.to_string())
-        // })?;
-        // TODO We hardcode the minimun fee right now until we can estimate them
+        
+        // TODO hardcoded value. Must be retrieved from estimate_fees when working
         let fee = 180;
 
-        let (response, tx_encoded) =
-            sign_transaction(wallet, network, request, fee)
-                .map_err(StacksTransferStxError::SignTransaction)?;
+        let sign_response = sign_transaction(wallet, network, request, fee)
+            .map_err(StacksTransferStxError::SignTransaction)?;
 
-        // Convert raw bytes to hex string for RPC call
-        let tx_hex = hex::encode(&tx_encoded);
+        let tx_hex = sign_response.transaction.clone();
 
-        let broadcast_tx_response =
-            stacks_client.stacks_transactions(tx_hex).await.map_err(|e| {
-                StacksTransferStxError::BroadcastTransaction(e.to_string())
-            })?;
+        let broadcast_tx_response = match stacks_client
+            .stacks_transactions(network.to_string(), tx_hex)
+            .await
+        {
+            Ok(result) => result,
+            Err(e) => {
+                let error_string = format!("Broadcast transaction failed - Chain ID: {}, Transaction: 0x{}, Error: {}", network, sign_response.transaction, e);
+                return Err(StacksTransferStxError::BroadcastTransaction(
+                    error_string,
+                ));
+            }
+        };
         println!("broadcast tx response: {:?}", broadcast_tx_response);
 
-        Ok(response)
+        Ok(sign_response)
+    }
+
+    pub async fn estimate_fees(
+        &self,
+        network: &str,
+        transaction_payload: &str,
+    ) -> Result<FeeEstimation, StacksFeesError> {
+        let stacks_client =
+            self.provider_pool.get_stacks_client(network, None, None).await;
+
+        let response = match stacks_client
+            .estimate_fees(
+                network.to_string(),
+                transaction_payload.to_string(),
+            )
+            .await
+        {
+            Ok(result) => result,
+            Err(e) => {
+                let error_string = format!("Failed to estimate fees: {}", e);
+                return Err(StacksFeesError::EstimateFees(error_string));
+            }
+        };
+        println!("estimate fees: {:?}", response);
+
+        let fees: FeeEstimation = serde_json::from_value(response)
+            .map_err(|e| StacksFeesError::EstimateFees(format!("Failed to parse response: {}", e)))?;
+
+        Ok(fees)
+    }
+
+    pub async fn get_account(
+        &self,
+        network: &str,
+        principal: &str,
+    ) -> Result<StacksAccount, StacksAccountError> {
+        let stacks_client =
+            self.provider_pool.get_stacks_client(network, None, None).await;
+
+        let response = match stacks_client
+            .get_account(
+                network.to_string(),
+                principal.to_string(),
+            )
+            .await
+        {
+            Ok(result) => result,
+            Err(e) => {
+                let error_string = format!("Failed to fecth account: {}", e);
+                return Err(StacksAccountError::FetchAccount(error_string));
+            }
+        };
+        println!("account response: {:?}", response);
+
+        let account: StacksAccount = serde_json::from_value(response)
+            .map_err(|e| StacksAccountError::FetchAccount(format!("Failed to parse response: {}", e)))?;
+
+        Ok(account)
     }
 }
 
@@ -325,6 +393,39 @@ pub struct TransferStxRequest {
 pub struct TransferStxResponse {
     txid: String,
     transaction: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, uniffi::Record)]
+pub struct StacksAccount {
+    pub balance: String,
+    pub locked: String,
+    pub unlock_height: u64,
+    pub nonce: u64,
+    pub balance_proof: String,
+    pub nonce_proof: String,
+}
+
+#[derive(Debug, serde::Deserialize, uniffi::Record)]
+pub struct FeeEstimation {
+    pub cost_scalar_change_by_byte: f64,
+    pub estimated_cost: EstimatedCost,
+    pub estimated_cost_scalar: u64,
+    pub estimations: Vec<Estimation>,
+}
+
+#[derive(Debug, serde::Deserialize, uniffi::Record)]
+pub struct EstimatedCost {
+    pub read_count: u64,
+    pub read_length: u64,
+    pub runtime: u64,
+    pub write_count: u64,
+    pub write_length: u64,
+}
+
+#[derive(Debug, serde::Deserialize, uniffi::Record)]
+pub struct Estimation {
+    pub fee: u64,
+    pub fee_rate: f64,
 }
 
 #[cfg(test)]

@@ -7,54 +7,91 @@ pub struct StacksProvider {
 impl StacksProvider {
     pub async fn stacks_transactions(
         &self,
+        network: String,
         tx_hex: String,
     ) -> TransportResult<serde_json::Value> {
         // TODO proper return type
-        let response: serde_json::Value =
-            self.client.request("stacks_transactions", tx_hex).await?;
-
-        println!("Transactions response: {}", response);
+        let response: serde_json::Value = match self
+            .client
+            .request("stacks_transactions", (network, tx_hex))
+            .await
+        {
+            Ok(result) => result,
+            Err(e) => {
+                return Err(e);
+            }
+        };
 
         Ok(response)
     }
 
-    // TODO waiting Max to enable these endpoints on backend side so we can query /v2/fees/transfer
-    pub async fn estimate_fee(&self) -> TransportResult<u64> {
+    // Queries a proxy method on blockchain API which queries /v2/fees/transaction
+    pub async fn estimate_fees(
+        &self,
+        network: String,
+        transaction_payload: String,
+    ) -> TransportResult<serde_json::Value> {
         // Query the current fee rate from the Stacks network
         // The fee is typically around 180 microSTX, but we'll query it dynamically
+        let response: serde_json::Value = match self
+            .client
+            .request("hiro_fees_transaction", (network, transaction_payload))
+            .await
+        {
+            Ok(result) => result,
+            Err(e) => {
+                return Err(e);
+            }
+        };
 
-        let response: serde_json::Value =
-            self.client.request("get_fee_rate", ()).await?;
-        println!("Fee estimation response: {:?}", response);
-
-        // Extract the fee rate from the response
-        // The response format depends on the Stacks RPC endpoint
-        let fee_rate =
-            response.get("fee_rate").and_then(|v| v.as_u64()).unwrap_or(180); // Default fallback fee
-
-        println!("Estimated fee rate: {} microSTX", fee_rate);
-
-        Ok(fee_rate)
+        Ok(response)
     }
 
-    // TODO waiting Max to enable these endpoints on backend side so we can query /v2/accounts/[Principal]
-    pub async fn get_account_balance(
+    // Queries a proxy method on blockchain API which queries `/v2/accounts/<Principal>` on Stacks API https://docs.stacks.co/reference/api#get-v2-accounts-principal
+    pub async fn get_account(
         &self,
-        address: &str,
-    ) -> TransportResult<u64> {
-        // Query the STX balance for the given address
-        let response: serde_json::Value =
-            self.client.request("get_account", (address,)).await?;
+        network: String,
+        principal: String,
+    ) -> TransportResult<serde_json::Value> {
+        let response: serde_json::Value = match self
+            .client
+            .request("stacks_accounts", (network.clone(), principal.clone()))
+            .await
+        {
+            Ok(result) => result,
+            Err(e) => {
+                return Err(e);
+            }
+        };
 
-        // Extract the balance from the response
-        let balance = response
-            .get("balance")
-            .and_then(|v| v.get("stx"))
-            .and_then(|v| v.get("balance"))
-            .and_then(|v| v.as_str())
-            .and_then(|s| s.parse::<u64>().ok())
-            .unwrap_or(0);
-
-        Ok(balance)
+        Ok(response)
     }
+
+    // // Queries a proxy method on blockchain API which queries `/extended/v1/address/<principal>/nonces` endpoint on Hiro API https://docs.hiro.so/stacks/api/accounts/latest-nonce
+    // pub async fn extended_nonces(
+    //     &self,
+    //     network: String,
+    //     principal: String,
+    // ) -> TransportResult<u64> {
+    //     let response: serde_json::Value = match self
+    //         .client
+    //         .request(
+    //             "stacks_extended_nonces",
+    //             (network.clone(), principal.clone()),
+    //         )
+    //         .await
+    //     {
+    //         Ok(result) => result,
+    //         Err(e) => {
+    //             return Err(e);
+    //         }
+    //     };
+
+    //     let possible_next_nonce = response
+    //         .get("possible_next_nonce")
+    //         .and_then(|v| v.as_u64())
+    //         .unwrap_or(0);
+
+    //     Ok(possible_next_nonce)
+    // }
 }
