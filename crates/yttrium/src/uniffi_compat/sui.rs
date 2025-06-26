@@ -26,7 +26,7 @@ use {
             digests::TransactionDigest,
             transaction::{
                 CallArg, Command, ObjectArg, ProgrammableTransaction,
-                Transaction, TransactionData,
+                Transaction, TransactionData, TransactionDataAPI,
             },
         },
     },
@@ -139,53 +139,10 @@ pub fn sui_personal_sign(keypair: &SuiKeyPair, message: Vec<u8>) -> Signature {
     Signature::new_secure(&intent_msg, keypair)
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-#[serde(rename_all = "camelCase")]
-struct SignTransactionRequest {
-    pub version: u8,
-    pub sender: SuiAddress,
-    pub inputs: Vec<CallArgFfi>,
-    pub commands: Vec<CommandFfi>,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub enum CallArgFfi {
-    // contains no structs or objects
-    Pure { bytes: String },
-    // an object
-    Object(ObjectArgFfi),
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub enum CommandFfi {
-    SplitCoins { coin: ObjectArgFfi, amounts: Vec<CallArgRefFfi> },
-    TransferObjects { objects: Vec<ObjectArgFfi>, address: CallArgRefFfi },
-    // Add other command types as needed
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub enum ObjectArgFfi {
-    GasCoin(bool),
-    NestedResult(Vec<u16>),
-    // Add other object arg types as needed
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub enum CallArgRefFfi {
-    Input(u16),
-    // Add other call arg ref types as needed
-}
-
 #[derive(thiserror::Error, Debug, uniffi::Error)]
 pub enum SuiSignTransactionError {
     #[error("Invalid transaction data: {0}")]
     InvalidTransactionData(String),
-
-    #[error("Decoding Pure base64: {0}")]
-    DecodePure(String),
-
-    #[error("Unsupported version {0}. Only version 2 is supported.")]
-    UnsupportedVersion(u8),
 
     #[error("Mis-matched transaction sender address. Expected: {0}, Got: {1}")]
     MisMatchedSenderAddress(SuiAddress, SuiAddress),
@@ -205,26 +162,22 @@ async fn sui_build_and_sign_transaction(
     keypair: &SuiKeyPair,
     tx_data: &[u8],
 ) -> Result<Transaction, SuiSignTransactionError> {
-    let request =
-        bcs::from_bytes::<SignTransactionRequest>(tx_data).map_err(|e| {
+    // Parse the BCS data as TransactionData directly
+    let transaction_data = bcs::from_bytes::<TransactionData>(tx_data)
+        .map_err(|e| {
             SuiSignTransactionError::InvalidTransactionData(e.to_string())
         })?;
-    if request.version != 2 {
-        return Err(SuiSignTransactionError::UnsupportedVersion(
-            request.version,
-        ));
-    }
+
+    let sender = transaction_data.sender();
     let expected_sender = sui_get_address(&sui_get_public_key(keypair));
-    if request.sender != expected_sender {
+    if sender != expected_sender {
         return Err(SuiSignTransactionError::MisMatchedSenderAddress(
             expected_sender,
-            request.sender,
+            sender,
         ));
     }
 
-    // budget copied from example: https://github.com/MystenLabs/sui/blob/f5852de24d2e9ff53a69b989f1abf2b61c1c6786/crates/sui-sdk/examples/programmable_transactions_api.rs#L66
-    let gas_budget = 5_000_000;
-
+    // Get gas price and coins for gas payment
     let gas_price = sui
         .read_api()
         .get_reference_gas_price()
@@ -233,126 +186,46 @@ async fn sui_build_and_sign_transaction(
 
     let coins = sui
         .coin_read_api()
-        .get_coins(request.sender, None, None, None)
+        .get_coins(sender, None, None, None)
         .await
         .map_err(SuiSignTransactionError::GetCoinsForGas)?;
 
     let gas_coins = if let Some(coin) = coins.data.first() {
         vec![coin.object_ref()]
     } else {
-        return Err(SuiSignTransactionError::NoCoinsAvailableForGas(
-            request.sender,
-        ));
+        return Err(SuiSignTransactionError::NoCoinsAvailableForGas(sender));
     };
 
-    let pt = ProgrammableTransaction {
-        inputs: {
-            let mut results = Vec::with_capacity(request.inputs.len());
-            for input in request.inputs {
-                results.push(match input {
-                    CallArgFfi::Pure { bytes } => CallArg::Pure(
-                        BASE64.decode(bytes.as_bytes()).map_err(|e| {
-                            SuiSignTransactionError::DecodePure(e.to_string())
-                        })?,
-                    ),
-                    CallArgFfi::Object(object) => {
-                        CallArg::Object(convert_object_arg_ffi(object))
-                    }
-                });
-            }
-            results
-        },
-        commands: {
-            let mut results = Vec::with_capacity(request.commands.len());
-            for command in request.commands {
-                results.push(convert_command_ffi(command));
-            }
-            results
-        },
+    // Create a new TransactionData with updated gas information
+    let updated_data = match transaction_data {
+        TransactionData::V1(ref v1_data) => {
+            let updated_gas_data = sui_sdk::types::transaction::GasData {
+                price: gas_price,
+                owner: sender,
+                payment: gas_coins,
+                budget: v1_data.gas_data.budget,
+            };
+            TransactionData::V1(
+                sui_sdk::types::transaction::TransactionDataV1 {
+                    kind: v1_data.kind.clone(),
+                    sender: v1_data.sender,
+                    gas_data: updated_gas_data,
+                    expiration: v1_data.expiration,
+                },
+            )
+        }
     };
-
-    let data = TransactionData::new_programmable(
-        request.sender,
-        gas_coins,
-        pt,
-        gas_budget,
-        gas_price,
-    );
 
     let intent_msg =
-        IntentMessage::new(Intent::sui_transaction(), data.clone());
+        IntentMessage::new(Intent::sui_transaction(), updated_data.clone());
     let signature = Signature::new_secure(&intent_msg, keypair);
-    Ok(Transaction::from_data(data, vec![signature]))
+    Ok(Transaction::from_data(updated_data, vec![signature]))
 }
 
 #[derive(uniffi::Record, Debug, Clone)]
 pub struct SignTransactionResult {
     tx_bytes: String,
     signature: String,
-}
-
-fn convert_object_arg_ffi(obj: ObjectArgFfi) -> ObjectArg {
-    match obj {
-        ObjectArgFfi::GasCoin(_) => {
-            // For GasCoin, we need to create a proper ObjectArg
-            // This is a placeholder - in a real implementation, you'd need the actual object reference
-            ObjectArg::ImmOrOwnedObject((
-                sui_sdk::types::base_types::ObjectID::ZERO,
-                sui_sdk::types::base_types::SequenceNumber::new(),
-                sui_sdk::types::base_types::ObjectDigest::new([0; 32]),
-            ))
-        }
-        ObjectArgFfi::NestedResult(_indices) => {
-            // For NestedResult, we need to use the correct ObjectArg variant
-            // This should be handled differently - NestedResult is not a valid ObjectArg variant
-            // Let's use a placeholder for now
-            ObjectArg::ImmOrOwnedObject((
-                sui_sdk::types::base_types::ObjectID::ZERO,
-                sui_sdk::types::base_types::SequenceNumber::new(),
-                sui_sdk::types::base_types::ObjectDigest::new([0; 32]),
-            ))
-        }
-    }
-}
-
-fn convert_command_ffi(cmd: CommandFfi) -> Command {
-    match cmd {
-        CommandFfi::SplitCoins { coin, amounts } => Command::SplitCoins(
-            convert_object_arg_ref_ffi(coin),
-            amounts.into_iter().map(convert_call_arg_ref_ffi).collect(),
-        ),
-        CommandFfi::TransferObjects { objects, address } => {
-            Command::TransferObjects(
-                objects.into_iter().map(convert_object_arg_ref_ffi).collect(),
-                convert_call_arg_ref_ffi(address),
-            )
-        }
-    }
-}
-
-fn convert_object_arg_ref_ffi(
-    obj: ObjectArgFfi,
-) -> sui_sdk::types::transaction::Argument {
-    match obj {
-        ObjectArgFfi::GasCoin(_) => {
-            sui_sdk::types::transaction::Argument::GasCoin
-        }
-        ObjectArgFfi::NestedResult(indices) => {
-            sui_sdk::types::transaction::Argument::NestedResult(
-                indices[0], indices[1],
-            )
-        }
-    }
-}
-
-fn convert_call_arg_ref_ffi(
-    arg: CallArgRefFfi,
-) -> sui_sdk::types::transaction::Argument {
-    match arg {
-        CallArgRefFfi::Input(index) => {
-            sui_sdk::types::transaction::Argument::Input(index)
-        }
-    }
 }
 
 #[derive(uniffi::Object)]
@@ -674,71 +547,6 @@ mod tests {
             SignatureScheme::ED25519,
         );
         assert!(verification.is_ok());
-    }
-
-    #[test]
-    fn test_user_scenario_exact_data() {
-        // This test uses the exact keypair and transaction data provided by the user
-        let keypair = SuiKeyPair::decode("suiprivkey1qz3889tm677q5ns478amrva66xjzl3qpnujjersm0ps948etrs5g795ce7t").unwrap();
-        let tx_data = BASE64.decode(b"ewogICJ2ZXJzaW9uIjogMiwKICAic2VuZGVyIjogIjB4YTg2NjljYzg0ZjM2N2Y3MzBlYTVkYmRiOTA5NTViYTZkNDYxMzcyMDk0ZTNjZmY4MGI3ZjI2N2M4ZWI4MWE1OSIsCiAgImV4cGlyYXRpb24iOiBudWxsLAogICJnYXNEYXRhIjogewogICAgImJ1ZGdldCI6IG51bGwsCiAgICAicHJpY2UiOiBudWxsLAogICAgIm93bmVyIjogbnVsbCwKICAgICJwYXltZW50IjogbnVsbAogIH0sCiAgImlucHV0cyI6IFsKICAgIHsKICAgICAgIlB1cmUiOiB7CiAgICAgICAgImJ5dGVzIjogIlpBQUFBQUFBQUFBPSIKICAgICAgfQogICAgfSwKICAgIHsKICAgICAgIlB1cmUiOiB7CiAgICAgICAgImJ5dGVzIjogInFHYWN5RTgyZjNNT3BkdmJrSlZicHRSaE55Q1U0OC80QzM4bWZJNjRHbGs9IgogICAgICB9CiAgICB9CiAgXSwKICAiY29tbWFuZHMiOiBbCiAgICB7CiAgICAgICJTcGxpdENvaW5zIjogewogICAgICAgICJjb2luIjogewogICAgICAgICAgIkdhc0NvaW4iOiB0cnVlCiAgICAgICAgfSwKICAgICAgICAiYW1vdW50cyI6IFsKICAgICAgICAgIHsKICAgICAgICAgICAgIklucHV0IjogMAogICAgICAgICAgfQogICAgICAgIF0KICAgICAgfQogICAgfSwKICAgIHsKICAgICAgIlRyYW5zZmVyT2JqZWN0cyI6IHsKICAgICAgICAib2JqZWN0cyI6IFsKICAgICAgICAgIHsKICAgICAgICAgICAgIk5lc3RlZFJlc3VsdCI6IFsKICAgICAgICAgICAgICAwLAogICAgICAgICAgICAgIDAKICAgICAgICAgICAgXQogICAgICAgICAgfQogICAgICAgIF0sCiAgICAgICAgImFkZHJlc3MiOiB7CiAgICAgICAgICAiSW5wdXQiOiAxCiAgICAgICAgfQogICAgICB9CiAgICB9CiAgXQp9").unwrap();
-
-        // Parse the transaction data exactly as sign_and_execute_transaction now does
-        let request =
-            serde_json::from_slice::<SignTransactionRequest>(&tx_data)
-                .expect("Should parse the user's transaction data");
-
-        // Build TransactionData structure
-        let data = TransactionData::V1(TransactionDataV1 {
-            kind: TransactionKind::ProgrammableTransaction(
-                ProgrammableTransaction {
-                    inputs: {
-                        let mut results =
-                            Vec::with_capacity(request.inputs.len());
-                        for input in request.inputs {
-                            results.push(match input {
-                                CallArgFfi::Pure { bytes } => CallArg::Pure(
-                                    BASE64
-                                        .decode(bytes.as_bytes())
-                                        .expect("Should decode base64"),
-                                ),
-                                CallArgFfi::Object(object) => CallArg::Object(
-                                    convert_object_arg_ffi(object),
-                                ),
-                            });
-                        }
-                        results
-                    },
-                    commands: {
-                        let mut results =
-                            Vec::with_capacity(request.commands.len());
-                        for command in request.commands {
-                            results.push(convert_command_ffi(command));
-                        }
-                        results
-                    },
-                },
-            ),
-            sender: request.sender,
-            gas_data: GasData {
-                price: 1000,
-                owner: request.sender,
-                payment: vec![], // TODO: parse payment objects if needed
-                budget: 10000000,
-            },
-            expiration: TransactionExpiration::None,
-        });
-
-        // Create intent message and sign it - this should work without the previous BCS error
-        let intent_msg = IntentMessage::new(Intent::sui_transaction(), data);
-        let signature = Signature::new_secure(&intent_msg, &keypair);
-
-        // Verify signature is created successfully
-        assert!(!signature.encode_base64().is_empty());
-
-        println!(
-            "✅ User's exact scenario now works - no more BCS parsing error!"
-        );
-        println!("✅ Transaction successfully parsed from JSON and signed");
     }
 
     #[test]
