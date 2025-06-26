@@ -297,7 +297,7 @@ impl StacksClient {
     ) -> Result<TransferStxResponse, StacksTransferStxError> {
         let stacks_client =
             self.provider_pool.get_stacks_client(network, None, None).await;
-        
+
         // TODO hardcoded value. Must be retrieved from estimate_fees when working
         let fee = 180;
 
@@ -307,12 +307,12 @@ impl StacksClient {
         let tx_hex = sign_response.transaction.clone();
 
         let broadcast_tx_response = match stacks_client
-            .stacks_transactions(network.to_string(), tx_hex)
+            .stacks_transactions(network.to_string(), tx_hex.clone())
             .await
         {
             Ok(result) => result,
             Err(e) => {
-                let error_string = format!("Broadcast transaction failed - Chain ID: {}, Transaction: 0x{}, Error: {}", network, sign_response.transaction, e);
+                let error_string = format!("Broadcast transaction failed - Chain ID: {}, Transaction: 0x{}, Error: {}", network, tx_hex, e);
                 return Err(StacksTransferStxError::BroadcastTransaction(
                     error_string,
                 ));
@@ -332,10 +332,7 @@ impl StacksClient {
             self.provider_pool.get_stacks_client(network, None, None).await;
 
         let response = match stacks_client
-            .estimate_fees(
-                network.to_string(),
-                transaction_payload.to_string(),
-            )
+            .estimate_fees(network.to_string(), transaction_payload.to_string())
             .await
         {
             Ok(result) => result,
@@ -346,8 +343,13 @@ impl StacksClient {
         };
         println!("estimate fees: {:?}", response);
 
-        let fees: FeeEstimation = serde_json::from_value(response)
-            .map_err(|e| StacksFeesError::EstimateFees(format!("Failed to parse response: {}", e)))?;
+        let fees: FeeEstimation =
+            serde_json::from_value(response).map_err(|e| {
+                StacksFeesError::EstimateFees(format!(
+                    "Failed to parse response: {}",
+                    e
+                ))
+            })?;
 
         Ok(fees)
     }
@@ -361,10 +363,7 @@ impl StacksClient {
             self.provider_pool.get_stacks_client(network, None, None).await;
 
         let response = match stacks_client
-            .get_account(
-                network.to_string(),
-                principal.to_string(),
-            )
+            .get_account(network.to_string(), principal.to_string())
             .await
         {
             Ok(result) => result,
@@ -375,8 +374,13 @@ impl StacksClient {
         };
         println!("account response: {:?}", response);
 
-        let account: StacksAccount = serde_json::from_value(response)
-            .map_err(|e| StacksAccountError::FetchAccount(format!("Failed to parse response: {}", e)))?;
+        let account: StacksAccount =
+            serde_json::from_value(response).map_err(|e| {
+                StacksAccountError::FetchAccount(format!(
+                    "Failed to parse response: {}",
+                    e
+                ))
+            })?;
 
         Ok(account)
     }
@@ -395,7 +399,9 @@ pub struct TransferStxResponse {
     transaction: String,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, uniffi::Record)]
+#[derive(
+    Debug, Clone, serde::Serialize, serde::Deserialize, uniffi::Record,
+)]
 pub struct StacksAccount {
     pub balance: String,
     pub locked: String,
