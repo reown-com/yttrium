@@ -939,7 +939,23 @@ public enum FfiError {
 
     
     
-    case General(String
+    case Prepare(String
+    )
+    case GetUiFields(String
+    )
+    case PrepareDetailed(String
+    )
+    case Status(String
+    )
+    case WaitForSuccessWithTimeout(String
+    )
+    case Execute(String
+    )
+    case EstimateFees(String
+    )
+    case Erc20TokenBalance(String
+    )
+    case GetWalletAssets(String
     )
 }
 
@@ -957,7 +973,31 @@ public struct FfiConverterTypeFFIError: FfiConverterRustBuffer {
         
 
         
-        case 1: return .General(
+        case 1: return .Prepare(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 2: return .GetUiFields(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 3: return .PrepareDetailed(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 4: return .Status(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 5: return .WaitForSuccessWithTimeout(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 6: return .Execute(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 7: return .EstimateFees(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 8: return .Erc20TokenBalance(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 9: return .GetWalletAssets(
             try FfiConverterString.read(from: &buf)
             )
 
@@ -972,8 +1012,48 @@ public struct FfiConverterTypeFFIError: FfiConverterRustBuffer {
 
         
         
-        case let .General(v1):
+        case let .Prepare(v1):
             writeInt(&buf, Int32(1))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .GetUiFields(v1):
+            writeInt(&buf, Int32(2))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .PrepareDetailed(v1):
+            writeInt(&buf, Int32(3))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .Status(v1):
+            writeInt(&buf, Int32(4))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .WaitForSuccessWithTimeout(v1):
+            writeInt(&buf, Int32(5))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .Execute(v1):
+            writeInt(&buf, Int32(6))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .EstimateFees(v1):
+            writeInt(&buf, Int32(7))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .Erc20TokenBalance(v1):
+            writeInt(&buf, Int32(8))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .GetWalletAssets(v1):
+            writeInt(&buf, Int32(9))
             FfiConverterString.write(v1, into: &buf)
             
         }

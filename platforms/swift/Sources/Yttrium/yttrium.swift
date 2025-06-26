@@ -416,6 +416,22 @@ fileprivate struct FfiConverterUInt8: FfiConverterPrimitive {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterUInt16: FfiConverterPrimitive {
+    typealias FfiType = UInt16
+    typealias SwiftType = UInt16
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> UInt16 {
+        return try lift(readInt(&buf))
+    }
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterUInt32: FfiConverterPrimitive {
     typealias FfiType = UInt32
     typealias SwiftType = UInt32
@@ -6083,6 +6099,8 @@ public enum StacksSignMessageError {
     
     case InvalidSecretKey(StacksWalletError
     )
+    case GetAccount(StacksWalletError
+    )
     case UnwrapPrivateKey(StacksWalletError
     )
 }
@@ -6104,7 +6122,10 @@ public struct FfiConverterTypeStacksSignMessageError: FfiConverterRustBuffer {
         case 1: return .InvalidSecretKey(
             try FfiConverterTypeStacksWalletError.read(from: &buf)
             )
-        case 2: return .UnwrapPrivateKey(
+        case 2: return .GetAccount(
+            try FfiConverterTypeStacksWalletError.read(from: &buf)
+            )
+        case 3: return .UnwrapPrivateKey(
             try FfiConverterTypeStacksWalletError.read(from: &buf)
             )
 
@@ -6124,8 +6145,13 @@ public struct FfiConverterTypeStacksSignMessageError: FfiConverterRustBuffer {
             FfiConverterTypeStacksWalletError.write(v1, into: &buf)
             
         
-        case let .UnwrapPrivateKey(v1):
+        case let .GetAccount(v1):
             writeInt(&buf, Int32(2))
+            FfiConverterTypeStacksWalletError.write(v1, into: &buf)
+            
+        
+        case let .UnwrapPrivateKey(v1):
+            writeInt(&buf, Int32(3))
             FfiConverterTypeStacksWalletError.write(v1, into: &buf)
             
         }
@@ -6378,19 +6404,22 @@ public enum StatusError {
     /**
      * Retryable error
      */
-    case RequestFailed(String
-    )
-    case RequestFailedText(ReqwestError
+    case RequestFailed(StatusCode,String
     )
     /**
      * Retryable error
      */
-    case DecodingText(ReqwestError
+    case RequestFailedText(StatusCode,ReqwestError
     )
     /**
      * Retryable error
      */
-    case DecodingJson(SerdeJsonError,String
+    case DecodingText(StatusCode,ReqwestError
+    )
+    /**
+     * Retryable error
+     */
+    case DecodingJson(StatusCode,SerdeJsonError,String
     )
 }
 
@@ -6412,15 +6441,19 @@ public struct FfiConverterTypeStatusError: FfiConverterRustBuffer {
             try FfiConverterTypeReqwestError.read(from: &buf)
             )
         case 2: return .RequestFailed(
+            try FfiConverterTypeStatusCode.read(from: &buf), 
             try FfiConverterString.read(from: &buf)
             )
         case 3: return .RequestFailedText(
+            try FfiConverterTypeStatusCode.read(from: &buf), 
             try FfiConverterTypeReqwestError.read(from: &buf)
             )
         case 4: return .DecodingText(
+            try FfiConverterTypeStatusCode.read(from: &buf), 
             try FfiConverterTypeReqwestError.read(from: &buf)
             )
         case 5: return .DecodingJson(
+            try FfiConverterTypeStatusCode.read(from: &buf), 
             try FfiConverterTypeSerdeJsonError.read(from: &buf), 
             try FfiConverterString.read(from: &buf)
             )
@@ -6441,25 +6474,29 @@ public struct FfiConverterTypeStatusError: FfiConverterRustBuffer {
             FfiConverterTypeReqwestError.write(v1, into: &buf)
             
         
-        case let .RequestFailed(v1):
+        case let .RequestFailed(v1,v2):
             writeInt(&buf, Int32(2))
-            FfiConverterString.write(v1, into: &buf)
-            
-        
-        case let .RequestFailedText(v1):
-            writeInt(&buf, Int32(3))
-            FfiConverterTypeReqwestError.write(v1, into: &buf)
-            
-        
-        case let .DecodingText(v1):
-            writeInt(&buf, Int32(4))
-            FfiConverterTypeReqwestError.write(v1, into: &buf)
-            
-        
-        case let .DecodingJson(v1,v2):
-            writeInt(&buf, Int32(5))
-            FfiConverterTypeSerdeJsonError.write(v1, into: &buf)
+            FfiConverterTypeStatusCode.write(v1, into: &buf)
             FfiConverterString.write(v2, into: &buf)
+            
+        
+        case let .RequestFailedText(v1,v2):
+            writeInt(&buf, Int32(3))
+            FfiConverterTypeStatusCode.write(v1, into: &buf)
+            FfiConverterTypeReqwestError.write(v2, into: &buf)
+            
+        
+        case let .DecodingText(v1,v2):
+            writeInt(&buf, Int32(4))
+            FfiConverterTypeStatusCode.write(v1, into: &buf)
+            FfiConverterTypeReqwestError.write(v2, into: &buf)
+            
+        
+        case let .DecodingJson(v1,v2,v3):
+            writeInt(&buf, Int32(5))
+            FfiConverterTypeStatusCode.write(v1, into: &buf)
+            FfiConverterTypeSerdeJsonError.write(v2, into: &buf)
+            FfiConverterString.write(v3, into: &buf)
             
         }
     }
@@ -6673,11 +6710,7 @@ public enum SuiSignTransactionError {
 
     
     
-    case InvalidTransactionData(SerdeJsonError
-    )
-    case DecodePure(String
-    )
-    case UnsupportedVersion(UInt8
+    case InvalidTransactionData(String
     )
     case MisMatchedSenderAddress(SuiAddress,SuiAddress
     )
@@ -6704,25 +6737,19 @@ public struct FfiConverterTypeSuiSignTransactionError: FfiConverterRustBuffer {
 
         
         case 1: return .InvalidTransactionData(
-            try FfiConverterTypeSerdeJsonError.read(from: &buf)
-            )
-        case 2: return .DecodePure(
             try FfiConverterString.read(from: &buf)
             )
-        case 3: return .UnsupportedVersion(
-            try FfiConverterUInt8.read(from: &buf)
-            )
-        case 4: return .MisMatchedSenderAddress(
+        case 2: return .MisMatchedSenderAddress(
             try FfiConverterTypeSuiAddress.read(from: &buf), 
             try FfiConverterTypeSuiAddress.read(from: &buf)
             )
-        case 5: return .GetReferenceGasPrice(
+        case 3: return .GetReferenceGasPrice(
             try FfiConverterTypeSuiSdkError.read(from: &buf)
             )
-        case 6: return .GetCoinsForGas(
+        case 4: return .GetCoinsForGas(
             try FfiConverterTypeSuiSdkError.read(from: &buf)
             )
-        case 7: return .NoCoinsAvailableForGas(
+        case 5: return .NoCoinsAvailableForGas(
             try FfiConverterTypeSuiAddress.read(from: &buf)
             )
 
@@ -6739,37 +6766,27 @@ public struct FfiConverterTypeSuiSignTransactionError: FfiConverterRustBuffer {
         
         case let .InvalidTransactionData(v1):
             writeInt(&buf, Int32(1))
-            FfiConverterTypeSerdeJsonError.write(v1, into: &buf)
-            
-        
-        case let .DecodePure(v1):
-            writeInt(&buf, Int32(2))
             FfiConverterString.write(v1, into: &buf)
             
         
-        case let .UnsupportedVersion(v1):
-            writeInt(&buf, Int32(3))
-            FfiConverterUInt8.write(v1, into: &buf)
-            
-        
         case let .MisMatchedSenderAddress(v1,v2):
-            writeInt(&buf, Int32(4))
+            writeInt(&buf, Int32(2))
             FfiConverterTypeSuiAddress.write(v1, into: &buf)
             FfiConverterTypeSuiAddress.write(v2, into: &buf)
             
         
         case let .GetReferenceGasPrice(v1):
-            writeInt(&buf, Int32(5))
+            writeInt(&buf, Int32(3))
             FfiConverterTypeSuiSdkError.write(v1, into: &buf)
             
         
         case let .GetCoinsForGas(v1):
-            writeInt(&buf, Int32(6))
+            writeInt(&buf, Int32(4))
             FfiConverterTypeSuiSdkError.write(v1, into: &buf)
             
         
         case let .NoCoinsAvailableForGas(v1):
-            writeInt(&buf, Int32(7))
+            writeInt(&buf, Int32(5))
             FfiConverterTypeSuiAddress.write(v1, into: &buf)
             
         }
@@ -8798,6 +8815,50 @@ public func FfiConverterTypeStacksWalletError_lower(_ value: StacksWalletError) 
  * Typealias from the type name used in the UDL file to the builtin type.  This
  * is needed because the UDL type name is used in function/method signatures.
  */
+public typealias StatusCode = UInt16
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeStatusCode: FfiConverter {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> StatusCode {
+        return try FfiConverterUInt16.read(from: &buf)
+    }
+
+    public static func write(_ value: StatusCode, into buf: inout [UInt8]) {
+        return FfiConverterUInt16.write(value, into: &buf)
+    }
+
+    public static func lift(_ value: UInt16) throws -> StatusCode {
+        return try FfiConverterUInt16.lift(value)
+    }
+
+    public static func lower(_ value: StatusCode) -> UInt16 {
+        return FfiConverterUInt16.lower(value)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeStatusCode_lift(_ value: UInt16) throws -> StatusCode {
+    return try FfiConverterTypeStatusCode.lift(value)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeStatusCode_lower(_ value: StatusCode) -> UInt16 {
+    return FfiConverterTypeStatusCode.lower(value)
+}
+
+
+
+/**
+ * Typealias from the type name used in the UDL file to the builtin type.  This
+ * is needed because the UDL type name is used in function/method signatures.
+ */
 public typealias SuiAddress = String
 
 #if swift(>=5.8)
@@ -9518,8 +9579,8 @@ public func stacksGetAddress(wallet: String, version: String)throws  -> String  
     )
 })
 }
-public func stacksSignMessage(wallet: String, message: String)throws  -> StacksSignature  {
-    return try  FfiConverterTypeStacksSignature_lift(try rustCallWithError(FfiConverterTypeStacksSignMessageError_lift) {
+public func stacksSignMessage(wallet: String, message: String)throws  -> String  {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeStacksSignMessageError_lift) {
     uniffi_yttrium_fn_func_stacks_sign_message(
         FfiConverterString.lower(wallet),
         FfiConverterString.lower(message),$0
@@ -9604,7 +9665,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_yttrium_checksum_func_stacks_get_address() != 14379) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_yttrium_checksum_func_stacks_sign_message() != 7491) {
+    if (uniffi_yttrium_checksum_func_stacks_sign_message() != 52767) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_yttrium_checksum_func_sui_derive_keypair_from_mnemonic() != 51451) {
