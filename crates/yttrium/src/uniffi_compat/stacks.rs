@@ -171,8 +171,11 @@ fn sign_transaction(
     request: TransferStxRequest,
     fee: u64,
 ) -> Result<TransferStxResponse, StacksSignTransactionError> {
-    let sender_key = StacksWallet::from_secret_key(wallet)
-        .map_err(StacksSignTransactionError::InvalidSecretKey)?
+    let mut stacks_wallet = StacksWallet::from_secret_key(wallet)
+        .map_err(StacksSignTransactionError::InvalidSecretKey)?;
+    let sender_key = stacks_wallet
+        .get_account(0)
+        .map_err(StacksSignTransactionError::UnwrapPrivateKey)?
         .private_key()
         .map_err(StacksSignTransactionError::UnwrapPrivateKey)?;
     // https://github.com/52/stacks.rs/blob/c6455fe5eeae04b2f0e3a88fe6e6c803949a8417/README.md?plain=1#L24
@@ -307,12 +310,12 @@ impl StacksClient {
         let tx_hex = sign_response.transaction.clone();
 
         let broadcast_tx_response = match stacks_client
-            .stacks_transactions(network.to_string(), tx_hex.clone())
+            .stacks_transactions(tx_hex.clone())
             .await
         {
             Ok(result) => result,
             Err(e) => {
-                let error_string = format!("Broadcast transaction failed - Chain ID: {}, Transaction: 0x{}, Error: {}", network, tx_hex, e);
+                let error_string = format!("Broadcast transaction failed - Chain ID: {}, Transaction: {}, Error: {}", network, tx_hex, e);
                 return Err(StacksTransferStxError::BroadcastTransaction(
                     error_string,
                 ));
@@ -332,7 +335,7 @@ impl StacksClient {
             self.provider_pool.get_stacks_client(network, None, None).await;
 
         let response = match stacks_client
-            .estimate_fees(network.to_string(), transaction_payload.to_string())
+            .estimate_fees(transaction_payload.to_string())
             .await
         {
             Ok(result) => result,
@@ -363,7 +366,7 @@ impl StacksClient {
             self.provider_pool.get_stacks_client(network, None, None).await;
 
         let response = match stacks_client
-            .get_account(network.to_string(), principal.to_string())
+            .get_account(principal.to_string())
             .await
         {
             Ok(result) => result,

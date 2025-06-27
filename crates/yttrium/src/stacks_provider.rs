@@ -7,13 +7,12 @@ pub struct StacksProvider {
 impl StacksProvider {
     pub async fn stacks_transactions(
         &self,
-        network: String,
         tx_hex: String,
     ) -> TransportResult<serde_json::Value> {
         // TODO proper return type
         let response: serde_json::Value = match self
             .client
-            .request("stacks_transactions", (network, tx_hex))
+            .request("stacks_transactions", tx_hex)
             .await
         {
             Ok(result) => result,
@@ -28,14 +27,13 @@ impl StacksProvider {
     // Queries a proxy method on blockchain API which queries /v2/fees/transaction
     pub async fn estimate_fees(
         &self,
-        network: String,
         transaction_payload: String,
     ) -> TransportResult<serde_json::Value> {
         // Query the current fee rate from the Stacks network
         // The fee is typically around 180 microSTX, but we'll query it dynamically
         let response: serde_json::Value = match self
             .client
-            .request("hiro_fees_transaction", (network, transaction_payload))
+            .request("hiro_fees_transaction", transaction_payload)
             .await
         {
             Ok(result) => result,
@@ -50,12 +48,11 @@ impl StacksProvider {
     // Queries a proxy method on blockchain API which queries `/v2/accounts/<Principal>` on Stacks API https://docs.stacks.co/reference/api#get-v2-accounts-principal
     pub async fn get_account(
         &self,
-        network: String,
         principal: String,
     ) -> TransportResult<serde_json::Value> {
         let response: serde_json::Value = match self
             .client
-            .request("stacks_accounts", (network.clone(), principal.clone()))
+            .request("stacks_accounts", principal)
             .await
         {
             Ok(result) => result,
