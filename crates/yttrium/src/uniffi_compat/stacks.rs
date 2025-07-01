@@ -414,14 +414,9 @@ impl StacksClient {
         };
 
         // Check if response is already the result value
-        if let Some(fee_rate) = response.as_u64() {
-            return Ok(fee_rate);
-        }
-
-        Err(StacksFeesError::InvalidResponse(format!(
-            "Unexpected response format: {:?}",
-            response
-        )))
+        response
+            .as_u64()
+            .ok_or_err(|| StacksFeesError::InvalidResponse(response.to_string())
     }
 }
 
