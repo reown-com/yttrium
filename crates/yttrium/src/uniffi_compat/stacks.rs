@@ -271,7 +271,7 @@ impl StacksClient {
         let fee_rate = match self.transfer_fees(network).await {
             Ok(result) => result,
             Err(e) => {
-                println!("Failed to fetch transfer fee rate: {}. Using fallback value of 1 fee rate / byte.", e);
+                tracing::warn!("Failed to fetch transfer fee rate: {}. Using fallback value of 1 fee rate / byte.", e);
                 1
             }
         };
