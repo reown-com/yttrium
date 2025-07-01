@@ -381,7 +381,7 @@ impl StacksClient {
                 Ok(result) => result,
                 Err(e) => {
                     let error_string =
-                        format!("Failed to fecth account: {}", e);
+                        format!("Failed to fetch account: {}", e);
                     return Err(StacksAccountError::FetchAccount(error_string));
                 }
             };
