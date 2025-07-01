@@ -264,16 +264,8 @@ impl StacksClient {
             .private_key()
             .map_err(StacksSignTransactionError::UnwrapPrivateKey)?;
 
-        let account = match self.get_account(network, &request.sender).await {
-            Ok(result) => result,
-            Err(e) => {
-                let error_string =
-                    format!("Fetch account failed. Error: {}", e);
-                return Err(StacksSignTransactionError::FetchAccount(
-                    error_string,
-                ));
-            }
-        };
+        let account = self.get_account(network, &request.sender).await
+            .map_err(|e| StacksSignTransactionError::FetchAccount(e.to_string()))?;
 
         // Use fallback fee rate of 180 if transfer_fees fails
         let fee_rate = match self.transfer_fees(network).await {
