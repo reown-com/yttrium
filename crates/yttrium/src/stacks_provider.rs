@@ -10,72 +10,77 @@ impl StacksProvider {
         tx_hex: String,
     ) -> TransportResult<serde_json::Value> {
         // TODO proper return type
-        let response: serde_json::Value = match self
-            .client
-            .request("stacks_transactions", tx_hex)
-            .await
-        {
-            Ok(result) => result,
-            Err(e) => {
-                return Err(e);
-            }
-        };
-
-        Ok(response)
-    }
-
-    // Queries a proxy method on blockchain API which queries /v2/fees/transaction
-    pub async fn estimate_fees(
-        &self,
-        transaction_payload: String,
-    ) -> TransportResult<serde_json::Value> {
-        // Query the current fee rate from the Stacks network
-        // The fee is typically around 180 microSTX, but we'll query it dynamically
-        let response: serde_json::Value = match self
-            .client
-            .request("hiro_fees_transaction", transaction_payload)
-            .await
-        {
-            Ok(result) => result,
-            Err(e) => {
-                return Err(e);
-            }
-        };
+        let response: serde_json::Value =
+            match self.client.request("stacks_transactions", tx_hex).await {
+                Ok(result) => result,
+                Err(e) => {
+                    return Err(e);
+                }
+            };
 
         Ok(response)
     }
 
     // Queries a proxy method on blockchain API which queries `/v2/accounts/<Principal>` on Stacks API https://docs.stacks.co/reference/api#get-v2-accounts-principal
-    pub async fn get_account(
+    pub async fn stacks_accounts(
         &self,
         principal: String,
     ) -> TransportResult<serde_json::Value> {
-        let response: serde_json::Value = match self
-            .client
-            .request("stacks_accounts", principal)
-            .await
-        {
-            Ok(result) => result,
-            Err(e) => {
-                return Err(e);
-            }
-        };
+        let response: serde_json::Value =
+            match self.client.request("stacks_accounts", principal).await {
+                Ok(result) => result,
+                Err(e) => {
+                    return Err(e);
+                }
+            };
 
         Ok(response)
     }
 
-    // // Queries a proxy method on blockchain API which queries `/extended/v1/address/<principal>/nonces` endpoint on Hiro API https://docs.hiro.so/stacks/api/accounts/latest-nonce
-    // pub async fn extended_nonces(
+    // // Queries a proxy method on blockchain API which queries /v2/fees/transaction
+    // pub async fn hiro_fees_transaction(
     //     &self,
-    //     network: String,
+    //     transaction_payload: String,
+    // ) -> TransportResult<serde_json::Value> {
+    //     // Query the current fee rate from the Stacks network
+    //     // The fee is typically around 180 microSTX, but we'll query it dynamically
+    //     let response: serde_json::Value = match self
+    //         .client
+    //         .request("hiro_fees_transaction", transaction_payload)
+    //         .await
+    //     {
+    //         Ok(result) => result,
+    //         Err(e) => {
+    //             return Err(e);
+    //         }
+    //     };
+
+    //     Ok(response)
+    // }
+
+    // // Queries a proxy method on blockchain API which queries /v2/fees/transaction
+    // pub async fn stacks_transfer_fees(&self) -> TransportResult<serde_json::Value> {
+    //     // Query the current fee rate from the Stacks network
+    //     // The fee is typically around 180 microSTX, but we'll query it dynamically
+    //     let response: serde_json::Value =
+    //         match self.client.request("stacks_transfer_fees", {}).await {
+    //             Ok(result) => result,
+    //             Err(e) => {
+    //                 return Err(e);
+    //             }
+    //         };
+
+    //     Ok(response)
+    // }
+
+    // // Queries a proxy method on blockchain API which queries `/extended/v1/address/<principal>/nonces` endpoint on Hiro API https://docs.hiro.so/stacks/api/accounts/latest-nonce
+    // pub async fn stacks_extended_nonces(
+    //     &self,
     //     principal: String,
     // ) -> TransportResult<u64> {
     //     let response: serde_json::Value = match self
     //         .client
-    //         .request(
-    //             "stacks_extended_nonces",
-    //             (network.clone(), principal.clone()),
-    //         )
+    //         .request("stacks_extended_nonces", principal)
     //         .await
     //     {
     //         Ok(result) => result,

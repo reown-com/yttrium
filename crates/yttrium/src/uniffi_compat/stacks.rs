@@ -163,63 +163,9 @@ pub enum StacksSignTransactionError {
 
     #[error("Failed to encode transaction: {0}")]
     Encode(ClarityError),
-}
 
-fn sign_transaction(
-    wallet: &str,
-    network: &str,
-    request: TransferStxRequest,
-    fee: u64,
-) -> Result<TransferStxResponse, StacksSignTransactionError> {
-    let mut stacks_wallet = StacksWallet::from_secret_key(wallet)
-        .map_err(StacksSignTransactionError::InvalidSecretKey)?;
-    let sender_key = stacks_wallet
-        .get_account(0)
-        .map_err(StacksSignTransactionError::UnwrapPrivateKey)?
-        .private_key()
-        .map_err(StacksSignTransactionError::UnwrapPrivateKey)?;
-    // https://github.com/52/stacks.rs/blob/c6455fe5eeae04b2f0e3a88fe6e6c803949a8417/README.md?plain=1#L24
-    let transfer = match network {
-        network::stacks::MAINNET => STXTokenTransfer::builder()
-            .recipient(clarity!(PrincipalStandard, request.recipient))
-            .amount(request.amount)
-            .memo(request.memo)
-            .sender(sender_key)
-            .network(StacksMainnet::new())
-            .fee(fee)
-            .build()
-            .transaction(),
-        network::stacks::TESTNET => STXTokenTransfer::builder()
-            .recipient(clarity!(PrincipalStandard, request.recipient))
-            .amount(request.amount)
-            .memo(request.memo)
-            .sender(sender_key)
-            .network(StacksTestnet::new())
-            .fee(fee)
-            .build()
-            .transaction(),
-        _ => {
-            return Err(StacksSignTransactionError::InvalidNetwork(
-                network.to_string(),
-            ))
-        }
-    };
-
-    // Scope `signed_transaction` so that it isn't held across the await boundary
-    // This is needed because `Transaction` is not `Send`
-    let signed_transaction = transfer
-        .sign(sender_key)
-        .map_err(StacksSignTransactionError::SignTransaction)?;
-
-    let txid =
-        signed_transaction.hash().map_err(StacksSignTransactionError::Hash)?;
-    let tx_encoded = clarity::Codec::encode(&signed_transaction)
-        .map_err(StacksSignTransactionError::Encode)?;
-
-    Ok(TransferStxResponse {
-        txid: hex::encode(txid),
-        transaction: hex::encode(&tx_encoded),
-    })
+    #[error("Failed to fetch account: {0}")]
+    FetchAccount(String),
 }
 
 #[derive(uniffi::Object)]
@@ -253,6 +199,12 @@ pub enum StacksFeesError {
 pub enum StacksAccountError {
     #[error("Failed to fetch account: {0}")]
     FetchAccount(String),
+}
+
+#[derive(thiserror::Error, Debug, uniffi::Error)]
+pub enum TransferFeesError {
+    #[error("Failed to get transfer fees: {0}")]
+    FeeRate(String),
 }
 
 #[uniffi::export(async_runtime = "tokio")]
@@ -292,6 +244,84 @@ impl StacksClient {
         }
     }
 
+    async fn sign_transaction(
+        &self,
+        wallet: &str,
+        network: &str,
+        request: TransferStxRequest,
+    ) -> Result<TransferStxResponse, StacksSignTransactionError> {
+        let mut stacks_wallet = StacksWallet::from_secret_key(wallet)
+            .map_err(StacksSignTransactionError::InvalidSecretKey)?;
+        let sender_key = stacks_wallet
+            .get_account(0)
+            .map_err(StacksSignTransactionError::UnwrapPrivateKey)?
+            .private_key()
+            .map_err(StacksSignTransactionError::UnwrapPrivateKey)?;
+
+        let account = match self.get_account(network, &request.sender).await {
+            Ok(result) => result,
+            Err(e) => {
+                let error_string =
+                    format!("Fetch account failed. Error: {}", e);
+                return Err(StacksSignTransactionError::FetchAccount(
+                    error_string,
+                ));
+            }
+        };
+        let nonce = account.nonce;
+
+        // https://github.com/52/stacks.rs/blob/c6455fe5eeae04b2f0e3a88fe6e6c803949a8417/README.md?plain=1#L24
+        let transfer = match network {
+            network::stacks::MAINNET => STXTokenTransfer::builder()
+                .recipient(clarity!(PrincipalStandard, request.recipient))
+                .amount(request.amount)
+                .memo(request.memo)
+                .sender(sender_key)
+                .network(StacksMainnet::new())
+                // TODO hardcoded value. Must be retrieved from estimate_fees when working
+                .fee(210)
+                .nonce(nonce)
+                .build()
+                .transaction(),
+            network::stacks::TESTNET => STXTokenTransfer::builder()
+                .recipient(clarity!(PrincipalStandard, request.recipient))
+                .amount(request.amount)
+                .memo(request.memo)
+                .sender(sender_key)
+                .network(StacksTestnet::new())
+                // TODO hardcoded value. Must be retrieved from estimate_fees when working
+                .fee(210)
+                .nonce(nonce)
+                .build()
+                .transaction(),
+            _ => {
+                return Err(StacksSignTransactionError::InvalidNetwork(
+                    network.to_string(),
+                ))
+            }
+        };
+
+        // TODO bytes_length is used to get actual fees by multiplying to the result of transfer_fees
+        // let bytes_length = clarity::Codec::encode(&transfer).map_err(StacksSignTransactionError::Encode)?.len();
+
+        // Scope `signed_transaction` so that it isn't held across the await boundary
+        // This is needed because `Transaction` is not `Send`
+        let signed_transaction = transfer
+            .sign(sender_key)
+            .map_err(StacksSignTransactionError::SignTransaction)?;
+
+        let txid = signed_transaction
+            .hash()
+            .map_err(StacksSignTransactionError::Hash)?;
+        let tx_encoded = clarity::Codec::encode(&signed_transaction)
+            .map_err(StacksSignTransactionError::Encode)?;
+
+        Ok(TransferStxResponse {
+            txid: hex::encode(txid),
+            transaction: hex::encode(&tx_encoded),
+        })
+    }
+
     pub async fn transfer_stx(
         &self,
         wallet: &str,
@@ -301,10 +331,9 @@ impl StacksClient {
         let stacks_client =
             self.provider_pool.get_stacks_client(network, None, None).await;
 
-        // TODO hardcoded value. Must be retrieved from estimate_fees when working
-        let fee = 180;
-
-        let sign_response = sign_transaction(wallet, network, request, fee)
+        let sign_response = self
+            .sign_transaction(wallet, network, request)
+            .await
             .map_err(StacksTransferStxError::SignTransaction)?;
 
         let tx_hex = sign_response.transaction.clone();
@@ -326,37 +355,6 @@ impl StacksClient {
         Ok(sign_response)
     }
 
-    pub async fn estimate_fees(
-        &self,
-        network: &str,
-        transaction_payload: &str,
-    ) -> Result<FeeEstimation, StacksFeesError> {
-        let stacks_client =
-            self.provider_pool.get_stacks_client(network, None, None).await;
-
-        let response = match stacks_client
-            .estimate_fees(transaction_payload.to_string())
-            .await
-        {
-            Ok(result) => result,
-            Err(e) => {
-                let error_string = format!("Failed to estimate fees: {}", e);
-                return Err(StacksFeesError::EstimateFees(error_string));
-            }
-        };
-        println!("estimate fees: {:?}", response);
-
-        let fees: FeeEstimation =
-            serde_json::from_value(response).map_err(|e| {
-                StacksFeesError::EstimateFees(format!(
-                    "Failed to parse response: {}",
-                    e
-                ))
-            })?;
-
-        Ok(fees)
-    }
-
     pub async fn get_account(
         &self,
         network: &str,
@@ -365,16 +363,15 @@ impl StacksClient {
         let stacks_client =
             self.provider_pool.get_stacks_client(network, None, None).await;
 
-        let response = match stacks_client
-            .get_account(principal.to_string())
-            .await
-        {
-            Ok(result) => result,
-            Err(e) => {
-                let error_string = format!("Failed to fecth account: {}", e);
-                return Err(StacksAccountError::FetchAccount(error_string));
-            }
-        };
+        let response =
+            match stacks_client.stacks_accounts(principal.to_string()).await {
+                Ok(result) => result,
+                Err(e) => {
+                    let error_string =
+                        format!("Failed to fecth account: {}", e);
+                    return Err(StacksAccountError::FetchAccount(error_string));
+                }
+            };
         println!("account response: {:?}", response);
 
         let account: StacksAccount =
@@ -387,10 +384,42 @@ impl StacksClient {
 
         Ok(account)
     }
+
+    // pub async fn estimate_fees(
+    //     &self,
+    //     network: &str,
+    //     transaction_payload: &str,
+    // ) -> Result<FeeEstimation, StacksFeesError> {
+    //     let stacks_client =
+    //         self.provider_pool.get_stacks_client(network, None, None).await;
+
+    //     let response = match stacks_client
+    //         .estimate_fees(transaction_payload.to_string())
+    //         .await
+    //     {
+    //         Ok(result) => result,
+    //         Err(e) => {
+    //             let error_string = format!("Failed to estimate fees: {}", e);
+    //             return Err(StacksFeesError::EstimateFees(error_string));
+    //         }
+    //     };
+    //     println!("estimate fees: {:?}", response);
+
+    //     let fees: FeeEstimation =
+    //         serde_json::from_value(response).map_err(|e| {
+    //             StacksFeesError::EstimateFees(format!(
+    //                 "Failed to parse response: {}",
+    //                 e
+    //             ))
+    //         })?;
+
+    //     Ok(fees)
+    // }
 }
 
 #[derive(uniffi::Record, Debug, Clone)]
 pub struct TransferStxRequest {
+    sender: String, // address
     amount: u64,
     recipient: String, // address
     memo: String,
