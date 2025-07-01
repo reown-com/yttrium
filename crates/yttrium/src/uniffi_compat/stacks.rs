@@ -307,13 +307,15 @@ impl StacksClient {
         let bytes_length = clarity::Codec::encode(&transfer)
             .map_err(StacksSignTransactionError::Encode)?
             .len();
-        let mut fees = bytes_length as u64 * fee_rate;
-        // fees can't be lower than 180 microSTX
-        // A typical single-signature STX transfer is ~180–200 bytes and lower fee_rate is 1
-        // Fee is calculated as fee_rate * transaction_bytes
-        // Anything below this will often fail with "FeeTooLow"
-        fees = std::cmp::max(fees, 180); 
-        transfer.set_fee(fees);
+        {
+            let fees = bytes_length as u64 * fee_rate;
+            // fees can't be lower than 180 microSTX
+            // A typical single-signature STX transfer is ~180–200 bytes and lower fee_rate is 1
+            // Fee is calculated as fee_rate * transaction_bytes
+            // Anything below this will often fail with "FeeTooLow"
+            let capped_fees = std::cmp::max(fees, 180); 
+            transfer.set_fee(capped_fees);
+        }
 
         // Scope `signed_transaction` so that it isn't held across the await boundary
         // This is needed because `Transaction` is not `Send`
