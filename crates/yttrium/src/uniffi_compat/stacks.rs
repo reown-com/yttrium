@@ -267,10 +267,10 @@ impl StacksClient {
         let account = self.get_account(network, &request.sender).await
             .map_err(|e| StacksSignTransactionError::FetchAccount(e.to_string()))?;
 
-        // Use fallback fee rate of 180 if transfer_fees fails
         let fee_rate = match self.transfer_fees(network).await {
             Ok(result) => result,
             Err(e) => {
+                // Use fallback fee rate of 1 if transfer_fees fails
                 tracing::warn!("Failed to fetch transfer fee rate: {}. Using fallback value of 1 fee rate / byte.", e);
                 1
             }
@@ -351,18 +351,10 @@ impl StacksClient {
 
         let tx_hex = sign_response.transaction.clone();
 
-        let broadcast_tx_response = match stacks_client
+        let broadcast_tx_response = stacks_client
             .stacks_transactions(tx_hex.clone())
             .await
-        {
-            Ok(result) => result,
-            Err(e) => {
-                let error_string = format!("Broadcast transaction failed - Chain ID: {}, Transaction: {}, Error: {}", network, tx_hex, e);
-                return Err(StacksTransferStxError::BroadcastTransaction(
-                    error_string,
-                ));
-            }
-        };
+            .map_err(|e| StacksTransferStxError::BroadcastTransaction(e.to_string()))?;
         println!("broadcast tx response: {:?}", broadcast_tx_response);
 
         Ok(sign_response)
@@ -416,7 +408,7 @@ impl StacksClient {
         // Check if response is already the result value
         response
             .as_u64()
-            .ok_or_err(|| StacksFeesError::InvalidResponse(response.to_string())
+            .ok_or_else(|| StacksFeesError::InvalidResponse(response.to_string()))
     }
 }
 
