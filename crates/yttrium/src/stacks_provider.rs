@@ -58,20 +58,20 @@ impl StacksProvider {
     //     Ok(response)
     // }
 
-    // // Queries a proxy method on blockchain API which queries /v2/fees/transaction
-    // pub async fn stacks_transfer_fees(&self) -> TransportResult<serde_json::Value> {
-    //     // Query the current fee rate from the Stacks network
-    //     // The fee is typically around 180 microSTX, but we'll query it dynamically
-    //     let response: serde_json::Value =
-    //         match self.client.request("stacks_transfer_fees", {}).await {
-    //             Ok(result) => result,
-    //             Err(e) => {
-    //                 return Err(e);
-    //             }
-    //         };
+    // Queries a proxy method on blockchain API which queries /v2/fees/transaction
+    pub async fn stacks_transfer_fees(&self) -> TransportResult<serde_json::Value> {
+        // Query the current fee rate from the Stacks network
+        // The fee is typically around 180 microSTX, but we'll query it dynamically
+        let response: serde_json::Value =
+            match self.client.request("stacks_transfer_fees", "{}").await {
+                Ok(result) => result,
+                Err(e) => {
+                    return Err(e);
+                }
+            };
 
-    //     Ok(response)
-    // }
+        Ok(response)
+    }
 
     // // Queries a proxy method on blockchain API which queries `/extended/v1/address/<principal>/nonces` endpoint on Hiro API https://docs.hiro.so/stacks/api/accounts/latest-nonce
     // pub async fn stacks_extended_nonces(

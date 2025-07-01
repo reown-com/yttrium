@@ -166,6 +166,9 @@ pub enum StacksSignTransactionError {
 
     #[error("Failed to fetch account: {0}")]
     FetchAccount(String),
+
+    #[error("Failed to fetch fee rate: {0}")]
+    TransferFees(String),
 }
 
 #[derive(uniffi::Object)]
@@ -191,8 +194,11 @@ pub enum StacksTransferStxError {
 
 #[derive(thiserror::Error, Debug, uniffi::Error)]
 pub enum StacksFeesError {
-    #[error("Failed to estimate fees: {0}")]
-    EstimateFees(String),
+    #[error("Failed to fetch fee rate: {0}")]
+    TransferFees(String),
+
+    #[error("Failed to parse response: {0}")]
+    InvalidResponse(String),
 }
 
 #[derive(thiserror::Error, Debug, uniffi::Error)]
@@ -268,19 +274,24 @@ impl StacksClient {
                 ));
             }
         };
-        let nonce = account.nonce;
+
+        // Use fallback fee rate of 180 if transfer_fees fails
+        let fee_rate = match self.transfer_fees(network).await {
+            Ok(result) => result,
+            Err(e) => {
+                println!("Failed to fetch transfer fee rate: {}. Using fallback value of 1 fee rate / byte.", e);
+                1
+            }
+        };
 
         // https://github.com/52/stacks.rs/blob/c6455fe5eeae04b2f0e3a88fe6e6c803949a8417/README.md?plain=1#L24
-        let transfer = match network {
+        let mut transfer = match network {
             network::stacks::MAINNET => STXTokenTransfer::builder()
                 .recipient(clarity!(PrincipalStandard, request.recipient))
                 .amount(request.amount)
                 .memo(request.memo)
                 .sender(sender_key)
                 .network(StacksMainnet::new())
-                // TODO hardcoded value. Must be retrieved from estimate_fees when working
-                .fee(210)
-                .nonce(nonce)
                 .build()
                 .transaction(),
             network::stacks::TESTNET => STXTokenTransfer::builder()
@@ -289,9 +300,6 @@ impl StacksClient {
                 .memo(request.memo)
                 .sender(sender_key)
                 .network(StacksTestnet::new())
-                // TODO hardcoded value. Must be retrieved from estimate_fees when working
-                .fee(210)
-                .nonce(nonce)
                 .build()
                 .transaction(),
             _ => {
@@ -301,8 +309,19 @@ impl StacksClient {
             }
         };
 
-        // TODO bytes_length is used to get actual fees by multiplying to the result of transfer_fees
-        // let bytes_length = clarity::Codec::encode(&transfer).map_err(StacksSignTransactionError::Encode)?.len();
+        let nonce = account.nonce;
+        transfer.set_nonce(nonce);
+
+        let bytes_length = clarity::Codec::encode(&transfer)
+            .map_err(StacksSignTransactionError::Encode)?
+            .len();
+        let mut fees = bytes_length as u64 * fee_rate;
+        // fees can't be lower than 180 microSTX
+        // A typical single-signature STX transfer is ~180–200 bytes and lower fee_rate is 1
+        // Fee is calculated as fee_rate * transaction_bytes
+        // Anything below this will often fail with "FeeTooLow"
+        fees = std::cmp::max(fees, 180); 
+        transfer.set_fee(fees);
 
         // Scope `signed_transaction` so that it isn't held across the await boundary
         // This is needed because `Transaction` is not `Send`
@@ -385,36 +404,31 @@ impl StacksClient {
         Ok(account)
     }
 
-    // pub async fn estimate_fees(
-    //     &self,
-    //     network: &str,
-    //     transaction_payload: &str,
-    // ) -> Result<FeeEstimation, StacksFeesError> {
-    //     let stacks_client =
-    //         self.provider_pool.get_stacks_client(network, None, None).await;
+    pub async fn transfer_fees(
+        &self,
+        network: &str,
+    ) -> Result<u64, StacksFeesError> {
+        let stacks_client =
+            self.provider_pool.get_stacks_client(network, None, None).await;
 
-    //     let response = match stacks_client
-    //         .estimate_fees(transaction_payload.to_string())
-    //         .await
-    //     {
-    //         Ok(result) => result,
-    //         Err(e) => {
-    //             let error_string = format!("Failed to estimate fees: {}", e);
-    //             return Err(StacksFeesError::EstimateFees(error_string));
-    //         }
-    //     };
-    //     println!("estimate fees: {:?}", response);
+        let response = match stacks_client.stacks_transfer_fees().await {
+            Ok(result) => result,
+            Err(e) => {
+                let error_string = format!("Failed to fetch fee rate: {}", e);
+                return Err(StacksFeesError::TransferFees(error_string));
+            }
+        };
 
-    //     let fees: FeeEstimation =
-    //         serde_json::from_value(response).map_err(|e| {
-    //             StacksFeesError::EstimateFees(format!(
-    //                 "Failed to parse response: {}",
-    //                 e
-    //             ))
-    //         })?;
+        // Check if response is already the result value
+        if let Some(fee_rate) = response.as_u64() {
+            return Ok(fee_rate);
+        }
 
-    //     Ok(fees)
-    // }
+        Err(StacksFeesError::InvalidResponse(format!(
+            "Unexpected response format: {:?}",
+            response
+        )))
+    }
 }
 
 #[derive(uniffi::Record, Debug, Clone)]
