@@ -169,6 +169,9 @@ pub enum StacksSignTransactionError {
 
     #[error("Failed to fetch fee rate: {0}")]
     TransferFees(String),
+
+    #[error("Memo too long: {0} bytes, maximum allowed is 34 bytes")]
+    MemoTooLong(u32),
 }
 
 #[derive(uniffi::Object)]
@@ -256,6 +259,11 @@ impl StacksClient {
         network: &str,
         request: TransferStxRequest,
     ) -> Result<TransferStxResponse, StacksSignTransactionError> {
+        // Validate memo length (max 34 bytes for Stacks)
+        if request.memo.len() > 34 {
+            return Err(StacksSignTransactionError::MemoTooLong(request.memo.len() as u32));
+        }
+
         let mut stacks_wallet = StacksWallet::from_secret_key(wallet)
             .map_err(StacksSignTransactionError::InvalidSecretKey)?;
         let sender_key = stacks_wallet
