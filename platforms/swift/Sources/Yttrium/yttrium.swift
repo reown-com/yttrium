@@ -704,7 +704,7 @@ public protocol StacksClientProtocol: AnyObject {
     
     func getAccount(network: String, principal: String) async throws  -> StacksAccount
     
-    func signTransaction(wallet: String, network: String, request: TransferStxRequest) async throws  -> TransferStxResponse
+    func transferFees(network: String) async throws  -> UInt64
     
     func transferStx(wallet: String, network: String, request: TransferStxRequest) async throws  -> TransferStxResponse
     
@@ -794,20 +794,20 @@ open func getAccount(network: String, principal: String)async throws  -> StacksA
         )
 }
     
-open func signTransaction(wallet: String, network: String, request: TransferStxRequest)async throws  -> TransferStxResponse  {
+open func transferFees(network: String)async throws  -> UInt64  {
     return
         try  await uniffiRustCallAsync(
             rustFutureFunc: {
-                uniffi_yttrium_fn_method_stacksclient_sign_transaction(
+                uniffi_yttrium_fn_method_stacksclient_transfer_fees(
                     self.uniffiClonePointer(),
-                    FfiConverterString.lower(wallet),FfiConverterString.lower(network),FfiConverterTypeTransferStxRequest_lower(request)
+                    FfiConverterString.lower(network)
                 )
             },
-            pollFunc: ffi_yttrium_rust_future_poll_rust_buffer,
-            completeFunc: ffi_yttrium_rust_future_complete_rust_buffer,
-            freeFunc: ffi_yttrium_rust_future_free_rust_buffer,
-            liftFunc: FfiConverterTypeTransferStxResponse_lift,
-            errorHandler: FfiConverterTypeStacksSignTransactionError.lift
+            pollFunc: ffi_yttrium_rust_future_poll_u64,
+            completeFunc: ffi_yttrium_rust_future_complete_u64,
+            freeFunc: ffi_yttrium_rust_future_free_u64,
+            liftFunc: FfiConverterUInt64.lift,
+            errorHandler: FfiConverterTypeStacksFeesError.lift
         )
 }
     
@@ -6465,7 +6465,9 @@ public enum StacksFeesError {
 
     
     
-    case EstimateFees(String
+    case TransferFees(String
+    )
+    case InvalidResponse(String
     )
 }
 
@@ -6483,7 +6485,10 @@ public struct FfiConverterTypeStacksFeesError: FfiConverterRustBuffer {
         
 
         
-        case 1: return .EstimateFees(
+        case 1: return .TransferFees(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 2: return .InvalidResponse(
             try FfiConverterString.read(from: &buf)
             )
 
@@ -6498,8 +6503,13 @@ public struct FfiConverterTypeStacksFeesError: FfiConverterRustBuffer {
 
         
         
-        case let .EstimateFees(v1):
+        case let .TransferFees(v1):
             writeInt(&buf, Int32(1))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .InvalidResponse(v1):
+            writeInt(&buf, Int32(2))
             FfiConverterString.write(v1, into: &buf)
             
         }
@@ -6746,7 +6756,7 @@ public enum StacksSignTransactionError {
     )
     case Encode(ClarityError
     )
-    case FetchAccount(String
+    case MemoTooLong(UInt32
     )
 }
 
@@ -6782,8 +6792,8 @@ public struct FfiConverterTypeStacksSignTransactionError: FfiConverterRustBuffer
         case 6: return .Encode(
             try FfiConverterTypeClarityError.read(from: &buf)
             )
-        case 7: return .FetchAccount(
-            try FfiConverterString.read(from: &buf)
+        case 7: return .MemoTooLong(
+            try FfiConverterUInt32.read(from: &buf)
             )
 
          default: throw UniffiInternalError.unexpectedEnumCase
@@ -6827,9 +6837,9 @@ public struct FfiConverterTypeStacksSignTransactionError: FfiConverterRustBuffer
             FfiConverterTypeClarityError.write(v1, into: &buf)
             
         
-        case let .FetchAccount(v1):
+        case let .MemoTooLong(v1):
             writeInt(&buf, Int32(7))
-            FfiConverterString.write(v1, into: &buf)
+            FfiConverterUInt32.write(v1, into: &buf)
             
         }
     }
@@ -6871,6 +6881,10 @@ public enum StacksTransferStxError {
     )
     case BroadcastTransaction(String
     )
+    case FetchAccount(String
+    )
+    case TransferFees(String
+    )
 }
 
 
@@ -6893,6 +6907,12 @@ public struct FfiConverterTypeStacksTransferStxError: FfiConverterRustBuffer {
         case 2: return .BroadcastTransaction(
             try FfiConverterString.read(from: &buf)
             )
+        case 3: return .FetchAccount(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 4: return .TransferFees(
+            try FfiConverterString.read(from: &buf)
+            )
 
          default: throw UniffiInternalError.unexpectedEnumCase
         }
@@ -6912,6 +6932,16 @@ public struct FfiConverterTypeStacksTransferStxError: FfiConverterRustBuffer {
         
         case let .BroadcastTransaction(v1):
             writeInt(&buf, Int32(2))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .FetchAccount(v1):
+            writeInt(&buf, Int32(3))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .TransferFees(v1):
+            writeInt(&buf, Int32(4))
             FfiConverterString.write(v1, into: &buf)
             
         }
@@ -10341,7 +10371,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_yttrium_checksum_method_stacksclient_get_account() != 47469) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_yttrium_checksum_method_stacksclient_sign_transaction() != 59724) {
+    if (uniffi_yttrium_checksum_method_stacksclient_transfer_fees() != 35491) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_yttrium_checksum_method_stacksclient_transfer_stx() != 55030) {
