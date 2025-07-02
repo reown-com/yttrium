@@ -702,6 +702,10 @@ public func FfiConverterTypeErc6492Client_lower(_ value: Erc6492Client) -> Unsaf
 
 public protocol StacksClientProtocol: AnyObject {
     
+    func getAccount(network: String, principal: String) async throws  -> StacksAccount
+    
+    func signTransaction(wallet: String, network: String, request: TransferStxRequest) async throws  -> TransferStxResponse
+    
     func transferStx(wallet: String, network: String, request: TransferStxRequest) async throws  -> TransferStxResponse
     
 }
@@ -772,6 +776,40 @@ public static func withBlockchainApiUrl(projectId: ProjectId, pulseMetadata: Pul
 }
     
 
+    
+open func getAccount(network: String, principal: String)async throws  -> StacksAccount  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_yttrium_fn_method_stacksclient_get_account(
+                    self.uniffiClonePointer(),
+                    FfiConverterString.lower(network),FfiConverterString.lower(principal)
+                )
+            },
+            pollFunc: ffi_yttrium_rust_future_poll_rust_buffer,
+            completeFunc: ffi_yttrium_rust_future_complete_rust_buffer,
+            freeFunc: ffi_yttrium_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeStacksAccount_lift,
+            errorHandler: FfiConverterTypeStacksAccountError.lift
+        )
+}
+    
+open func signTransaction(wallet: String, network: String, request: TransferStxRequest)async throws  -> TransferStxResponse  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_yttrium_fn_method_stacksclient_sign_transaction(
+                    self.uniffiClonePointer(),
+                    FfiConverterString.lower(wallet),FfiConverterString.lower(network),FfiConverterTypeTransferStxRequest_lower(request)
+                )
+            },
+            pollFunc: ffi_yttrium_rust_future_poll_rust_buffer,
+            completeFunc: ffi_yttrium_rust_future_complete_rust_buffer,
+            freeFunc: ffi_yttrium_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeTransferStxResponse_lift,
+            errorHandler: FfiConverterTypeStacksSignTransactionError.lift
+        )
+}
     
 open func transferStx(wallet: String, network: String, request: TransferStxRequest)async throws  -> TransferStxResponse  {
     return
@@ -1740,6 +1778,170 @@ public func FfiConverterTypeErc721Metadata_lower(_ value: Erc721Metadata) -> Rus
 }
 
 
+public struct EstimatedCost {
+    public var readCount: UInt64
+    public var readLength: UInt64
+    public var runtime: UInt64
+    public var writeCount: UInt64
+    public var writeLength: UInt64
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(readCount: UInt64, readLength: UInt64, runtime: UInt64, writeCount: UInt64, writeLength: UInt64) {
+        self.readCount = readCount
+        self.readLength = readLength
+        self.runtime = runtime
+        self.writeCount = writeCount
+        self.writeLength = writeLength
+    }
+}
+
+#if compiler(>=6)
+extension EstimatedCost: Sendable {}
+#endif
+
+
+extension EstimatedCost: Equatable, Hashable {
+    public static func ==(lhs: EstimatedCost, rhs: EstimatedCost) -> Bool {
+        if lhs.readCount != rhs.readCount {
+            return false
+        }
+        if lhs.readLength != rhs.readLength {
+            return false
+        }
+        if lhs.runtime != rhs.runtime {
+            return false
+        }
+        if lhs.writeCount != rhs.writeCount {
+            return false
+        }
+        if lhs.writeLength != rhs.writeLength {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(readCount)
+        hasher.combine(readLength)
+        hasher.combine(runtime)
+        hasher.combine(writeCount)
+        hasher.combine(writeLength)
+    }
+}
+
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeEstimatedCost: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> EstimatedCost {
+        return
+            try EstimatedCost(
+                readCount: FfiConverterUInt64.read(from: &buf), 
+                readLength: FfiConverterUInt64.read(from: &buf), 
+                runtime: FfiConverterUInt64.read(from: &buf), 
+                writeCount: FfiConverterUInt64.read(from: &buf), 
+                writeLength: FfiConverterUInt64.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: EstimatedCost, into buf: inout [UInt8]) {
+        FfiConverterUInt64.write(value.readCount, into: &buf)
+        FfiConverterUInt64.write(value.readLength, into: &buf)
+        FfiConverterUInt64.write(value.runtime, into: &buf)
+        FfiConverterUInt64.write(value.writeCount, into: &buf)
+        FfiConverterUInt64.write(value.writeLength, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEstimatedCost_lift(_ buf: RustBuffer) throws -> EstimatedCost {
+    return try FfiConverterTypeEstimatedCost.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEstimatedCost_lower(_ value: EstimatedCost) -> RustBuffer {
+    return FfiConverterTypeEstimatedCost.lower(value)
+}
+
+
+public struct Estimation {
+    public var fee: UInt64
+    public var feeRate: Double
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(fee: UInt64, feeRate: Double) {
+        self.fee = fee
+        self.feeRate = feeRate
+    }
+}
+
+#if compiler(>=6)
+extension Estimation: Sendable {}
+#endif
+
+
+extension Estimation: Equatable, Hashable {
+    public static func ==(lhs: Estimation, rhs: Estimation) -> Bool {
+        if lhs.fee != rhs.fee {
+            return false
+        }
+        if lhs.feeRate != rhs.feeRate {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(fee)
+        hasher.combine(feeRate)
+    }
+}
+
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeEstimation: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Estimation {
+        return
+            try Estimation(
+                fee: FfiConverterUInt64.read(from: &buf), 
+                feeRate: FfiConverterDouble.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: Estimation, into buf: inout [UInt8]) {
+        FfiConverterUInt64.write(value.fee, into: &buf)
+        FfiConverterDouble.write(value.feeRate, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEstimation_lift(_ buf: RustBuffer) throws -> Estimation {
+    return try FfiConverterTypeEstimation.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEstimation_lower(_ value: Estimation) -> RustBuffer {
+    return FfiConverterTypeEstimation.lower(value)
+}
+
+
 public struct ExecuteDetails {
     public var initialTxnReceipt: TransactionReceipt
     public var initialTxnHash: B256
@@ -1933,6 +2135,92 @@ public func FfiConverterTypeFeeEstimatedTransaction_lift(_ buf: RustBuffer) thro
 #endif
 public func FfiConverterTypeFeeEstimatedTransaction_lower(_ value: FeeEstimatedTransaction) -> RustBuffer {
     return FfiConverterTypeFeeEstimatedTransaction.lower(value)
+}
+
+
+public struct FeeEstimation {
+    public var costScalarChangeByByte: Double
+    public var estimatedCost: EstimatedCost
+    public var estimatedCostScalar: UInt64
+    public var estimations: [Estimation]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(costScalarChangeByByte: Double, estimatedCost: EstimatedCost, estimatedCostScalar: UInt64, estimations: [Estimation]) {
+        self.costScalarChangeByByte = costScalarChangeByByte
+        self.estimatedCost = estimatedCost
+        self.estimatedCostScalar = estimatedCostScalar
+        self.estimations = estimations
+    }
+}
+
+#if compiler(>=6)
+extension FeeEstimation: Sendable {}
+#endif
+
+
+extension FeeEstimation: Equatable, Hashable {
+    public static func ==(lhs: FeeEstimation, rhs: FeeEstimation) -> Bool {
+        if lhs.costScalarChangeByByte != rhs.costScalarChangeByByte {
+            return false
+        }
+        if lhs.estimatedCost != rhs.estimatedCost {
+            return false
+        }
+        if lhs.estimatedCostScalar != rhs.estimatedCostScalar {
+            return false
+        }
+        if lhs.estimations != rhs.estimations {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(costScalarChangeByByte)
+        hasher.combine(estimatedCost)
+        hasher.combine(estimatedCostScalar)
+        hasher.combine(estimations)
+    }
+}
+
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeFeeEstimation: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> FeeEstimation {
+        return
+            try FeeEstimation(
+                costScalarChangeByByte: FfiConverterDouble.read(from: &buf), 
+                estimatedCost: FfiConverterTypeEstimatedCost.read(from: &buf), 
+                estimatedCostScalar: FfiConverterUInt64.read(from: &buf), 
+                estimations: FfiConverterSequenceTypeEstimation.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: FeeEstimation, into buf: inout [UInt8]) {
+        FfiConverterDouble.write(value.costScalarChangeByByte, into: &buf)
+        FfiConverterTypeEstimatedCost.write(value.estimatedCost, into: &buf)
+        FfiConverterUInt64.write(value.estimatedCostScalar, into: &buf)
+        FfiConverterSequenceTypeEstimation.write(value.estimations, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFeeEstimation_lift(_ buf: RustBuffer) throws -> FeeEstimation {
+    return try FfiConverterTypeFeeEstimation.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFeeEstimation_lower(_ value: FeeEstimation) -> RustBuffer {
+    return FfiConverterTypeFeeEstimation.lower(value)
 }
 
 
@@ -3637,6 +3925,108 @@ public func FfiConverterTypeSolanaTxnDetails_lower(_ value: SolanaTxnDetails) ->
 }
 
 
+public struct StacksAccount {
+    public var balance: String
+    public var locked: String
+    public var unlockHeight: UInt64
+    public var nonce: UInt64
+    public var balanceProof: String
+    public var nonceProof: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(balance: String, locked: String, unlockHeight: UInt64, nonce: UInt64, balanceProof: String, nonceProof: String) {
+        self.balance = balance
+        self.locked = locked
+        self.unlockHeight = unlockHeight
+        self.nonce = nonce
+        self.balanceProof = balanceProof
+        self.nonceProof = nonceProof
+    }
+}
+
+#if compiler(>=6)
+extension StacksAccount: Sendable {}
+#endif
+
+
+extension StacksAccount: Equatable, Hashable {
+    public static func ==(lhs: StacksAccount, rhs: StacksAccount) -> Bool {
+        if lhs.balance != rhs.balance {
+            return false
+        }
+        if lhs.locked != rhs.locked {
+            return false
+        }
+        if lhs.unlockHeight != rhs.unlockHeight {
+            return false
+        }
+        if lhs.nonce != rhs.nonce {
+            return false
+        }
+        if lhs.balanceProof != rhs.balanceProof {
+            return false
+        }
+        if lhs.nonceProof != rhs.nonceProof {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(balance)
+        hasher.combine(locked)
+        hasher.combine(unlockHeight)
+        hasher.combine(nonce)
+        hasher.combine(balanceProof)
+        hasher.combine(nonceProof)
+    }
+}
+
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeStacksAccount: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> StacksAccount {
+        return
+            try StacksAccount(
+                balance: FfiConverterString.read(from: &buf), 
+                locked: FfiConverterString.read(from: &buf), 
+                unlockHeight: FfiConverterUInt64.read(from: &buf), 
+                nonce: FfiConverterUInt64.read(from: &buf), 
+                balanceProof: FfiConverterString.read(from: &buf), 
+                nonceProof: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: StacksAccount, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.balance, into: &buf)
+        FfiConverterString.write(value.locked, into: &buf)
+        FfiConverterUInt64.write(value.unlockHeight, into: &buf)
+        FfiConverterUInt64.write(value.nonce, into: &buf)
+        FfiConverterString.write(value.balanceProof, into: &buf)
+        FfiConverterString.write(value.nonceProof, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeStacksAccount_lift(_ buf: RustBuffer) throws -> StacksAccount {
+    return try FfiConverterTypeStacksAccount.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeStacksAccount_lower(_ value: StacksAccount) -> RustBuffer {
+    return FfiConverterTypeStacksAccount.lower(value)
+}
+
+
 public struct StatusResponseCompleted {
     public var createdAt: UInt64
 
@@ -4026,13 +4416,15 @@ public func FfiConverterTypeTransactionFee_lower(_ value: TransactionFee) -> Rus
 
 
 public struct TransferStxRequest {
+    public var sender: String
     public var amount: UInt64
     public var recipient: String
     public var memo: String
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(amount: UInt64, recipient: String, memo: String) {
+    public init(sender: String, amount: UInt64, recipient: String, memo: String) {
+        self.sender = sender
         self.amount = amount
         self.recipient = recipient
         self.memo = memo
@@ -4046,6 +4438,9 @@ extension TransferStxRequest: Sendable {}
 
 extension TransferStxRequest: Equatable, Hashable {
     public static func ==(lhs: TransferStxRequest, rhs: TransferStxRequest) -> Bool {
+        if lhs.sender != rhs.sender {
+            return false
+        }
         if lhs.amount != rhs.amount {
             return false
         }
@@ -4059,6 +4454,7 @@ extension TransferStxRequest: Equatable, Hashable {
     }
 
     public func hash(into hasher: inout Hasher) {
+        hasher.combine(sender)
         hasher.combine(amount)
         hasher.combine(recipient)
         hasher.combine(memo)
@@ -4074,6 +4470,7 @@ public struct FfiConverterTypeTransferStxRequest: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> TransferStxRequest {
         return
             try TransferStxRequest(
+                sender: FfiConverterString.read(from: &buf), 
                 amount: FfiConverterUInt64.read(from: &buf), 
                 recipient: FfiConverterString.read(from: &buf), 
                 memo: FfiConverterString.read(from: &buf)
@@ -4081,6 +4478,7 @@ public struct FfiConverterTypeTransferStxRequest: FfiConverterRustBuffer {
     }
 
     public static func write(_ value: TransferStxRequest, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.sender, into: &buf)
         FfiConverterUInt64.write(value.amount, into: &buf)
         FfiConverterString.write(value.recipient, into: &buf)
         FfiConverterString.write(value.memo, into: &buf)
@@ -5990,6 +6388,152 @@ extension SolanaDeriveKeypairFromMnemonicError: Foundation.LocalizedError {
 
 
 
+public enum StacksAccountError {
+
+    
+    
+    case FetchAccount(String
+    )
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeStacksAccountError: FfiConverterRustBuffer {
+    typealias SwiftType = StacksAccountError
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> StacksAccountError {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+
+        
+
+        
+        case 1: return .FetchAccount(
+            try FfiConverterString.read(from: &buf)
+            )
+
+         default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: StacksAccountError, into buf: inout [UInt8]) {
+        switch value {
+
+        
+
+        
+        
+        case let .FetchAccount(v1):
+            writeInt(&buf, Int32(1))
+            FfiConverterString.write(v1, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeStacksAccountError_lift(_ buf: RustBuffer) throws -> StacksAccountError {
+    return try FfiConverterTypeStacksAccountError.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeStacksAccountError_lower(_ value: StacksAccountError) -> RustBuffer {
+    return FfiConverterTypeStacksAccountError.lower(value)
+}
+
+
+extension StacksAccountError: Equatable, Hashable {}
+
+
+
+extension StacksAccountError: Foundation.LocalizedError {
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+}
+
+
+
+public enum StacksFeesError {
+
+    
+    
+    case EstimateFees(String
+    )
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeStacksFeesError: FfiConverterRustBuffer {
+    typealias SwiftType = StacksFeesError
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> StacksFeesError {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+
+        
+
+        
+        case 1: return .EstimateFees(
+            try FfiConverterString.read(from: &buf)
+            )
+
+         default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: StacksFeesError, into buf: inout [UInt8]) {
+        switch value {
+
+        
+
+        
+        
+        case let .EstimateFees(v1):
+            writeInt(&buf, Int32(1))
+            FfiConverterString.write(v1, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeStacksFeesError_lift(_ buf: RustBuffer) throws -> StacksFeesError {
+    return try FfiConverterTypeStacksFeesError.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeStacksFeesError_lower(_ value: StacksFeesError) -> RustBuffer {
+    return FfiConverterTypeStacksFeesError.lower(value)
+}
+
+
+extension StacksFeesError: Equatable, Hashable {}
+
+
+
+extension StacksFeesError: Foundation.LocalizedError {
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+}
+
+
+
 public enum StacksGetAddressError {
 
     
@@ -6202,6 +6746,8 @@ public enum StacksSignTransactionError {
     )
     case Encode(ClarityError
     )
+    case FetchAccount(String
+    )
 }
 
 
@@ -6235,6 +6781,9 @@ public struct FfiConverterTypeStacksSignTransactionError: FfiConverterRustBuffer
             )
         case 6: return .Encode(
             try FfiConverterTypeClarityError.read(from: &buf)
+            )
+        case 7: return .FetchAccount(
+            try FfiConverterString.read(from: &buf)
             )
 
          default: throw UniffiInternalError.unexpectedEnumCase
@@ -6276,6 +6825,11 @@ public struct FfiConverterTypeStacksSignTransactionError: FfiConverterRustBuffer
         case let .Encode(v1):
             writeInt(&buf, Int32(6))
             FfiConverterTypeClarityError.write(v1, into: &buf)
+            
+        
+        case let .FetchAccount(v1):
+            writeInt(&buf, Int32(7))
+            FfiConverterString.write(v1, into: &buf)
             
         }
     }
@@ -6894,6 +7448,79 @@ extension Transactions: Equatable, Hashable {}
 
 
 
+public enum TransferFeesError {
+
+    
+    
+    case FeeRate(String
+    )
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeTransferFeesError: FfiConverterRustBuffer {
+    typealias SwiftType = TransferFeesError
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> TransferFeesError {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+
+        
+
+        
+        case 1: return .FeeRate(
+            try FfiConverterString.read(from: &buf)
+            )
+
+         default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: TransferFeesError, into buf: inout [UInt8]) {
+        switch value {
+
+        
+
+        
+        
+        case let .FeeRate(v1):
+            writeInt(&buf, Int32(1))
+            FfiConverterString.write(v1, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTransferFeesError_lift(_ buf: RustBuffer) throws -> TransferFeesError {
+    return try FfiConverterTypeTransferFeesError.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTransferFeesError_lower(_ value: TransferFeesError) -> RustBuffer {
+    return FfiConverterTypeTransferFeesError.lower(value)
+}
+
+
+extension TransferFeesError: Equatable, Hashable {}
+
+
+
+extension TransferFeesError: Foundation.LocalizedError {
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+}
+
+
+
 public enum WaitForSuccessError {
 
     
@@ -7199,6 +7826,31 @@ fileprivate struct FfiConverterOptionTypeUrl: FfiConverterRustBuffer {
         case 1: return try FfiConverterTypeUrl.read(from: &buf)
         default: throw UniffiInternalError.unexpectedOptionalTag
         }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeEstimation: FfiConverterRustBuffer {
+    typealias SwiftType = [Estimation]
+
+    public static func write(_ value: [Estimation], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeEstimation.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [Estimation] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [Estimation]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeEstimation.read(from: &buf))
+        }
+        return seq
     }
 }
 
@@ -9684,6 +10336,12 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_yttrium_checksum_method_erc6492client_verify_signature() != 43990) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_method_stacksclient_get_account() != 47469) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_method_stacksclient_sign_transaction() != 59724) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_yttrium_checksum_method_stacksclient_transfer_stx() != 55030) {

@@ -4,7 +4,6 @@ use {
         chain_abstraction::pulse::PulseMetadata,
         provider_pool::{network, ProviderPool},
     },
-    alloy::primitives::Bytes,
     clarity::Error as ClarityError,
     rand::{
         rngs::{OsRng, StdRng},
@@ -164,36 +163,51 @@ pub enum StacksSignTransactionError {
 
     #[error("Failed to encode transaction: {0}")]
     Encode(ClarityError),
+
+    #[error("Memo too long: {0} bytes, maximum allowed is 34 bytes")]
+    MemoTooLong(u32),
 }
 
 fn sign_transaction(
     wallet: &str,
     network: &str,
+    fee_rate: u64,
+    nonce: u64,
     request: TransferStxRequest,
-    fee: u64,
-) -> Result<(TransferStxResponse, Bytes), StacksSignTransactionError> {
-    let sender_key = StacksWallet::from_secret_key(wallet)
-        .map_err(StacksSignTransactionError::InvalidSecretKey)?
+) -> Result<TransferStxResponse, StacksSignTransactionError> {
+    // Validate memo length (max 34 bytes for Stacks)
+    if request.memo.len() > 34 {
+        return Err(StacksSignTransactionError::MemoTooLong(
+            request.memo.len() as u32,
+        ));
+    }
+
+    let mut stacks_wallet = StacksWallet::from_secret_key(wallet)
+        .map_err(StacksSignTransactionError::InvalidSecretKey)?;
+    let sender_key = stacks_wallet
+        .get_account(0)
+        .map_err(StacksSignTransactionError::UnwrapPrivateKey)?
         .private_key()
         .map_err(StacksSignTransactionError::UnwrapPrivateKey)?;
+
     // https://github.com/52/stacks.rs/blob/c6455fe5eeae04b2f0e3a88fe6e6c803949a8417/README.md?plain=1#L24
-    let transfer = match network {
+    let mut transfer = match network {
         network::stacks::MAINNET => STXTokenTransfer::builder()
             .recipient(clarity!(PrincipalStandard, request.recipient))
             .amount(request.amount)
             .memo(request.memo)
+            .nonce(nonce)
             .sender(sender_key)
             .network(StacksMainnet::new())
-            .fee(fee)
             .build()
             .transaction(),
         network::stacks::TESTNET => STXTokenTransfer::builder()
             .recipient(clarity!(PrincipalStandard, request.recipient))
             .amount(request.amount)
             .memo(request.memo)
+            .nonce(nonce)
             .sender(sender_key)
             .network(StacksTestnet::new())
-            .fee(fee)
             .build()
             .transaction(),
         _ => {
@@ -202,6 +216,19 @@ fn sign_transaction(
             ))
         }
     };
+
+    let bytes_length = clarity::Codec::encode(&transfer)
+        .map_err(StacksSignTransactionError::Encode)?
+        .len();
+    {
+        let fees = bytes_length as u64 * fee_rate;
+        // fees can't be lower than 180 microSTX
+        // A typical single-signature STX transfer is ~180–200 bytes and lower fee_rate is 1
+        // Fee is calculated as fee_rate * transaction_bytes
+        // Anything below this will often fail with "FeeTooLow"
+        let capped_fees = std::cmp::max(fees, 180);
+        transfer.set_fee(capped_fees);
+    }
 
     // Scope `signed_transaction` so that it isn't held across the await boundary
     // This is needed because `Transaction` is not `Send`
@@ -214,15 +241,11 @@ fn sign_transaction(
     let tx_encoded = clarity::Codec::encode(&signed_transaction)
         .map_err(StacksSignTransactionError::Encode)?;
 
-    Ok((
-        TransferStxResponse {
-            txid: hex::encode(txid),
-            transaction: hex::encode(&tx_encoded),
-        },
-        tx_encoded.into(),
-    ))
+    Ok(TransferStxResponse {
+        txid: hex::encode(txid),
+        transaction: hex::encode(&tx_encoded),
+    })
 }
-
 #[derive(uniffi::Object)]
 pub struct StacksClient {
     #[allow(unused)]
@@ -242,6 +265,33 @@ pub enum StacksTransferStxError {
 
     #[error("Failed to broadcast transaction: {0}")]
     BroadcastTransaction(String),
+
+    #[error("Failed to fetch account: {0}")]
+    FetchAccount(String),
+
+    #[error("Failed to fetch fee rate: {0}")]
+    TransferFees(String),
+}
+
+#[derive(thiserror::Error, Debug, uniffi::Error)]
+pub enum StacksFeesError {
+    #[error("Failed to fetch fee rate: {0}")]
+    TransferFees(String),
+
+    #[error("Failed to parse response: {0}")]
+    InvalidResponse(String),
+}
+
+#[derive(thiserror::Error, Debug, uniffi::Error)]
+pub enum StacksAccountError {
+    #[error("Failed to fetch account: {0}")]
+    FetchAccount(String),
+}
+
+#[derive(thiserror::Error, Debug, uniffi::Error)]
+pub enum TransferFeesError {
+    #[error("Failed to get transfer fees: {0}")]
+    FeeRate(String),
 }
 
 #[uniffi::export(async_runtime = "tokio")]
@@ -290,32 +340,90 @@ impl StacksClient {
         let stacks_client =
             self.provider_pool.get_stacks_client(network, None, None).await;
 
-        // TODO Once the method is ready on backend side we will be able to estimate fees
-        // let fee = stacks_client.estimate_fee().await.map_err(|e| {
-        //     StacksTransferStxError::BroadcastTransaction(e.to_string())
-        // })?;
-        // TODO We hardcode the minimun fee right now until we can estimate them
-        let fee = 180;
+        let account = self
+            .get_account(network, &request.sender)
+            .await
+            .map_err(|e| StacksTransferStxError::FetchAccount(e.to_string()))?;
 
-        let (response, tx_encoded) =
-            sign_transaction(wallet, network, request, fee)
+        let fee_rate = match self.transfer_fees(network).await {
+            Ok(result) => result,
+            Err(e) => {
+                // Use fallback fee rate of 1 if transfer_fees fails
+                tracing::warn!("Failed to fetch transfer fee rate: {}. Using fallback value of 1 fee rate / byte.", e);
+                1
+            }
+        };
+
+        let sign_response =
+            sign_transaction(wallet, network, fee_rate, account.nonce, request)
                 .map_err(StacksTransferStxError::SignTransaction)?;
 
-        // Convert raw bytes to hex string for RPC call
-        let tx_hex = hex::encode(&tx_encoded);
+        let tx_hex = sign_response.transaction.clone();
 
         let broadcast_tx_response =
-            stacks_client.stacks_transactions(tx_hex).await.map_err(|e| {
-                StacksTransferStxError::BroadcastTransaction(e.to_string())
-            })?;
+            stacks_client.stacks_transactions(tx_hex.clone()).await.map_err(
+                |e| StacksTransferStxError::BroadcastTransaction(e.to_string()),
+            )?;
         println!("broadcast tx response: {:?}", broadcast_tx_response);
 
-        Ok(response)
+        Ok(sign_response)
+    }
+
+    pub async fn get_account(
+        &self,
+        network: &str,
+        principal: &str,
+    ) -> Result<StacksAccount, StacksAccountError> {
+        let stacks_client =
+            self.provider_pool.get_stacks_client(network, None, None).await;
+
+        let response =
+            match stacks_client.stacks_accounts(principal.to_string()).await {
+                Ok(result) => result,
+                Err(e) => {
+                    let error_string =
+                        format!("Failed to fetch account: {}", e);
+                    return Err(StacksAccountError::FetchAccount(error_string));
+                }
+            };
+        println!("account response: {:?}", response);
+
+        let account: StacksAccount =
+            serde_json::from_value(response).map_err(|e| {
+                StacksAccountError::FetchAccount(format!(
+                    "Failed to parse response: {}",
+                    e
+                ))
+            })?;
+
+        Ok(account)
+    }
+
+    pub async fn transfer_fees(
+        &self,
+        network: &str,
+    ) -> Result<u64, StacksFeesError> {
+        let stacks_client =
+            self.provider_pool.get_stacks_client(network, None, None).await;
+
+        let response = match stacks_client.stacks_transfer_fees().await {
+            Ok(result) => result,
+            Err(e) => {
+                let error_string = format!("Failed to fetch fee rate: {}", e);
+                return Err(StacksFeesError::TransferFees(error_string));
+            }
+        };
+
+        // Check if response is already the result value
+        response.as_u64().ok_or_else(|| {
+            StacksFeesError::InvalidResponse(response.to_string())
+        })
     }
 }
 
 #[derive(uniffi::Record, Debug, Clone)]
 pub struct TransferStxRequest {
+    sender: String, // address
     amount: u64,
     recipient: String, // address
     memo: String,
@@ -325,6 +433,41 @@ pub struct TransferStxRequest {
 pub struct TransferStxResponse {
     txid: String,
     transaction: String,
+}
+
+#[derive(
+    Debug, Clone, serde::Serialize, serde::Deserialize, uniffi::Record,
+)]
+pub struct StacksAccount {
+    pub balance: String,
+    pub locked: String,
+    pub unlock_height: u64,
+    pub nonce: u64,
+    pub balance_proof: String,
+    pub nonce_proof: String,
+}
+
+#[derive(Debug, serde::Deserialize, uniffi::Record)]
+pub struct FeeEstimation {
+    pub cost_scalar_change_by_byte: f64,
+    pub estimated_cost: EstimatedCost,
+    pub estimated_cost_scalar: u64,
+    pub estimations: Vec<Estimation>,
+}
+
+#[derive(Debug, serde::Deserialize, uniffi::Record)]
+pub struct EstimatedCost {
+    pub read_count: u64,
+    pub read_length: u64,
+    pub runtime: u64,
+    pub write_count: u64,
+    pub write_length: u64,
+}
+
+#[derive(Debug, serde::Deserialize, uniffi::Record)]
+pub struct Estimation {
+    pub fee: u64,
+    pub fee_rate: f64,
 }
 
 #[cfg(test)]
