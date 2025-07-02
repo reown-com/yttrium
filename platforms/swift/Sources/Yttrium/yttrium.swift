@@ -7264,11 +7264,7 @@ public enum SuiSignTransactionError {
 
     
     
-    case InvalidTransactionData(SerdeJsonError
-    )
-    case DecodePure(String
-    )
-    case UnsupportedVersion(UInt8
+    case InvalidTransactionData(String
     )
     case MisMatchedSenderAddress(SuiAddress,SuiAddress
     )
@@ -7295,25 +7291,19 @@ public struct FfiConverterTypeSuiSignTransactionError: FfiConverterRustBuffer {
 
         
         case 1: return .InvalidTransactionData(
-            try FfiConverterTypeSerdeJsonError.read(from: &buf)
-            )
-        case 2: return .DecodePure(
             try FfiConverterString.read(from: &buf)
             )
-        case 3: return .UnsupportedVersion(
-            try FfiConverterUInt8.read(from: &buf)
-            )
-        case 4: return .MisMatchedSenderAddress(
+        case 2: return .MisMatchedSenderAddress(
             try FfiConverterTypeSuiAddress.read(from: &buf), 
             try FfiConverterTypeSuiAddress.read(from: &buf)
             )
-        case 5: return .GetReferenceGasPrice(
+        case 3: return .GetReferenceGasPrice(
             try FfiConverterTypeSuiSdkError.read(from: &buf)
             )
-        case 6: return .GetCoinsForGas(
+        case 4: return .GetCoinsForGas(
             try FfiConverterTypeSuiSdkError.read(from: &buf)
             )
-        case 7: return .NoCoinsAvailableForGas(
+        case 5: return .NoCoinsAvailableForGas(
             try FfiConverterTypeSuiAddress.read(from: &buf)
             )
 
@@ -7330,37 +7320,27 @@ public struct FfiConverterTypeSuiSignTransactionError: FfiConverterRustBuffer {
         
         case let .InvalidTransactionData(v1):
             writeInt(&buf, Int32(1))
-            FfiConverterTypeSerdeJsonError.write(v1, into: &buf)
-            
-        
-        case let .DecodePure(v1):
-            writeInt(&buf, Int32(2))
             FfiConverterString.write(v1, into: &buf)
             
         
-        case let .UnsupportedVersion(v1):
-            writeInt(&buf, Int32(3))
-            FfiConverterUInt8.write(v1, into: &buf)
-            
-        
         case let .MisMatchedSenderAddress(v1,v2):
-            writeInt(&buf, Int32(4))
+            writeInt(&buf, Int32(2))
             FfiConverterTypeSuiAddress.write(v1, into: &buf)
             FfiConverterTypeSuiAddress.write(v2, into: &buf)
             
         
         case let .GetReferenceGasPrice(v1):
-            writeInt(&buf, Int32(5))
+            writeInt(&buf, Int32(3))
             FfiConverterTypeSuiSdkError.write(v1, into: &buf)
             
         
         case let .GetCoinsForGas(v1):
-            writeInt(&buf, Int32(6))
+            writeInt(&buf, Int32(4))
             FfiConverterTypeSuiSdkError.write(v1, into: &buf)
             
         
         case let .NoCoinsAvailableForGas(v1):
-            writeInt(&buf, Int32(7))
+            writeInt(&buf, Int32(5))
             FfiConverterTypeSuiAddress.write(v1, into: &buf)
             
         }
