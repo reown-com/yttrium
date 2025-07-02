@@ -164,16 +164,88 @@ pub enum StacksSignTransactionError {
     #[error("Failed to encode transaction: {0}")]
     Encode(ClarityError),
 
-    #[error("Failed to fetch account: {0}")]
-    FetchAccount(String),
-
-    #[error("Failed to fetch fee rate: {0}")]
-    TransferFees(String),
-
     #[error("Memo too long: {0} bytes, maximum allowed is 34 bytes")]
     MemoTooLong(u32),
 }
 
+fn sign_transaction(
+    wallet: &str,
+    network: &str,
+    fee_rate: u64,
+    nonce: u64,
+    request: TransferStxRequest,
+) -> Result<TransferStxResponse, StacksSignTransactionError> {
+    // Validate memo length (max 34 bytes for Stacks)
+    if request.memo.len() > 34 {
+        return Err(StacksSignTransactionError::MemoTooLong(
+            request.memo.len() as u32,
+        ));
+    }
+
+    let mut stacks_wallet = StacksWallet::from_secret_key(wallet)
+        .map_err(StacksSignTransactionError::InvalidSecretKey)?;
+    let sender_key = stacks_wallet
+        .get_account(0)
+        .map_err(StacksSignTransactionError::UnwrapPrivateKey)?
+        .private_key()
+        .map_err(StacksSignTransactionError::UnwrapPrivateKey)?;
+
+    // https://github.com/52/stacks.rs/blob/c6455fe5eeae04b2f0e3a88fe6e6c803949a8417/README.md?plain=1#L24
+    let mut transfer = match network {
+        network::stacks::MAINNET => STXTokenTransfer::builder()
+            .recipient(clarity!(PrincipalStandard, request.recipient))
+            .amount(request.amount)
+            .memo(request.memo)
+            .nonce(nonce)
+            .sender(sender_key)
+            .network(StacksMainnet::new())
+            .build()
+            .transaction(),
+        network::stacks::TESTNET => STXTokenTransfer::builder()
+            .recipient(clarity!(PrincipalStandard, request.recipient))
+            .amount(request.amount)
+            .memo(request.memo)
+            .nonce(nonce)
+            .sender(sender_key)
+            .network(StacksTestnet::new())
+            .build()
+            .transaction(),
+        _ => {
+            return Err(StacksSignTransactionError::InvalidNetwork(
+                network.to_string(),
+            ))
+        }
+    };
+
+    let bytes_length = clarity::Codec::encode(&transfer)
+        .map_err(StacksSignTransactionError::Encode)?
+        .len();
+    {
+        let fees = bytes_length as u64 * fee_rate;
+        // fees can't be lower than 180 microSTX
+        // A typical single-signature STX transfer is ~180–200 bytes and lower fee_rate is 1
+        // Fee is calculated as fee_rate * transaction_bytes
+        // Anything below this will often fail with "FeeTooLow"
+        let capped_fees = std::cmp::max(fees, 180);
+        transfer.set_fee(capped_fees);
+    }
+
+    // Scope `signed_transaction` so that it isn't held across the await boundary
+    // This is needed because `Transaction` is not `Send`
+    let signed_transaction = transfer
+        .sign(sender_key)
+        .map_err(StacksSignTransactionError::SignTransaction)?;
+
+    let txid =
+        signed_transaction.hash().map_err(StacksSignTransactionError::Hash)?;
+    let tx_encoded = clarity::Codec::encode(&signed_transaction)
+        .map_err(StacksSignTransactionError::Encode)?;
+
+    Ok(TransferStxResponse {
+        txid: hex::encode(txid),
+        transaction: hex::encode(&tx_encoded),
+    })
+}
 #[derive(uniffi::Object)]
 pub struct StacksClient {
     #[allow(unused)]
@@ -193,6 +265,12 @@ pub enum StacksTransferStxError {
 
     #[error("Failed to broadcast transaction: {0}")]
     BroadcastTransaction(String),
+
+    #[error("Failed to fetch account: {0}")]
+    FetchAccount(String),
+
+    #[error("Failed to fetch fee rate: {0}")]
+    TransferFees(String),
 }
 
 #[derive(thiserror::Error, Debug, uniffi::Error)]
@@ -253,27 +331,19 @@ impl StacksClient {
         }
     }
 
-    async fn sign_transaction(
+    pub async fn transfer_stx(
         &self,
         wallet: &str,
         network: &str,
         request: TransferStxRequest,
-    ) -> Result<TransferStxResponse, StacksSignTransactionError> {
-        // Validate memo length (max 34 bytes for Stacks)
-        if request.memo.len() > 34 {
-            return Err(StacksSignTransactionError::MemoTooLong(request.memo.len() as u32));
-        }
+    ) -> Result<TransferStxResponse, StacksTransferStxError> {
+        let stacks_client =
+            self.provider_pool.get_stacks_client(network, None, None).await;
 
-        let mut stacks_wallet = StacksWallet::from_secret_key(wallet)
-            .map_err(StacksSignTransactionError::InvalidSecretKey)?;
-        let sender_key = stacks_wallet
-            .get_account(0)
-            .map_err(StacksSignTransactionError::UnwrapPrivateKey)?
-            .private_key()
-            .map_err(StacksSignTransactionError::UnwrapPrivateKey)?;
-
-        let account = self.get_account(network, &request.sender).await
-            .map_err(|e| StacksSignTransactionError::FetchAccount(e.to_string()))?;
+        let account = self
+            .get_account(network, &request.sender)
+            .await
+            .map_err(|e| StacksTransferStxError::FetchAccount(e.to_string()))?;
 
         let fee_rate = match self.transfer_fees(network).await {
             Ok(result) => result,
@@ -284,85 +354,16 @@ impl StacksClient {
             }
         };
 
-        // https://github.com/52/stacks.rs/blob/c6455fe5eeae04b2f0e3a88fe6e6c803949a8417/README.md?plain=1#L24
-        let mut transfer = match network {
-            network::stacks::MAINNET => STXTokenTransfer::builder()
-                .recipient(clarity!(PrincipalStandard, request.recipient))
-                .amount(request.amount)
-                .memo(request.memo)
-                .sender(sender_key)
-                .network(StacksMainnet::new())
-                .build()
-                .transaction(),
-            network::stacks::TESTNET => STXTokenTransfer::builder()
-                .recipient(clarity!(PrincipalStandard, request.recipient))
-                .amount(request.amount)
-                .memo(request.memo)
-                .sender(sender_key)
-                .network(StacksTestnet::new())
-                .build()
-                .transaction(),
-            _ => {
-                return Err(StacksSignTransactionError::InvalidNetwork(
-                    network.to_string(),
-                ))
-            }
-        };
-
-        let nonce = account.nonce;
-        transfer.set_nonce(nonce);
-
-        let bytes_length = clarity::Codec::encode(&transfer)
-            .map_err(StacksSignTransactionError::Encode)?
-            .len();
-        {
-            let fees = bytes_length as u64 * fee_rate;
-            // fees can't be lower than 180 microSTX
-            // A typical single-signature STX transfer is ~180–200 bytes and lower fee_rate is 1
-            // Fee is calculated as fee_rate * transaction_bytes
-            // Anything below this will often fail with "FeeTooLow"
-            let capped_fees = std::cmp::max(fees, 180); 
-            transfer.set_fee(capped_fees);
-        }
-
-        // Scope `signed_transaction` so that it isn't held across the await boundary
-        // This is needed because `Transaction` is not `Send`
-        let signed_transaction = transfer
-            .sign(sender_key)
-            .map_err(StacksSignTransactionError::SignTransaction)?;
-
-        let txid = signed_transaction
-            .hash()
-            .map_err(StacksSignTransactionError::Hash)?;
-        let tx_encoded = clarity::Codec::encode(&signed_transaction)
-            .map_err(StacksSignTransactionError::Encode)?;
-
-        Ok(TransferStxResponse {
-            txid: hex::encode(txid),
-            transaction: hex::encode(&tx_encoded),
-        })
-    }
-
-    pub async fn transfer_stx(
-        &self,
-        wallet: &str,
-        network: &str,
-        request: TransferStxRequest,
-    ) -> Result<TransferStxResponse, StacksTransferStxError> {
-        let stacks_client =
-            self.provider_pool.get_stacks_client(network, None, None).await;
-
-        let sign_response = self
-            .sign_transaction(wallet, network, request)
-            .await
-            .map_err(StacksTransferStxError::SignTransaction)?;
+        let sign_response =
+            sign_transaction(wallet, network, fee_rate, account.nonce, request)
+                .map_err(StacksTransferStxError::SignTransaction)?;
 
         let tx_hex = sign_response.transaction.clone();
 
-        let broadcast_tx_response = stacks_client
-            .stacks_transactions(tx_hex.clone())
-            .await
-            .map_err(|e| StacksTransferStxError::BroadcastTransaction(e.to_string()))?;
+        let broadcast_tx_response =
+            stacks_client.stacks_transactions(tx_hex.clone()).await.map_err(
+                |e| StacksTransferStxError::BroadcastTransaction(e.to_string()),
+            )?;
         println!("broadcast tx response: {:?}", broadcast_tx_response);
 
         Ok(sign_response)
@@ -414,9 +415,9 @@ impl StacksClient {
         };
 
         // Check if response is already the result value
-        response
-            .as_u64()
-            .ok_or_else(|| StacksFeesError::InvalidResponse(response.to_string()))
+        response.as_u64().ok_or_else(|| {
+            StacksFeesError::InvalidResponse(response.to_string())
+        })
     }
 }
 
