@@ -11,12 +11,7 @@ impl StacksProvider {
     ) -> TransportResult<serde_json::Value> {
         // TODO proper return type
         let response: serde_json::Value =
-            match self.client.request("stacks_transactions", tx_hex).await {
-                Ok(result) => result,
-                Err(e) => {
-                    return Err(e);
-                }
-            };
+            self.client.request("stacks_transactions", tx_hex).await?;
 
         Ok(response)
     }
@@ -27,12 +22,7 @@ impl StacksProvider {
         principal: String,
     ) -> TransportResult<serde_json::Value> {
         let response: serde_json::Value =
-            match self.client.request("stacks_accounts", principal).await {
-                Ok(result) => result,
-                Err(e) => {
-                    return Err(e);
-                }
-            };
+            self.client.request("stacks_accounts", principal).await?;
 
         Ok(response)
     }
@@ -59,16 +49,13 @@ impl StacksProvider {
     // }
 
     // Queries a proxy method on blockchain API which queries /v2/fees/transaction
-    pub async fn stacks_transfer_fees(&self) -> TransportResult<serde_json::Value> {
+    pub async fn stacks_transfer_fees(
+        &self,
+    ) -> TransportResult<serde_json::Value> {
         // Query the current fee rate from the Stacks network
         // The fee is typically around 180 microSTX, but we'll query it dynamically
         let response: serde_json::Value =
-            match self.client.request("stacks_transfer_fees", "{}").await {
-                Ok(result) => result,
-                Err(e) => {
-                    return Err(e);
-                }
-            };
+            self.client.request("stacks_transfer_fees", "{}").await?;
 
         Ok(response)
     }
