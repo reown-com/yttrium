@@ -35,6 +35,9 @@ setup:
 test:
   cargo test --features=full --lib --bins
 
+test-sign:
+  cargo test --features=sign_client,test_depends_on_env_REOWN_PROJECT_ID --lib --bins sign::tests -- --nocapture
+
 # Runs tests that require environment variables to be set
 env-tests:
   if [ ! -z "${PIMLICO_API_KEY}" ] && [ ! -z "${PIMLICO_RPC_URL}" ] && [ ! -z "${PIMLICO_BUNDLER_URL}" ]; then just test-pimlico-api; fi

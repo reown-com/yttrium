@@ -26,7 +26,10 @@ pub mod error;
 pub mod jsonrpc;
 pub mod provider_pool;
 pub mod serde;
+#[cfg(feature = "sign_client")]
+pub mod sign;
 pub mod smart_accounts;
+pub mod spawn;
 #[cfg(feature = "stacks")]
 pub mod stacks_provider;
 pub mod test_helpers;

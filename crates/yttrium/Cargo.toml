@@ -67,6 +67,13 @@ account_client = []
 erc6492_client = []
 chain_abstraction_client = []
 transaction_sponsorship_client = []
+sign_client = [
+    "dep:tokio-tungstenite",
+    "tokio-tungstenite/connect",
+    "tokio-tungstenite/handshake",
+    "tokio-tungstenite/native-tls",
+    "dep:chacha20poly1305",
+]
 
 # Features enabling test coverage
 test_full = [
@@ -101,6 +108,7 @@ alloy = { workspace = true, features = [
 alloy-provider = { workspace = true, features = ["erc4337-api"] }
 erc6492.workspace = true
 relay_rpc.workspace = true
+relay_client.workspace = true
 tower = { version = "0.5", features = ["util"] }
 
 # foundry-block-explorers = "0.2.3"
@@ -178,6 +186,13 @@ stacks_secp256k1 = { workspace = true, optional = true, features = ["hashes", "r
 num-bigint = "0.4.6"
 
 rand = { workspace = true, optional = true }
+
+# Sign Client
+tokio-tungstenite = { workspace = true, optional = true }
+chacha20poly1305 = { workspace = true, optional = true, features = ["alloc", "os_rng"] }
+x25519-dalek = { version = "3.0.0-pre.0", features = ["static_secrets", "os_rng"] }
+hkdf = "0.13.0-rc.0"
+sha2 = "0.11.0-rc.0"
 
 [dev-dependencies]
 # mocking
