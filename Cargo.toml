@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/kotlin-ffi", "crates/yttrium", "crates/yttrium_dart/rust"]
+members = ["crates/kotlin-ffi", "crates/rust-sample-wallet", "crates/yttrium", "crates/yttrium_dart/rust"]
 resolver = "2"
 
 [workspace.package]
@@ -37,10 +37,10 @@ alloy = { version = "0.11.1", default-features = false }
 alloy-provider = { version = "0.11.1", default-features = false }
 erc6492 = { git = "https://github.com/reown-com/erc6492.git", branch = "chore/bump-alloy", default-features = false }
 relay_rpc = { git = "https://github.com/WalletConnect/WalletConnectRust.git", rev = "b2ebad0", default-features = false }
-relay_client = { git = "https://github.com/WalletConnect/WalletConnectRust.git", rev = "b2ebad0", default-features = false }
 
 # Sign Client
 tokio-tungstenite = { version = "0.27.0", default-features = false }
+web-sys = { version = "0.3.77", default-features = false }
 chacha20poly1305 = { version = "0.11.0-pre.2", default-features = false }
 
 serial_test = { version = "3.2.0", default-features = false }

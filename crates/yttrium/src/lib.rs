@@ -24,6 +24,10 @@ pub mod erc6492_client;
 pub mod erc7579;
 pub mod error;
 pub mod jsonrpc;
+#[cfg(any(
+    feature = "chain_abstraction_client",
+    feature = "transaction_sponsorship_client"
+))]
 pub mod provider_pool;
 pub mod serde;
 #[cfg(feature = "sign_client")]
