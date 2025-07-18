@@ -1,3 +1,4 @@
+use wasm_bindgen::prelude::*;
 #[cfg(feature = "chain_abstraction_client")]
 use {
     crate::{
@@ -19,7 +20,6 @@ use {
         },
     },
     std::time::Duration,
-    wasm_bindgen::prelude::*,
 };
 
 #[wasm_bindgen(typescript_custom_section)]
