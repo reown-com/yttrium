@@ -1,7 +1,8 @@
 use crate::sign::envelope_type0::{encode_envelope_type0, EnvelopeType0};
 use crate::sign::envelope_type1::{encode_envelope_type1, EnvelopeType1};
 use crate::sign::protocol_types::{
-    Controller, Proposal, ProposalResponse, Relay, SessionSettle,
+    Controller, Metadata, Proposal, ProposalNamespaces, ProposalResponse,
+    Relay, SessionSettle, SettleNamespace, SettleNamespaces,
 };
 use alloy::rpc::json_rpc::{self, Id, ResponsePayload};
 use chacha20poly1305::aead::Aead;
@@ -18,6 +19,7 @@ use relay_rpc::{
 };
 use serde::de::DeserializeOwned;
 use sha2::{Digest, Sha256};
+use std::collections::HashMap;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::net::TcpStream;
 use tokio_tungstenite::{
@@ -187,11 +189,18 @@ impl Client {
                     })?;
                 println!("pairing topic: {}", proposal.pairing_topic);
 
+                // TODO validate namespaces: https://specs.walletconnect.com/2.0/specs/clients/sign/namespaces#12-proposal-namespaces-must-not-have-chains-empty
+
                 return Ok(Pairing {
                     id: request.meta.id,
                     topic: proposal.pairing_topic,
                     pairing_sym_key: pairing_uri.sym_key,
                     proposer_public_key,
+                    requested_namespaces: proposal
+                        .required_namespaces
+                        .into_iter()
+                        .chain(proposal.optional_namespaces.into_iter())
+                        .collect(),
                 });
             }
         }
@@ -211,6 +220,27 @@ impl Client {
 
         // TODO check is valid
 
+        let mut namespaces = HashMap::new();
+        for (namespace, namespace_proposal) in pairing.requested_namespaces {
+            let accounts = namespace_proposal
+                .chains
+                .iter()
+                .map(|chain| {
+                    format!(
+                        "{}:{}",
+                        chain, "0x0000000000000000000000000000000000000000"
+                    )
+                })
+                .collect();
+            let namespace_settle = SettleNamespace {
+                accounts,
+                methods: namespace_proposal.methods,
+                events: namespace_proposal.events,
+            };
+            namespaces.insert(namespace, namespace_settle);
+        }
+        println!("namespaces: {:?}", namespaces);
+
         let self_key = x25519_dalek::StaticSecret::random();
         let self_public_key = PublicKey::from(&self_key);
         pub fn diffie_hellman(
@@ -226,8 +256,6 @@ impl Client {
             derived_key.expand(b"", &mut expanded_key).unwrap();
             expanded_key
         }
-        // let shared_secret =
-        //     self_key.diffie_hellman(&pairing.proposer_public_key.into());
         let shared_secret =
             diffie_hellman(&pairing.proposer_public_key.into(), &self_key);
         let session_topic =
@@ -262,46 +290,23 @@ impl Client {
         };
 
         let session_settlement_request = {
-            // const sessionSettle = {
-            //   relay: { protocol: relayProtocol ?? "irn" },
-            //   namespaces,
-            //   controller: { publicKey: selfPublicKey, metadata: this.client.metadata },
-            //   expiry: calcExpiry(SESSION_EXPIRY),
-            //   ...(sessionProperties && { sessionProperties }),
-            //   ...(scopedProperties && { scopedProperties }),
-            //   ...(sessionConfig && { sessionConfig }),
-            // };
-
-            // const sessionSettlePayload = formatJsonRpcRequest(
-            //     "wc_sessionSettle",
-            //     sessionSettleRequest,
-            //     publishOpts.id,
-            //   );
-
-            //   this.client.core.history.set(sessionTopic, sessionSettlePayload);
-
-            //   const sessionSettlementRequestMessage = await this.client.core.crypto.encode(
-            //     sessionTopic,
-            //     sessionSettlePayload,
-            //     {
-            //       encoding: BASE64,
-            //     },
-            //   );
-
-            //   this.client.core.history.set(sessionTopic, sessionSettlePayload);
-
-            // TODO encode type1 envelope
-
             let serialized =
                 serde_json::to_string(&alloy::rpc::json_rpc::Request::new(
                     "wc_sessionSettle",
                     1000000010.into(),
                     SessionSettle {
                         relay: Relay { protocol: "irn".to_string() },
-                        namespaces: serde_json::Value::Null,
+                        namespaces,
                         controller: Controller {
                             public_key: hex::encode(self_public_key.to_bytes()),
-                            metadata: serde_json::Value::Null,
+                            metadata: Metadata {
+                                name: "Reown".to_string(),
+                                description: "Reown".to_string(),
+                                url: "https://reown.com".to_string(),
+                                icons: vec![
+                                    "https://reown.com/icon.png".to_string()
+                                ],
+                            },
                         },
                         expiry_timestamp: SystemTime::now()
                             .duration_since(UNIX_EPOCH)
@@ -322,7 +327,6 @@ impl Client {
                 .encrypt(&nonce, serialized.as_bytes())
                 .map_err(|e| ApproveError::Internal(e.to_string()))?;
             let encoded = encode_envelope_type0(&EnvelopeType0 {
-                // pk: self_public_key.to_bytes(),
                 iv: nonce.into(),
                 sb: encrypted,
             })
@@ -516,4 +520,5 @@ pub struct Pairing {
     pub topic: Topic,
     pub pairing_sym_key: [u8; 32],
     pub proposer_public_key: [u8; 32],
+    pub requested_namespaces: ProposalNamespaces,
 }
