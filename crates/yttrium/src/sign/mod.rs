@@ -1,17 +1,16 @@
 use crate::sign::envelope_type0::{encode_envelope_type0, EnvelopeType0};
-use crate::sign::envelope_type1::{encode_envelope_type1, EnvelopeType1};
 use crate::sign::protocol_types::{
     Controller, Metadata, Proposal, ProposalNamespaces, ProposalResponse,
-    Relay, SessionSettle, SettleNamespace, SettleNamespaces,
+    Relay, SessionSettle, SettleNamespace,
 };
+use crate::sign::relay_url::ConnectionOptions;
 use alloy::rpc::json_rpc::{self, Id, ResponsePayload};
 use chacha20poly1305::aead::Aead;
 use chacha20poly1305::{AeadCore, ChaCha20Poly1305, KeyInit, Nonce};
 use data_encoding::BASE64;
-use futures::{SinkExt, StreamExt};
-use relay_client::ConnectionOptions;
-use relay_rpc::auth::{ed25519_dalek::SigningKey, AuthToken};
-use relay_rpc::domain::Topic;
+use relay_rpc::auth::ed25519_dalek::{Signer, SigningKey};
+use relay_rpc::domain::{DecodedClientId, Topic};
+use relay_rpc::jwt::{JwtBasicClaims, JwtHeader};
 use relay_rpc::rpc::{FetchMessages, FetchResponse};
 use relay_rpc::{
     domain::{ClientId, MessageId, ProjectId},
@@ -20,24 +19,30 @@ use relay_rpc::{
 use serde::de::DeserializeOwned;
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
-use tokio::net::TcpStream;
-use tokio_tungstenite::{
-    connect_async, tungstenite::Message, MaybeTlsStream, WebSocketStream,
+#[cfg(target_arch = "wasm32")]
+use web_sys::WebSocket;
+use x25519_dalek::PublicKey;
+#[cfg(not(target_arch = "wasm32"))]
+use {
+    futures::{SinkExt, StreamExt},
+    tokio::net::TcpStream,
+    tokio_tungstenite::{
+        connect_async, tungstenite::Message, MaybeTlsStream, WebSocketStream,
+    },
 };
-use x25519_dalek::{PublicKey, SharedSecret};
 
 mod envelope_type0;
 mod envelope_type1;
 mod pairing_uri;
 mod protocol_types;
+mod relay_url;
 #[cfg(test)]
 mod tests;
 mod utils;
 
 #[derive(Debug, thiserror::Error)]
 #[error("Sign request error: {0}")]
-enum RequestError {
+pub enum RequestError {
     #[error("Internal: {0}")]
     Internal(String),
 
@@ -47,7 +52,7 @@ enum RequestError {
 
 #[derive(Debug, thiserror::Error)]
 #[error("Sign pair error: {0}")]
-enum PairError {
+pub enum PairError {
     #[error("Request error: {0}")]
     Request(RequestError),
 
@@ -60,7 +65,7 @@ enum PairError {
 
 #[derive(Debug, thiserror::Error)]
 #[error("Sign approve error: {0}")]
-enum ApproveError {
+pub enum ApproveError {
     #[error("Request error: {0}")]
     Request(RequestError),
 
@@ -72,11 +77,14 @@ enum ApproveError {
 }
 
 struct WebSocketState {
+    #[cfg(not(target_arch = "wasm32"))]
     stream: WebSocketStream<MaybeTlsStream<TcpStream>>,
+    #[cfg(target_arch = "wasm32")]
+    stream: (WebSocket, tokio::sync::mpsc::UnboundedReceiver<String>),
     message_id: u64,
 }
 
-struct Client {
+pub struct Client {
     relay_url: String,
     #[allow(unused)]
     project_id: ProjectId,
@@ -116,13 +124,14 @@ impl Client {
         // TODO call `wc_proposeSession`
     }
 
-    pub async fn pair(&mut self, uri: &str) -> Result<Pairing, PairError> {
+    pub async fn pair(&mut self, uri: &str) -> Result<SessionProposal, PairError> {
         // TODO implement
         // https://github.com/WalletConnect/walletconnect-monorepo/blob/5bef698dcf0ae910548481959a6a5d87eaf7aaa5/packages/sign-client/src/controllers/engine.ts#L330
 
         // TODO parse URI
         // https://github.com/WalletConnect/walletconnect-monorepo/blob/5bef698dcf0ae910548481959a6a5d87eaf7aaa5/packages/core/src/controllers/pairing.ts#L132
-        let pairing_uri = pairing_uri::parse(uri).unwrap();
+        let pairing_uri = pairing_uri::parse(uri)
+            .map_err(|e| PairError::Internal(e.to_string()))?;
 
         // TODO immediately throw if expired - maybe not necessary if FetchMessages returns empty array?
         // note: no activatePairing
@@ -172,7 +181,8 @@ impl Client {
                     serde_json::to_string_pretty(&request.params).unwrap()
                 );
                 let proposal =
-                    serde_json::from_value::<Proposal>(request.params).unwrap();
+                    serde_json::from_value::<Proposal>(request.params)
+                        .map_err(|e| PairError::Internal(e.to_string()))?;
                 println!("{:?}", proposal);
 
                 let proposer_public_key = hex::decode(proposal.proposer.public_key)
@@ -191,7 +201,7 @@ impl Client {
 
                 // TODO validate namespaces: https://specs.walletconnect.com/2.0/specs/clients/sign/namespaces#12-proposal-namespaces-must-not-have-chains-empty
 
-                return Ok(Pairing {
+                return Ok(SessionProposal {
                     id: request.meta.id,
                     topic: proposal.pairing_topic,
                     pairing_sym_key: pairing_uri.sym_key,
@@ -210,7 +220,7 @@ impl Client {
 
     pub async fn approve(
         &mut self,
-        pairing: Pairing,
+        pairing: SessionProposal,
     ) -> Result<(), ApproveError> {
         // TODO params:
         // - approvedNamespaces, etc.
@@ -308,8 +318,8 @@ impl Client {
                                 ],
                             },
                         },
-                        expiry_timestamp: SystemTime::now()
-                            .duration_since(UNIX_EPOCH)
+                        expiry_timestamp: crate::time::SystemTime::now()
+                            .duration_since(crate::time::UNIX_EPOCH)
                             .unwrap()
                             .as_secs()
                             + 60 * 60 * 24 * 30,
@@ -448,19 +458,99 @@ impl Client {
         } else {
             let key = SigningKey::generate(&mut rand::thread_rng());
 
-            let auth = AuthToken::new("http://example.com")
-                .aud(&self.relay_url)
-                .ttl(Duration::from_secs(60 * 60))
-                .as_jwt(&key)
-                .unwrap();
-            let conn_opts =
-                ConnectionOptions::new(self.project_id.clone(), auth)
-                    .with_address(&self.relay_url);
+            let url = {
+                let encoder = &data_encoding::BASE64URL_NOPAD;
+                let claims = {
+                    let data = JwtBasicClaims {
+                        iss: DecodedClientId::from_key(&key.verifying_key())
+                            .into(),
+                        sub: "http://example.com".to_owned(),
+                        aud: self.relay_url.clone(),
+                        iat: crate::time::SystemTime::now()
+                            .duration_since(crate::time::UNIX_EPOCH)
+                            .unwrap()
+                            .as_secs() as i64,
+                        exp: Some(
+                            crate::time::SystemTime::now()
+                                .duration_since(crate::time::UNIX_EPOCH)
+                                .unwrap()
+                                .as_secs() as i64
+                                + 60 * 60,
+                        ),
+                    };
 
-            let (ws_stream, _response) =
-                connect_async(conn_opts.as_url().unwrap().to_string())
-                    .await
-                    .map_err(|e| RequestError::Internal(e.to_string()))?;
+                    encoder.encode(
+                        serde_json::to_string(&data).unwrap().as_bytes(),
+                    )
+                };
+                let header = encoder.encode(
+                    serde_json::to_string(&JwtHeader::default())
+                        .unwrap()
+                        .as_bytes(),
+                );
+                let message = format!("{header}.{claims}");
+                let signature = {
+                    let data = key.sign(message.as_bytes());
+                    encoder.encode(&data.to_bytes())
+                };
+                let auth = format!("{message}.{signature}");
+
+                let conn_opts =
+                    ConnectionOptions::new(self.project_id.clone(), auth)
+                        .with_address(&self.relay_url);
+                conn_opts.as_url().unwrap().to_string()
+            };
+
+            #[cfg(not(target_arch = "wasm32"))]
+            let (ws_stream, _response) = connect_async(url)
+                .await
+                .map_err(|e| RequestError::Internal(e.to_string()))?;
+
+            #[cfg(target_arch = "wasm32")]
+            let ws_stream = {
+                use wasm_bindgen::{prelude::Closure, JsCast};
+                use web_sys::{Event, MessageEvent};
+
+                let ws = web_sys::WebSocket::new(&url).map_err(|e| {
+                    RequestError::Internal(format!(
+                        "Failed to create WebSocket: {e:?}"
+                    ))
+                })?;
+                let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
+                let (tx2, mut rx2) = tokio::sync::mpsc::channel(1);
+                let tx2 = std::sync::Arc::new(tokio::sync::Mutex::new(tx2));
+                let tx2_clone = tx2.clone();
+                let onopen_closure =
+                    Closure::wrap(Box::new(move |_event: Event| {
+                        let tx2 = tx2_clone.clone();
+                        crate::spawn::spawn(async move {
+                            let tx = tx2.lock().await;
+                            tx.send(()).await.unwrap();
+                        });
+                    }) as Box<dyn Fn(Event)>);
+                ws.set_onopen(Some(
+                    Box::leak(Box::new(onopen_closure))
+                        .as_ref()
+                        .unchecked_ref(),
+                ));
+                let onmessage_closure =
+                    Closure::wrap(Box::new(move |event: MessageEvent| {
+                        // TODO may not be string messages
+                        let message = event.data().as_string().unwrap();
+                        tx.send(message).unwrap();
+                    })
+                        as Box<dyn Fn(MessageEvent)>);
+                ws.set_onmessage(Some(
+                    Box::leak(Box::new(onmessage_closure))
+                        .as_ref()
+                        .unchecked_ref(),
+                ));
+                web_sys::console::log_1(&"onopen".into());
+                rx2.recv().await.unwrap(); // FIXME this blocks the async task
+                web_sys::console::log_1(&"onopen received".into());
+                (ws, rx)
+            };
+
             const MIN: u64 = 1000000000; // MessageId::MIN is private
             self.websocket
                 .insert(WebSocketState { stream: ws_stream, message_id: MIN })
@@ -474,11 +564,19 @@ impl Client {
                 "Failed to serialize request: {e}"
             ))
         })?;
+
+        #[cfg(not(target_arch = "wasm32"))]
         ws_state.stream.send(Message::Text(serialized.into())).await.map_err(
             |e| RequestError::Internal(format!("Failed to send request: {e}")),
         )?;
 
+        #[cfg(target_arch = "wasm32")]
+        ws_state.stream.0.send_with_str(&serialized).map_err(|e| {
+            RequestError::Internal(format!("Failed to send request: {e:?}"))
+        })?;
+
         // TODO timeout
+        #[cfg(not(target_arch = "wasm32"))]
         while let Some(n) = ws_state.stream.next().await {
             let n = n.map_err(|e| {
                 RequestError::Internal(format!("WebSocket stream error: {e}"))
@@ -511,11 +609,36 @@ impl Client {
             }
         }
 
+        #[cfg(target_arch = "wasm32")]
+        while let Some(message) = ws_state.stream.1.recv().await {
+            let response =
+                serde_json::from_str::<Response>(&message).map_err(|e| {
+                    RequestError::Internal(format!(
+                        "Failed to parse response: {e}"
+                    ))
+                })?;
+            if response.id() == this_id {
+                return match response {
+                    Response::Success(response) => Ok(serde_json::from_value(
+                        response.result,
+                    )
+                    .map_err(|e| {
+                        RequestError::Internal(format!(
+                            "Failed to parse response result: {e}"
+                        ))
+                    })?),
+                    Response::Error(response) => Err(RequestError::Internal(
+                        format!("RPC error: {:?}", response.error),
+                    )),
+                };
+            }
+        }
+
         Err(RequestError::Internal("No response".to_string()))
     }
 }
 
-pub struct Pairing {
+pub struct SessionProposal {
     pub id: Id,
     pub topic: Topic,
     pub pairing_sym_key: [u8; 32],

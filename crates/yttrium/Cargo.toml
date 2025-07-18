@@ -16,7 +16,15 @@ full = ["all_platforms", "all_clients", "all_namespaces"]
 all_platforms = ["android", "ios", "wasm"]
 ios = ["uniffi"]
 android = ["uniffi", "dep:rustls-platform-verifier", "dep:jni"]
-uniffi = ["dep:uniffi", "dep:uniffi_macros", "reqwest/default-tls"]
+uniffi = [
+    "dep:uniffi",
+    "dep:uniffi_macros",
+    "reqwest/default-tls",
+    "dep:tokio-tungstenite",
+    "tokio-tungstenite/connect",
+    "tokio-tungstenite/handshake",
+    "tokio-tungstenite/native-tls",
+]
 wasm = [
     "dep:wasm-bindgen",
     "dep:wasm-bindgen-futures",
@@ -27,6 +35,7 @@ wasm = [
     "getrandom2/js",
     "uuid/js",
     "dep:wasmtimer",
+    "dep:web-sys",
 ]
 
 all_namespaces = ["eip155", "solana", "sui", "stacks"]
@@ -50,11 +59,7 @@ sui = [
     "dep:bcs",
     "dep:tiny-bip39",
 ]
-stacks = [
-    "dep:stacks-rs",
-    "dep:bip32",
-    "dep:stacks_secp256k1",
-]
+stacks = ["dep:stacks-rs", "dep:bip32", "dep:stacks_secp256k1"]
 
 # Features contributing to bundle size, that you might not need
 all_clients = [
@@ -67,13 +72,7 @@ account_client = []
 erc6492_client = []
 chain_abstraction_client = []
 transaction_sponsorship_client = []
-sign_client = [
-    "dep:tokio-tungstenite",
-    "tokio-tungstenite/connect",
-    "tokio-tungstenite/handshake",
-    "tokio-tungstenite/native-tls",
-    "dep:chacha20poly1305",
-]
+sign_client = ["dep:chacha20poly1305", "dep:rand", "dep:data-encoding"]
 
 # Features enabling test coverage
 test_full = [
@@ -108,7 +107,6 @@ alloy = { workspace = true, features = [
 alloy-provider = { workspace = true, features = ["erc4337-api"] }
 erc6492.workspace = true
 relay_rpc.workspace = true
-relay_client.workspace = true
 tower = { version = "0.5", features = ["util"] }
 
 # foundry-block-explorers = "0.2.3"
@@ -128,7 +126,7 @@ eyre.workspace = true
 thiserror.workspace = true
 
 # Async
-tokio = { workspace = true, features = ["rt"] }
+tokio = { workspace = true, default-features = false, features = ["rt"] }
 futures.workspace = true
 
 # Serialization
@@ -180,17 +178,32 @@ bcs = { workspace = true, optional = true }
 tiny-bip39 = { workspace = true, optional = true }
 
 # Stacks
-stacks-rs = { workspace = true, optional = true, features = ["crypto", "wallet-sdk", "transaction", "clarity"] }
+stacks-rs = { workspace = true, optional = true, features = [
+    "crypto",
+    "wallet-sdk",
+    "transaction",
+    "clarity",
+] }
 bip32 = { workspace = true, optional = true }
-stacks_secp256k1 = { workspace = true, optional = true, features = ["hashes", "recovery"] }
+stacks_secp256k1 = { workspace = true, optional = true, features = [
+    "hashes",
+    "recovery",
+] }
 num-bigint = "0.4.6"
 
 rand = { workspace = true, optional = true }
 
 # Sign Client
 tokio-tungstenite = { workspace = true, optional = true }
-chacha20poly1305 = { workspace = true, optional = true, features = ["alloc", "os_rng"] }
-x25519-dalek = { version = "3.0.0-pre.0", features = ["static_secrets", "os_rng"] }
+web-sys = { workspace = true, optional = true }
+chacha20poly1305 = { workspace = true, optional = true, features = [
+    "alloc",
+    "os_rng",
+] }
+x25519-dalek = { version = "3.0.0-pre.0", features = [
+    "static_secrets",
+    "os_rng",
+] }
 hkdf = "0.13.0-rc.0"
 sha2 = "0.11.0-rc.0"
 
