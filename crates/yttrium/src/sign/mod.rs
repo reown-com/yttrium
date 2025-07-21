@@ -17,6 +17,7 @@ use relay_rpc::{
     rpc::{ApproveSession, Payload, Request, Response},
 };
 use serde::de::DeserializeOwned;
+use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 #[cfg(target_arch = "wasm32")]
@@ -124,7 +125,10 @@ impl Client {
         // TODO call `wc_proposeSession`
     }
 
-    pub async fn pair(&mut self, uri: &str) -> Result<SessionProposal, PairError> {
+    pub async fn pair(
+        &mut self,
+        uri: &str,
+    ) -> Result<SessionProposal, PairError> {
         // TODO implement
         // https://github.com/WalletConnect/walletconnect-monorepo/blob/5bef698dcf0ae910548481959a6a5d87eaf7aaa5/packages/sign-client/src/controllers/engine.ts#L330
 
@@ -202,8 +206,8 @@ impl Client {
                 // TODO validate namespaces: https://specs.walletconnect.com/2.0/specs/clients/sign/namespaces#12-proposal-namespaces-must-not-have-chains-empty
 
                 return Ok(SessionProposal {
-                    id: request.meta.id,
-                    topic: proposal.pairing_topic,
+                    session_proposal_rpc_id: request.meta.id,
+                    pairing_topic: proposal.pairing_topic,
                     pairing_sym_key: pairing_uri.sym_key,
                     proposer_public_key,
                     requested_namespaces: proposal
@@ -221,7 +225,7 @@ impl Client {
     pub async fn approve(
         &mut self,
         pairing: SessionProposal,
-    ) -> Result<(), ApproveError> {
+    ) -> Result<ApprovedSession, ApproveError> {
         // TODO params:
         // - approvedNamespaces, etc.
 
@@ -275,7 +279,7 @@ impl Client {
         let session_proposal_response = {
             let serialized =
                 serde_json::to_string(&alloy::rpc::json_rpc::Response {
-                    id: pairing.id,
+                    id: pairing.session_proposal_rpc_id,
                     payload: ResponsePayload::Success(ProposalResponse {
                         relay: Relay { protocol: "irn".to_string() },
                         responder_public_key: hex::encode(
@@ -345,7 +349,7 @@ impl Client {
         };
 
         let approve_session = ApproveSession {
-            pairing_topic: pairing.topic,
+            pairing_topic: pairing.pairing_topic,
             session_topic,
             session_proposal_response,
             session_settlement_request,
@@ -378,7 +382,7 @@ impl Client {
             }
         }
 
-        Ok(())
+        Ok(ApprovedSession { session_sym_key: shared_secret })
     }
 
     pub async fn _reject(&self) {
@@ -639,9 +643,14 @@ impl Client {
 }
 
 pub struct SessionProposal {
-    pub id: Id,
-    pub topic: Topic,
+    pub session_proposal_rpc_id: Id,
+    pub pairing_topic: Topic,
     pub pairing_sym_key: [u8; 32],
     pub proposer_public_key: [u8; 32],
     pub requested_namespaces: ProposalNamespaces,
+}
+
+#[derive(Serialize, Deserialize, Clone, PartialEq)]
+pub struct ApprovedSession {
+    pub session_sym_key: [u8; 32],
 }

@@ -1,12 +1,21 @@
-use leptos::prelude::*;
-use yttrium::sign::Client;
+use leptos::{prelude::*, server::codee::string::JsonSerdeCodec};
+use leptos_use::storage::use_local_storage;
+use serde::{Deserialize, Serialize};
+use yttrium::sign::{ApprovedSession, Client};
 
 const RELAY_URL: &str = "wss://relay.walletconnect.org";
 const CLIENT_ID: &str = "123";
 
+#[derive(Serialize, Deserialize, Clone, Default, PartialEq)]
+struct MyState {
+    sessions: Vec<ApprovedSession>,
+}
+
 fn main() {
     console_error_panic_hook::set_once();
     leptos::mount::mount_to_body(|| {
+        let (state, set_state, _) =
+            use_local_storage::<MyState, JsonSerdeCodec>("wc.sessions");
         let pairing_uri = RwSignal::new(String::new());
         let pairing_status = RwSignal::new(String::new());
 
@@ -19,14 +28,17 @@ fn main() {
                 let uri = pairing_uri.get();
                 let mut client = Client::new(
                     RELAY_URL.to_owned(),
-                    env!("REOWN_PROJECT_ID").into(),
+                    include_str!("../.project-id").trim().into(),
                     CLIENT_ID.to_owned().into(),
                 );
                 leptos::task::spawn_local(async move {
                     match client.pair(&uri).await {
                         Ok(pairing) => {
                             match client.approve(pairing).await {
-                                Ok(()) => {
+                                Ok(approved_session) => {
+                                    set_state.update(|state| {
+                                        state.sessions.push(approved_session);
+                                    });
                                     pairing_status.set("Pairing approved".to_owned());
                                 }
                                 Err(e) => {
@@ -42,6 +54,13 @@ fn main() {
                 });
             }>Pair</button>
             <p>"Pairing status: "{pairing_status}</p>
+            <ul>
+                {move || state.get().sessions.iter().map(|_session| {
+                    view! {
+                        <li>"Session"</li>
+                    }
+                }).collect::<Vec<_>>()}
+            </ul>
         }
     })
 }
