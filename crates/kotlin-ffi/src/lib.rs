@@ -18,6 +18,13 @@ use {
         smart_accounts::safe::{SignOutputEnum, SignStep3Params},
     },
 };
+#[cfg(feature = "sign_client")]
+use {
+    relay_rpc::domain::ClientId,
+    yttrium::sign::{Client as YSignClient, SessionProposal, SessionProposalFfi, PairError, ApproveError},
+};
+#[cfg(any(feature = "sign_client", feature = "chain_abstraction_client"))]
+use relay_rpc::domain::ProjectId;
 use {
     alloy::{
         hex,
@@ -38,7 +45,6 @@ use {
 #[cfg(feature = "chain_abstraction_client")]
 use {
     alloy::{providers::Provider, sol, sol_types::SolCall},
-    relay_rpc::domain::ProjectId,
     std::time::Duration,
     yttrium::call::Call,
     yttrium::chain_abstraction::client::ExecuteDetails,
@@ -431,6 +437,42 @@ impl FFIAccountClient {
             .map(serde_json::to_string)
             .collect::<Result<String, serde_json::Error>>()
             .map_err(|e| FFIError::Prepare(e.to_string()))
+    }
+}
+
+#[cfg(feature = "sign_client")]
+#[derive(uniffi::Object)]
+pub struct SignClient {
+    client: tokio::sync::Mutex<YSignClient>,
+}
+
+#[cfg(feature = "sign_client")]
+#[uniffi::export(async_runtime = "tokio")]
+impl SignClient {
+    #[uniffi::constructor]
+    pub fn new(
+        relay_url: String,
+        project_id: String,
+        client_id: String,
+    ) -> Self {
+        let client = YSignClient::new(
+            relay_url,
+            ProjectId::from(project_id),
+            ClientId::from(client_id),
+        );
+        Self { client: tokio::sync::Mutex::new(client) }
+    }
+
+    pub async fn pair(&self, uri: String) -> Result<SessionProposalFfi, PairError> {
+        let mut client = self.client.lock().await;
+        let proposal = client.pair(&uri).await?;
+        Ok(proposal.into())
+    }
+
+    pub async fn approve(&self, pairing: SessionProposalFfi) -> Result<(), ApproveError> {
+        let mut client = self.client.lock().await;
+        let proposal: SessionProposal = pairing.into();
+        client.approve(proposal).await
     }
 }
 

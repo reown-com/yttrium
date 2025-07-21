@@ -34,13 +34,14 @@ use {
 mod envelope_type0;
 mod envelope_type1;
 mod pairing_uri;
-mod protocol_types;
+pub mod protocol_types;
 mod relay_url;
 #[cfg(test)]
 mod tests;
 mod utils;
 
 #[derive(Debug, thiserror::Error)]
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Error))]
 #[error("Sign request error: {0}")]
 pub enum RequestError {
     #[error("Internal: {0}")]
@@ -51,6 +52,7 @@ pub enum RequestError {
 }
 
 #[derive(Debug, thiserror::Error)]
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Error))]
 #[error("Sign pair error: {0}")]
 pub enum PairError {
     #[error("Request error: {0}")]
@@ -64,6 +66,7 @@ pub enum PairError {
 }
 
 #[derive(Debug, thiserror::Error)]
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Error))]
 #[error("Sign approve error: {0}")]
 pub enum ApproveError {
     #[error("Request error: {0}")]
@@ -84,6 +87,7 @@ struct WebSocketState {
     message_id: u64,
 }
 
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Object))]
 pub struct Client {
     relay_url: String,
     #[allow(unused)]
@@ -99,7 +103,6 @@ pub struct Client {
 // - random (?) request RPC ID generation
 // - session expiry
 // - WS reconnection & retries
-// - respond to relay pings
 //   - disconnect if no ping for 30s etc.
 // - interpret relay disconnect reason
 // - subscribe/fetch messages on startup - also solve that ordering problem?
@@ -108,6 +111,7 @@ pub struct Client {
 
 #[allow(unused)]
 impl Client {
+    #[cfg_attr(feature = "uniffi", uniffi::constructor)]
     pub fn new(
         relay_url: String,
         project_id: ProjectId,
@@ -644,4 +648,46 @@ pub struct SessionProposal {
     pub pairing_sym_key: [u8; 32],
     pub proposer_public_key: [u8; 32],
     pub requested_namespaces: ProposalNamespaces,
+}
+
+#[cfg(feature = "uniffi")]
+#[derive(uniffi_macros::Record)]
+pub struct SessionProposalFfi {
+    pub id: String,
+    pub topic: String, 
+    pub pairing_sym_key: Vec<u8>,
+    pub proposer_public_key: Vec<u8>,
+    pub requested_namespaces: std::collections::HashMap<String, crate::sign::protocol_types::ProposalNamespace>,
+}
+
+#[cfg(feature = "uniffi")]
+impl From<SessionProposal> for SessionProposalFfi {
+    fn from(proposal: SessionProposal) -> Self {
+        Self {
+            id: proposal.id.to_string(),
+            topic: proposal.topic.to_string(),
+            pairing_sym_key: proposal.pairing_sym_key.to_vec(),
+            proposer_public_key: proposal.proposer_public_key.to_vec(),
+            requested_namespaces: proposal.requested_namespaces,
+        }
+    }
+}
+
+#[cfg(feature = "uniffi")]
+impl From<SessionProposalFfi> for SessionProposal {
+    fn from(proposal: SessionProposalFfi) -> Self {
+        use alloy::rpc::json_rpc::Id;
+        let id = if let Ok(num) = proposal.id.parse::<u64>() {
+            Id::Number(num)
+        } else {
+            Id::String(proposal.id)
+        };
+        Self {
+            id,
+            topic: proposal.topic.into(),
+            pairing_sym_key: proposal.pairing_sym_key.try_into().unwrap(),
+            proposer_public_key: proposal.proposer_public_key.try_into().unwrap(),
+            requested_namespaces: proposal.requested_namespaces,
+        }
+    }
 }
