@@ -1,6 +1,8 @@
 use leptos::{prelude::*, server::codee::string::JsonSerdeCodec};
 use leptos_use::storage::use_local_storage;
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
+use tokio::sync::Mutex;
 use yttrium::sign::{ApprovedSession, Client};
 
 const RELAY_URL: &str = "wss://relay.walletconnect.org";
@@ -18,6 +20,35 @@ fn main() {
             use_local_storage::<MyState, JsonSerdeCodec>("wc.sessions");
         let pairing_uri = RwSignal::new(String::new());
         let pairing_status = RwSignal::new(String::new());
+        let client = Arc::new(Mutex::new(Client::new(
+            RELAY_URL.to_owned(),
+            include_str!("../.project-id").trim().into(),
+            CLIENT_ID.to_owned().into(),
+        )));
+
+        let pair_action = Action::new(move |pairing_uri: &String| {
+            let client = client.clone();
+            let pairing_uri = pairing_uri.clone();
+            async move {
+                let mut client = client.lock().await;
+                match client.pair(&pairing_uri).await {
+                    Ok(pairing) => match client.approve(pairing).await {
+                        Ok(approved_session) => {
+                            set_state.update(|state| {
+                                state.sessions.push(approved_session);
+                            });
+                            pairing_status.set("Pairing approved".to_owned());
+                        }
+                        Err(e) => {
+                            pairing_status.set(format!("Approval failed: {e}"));
+                        }
+                    },
+                    Err(e) => {
+                        pairing_status.set(format!("Pairing failed: {e}"));
+                    }
+                }
+            }
+        });
 
         view! {
             <label for="pairing-uri">Pairing URI</label>
@@ -25,35 +56,8 @@ fn main() {
                 pairing_uri.set(ev.target().value());
             } />
             <button on:click=move |_| {
-                let uri = pairing_uri.get();
-                let mut client = Client::new(
-                    RELAY_URL.to_owned(),
-                    include_str!("../.project-id").trim().into(),
-                    CLIENT_ID.to_owned().into(),
-                );
-                leptos::task::spawn_local(async move {
-                    match client.pair(&uri).await {
-                        Ok(pairing) => {
-                            match client.approve(pairing).await {
-                                Ok(approved_session) => {
-                                    set_state.update(|state| {
-                                        state.sessions.push(approved_session);
-                                    });
-                                    pairing_status.set("Pairing approved".to_owned());
-                                }
-                                Err(e) => {
-                                    pairing_status.set(format!("Approval failed: {e}"));
-                                }
-                            }
-                        }
-                        Err(e) => {
-                            pairing_status.set(format!("Pairing failed: {e}"));
-                        }
-                    }
-                    pairing_uri.set(String::new());
-                });
+                pair_action.dispatch(pairing_uri.get());
             }>Pair</button>
-            <p>"Pairing status: "{pairing_status}</p>
             <ul>
                 {move || state.get().sessions.iter().map(|_session| {
                     view! {

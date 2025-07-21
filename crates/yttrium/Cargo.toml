@@ -72,7 +72,14 @@ account_client = []
 erc6492_client = []
 chain_abstraction_client = []
 transaction_sponsorship_client = []
-sign_client = ["dep:chacha20poly1305", "dep:rand", "dep:data-encoding"]
+sign_client = [
+    "dep:chacha20poly1305",
+    "dep:rand",
+    "dep:data-encoding",
+    "dep:x25519-dalek",
+    "dep:hkdf",
+    "dep:sha2",
+]
 
 # Features enabling test coverage
 test_full = [
@@ -203,9 +210,9 @@ chacha20poly1305 = { workspace = true, optional = true, features = [
 x25519-dalek = { version = "3.0.0-pre.0", features = [
     "static_secrets",
     "os_rng",
-] }
-hkdf = "0.13.0-rc.0"
-sha2 = "0.11.0-rc.0"
+], optional = true }
+hkdf = { version = "0.13.0-rc.0", optional = true }
+sha2 = { version = "0.11.0-rc.0", optional = true }
 
 [dev-dependencies]
 # mocking

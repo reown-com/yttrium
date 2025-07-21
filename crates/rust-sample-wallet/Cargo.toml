@@ -8,6 +8,7 @@ console_error_panic_hook = "0.1.7"
 leptos = { version = "0.8.2", features = ["csr"] }
 leptos-use = "0.16.2"
 serde.workspace = true
+tokio.workspace = true
 yttrium = { path = "../yttrium", default-features = false, features = [
     "wasm",
     "sign_client",
