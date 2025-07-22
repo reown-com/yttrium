@@ -24,10 +24,7 @@ use x25519_dalek::PublicKey;
 #[cfg(not(target_arch = "wasm32"))]
 use {
     futures::{SinkExt, StreamExt},
-    tokio::net::TcpStream,
-    tokio_tungstenite::{
-        connect_async, tungstenite::Message, MaybeTlsStream, WebSocketStream,
-    },
+    tokio_tungstenite::{connect_async, tungstenite::Message},
 };
 
 const RELAY_URL: &str = "wss://relay.walletconnect.org";
@@ -95,10 +92,10 @@ struct WebWebSocketWrapper {
 }
 
 struct WebSocketState {
-    #[cfg(not(target_arch = "wasm32"))]
-    stream: WebSocketStream<MaybeTlsStream<TcpStream>>,
-    #[cfg(target_arch = "wasm32")]
-    stream: WebWebSocketWrapper,
+    // #[cfg(not(target_arch = "wasm32"))]
+    // stream: WebSocketStream<MaybeTlsStream<TcpStream>>,
+    // #[cfg(target_arch = "wasm32")]
+    // stream: WebWebSocketWrapper,
     // message_id: u64,
     request_tx: tokio::sync::mpsc::UnboundedSender<(
         Params,
@@ -535,46 +532,88 @@ impl Client {
 
             #[cfg(not(target_arch = "wasm32"))]
             let ws_stream = {
-                let (ws_stream, _response) = connect_async(url)
+                let (mut ws_stream, _response) = connect_async(url)
                     .await
                     .map_err(|e| RequestError::Internal(e.to_string()))?;
 
                 crate::spawn::spawn(async move {
-                    // TODO timeout
-                    #[cfg(not(target_arch = "wasm32"))]
-                    while let Some(n) = ws_state.stream.next().await {
-                        let n = n.map_err(|e| {
-                            RequestError::Internal(format!(
-                                "WebSocket stream error: {e}"
-                            ))
-                        })?;
-                        match n {
-                            Message::Text(text) => {
-                                let response =
-                                    serde_json::from_str::<Response>(&text)
-                                        .map_err(|e| {
-                                            RequestError::Internal(format!(
-                                                "Failed to parse response: {e}"
-                                            ))
-                                        })?;
-                                if response.id() == this_id {
-                                    let result = match response {
-                                        Response::Success(response) => {
-                                            Ok(serde_json::from_value(response.result)
+                    const MIN: u64 = 1000000000; // MessageId::MIN is private
+                    let mut message_id = MIN;
+                    let mut response_channels = HashMap::<
+                        _,
+                        tokio::sync::oneshot::Sender<Response>,
+                    >::new();
+
+                    loop {
+                        tokio::select! {
+                            Some((params, response_tx)) = request_rx.recv() => {
+                                message_id += 1;
+                                response_channels.insert(MessageId::new(message_id), response_tx);
+                                let request = Payload::Request(Request::new(MessageId::new(message_id), params));
+                                let serialized = serde_json::to_string(&request).map_err(|e| {
+                                    RequestError::ShouldNeverHappen(format!(
+                                        "Failed to serialize request: {e}"
+                                    ))
+                                }).unwrap();
+                                ws_stream.send(Message::Text(serialized.into())).await.unwrap();
+                            }
+                            Some(message) = ws_stream.next() => {
+                                let n = message
+                                    .map_err(|e| {
+                                        RequestError::Internal(format!(
+                                            "WebSocket stream error: {e}"
+                                        ))
+                                    })
+                                    .expect("WebSocket stream error");
+                                match n {
+                                    Message::Text(message) => {
+                                        let payload =
+                                            serde_json::from_str::<Payload>(&message)
                                                 .map_err(|e| {
                                                     RequestError::Internal(format!(
-                                                        "Failed to parse response result: {e}"
+                                                        "Failed to parse payload: {e}"
                                                     ))
-                                                })?)
+                                                });
+                                        match payload {
+                                            Ok(payload) => match payload {
+                                                Payload::Request(request) => {
+                                                    match request.params {
+                                                        Params::Subscription(
+                                                            message,
+                                                        ) => {
+                                                            session_request_tx
+                                                                .send(
+                                                                    message
+                                                                        .data
+                                                                        .message
+                                                                        .to_string(),
+                                                                )
+                                                                .unwrap();
+                                                        }
+                                                        _ => {}
+                                                    }
+                                                }
+                                                Payload::Response(response) => {
+                                                    if let Some(response_tx) =
+                                                        response_channels
+                                                            .remove(&response.id())
+                                                    {
+                                                        if let Err(e) =
+                                                            response_tx.send(response)
+                                                        {
+                                                            web_sys::console::log_1(&format!("Failed to send response: {e:?}").into());
+                                                        }
+                                                    }
+                                                }
+                                            },
+                                            Err(e) => {
+                                                // no-op
+                                            }
                                         }
-                                        Response::Error(response) => Err(RequestError::Internal(
-                                            format!("RPC error: {:?}", response.error),
-                                        )),
-                                    };
-                                    tx.send(result).unwrap();
+                                    }
+                                    _ => {}
                                 }
                             }
-                            _ => {}
                         }
                     }
                 });
@@ -722,11 +761,11 @@ impl Client {
                         }
                     }
                 });
-                WebWebSocketWrapper {}
+                // WebWebSocketWrapper {}
             };
 
             self.websocket.insert(WebSocketState {
-                stream: ws_stream,
+                // stream: ws_stream,
                 // message_id: MIN,
                 // session_request_rx,
                 request_tx,
