@@ -99,7 +99,7 @@ pub struct Client {
     project_id: ProjectId,
     #[allow(unused)]
     client_id: ClientId,
-    websocket: tokio::sync::Mutex<Option<WebSocketState>>,
+    websocket: Option<WebSocketState>,
 }
 
 // TODO
@@ -126,7 +126,7 @@ impl Client {
             relay_url,
             project_id,
             client_id,
-            websocket: tokio::sync::Mutex::new(None),
+            websocket: None,
         }
     }
 
@@ -139,7 +139,7 @@ impl Client {
     }
 
     pub async fn pair(
-        &self,
+        &mut self,
         uri: &str,
     ) -> Result<SessionProposal, PairError> {
         // TODO implement
@@ -236,7 +236,7 @@ impl Client {
     }
 
     pub async fn approve(
-        &self,
+        &mut self,
         pairing: SessionProposal,
     ) -> Result<ApprovedSession, ApproveError> {
         // TODO params:
@@ -467,12 +467,10 @@ impl Client {
     }
 
     async fn request<T: DeserializeOwned>(
-        &self,
+        &mut self,
         params: relay_rpc::rpc::Params,
     ) -> Result<T, RequestError> {
-        let mut websocket_guard = self.websocket.lock().await;
-        
-        let ws_state = if let Some(ref mut ws_state) = *websocket_guard {
+        let ws_state = if let Some(ref mut ws_state) = self.websocket {
             ws_state
         } else {
             let key = SigningKey::generate(&mut rand::thread_rng());
@@ -584,8 +582,8 @@ impl Client {
             };
 
             const MIN: u64 = 1000000000; // MessageId::MIN is private
-            *websocket_guard = Some(WebSocketState { stream: ws_stream, message_id: MIN });
-            websocket_guard.as_mut().unwrap()
+            self.websocket = Some(WebSocketState { stream: ws_stream, message_id: MIN });
+            self.websocket.as_mut().unwrap()
         };
 
         let this_id = MessageId::new(ws_state.message_id);
@@ -674,7 +672,7 @@ impl Client {
 #[cfg(feature = "uniffi")]
 #[derive(uniffi::Object)]
 pub struct SignClient {
-    client: std::sync::Arc<Client>,
+    client: std::sync::Arc<tokio::sync::Mutex<Client>>,
 }
 
 #[cfg(feature = "uniffi")]
@@ -691,14 +689,19 @@ impl SignClient {
             ProjectId::from(project_id),
             ClientId::from(client_id),
         );
-        Self { client: std::sync::Arc::new(client) }
+        Self {
+            client: std::sync::Arc::new(tokio::sync::Mutex::new(client)),
+        }
     }
 
     pub async fn pair(
         &self,
         uri: String,
     ) -> Result<SessionProposalFfi, PairError> {
-        let proposal = self.client.pair(&uri).await?;
+        let proposal = {
+            let mut client = self.client.lock().await;
+            client.pair(&uri).await?
+        };
         Ok(proposal.into())
     }
 
@@ -707,7 +710,10 @@ impl SignClient {
         pairing: SessionProposalFfi,
     ) -> Result<ApprovedSessionFfi, ApproveError> {
         let proposal: SessionProposal = pairing.into();
-        let session = self.client.approve(proposal).await?;
+        let session = {
+            let mut client = self.client.lock().await;
+            client.approve(proposal).await?
+        };
         Ok(session.into())
     }
 }
