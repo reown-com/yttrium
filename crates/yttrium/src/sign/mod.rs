@@ -470,7 +470,7 @@ impl Client {
         &mut self,
         params: relay_rpc::rpc::Params,
     ) -> Result<T, RequestError> {
-        let ws_state = if let Some(ref mut ws_state) = self.websocket {
+        let mut ws_state = if let Some(ws_state) = self.websocket.as_mut() {
             ws_state
         } else {
             let key = SigningKey::generate(&mut rand::thread_rng());
@@ -582,8 +582,8 @@ impl Client {
             };
 
             const MIN: u64 = 1000000000; // MessageId::MIN is private
-            self.websocket = Some(WebSocketState { stream: ws_stream, message_id: MIN });
-            self.websocket.as_mut().unwrap()
+            self.websocket
+                .insert(WebSocketState { stream: ws_stream, message_id: MIN })
         };
 
         let this_id = MessageId::new(ws_state.message_id);
