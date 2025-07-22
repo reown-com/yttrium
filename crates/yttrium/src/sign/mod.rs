@@ -100,7 +100,6 @@ pub struct Client {
     #[allow(unused)]
     client_id: ClientId,
     websocket: std::sync::Arc<tokio::sync::Mutex<Option<WebSocketState>>>,
-    message_id_counter: std::sync::Arc<tokio::sync::Mutex<u64>>,
 }
 
 // TODO
@@ -128,7 +127,6 @@ impl Client {
             project_id,
             client_id,
             websocket: std::sync::Arc::new(tokio::sync::Mutex::new(None)),
-            message_id_counter: std::sync::Arc::new(tokio::sync::Mutex::new(1000000000)),
         }
     }
 
@@ -493,7 +491,6 @@ impl Client {
         params: relay_rpc::rpc::Params,
     ) -> Result<T, RequestError> {
         let mut websocket_guard = self.websocket.lock().await;
-        let mut message_id_guard = self.message_id_counter.lock().await;
         
         let ws_state = if let Some(ref mut ws_state) = *websocket_guard {
             ws_state

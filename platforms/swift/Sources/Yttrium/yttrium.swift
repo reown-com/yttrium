@@ -565,10 +565,6 @@ fileprivate struct FfiConverterData: FfiConverterRustBuffer {
 
 public protocol ClientProtocol: AnyObject {
     
-    func approve(pairing: SessionProposalFfi) async throws  -> ApprovedSessionFfi
-    
-    func pair(uri: String) async throws  -> SessionProposalFfi
-    
 }
 open class Client: ClientProtocol, @unchecked Sendable {
     fileprivate let pointer: UnsafeMutableRawPointer!
@@ -618,40 +614,6 @@ open class Client: ClientProtocol, @unchecked Sendable {
 
     
 
-    
-open func approve(pairing: SessionProposalFfi)async throws  -> ApprovedSessionFfi  {
-    return
-        try  await uniffiRustCallAsync(
-            rustFutureFunc: {
-                uniffi_yttrium_fn_method_client_approve(
-                    self.uniffiClonePointer(),
-                    FfiConverterTypeSessionProposalFfi_lower(pairing)
-                )
-            },
-            pollFunc: ffi_yttrium_rust_future_poll_rust_buffer,
-            completeFunc: ffi_yttrium_rust_future_complete_rust_buffer,
-            freeFunc: ffi_yttrium_rust_future_free_rust_buffer,
-            liftFunc: FfiConverterTypeApprovedSessionFfi_lift,
-            errorHandler: FfiConverterTypeApproveError.lift
-        )
-}
-    
-open func pair(uri: String)async throws  -> SessionProposalFfi  {
-    return
-        try  await uniffiRustCallAsync(
-            rustFutureFunc: {
-                uniffi_yttrium_fn_method_client_pair(
-                    self.uniffiClonePointer(),
-                    FfiConverterString.lower(uri)
-                )
-            },
-            pollFunc: ffi_yttrium_rust_future_poll_rust_buffer,
-            completeFunc: ffi_yttrium_rust_future_complete_rust_buffer,
-            freeFunc: ffi_yttrium_rust_future_free_rust_buffer,
-            liftFunc: FfiConverterTypeSessionProposalFfi_lift,
-            errorHandler: FfiConverterTypePairError.lift
-        )
-}
     
 
 }
@@ -841,6 +803,164 @@ public func FfiConverterTypeErc6492Client_lift(_ pointer: UnsafeMutableRawPointe
 #endif
 public func FfiConverterTypeErc6492Client_lower(_ value: Erc6492Client) -> UnsafeMutableRawPointer {
     return FfiConverterTypeErc6492Client.lower(value)
+}
+
+
+
+
+
+
+public protocol SignClientProtocol: AnyObject {
+    
+    func approve(pairing: SessionProposalFfi) async throws  -> ApprovedSessionFfi
+    
+    func pair(uri: String) async throws  -> SessionProposalFfi
+    
+}
+open class SignClient: SignClientProtocol, @unchecked Sendable {
+    fileprivate let pointer: UnsafeMutableRawPointer!
+
+    /// Used to instantiate a [FFIObject] without an actual pointer, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoPointer {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+    required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
+        self.pointer = pointer
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noPointer: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing [Pointer] the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noPointer: NoPointer) {
+        self.pointer = nil
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiClonePointer() -> UnsafeMutableRawPointer {
+        return try! rustCall { uniffi_yttrium_fn_clone_signclient(self.pointer, $0) }
+    }
+public convenience init(relayUrl: String, projectId: String, clientId: String) {
+    let pointer =
+        try! rustCall() {
+    uniffi_yttrium_fn_constructor_signclient_new(
+        FfiConverterString.lower(relayUrl),
+        FfiConverterString.lower(projectId),
+        FfiConverterString.lower(clientId),$0
+    )
+}
+    self.init(unsafeFromRawPointer: pointer)
+}
+
+    deinit {
+        guard let pointer = pointer else {
+            return
+        }
+
+        try! rustCall { uniffi_yttrium_fn_free_signclient(pointer, $0) }
+    }
+
+    
+
+    
+open func approve(pairing: SessionProposalFfi)async throws  -> ApprovedSessionFfi  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_yttrium_fn_method_signclient_approve(
+                    self.uniffiClonePointer(),
+                    FfiConverterTypeSessionProposalFfi_lower(pairing)
+                )
+            },
+            pollFunc: ffi_yttrium_rust_future_poll_rust_buffer,
+            completeFunc: ffi_yttrium_rust_future_complete_rust_buffer,
+            freeFunc: ffi_yttrium_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeApprovedSessionFfi_lift,
+            errorHandler: FfiConverterTypeApproveError.lift
+        )
+}
+    
+open func pair(uri: String)async throws  -> SessionProposalFfi  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_yttrium_fn_method_signclient_pair(
+                    self.uniffiClonePointer(),
+                    FfiConverterString.lower(uri)
+                )
+            },
+            pollFunc: ffi_yttrium_rust_future_poll_rust_buffer,
+            completeFunc: ffi_yttrium_rust_future_complete_rust_buffer,
+            freeFunc: ffi_yttrium_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeSessionProposalFfi_lift,
+            errorHandler: FfiConverterTypePairError.lift
+        )
+}
+    
+
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSignClient: FfiConverter {
+
+    typealias FfiType = UnsafeMutableRawPointer
+    typealias SwiftType = SignClient
+
+    public static func lift(_ pointer: UnsafeMutableRawPointer) throws -> SignClient {
+        return SignClient(unsafeFromRawPointer: pointer)
+    }
+
+    public static func lower(_ value: SignClient) -> UnsafeMutableRawPointer {
+        return value.uniffiClonePointer()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SignClient {
+        let v: UInt64 = try readInt(&buf)
+        // The Rust code won't compile if a pointer won't fit in a UInt64.
+        // We have to go via `UInt` because that's the thing that's the size of a pointer.
+        let ptr = UnsafeMutableRawPointer(bitPattern: UInt(truncatingIfNeeded: v))
+        if (ptr == nil) {
+            throw UniffiInternalError.unexpectedNullPointer
+        }
+        return try lift(ptr!)
+    }
+
+    public static func write(_ value: SignClient, into buf: inout [UInt8]) {
+        // This fiddling is because `Int` is the thing that's the same size as a pointer.
+        // The Rust code won't compile if a pointer won't fit in a `UInt64`.
+        writeInt(&buf, UInt64(bitPattern: Int64(Int(bitPattern: lower(value)))))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSignClient_lift(_ pointer: UnsafeMutableRawPointer) throws -> SignClient {
+    return try FfiConverterTypeSignClient.lift(pointer)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSignClient_lower(_ value: SignClient) -> UnsafeMutableRawPointer {
+    return FfiConverterTypeSignClient.lower(value)
 }
 
 
@@ -11261,13 +11381,13 @@ private let initializationResult: InitializationResult = {
     if (uniffi_yttrium_checksum_func_sui_personal_sign() != 21640) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_yttrium_checksum_method_client_approve() != 49293) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_yttrium_checksum_method_client_pair() != 63138) {
-        return InitializationResult.apiChecksumMismatch
-    }
     if (uniffi_yttrium_checksum_method_erc6492client_verify_signature() != 43990) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_method_signclient_approve() != 41073) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_method_signclient_pair() != 59076) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_yttrium_checksum_method_stacksclient_get_account() != 47469) {
@@ -11289,6 +11409,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_yttrium_checksum_constructor_erc6492client_new() != 33633) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_constructor_signclient_new() != 59080) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_yttrium_checksum_constructor_stacksclient_new() != 14610) {
