@@ -17,12 +17,11 @@ use relay_rpc::{
     rpc::{ApproveSession, Payload, Request, Response},
 };
 use serde::de::DeserializeOwned;
+use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
-#[cfg(target_arch = "wasm32")]
-use web_sys::WebSocket;
 use x25519_dalek::PublicKey;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(feature = "wasm"))]
 use {
     futures::{SinkExt, StreamExt},
     tokio::net::TcpStream,
@@ -79,11 +78,17 @@ pub enum ApproveError {
     ShouldNeverHappen(String),
 }
 
+#[cfg(feature = "wasm")]
+struct WebWebSocketWrapper {
+    rx: tokio::sync::mpsc::UnboundedReceiver<String>,
+    tx: tokio::sync::mpsc::UnboundedSender<String>,
+}
+
 struct WebSocketState {
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(not(feature = "wasm"))]
     stream: WebSocketStream<MaybeTlsStream<TcpStream>>,
-    #[cfg(target_arch = "wasm32")]
-    stream: (WebSocket, tokio::sync::mpsc::UnboundedReceiver<String>),
+    #[cfg(feature = "wasm")]
+    stream: WebWebSocketWrapper,
     message_id: u64,
 }
 
@@ -128,7 +133,10 @@ impl Client {
         // TODO call `wc_proposeSession`
     }
 
-    pub async fn pair(&mut self, uri: &str) -> Result<SessionProposal, PairError> {
+    pub async fn pair(
+        &mut self,
+        uri: &str,
+    ) -> Result<SessionProposal, PairError> {
         // TODO implement
         // https://github.com/WalletConnect/walletconnect-monorepo/blob/5bef698dcf0ae910548481959a6a5d87eaf7aaa5/packages/sign-client/src/controllers/engine.ts#L330
 
@@ -206,8 +214,8 @@ impl Client {
                 // TODO validate namespaces: https://specs.walletconnect.com/2.0/specs/clients/sign/namespaces#12-proposal-namespaces-must-not-have-chains-empty
 
                 return Ok(SessionProposal {
-                    id: request.meta.id,
-                    topic: proposal.pairing_topic,
+                    session_proposal_rpc_id: request.meta.id,
+                    pairing_topic: proposal.pairing_topic,
                     pairing_sym_key: pairing_uri.sym_key,
                     proposer_public_key,
                     requested_namespaces: proposal
@@ -225,7 +233,7 @@ impl Client {
     pub async fn approve(
         &mut self,
         pairing: SessionProposal,
-    ) -> Result<(), ApproveError> {
+    ) -> Result<ApprovedSession, ApproveError> {
         // TODO params:
         // - approvedNamespaces, etc.
 
@@ -279,7 +287,7 @@ impl Client {
         let session_proposal_response = {
             let serialized =
                 serde_json::to_string(&alloy::rpc::json_rpc::Response {
-                    id: pairing.id,
+                    id: pairing.session_proposal_rpc_id,
                     payload: ResponsePayload::Success(ProposalResponse {
                         relay: Relay { protocol: "irn".to_string() },
                         responder_public_key: hex::encode(
@@ -349,7 +357,7 @@ impl Client {
         };
 
         let approve_session = ApproveSession {
-            pairing_topic: pairing.topic,
+            pairing_topic: pairing.pairing_topic,
             session_topic,
             session_proposal_response,
             session_settlement_request,
@@ -382,7 +390,7 @@ impl Client {
             }
         }
 
-        Ok(())
+        Ok(ApprovedSession { session_sym_key: shared_secret })
     }
 
     pub async fn _reject(&self) {
@@ -505,54 +513,67 @@ impl Client {
                 conn_opts.as_url().unwrap().to_string()
             };
 
-            #[cfg(not(target_arch = "wasm32"))]
+            #[cfg(not(feature = "wasm"))]
             let (ws_stream, _response) = connect_async(url)
                 .await
                 .map_err(|e| RequestError::Internal(e.to_string()))?;
 
-            #[cfg(target_arch = "wasm32")]
+            #[cfg(feature = "wasm")]
             let ws_stream = {
                 use wasm_bindgen::{prelude::Closure, JsCast};
                 use web_sys::{Event, MessageEvent};
 
-                let ws = web_sys::WebSocket::new(&url).map_err(|e| {
-                    RequestError::Internal(format!(
-                        "Failed to create WebSocket: {e:?}"
-                    ))
-                })?;
                 let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
-                let (tx2, mut rx2) = tokio::sync::mpsc::channel(1);
-                let tx2 = std::sync::Arc::new(tokio::sync::Mutex::new(tx2));
-                let tx2_clone = tx2.clone();
-                let onopen_closure =
-                    Closure::wrap(Box::new(move |_event: Event| {
-                        let tx2 = tx2_clone.clone();
-                        crate::spawn::spawn(async move {
-                            let tx = tx2.lock().await;
-                            tx.send(()).await.unwrap();
-                        });
-                    }) as Box<dyn Fn(Event)>);
-                ws.set_onopen(Some(
-                    Box::leak(Box::new(onopen_closure))
-                        .as_ref()
-                        .unchecked_ref(),
-                ));
-                let onmessage_closure =
-                    Closure::wrap(Box::new(move |event: MessageEvent| {
-                        // TODO may not be string messages
-                        let message = event.data().as_string().unwrap();
-                        tx.send(message).unwrap();
-                    })
-                        as Box<dyn Fn(MessageEvent)>);
-                ws.set_onmessage(Some(
-                    Box::leak(Box::new(onmessage_closure))
-                        .as_ref()
-                        .unchecked_ref(),
-                ));
-                web_sys::console::log_1(&"onopen".into());
-                rx2.recv().await.unwrap(); // FIXME this blocks the async task
-                web_sys::console::log_1(&"onopen received".into());
-                (ws, rx)
+                let (tx_send, mut rx_send) =
+                    tokio::sync::mpsc::unbounded_channel::<String>();
+                wasm_bindgen_futures::spawn_local(async move {
+                    let ws = web_sys::WebSocket::new(&url)
+                        .map_err(|e| {
+                            RequestError::Internal(format!(
+                                "Failed to create WebSocket: {e:?}"
+                            ))
+                        })
+                        .unwrap();
+                    let (tx_open, mut rx_open) = tokio::sync::mpsc::channel(1);
+                    let tx_open =
+                        std::sync::Arc::new(tokio::sync::Mutex::new(tx_open));
+                    let tx_open_clone = tx_open.clone();
+                    let onopen_closure =
+                        Closure::wrap(Box::new(move |_event: Event| {
+                            let tx_open = tx_open_clone.clone();
+                            crate::spawn::spawn(async move {
+                                let tx = tx_open.lock().await;
+                                tx.send(()).await.unwrap();
+                                // TODO unmount handler once inited once
+                            });
+                        })
+                            as Box<dyn Fn(Event)>);
+                    ws.set_onopen(Some(
+                        Box::leak(Box::new(onopen_closure))
+                            .as_ref()
+                            .unchecked_ref(),
+                    ));
+                    let onmessage_closure =
+                        Closure::wrap(Box::new(move |event: MessageEvent| {
+                            // TODO may not be string messages
+                            let message = event.data().as_string().unwrap();
+                            tx.send(message).unwrap();
+                        })
+                            as Box<dyn Fn(MessageEvent)>);
+                    ws.set_onmessage(Some(
+                        Box::leak(Box::new(onmessage_closure))
+                            .as_ref()
+                            .unchecked_ref(),
+                    ));
+                    web_sys::console::log_1(&"onopen".into());
+                    rx_open.recv().await.unwrap();
+                    ws.set_onopen(None);
+                    web_sys::console::log_1(&"onopen received".into());
+                    while let Some(message) = rx_send.recv().await {
+                        ws.send_with_str(&message).unwrap();
+                    }
+                });
+                WebWebSocketWrapper { rx, tx: tx_send }
             };
 
             const MIN: u64 = 1000000000; // MessageId::MIN is private
@@ -569,18 +590,18 @@ impl Client {
             ))
         })?;
 
-        #[cfg(not(target_arch = "wasm32"))]
+        #[cfg(not(feature = "wasm"))]
         ws_state.stream.send(Message::Text(serialized.into())).await.map_err(
             |e| RequestError::Internal(format!("Failed to send request: {e}")),
         )?;
 
-        #[cfg(target_arch = "wasm32")]
-        ws_state.stream.0.send_with_str(&serialized).map_err(|e| {
+        #[cfg(feature = "wasm")]
+        ws_state.stream.tx.send(serialized).map_err(|e| {
             RequestError::Internal(format!("Failed to send request: {e:?}"))
         })?;
 
         // TODO timeout
-        #[cfg(not(target_arch = "wasm32"))]
+        #[cfg(not(feature = "wasm"))]
         while let Some(n) = ws_state.stream.next().await {
             let n = n.map_err(|e| {
                 RequestError::Internal(format!("WebSocket stream error: {e}"))
@@ -613,8 +634,8 @@ impl Client {
             }
         }
 
-        #[cfg(target_arch = "wasm32")]
-        while let Some(message) = ws_state.stream.1.recv().await {
+        #[cfg(feature = "wasm")]
+        while let Some(message) = ws_state.stream.rx.recv().await {
             let response =
                 serde_json::from_str::<Response>(&message).map_err(|e| {
                     RequestError::Internal(format!(
@@ -643,8 +664,8 @@ impl Client {
 }
 
 pub struct SessionProposal {
-    pub id: Id,
-    pub topic: Topic,
+    pub session_proposal_rpc_id: Id,
+    pub pairing_topic: Topic,
     pub pairing_sym_key: [u8; 32],
     pub proposer_public_key: [u8; 32],
     pub requested_namespaces: ProposalNamespaces,
@@ -664,8 +685,8 @@ pub struct SessionProposalFfi {
 impl From<SessionProposal> for SessionProposalFfi {
     fn from(proposal: SessionProposal) -> Self {
         Self {
-            id: proposal.id.to_string(),
-            topic: proposal.topic.to_string(),
+            id: proposal.session_proposal_rpc_id.to_string(),
+            topic: proposal.pairing_topic.to_string(),
             pairing_sym_key: proposal.pairing_sym_key.to_vec(),
             proposer_public_key: proposal.proposer_public_key.to_vec(),
             requested_namespaces: proposal.requested_namespaces,
@@ -683,11 +704,40 @@ impl From<SessionProposalFfi> for SessionProposal {
             Id::String(proposal.id)
         };
         Self {
-            id,
-            topic: proposal.topic.into(),
+            session_proposal_rpc_id: id,
+            pairing_topic: proposal.topic.into(),
             pairing_sym_key: proposal.pairing_sym_key.try_into().unwrap(),
             proposer_public_key: proposal.proposer_public_key.try_into().unwrap(),
             requested_namespaces: proposal.requested_namespaces,
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone, PartialEq)]
+pub struct ApprovedSession {
+    pub session_sym_key: [u8; 32],
+}
+
+#[cfg(feature = "uniffi")]
+#[derive(uniffi_macros::Record)]
+pub struct ApprovedSessionFfi {
+    pub session_sym_key: Vec<u8>,
+}
+
+#[cfg(feature = "uniffi")]
+impl From<ApprovedSession> for ApprovedSessionFfi {
+    fn from(session: ApprovedSession) -> Self {
+        Self {
+            session_sym_key: session.session_sym_key.to_vec(),
+        }
+    }
+}
+
+#[cfg(feature = "uniffi")]
+impl From<ApprovedSessionFfi> for ApprovedSession {
+    fn from(session: ApprovedSessionFfi) -> Self {
+        Self {
+            session_sym_key: session.session_sym_key.try_into().unwrap(),
         }
     }
 }

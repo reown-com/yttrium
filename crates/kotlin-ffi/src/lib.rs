@@ -21,7 +21,7 @@ use {
 #[cfg(feature = "sign_client")]
 use {
     relay_rpc::domain::ClientId,
-    yttrium::sign::{Client as YSignClient, SessionProposal, SessionProposalFfi, PairError, ApproveError},
+    yttrium::sign::{Client as YSignClient, SessionProposal, SessionProposalFfi, ApprovedSessionFfi, PairError, ApproveError},
 };
 #[cfg(any(feature = "sign_client", feature = "chain_abstraction_client"))]
 use relay_rpc::domain::ProjectId;
@@ -469,10 +469,11 @@ impl SignClient {
         Ok(proposal.into())
     }
 
-    pub async fn approve(&self, pairing: SessionProposalFfi) -> Result<(), ApproveError> {
+    pub async fn approve(&self, pairing: SessionProposalFfi) -> Result<ApprovedSessionFfi, ApproveError> {
         let mut client = self.client.lock().await;
         let proposal: SessionProposal = pairing.into();
-        client.approve(proposal).await
+        let session = client.approve(proposal).await?;
+        Ok(session.into())
     }
 }
 
