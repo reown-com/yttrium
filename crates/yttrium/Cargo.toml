@@ -9,7 +9,7 @@ license.workspace = true
 crate-type = ["lib", "cdylib"]
 
 [features]
-default = ["eip155", "erc6492_client", "chain_abstraction_client", "sign_client"]
+default = ["eip155", "erc6492_client", "chain_abstraction_client"]
 full = ["all_platforms", "all_clients", "all_namespaces"]
 
 # Features enabling FFI bindings for different platforms
@@ -20,10 +20,7 @@ uniffi = [
     "dep:uniffi",
     "dep:uniffi_macros",
     "reqwest/default-tls",
-    "dep:tokio-tungstenite",
-    "tokio-tungstenite/connect",
-    "tokio-tungstenite/handshake",
-    "tokio-tungstenite/native-tls",
+    "dep:tokio-tungstenite"
 ]
 wasm = [
     "dep:wasm-bindgen",
