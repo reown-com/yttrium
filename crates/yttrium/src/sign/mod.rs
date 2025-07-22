@@ -99,7 +99,8 @@ pub struct Client {
     project_id: ProjectId,
     #[allow(unused)]
     client_id: ClientId,
-    websocket: Option<WebSocketState>,
+    websocket: std::sync::Arc<tokio::sync::Mutex<Option<WebSocketState>>>,
+    message_id_counter: std::sync::Arc<tokio::sync::Mutex<u64>>,
 }
 
 // TODO
@@ -122,7 +123,13 @@ impl Client {
         project_id: ProjectId,
         client_id: ClientId,
     ) -> Self {
-        Self { relay_url, project_id, client_id, websocket: None }
+        Self {
+            relay_url,
+            project_id,
+            client_id,
+            websocket: std::sync::Arc::new(tokio::sync::Mutex::new(None)),
+            message_id_counter: std::sync::Arc::new(tokio::sync::Mutex::new(1000000000)),
+        }
     }
 
     pub async fn _connect(&self) {
@@ -133,8 +140,8 @@ impl Client {
         // TODO call `wc_proposeSession`
     }
 
-    pub async fn pair(
-        &mut self,
+    pub async fn pair_internal(
+        &self,
         uri: &str,
     ) -> Result<SessionProposal, PairError> {
         // TODO implement
@@ -230,8 +237,8 @@ impl Client {
         Err(PairError::Internal("No message found".to_string()))
     }
 
-    pub async fn approve(
-        &mut self,
+    pub async fn approve_internal(
+        &self,
         pairing: SessionProposal,
     ) -> Result<ApprovedSession, ApproveError> {
         // TODO params:
@@ -393,6 +400,26 @@ impl Client {
         Ok(ApprovedSession { session_sym_key: shared_secret })
     }
 
+    // UniFFI-compatible wrapper methods
+    #[cfg(feature = "uniffi")]
+    pub async fn pair_ffi(
+        &self,
+        uri: String,
+    ) -> Result<SessionProposalFfi, PairError> {
+        let proposal = self.pair_internal(&uri).await?;
+        Ok(proposal.into())
+    }
+
+    #[cfg(feature = "uniffi")]
+    pub async fn approve_ffi(
+        &self,
+        pairing: SessionProposalFfi,
+    ) -> Result<ApprovedSessionFfi, ApproveError> {
+        let proposal: SessionProposal = pairing.into();
+        let session = self.approve_internal(proposal).await?;
+        Ok(session.into())
+    }
+
     pub async fn _reject(&self) {
         // TODO implement
         // https://github.com/WalletConnect/walletconnect-monorepo/blob/5bef698dcf0ae910548481959a6a5d87eaf7aaa5/packages/sign-client/src/controllers/engine.ts#L497
@@ -462,10 +489,13 @@ impl Client {
     }
 
     async fn request<T: DeserializeOwned>(
-        &mut self,
+        &self,
         params: relay_rpc::rpc::Params,
     ) -> Result<T, RequestError> {
-        let mut ws_state = if let Some(ws_state) = self.websocket.as_mut() {
+        let mut websocket_guard = self.websocket.lock().await;
+        let mut message_id_guard = self.message_id_counter.lock().await;
+        
+        let ws_state = if let Some(ref mut ws_state) = *websocket_guard {
             ws_state
         } else {
             let key = SigningKey::generate(&mut rand::thread_rng());
@@ -577,8 +607,8 @@ impl Client {
             };
 
             const MIN: u64 = 1000000000; // MessageId::MIN is private
-            self.websocket
-                .insert(WebSocketState { stream: ws_stream, message_id: MIN })
+            *websocket_guard = Some(WebSocketState { stream: ws_stream, message_id: MIN });
+            websocket_guard.as_mut().unwrap()
         };
 
         let this_id = MessageId::new(ws_state.message_id);
@@ -660,6 +690,25 @@ impl Client {
         }
 
         Err(RequestError::Internal("No response".to_string()))
+    }
+}
+
+// UniFFI-specific impl block
+#[cfg(feature = "uniffi")]
+#[uniffi::export(async_runtime = "tokio")]
+impl Client {
+    pub async fn pair(
+        &self,
+        uri: String,
+    ) -> Result<SessionProposalFfi, PairError> {
+        self.pair_ffi(uri).await
+    }
+
+    pub async fn approve(
+        &self,
+        pairing: SessionProposalFfi,
+    ) -> Result<ApprovedSessionFfi, ApproveError> {
+        self.approve_ffi(pairing).await
     }
 }
 
