@@ -20,7 +20,13 @@ uniffi = [
     "dep:uniffi",
     "dep:uniffi_macros",
     "reqwest/default-tls",
-    "dep:tokio-tungstenite"
+    "native",
+]
+native = [
+    "dep:tokio-tungstenite",
+    "tokio-tungstenite/connect",
+    "tokio-tungstenite/handshake",
+    "tokio-tungstenite/native-tls",
 ]
 wasm = [
     "dep:wasm-bindgen",
@@ -70,15 +76,12 @@ erc6492_client = []
 chain_abstraction_client = []
 transaction_sponsorship_client = []
 sign_client = [
-    "dep:chacha20poly1305", 
+    "dep:chacha20poly1305",
     "dep:rand",
     "dep:data-encoding",
     "dep:x25519-dalek",
-    "dep:hkdf", 
+    "dep:hkdf",
     "dep:sha2",
-    "dep:tokio-tungstenite",
-    "tokio-tungstenite/connect",
-    "tokio-tungstenite/stream",
 ]
 
 # Features enabling test coverage

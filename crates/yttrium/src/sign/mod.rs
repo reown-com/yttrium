@@ -13,7 +13,7 @@ use relay_rpc::domain::{DecodedClientId, Topic};
 use relay_rpc::jwt::{JwtBasicClaims, JwtHeader};
 use relay_rpc::rpc::{FetchMessages, FetchResponse};
 use relay_rpc::{
-    domain::{ClientId, MessageId, ProjectId},
+    domain::{MessageId, ProjectId},
     rpc::{ApproveSession, Payload, Request, Response},
 };
 use serde::de::DeserializeOwned;
@@ -21,7 +21,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use x25519_dalek::PublicKey;
-#[cfg(not(feature = "wasm"))]
+#[cfg(not(target_arch = "wasm32"))]
 use {
     futures::{SinkExt, StreamExt},
     tokio::net::TcpStream,
@@ -29,6 +29,8 @@ use {
         connect_async, tungstenite::Message, MaybeTlsStream, WebSocketStream,
     },
 };
+
+const RELAY_URL: &str = "wss://relay.walletconnect.org";
 
 mod envelope_type0;
 mod envelope_type1;
@@ -78,16 +80,16 @@ pub enum ApproveError {
     ShouldNeverHappen(String),
 }
 
-#[cfg(feature = "wasm")]
+#[cfg(target_arch = "wasm32")]
 struct WebWebSocketWrapper {
     rx: tokio::sync::mpsc::UnboundedReceiver<String>,
     tx: tokio::sync::mpsc::UnboundedSender<String>,
 }
 
 struct WebSocketState {
-    #[cfg(not(feature = "wasm"))]
+    #[cfg(not(target_arch = "wasm32"))]
     stream: WebSocketStream<MaybeTlsStream<TcpStream>>,
-    #[cfg(feature = "wasm")]
+    #[cfg(target_arch = "wasm32")]
     stream: WebWebSocketWrapper,
     message_id: u64,
 }
@@ -95,10 +97,7 @@ struct WebSocketState {
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Object))]
 pub struct Client {
     relay_url: String,
-    #[allow(unused)]
     project_id: ProjectId,
-    #[allow(unused)]
-    client_id: ClientId,
     websocket: Option<WebSocketState>,
 }
 
@@ -116,18 +115,8 @@ pub struct Client {
 
 #[allow(unused)]
 impl Client {
-    #[cfg_attr(feature = "uniffi", uniffi::constructor)]
-    pub fn new(
-        relay_url: String,
-        project_id: ProjectId,
-        client_id: ClientId,
-    ) -> Self {
-        Self {
-            relay_url,
-            project_id,
-            client_id,
-            websocket: None,
-        }
+    pub fn new(project_id: ProjectId) -> Self {
+        Self { relay_url: RELAY_URL.to_string(), project_id, websocket: None }
     }
 
     pub async fn _connect(&self) {
@@ -518,12 +507,12 @@ impl Client {
                 conn_opts.as_url().unwrap().to_string()
             };
 
-            #[cfg(not(feature = "wasm"))]
+            #[cfg(not(target_arch = "wasm32"))]
             let (ws_stream, _response) = connect_async(url)
                 .await
                 .map_err(|e| RequestError::Internal(e.to_string()))?;
 
-            #[cfg(feature = "wasm")]
+            #[cfg(target_arch = "wasm32")]
             let ws_stream = {
                 use wasm_bindgen::{prelude::Closure, JsCast};
                 use web_sys::{Event, MessageEvent};
@@ -595,18 +584,18 @@ impl Client {
             ))
         })?;
 
-        #[cfg(not(feature = "wasm"))]
+        #[cfg(not(target_arch = "wasm32"))]
         ws_state.stream.send(Message::Text(serialized.into())).await.map_err(
             |e| RequestError::Internal(format!("Failed to send request: {e}")),
         )?;
 
-        #[cfg(feature = "wasm")]
+        #[cfg(target_arch = "wasm32")]
         ws_state.stream.tx.send(serialized).map_err(|e| {
             RequestError::Internal(format!("Failed to send request: {e:?}"))
         })?;
 
         // TODO timeout
-        #[cfg(not(feature = "wasm"))]
+        #[cfg(not(target_arch = "wasm32"))]
         while let Some(n) = ws_state.stream.next().await {
             let n = n.map_err(|e| {
                 RequestError::Internal(format!("WebSocket stream error: {e}"))
@@ -639,7 +628,7 @@ impl Client {
             }
         }
 
-        #[cfg(feature = "wasm")]
+        #[cfg(target_arch = "wasm32")]
         while let Some(message) = ws_state.stream.rx.recv().await {
             let response =
                 serde_json::from_str::<Response>(&message).map_err(|e| {
@@ -679,19 +668,9 @@ pub struct SignClient {
 #[uniffi::export(async_runtime = "tokio")]
 impl SignClient {
     #[uniffi::constructor]
-    pub fn new(
-        relay_url: String,
-        project_id: String,
-        client_id: String,
-    ) -> Self {
-        let client = Client::new(
-            relay_url,
-            ProjectId::from(project_id),
-            ClientId::from(client_id),
-        );
-        Self {
-            client: std::sync::Arc::new(tokio::sync::Mutex::new(client)),
-        }
+    pub fn new(project_id: String) -> Self {
+        let client = Client::new(ProjectId::from(project_id));
+        Self { client: std::sync::Arc::new(tokio::sync::Mutex::new(client)) }
     }
 
     pub async fn pair(
@@ -730,10 +709,13 @@ pub struct SessionProposal {
 #[derive(uniffi_macros::Record)]
 pub struct SessionProposalFfi {
     pub id: String,
-    pub topic: String, 
+    pub topic: String,
     pub pairing_sym_key: Vec<u8>,
     pub proposer_public_key: Vec<u8>,
-    pub requested_namespaces: std::collections::HashMap<String, crate::sign::protocol_types::ProposalNamespace>,
+    pub requested_namespaces: std::collections::HashMap<
+        String,
+        crate::sign::protocol_types::ProposalNamespace,
+    >,
 }
 
 #[cfg(feature = "uniffi")]
@@ -762,7 +744,10 @@ impl From<SessionProposalFfi> for SessionProposal {
             session_proposal_rpc_id: id,
             pairing_topic: proposal.topic.into(),
             pairing_sym_key: proposal.pairing_sym_key.try_into().unwrap(),
-            proposer_public_key: proposal.proposer_public_key.try_into().unwrap(),
+            proposer_public_key: proposal
+                .proposer_public_key
+                .try_into()
+                .unwrap(),
             requested_namespaces: proposal.requested_namespaces,
         }
     }
@@ -782,17 +767,13 @@ pub struct ApprovedSessionFfi {
 #[cfg(feature = "uniffi")]
 impl From<ApprovedSession> for ApprovedSessionFfi {
     fn from(session: ApprovedSession) -> Self {
-        Self {
-            session_sym_key: session.session_sym_key.to_vec(),
-        }
+        Self { session_sym_key: session.session_sym_key.to_vec() }
     }
 }
 
 #[cfg(feature = "uniffi")]
 impl From<ApprovedSessionFfi> for ApprovedSession {
     fn from(session: ApprovedSessionFfi) -> Self {
-        Self {
-            session_sym_key: session.session_sym_key.try_into().unwrap(),
-        }
+        Self { session_sym_key: session.session_sym_key.try_into().unwrap() }
     }
 }

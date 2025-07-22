@@ -54,6 +54,7 @@ pub enum Error {
 pub struct PairingUri {
     pub topic: Topic,
     pub sym_key: [u8; 32],
+    #[allow(unused)]
     pub expiry_timestamp: u64,
 }
 

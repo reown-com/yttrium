@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 const IV_LENGTH: usize = 12;
 const PK_LENGTH: usize = 32;
 

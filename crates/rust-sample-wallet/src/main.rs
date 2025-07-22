@@ -5,9 +5,6 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use yttrium::sign::{ApprovedSession, Client};
 
-const RELAY_URL: &str = "wss://relay.walletconnect.org";
-const CLIENT_ID: &str = "123";
-
 #[derive(Serialize, Deserialize, Clone, Default, PartialEq)]
 struct MyState {
     sessions: Vec<ApprovedSession>,
@@ -21,9 +18,7 @@ fn main() {
         let pairing_uri = RwSignal::new(String::new());
         let pairing_status = RwSignal::new(String::new());
         let client = Arc::new(Mutex::new(Client::new(
-            RELAY_URL.to_owned(),
             include_str!("../.project-id").trim().into(),
-            CLIENT_ID.to_owned().into(),
         )));
 
         let pair_action = Action::new(move |pairing_uri: &String| {

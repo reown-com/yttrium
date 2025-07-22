@@ -92,7 +92,6 @@ kotlin:
   # cargo ndk -t armeabi-v7a -t arm64-v8a build -p kotlin-ffi --profile=uniffi-release --features=uniffi/cli
   ./build-kotlin.sh
 
-serve-wallet:
-  # cd crates/rust-sample-wallet
-  # cargo leptos watch
-  trunk serve
+wallet:
+  # TODO: why not `cargo leptos watch`?
+  cd crates/rust-sample-wallet && trunk serve
