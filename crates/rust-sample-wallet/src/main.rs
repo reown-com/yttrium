@@ -12,6 +12,18 @@ struct MyState {
 
 fn main() {
     console_error_panic_hook::set_once();
+    tracing_subscriber::fmt()
+        .with_writer(
+            // To avoide trace events in the browser from showing their
+            // JS backtrace, which is very annoying, in my opinion
+            tracing_subscriber_wasm::MakeConsoleWriter::default()
+                .map_trace_level_to(tracing::Level::DEBUG),
+        )
+        .with_max_level(tracing::Level::INFO)
+        // For some reason, if we don't do this in the browser, we get
+        // a runtime error.
+        .without_time()
+        .init();
     leptos::mount::mount_to_body(|| {
         let (state, set_state, _) =
             use_local_storage::<MyState, JsonSerdeCodec>("wc.sessions");
@@ -30,6 +42,7 @@ fn main() {
                 async move {
                     let mut client = client.lock().await;
                     match client.pair(&pairing_uri).await {
+                        // TODO separate action & UI for approval
                         Ok(pairing) => match client.approve(pairing).await {
                             Ok(approved_session) => {
                                 set_state.update(|state| {
@@ -73,6 +86,7 @@ fn main() {
                                 let next = request_rx.recv().await;
                                 match next {
                                     Some(message) => {
+                                        tracing::info!("message: {}", message);
                                         pairing_status.set(message);
                                     }
                                     None => {

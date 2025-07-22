@@ -12,4 +12,8 @@ async fn test_sign() {
     println!("message: {}", message);
     let message = session_request_rx.recv().await.unwrap();
     println!("message: {}", message);
+
+    // TODO where to decrypt message?
+    // - in the websocket handler
+    //   - provide mechanism to access session sym_key shared storage
 }

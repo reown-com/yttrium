@@ -11,7 +11,7 @@ use data_encoding::BASE64;
 use relay_rpc::auth::ed25519_dalek::{Signer, SigningKey};
 use relay_rpc::domain::{DecodedClientId, Topic};
 use relay_rpc::jwt::{JwtBasicClaims, JwtHeader};
-use relay_rpc::rpc::{FetchMessages, FetchResponse, Params};
+use relay_rpc::rpc::{FetchMessages, FetchResponse, Params, Subscription};
 use relay_rpc::{
     domain::{MessageId, ProjectId},
     rpc::{ApproveSession, Payload, Request, Response},
@@ -20,6 +20,8 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
+use std::sync::{Arc, RwLock};
+use tracing::debug;
 use x25519_dalek::PublicKey;
 #[cfg(not(target_arch = "wasm32"))]
 use {
@@ -85,11 +87,11 @@ pub enum ApproveError {
     ShouldNeverHappen(String),
 }
 
-#[cfg(target_arch = "wasm32")]
-struct WebWebSocketWrapper {
-    // rx: tokio::sync::mpsc::UnboundedReceiver<String>,
-    // tx: tokio::sync::mpsc::UnboundedSender<String>,
-}
+// #[cfg(target_arch = "wasm32")]
+// struct WebWebSocketWrapper {
+//     // rx: tokio::sync::mpsc::UnboundedReceiver<String>,
+//     // tx: tokio::sync::mpsc::UnboundedSender<String>,
+// }
 
 struct WebSocketState {
     // #[cfg(not(target_arch = "wasm32"))]
@@ -109,6 +111,7 @@ pub struct Client {
     project_id: ProjectId,
     websocket: Option<WebSocketState>,
     session_request_tx: tokio::sync::mpsc::UnboundedSender<String>,
+    sessions: Arc<RwLock<HashMap<Topic, ApprovedSession>>>,
 }
 
 // TODO
@@ -135,6 +138,7 @@ impl Client {
                 project_id,
                 websocket: None,
                 session_request_tx: tx,
+                sessions: Arc::new(RwLock::new(HashMap::new())),
             },
             rx,
         )
@@ -276,7 +280,7 @@ impl Client {
             };
             namespaces.insert(namespace, namespace_settle);
         }
-        println!("namespaces: {:?}", namespaces);
+        debug!("namespaces: {:?}", namespaces);
 
         let self_key = x25519_dalek::StaticSecret::random();
         let self_public_key = PublicKey::from(&self_key);
@@ -293,9 +297,9 @@ impl Client {
         }
         let shared_secret =
             diffie_hellman(&pairing.proposer_public_key.into(), &self_key);
-        let session_topic =
+        let session_topic: Topic =
             hex::encode(sha2::Sha256::digest(shared_secret)).into();
-        println!("session topic: {}", session_topic);
+        debug!("session topic: {}", session_topic);
 
         let session_proposal_response = {
             let serialized =
@@ -371,7 +375,7 @@ impl Client {
 
         let approve_session = ApproveSession {
             pairing_topic: pairing.pairing_topic,
-            session_topic,
+            session_topic: session_topic.clone(),
             session_proposal_response,
             session_settlement_request,
             analytics: None,
@@ -403,7 +407,13 @@ impl Client {
             }
         }
 
-        Ok(ApprovedSession { session_sym_key: shared_secret })
+        let session = ApprovedSession { session_sym_key: shared_secret };
+        {
+            let mut sessions = self.sessions.write().unwrap();
+            sessions.insert(session_topic, session.clone());
+        }
+
+        Ok(session)
     }
 
     pub async fn _reject(&self) {
@@ -530,11 +540,57 @@ impl Client {
             let (request_tx, mut request_rx) =
                 tokio::sync::mpsc::unbounded_channel();
 
+            let handle_session_request = {
+                let sessions = self.sessions.clone();
+                move |sub_msg: Subscription| {
+                    let session_sym_key = {
+                        let sessions = sessions.read().unwrap();
+                        let session =
+                            sessions.get(&sub_msg.data.topic).unwrap();
+                        session.session_sym_key
+                    };
+
+                    let decoded = BASE64
+                        .decode(sub_msg.data.message.as_bytes())
+                        .map_err(|e| {
+                            PairError::Internal(format!(
+                                "Failed to decode message: {e}"
+                            ))
+                        })
+                        .unwrap();
+                    let envelope =
+                        envelope_type0::deserialize_envelope_type0(&decoded)
+                            .map_err(|e| PairError::Internal(e.to_string()))
+                            .unwrap();
+                    let key = ChaCha20Poly1305::new(&session_sym_key.into());
+                    let decrypted = key
+                        .decrypt(
+                            &Nonce::from(envelope.iv),
+                            envelope.sb.as_slice(),
+                        )
+                        .map_err(|e| PairError::Internal(e.to_string()))
+                        .unwrap();
+                    // let request = serde_json::from_slice::<
+                    //     json_rpc::Request<serde_json::Value>,
+                    // >(&decrypted)
+                    // .map_err(|e| {
+                    //     PairError::Internal(format!(
+                    //         "Failed to parse decrypted message: {e}"
+                    //     ))
+                    // })?;
+
+                    session_request_tx
+                        .send(String::from_utf8(decrypted).unwrap())
+                        .unwrap();
+                }
+            };
+
             #[cfg(not(target_arch = "wasm32"))]
             let ws_stream = {
                 let (mut ws_stream, _response) = connect_async(url)
                     .await
                     .map_err(|e| RequestError::Internal(e.to_string()))?;
+                let sessions = self.sessions.clone();
 
                 crate::spawn::spawn(async move {
                     const MIN: u64 = 1000000000; // MessageId::MIN is private
@@ -579,16 +635,9 @@ impl Client {
                                                 Payload::Request(request) => {
                                                     match request.params {
                                                         Params::Subscription(
-                                                            message,
+                                                            sub_msg
                                                         ) => {
-                                                            session_request_tx
-                                                                .send(
-                                                                    message
-                                                                        .data
-                                                                        .message
-                                                                        .to_string(),
-                                                                )
-                                                                .unwrap();
+                                                            handle_session_request(sub_msg);
                                                         }
                                                         _ => {}
                                                     }
@@ -660,41 +709,6 @@ impl Client {
                             let message = event.data().as_string().unwrap();
                             web_sys::console::log_1(&message.clone().into());
                             tx.send(message.clone()).unwrap();
-
-                            // let payload =
-                            //     serde_json::from_str::<Payload>(&message)
-                            //         .map_err(|e| {
-                            //             RequestError::Internal(format!(
-                            //                 "Failed to parse payload: {e}"
-                            //             ))
-                            //         })?;
-
-                            // match payload {
-                            //     Payload::Request(request) => {
-                            //         // TODO handle as session request? `irn_subscription`
-                            //     }
-                            //     Payload::Response(response) => {
-                            //         // TODO lookup ID in
-                            //         //     if response.id() == this_id {
-                            //         //         match response {
-                            //         //     Response::Success(response) => Ok(
-                            //         //         serde_json::from_value(response.result)
-                            //         //             .map_err(|e| {
-                            //         //                 RequestError::Internal(format!(
-                            //         //                     "Failed to parse response result: {e}"
-                            //         //                 ))
-                            //         //             })?,
-                            //         //     ),
-                            //         //     Response::Error(response) => {
-                            //         //         Err(RequestError::Internal(format!(
-                            //         //             "RPC error: {:?}",
-                            //         //             response.error
-                            //         //         )))
-                            //         //     }
-                            //         // };
-                            //         // }
-                            //     }
-                            // }
                         })
                             as Box<dyn Fn(MessageEvent)>);
                     ws.set_onmessage(Some(
@@ -738,8 +752,10 @@ impl Client {
                                         match payload {
                                             Payload::Request(request) => {
                                                 match request.params {
-                                                    Params::Subscription(message) => {
-                                                        session_request_tx.send(message.data.message.to_string()).unwrap();
+                                                    Params::Subscription(
+                                                        sub_msg
+                                                    ) => {
+                                                        handle_session_request(sub_msg);
                                                     }
                                                     _ => {}
                                                 }
@@ -790,25 +806,7 @@ impl Client {
             ))),
         }
     }
-
-    // pub async fn next(&mut self) -> Option<String> {
-    //     #[cfg(target_arch = "wasm32")]
-    //     if let Some(websocket) = self.websocket.as_mut() {
-    //         if let Some(message) = websocket.stream.rx.recv().await {
-    //             Some(message)
-    //         } else {
-    //             None
-    //         }
-    //     } else {
-    //         None
-    //     }
-    // }
 }
-
-// spawn a handler (or reactive events for WASM)
-// handler emits to broadcast channel
-// handler emits to second broadcast channel if is session request
-// approve() function receives from first broadcast channel
 
 // UniFFI wrapper for better API naming
 #[cfg(feature = "uniffi")]
