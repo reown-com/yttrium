@@ -11,7 +11,7 @@ use data_encoding::BASE64;
 use relay_rpc::auth::ed25519_dalek::{Signer, SigningKey};
 use relay_rpc::domain::{DecodedClientId, Topic};
 use relay_rpc::jwt::{JwtBasicClaims, JwtHeader};
-use relay_rpc::rpc::{FetchMessages, FetchResponse};
+use relay_rpc::rpc::{FetchMessages, FetchResponse, Params};
 use relay_rpc::{
     domain::{MessageId, ProjectId},
     rpc::{ApproveSession, Payload, Request, Response},
@@ -54,6 +54,14 @@ pub enum RequestError {
 
 #[derive(Debug, thiserror::Error)]
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Error))]
+#[error("Sign next error: {0}")]
+pub enum NextError {
+    #[error("Internal: {0}")]
+    Internal(String),
+}
+
+#[derive(Debug, thiserror::Error)]
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Error))]
 #[error("Sign pair error: {0}")]
 pub enum PairError {
     #[error("Request error: {0}")]
@@ -82,8 +90,8 @@ pub enum ApproveError {
 
 #[cfg(target_arch = "wasm32")]
 struct WebWebSocketWrapper {
-    rx: tokio::sync::mpsc::UnboundedReceiver<String>,
-    tx: tokio::sync::mpsc::UnboundedSender<String>,
+    // rx: tokio::sync::mpsc::UnboundedReceiver<String>,
+    // tx: tokio::sync::mpsc::UnboundedSender<String>,
 }
 
 struct WebSocketState {
@@ -91,7 +99,11 @@ struct WebSocketState {
     stream: WebSocketStream<MaybeTlsStream<TcpStream>>,
     #[cfg(target_arch = "wasm32")]
     stream: WebWebSocketWrapper,
-    message_id: u64,
+    // message_id: u64,
+    request_tx: tokio::sync::mpsc::UnboundedSender<(
+        Params,
+        tokio::sync::oneshot::Sender<Response>,
+    )>,
 }
 
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Object))]
@@ -99,6 +111,7 @@ pub struct Client {
     relay_url: String,
     project_id: ProjectId,
     websocket: Option<WebSocketState>,
+    session_request_tx: tokio::sync::mpsc::UnboundedSender<String>,
 }
 
 // TODO
@@ -115,8 +128,19 @@ pub struct Client {
 
 #[allow(unused)]
 impl Client {
-    pub fn new(project_id: ProjectId) -> Self {
-        Self { relay_url: RELAY_URL.to_string(), project_id, websocket: None }
+    pub fn new(
+        project_id: ProjectId,
+    ) -> (Self, tokio::sync::mpsc::UnboundedReceiver<String>) {
+        let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
+        (
+            Self {
+                relay_url: RELAY_URL.to_string(),
+                project_id,
+                websocket: None,
+                session_request_tx: tx,
+            },
+            rx,
+        )
     }
 
     pub async fn _connect(&self) {
@@ -264,10 +288,8 @@ impl Client {
             private_key: &x25519_dalek::StaticSecret,
         ) -> [u8; 32] {
             let shared_key = private_key.diffie_hellman(public_key);
-
             let derived_key =
                 hkdf::Hkdf::<Sha256>::new(None, shared_key.as_bytes());
-
             let mut expanded_key = [0u8; 32];
             derived_key.expand(b"", &mut expanded_key).unwrap();
             expanded_key
@@ -507,17 +529,63 @@ impl Client {
                 conn_opts.as_url().unwrap().to_string()
             };
 
+            let session_request_tx = self.session_request_tx.clone();
+            let (request_tx, mut request_rx) =
+                tokio::sync::mpsc::unbounded_channel();
+
             #[cfg(not(target_arch = "wasm32"))]
-            let (ws_stream, _response) = connect_async(url)
-                .await
-                .map_err(|e| RequestError::Internal(e.to_string()))?;
+            let ws_stream = {
+                let (ws_stream, _response) = connect_async(url)
+                    .await
+                    .map_err(|e| RequestError::Internal(e.to_string()))?;
+
+                crate::spawn::spawn(async move {
+                    // TODO timeout
+                    #[cfg(not(target_arch = "wasm32"))]
+                    while let Some(n) = ws_state.stream.next().await {
+                        let n = n.map_err(|e| {
+                            RequestError::Internal(format!(
+                                "WebSocket stream error: {e}"
+                            ))
+                        })?;
+                        match n {
+                            Message::Text(text) => {
+                                let response =
+                                    serde_json::from_str::<Response>(&text)
+                                        .map_err(|e| {
+                                            RequestError::Internal(format!(
+                                                "Failed to parse response: {e}"
+                                            ))
+                                        })?;
+                                if response.id() == this_id {
+                                    let result = match response {
+                                        Response::Success(response) => {
+                                            Ok(serde_json::from_value(response.result)
+                                                .map_err(|e| {
+                                                    RequestError::Internal(format!(
+                                                        "Failed to parse response result: {e}"
+                                                    ))
+                                                })?)
+                                        }
+                                        Response::Error(response) => Err(RequestError::Internal(
+                                            format!("RPC error: {:?}", response.error),
+                                        )),
+                                    };
+                                    tx.send(result).unwrap();
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+                });
+            };
 
             #[cfg(target_arch = "wasm32")]
             let ws_stream = {
                 use wasm_bindgen::{prelude::Closure, JsCast};
                 use web_sys::{Event, MessageEvent};
 
-                let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
+                let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
                 let (tx_send, mut rx_send) =
                     tokio::sync::mpsc::unbounded_channel::<String>();
                 wasm_bindgen_futures::spawn_local(async move {
@@ -551,7 +619,43 @@ impl Client {
                         Closure::wrap(Box::new(move |event: MessageEvent| {
                             // TODO may not be string messages
                             let message = event.data().as_string().unwrap();
-                            tx.send(message).unwrap();
+                            web_sys::console::log_1(&message.clone().into());
+                            tx.send(message.clone()).unwrap();
+
+                            // let payload =
+                            //     serde_json::from_str::<Payload>(&message)
+                            //         .map_err(|e| {
+                            //             RequestError::Internal(format!(
+                            //                 "Failed to parse payload: {e}"
+                            //             ))
+                            //         })?;
+
+                            // match payload {
+                            //     Payload::Request(request) => {
+                            //         // TODO handle as session request? `irn_subscription`
+                            //     }
+                            //     Payload::Response(response) => {
+                            //         // TODO lookup ID in
+                            //         //     if response.id() == this_id {
+                            //         //         match response {
+                            //         //     Response::Success(response) => Ok(
+                            //         //         serde_json::from_value(response.result)
+                            //         //             .map_err(|e| {
+                            //         //                 RequestError::Internal(format!(
+                            //         //                     "Failed to parse response result: {e}"
+                            //         //                 ))
+                            //         //             })?,
+                            //         //     ),
+                            //         //     Response::Error(response) => {
+                            //         //         Err(RequestError::Internal(format!(
+                            //         //             "RPC error: {:?}",
+                            //         //             response.error
+                            //         //         )))
+                            //         //     }
+                            //         // };
+                            //         // }
+                            //     }
+                            // }
                         })
                             as Box<dyn Fn(MessageEvent)>);
                     ws.set_onmessage(Some(
@@ -563,99 +667,109 @@ impl Client {
                     rx_open.recv().await.unwrap();
                     ws.set_onopen(None);
                     web_sys::console::log_1(&"onopen received".into());
-                    while let Some(message) = rx_send.recv().await {
-                        ws.send_with_str(&message).unwrap();
+
+                    const MIN: u64 = 1000000000; // MessageId::MIN is private
+                    let mut message_id = MIN;
+                    let mut response_channels = HashMap::<
+                        _,
+                        tokio::sync::oneshot::Sender<Response>,
+                    >::new();
+
+                    loop {
+                        tokio::select! {
+                            Some((params, response_tx)) = request_rx.recv() => {
+                                message_id += 1;
+                                response_channels.insert(MessageId::new(message_id), response_tx);
+                                let request = Payload::Request(Request::new(MessageId::new(message_id), params));
+                                let serialized = serde_json::to_string(&request).map_err(|e| {
+                                    RequestError::ShouldNeverHappen(format!(
+                                        "Failed to serialize request: {e}"
+                                    ))
+                                }).unwrap();
+                                ws.send_with_str(&serialized).unwrap();
+                            }
+                            Some(message) = rx.recv() => {
+                                let payload = serde_json::from_str::<Payload>(&message).map_err(|e| {
+                                    RequestError::Internal(format!(
+                                        "Failed to parse payload: {e}"
+                                    ))
+                                });
+                                match payload {
+                                    Ok(payload) => {
+                                        match payload {
+                                            Payload::Request(request) => {
+                                                match request.params {
+                                                    Params::Subscription(message) => {
+                                                        session_request_tx.send(message.data.message.to_string()).unwrap();
+                                                    }
+                                                    _ => {}
+                                                }
+                                            }
+                                            Payload::Response(response) => {
+                                                if let Some(response_tx) = response_channels.remove(&response.id()) {
+                                                    if let Err(e) = response_tx.send(response) {
+                                                        web_sys::console::log_1(&format!("Failed to send response: {e:?}").into());
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                    Err(e) => {
+                                        // no-op
+                                    }
+                                }
+                            }
+                        }
                     }
                 });
-                WebWebSocketWrapper { rx, tx: tx_send }
+                WebWebSocketWrapper {}
             };
 
-            const MIN: u64 = 1000000000; // MessageId::MIN is private
-            self.websocket
-                .insert(WebSocketState { stream: ws_stream, message_id: MIN })
+            self.websocket.insert(WebSocketState {
+                stream: ws_stream,
+                // message_id: MIN,
+                // session_request_rx,
+                request_tx,
+            })
         };
 
-        let this_id = MessageId::new(ws_state.message_id);
-        ws_state.message_id += 1;
-        let request = Payload::Request(Request::new(this_id, params));
-        let serialized = serde_json::to_string(&request).map_err(|e| {
-            RequestError::ShouldNeverHappen(format!(
-                "Failed to serialize request: {e}"
-            ))
-        })?;
+        let (response_tx, response_rx) = tokio::sync::oneshot::channel();
+        ws_state.request_tx.send((params, response_tx)).unwrap();
+        let response = response_rx.await.unwrap();
 
-        #[cfg(not(target_arch = "wasm32"))]
-        ws_state.stream.send(Message::Text(serialized.into())).await.map_err(
-            |e| RequestError::Internal(format!("Failed to send request: {e}")),
-        )?;
-
-        #[cfg(target_arch = "wasm32")]
-        ws_state.stream.tx.send(serialized).map_err(|e| {
-            RequestError::Internal(format!("Failed to send request: {e:?}"))
-        })?;
-
-        // TODO timeout
-        #[cfg(not(target_arch = "wasm32"))]
-        while let Some(n) = ws_state.stream.next().await {
-            let n = n.map_err(|e| {
-                RequestError::Internal(format!("WebSocket stream error: {e}"))
-            })?;
-            match n {
-                Message::Text(text) => {
-                    let response = serde_json::from_str::<Response>(&text)
-                        .map_err(|e| {
-                            RequestError::Internal(format!(
-                                "Failed to parse response: {e}"
-                            ))
-                        })?;
-                    if response.id() == this_id {
-                        return match response {
-                            Response::Success(response) => {
-                                Ok(serde_json::from_value(response.result)
-                                    .map_err(|e| {
-                                        RequestError::Internal(format!(
-                                            "Failed to parse response result: {e}"
-                                        ))
-                                    })?)
-                            }
-                            Response::Error(response) => Err(RequestError::Internal(
-                                format!("RPC error: {:?}", response.error),
-                            )),
-                        };
-                    }
-                }
-                _ => {}
-            }
-        }
-
-        #[cfg(target_arch = "wasm32")]
-        while let Some(message) = ws_state.stream.rx.recv().await {
-            let response =
-                serde_json::from_str::<Response>(&message).map_err(|e| {
+        match response {
+            Response::Success(response) => {
+                Ok(serde_json::from_value(response.result).map_err(|e| {
                     RequestError::Internal(format!(
-                        "Failed to parse response: {e}"
+                        "Failed to parse response result: {e}"
                     ))
-                })?;
-            if response.id() == this_id {
-                return match response {
-                    Response::Success(response) => Ok(serde_json::from_value(
-                        response.result,
-                    )
-                    .map_err(|e| {
-                        RequestError::Internal(format!(
-                            "Failed to parse response result: {e}"
-                        ))
-                    })?),
-                    Response::Error(response) => Err(RequestError::Internal(
-                        format!("RPC error: {:?}", response.error),
-                    )),
-                };
+                })?)
             }
+            Response::Error(response) => Err(RequestError::Internal(format!(
+                "RPC error: {:?}",
+                response.error
+            ))),
         }
-
-        Err(RequestError::Internal("No response".to_string()))
     }
+
+    // pub async fn next(&mut self) -> Option<String> {
+    //     #[cfg(target_arch = "wasm32")]
+    //     if let Some(websocket) = self.websocket.as_mut() {
+    //         if let Some(message) = websocket.stream.rx.recv().await {
+    //             Some(message)
+    //         } else {
+    //             None
+    //         }
+    //     } else {
+    //         None
+    //     }
+    // }
 }
+
+// spawn a handler (or reactive events for WASM)
+// handler emits to broadcast channel
+// handler emits to second broadcast channel if is session request
+// approve() function receives from first broadcast channel
 
 // UniFFI wrapper for better API naming
 #[cfg(feature = "uniffi")]
@@ -670,7 +784,7 @@ impl SignClient {
     #[uniffi::constructor]
     pub fn new(project_id: String) -> Self {
         let client = Client::new(ProjectId::from(project_id));
-        Self { client: std::sync::Arc::new(tokio::sync::Mutex::new(client)) }
+        Self { client: std::sync::Arc::new(tokio::sync::Mutex::new(client.0)) }
     }
 
     pub async fn pair(
