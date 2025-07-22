@@ -565,6 +565,10 @@ fileprivate struct FfiConverterData: FfiConverterRustBuffer {
 
 public protocol ClientProtocol: AnyObject {
     
+    func approve(pairing: SessionProposalFfi) async throws  -> ApprovedSessionFfi
+    
+    func pair(uri: String) async throws  -> SessionProposalFfi
+    
 }
 open class Client: ClientProtocol, @unchecked Sendable {
     fileprivate let pointer: UnsafeMutableRawPointer!
@@ -614,6 +618,40 @@ open class Client: ClientProtocol, @unchecked Sendable {
 
     
 
+    
+open func approve(pairing: SessionProposalFfi)async throws  -> ApprovedSessionFfi  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_yttrium_fn_method_client_approve(
+                    self.uniffiClonePointer(),
+                    FfiConverterTypeSessionProposalFfi_lower(pairing)
+                )
+            },
+            pollFunc: ffi_yttrium_rust_future_poll_rust_buffer,
+            completeFunc: ffi_yttrium_rust_future_complete_rust_buffer,
+            freeFunc: ffi_yttrium_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeApprovedSessionFfi_lift,
+            errorHandler: FfiConverterTypeApproveError.lift
+        )
+}
+    
+open func pair(uri: String)async throws  -> SessionProposalFfi  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_yttrium_fn_method_client_pair(
+                    self.uniffiClonePointer(),
+                    FfiConverterString.lower(uri)
+                )
+            },
+            pollFunc: ffi_yttrium_rust_future_poll_rust_buffer,
+            completeFunc: ffi_yttrium_rust_future_complete_rust_buffer,
+            freeFunc: ffi_yttrium_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeSessionProposalFfi_lift,
+            errorHandler: FfiConverterTypePairError.lift
+        )
+}
     
 
 }
@@ -1277,6 +1315,68 @@ public func FfiConverterTypeAmount_lift(_ buf: RustBuffer) throws -> Amount {
 #endif
 public func FfiConverterTypeAmount_lower(_ value: Amount) -> RustBuffer {
     return FfiConverterTypeAmount.lower(value)
+}
+
+
+public struct ApprovedSessionFfi {
+    public var sessionSymKey: Data
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(sessionSymKey: Data) {
+        self.sessionSymKey = sessionSymKey
+    }
+}
+
+#if compiler(>=6)
+extension ApprovedSessionFfi: Sendable {}
+#endif
+
+
+extension ApprovedSessionFfi: Equatable, Hashable {
+    public static func ==(lhs: ApprovedSessionFfi, rhs: ApprovedSessionFfi) -> Bool {
+        if lhs.sessionSymKey != rhs.sessionSymKey {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(sessionSymKey)
+    }
+}
+
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeApprovedSessionFfi: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ApprovedSessionFfi {
+        return
+            try ApprovedSessionFfi(
+                sessionSymKey: FfiConverterData.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ApprovedSessionFfi, into buf: inout [UInt8]) {
+        FfiConverterData.write(value.sessionSymKey, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeApprovedSessionFfi_lift(_ buf: RustBuffer) throws -> ApprovedSessionFfi {
+    return try FfiConverterTypeApprovedSessionFfi.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeApprovedSessionFfi_lower(_ value: ApprovedSessionFfi) -> RustBuffer {
+    return FfiConverterTypeApprovedSessionFfi.lower(value)
 }
 
 
@@ -11159,6 +11259,12 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_yttrium_checksum_func_sui_personal_sign() != 21640) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_method_client_approve() != 49293) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_method_client_pair() != 63138) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_yttrium_checksum_method_erc6492client_verify_signature() != 43990) {

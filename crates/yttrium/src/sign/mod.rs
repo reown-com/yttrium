@@ -693,22 +693,42 @@ impl Client {
     }
 }
 
-// UniFFI-specific impl block
+// UniFFI wrapper for better API naming
+#[cfg(feature = "uniffi")]
+#[derive(uniffi::Object)]
+pub struct SignClient {
+    client: std::sync::Arc<Client>,
+}
+
 #[cfg(feature = "uniffi")]
 #[uniffi::export(async_runtime = "tokio")]
-impl Client {
+impl SignClient {
+    #[uniffi::constructor]
+    pub fn new(
+        relay_url: String,
+        project_id: String,
+        client_id: String,
+    ) -> Self {
+        let client = Client::new(
+            relay_url,
+            ProjectId::from(project_id),
+            ClientId::from(client_id),
+        );
+        Self { client: std::sync::Arc::new(client) }
+    }
+
     pub async fn pair(
         &self,
         uri: String,
     ) -> Result<SessionProposalFfi, PairError> {
-        self.pair_ffi(uri).await
+        self.client.pair_ffi(uri).await
     }
 
     pub async fn approve(
         &self,
         pairing: SessionProposalFfi,
     ) -> Result<ApprovedSessionFfi, ApproveError> {
-        self.approve_ffi(pairing).await
+        self.client.approve_ffi(pairing).await
     }
 }
 
