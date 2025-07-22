@@ -41,7 +41,8 @@ use {
     },
     alloy_provider::PendingTransactionError,
     eyre::Report as EyreError,
-    relay_rpc::domain::ProjectId,
+    relay_rpc::domain::{ProjectId, ClientId, Topic},
+    alloy::rpc::json_rpc::Id,
     reqwest::{Error as ReqwestError, StatusCode, Url},
     serde_json::Error as SerdeJsonError,
     uniffi::deps::anyhow::Error as AnyhowError,
@@ -160,6 +161,34 @@ uniffi::custom_type!(B256, String, {
 uniffi::custom_type!(ProjectId, String, {
     remote,
     try_lift: |val| Ok(val.into()),
+    lower: |obj| obj.to_string(),
+});
+
+#[cfg(feature = "sign_client")]
+uniffi::custom_type!(ClientId, String, {
+    remote,
+    try_lift: |val| Ok(val.into()),
+    lower: |obj| obj.to_string(),
+});
+
+#[cfg(feature = "sign_client")]
+uniffi::custom_type!(Topic, String, {
+    remote,
+    try_lift: |val| Ok(val.into()),
+    lower: |obj| obj.to_string(),
+});
+
+#[cfg(feature = "sign_client")]
+uniffi::custom_type!(Id, String, {
+    remote,
+    try_lift: |val| {
+        use alloy::rpc::json_rpc::Id;
+        if let Ok(num) = val.parse::<u64>() {
+            Ok(Id::Number(num))
+        } else {
+            Ok(Id::String(val))
+        }
+    },
     lower: |obj| obj.to_string(),
 });
 

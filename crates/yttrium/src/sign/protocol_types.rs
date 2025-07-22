@@ -17,6 +17,7 @@ pub struct Proposal {
 pub type ProposalNamespaces = HashMap<String, ProposalNamespace>;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
 pub struct ProposalNamespace {
     pub chains: Vec<String>,
     pub methods: Vec<String>,
@@ -24,6 +25,7 @@ pub struct ProposalNamespace {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
 pub struct Relay {
     pub protocol: String,
 }
