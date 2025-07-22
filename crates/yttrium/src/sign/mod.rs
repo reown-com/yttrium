@@ -99,7 +99,7 @@ pub struct Client {
     project_id: ProjectId,
     #[allow(unused)]
     client_id: ClientId,
-    websocket: std::sync::Arc<tokio::sync::Mutex<Option<WebSocketState>>>,
+    websocket: tokio::sync::Mutex<Option<WebSocketState>>,
 }
 
 // TODO
@@ -126,7 +126,7 @@ impl Client {
             relay_url,
             project_id,
             client_id,
-            websocket: std::sync::Arc::new(tokio::sync::Mutex::new(None)),
+            websocket: tokio::sync::Mutex::new(None),
         }
     }
 
