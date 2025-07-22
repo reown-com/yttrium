@@ -138,7 +138,7 @@ impl Client {
         // TODO call `wc_proposeSession`
     }
 
-    pub async fn pair_internal(
+    pub async fn pair(
         &self,
         uri: &str,
     ) -> Result<SessionProposal, PairError> {
@@ -235,7 +235,7 @@ impl Client {
         Err(PairError::Internal("No message found".to_string()))
     }
 
-    pub async fn approve_internal(
+    pub async fn approve(
         &self,
         pairing: SessionProposal,
     ) -> Result<ApprovedSession, ApproveError> {
@@ -396,26 +396,6 @@ impl Client {
         }
 
         Ok(ApprovedSession { session_sym_key: shared_secret })
-    }
-
-    // UniFFI-compatible wrapper methods
-    #[cfg(feature = "uniffi")]
-    pub async fn pair_ffi(
-        &self,
-        uri: String,
-    ) -> Result<SessionProposalFfi, PairError> {
-        let proposal = self.pair_internal(&uri).await?;
-        Ok(proposal.into())
-    }
-
-    #[cfg(feature = "uniffi")]
-    pub async fn approve_ffi(
-        &self,
-        pairing: SessionProposalFfi,
-    ) -> Result<ApprovedSessionFfi, ApproveError> {
-        let proposal: SessionProposal = pairing.into();
-        let session = self.approve_internal(proposal).await?;
-        Ok(session.into())
     }
 
     pub async fn _reject(&self) {
@@ -718,14 +698,17 @@ impl SignClient {
         &self,
         uri: String,
     ) -> Result<SessionProposalFfi, PairError> {
-        self.client.pair_ffi(uri).await
+        let proposal = self.client.pair(&uri).await?;
+        Ok(proposal.into())
     }
 
     pub async fn approve(
         &self,
         pairing: SessionProposalFfi,
     ) -> Result<ApprovedSessionFfi, ApproveError> {
-        self.client.approve_ffi(pairing).await
+        let proposal: SessionProposal = pairing.into();
+        let session = self.client.approve(proposal).await?;
+        Ok(session.into())
     }
 }
 
