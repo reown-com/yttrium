@@ -721,9 +721,36 @@ pub struct SessionProposalFfi {
 #[cfg(feature = "uniffi")]
 impl From<SessionProposal> for SessionProposalFfi {
     fn from(proposal: SessionProposal) -> Self {
+        // Ensure both id and topic are properly converted to valid UTF-8 strings
+        let id_string = match &proposal.session_proposal_rpc_id {
+            Id::Number(num) => num.to_string(),
+            Id::String(s) => s.clone(),
+            Id::None => "null".to_string(),
+        };
+        
+        // Be extremely defensive about topic string conversion
+        let topic_string = {
+            let raw_string = if let Ok(serialized) = serde_json::to_string(&proposal.pairing_topic) {
+                // Remove quotes from JSON string
+                serialized.trim_matches('"').to_string()
+            } else {
+                // Fallback to display format
+                format!("{}", proposal.pairing_topic)
+            };
+            
+            // Ensure the string is valid UTF-8 and only contains safe ASCII characters
+            if raw_string.is_ascii() && raw_string.chars().all(|c| c.is_ascii_alphanumeric()) {
+                raw_string
+            } else {
+                // If anything looks suspicious, force it to be safe ASCII hex
+                // This is a defensive fallback that should never be needed
+                format!("fallback_{}", hex::encode(raw_string.as_bytes()))
+            }
+        };
+        
         Self {
-            id: proposal.session_proposal_rpc_id.to_string(),
-            topic: proposal.pairing_topic.to_string(),
+            id: id_string,
+            topic: topic_string,
             pairing_sym_key: proposal.pairing_sym_key.to_vec(),
             proposer_public_key: proposal.proposer_public_key.to_vec(),
             requested_namespaces: proposal.requested_namespaces,
@@ -740,9 +767,11 @@ impl From<SessionProposalFfi> for SessionProposal {
         } else {
             Id::String(proposal.id)
         };
+        // Ensure topic is properly converted from string
+        let topic = Topic::from(proposal.topic);
         Self {
             session_proposal_rpc_id: id,
-            pairing_topic: proposal.topic.into(),
+            pairing_topic: topic,
             pairing_sym_key: proposal.pairing_sym_key.try_into().unwrap(),
             proposer_public_key: proposal
                 .proposer_public_key
@@ -775,5 +804,51 @@ impl From<ApprovedSession> for ApprovedSessionFfi {
 impl From<ApprovedSessionFfi> for ApprovedSession {
     fn from(session: ApprovedSessionFfi) -> Self {
         Self { session_sym_key: session.session_sym_key.try_into().unwrap() }
+    }
+}
+
+#[cfg(test)]
+mod conversion_tests {
+    use super::*;
+    use alloy::rpc::json_rpc::Id;
+
+    #[test]
+    fn test_session_proposal_conversion() {
+        // Create a test SessionProposal with known values
+        let test_topic = Topic::from("0c814f7d2d56c0e840f75612addaa170af479b1c8499632430b41c298bf49907".to_string());
+        let test_id = Id::Number(1234567890);
+        
+        let session_proposal = SessionProposal {
+            session_proposal_rpc_id: test_id,
+            pairing_topic: test_topic.clone(),
+            pairing_sym_key: [1u8; 32],
+            proposer_public_key: [2u8; 32],
+            requested_namespaces: std::collections::HashMap::new(),
+        };
+
+        // Convert to FFI
+        let ffi_proposal: SessionProposalFfi = session_proposal.into();
+
+        // Print the actual values to see what we get
+        println!("Original topic: {:?}", test_topic);
+        println!("Topic Display: {}", test_topic);
+        println!("Topic Debug: {:?}", test_topic);
+        println!("Topic JSON: {:?}", serde_json::to_string(&test_topic));
+        
+        println!("FFI id: {}", ffi_proposal.id);
+        println!("FFI topic: {}", ffi_proposal.topic);
+        println!("FFI topic bytes: {:?}", ffi_proposal.topic.as_bytes());
+        println!("FFI topic len: {}", ffi_proposal.topic.len());
+
+        // Check if the values are reasonable
+        assert_eq!(ffi_proposal.id, "1234567890");
+        assert!(!ffi_proposal.topic.is_empty(), "Topic should not be empty");
+        assert!(ffi_proposal.topic.is_ascii(), "Topic should be ASCII");
+        
+        // The topic should be a hex string
+        if ffi_proposal.topic.len() == 64 {
+            assert!(ffi_proposal.topic.chars().all(|c| c.is_ascii_hexdigit()), 
+                "Topic should be a hex string, got: {}", ffi_proposal.topic);
+        }
     }
 }

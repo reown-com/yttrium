@@ -853,13 +853,11 @@ open class SignClient: SignClientProtocol, @unchecked Sendable {
     public func uniffiClonePointer() -> UnsafeMutableRawPointer {
         return try! rustCall { uniffi_yttrium_fn_clone_signclient(self.pointer, $0) }
     }
-public convenience init(relayUrl: String, projectId: String, clientId: String) {
+public convenience init(projectId: String) {
     let pointer =
         try! rustCall() {
     uniffi_yttrium_fn_constructor_signclient_new(
-        FfiConverterString.lower(relayUrl),
-        FfiConverterString.lower(projectId),
-        FfiConverterString.lower(clientId),$0
+        FfiConverterString.lower(projectId),$0
     )
 }
     self.init(unsafeFromRawPointer: pointer)
@@ -11411,7 +11409,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_yttrium_checksum_constructor_erc6492client_new() != 33633) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_yttrium_checksum_constructor_signclient_new() != 59080) {
+    if (uniffi_yttrium_checksum_constructor_signclient_new() != 35991) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_yttrium_checksum_constructor_stacksclient_new() != 14610) {
