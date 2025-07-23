@@ -10,8 +10,9 @@ pub struct Proposal {
     pub relays: Vec<Relay>,
     pub proposer: Proposer,
     pub expiry_timestamp: u64,
-    pub pairing_topic: Topic,
     pub id: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pairing_topic: Option<Topic>,
 }
 
 pub type ProposalNamespaces = HashMap<String, ProposalNamespace>;

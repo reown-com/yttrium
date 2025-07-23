@@ -697,6 +697,7 @@ impl SignClient {
     }
 }
 
+#[derive(Debug)]
 pub struct SessionProposal {
     pub session_proposal_rpc_id: Id,
     pub pairing_topic: Topic,
@@ -706,7 +707,7 @@ pub struct SessionProposal {
 }
 
 #[cfg(feature = "uniffi")]
-#[derive(uniffi_macros::Record)]
+#[derive(uniffi_macros::Record, Debug)]
 pub struct SessionProposalFfi {
     pub id: String,
     pub topic: String,
@@ -782,7 +783,7 @@ impl From<SessionProposalFfi> for SessionProposal {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
 pub struct ApprovedSession {
     pub session_sym_key: [u8; 32],
 }
@@ -815,9 +816,12 @@ mod conversion_tests {
     #[test]
     fn test_session_proposal_conversion() {
         // Create a test SessionProposal with known values
-        let test_topic = Topic::from("0c814f7d2d56c0e840f75612addaa170af479b1c8499632430b41c298bf49907".to_string());
+        let test_topic = Topic::from(
+            "0c814f7d2d56c0e840f75612addaa170af479b1c8499632430b41c298bf49907"
+                .to_string(),
+        );
         let test_id = Id::Number(1234567890);
-        
+
         let session_proposal = SessionProposal {
             session_proposal_rpc_id: test_id,
             pairing_topic: test_topic.clone(),
@@ -834,7 +838,7 @@ mod conversion_tests {
         println!("Topic Display: {}", test_topic);
         println!("Topic Debug: {:?}", test_topic);
         println!("Topic JSON: {:?}", serde_json::to_string(&test_topic));
-        
+
         println!("FFI id: {}", ffi_proposal.id);
         println!("FFI topic: {}", ffi_proposal.topic);
         println!("FFI topic bytes: {:?}", ffi_proposal.topic.as_bytes());
@@ -844,11 +848,14 @@ mod conversion_tests {
         assert_eq!(ffi_proposal.id, "1234567890");
         assert!(!ffi_proposal.topic.is_empty(), "Topic should not be empty");
         assert!(ffi_proposal.topic.is_ascii(), "Topic should be ASCII");
-        
+
         // The topic should be a hex string
         if ffi_proposal.topic.len() == 64 {
-            assert!(ffi_proposal.topic.chars().all(|c| c.is_ascii_hexdigit()), 
-                "Topic should be a hex string, got: {}", ffi_proposal.topic);
+            assert!(
+                ffi_proposal.topic.chars().all(|c| c.is_ascii_hexdigit()),
+                "Topic should be a hex string, got: {}",
+                ffi_proposal.topic
+            );
         }
     }
 }
