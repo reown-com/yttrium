@@ -1,10 +1,11 @@
 use leptos::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::sync::{atomic::AtomicBool, Arc};
-use yttrium::sign::{ApprovedSession, Client};
+use yttrium::sign::{generate_key, ApprovedSession, Client, SecretKey};
 
-#[derive(Serialize, Deserialize, Clone, Default, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, PartialEq)]
 struct MyState {
+    key: SecretKey,
     sessions: Vec<ApprovedSession>,
 }
 
@@ -23,7 +24,7 @@ fn main() {
         .without_time()
         .init();
     leptos::mount::mount_to_body(|| {
-        let my_state = RwSignal::new(MyState { sessions: Vec::new() });
+        let my_state = RwSignal::new(None::<MyState>);
 
         let pairing_uri = RwSignal::new(String::new());
         let pairing_status = RwSignal::new(String::new());
@@ -44,21 +45,23 @@ fn main() {
                         // TODO separate action & UI for approval
                         Ok(pairing) => match client.approve(pairing).await {
                             Ok(_approved_session) => {
-                                let s =
-                                    MyState { sessions: client.get_sessions() };
-                                web_sys::window()
-                                    .unwrap()
-                                    .local_storage()
-                                    .unwrap()
-                                    .unwrap()
-                                    .set_item(
-                                        "wc.sessions",
-                                        &serde_json::to_string(&s).unwrap(),
-                                    )
-                                    .unwrap();
-                                my_state.set(s);
-                                pairing_status
-                                    .set("Pairing approved".to_owned());
+                                my_state.update(|my_state| {
+                                    let my_state = my_state.as_mut().unwrap();
+                                    my_state.sessions = client.get_sessions();
+                                    web_sys::window()
+                                        .unwrap()
+                                        .local_storage()
+                                        .unwrap()
+                                        .unwrap()
+                                        .set_item(
+                                            "wc",
+                                            &serde_json::to_string(&my_state)
+                                                .unwrap(),
+                                        )
+                                        .unwrap();
+                                    pairing_status
+                                        .set("Pairing approved".to_owned());
+                                });
                             }
                             Err(e) => {
                                 pairing_status
@@ -96,18 +99,37 @@ fn main() {
                                 .local_storage()
                                 .unwrap()
                                 .unwrap()
-                                .get_item("wc.sessions")
+                                .get_item("wc")
                                 .unwrap();
                             if let Some(sessions) = sessions {
                                 let state =
                                     serde_json::from_str::<MyState>(&sessions)
                                         .unwrap();
-                                my_state.set(state.clone());
+                                my_state.set(Some(state.clone()));
+                                let mut client = client.lock().await;
+                                client.set_key(state.key);
                                 if !state.sessions.is_empty() {
-                                    let client = client.lock().await;
                                     client.add_sessions(state.sessions);
-                                    client.online();
+                                    client.online().await;
                                 }
+                            } else {
+                                let state = MyState {
+                                    key: generate_key(),
+                                    sessions: Vec::new(),
+                                };
+                                let mut client = client.lock().await;
+                                client.set_key(state.key.clone());
+                                my_state.set(Some(state.clone()));
+                                web_sys::window()
+                                    .unwrap()
+                                    .local_storage()
+                                    .unwrap()
+                                    .unwrap()
+                                    .set_item(
+                                        "wc",
+                                        &serde_json::to_string(&state).unwrap(),
+                                    )
+                                    .unwrap();
                             }
 
                             while !unmounted
@@ -141,13 +163,17 @@ fn main() {
                 pair_action.dispatch(pairing_uri.get());
             }>Pair</button>
             <p>"Pairing status: " {pairing_status}</p>
-            <ul>
-                {move || my_state.get().sessions.iter().map(|_session| {
-                    view! {
-                        <li>"Session"</li>
-                    }
-                }).collect::<Vec<_>>()}
-            </ul>
+            {move || my_state.get().map(|my_state| {
+                view! {
+                    <ul>
+                        {move || my_state.sessions.iter().map(|_session| {
+                            view! {
+                                <li>"Session"</li>
+                            }
+                        }).collect::<Vec<_>>()}
+                    </ul>
+                }
+            })}
         }
     })
 }

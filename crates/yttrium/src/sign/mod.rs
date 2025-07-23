@@ -9,10 +9,13 @@ use alloy::rpc::json_rpc::{self, Id, ResponsePayload};
 use chacha20poly1305::aead::Aead;
 use chacha20poly1305::{AeadCore, ChaCha20Poly1305, KeyInit, Nonce};
 use data_encoding::BASE64;
-use relay_rpc::auth::ed25519_dalek::{Signer, SigningKey};
-use relay_rpc::domain::{DecodedClientId, Topic};
+use relay_rpc::auth::ed25519_dalek::Signer;
+pub use relay_rpc::auth::ed25519_dalek::{SecretKey, SigningKey};
+use relay_rpc::domain::{DecodedClientId, SubscriptionId, Topic};
 use relay_rpc::jwt::{JwtBasicClaims, JwtHeader};
-use relay_rpc::rpc::{FetchMessages, FetchResponse, Params, Subscription};
+use relay_rpc::rpc::{
+    BatchSubscribe, FetchMessages, FetchResponse, Params, Subscription,
+};
 use relay_rpc::{
     domain::{MessageId, ProjectId},
     rpc::{ApproveSession, Payload, Request, Response},
@@ -109,6 +112,7 @@ struct WebSocketState {
 pub struct Client {
     relay_url: String,
     project_id: ProjectId,
+    key: Option<SigningKey>,
     websocket: Option<WebSocketState>,
     session_request_tx: tokio::sync::mpsc::UnboundedSender<String>,
     sessions: Arc<RwLock<HashMap<Topic, ApprovedSession>>>,
@@ -136,12 +140,17 @@ impl Client {
             Self {
                 relay_url: RELAY_URL.to_string(),
                 project_id,
+                key: None,
                 websocket: None,
                 session_request_tx: tx,
                 sessions: Arc::new(RwLock::new(HashMap::new())),
             },
             rx,
         )
+    }
+
+    pub fn set_key(&mut self, key: SecretKey) {
+        self.key = Some(SigningKey::from_bytes(&key));
     }
 
     pub fn add_sessions(
@@ -161,8 +170,12 @@ impl Client {
 
     /// Call this when the app and user are ready to receive session requests.
     /// Skip calling this if you intend to shortly call another SDK method, as those other methods will themselves call this.
-    pub fn online(&self) {
-        if !self.sessions.read().unwrap().is_empty() {
+    /// TODO actually call this from other methods
+    pub async fn online(&mut self) {
+        let sessions = self.sessions.read().unwrap();
+        let topics = sessions.keys().cloned().collect::<Vec<_>>();
+        drop(sessions);
+        if !topics.is_empty() {
             // TODO request w/ empty request
             // the WS "layer" will add the irn_batchSubscribe automatically (as it does for all things)
 
@@ -170,6 +183,14 @@ impl Client {
             // Don't call irn_batchSubscribe or batchFetch at all. Do this automatically when the app calls another methods e.g. wc_approveSession
             // hmm actually, currently the relay doesn't know then when to expire an individual topic. Let's revisit this once the relay keeps track of sessions
             // for now, pass the session topics via the `subscribeTopics` param of wc_approveSession etc.
+
+            self.request::<Vec<SubscriptionId>>(
+                relay_rpc::rpc::Params::BatchSubscribe(BatchSubscribe {
+                    topics,
+                }),
+            )
+            .await
+            .unwrap();
         }
     }
 
@@ -505,11 +526,13 @@ impl Client {
         &mut self,
         params: relay_rpc::rpc::Params,
     ) -> Result<T, RequestError> {
+        let key = self
+            .key
+            .as_ref()
+            .ok_or(RequestError::Internal("Key not set".to_string()))?;
         let mut ws_state = if let Some(ws_state) = self.websocket.as_mut() {
             ws_state
         } else {
-            let key = SigningKey::generate(&mut rand::thread_rng());
-
             let url = {
                 let encoder = &data_encoding::BASE64URL_NOPAD;
                 let claims = {
@@ -823,6 +846,10 @@ impl Client {
             ))),
         }
     }
+}
+
+pub fn generate_key() -> SecretKey {
+    SigningKey::generate(&mut rand::thread_rng()).to_bytes()
 }
 
 // UniFFI wrapper for better API naming
