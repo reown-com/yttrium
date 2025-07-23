@@ -22,3 +22,21 @@
 //         MessageId::new(id)
 //     }
 // }
+
+use relay_rpc::domain::Topic;
+use sha2::{Digest, Sha256};
+
+pub fn topic_from_sym_key(sym_key: &[u8]) -> Topic {
+    hex::encode(sha2::Sha256::digest(sym_key)).into()
+}
+
+pub fn diffie_hellman(
+    public_key: &x25519_dalek::PublicKey,
+    private_key: &x25519_dalek::StaticSecret,
+) -> [u8; 32] {
+    let shared_key = private_key.diffie_hellman(public_key);
+    let derived_key = hkdf::Hkdf::<Sha256>::new(None, shared_key.as_bytes());
+    let mut expanded_key = [0u8; 32];
+    derived_key.expand(b"", &mut expanded_key).unwrap();
+    expanded_key
+}

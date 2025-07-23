@@ -4,6 +4,7 @@ use crate::sign::protocol_types::{
     Relay, SessionSettle, SettleNamespace,
 };
 use crate::sign::relay_url::ConnectionOptions;
+use crate::sign::utils::{diffie_hellman, topic_from_sym_key};
 use alloy::rpc::json_rpc::{self, Id, ResponsePayload};
 use chacha20poly1305::aead::Aead;
 use chacha20poly1305::{AeadCore, ChaCha20Poly1305, KeyInit, Nonce};
@@ -18,7 +19,6 @@ use relay_rpc::{
 };
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 use tracing::debug;
@@ -142,6 +142,35 @@ impl Client {
             },
             rx,
         )
+    }
+
+    pub fn add_sessions(
+        &self,
+        sessions: impl IntoIterator<Item = ApprovedSession>,
+    ) {
+        let mut guard = self.sessions.write().unwrap();
+        for session in sessions {
+            guard.insert(topic_from_sym_key(&session.session_sym_key), session);
+        }
+    }
+
+    pub fn get_sessions(&self) -> Vec<ApprovedSession> {
+        let guard = self.sessions.read().unwrap();
+        guard.values().cloned().collect()
+    }
+
+    /// Call this when the app and user are ready to receive session requests.
+    /// Skip calling this if you intend to shortly call another SDK method, as those other methods will themselves call this.
+    pub fn online(&self) {
+        if !self.sessions.read().unwrap().is_empty() {
+            // TODO request w/ empty request
+            // the WS "layer" will add the irn_batchSubscribe automatically (as it does for all things)
+
+            // ~~TODO actually:~~
+            // Don't call irn_batchSubscribe or batchFetch at all. Do this automatically when the app calls another methods e.g. wc_approveSession
+            // hmm actually, currently the relay doesn't know then when to expire an individual topic. Let's revisit this once the relay keeps track of sessions
+            // for now, pass the session topics via the `subscribeTopics` param of wc_approveSession etc.
+        }
     }
 
     pub async fn _connect(&self) {
@@ -284,21 +313,9 @@ impl Client {
 
         let self_key = x25519_dalek::StaticSecret::random();
         let self_public_key = PublicKey::from(&self_key);
-        pub fn diffie_hellman(
-            public_key: &x25519_dalek::PublicKey,
-            private_key: &x25519_dalek::StaticSecret,
-        ) -> [u8; 32] {
-            let shared_key = private_key.diffie_hellman(public_key);
-            let derived_key =
-                hkdf::Hkdf::<Sha256>::new(None, shared_key.as_bytes());
-            let mut expanded_key = [0u8; 32];
-            derived_key.expand(b"", &mut expanded_key).unwrap();
-            expanded_key
-        }
         let shared_secret =
             diffie_hellman(&pairing.proposer_public_key.into(), &self_key);
-        let session_topic: Topic =
-            hex::encode(sha2::Sha256::digest(shared_secret)).into();
+        let session_topic = topic_from_sym_key(&shared_secret);
         debug!("session topic: {}", session_topic);
 
         let session_proposal_response = {
@@ -332,7 +349,7 @@ impl Client {
             let serialized =
                 serde_json::to_string(&alloy::rpc::json_rpc::Request::new(
                     "wc_sessionSettle",
-                    1000000010.into(),
+                    1000000010.into(), // TODO generate this
                     SessionSettle {
                         relay: Relay { protocol: "irn".to_string() },
                         namespaces,
