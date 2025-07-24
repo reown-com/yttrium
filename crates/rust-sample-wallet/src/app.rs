@@ -1,14 +1,20 @@
 use crate::toast::{show_error_toast, show_success_toast};
 use leptos::prelude::*;
 use serde::{Deserialize, Serialize};
-use std::sync::{atomic::AtomicBool, Arc};
+use std::{
+    collections::HashMap,
+    sync::{atomic::AtomicBool, Arc},
+};
 use thaw::{
     Button, Dialog, DialogActions, DialogBody, DialogContent, DialogSurface,
     DialogTitle, Flex, Input, Label, ToasterInjection,
 };
 use yttrium::sign::{
     generate_key,
-    protocol_types::{SessionRequestJsonRpc, SessionRequestResponseJsonRpc},
+    protocol_types::{
+        Metadata, SessionRequestJsonRpc, SessionRequestResponseJsonRpc,
+        SettleNamespace,
+    },
     ApprovedSession, Client, SecretKey, Topic,
 };
 
@@ -17,6 +23,13 @@ struct MyState {
     key: SecretKey,
     sessions: Vec<ApprovedSession>,
 }
+
+// TODO E2E tests
+// TODO refactor to use actions and separate components for session proposal and session request
+// loading indicators on 2 approve buttons AND session proposal loading dialog (i.e. display immediately)
+// TODO disconnect support
+// TODO reject session proposal
+// TODO reject session request
 
 #[component]
 pub fn App() -> impl IntoView {
@@ -39,35 +52,70 @@ pub fn App() -> impl IntoView {
                 let mut client = client.lock().await;
                 match client.pair(&pairing_uri).await {
                     // TODO separate action & UI for approval
-                    Ok(pairing) => match client.approve(pairing).await {
-                        Ok(_approved_session) => {
-                            my_state.update(|my_state| {
-                                let my_state = my_state.as_mut().unwrap();
-                                my_state.sessions = client.get_sessions();
-                                web_sys::window()
-                                    .unwrap()
-                                    .local_storage()
-                                    .unwrap()
-                                    .unwrap()
-                                    .set_item(
-                                        "wc",
-                                        &serde_json::to_string(&my_state)
-                                            .unwrap(),
+                    Ok(pairing) => {
+                        let mut namespaces = HashMap::new();
+                        for (namespace, namespace_proposal) in
+                            pairing.requested_namespaces.clone()
+                        {
+                            let accounts = namespace_proposal
+                                .chains
+                                .iter()
+                                .map(|chain| {
+                                    format!(
+                                        "{}:{}",
+                                        chain, "0x0000000000000000000000000000000000000000"
                                     )
-                                    .unwrap();
-                                show_success_toast(
+                                })
+                                .collect();
+                            let namespace_settle = SettleNamespace {
+                                accounts,
+                                methods: namespace_proposal.methods,
+                                events: namespace_proposal.events,
+                            };
+                            namespaces.insert(namespace, namespace_settle);
+                        }
+                        tracing::debug!("namespaces: {:?}", namespaces);
+
+                        let metadata = Metadata {
+                            name: "Reown Rust Sample Wallet".to_string(),
+                            description: "Reown Rust Sample Wallet".to_string(),
+                            url: "https://reown.com".to_string(),
+                            icons: vec![],
+                        };
+
+                        match client
+                            .approve(pairing, namespaces, metadata)
+                            .await
+                        {
+                            Ok(_approved_session) => {
+                                my_state.update(|my_state| {
+                                    let my_state = my_state.as_mut().unwrap();
+                                    my_state.sessions = client.get_sessions();
+                                    web_sys::window()
+                                        .unwrap()
+                                        .local_storage()
+                                        .unwrap()
+                                        .unwrap()
+                                        .set_item(
+                                            "wc",
+                                            &serde_json::to_string(&my_state)
+                                                .unwrap(),
+                                        )
+                                        .unwrap();
+                                    show_success_toast(
+                                        toaster,
+                                        "Pairing approved".to_owned(),
+                                    );
+                                });
+                            }
+                            Err(e) => {
+                                show_error_toast(
                                     toaster,
-                                    "Pairing approved".to_owned(),
+                                    format!("Approval failed: {e}"),
                                 );
-                            });
+                            }
                         }
-                        Err(e) => {
-                            show_error_toast(
-                                toaster,
-                                format!("Approval failed: {e}"),
-                            );
-                        }
-                    },
+                    }
                     Err(e) => {
                         show_error_toast(
                             toaster,

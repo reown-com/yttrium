@@ -132,17 +132,39 @@ pub struct Client {
     sessions: Arc<RwLock<HashMap<Topic, ApprovedSession>>>,
 }
 
+// TODO bindings integration
+// - State:
+//   - is app and wallet state coupled? should we build the DApp support right now to make it easier?
+
 // TODO
-// - separate app from wallet client
-// - incoming message deduplication (RPC ID/hash)
-// - random (?) request RPC ID generation
-// - session expiry
+// - session expiry & renew
+// - subscribe/fetch messages on startup - also solve that ordering problem?
 // - WS reconnection & retries
 //   - disconnect if no ping for 30s etc.
-// - interpret relay disconnect reason
-// - subscribe/fetch messages on startup - also solve that ordering problem?
-// - handle connection error
-// - handle project ID/JWT error
+//   - interpret relay disconnect reason
+//   - handle connection/project ID/JWT error
+// - incoming message deduplication (RPC ID/hash)
+// - random (?) request RPC ID generation
+
+// TODO ?
+// - session pings, update, events, emit
+
+// TODO error improvement
+// - bundle size optimization: error enums only for actionable errors higher-up
+// - use a single string variant for all errors (which would be shown to users!)
+// - other is internal errors we don't expect to EVER happen (so show error code instead w/ GitHub issue link)
+// TODO bundle size optimization
+// - use native crypto utils
+// TODO relay changes
+// - subscribe to other sessions as part of `wc_approveSession` etc.
+// - (feasible?) wc_sessionRequestRespond which ACKs the `irn_subscription` message
+// - https://www.notion.so/walletconnect/Design-Doc-Sign-Client-Rust-port-2303a661771e80628bdbf07c96a97b21?source=copy_link#2303a661771e808f895acbcab46bd12a
+
+// TODO
+// - Verify API
+// - 1CA
+// - Link Mode
+// - Events SDK & Analytics/TVF
 
 #[allow(unused)]
 impl Client {
@@ -316,35 +338,13 @@ impl Client {
     pub async fn approve(
         &mut self,
         pairing: SessionProposal,
+        namespaces: HashMap<String, SettleNamespace>,
+        metadata: Metadata,
     ) -> Result<ApprovedSession, ApproveError> {
-        // TODO params:
-        // - approvedNamespaces, etc.
-
         // TODO implement
         // https://github.com/WalletConnect/walletconnect-monorepo/blob/5bef698dcf0ae910548481959a6a5d87eaf7aaa5/packages/sign-client/src/controllers/engine.ts#L341
 
         // TODO check is valid
-
-        let mut namespaces = HashMap::new();
-        for (namespace, namespace_proposal) in pairing.requested_namespaces {
-            let accounts = namespace_proposal
-                .chains
-                .iter()
-                .map(|chain| {
-                    format!(
-                        "{}:{}",
-                        chain, "0x0000000000000000000000000000000000000000"
-                    )
-                })
-                .collect();
-            let namespace_settle = SettleNamespace {
-                accounts,
-                methods: namespace_proposal.methods,
-                events: namespace_proposal.events,
-            };
-            namespaces.insert(namespace, namespace_settle);
-        }
-        debug!("namespaces: {:?}", namespaces);
 
         let self_key = x25519_dalek::StaticSecret::random();
         let self_public_key = PublicKey::from(&self_key);
@@ -390,23 +390,16 @@ impl Client {
                     namespaces,
                     controller: Controller {
                         public_key: hex::encode(self_public_key.to_bytes()),
-                        metadata: Metadata {
-                            name: "Reown".to_string(),
-                            description: "Reown".to_string(),
-                            url: "https://reown.com".to_string(),
-                            icons: vec![
-                                "https://reown.com/icon.png".to_string()
-                            ],
-                        },
+                        metadata,
                     },
                     expiry_timestamp: crate::time::SystemTime::now()
                         .duration_since(crate::time::UNIX_EPOCH)
                         .unwrap()
                         .as_secs()
-                        + 60 * 60 * 24 * 30,
-                    session_properties: serde_json::Value::Null,
-                    scoped_properties: serde_json::Value::Null,
-                    session_config: serde_json::Value::Null,
+                        + 60 * 60 * 24 * 30, // TODO
+                    session_properties: serde_json::Value::Null, // TODO
+                    scoped_properties: serde_json::Value::Null,  // TODO
+                    session_config: serde_json::Value::Null,     // TODO
                 },
             })
             .map_err(|e| ApproveError::Internal(e.to_string()))?;
@@ -993,9 +986,40 @@ impl SignClient {
         pairing: SessionProposalFfi,
     ) -> Result<ApprovedSessionFfi, ApproveError> {
         let proposal: SessionProposal = pairing.into();
+
+        let mut namespaces = HashMap::new();
+        for (namespace, namespace_proposal) in
+            pairing.requested_namespaces.clone()
+        {
+            let accounts = namespace_proposal
+                .chains
+                .iter()
+                .map(|chain| {
+                    format!(
+                        "{}:{}",
+                        chain, "0x0000000000000000000000000000000000000000"
+                    )
+                })
+                .collect();
+            let namespace_settle = SettleNamespace {
+                accounts,
+                methods: namespace_proposal.methods,
+                events: namespace_proposal.events,
+            };
+            namespaces.insert(namespace, namespace_settle);
+        }
+        tracing::debug!("namespaces: {:?}", namespaces);
+
+        let metadata = Metadata {
+            name: "Reown Swift Sample Wallet".to_string(),
+            description: "Reown Swift Sample Wallet".to_string(),
+            url: "https://reown.com".to_string(),
+            icons: vec![],
+        };
+
         let session = {
             let mut client = self.client.lock().await;
-            client.approve(proposal).await?
+            client.approve(proposal, namespaces, metadata).await?
         };
         Ok(session.into())
     }
