@@ -1,11 +1,11 @@
 use crate::sign::envelope_type0::{encode_envelope_type0, EnvelopeType0};
 use crate::sign::protocol_types::{
-    Controller, Metadata, Proposal, ProposalNamespaces, ProposalResponse,
-    Relay, SessionSettle, SettleNamespace,
+    Controller, Metadata, ProposalJsonRpc, ProposalNamespaces,
+    ProposalResponse, ProposalResponseJsonRpc, Relay, SessionSettle,
+    SessionSettleJsonRpc, SettleNamespace,
 };
 use crate::sign::relay_url::ConnectionOptions;
 use crate::sign::utils::{diffie_hellman, topic_from_sym_key};
-use alloy::rpc::json_rpc::{self, Id, ResponsePayload};
 use chacha20poly1305::aead::Aead;
 use chacha20poly1305::{AeadCore, ChaCha20Poly1305, KeyInit, Nonce};
 use data_encoding::BASE64;
@@ -242,28 +242,25 @@ impl Client {
                 let decrypted = key
                     .decrypt(&Nonce::from(envelope.iv), envelope.sb.as_slice())
                     .map_err(|e| PairError::Internal(e.to_string()))?;
-                let request = serde_json::from_slice::<
-                    json_rpc::Request<serde_json::Value>,
-                >(&decrypted)
-                .map_err(|e| {
-                    PairError::Internal(format!(
-                        "Failed to parse decrypted message: {e}"
-                    ))
-                })?;
-                if request.meta.method != "wc_sessionPropose" {
+                let request =
+                    serde_json::from_slice::<ProposalJsonRpc>(&decrypted)
+                        .map_err(|e| {
+                            PairError::Internal(format!(
+                                "Failed to parse decrypted message: {e}"
+                            ))
+                        })?;
+                if request.method != "wc_sessionPropose" {
                     return Err(PairError::Internal(format!(
                         "Expected wc_sessionPropose, got {}",
-                        request.meta.method
+                        request.method
                     )));
                 }
-                println!("rpc request: {}", request.meta.id);
+                println!("rpc request: {}", request.id);
                 println!(
                     "{}",
                     serde_json::to_string_pretty(&request.params).unwrap()
                 );
-                let proposal =
-                    serde_json::from_value::<Proposal>(request.params)
-                        .map_err(|e| PairError::Internal(e.to_string()))?;
+                let proposal = request.params;
                 println!("{:?}", proposal);
 
                 let proposer_public_key = hex::decode(proposal.proposer.public_key)
@@ -283,7 +280,7 @@ impl Client {
                 // TODO validate namespaces: https://specs.walletconnect.com/2.0/specs/clients/sign/namespaces#12-proposal-namespaces-must-not-have-chains-empty
 
                 return Ok(SessionProposal {
-                    session_proposal_rpc_id: request.meta.id,
+                    session_proposal_rpc_id: request.id,
                     pairing_topic: proposal.pairing_topic,
                     pairing_sym_key: pairing_uri.sym_key,
                     proposer_public_key,
@@ -340,17 +337,17 @@ impl Client {
         debug!("session topic: {}", session_topic);
 
         let session_proposal_response = {
-            let serialized =
-                serde_json::to_string(&alloy::rpc::json_rpc::Response {
-                    id: pairing.session_proposal_rpc_id,
-                    payload: ResponsePayload::Success(ProposalResponse {
-                        relay: Relay { protocol: "irn".to_string() },
-                        responder_public_key: hex::encode(
-                            self_public_key.to_bytes(),
-                        ),
-                    }) as ResponsePayload<_, ()>,
-                })
-                .map_err(|e| ApproveError::Internal(e.to_string()))?;
+            let serialized = serde_json::to_string(&ProposalResponseJsonRpc {
+                id: pairing.session_proposal_rpc_id,
+                jsonrpc: "2.0".to_string(),
+                result: ProposalResponse {
+                    relay: Relay { protocol: "irn".to_string() },
+                    responder_public_key: hex::encode(
+                        self_public_key.to_bytes(),
+                    ),
+                },
+            })
+            .map_err(|e| ApproveError::Internal(e.to_string()))?;
 
             let key = ChaCha20Poly1305::new(&pairing.pairing_sym_key.into());
             let nonce = ChaCha20Poly1305::generate_nonce()
@@ -367,35 +364,35 @@ impl Client {
         };
 
         let session_settlement_request = {
-            let serialized =
-                serde_json::to_string(&alloy::rpc::json_rpc::Request::new(
-                    "wc_sessionSettle",
-                    1000000010.into(), // TODO generate this
-                    SessionSettle {
-                        relay: Relay { protocol: "irn".to_string() },
-                        namespaces,
-                        controller: Controller {
-                            public_key: hex::encode(self_public_key.to_bytes()),
-                            metadata: Metadata {
-                                name: "Reown".to_string(),
-                                description: "Reown".to_string(),
-                                url: "https://reown.com".to_string(),
-                                icons: vec![
-                                    "https://reown.com/icon.png".to_string()
-                                ],
-                            },
+            let serialized = serde_json::to_string(&SessionSettleJsonRpc {
+                id: 1000000010, // TODO generate this
+                jsonrpc: "2.0".to_string(),
+                method: "wc_sessionSettle".to_string(),
+                params: SessionSettle {
+                    relay: Relay { protocol: "irn".to_string() },
+                    namespaces,
+                    controller: Controller {
+                        public_key: hex::encode(self_public_key.to_bytes()),
+                        metadata: Metadata {
+                            name: "Reown".to_string(),
+                            description: "Reown".to_string(),
+                            url: "https://reown.com".to_string(),
+                            icons: vec![
+                                "https://reown.com/icon.png".to_string()
+                            ],
                         },
-                        expiry_timestamp: crate::time::SystemTime::now()
-                            .duration_since(crate::time::UNIX_EPOCH)
-                            .unwrap()
-                            .as_secs()
-                            + 60 * 60 * 24 * 30,
-                        session_properties: serde_json::Value::Null,
-                        scoped_properties: serde_json::Value::Null,
-                        session_config: serde_json::Value::Null,
                     },
-                ))
-                .map_err(|e| ApproveError::Internal(e.to_string()))?;
+                    expiry_timestamp: crate::time::SystemTime::now()
+                        .duration_since(crate::time::UNIX_EPOCH)
+                        .unwrap()
+                        .as_secs()
+                        + 60 * 60 * 24 * 30,
+                    session_properties: serde_json::Value::Null,
+                    scoped_properties: serde_json::Value::Null,
+                    session_config: serde_json::Value::Null,
+                },
+            })
+            .map_err(|e| ApproveError::Internal(e.to_string()))?;
 
             let key = ChaCha20Poly1305::new(&shared_secret.into());
             let nonce = ChaCha20Poly1305::generate_nonce()
@@ -610,6 +607,7 @@ impl Client {
                         )
                         .map_err(|e| PairError::Internal(e.to_string()))
                         .unwrap();
+
                     // let request = serde_json::from_slice::<
                     //     json_rpc::Request<serde_json::Value>,
                     // >(&decrypted)
@@ -769,6 +767,8 @@ impl Client {
                     >::new();
 
                     loop {
+                        use relay_rpc::rpc::SuccessfulResponse;
+
                         tokio::select! {
                             Some((params, response_tx)) = request_rx.recv() => {
                                 message_id += 1;
@@ -789,6 +789,7 @@ impl Client {
                                 });
                                 match payload {
                                     Ok(payload) => {
+                                        let id = payload.id();
                                         match payload {
                                             Payload::Request(request) => {
                                                 match request.params {
@@ -796,6 +797,18 @@ impl Client {
                                                         sub_msg
                                                     ) => {
                                                         handle_session_request(sub_msg);
+
+                                                        let request = Payload::Response(Response::Success(SuccessfulResponse {
+                                                            id,
+                                                            result: serde_json::to_value(true).unwrap(),
+                                                            jsonrpc: "2.0".to_string().into(),
+                                                        }));
+                                                        let serialized = serde_json::to_string(&request).map_err(|e| {
+                                                            RequestError::ShouldNeverHappen(format!(
+                                                                "Failed to serialize request: {e}"
+                                                            ))
+                                                        }).unwrap();
+                                                        ws.send_with_str(&serialized).unwrap();
                                                     }
                                                     _ => {}
                                                 }
@@ -894,7 +907,7 @@ impl SignClient {
 
 #[derive(Debug)]
 pub struct SessionProposal {
-    pub session_proposal_rpc_id: Id,
+    pub session_proposal_rpc_id: u64,
     pub pairing_topic: Topic,
     pub pairing_sym_key: [u8; 32],
     pub proposer_public_key: [u8; 32],
@@ -968,6 +981,8 @@ impl From<SessionProposalFfi> for SessionProposal {
         Self {
             session_proposal_rpc_id: id,
             pairing_topic: topic,
+            session_proposal_rpc_id: proposal.id.parse::<u64>().unwrap(),
+            pairing_topic: proposal.topic.into(),
             pairing_sym_key: proposal.pairing_sym_key.try_into().unwrap(),
             proposer_public_key: proposal
                 .proposer_public_key

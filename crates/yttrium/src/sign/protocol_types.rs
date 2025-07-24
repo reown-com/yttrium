@@ -4,6 +4,14 @@ use std::collections::HashMap;
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct ProposalJsonRpc {
+    pub id: u64,
+    pub method: String,
+    pub params: Proposal,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Proposal {
     pub required_namespaces: ProposalNamespaces,
     pub optional_namespaces: ProposalNamespaces,
@@ -40,9 +48,26 @@ pub struct Proposer {
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct ProposalResponseJsonRpc {
+    pub id: u64,
+    pub jsonrpc: String,
+    pub result: ProposalResponse,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ProposalResponse {
     pub relay: Relay,
     pub responder_public_key: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SessionSettleJsonRpc {
+    pub id: u64,
+    pub jsonrpc: String,
+    pub method: String,
+    pub params: SessionSettle,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
