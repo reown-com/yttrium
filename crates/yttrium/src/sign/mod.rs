@@ -11,12 +11,15 @@ use chacha20poly1305::aead::Aead;
 use chacha20poly1305::{AeadCore, ChaCha20Poly1305, KeyInit, Nonce};
 use data_encoding::BASE64;
 use relay_rpc::auth::ed25519_dalek::Signer;
-pub use relay_rpc::auth::ed25519_dalek::{SecretKey, SigningKey};
-use relay_rpc::domain::{DecodedClientId, SubscriptionId, Topic};
+use relay_rpc::domain::{DecodedClientId, SubscriptionId};
 use relay_rpc::jwt::{JwtBasicClaims, JwtHeader};
 use relay_rpc::rpc::SuccessfulResponse;
 use relay_rpc::rpc::{
     BatchSubscribe, FetchMessages, FetchResponse, Params, Publish, Subscription,
+};
+pub use relay_rpc::{
+    auth::ed25519_dalek::{SecretKey, SigningKey},
+    domain::Topic,
 };
 use relay_rpc::{
     domain::{MessageId, ProjectId},
@@ -685,7 +688,10 @@ impl Client {
                             tracing::error!("Unexpected method: {}", method);
                         }
                     } else {
-                        tracing::debug!("ignoring response message: {:?}", value);
+                        tracing::debug!(
+                            "ignoring response message: {:?}",
+                            value
+                        );
 
                         // TODO handle session request responses. Unsure if other responses are needed
                     }

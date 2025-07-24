@@ -1,16 +1,16 @@
+use crate::toast::{show_error_toast, show_success_toast};
 use leptos::prelude::*;
 use serde::{Deserialize, Serialize};
-use std::{
-    sync::{atomic::AtomicBool, Arc},
-    time::Duration,
+use std::sync::{atomic::AtomicBool, Arc};
+use thaw::{
+    Button, Dialog, DialogActions, DialogBody, DialogContent, DialogSurface,
+    DialogTitle, Flex, Input, Label, ToasterInjection,
 };
-use thaw::{Button, Flex, Input, Label, ToastOptions, ToasterInjection};
 use yttrium::sign::{
-    generate_key, protocol_types::SessionRequestResponseJsonRpc,
-    ApprovedSession, Client, SecretKey,
+    generate_key,
+    protocol_types::{SessionRequestJsonRpc, SessionRequestResponseJsonRpc},
+    ApprovedSession, Client, SecretKey, Topic,
 };
-
-use crate::toast::{show_error_toast, show_success_toast, show_toast};
 
 #[derive(Serialize, Deserialize, Clone, PartialEq)]
 struct MyState {
@@ -79,6 +79,9 @@ pub fn App() -> impl IntoView {
         }
     });
 
+    let signature_request =
+        RwSignal::new(None::<(Topic, SessionRequestJsonRpc)>);
+
     let unmounted = Arc::new(AtomicBool::new(false));
     on_cleanup({
         let unmounted = unmounted.clone();
@@ -143,37 +146,25 @@ pub fn App() -> impl IntoView {
                                 Some(message) => {
                                     // TODO display signature request dialog
                                     tracing::info!(
-                                        "message on topic: {:?}: {:?}",
+                                        "signature request on topic: {:?}: {:?}",
                                         message.0,
                                         message.1
                                     );
-                                    show_toast(
-                                        toaster,
-                                        serde_json::to_string(&message)
-                                            .unwrap(),
-                                        ToastOptions::default().with_timeout(
-                                            Duration::from_secs(10),
-                                        ),
-                                    );
-                                    match message.1.params.request.method.as_str() {
+                                    match message
+                                        .1
+                                        .params
+                                        .request
+                                        .method
+                                        .as_str()
+                                    {
                                         "personal_sign" => {
-                                            let mut client =
-                                                client.lock().await;
-                                            client
-                                                .respond(
-                                                    message.0,
-                                                    message.1.id,
-                                                    SessionRequestResponseJsonRpc {
-                                                        id: message.1.id,
-                                                        jsonrpc: "2.0".to_string(),
-                                                        result: "0x0".to_string().into(),
-                                                    },
-                                                )
-                                                .await
-                                                .unwrap();
+                                            signature_request
+                                                .set(Some(message));
                                         }
                                         method => {
-                                            tracing::error!("Unexpected method: {method}");
+                                            tracing::error!(
+                                                "Unexpected method: {method}"
+                                            );
                                         }
                                     }
                                 }
@@ -212,5 +203,51 @@ pub fn App() -> impl IntoView {
                 }
             })}
         </Flex>
+        {move || signature_request.get().map(|request| {
+            view! {
+                <Dialog open=true>
+                    <DialogSurface>
+                        <DialogBody>
+                            <DialogTitle>"Signature request"</DialogTitle>
+                            <DialogContent>
+                                {format!("{:?}", request)}
+                            </DialogContent>
+                            <DialogActions>
+                                <Button on_click=move |_| {
+                                    let request = request.clone();
+                                    let client = client.read_value().clone();
+                                    // TODO move to action
+                                    // TODO handle error
+                                    // TODO loading indicator
+                                    leptos::task::spawn_local(async move {
+                                        let mut client =
+                                                client.lock().await;
+                                        client
+                                            .respond(
+                                                request.0,
+                                                request.1.id,
+                                                SessionRequestResponseJsonRpc {
+                                                    id: request.1.id,
+                                                    jsonrpc: "2.0".to_string(),
+                                                    result: "0x0".to_string().into(),
+                                                },
+                                            )
+                                                .await
+                                                .unwrap();
+                                        signature_request.set(None);
+                                        show_success_toast(
+                                            toaster,
+                                            "Signature approved".to_owned(),
+                                        );
+                                    });
+                                }>
+                                    "Approve"
+                                 </Button>
+                            </DialogActions>
+                        </DialogBody>
+                    </DialogSurface>
+                </Dialog>
+            }
+        })}
     }
 }

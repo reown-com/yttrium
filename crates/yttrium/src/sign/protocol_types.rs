@@ -107,7 +107,7 @@ pub struct Metadata {
     pub icons: Vec<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct SessionRequestJsonRpc {
     pub id: u64,
