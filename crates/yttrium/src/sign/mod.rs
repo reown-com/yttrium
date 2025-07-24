@@ -1,8 +1,9 @@
 use crate::sign::envelope_type0::{encode_envelope_type0, EnvelopeType0};
 use crate::sign::protocol_types::{
     Controller, Metadata, ProposalJsonRpc, ProposalNamespaces,
-    ProposalResponse, ProposalResponseJsonRpc, Relay, SessionSettle,
-    SessionSettleJsonRpc, SettleNamespace,
+    ProposalResponse, ProposalResponseJsonRpc, Relay, SessionRequestJsonRpc,
+    SessionRequestResponseJsonRpc, SessionSettle, SessionSettleJsonRpc,
+    SettleNamespace,
 };
 use crate::sign::relay_url::ConnectionOptions;
 use crate::sign::utils::{diffie_hellman, topic_from_sym_key};
@@ -13,8 +14,9 @@ use relay_rpc::auth::ed25519_dalek::Signer;
 pub use relay_rpc::auth::ed25519_dalek::{SecretKey, SigningKey};
 use relay_rpc::domain::{DecodedClientId, SubscriptionId, Topic};
 use relay_rpc::jwt::{JwtBasicClaims, JwtHeader};
+use relay_rpc::rpc::SuccessfulResponse;
 use relay_rpc::rpc::{
-    BatchSubscribe, FetchMessages, FetchResponse, Params, Subscription,
+    BatchSubscribe, FetchMessages, FetchResponse, Params, Publish, Subscription,
 };
 use relay_rpc::{
     domain::{MessageId, ProjectId},
@@ -90,6 +92,14 @@ pub enum ApproveError {
     ShouldNeverHappen(String),
 }
 
+#[derive(Debug, thiserror::Error)]
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Error))]
+#[error("Sign respond error: {0}")]
+pub enum RespondError {
+    #[error("Internal: {0}")]
+    Internal(String),
+}
+
 // #[cfg(target_arch = "wasm32")]
 // struct WebWebSocketWrapper {
 //     // rx: tokio::sync::mpsc::UnboundedReceiver<String>,
@@ -114,7 +124,8 @@ pub struct Client {
     project_id: ProjectId,
     key: Option<SigningKey>,
     websocket: Option<WebSocketState>,
-    session_request_tx: tokio::sync::mpsc::UnboundedSender<String>,
+    session_request_tx:
+        tokio::sync::mpsc::UnboundedSender<(Topic, SessionRequestJsonRpc)>,
     sessions: Arc<RwLock<HashMap<Topic, ApprovedSession>>>,
 }
 
@@ -134,7 +145,10 @@ pub struct Client {
 impl Client {
     pub fn new(
         project_id: ProjectId,
-    ) -> (Self, tokio::sync::mpsc::UnboundedReceiver<String>) {
+    ) -> (
+        Self,
+        tokio::sync::mpsc::UnboundedReceiver<(Topic, SessionRequestJsonRpc)>,
+    ) {
         let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
         (
             Self {
@@ -477,10 +491,52 @@ impl Client {
         unimplemented!()
     }
 
-    pub async fn _respond(&self) {
+    pub async fn respond(
+        &mut self,
+        topic: Topic,
+        id: u64,
+        response: SessionRequestResponseJsonRpc,
+    ) -> Result<(), RespondError> {
         // TODO implement
         // https://github.com/WalletConnect/walletconnect-monorepo/blob/5bef698dcf0ae910548481959a6a5d87eaf7aaa5/packages/sign-client/src/controllers/engine.ts#L701
-        unimplemented!()
+
+        let serialized = serde_json::to_string(&response)
+            .map_err(|e| RespondError::Internal(e.to_string()))?;
+
+        let shared_secret = {
+            let sessions = self.sessions.read().unwrap();
+            let session = sessions
+                .get(&topic)
+                .ok_or(RespondError::Internal(format!("Session not found")))?;
+            session.session_sym_key.clone()
+        };
+
+        let key = ChaCha20Poly1305::new(&shared_secret.into());
+        let nonce = ChaCha20Poly1305::generate_nonce()
+            .map_err(|e| RespondError::Internal(e.to_string()))?;
+        let encrypted = key
+            .encrypt(&nonce, serialized.as_bytes())
+            .map_err(|e| RespondError::Internal(e.to_string()))?;
+        let encoded = encode_envelope_type0(&EnvelopeType0 {
+            iv: nonce.into(),
+            sb: encrypted,
+        })
+        .map_err(|e| RespondError::Internal(e.to_string()))?;
+        let message = BASE64.encode(encoded.as_slice()).into();
+
+        self.request::<bool>(relay_rpc::rpc::Params::Publish(Publish {
+            topic,
+            message,
+            attestation: None, // TODO
+            ttl_secs: 300,
+            tag: 1109,
+            prompt: false,
+            analytics: None, // TODO
+        }))
+        .await
+        .map_err(|e| RespondError::Internal(e.to_string()))?;
+
+        Ok(())
     }
 
     pub async fn _ping(&self) {
@@ -607,19 +663,32 @@ impl Client {
                         )
                         .map_err(|e| PairError::Internal(e.to_string()))
                         .unwrap();
+                    let value =
+                        serde_json::from_slice::<serde_json::Value>(&decrypted)
+                            .map_err(|e| PairError::Internal(e.to_string()))
+                            .unwrap();
+                    if let Some(method) = value.get("method") {
+                        if method.as_str() == Some("wc_sessionRequest") {
+                            let request = serde_json::from_value::<
+                                SessionRequestJsonRpc,
+                            >(value)
+                            .map_err(|e| {
+                                PairError::Internal(format!(
+                                    "Failed to parse decrypted message: {e}"
+                                ))
+                            })
+                            .unwrap();
+                            session_request_tx
+                                .send((sub_msg.data.topic, request))
+                                .unwrap();
+                        } else {
+                            tracing::error!("Unexpected method: {}", method);
+                        }
+                    } else {
+                        tracing::debug!("ignoring response message: {:?}", value);
 
-                    // let request = serde_json::from_slice::<
-                    //     json_rpc::Request<serde_json::Value>,
-                    // >(&decrypted)
-                    // .map_err(|e| {
-                    //     PairError::Internal(format!(
-                    //         "Failed to parse decrypted message: {e}"
-                    //     ))
-                    // })?;
-
-                    session_request_tx
-                        .send(String::from_utf8(decrypted).unwrap())
-                        .unwrap();
+                        // TODO handle session request responses. Unsure if other responses are needed
+                    }
                 }
             };
 
@@ -669,26 +738,44 @@ impl Client {
                                                     ))
                                                 });
                                         match payload {
-                                            Ok(payload) => match payload {
-                                                Payload::Request(request) => {
-                                                    match request.params {
-                                                        Params::Subscription(
-                                                            sub_msg
-                                                        ) => {
-                                                            handle_session_request(sub_msg);
+                                            Ok(payload) => {
+                                                let id = payload.id();
+                                                match payload {
+                                                    Payload::Request(request) => {
+                                                        match request.params {
+                                                            Params::Subscription(
+                                                                sub_msg
+                                                            ) => {
+                                                                handle_session_request(sub_msg);
+
+                                                                // ACK the request
+                                                                // TODO consistency: store the request locally? (request queue?)
+                                                                // - or ideally better use the relay's own state, if possible
+                                                                let request = Payload::Response(Response::Success(SuccessfulResponse {
+                                                                    id,
+                                                                    result: serde_json::to_value(true).expect("TODO"),
+                                                                    jsonrpc: "2.0".to_string().into(),
+                                                                }));
+                                                                let serialized = serde_json::to_string(&request).map_err(|e| {
+                                                                    RequestError::ShouldNeverHappen(format!(
+                                                                        "Failed to serialize request: {e}"
+                                                                    ))
+                                                                }).expect("TODO");
+                                                                ws_stream.send(Message::Text(serialized.into())).await.unwrap();
+                                                            }
+                                                            _ => {}
                                                         }
-                                                        _ => {}
                                                     }
-                                                }
-                                                Payload::Response(response) => {
-                                                    if let Some(response_tx) =
-                                                        response_channels
-                                                            .remove(&response.id())
-                                                    {
-                                                        if let Err(e) =
-                                                            response_tx.send(response)
+                                                    Payload::Response(response) => {
+                                                        if let Some(response_tx) =
+                                                            response_channels
+                                                                .remove(&response.id())
                                                         {
-                                                            web_sys::console::log_1(&format!("Failed to send response: {e:?}").into());
+                                                            if let Err(e) =
+                                                                response_tx.send(response)
+                                                            {
+                                                                web_sys::console::log_1(&format!("Failed to send response: {e:?}").into());
+                                                            }
                                                         }
                                                     }
                                                 }
@@ -697,6 +784,7 @@ impl Client {
                                                 // no-op
                                             }
                                         }
+
                                     }
                                     _ => {}
                                 }
@@ -767,8 +855,6 @@ impl Client {
                     >::new();
 
                     loop {
-                        use relay_rpc::rpc::SuccessfulResponse;
-
                         tokio::select! {
                             Some((params, response_tx)) = request_rx.recv() => {
                                 message_id += 1;
@@ -778,8 +864,8 @@ impl Client {
                                     RequestError::ShouldNeverHappen(format!(
                                         "Failed to serialize request: {e}"
                                     ))
-                                }).unwrap();
-                                ws.send_with_str(&serialized).unwrap();
+                                }).expect("TODO");
+                                ws.send_with_str(&serialized).expect("TODO");
                             }
                             Some(message) = rx.recv() => {
                                 let payload = serde_json::from_str::<Payload>(&message).map_err(|e| {
@@ -798,17 +884,20 @@ impl Client {
                                                     ) => {
                                                         handle_session_request(sub_msg);
 
+                                                        // ACK the request
+                                                        // TODO consistency: store the request locally? (request queue?)
+                                                        // - or ideally better use the relay's own state, if possible
                                                         let request = Payload::Response(Response::Success(SuccessfulResponse {
                                                             id,
-                                                            result: serde_json::to_value(true).unwrap(),
+                                                           result: serde_json::to_value(true).expect("TODO"),
                                                             jsonrpc: "2.0".to_string().into(),
                                                         }));
                                                         let serialized = serde_json::to_string(&request).map_err(|e| {
                                                             RequestError::ShouldNeverHappen(format!(
                                                                 "Failed to serialize request: {e}"
                                                             ))
-                                                        }).unwrap();
-                                                        ws.send_with_str(&serialized).unwrap();
+                                                       }).expect("TODO");
+                                                       ws.send_with_str(&serialized).expect("TODO");
                                                     }
                                                     _ => {}
                                                 }
@@ -824,6 +913,7 @@ impl Client {
                                     }
                                     Err(e) => {
                                         // no-op
+                                        // .expect("TODO")
                                     }
                                 }
                             }

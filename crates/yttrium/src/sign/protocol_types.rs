@@ -106,3 +106,34 @@ pub struct Metadata {
     pub url: String,
     pub icons: Vec<String>,
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SessionRequestJsonRpc {
+    pub id: u64,
+    pub method: String,
+    pub params: SessionRequest,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct SessionRequest {
+    pub chain_id: String,
+    pub request: SessionRequestRequest,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct SessionRequestRequest {
+    pub method: String,
+    pub params: serde_json::Value,
+    pub expiry: Option<u64>, // specs say optional
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SessionRequestResponseJsonRpc {
+    pub id: u64,
+    pub jsonrpc: String,
+    pub result: serde_json::Value,
+}

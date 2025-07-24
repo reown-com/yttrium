@@ -5,7 +5,10 @@ use std::{
     time::Duration,
 };
 use thaw::{Button, Flex, Input, Label, ToastOptions, ToasterInjection};
-use yttrium::sign::{generate_key, ApprovedSession, Client, SecretKey};
+use yttrium::sign::{
+    generate_key, protocol_types::SessionRequestResponseJsonRpc,
+    ApprovedSession, Client, SecretKey,
+};
 
 use crate::toast::{show_error_toast, show_success_toast, show_toast};
 
@@ -139,14 +142,40 @@ pub fn App() -> impl IntoView {
                             match next {
                                 Some(message) => {
                                     // TODO display signature request dialog
-                                    tracing::info!("message: {}", message);
+                                    tracing::info!(
+                                        "message on topic: {:?}: {:?}",
+                                        message.0,
+                                        message.1
+                                    );
                                     show_toast(
                                         toaster,
-                                        message.to_owned(),
+                                        serde_json::to_string(&message)
+                                            .unwrap(),
                                         ToastOptions::default().with_timeout(
                                             Duration::from_secs(10),
                                         ),
                                     );
+                                    match message.1.params.request.method.as_str() {
+                                        "personal_sign" => {
+                                            let mut client =
+                                                client.lock().await;
+                                            client
+                                                .respond(
+                                                    message.0,
+                                                    message.1.id,
+                                                    SessionRequestResponseJsonRpc {
+                                                        id: message.1.id,
+                                                        jsonrpc: "2.0".to_string(),
+                                                        result: "0x0".to_string().into(),
+                                                    },
+                                                )
+                                                .await
+                                                .unwrap();
+                                        }
+                                        method => {
+                                            tracing::error!("Unexpected method: {method}");
+                                        }
+                                    }
                                 }
                                 None => {
                                     show_error_toast(
