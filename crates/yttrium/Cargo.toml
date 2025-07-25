@@ -6,14 +6,14 @@ rust-version.workspace = true
 license.workspace = true
 
 [lib]
-crate-type = ["lib", "cdylib"]
+crate-type = ["lib", "staticlib", "cdylib"]
 
 [[bin]]
 name = "uniffi-bindgen"
 path = "uniffi-bindgen.rs"
 
 [features]
-default = ["erc6492_client"]
+default = ["eip155", "erc6492_client", "chain_abstraction_client"]
 full = ["all_platforms", "all_clients", "all_namespaces"]
 
 # Features enabling FFI bindings for different platforms
