@@ -24,7 +24,6 @@ struct MyState {
     sessions: Vec<ApprovedSession>,
 }
 
-// TODO E2E tests
 // TODO refactor to use actions and separate components for session proposal and session request
 // loading indicators on 2 approve buttons AND session proposal loading dialog (i.e. display immediately)
 // TODO disconnect support

@@ -159,6 +159,8 @@ pub struct Client {
 // - subscribe to other sessions as part of `wc_approveSession` etc.
 // - (feasible?) wc_sessionRequestRespond which ACKs the `irn_subscription` message
 // - https://www.notion.so/walletconnect/Design-Doc-Sign-Client-Rust-port-2303a661771e80628bdbf07c96a97b21?source=copy_link#2303a661771e808f895acbcab46bd12a
+// - don't forward ignored messages e.g. ACKing etc. do it based on client version/flag
+// - binary relay encoding: bincode?
 
 // TODO
 // - Verify API
