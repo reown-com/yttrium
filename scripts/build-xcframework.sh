@@ -23,7 +23,6 @@ build_rust_libraries() {
     --no-default-features \
     --features=ios,erc6492_client,chain_abstraction_client,eip155 \
     --target aarch64-apple-ios \
-    # -p kotlin-ffi \
     -p yttrium
 
   # Unset environment variables
@@ -46,7 +45,6 @@ build_rust_libraries() {
     --no-default-features \
     --features=ios,erc6492_client,chain_abstraction_client,eip155 \
     --target x86_64-apple-ios \
-    # -p kotlin-ffi \
     -p yttrium
 
   # Unset environment variables
@@ -69,7 +67,6 @@ build_rust_libraries() {
     --no-default-features \
     --features=ios,erc6492_client,chain_abstraction_client,eip155 \
     --target aarch64-apple-ios-sim \
-    # -p kotlin-ffi \
     -p yttrium
 
   # Unset environment variables
