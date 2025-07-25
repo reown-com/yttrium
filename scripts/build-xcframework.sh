@@ -89,7 +89,6 @@ generate_ffi() {
   # Concatenate the module maps in yttriumFFI directory
   echo "Creating module.modulemap"
   cat target/uniffi-xcframework-staging/yttriumFFI.modulemap \
-      target/uniffi-xcframework-staging/uniffi_yttriumFFI.modulemap \
       > target/uniffi-xcframework-staging/yttriumFFI/module.modulemap
 
   # Move headers to yttriumFFI directory
