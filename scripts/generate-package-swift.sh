@@ -6,8 +6,8 @@ set -u
 # Variables
 : "${VERSION:?Error: VERSION environment variable is not set.}"
 PACKAGE_VERSION="$VERSION"
-RUST_XCFRAMEWORK_DIR="target/ios/libuniffi_yttrium.xcframework"
-RUST_XCFRAMEWORK_ZIP="libuniffi_yttrium.xcframework.zip"
+RUST_XCFRAMEWORK_DIR="target/ios/libyttrium.xcframework"
+RUST_XCFRAMEWORK_ZIP="libyttrium.xcframework.zip"
 REPO_URL="https://github.com/reown-com/yttrium"
 
 # 1. Zip the XCFramework
