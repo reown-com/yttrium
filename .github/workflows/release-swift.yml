@@ -68,8 +68,10 @@ jobs:
           # Construct the download URL
           DOWNLOAD_URL="https://github.com/reown-com/yttrium/releases/download/${VERSION}/libyttrium.xcframework.zip"
 
-          # Replace the download URL in prepare_command
-          sed -i '' "s|curl -L -o lib[^"]*yttrium.xcframework.zip '.*'|curl -L -o libyttrium.xcframework.zip '${DOWNLOAD_URL}'|g" YttriumWrapper.podspec
+          # Replace all libuniffi_yttrium references with libyttrium
+          sed -i '' "s|libuniffi_yttrium|libyttrium|g" YttriumWrapper.podspec
+          # Update the download URL to the correct version
+          sed -i '' "s|https://github.com/reown-com/yttrium/releases/download/[^']*|${DOWNLOAD_URL}|g" YttriumWrapper.podspec
 
       # 8. Commit and Push Package.swift and Podspec
       - name: Commit and Push Package.swift and Podspec
