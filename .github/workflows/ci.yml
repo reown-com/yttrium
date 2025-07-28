@@ -17,7 +17,7 @@ jobs:
 
   rust_RUST_MSRV:
     name: Rust MSRV - build & lint
-    runs-on: [self-hosted, aws-ecs-16cpu-64mem-30disk-40m]
+    runs-on: [self-hosted, aws-ecs-16cpu-64mem-35disk-40m]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -29,6 +29,7 @@ jobs:
       - run: rustup toolchain install nightly -c rustfmt
       - uses: Swatinem/rust-cache@v2
       - uses: extractions/setup-just@v2
+      - run: echo ${{ vars.REOWN_PROJECT_ID }} > crates/rust-sample-wallet/.project-id
       - run: cargo clippy --workspace --all-features --all-targets -- -D warnings
       - run: cargo clippy -p yttrium --all-targets -- -D warnings # `-p yttrium` to avoid feature unification; kotlin-ffi enables uniffi feature and we want to test without that
       - run: rm -rf target/
@@ -57,6 +58,7 @@ jobs:
         timeout-minutes: 5
       - run: while ! curl localhost:3000/ping; do sleep 1; done
         timeout-minutes: 5
+      - run: echo ${{ vars.REOWN_PROJECT_ID }} > crates/rust-sample-wallet/.project-id
       - run: RUST_BACKTRACE=1 RUST_LOG=yttrium=trace cargo test --features=full,test_depends_on_env_REOWN_PROJECT_ID --lib --bins
         env:
           REOWN_PROJECT_ID: ${{ vars.REOWN_PROJECT_ID }}
@@ -72,7 +74,7 @@ jobs:
 
   rust_stable:
     name: Rust stable - build & lint
-    runs-on: [self-hosted, aws-ecs-16cpu-64mem-30disk-40m]
+    runs-on: [self-hosted, aws-ecs-16cpu-64mem-35disk-40m]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -85,6 +87,7 @@ jobs:
       # == below is a duplicate of the pinned job above. Keep them in-sync. ==
       - uses: Swatinem/rust-cache@v2
       - uses: extractions/setup-just@v2
+      - run: echo ${{ vars.REOWN_PROJECT_ID }} > crates/rust-sample-wallet/.project-id
       - run: cargo clippy --workspace --all-features --all-targets -- -D warnings
       - run: cargo clippy -p yttrium --all-targets -- -D warnings # `-p yttrium` to avoid feature unification; kotlin-ffi enables uniffi feature and we want to test without that
       - run: cargo build --jobs=1 --workspace --all-features --all-targets
@@ -113,6 +116,7 @@ jobs:
         timeout-minutes: 5
       - run: while ! curl localhost:3000/ping; do sleep 1; done
         timeout-minutes: 5
+      - run: echo ${{ vars.REOWN_PROJECT_ID }} > crates/rust-sample-wallet/.project-id
       - run: RUST_BACKTRACE=1 RUST_LOG=yttrium=trace cargo test --features=full,test_depends_on_env_REOWN_PROJECT_ID --lib --bins
         env:
           REOWN_PROJECT_ID: ${{ vars.REOWN_PROJECT_ID }}
@@ -157,7 +161,7 @@ jobs:
 
 
   build-kotlin:
-    runs-on: [self-hosted, aws-ecs-8cpu-32mem-40disk-30m]
+    runs-on: [self-hosted, aws-ecs-8cpu-32mem-45disk-30m]
 
     steps:
       - uses: actions/checkout@v3

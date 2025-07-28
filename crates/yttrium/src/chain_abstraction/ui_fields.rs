@@ -454,7 +454,7 @@ mod tests {
             ),
             vec![
                 FungiblePriceItem {
-                    address: format!("{}:{}", chain_id_1, token_contract_1),
+                    address: format!("{chain_id_1}:{token_contract_1}"),
                     name: "".to_owned(),
                     symbol: "USDC".to_owned(),
                     icon_url: "".to_owned(),
@@ -462,7 +462,7 @@ mod tests {
                     decimals: Unit::new(18).unwrap(),
                 },
                 FungiblePriceItem {
-                    address: format!("{}:{}", chain_id_2, token_contract_2),
+                    address: format!("{chain_id_2}:{token_contract_2}"),
                     name: "".to_owned(),
                     symbol: "USDC".to_owned(),
                     icon_url: "".to_owned(),
@@ -470,7 +470,7 @@ mod tests {
                     decimals: Unit::new(18).unwrap(),
                 },
                 FungiblePriceItem {
-                    address: format!("{}:{}", chain_id_1, NATIVE_TOKEN_ADDRESS),
+                    address: format!("{chain_id_1}:{NATIVE_TOKEN_ADDRESS}"),
                     name: "".to_owned(),
                     symbol: "ETH".to_owned(),
                     icon_url: "".to_owned(),
@@ -478,7 +478,7 @@ mod tests {
                     decimals: Unit::new(18).unwrap(),
                 },
                 FungiblePriceItem {
-                    address: format!("{}:{}", chain_id_2, NATIVE_TOKEN_ADDRESS),
+                    address: format!("{chain_id_2}:{NATIVE_TOKEN_ADDRESS}"),
                     name: "".to_owned(),
                     symbol: "ETH".to_owned(),
                     icon_url: "".to_owned(),

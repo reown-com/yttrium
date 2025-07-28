@@ -173,7 +173,7 @@ pub fn App() -> impl IntoView {
                                 sessions: Vec::new(),
                             };
                             let mut client = client.lock().await;
-                            client.set_key(state.key.clone());
+                            client.set_key(state.key);
                             my_state.set(Some(state.clone()));
                             web_sys::window()
                                 .unwrap()
@@ -259,7 +259,7 @@ pub fn App() -> impl IntoView {
                         <DialogBody>
                             <DialogTitle>"Signature request"</DialogTitle>
                             <DialogContent>
-                                {format!("{:?}", request)}
+                                {format!("{request:?}")}
                             </DialogContent>
                             <DialogActions>
                                 <Button on_click=move |_| {

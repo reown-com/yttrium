@@ -126,7 +126,6 @@ struct WebSocketState {
     )>,
 }
 
-#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Object))]
 pub struct Client {
     relay_url: String,
     project_id: ProjectId,
@@ -218,9 +217,10 @@ impl Client {
     /// Skip calling this if you intend to shortly call another SDK method, as those other methods will themselves call this.
     /// TODO actually call this from other methods
     pub async fn online(&mut self) {
-        let sessions = self.sessions.read().unwrap();
-        let topics = sessions.keys().cloned().collect::<Vec<_>>();
-        drop(sessions);
+        let topics = {
+            let sessions = self.sessions.read().unwrap();
+            sessions.keys().cloned().collect::<Vec<_>>()
+        };
         if !topics.is_empty() {
             // TODO request w/ empty request
             // the WS "layer" will add the irn_batchSubscribe automatically (as it does for all things)
@@ -307,7 +307,7 @@ impl Client {
                     serde_json::to_string_pretty(&request.params).unwrap()
                 );
                 let proposal = request.params;
-                println!("{:?}", proposal);
+                println!("{proposal:?}");
 
                 let proposer_public_key = hex::decode(proposal.proposer.public_key)
                     .map_err(|e| {
@@ -317,9 +317,9 @@ impl Client {
                     })?
                     .try_into()
                     .map_err(|_| {
-                        PairError::Internal(format!(
-                            "Failed to convert proposer public key to fixed-size array"
-                        ))
+                        PairError::Internal(
+                            "Failed to convert proposer public key to fixed-size array".to_owned()
+                        )
                     })?;
                 println!("pairing topic: {}", proposal.pairing_topic);
 
@@ -444,9 +444,9 @@ impl Client {
             Ok(true) => {}
             Ok(false) => {
                 // TODO remove from storage
-                return Err(ApproveError::Internal(format!(
-                    "Session rejected by relay"
-                )));
+                return Err(ApproveError::Internal(
+                    "Session rejected by relay".to_owned(),
+                ));
             }
             Err(e) => {
                 // TODO if error, remove from storage
@@ -508,10 +508,10 @@ impl Client {
 
         let shared_secret = {
             let sessions = self.sessions.read().unwrap();
-            let session = sessions
-                .get(&topic)
-                .ok_or(RespondError::Internal(format!("Session not found")))?;
-            session.session_sym_key.clone()
+            let session = sessions.get(&topic).ok_or(
+                RespondError::Internal("Session not found".to_owned()),
+            )?;
+            session.session_sym_key
         };
 
         let key = ChaCha20Poly1305::new(&shared_secret.into());
@@ -699,7 +699,7 @@ impl Client {
             };
 
             #[cfg(not(target_arch = "wasm32"))]
-            let ws_stream = {
+            {
                 let (mut ws_stream, _response) = connect_async(url)
                     .await
                     .map_err(|e| RequestError::Internal(e.to_string()))?;
@@ -734,6 +734,7 @@ impl Client {
                                         ))
                                     })
                                     .expect("WebSocket stream error");
+                                #[allow(clippy::single_match)]
                                 match n {
                                     Message::Text(message) => {
                                         let payload =
@@ -748,6 +749,7 @@ impl Client {
                                                 let id = payload.id();
                                                 match payload {
                                                     Payload::Request(request) => {
+                                                        #[allow(clippy::single_match)]
                                                         match request.params {
                                                             Params::Subscription(
                                                                 sub_msg
@@ -780,7 +782,7 @@ impl Client {
                                                             if let Err(e) =
                                                                 response_tx.send(response)
                                                             {
-                                                                web_sys::console::log_1(&format!("Failed to send response: {e:?}").into());
+                                                                tracing::debug!("Failed to send response: {e:?}");
                                                             }
                                                         }
                                                     }
@@ -798,10 +800,10 @@ impl Client {
                         }
                     }
                 });
-            };
+            }
 
             #[cfg(target_arch = "wasm32")]
-            let ws_stream = {
+            {
                 use {
                     wasm_bindgen::{prelude::Closure, JsCast},
                     web_sys::{Event, MessageEvent},
@@ -929,7 +931,7 @@ impl Client {
                     }
                 });
                 // WebWebSocketWrapper {}
-            };
+            }
 
             self.websocket.insert(WebSocketState {
                 // stream: ws_stream,
@@ -998,7 +1000,7 @@ impl SignClient {
 
         let mut namespaces = HashMap::new();
         for (namespace, namespace_proposal) in
-            pairing.requested_namespaces.clone()
+            proposal.requested_namespaces.clone()
         {
             let accounts = namespace_proposal
                 .chains
@@ -1060,11 +1062,7 @@ pub struct SessionProposalFfi {
 impl From<SessionProposal> for SessionProposalFfi {
     fn from(proposal: SessionProposal) -> Self {
         // Ensure both id and topic are properly converted to valid UTF-8 strings
-        let id_string = match &proposal.session_proposal_rpc_id {
-            Id::Number(num) => num.to_string(),
-            Id::String(s) => s.clone(),
-            Id::None => "null".to_string(),
-        };
+        let id_string = proposal.session_proposal_rpc_id.to_string();
 
         // Be extremely defensive about topic string conversion
         let topic_string = {
@@ -1103,17 +1101,7 @@ impl From<SessionProposal> for SessionProposalFfi {
 #[cfg(feature = "uniffi")]
 impl From<SessionProposalFfi> for SessionProposal {
     fn from(proposal: SessionProposalFfi) -> Self {
-        use alloy::rpc::json_rpc::Id;
-        let id = if let Ok(num) = proposal.id.parse::<u64>() {
-            Id::Number(num)
-        } else {
-            Id::String(proposal.id)
-        };
-        // Ensure topic is properly converted from string
-        let topic = Topic::from(proposal.topic);
         Self {
-            session_proposal_rpc_id: id,
-            pairing_topic: topic,
             session_proposal_rpc_id: proposal.id.parse::<u64>().unwrap(),
             pairing_topic: proposal.topic.into(),
             pairing_sym_key: proposal.pairing_sym_key.try_into().unwrap(),
@@ -1153,7 +1141,7 @@ impl From<ApprovedSessionFfi> for ApprovedSession {
 
 #[cfg(test)]
 mod conversion_tests {
-    use {super::*, alloy::rpc::json_rpc::Id};
+    use super::*;
 
     #[test]
     fn test_session_proposal_conversion() {
@@ -1162,7 +1150,7 @@ mod conversion_tests {
             "0c814f7d2d56c0e840f75612addaa170af479b1c8499632430b41c298bf49907"
                 .to_string(),
         );
-        let test_id = Id::Number(1234567890);
+        let test_id = 1234567890;
 
         let session_proposal = SessionProposal {
             session_proposal_rpc_id: test_id,
@@ -1176,9 +1164,9 @@ mod conversion_tests {
         let ffi_proposal: SessionProposalFfi = session_proposal.into();
 
         // Print the actual values to see what we get
-        println!("Original topic: {:?}", test_topic);
-        println!("Topic Display: {}", test_topic);
-        println!("Topic Debug: {:?}", test_topic);
+        println!("Original topic: {test_topic:?}");
+        println!("Topic Display: {test_topic}");
+        println!("Topic Debug: {test_topic:?}");
         println!("Topic JSON: {:?}", serde_json::to_string(&test_topic));
 
         println!("FFI id: {}", ffi_proposal.id);

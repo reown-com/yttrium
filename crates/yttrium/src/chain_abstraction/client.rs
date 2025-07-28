@@ -87,7 +87,7 @@ impl Client {
         let client = match client {
             Ok(client) => client,
             Err(e) => {
-                panic!("Failed to create reqwest client: {} ... {:?}", e, e)
+                panic!("Failed to create reqwest client: {e} ... {e:?}")
             }
         };
         Self {
@@ -211,7 +211,7 @@ impl Client {
         let addresses =
             eip155_chains
                 .iter()
-                .map(|t| format!("{}:{}", t, NATIVE_TOKEN_ADDRESS))
+                .map(|t| format!("{t}:{NATIVE_TOKEN_ADDRESS}"))
                 .chain(
                     prepare_response.metadata.funding_from.iter().map(|f| {
                         format!("{}:{}", f.chain_id, f.token_contract)
@@ -701,12 +701,11 @@ impl Client {
                             .await
                         {
                             Ok(signature) => println!(
-                                "Transfer successful! Signature: {}",
-                                signature
+                                "Transfer successful! Signature: {signature}"
                             ),
                             Err(e) => {
                                 // TODO handle error without panic
-                                panic!("Error sending transaction: {}", e)
+                                panic!("Error sending transaction: {e}")
                             }
                         }
                     }

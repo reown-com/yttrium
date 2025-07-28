@@ -121,7 +121,7 @@ async fn solana_happy_path() {
                 {
                     0.
                 } else {
-                    panic!("Error getting token account balance: {:?}", e);
+                    panic!("Error getting token account balance: {e:?}");
                 }
             }
         };
@@ -215,7 +215,7 @@ async fn solana_happy_path() {
             .await
             .unwrap()
             .remaining;
-        println!("Allowance: {}", allowance);
+        println!("Allowance: {allowance}");
         if allowance < send_amount * U256::from(2) {
             assert!(usdc_erc20_faucet
                 .approve(
@@ -346,14 +346,13 @@ async fn solana_happy_path() {
         .unwrap()
         .data
         .len();
-    println!("data_len: {}", data_len);
+    println!("data_len: {data_len}");
     let minimum_balance_for_rent_exemption = client_sol
         .get_minimum_balance_for_rent_exemption(data_len)
         .await
         .unwrap();
     println!(
-        "minimum_balance_for_rent_exemption: {}",
-        minimum_balance_for_rent_exemption
+        "minimum_balance_for_rent_exemption: {minimum_balance_for_rent_exemption}"
     );
     let min_balance = minimum_balance_for_rent_exemption * 2;
 
@@ -392,8 +391,7 @@ async fn solana_happy_path() {
         }
 
         println!(
-            "Preparing transfer transaction... faucet_amount: {}",
-            faucet_amount
+            "Preparing transfer transaction... faucet_amount: {faucet_amount}"
         );
         // Create transfer instruction
         let transfer_ix = solana_sdk::system_instruction::transfer(
@@ -424,7 +422,7 @@ async fn solana_happy_path() {
     }
     let new_account_sol_sol_balance =
         client_sol.get_balance(&account_solana.pubkey()).await.unwrap();
-    println!("new_account_sol_sol_balance: {}", new_account_sol_sol_balance);
+    println!("new_account_sol_sol_balance: {new_account_sol_sol_balance}");
     assert!(new_account_sol_sol_balance >= min_balance);
 
     let min_eth_balance = U256::from(5_000_000_000_000u64); // $0.01 @ $2k ETH price
@@ -522,7 +520,7 @@ async fn solana_happy_path() {
         })
         .await
         .unwrap();
-    println!("assets: {:?}", assets);
+    println!("assets: {assets:?}");
     let asset = assets
         .get(&U64::from(chain_eth.chain_id().parse::<u64>().unwrap()))
         .unwrap()
@@ -543,14 +541,14 @@ async fn solana_happy_path() {
         });
     if let Some(asset) = asset {
         // TODO finish this get_assets test
-        println!("asset: {:?}", asset);
+        println!("asset: {asset:?}");
         let amount = Amount::new(
             asset.metadata.symbol.clone(),
             asset.balance,
             Unit::try_from(asset.metadata.decimals).unwrap(),
         );
         // TODO fix asset test
-        println!("amount: {:?}", amount);
+        println!("amount: {amount:?}");
         // assert!(amount.as_float_inaccurate() >= 1.0);
         // assert!(asset.balance >= send_amount);
     }
@@ -570,7 +568,7 @@ async fn solana_happy_path() {
         .unwrap()
         .into_option()
         .unwrap();
-    println!("route result: {:?}", result);
+    println!("route result: {result:?}");
 
     let route_txn_sigs = result
         .route
@@ -602,7 +600,7 @@ async fn solana_happy_path() {
         .unwrap();
     let execute_result =
         client.execute(result, route_txn_sigs, initial_txn_sigs).await.unwrap();
-    println!("execute_result: {:?}", execute_result);
+    println!("execute_result: {execute_result:?}");
 
     // Ensure the faucet account received the USDC
     let new_faucet_balance = usdc_erc20_faucet
