@@ -11,6 +11,7 @@ crate-type = ["lib", "staticlib", "cdylib"]
 [[bin]]
 name = "uniffi-bindgen"
 path = "uniffi-bindgen.rs"
+required-features = ["uniffi"]
 
 [features]
 default = ["eip155", "erc6492_client", "chain_abstraction_client"]
