@@ -1,6 +1,8 @@
-use crate::app::App;
-use leptos::prelude::*;
-use thaw::{ConfigProvider, ToasterProvider};
+use {
+    crate::app::App,
+    leptos::prelude::*,
+    thaw::{ConfigProvider, ToasterProvider},
+};
 
 mod app;
 mod toast;

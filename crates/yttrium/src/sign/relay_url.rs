@@ -1,8 +1,10 @@
-use relay_rpc::{
-    auth::RELAY_WEBSOCKET_ADDRESS, domain::ProjectId, user_agent::UserAgent,
+use {
+    relay_rpc::{
+        auth::RELAY_WEBSOCKET_ADDRESS, domain::ProjectId, user_agent::UserAgent,
+    },
+    serde::Serialize,
+    url::Url,
 };
-use serde::Serialize;
-use url::Url;
 
 // copied from https://github.com/reown-com/reown-rust/blob/b2ebad075297abd717e4951f566938dc4377b17c/relay_client/src/lib.rs#L36
 

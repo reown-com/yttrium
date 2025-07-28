@@ -12,8 +12,11 @@ jobs:
         node-version: lts/*
     - name: Install dependencies
       run: npm ci
+      working-directory: crates/rust-sample-wallet
+    - run: cargo install trunk
     - name: Install Playwright Browsers
       run: npx playwright install --with-deps
+      working-directory: crates/rust-sample-wallet
     - name: Run Playwright tests
       run: npx playwright test
       working-directory: crates/rust-sample-wallet

@@ -1,6 +1,8 @@
-use relay_rpc::domain::Topic;
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use {
+    relay_rpc::domain::Topic,
+    serde::{Deserialize, Serialize},
+    std::collections::HashMap,
+};
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

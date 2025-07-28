@@ -23,8 +23,10 @@
 //     }
 // }
 
-use relay_rpc::domain::Topic;
-use sha2::{Digest, Sha256};
+use {
+    relay_rpc::domain::Topic,
+    sha2::{Digest, Sha256},
+};
 
 pub fn topic_from_sym_key(sym_key: &[u8]) -> Topic {
     hex::encode(sha2::Sha256::digest(sym_key)).into()

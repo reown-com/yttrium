@@ -1,36 +1,41 @@
-use crate::sign::envelope_type0::{encode_envelope_type0, EnvelopeType0};
-use crate::sign::protocol_types::{
-    Controller, Metadata, ProposalJsonRpc, ProposalNamespaces,
-    ProposalResponse, ProposalResponseJsonRpc, Relay, SessionRequestJsonRpc,
-    SessionRequestResponseJsonRpc, SessionSettle, SessionSettleJsonRpc,
-    SettleNamespace,
-};
-use crate::sign::relay_url::ConnectionOptions;
-use crate::sign::utils::{diffie_hellman, topic_from_sym_key};
-use chacha20poly1305::aead::Aead;
-use chacha20poly1305::{AeadCore, ChaCha20Poly1305, KeyInit, Nonce};
-use data_encoding::BASE64;
-use relay_rpc::auth::ed25519_dalek::Signer;
-use relay_rpc::domain::{DecodedClientId, SubscriptionId};
-use relay_rpc::jwt::{JwtBasicClaims, JwtHeader};
-use relay_rpc::rpc::SuccessfulResponse;
-use relay_rpc::rpc::{
-    BatchSubscribe, FetchMessages, FetchResponse, Params, Publish, Subscription,
-};
 pub use relay_rpc::{
     auth::ed25519_dalek::{SecretKey, SigningKey},
     domain::Topic,
 };
-use relay_rpc::{
-    domain::{MessageId, ProjectId},
-    rpc::{ApproveSession, Payload, Request, Response},
+use {
+    crate::sign::{
+        envelope_type0::{encode_envelope_type0, EnvelopeType0},
+        protocol_types::{
+            Controller, Metadata, ProposalJsonRpc, ProposalNamespaces,
+            ProposalResponse, ProposalResponseJsonRpc, Relay,
+            SessionRequestJsonRpc, SessionRequestResponseJsonRpc,
+            SessionSettle, SessionSettleJsonRpc, SettleNamespace,
+        },
+        relay_url::ConnectionOptions,
+        utils::{diffie_hellman, topic_from_sym_key},
+    },
+    chacha20poly1305::{
+        aead::Aead, AeadCore, ChaCha20Poly1305, KeyInit, Nonce,
+    },
+    data_encoding::BASE64,
+    relay_rpc::{
+        auth::ed25519_dalek::Signer,
+        domain::{DecodedClientId, MessageId, ProjectId, SubscriptionId},
+        jwt::{JwtBasicClaims, JwtHeader},
+        rpc::{
+            ApproveSession, BatchSubscribe, FetchMessages, FetchResponse,
+            Params, Payload, Publish, Request, Response, Subscription,
+            SuccessfulResponse,
+        },
+    },
+    serde::{de::DeserializeOwned, Deserialize, Serialize},
+    std::{
+        collections::HashMap,
+        sync::{Arc, RwLock},
+    },
+    tracing::debug,
+    x25519_dalek::PublicKey,
 };
-use serde::de::DeserializeOwned;
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
-use tracing::debug;
-use x25519_dalek::PublicKey;
 #[cfg(not(target_arch = "wasm32"))]
 use {
     futures::{SinkExt, StreamExt},
@@ -797,8 +802,10 @@ impl Client {
 
             #[cfg(target_arch = "wasm32")]
             let ws_stream = {
-                use wasm_bindgen::{prelude::Closure, JsCast};
-                use web_sys::{Event, MessageEvent};
+                use {
+                    wasm_bindgen::{prelude::Closure, JsCast},
+                    web_sys::{Event, MessageEvent},
+                };
 
                 let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
                 let (tx_send, mut rx_send) =
@@ -1058,19 +1065,23 @@ impl From<SessionProposal> for SessionProposalFfi {
             Id::String(s) => s.clone(),
             Id::None => "null".to_string(),
         };
-        
+
         // Be extremely defensive about topic string conversion
         let topic_string = {
-            let raw_string = if let Ok(serialized) = serde_json::to_string(&proposal.pairing_topic) {
+            let raw_string = if let Ok(serialized) =
+                serde_json::to_string(&proposal.pairing_topic)
+            {
                 // Remove quotes from JSON string
                 serialized.trim_matches('"').to_string()
             } else {
                 // Fallback to display format
                 format!("{}", proposal.pairing_topic)
             };
-            
+
             // Ensure the string is valid UTF-8 and only contains safe ASCII characters
-            if raw_string.is_ascii() && raw_string.chars().all(|c| c.is_ascii_alphanumeric()) {
+            if raw_string.is_ascii()
+                && raw_string.chars().all(|c| c.is_ascii_alphanumeric())
+            {
                 raw_string
             } else {
                 // If anything looks suspicious, force it to be safe ASCII hex
@@ -1078,7 +1089,7 @@ impl From<SessionProposal> for SessionProposalFfi {
                 format!("fallback_{}", hex::encode(raw_string.as_bytes()))
             }
         };
-        
+
         Self {
             id: id_string,
             topic: topic_string,
@@ -1142,8 +1153,7 @@ impl From<ApprovedSessionFfi> for ApprovedSession {
 
 #[cfg(test)]
 mod conversion_tests {
-    use super::*;
-    use alloy::rpc::json_rpc::Id;
+    use {super::*, alloy::rpc::json_rpc::Id};
 
     #[test]
     fn test_session_proposal_conversion() {

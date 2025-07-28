@@ -1,21 +1,23 @@
-use crate::toast::{show_error_toast, show_success_toast};
-use leptos::prelude::*;
-use serde::{Deserialize, Serialize};
-use std::{
-    collections::HashMap,
-    sync::{atomic::AtomicBool, Arc},
-};
-use thaw::{
-    Button, Dialog, DialogActions, DialogBody, DialogContent, DialogSurface,
-    DialogTitle, Flex, Input, Label, ToasterInjection,
-};
-use yttrium::sign::{
-    generate_key,
-    protocol_types::{
-        Metadata, SessionRequestJsonRpc, SessionRequestResponseJsonRpc,
-        SettleNamespace,
+use {
+    crate::toast::{show_error_toast, show_success_toast},
+    leptos::prelude::*,
+    serde::{Deserialize, Serialize},
+    std::{
+        collections::HashMap,
+        sync::{atomic::AtomicBool, Arc},
     },
-    ApprovedSession, Client, SecretKey, Topic,
+    thaw::{
+        Button, Dialog, DialogActions, DialogBody, DialogContent,
+        DialogSurface, DialogTitle, Flex, Input, Label, ToasterInjection,
+    },
+    yttrium::sign::{
+        generate_key,
+        protocol_types::{
+            Metadata, SessionRequestJsonRpc, SessionRequestResponseJsonRpc,
+            SettleNamespace,
+        },
+        ApprovedSession, Client, SecretKey, Topic,
+    },
 };
 
 #[derive(Serialize, Deserialize, Clone, PartialEq)]

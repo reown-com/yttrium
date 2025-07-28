@@ -1,6 +1,4 @@
-use relay_rpc::domain::Topic;
-use std::collections::HashMap;
-use url::Url;
+use {relay_rpc::domain::Topic, std::collections::HashMap, url::Url};
 
 #[derive(Debug, thiserror::Error)]
 #[error("Pairing URI parse error: {0}")]

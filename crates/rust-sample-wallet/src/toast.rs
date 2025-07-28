@@ -1,5 +1,7 @@
-use leptos::prelude::*;
-use thaw::{Toast, ToastIntent, ToastOptions, ToastTitle, ToasterInjection};
+use {
+    leptos::prelude::*,
+    thaw::{Toast, ToastIntent, ToastOptions, ToastTitle, ToasterInjection},
+};
 
 pub fn show_success_toast(toaster: ToasterInjection, title: String) {
     show_toast(
