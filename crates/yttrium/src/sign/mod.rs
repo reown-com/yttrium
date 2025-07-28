@@ -12,7 +12,7 @@ use {
             SessionSettle, SessionSettleJsonRpc, SettleNamespace,
         },
         relay_url::ConnectionOptions,
-        utils::{diffie_hellman, topic_from_sym_key},
+        utils::{diffie_hellman, generate_rpc_id, topic_from_sym_key},
     },
     chacha20poly1305::{
         aead::Aead, AeadCore, ChaCha20Poly1305, KeyInit, Nonce,
@@ -148,7 +148,6 @@ pub struct Client {
 //   - interpret relay disconnect reason
 //   - handle connection/project ID/JWT error
 // - incoming message deduplication (RPC ID/hash)
-// - random (?) request RPC ID generation
 
 // TODO ?
 // - session pings, update, events, emit
@@ -389,7 +388,7 @@ impl Client {
 
         let session_settlement_request = {
             let serialized = serde_json::to_string(&SessionSettleJsonRpc {
-                id: 1000000010, // TODO generate this
+                id: generate_rpc_id(),
                 jsonrpc: "2.0".to_string(),
                 method: "wc_sessionSettle".to_string(),
                 params: SessionSettle {
