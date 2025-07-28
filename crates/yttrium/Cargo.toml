@@ -6,7 +6,12 @@ rust-version.workspace = true
 license.workspace = true
 
 [lib]
-crate-type = ["lib", "cdylib"]
+crate-type = ["lib", "staticlib", "cdylib"]
+
+[[bin]]
+name = "uniffi-bindgen"
+path = "uniffi-bindgen.rs"
+required-features = ["uniffi"]
 
 [features]
 default = ["eip155", "erc6492_client", "chain_abstraction_client"]
@@ -79,7 +84,7 @@ test_blockchain_api = []
 test_depends_on_env_REOWN_PROJECT_ID = []
 
 [dependencies]
-uniffi = { workspace = true, optional = true }
+uniffi = { workspace = true, optional = true, features = ["cli"] }
 uniffi_macros = { workspace = true, optional = true }
 
 wasm-bindgen = { workspace = true, optional = true }
