@@ -1035,7 +1035,7 @@ impl SignClient {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct SessionProposal {
     pub session_proposal_rpc_id: u64,
     pub pairing_topic: Topic,

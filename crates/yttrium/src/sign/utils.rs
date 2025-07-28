@@ -24,7 +24,7 @@
 // }
 
 use {
-    rand::{Rng, RngCore},
+    rand::Rng,
     relay_rpc::domain::Topic,
     sha2::{Digest, Sha256},
 };
