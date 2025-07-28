@@ -7,11 +7,11 @@ let useLocalRustXcframework = ProcessInfo.processInfo.environment["USE_LOCAL_RUS
 let yttriumXcframeworkTarget: Target = useLocalRustXcframework ?
     .binaryTarget(
         name: "YttriumXCFramework",
-        path: "target/ios/libuniffi_yttrium.xcframework"
+        path: "target/ios/libyttrium.xcframework"
     ) :
     .binaryTarget(
         name: "YttriumXCFramework",
-        url: "https://github.com/reown-com/yttrium/releases/download/0.9.31/libuniffi_yttrium.xcframework.zip",
+        url: "https://github.com/reown-com/yttrium/releases/download/0.9.31/libyttrium.xcframework.zip",
         checksum: "c0dd1827bbea25ad1dff29ffe3713416fedebc991548c250086e6b416fd20e91"
     )
 
