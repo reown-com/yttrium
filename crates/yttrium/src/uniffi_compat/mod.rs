@@ -5,7 +5,7 @@ pub mod sui;
 pub mod stacks;
 
 #[cfg(feature = "chain_abstraction_client")]
-use crate::chain_abstraction::{amount::Amount, api::prepare::FundingMetadata};
+use crate::chain_abstraction::{amount::Amount, api::prepare::{FundingMetadata, Eip155OrSolanaAddress}};
 #[cfg(feature = "solana")]
 use {
     crate::chain_abstraction::solana::{
@@ -45,8 +45,7 @@ use {
     serde_json::Error as SerdeJsonError,
     uniffi::deps::anyhow::Error as AnyhowError,
 };
-#[cfg(feature = "chain_abstraction_client")]
-use crate::chain_abstraction::api::prepare::Eip155OrSolanaAddress;
+
 
 // TODO use https://mozilla.github.io/uniffi-rs/next/udl/remote_ext_types.html#remote-types when it's available
 
