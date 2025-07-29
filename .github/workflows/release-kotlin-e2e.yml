@@ -42,7 +42,7 @@ jobs:
           
       - name: Install Android NDK
         run: |
-          sdkmanager --install "ndk;27.2.12479018"
+          sdkmanager --install "ndk;29.0.13113456"
           
       - name: Install cargo-ndk
         run: |
@@ -60,8 +60,8 @@ jobs:
         run: |
           # Try to find llvm-strip in common NDK locations
           NDK_PATHS=(
-            "$ANDROID_HOME/ndk/27.2.12479018"
-            "$ANDROID_SDK_ROOT/ndk/27.2.12479018"
+            "$ANDROID_HOME/ndk/29.0.13113456"
+            "$ANDROID_SDK_ROOT/ndk/29.0.13113456"
             "$ANDROID_HOME/ndk-bundle"
             "$ANDROID_SDK_ROOT/ndk-bundle"
           )
