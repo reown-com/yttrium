@@ -3,9 +3,9 @@ jdk:
 
 android:
   components:
-    - build-tools;34.0.0
+    - build-tools;35.0.0
     - platform-tools
-    - platforms;android-34
+    - platforms;android-35
 
 before_install:
   - VERSION=$(git tag --sort=committerdate | tail -1  || echo "unspecified")
@@ -24,8 +24,8 @@ before_install:
   - mv binaries/yttrium/kotlin-bindings/uniffi/uniffi_yttrium/uniffi_yttrium.kt crates/kotlin-ffi/android/src/main/kotlin/com/reown/yttrium/
   - mv binaries/yttrium/kotlin-bindings/uniffi/yttrium/yttrium.kt crates/kotlin-ffi/android/src/main/kotlin/com/reown/yttrium/
 
-install:
-  - ./gradlew :crates:kotlin-ffi:android:assembleRelease
+# install:
+#   - ./gradlew :crates:kotlin-ffi:android:assembleRelease
 
-build:
-  - ./gradlew :crates:kotlin-ffi:android:publishReleasePublicationToMavenLocal
+# build:
+#   - ./gradlew :crates:kotlin-ffi:android:publishReleasePublicationToMavenLocal
