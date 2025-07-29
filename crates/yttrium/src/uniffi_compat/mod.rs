@@ -24,6 +24,7 @@ use crate::chain_abstraction::{
 };
 use {
     crate::{
+        chain_abstraction::api::prepare::Eip155OrSolanaAddress,
         smart_accounts::account_address::AccountAddress,
         wallet_service_api::{
             AddressOrNative, Asset, AssetData, Erc20Metadata, Erc721Metadata,
@@ -48,8 +49,6 @@ use {
     serde_json::Error as SerdeJsonError,
     uniffi::deps::anyhow::Error as AnyhowError,
 };
-#[cfg(feature = "chain_abstraction_client")]
-use crate::chain_abstraction::api::prepare::Eip155OrSolanaAddress;
 
 
 // TODO use https://mozilla.github.io/uniffi-rs/next/udl/remote_ext_types.html#remote-types when it's available
@@ -263,7 +262,6 @@ pub struct FfiAuthorization {
     pub nonce: u64,
 }
 
-#[cfg(feature = "chain_abstraction_client")]
 uniffi::custom_type!(Eip155OrSolanaAddress, String, {
     remote,
     try_lift: |val| Ok(val.parse()?),
