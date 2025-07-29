@@ -3,50 +3,29 @@ jdk:
 
 android:
   components:
-    - build-tools;33.0.0
+    - build-tools;34.0.0
     - platform-tools
-    - platforms;android-33
+    - platforms;android-34
 
 before_install:
   - VERSION=$(git tag --sort=committerdate | tail -1  || echo "unspecified")
   - echo "VERSION=${VERSION}"
-  - echo "Current git tag: $(git tag --points-at HEAD)"
-  - echo "All tags: $(git tag --sort=committerdate | tail -5)"
   - RELEASE_URL="https://github.com/reown-com/yttrium/releases/download/${VERSION}/kotlin-artifacts.zip"
   - echo "Fetching binaries and bindings from $RELEASE_URL"
-  - curl -L -o kotlin-artifacts.zip $RELEASE_URL || echo "Failed to fetch binaries"
-  - echo "Downloaded zip file:"
-  - ls -l kotlin-artifacts.zip || echo "No zip file found"
-  - echo "Unzipping contents..."
+  - curl -L -o kotlin-artifacts.zip $RELEASE_URL
   - unzip kotlin-artifacts.zip -d binaries/
-  - echo "Contents of binaries directory:"
-  - ls -R binaries || echo "No files found in binaries directory"
   - mkdir -p crates/kotlin-ffi/android/src/main/jniLibs/arm64-v8a
   - mkdir -p crates/kotlin-ffi/android/src/main/jniLibs/armeabi-v7a
   - mkdir -p crates/kotlin-ffi/android/src/main/jniLibs/x86_64
   - mkdir -p crates/kotlin-ffi/android/src/main/kotlin/com/reown/yttrium
-  - echo "Moving binaries and bindings"
-  - mv binaries/yttrium/libs/arm64-v8a/libuniffi_yttrium.so crates/kotlin-ffi/android/src/main/jniLibs/arm64-v8a/ || echo "Failed to move arm64-v8a.so"
-  - mv binaries/yttrium/libs/armeabi-v7a/libuniffi_yttrium.so crates/kotlin-ffi/android/src/main/jniLibs/armeabi-v7a/ || echo "Failed to move armeabi-v7a.so"
-  - mv binaries/yttrium/libs/x86_64/libuniffi_yttrium.so crates/kotlin-ffi/android/src/main/jniLibs/x86_64/ || echo "Failed to move x86_64.so"
-  - mv binaries/yttrium/kotlin-bindings/uniffi/uniffi_yttrium/uniffi_yttrium.kt crates/kotlin-ffi/android/src/main/kotlin/com/reown/yttrium/ || echo "Failed to move uniffi_yttrium.kt"
-  - mv binaries/yttrium/kotlin-bindings/uniffi/yttrium/yttrium.kt crates/kotlin-ffi/android/src/main/kotlin/com/reown/yttrium/ || echo "Failed to move yttrium.kt"
-  - echo "Verifying moved files..."
-  - ls -la crates/kotlin-ffi/android/src/main/jniLibs/arm64-v8a/ || echo "arm64-v8a directory not found"
-  - ls -la crates/kotlin-ffi/android/src/main/jniLibs/armeabi-v7a/ || echo "armeabi-v7a directory not found"
-  - ls -la crates/kotlin-ffi/android/src/main/jniLibs/x86_64/ || echo "x86_64 directory not found"
-  - ls -la crates/kotlin-ffi/android/src/main/kotlin/com/reown/yttrium/ || echo "kotlin directory not found"
+  - mv binaries/yttrium/libs/arm64-v8a/libuniffi_yttrium.so crates/kotlin-ffi/android/src/main/jniLibs/arm64-v8a/
+  - mv binaries/yttrium/libs/armeabi-v7a/libuniffi_yttrium.so crates/kotlin-ffi/android/src/main/jniLibs/armeabi-v7a/
+  - mv binaries/yttrium/libs/x86_64/libuniffi_yttrium.so crates/kotlin-ffi/android/src/main/jniLibs/x86_64/
+  - mv binaries/yttrium/kotlin-bindings/uniffi/uniffi_yttrium/uniffi_yttrium.kt crates/kotlin-ffi/android/src/main/kotlin/com/reown/yttrium/
+  - mv binaries/yttrium/kotlin-bindings/uniffi/yttrium/yttrium.kt crates/kotlin-ffi/android/src/main/kotlin/com/reown/yttrium/
 
 install:
-  - echo "Starting install phase..."
-  - echo "Current directory: $(pwd)"
-  - echo "Available Gradle tasks:"
-  - ./gradlew tasks --all | grep -E "(kotlin-ffi|yttrium)" | head -5
-  - echo "Building release..."
   - ./gradlew :crates:kotlin-ffi:android:assembleRelease
 
 build:
-  - echo "Starting build phase..."
-  - echo "Publishing to Maven local..."
   - ./gradlew :crates:kotlin-ffi:android:publishReleasePublicationToMavenLocal
-  - echo "Build completed successfully"
