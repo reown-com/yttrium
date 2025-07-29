@@ -39,7 +39,7 @@ use {
 };
 #[cfg(feature = "chain_abstraction_client")]
 use {
-    alloy::{providers::Provider, sol, sol_types::SolCall},
+    alloy::{providers::Provider, sol_types::SolCall},
     relay_rpc::domain::ProjectId,
     std::time::Duration,
     yttrium::call::Call,
