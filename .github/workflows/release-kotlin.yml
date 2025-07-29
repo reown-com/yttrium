@@ -32,11 +32,12 @@ jobs:
           distribution: "temurin"
           java-version: "17"
       - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v2
         with:
-          api-level: 35
-          build-tools: 35.0.0
-          ndk-version: 27.2.12479018
+          cmdline-tools-version: 8512546
+      - name: Install Android NDK
+        run: |
+          sdkmanager --install "ndk;27.2.12479018"
       - name: Build with Gradle
         run: |
           ./gradlew clean assembleRelease -Pversion=${{ env.VERSION }}
