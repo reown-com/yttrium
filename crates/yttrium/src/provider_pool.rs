@@ -20,6 +20,24 @@ use {
     tracing::{info, trace, warn},
     uuid::Uuid,
 };
+#[cfg(feature = "chain_abstraction_client")]
+use crate::chain_abstraction::{
+    pulse::{PulseMetadata, PULSE_SDK_TYPE},
+    send_transaction::RpcRequestAnalytics,
+};
+#[cfg(not(feature = "chain_abstraction_client"))]
+#[derive(Clone)]
+pub struct PulseMetadata {
+    pub sdk_version: String,
+}
+#[cfg(not(feature = "chain_abstraction_client"))]
+pub const PULSE_SDK_TYPE: &str = "wkca";
+#[cfg(not(feature = "chain_abstraction_client"))]
+#[derive(Clone)]
+pub struct RpcRequestAnalytics {
+    pub req_id: Option<String>,
+    pub rpc_id: String,
+}
 
 #[cfg(feature = "chain_abstraction_client")]
 use crate::chain_abstraction::{

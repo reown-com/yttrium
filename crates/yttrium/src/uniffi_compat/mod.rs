@@ -48,6 +48,8 @@ use {
     serde_json::Error as SerdeJsonError,
     uniffi::deps::anyhow::Error as AnyhowError,
 };
+#[cfg(feature = "chain_abstraction_client")]
+use crate::chain_abstraction::api::prepare::Eip155OrSolanaAddress;
 
 
 // TODO use https://mozilla.github.io/uniffi-rs/next/udl/remote_ext_types.html#remote-types when it's available
