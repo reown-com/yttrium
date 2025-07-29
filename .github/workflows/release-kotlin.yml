@@ -54,31 +54,8 @@ jobs:
           cargo run --features=android,uniffi/cli -p kotlin-ffi --bin uniffi-bindgen generate --library target/${{ matrix.target }}/uniffi-release-kotlin/libuniffi_yttrium.so --language kotlin --out-dir yttrium/kotlin-bindings
       - name: Strip binaries
         run: |
-            # Try to find llvm-strip in common NDK locations
-            NDK_PATHS=(
-              "$ANDROID_HOME/ndk/27.2.12479018"
-              "$ANDROID_SDK_ROOT/ndk/27.2.12479018"
-              "$ANDROID_HOME/ndk-bundle"
-              "$ANDROID_SDK_ROOT/ndk-bundle"
-            )
-            
-            LLVM_STRIP=""
-            for ndk_path in "${NDK_PATHS[@]}"; do
-              if [ -f "$ndk_path/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip" ]; then
-                LLVM_STRIP="$ndk_path/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip"
-                break
-              fi
-            done
-            
-            if [ -z "$LLVM_STRIP" ]; then
-              echo "Warning: llvm-strip not found, skipping binary stripping"
-              echo "Available NDK paths:"
-              ls -la $ANDROID_HOME/ndk/ || echo "No ndk directory in ANDROID_HOME"
-              ls -la $ANDROID_SDK_ROOT/ndk/ || echo "No ndk directory in ANDROID_SDK_ROOT"
-            else
-              echo "Using llvm-strip at: $LLVM_STRIP"
-              $LLVM_STRIP target/${{ matrix.target }}/uniffi-release-kotlin/libuniffi_yttrium.so
-            fi
+            NDK_PATH=$ANDROID_HOME/ndk/27.2.12479018
+            $NDK_PATH/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip target/${{ matrix.target }}/uniffi-release-kotlin/libuniffi_yttrium.so
 
       - name: Prepare local artifacts folder
         run: |
