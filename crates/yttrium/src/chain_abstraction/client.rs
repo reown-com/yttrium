@@ -211,7 +211,7 @@ impl Client {
         let addresses =
             eip155_chains
                 .iter()
-                .map(|t| format!("{}:{}", t, NATIVE_TOKEN_ADDRESS))
+                .map(|t| format!("{t}:{NATIVE_TOKEN_ADDRESS}"))
                 .chain(
                     prepare_response.metadata.funding_from.iter().map(|f| {
                         format!("{}:{}", f.chain_id, f.token_contract)

@@ -478,7 +478,7 @@ mod tests {
                     decimals: Unit::new(18).unwrap(),
                 },
                 FungiblePriceItem {
-                    address: format!("{}:{}", chain_id_2, NATIVE_TOKEN_ADDRESS),
+                    address: format!("{chain_id_2}:{NATIVE_TOKEN_ADDRESS}"),
                     name: "".to_owned(),
                     symbol: "ETH".to_owned(),
                     icon_url: "".to_owned(),

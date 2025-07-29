@@ -49,6 +49,7 @@ use {
     uniffi::deps::anyhow::Error as AnyhowError,
 };
 
+
 // TODO use https://mozilla.github.io/uniffi-rs/next/udl/remote_ext_types.html#remote-types when it's available
 
 uniffi::custom_type!(Address, String, {
