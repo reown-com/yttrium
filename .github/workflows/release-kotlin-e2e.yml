@@ -54,7 +54,7 @@ jobs:
           
       - name: Generate Kotlin bindings
         run: |
-          cargo run --features=uniffi/cli --bin uniffi-bindgen generate --library target/x86_64-linux-android/uniffi-release-kotlin/libuniffi_yttrium.so --language kotlin --out-dir yttrium/kotlin-bindings
+          cargo run --features=uniffi/cli -p kotlin-ffi --bin uniffi-bindgen generate --library target/x86_64-linux-android/uniffi-release-kotlin/libuniffi_yttrium.so --language kotlin --out-dir yttrium/kotlin-bindings
           
       - name: Strip binaries
         run: |
