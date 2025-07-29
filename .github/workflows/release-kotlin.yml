@@ -36,7 +36,7 @@ jobs:
         with:
           api-level: 35
           build-tools: 35.0.0
-          ndk-version: 29.0.13113456
+          ndk-version: 28.2.13676358
       - name: Build with Gradle
         run: |
           ./gradlew clean assembleRelease -Pversion=${{ env.VERSION }}
@@ -54,8 +54,13 @@ jobs:
       - name: Strip binaries
         run: |
             # Try to find the correct NDK path and llvm-strip
-            NDK_PATH=$ANDROID_HOME/ndk/29.0.13113456
+            # Check available NDK versions and use the latest one
+            LATEST_NDK=$(ls -1 $ANDROID_HOME/ndk/ | sort -V | tail -1)
+            echo "Using NDK version: $LATEST_NDK"
+            
+            NDK_PATH="$ANDROID_HOME/ndk/$LATEST_NDK"
             if [ -f "$NDK_PATH/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip" ]; then
+                echo "Found llvm-strip at: $NDK_PATH/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip"
                 $NDK_PATH/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip target/${{ matrix.target }}/uniffi-release-kotlin/libuniffi_yttrium.so
             else
                 echo "Warning: Could not find llvm-strip, skipping strip step"
