@@ -1,10 +1,6 @@
 use {
     crate::{
         blockchain_api::{PROXY_ENDPOINT_PATH, WALLET_ENDPOINT_PATH},
-        chain_abstraction::{
-            pulse::{PulseMetadata, PULSE_SDK_TYPE},
-            send_transaction::RpcRequestAnalytics,
-        },
         wallet_provider::WalletProvider,
     },
     alloy::{

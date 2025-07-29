@@ -4,6 +4,8 @@ pub mod sui;
 #[cfg(feature = "stacks")]
 pub mod stacks;
 
+#[cfg(feature = "chain_abstraction_client")]
+use crate::chain_abstraction::{amount::Amount, api::prepare::{FundingMetadata, Eip155OrSolanaAddress}};
 #[cfg(feature = "solana")]
 use {
     crate::chain_abstraction::solana::{
@@ -17,11 +19,7 @@ use {
         transaction::VersionedTransaction,
     },
 };
-#[cfg(feature = "chain_abstraction_client")]
-use crate::chain_abstraction::{
-    amount::Amount, 
-    api::prepare::{Eip155OrSolanaAddress, FundingMetadata}
-};
+
 use {
     crate::{
         chain_abstraction::api::prepare::Eip155OrSolanaAddress,
