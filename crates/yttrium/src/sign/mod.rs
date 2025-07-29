@@ -139,9 +139,9 @@ pub struct Client {
 // TODO bindings integration
 // - State:
 //   - is app and wallet state coupled? should we build the DApp support right now to make it easier?
+//   - does deduplication happen at the irn_subscription layer (like current SDKs) or do we do it for each action e.g. update, event, etc. (remember layered state and stateless architecture)
 
 // TODO
-// - session expiry & renew
 // - subscribe/fetch messages on startup - also solve that ordering problem?
 // - WS reconnection & retries
 //   - disconnect if no ping for 30s etc.
@@ -149,8 +149,9 @@ pub struct Client {
 //   - handle connection/project ID/JWT error
 // - incoming message deduplication (RPC ID/hash)
 
-// TODO ?
+// TODO
 // - session pings, update, events, emit
+// - session expiry & renew
 
 // TODO error improvement
 // - bundle size optimization: error enums only for actionable errors higher-up
@@ -259,11 +260,11 @@ impl Client {
         let pairing_uri = pairing_uri::parse(uri)
             .map_err(|e| PairError::Internal(e.to_string()))?;
 
-        // TODO immediately throw if expired - maybe not necessary if FetchMessages returns empty array?
+        // TODO consider: immediately throw if expired? - maybe not necessary since FetchMessages returns empty array?
         // note: no activatePairing
         // TODO save symkey, if necessary
 
-        // TODO update relay method to not remove message
+        // TODO update relay method to not remove message & approveSession removes it
 
         let response = self
             .request::<FetchResponse>(relay_rpc::rpc::Params::FetchMessages(
@@ -300,13 +301,13 @@ impl Client {
                         request.method
                     )));
                 }
-                println!("rpc request: {}", request.id);
-                println!(
+                tracing::debug!("rpc request: {}", request.id);
+                tracing::debug!(
                     "{}",
                     serde_json::to_string_pretty(&request.params).unwrap()
                 );
                 let proposal = request.params;
-                println!("{proposal:?}");
+                tracing::debug!("{proposal:?}");
 
                 let proposer_public_key = hex::decode(proposal.proposer.public_key)
                     .map_err(|e| {
@@ -320,7 +321,7 @@ impl Client {
                             "Failed to convert proposer public key to fixed-size array".to_owned()
                         )
                     })?;
-                println!("pairing topic: {}", proposal.pairing_topic);
+                tracing::debug!("pairing topic: {}", proposal.pairing_topic);
 
                 // TODO validate namespaces: https://specs.walletconnect.com/2.0/specs/clients/sign/namespaces#12-proposal-namespaces-must-not-have-chains-empty
 

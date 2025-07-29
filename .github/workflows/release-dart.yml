@@ -1,11 +1,11 @@
 name: Build and Release Yttrium Dart
 
 on:
-  workflow_dispatch:
-    inputs:
-      version:
-        description: 'Version to release (e.g. 0.0.1)'
-        required: true
+  # workflow_dispatch:
+  #   inputs:
+  #     version:
+  #       description: 'Version to release (e.g. 0.0.1)'
+  #       required: true
 
 env:
   CARGO_TERM_COLOR: always
