@@ -70,6 +70,7 @@ all_clients = [
     "erc6492_client",
     "chain_abstraction_client",
     "transaction_sponsorship_client",
+    "sign_client",
 ]
 account_client = []
 erc6492_client = []

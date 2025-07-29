@@ -139,9 +139,9 @@ pub struct Client {
 // TODO bindings integration
 // - State:
 //   - is app and wallet state coupled? should we build the DApp support right now to make it easier?
+//   - does deduplication happen at the irn_subscription layer (like current SDKs) or do we do it for each action e.g. update, event, etc. (remember layered state and stateless architecture)
 
 // TODO
-// - session expiry & renew
 // - subscribe/fetch messages on startup - also solve that ordering problem?
 // - WS reconnection & retries
 //   - disconnect if no ping for 30s etc.
@@ -149,8 +149,9 @@ pub struct Client {
 //   - handle connection/project ID/JWT error
 // - incoming message deduplication (RPC ID/hash)
 
-// TODO ?
+// TODO
 // - session pings, update, events, emit
+// - session expiry & renew
 
 // TODO error improvement
 // - bundle size optimization: error enums only for actionable errors higher-up
