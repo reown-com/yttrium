@@ -18,10 +18,12 @@ use {
     },
 };
 #[cfg(feature = "chain_abstraction_client")]
-use crate::chain_abstraction::{amount::Amount, api::prepare::{FundingMetadata, Eip155OrSolanaAddress}};
+use crate::chain_abstraction::{
+    amount::Amount, 
+    api::prepare::{Eip155OrSolanaAddress, FundingMetadata}
+};
 use {
     crate::{
-        chain_abstraction::api::prepare::Eip155OrSolanaAddress,
         smart_accounts::account_address::AccountAddress,
         wallet_service_api::{
             AddressOrNative, Asset, AssetData, Erc20Metadata, Erc721Metadata,
