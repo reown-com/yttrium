@@ -634,10 +634,12 @@ impl Client {
             let session_request_tx = self.session_request_tx.clone();
             let (request_tx, mut request_rx) =
                 tokio::sync::mpsc::unbounded_channel();
+            let (irn_subscription_ack_tx, mut irn_subscription_ack_rx) =
+                tokio::sync::mpsc::unbounded_channel();
 
-            let handle_session_request = {
+            let handle_irn_subscription = {
                 let sessions = self.sessions.clone();
-                move |sub_msg: Subscription| {
+                move |id: MessageId, sub_msg: Subscription| {
                     let session_sym_key = {
                         let sessions = sessions.read().unwrap();
                         let session =
@@ -671,6 +673,7 @@ impl Client {
                             .unwrap();
                     if let Some(method) = value.get("method") {
                         if method.as_str() == Some("wc_sessionRequest") {
+                            // TODO implement relay-side request queue
                             let request = serde_json::from_value::<
                                 SessionRequestJsonRpc,
                             >(value)
@@ -683,14 +686,59 @@ impl Client {
                             session_request_tx
                                 .send((sub_msg.data.topic, request))
                                 .unwrap();
+                            if let Err(e) = irn_subscription_ack_tx.send(id) {
+                                tracing::debug!(
+                                    "Failed to send subscription ack: {e}"
+                                );
+                            }
+                        } else if method.as_str() == Some("wc_sessionUpdate") {
+                            // TODO update session locally (if not older than last update)
+                            // TODO write state to storage (blocking)
+                            if let Err(e) = irn_subscription_ack_tx.send(id) {
+                                tracing::debug!(
+                                    "Failed to send subscription ack: {e}"
+                                );
+                            }
+                        } else if method.as_str() == Some("wc_sessionExtend") {
+                            // TODO update session locally (if not older than last update)
+                            // TODO write state to storage (blocking)
+                            if let Err(e) = irn_subscription_ack_tx.send(id) {
+                                tracing::debug!(
+                                    "Failed to send subscription ack: {e}"
+                                );
+                            }
+                        } else if method.as_str() == Some("wc_sessionEmit") {
+                            // TODO dedup events based on JSON RPC history
+                            // TODO emit event callback (blocking?)
+                            if let Err(e) = irn_subscription_ack_tx.send(id) {
+                                tracing::debug!(
+                                    "Failed to send subscription ack: {e}"
+                                );
+                            }
+                        } else if method.as_str() == Some("wc_sessionPing") {
+                            if let Err(e) = irn_subscription_ack_tx.send(id) {
+                                tracing::debug!(
+                                    "Failed to send subscription ack: {e}"
+                                );
+                            }
                         } else {
                             tracing::error!("Unexpected method: {}", method);
+                            if let Err(e) = irn_subscription_ack_tx.send(id) {
+                                tracing::debug!(
+                                    "Failed to send subscription ack: {e}"
+                                );
+                            }
                         }
                     } else {
                         tracing::debug!(
                             "ignoring response message: {:?}",
                             value
                         );
+                        if let Err(e) = irn_subscription_ack_tx.send(id) {
+                            tracing::debug!(
+                                "Failed to send subscription ack: {e}"
+                            );
+                        }
 
                         // TODO handle session request responses. Unsure if other responses are needed
                     }
@@ -725,6 +773,19 @@ impl Client {
                                 }).unwrap();
                                 ws_stream.send(Message::Text(serialized.into())).await.unwrap();
                             }
+                            Some(id) = irn_subscription_ack_rx.recv() => {
+                                let request = Payload::Response(Response::Success(SuccessfulResponse {
+                                    id,
+                                    result: serde_json::to_value(true).expect("TODO"),
+                                    jsonrpc: "2.0".to_string().into(),
+                                }));
+                                let serialized = serde_json::to_string(&request).map_err(|e| {
+                                    RequestError::ShouldNeverHappen(format!(
+                                        "Failed to serialize request: {e}"
+                                    ))
+                                }).expect("TODO");
+                                ws_stream.send(Message::Text(serialized.into())).await.unwrap();
+                            }
                             Some(message) = ws_stream.next() => {
                                 let n = message
                                     .map_err(|e| {
@@ -753,22 +814,7 @@ impl Client {
                                                             Params::Subscription(
                                                                 sub_msg
                                                             ) => {
-                                                                handle_session_request(sub_msg);
-
-                                                                // ACK the request
-                                                                // TODO consistency: store the request locally? (request queue?)
-                                                                // - or ideally better use the relay's own state, if possible
-                                                                let request = Payload::Response(Response::Success(SuccessfulResponse {
-                                                                    id,
-                                                                    result: serde_json::to_value(true).expect("TODO"),
-                                                                    jsonrpc: "2.0".to_string().into(),
-                                                                }));
-                                                                let serialized = serde_json::to_string(&request).map_err(|e| {
-                                                                    RequestError::ShouldNeverHappen(format!(
-                                                                        "Failed to serialize request: {e}"
-                                                                    ))
-                                                                }).expect("TODO");
-                                                                ws_stream.send(Message::Text(serialized.into())).await.unwrap();
+                                                                handle_irn_subscription(sub_msg);
                                                             }
                                                             _ => {}
                                                         }
@@ -891,24 +937,9 @@ impl Client {
                                                     Params::Subscription(
                                                         sub_msg
                                                     ) => {
-                                                        handle_session_request(sub_msg);
-
-                                                        // ACK the request
-                                                        // TODO consistency: store the request locally? (request queue?)
-                                                        // - or ideally better use the relay's own state, if possible
-                                                        let request = Payload::Response(Response::Success(SuccessfulResponse {
-                                                            id,
-                                                           result: serde_json::to_value(true).expect("TODO"),
-                                                            jsonrpc: "2.0".to_string().into(),
-                                                        }));
-                                                        let serialized = serde_json::to_string(&request).map_err(|e| {
-                                                            RequestError::ShouldNeverHappen(format!(
-                                                                "Failed to serialize request: {e}"
-                                                            ))
-                                                       }).expect("TODO");
-                                                       ws.send_with_str(&serialized).expect("TODO");
+                                                        handle_irn_subscription(id, sub_msg);
                                                     }
-                                                    _ => {}
+                                                    _ => tracing::debug!("ignoring incoming relay request: {:?}", request),
                                                 }
                                             }
                                             Payload::Response(response) => {
@@ -925,6 +956,24 @@ impl Client {
                                         // .expect("TODO")
                                     }
                                 }
+                            }
+                            Some(id) = irn_subscription_ack_rx.recv() => {
+                                let request = Payload::Response(Response::Success(
+                                    SuccessfulResponse {
+                                        id,
+                                        result: serde_json::to_value(true)
+                                            .expect("TODO"),
+                                        jsonrpc: "2.0".to_string().into(),
+                                    },
+                                ));
+                                let serialized = serde_json::to_string(&request)
+                                    .map_err(|e| {
+                                        RequestError::ShouldNeverHappen(format!(
+                                            "Failed to serialize request: {e}"
+                                        ))
+                                    })
+                                    .expect("TODO");
+                                ws.send_with_str(&serialized).expect("TODO");
                             }
                         }
                     }
