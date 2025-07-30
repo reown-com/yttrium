@@ -21,7 +21,7 @@ jobs:
       run: npx playwright install --with-deps
       working-directory: crates/rust-sample-wallet
     - name: Write project ID
-      run: echo ${{ vars.REOWN_PROJECT_ID }} > crates/rust-sample-wallet/.project-id
+      run: echo ${{ secrets.REOWN_PROJECT_ID }} > crates/rust-sample-wallet/.project-id
     - name: Build app
       run: trunk build
       working-directory: crates/rust-sample-wallet
