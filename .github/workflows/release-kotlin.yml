@@ -36,7 +36,7 @@ jobs:
         with:
           api-level: 35
           build-tools: 35.0.0
-          ndk-version: 27.2.12479018
+          ndk-version: 28.2.13676358
       - name: Build with Gradle
         run: |
           ./gradlew clean assembleRelease -Pversion=${{ env.VERSION }}
@@ -53,8 +53,22 @@ jobs:
           cargo run --features=android,uniffi/cli -p kotlin-ffi --bin uniffi-bindgen generate --library target/${{ matrix.target }}/uniffi-release-kotlin/libuniffi_yttrium.so --language kotlin --out-dir yttrium/kotlin-bindings
       - name: Strip binaries
         run: |
-            NDK_PATH=$ANDROID_HOME/ndk/27.2.12479018
-            $NDK_PATH/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip target/${{ matrix.target }}/uniffi-release-kotlin/libuniffi_yttrium.so
+            # Try to find the correct NDK path and llvm-strip
+            # Check available NDK versions and use the latest one
+            LATEST_NDK=$(ls -1 $ANDROID_HOME/ndk/ | sort -V | tail -1)
+            echo "Using NDK version: $LATEST_NDK"
+            
+            NDK_PATH="$ANDROID_HOME/ndk/$LATEST_NDK"
+            if [ -f "$NDK_PATH/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip" ]; then
+                echo "Found llvm-strip at: $NDK_PATH/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip"
+                $NDK_PATH/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip target/${{ matrix.target }}/uniffi-release-kotlin/libuniffi_yttrium.so
+            else
+                echo "Warning: Could not find llvm-strip, skipping strip step"
+                echo "Available NDK versions:"
+                ls -la $ANDROID_HOME/ndk/ || echo "No NDK directory found"
+                echo "Looking for llvm-strip in common locations:"
+                find $ANDROID_HOME/ndk -name "llvm-strip" 2>/dev/null || echo "No llvm-strip found"
+            fi
 
       - name: Prepare local artifacts folder
         run: |
