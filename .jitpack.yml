@@ -12,20 +12,20 @@ before_install:
   - echo "VERSION=${VERSION}"
   - RELEASE_URL="https://github.com/reown-com/yttrium/releases/download/${VERSION}/kotlin-artifacts.zip"
   - echo "Fetching binaries and bindings from $RELEASE_URL"
-  - curl -L -o kotlin-artifacts.zip $RELEASE_URL
+  - curl -L -o kotlin-artifacts.zip $RELEASE_URL || echo "Failed to fetch binaries"
+  - echo "Downloaded zip file:"
+  - ls -l kotlin-artifacts.zip || echo "No zip file found"
+  - echo "Unzipping contents..."
   - unzip kotlin-artifacts.zip -d binaries/
+  - echo "Contents of binaries directory:"
+  - ls -R binaries || echo "No files found in binaries directory"
   - mkdir -p crates/kotlin-ffi/android/src/main/jniLibs/arm64-v8a
   - mkdir -p crates/kotlin-ffi/android/src/main/jniLibs/armeabi-v7a
   - mkdir -p crates/kotlin-ffi/android/src/main/jniLibs/x86_64
   - mkdir -p crates/kotlin-ffi/android/src/main/kotlin/com/reown/yttrium
-  - mv binaries/yttrium/libs/arm64-v8a/libuniffi_yttrium.so crates/kotlin-ffi/android/src/main/jniLibs/arm64-v8a/
-  - mv binaries/yttrium/libs/armeabi-v7a/libuniffi_yttrium.so crates/kotlin-ffi/android/src/main/jniLibs/armeabi-v7a/
-  - mv binaries/yttrium/libs/x86_64/libuniffi_yttrium.so crates/kotlin-ffi/android/src/main/jniLibs/x86_64/
-  - mv binaries/yttrium/kotlin-bindings/uniffi/uniffi_yttrium/uniffi_yttrium.kt crates/kotlin-ffi/android/src/main/kotlin/com/reown/yttrium/
-  - mv binaries/yttrium/kotlin-bindings/uniffi/yttrium/yttrium.kt crates/kotlin-ffi/android/src/main/kotlin/com/reown/yttrium/
-
-# install:
-#   - ./gradlew :crates:kotlin-ffi:android:assembleRelease
-
-# build:
-#   - ./gradlew :crates:kotlin-ffi:android:publishReleasePublicationToMavenLocal
+  - echo "Moving binaries and bindings"
+  - mv binaries/yttrium/libs/arm64-v8a/libuniffi_yttrium.so crates/kotlin-ffi/android/src/main/jniLibs/arm64-v8a/ || echo "Failed to move arm64-v8a.so"
+  - mv binaries/yttrium/libs/armeabi-v7a/libuniffi_yttrium.so crates/kotlin-ffi/android/src/main/jniLibs/armeabi-v7a/ || echo "Failed to move armeabi-v7a.so"
+  - mv binaries/yttrium/libs/x86_64/libuniffi_yttrium.so crates/kotlin-ffi/android/src/main/jniLibs/x86_64/ || echo "Failed to move x86_64.so"
+  - mv binaries/yttrium/kotlin-bindings/uniffi/uniffi_yttrium/uniffi_yttrium.kt crates/kotlin-ffi/android/src/main/kotlin/com/reown/yttrium/ || echo "Failed to move uniffi_yttrium.kt"
+  - mv binaries/yttrium/kotlin-bindings/uniffi/yttrium/yttrium.kt crates/kotlin-ffi/android/src/main/kotlin/com/reown/yttrium/ || echo "Failed to move yttrium.kt"
