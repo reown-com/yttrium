@@ -96,3 +96,11 @@ kotlin:
 wallet:
   # TODO: why not `cargo leptos watch`?
   cd crates/rust-sample-wallet && trunk serve
+wallet-release:
+  # TODO: why not `cargo leptos watch`?
+  cd crates/rust-sample-wallet && trunk serve --release
+
+wallet-test:
+  cd crates/rust-sample-wallet && npx playwright test
+wallet-test-ui:
+  cd crates/rust-sample-wallet && npx playwright test --ui

@@ -65,6 +65,14 @@ pub fn App() -> impl IntoView {
                             toaster,
                             format!("Pairing failed: {e}"),
                         );
+                        pairing_request_open.set(false);
+                        leptos::task::spawn_local(async move {
+                            yttrium::time::sleep(
+                                std::time::Duration::from_secs(1),
+                            )
+                            .await;
+                            pairing_request.set(None);
+                        });
                     }
                 }
             }

@@ -32,6 +32,7 @@ use {
     std::{
         collections::HashMap,
         sync::{Arc, RwLock},
+        time::Duration,
     },
     tracing::debug,
     x25519_dalek::PublicKey,
@@ -59,6 +60,9 @@ mod utils;
 pub enum RequestError {
     #[error("Internal: {0}")]
     Internal(String),
+
+    #[error("Offline")]
+    Offline,
 
     #[error("Should never happen: {0}")]
     ShouldNeverHappen(String),
@@ -136,13 +140,14 @@ pub struct Client {
     sessions: Arc<RwLock<HashMap<Topic, ApprovedSession>>>,
 }
 
+const REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
+
 // TODO bindings integration
 // - State:
 //   - is app and wallet state coupled? should we build the DApp support right now to make it easier?
 //   - does deduplication happen at the irn_subscription layer (like current SDKs) or do we do it for each action e.g. update, event, etc. (remember layered state and stateless architecture)
 
 // TODO
-// - subscribe/fetch messages on startup - also solve that ordering problem?
 // - WS reconnection & retries
 //   - disconnect if no ping for 30s etc.
 //   - interpret relay disconnect reason
@@ -152,6 +157,7 @@ pub struct Client {
 // TODO
 // - session pings, update, events, emit
 // - session expiry & renew
+//   - expire implemented simply by filtering out expired sessions in `Client::add_sessions()` ?
 
 // TODO error improvement
 // - bundle size optimization: error enums only for actionable errors higher-up
@@ -171,6 +177,10 @@ pub struct Client {
 // - 1CA
 // - Link Mode
 // - Events SDK & Analytics/TVF
+//   - Additional events for measuring latency/reconnect performance/client network environment/etc. so we can tune. E.g. "should we retry to connect?"
+// - Network state hinting (offline/online)
+//   - offline: don't try to reconnect, but also don't force a disconnect
+//   - online: reconnect if online() was called
 
 #[allow(unused)]
 impl Client {
@@ -577,421 +587,584 @@ impl Client {
         unimplemented!()
     }
 
-    async fn request<T: DeserializeOwned>(
+    async fn connect(
         &mut self,
-        params: relay_rpc::rpc::Params,
-    ) -> Result<T, RequestError> {
+        initial_req: Params,
+    ) -> Result<(Response, WebSocketState), RequestError> {
         let key = self
             .key
             .as_ref()
             .ok_or(RequestError::Internal("Key not set".to_string()))?;
-        let mut ws_state = if let Some(ws_state) = self.websocket.as_mut() {
-            ws_state
-        } else {
-            let url = {
-                let encoder = &data_encoding::BASE64URL_NOPAD;
-                let claims = {
-                    let data = JwtBasicClaims {
-                        iss: DecodedClientId::from_key(&key.verifying_key())
-                            .into(),
-                        sub: "http://example.com".to_owned(),
-                        aud: self.relay_url.clone(),
-                        iat: crate::time::SystemTime::now()
+        let url = {
+            let encoder = &data_encoding::BASE64URL_NOPAD;
+            let claims = {
+                let data = JwtBasicClaims {
+                    iss: DecodedClientId::from_key(&key.verifying_key()).into(),
+                    sub: "http://example.com".to_owned(),
+                    aud: self.relay_url.clone(),
+                    iat: crate::time::SystemTime::now()
+                        .duration_since(crate::time::UNIX_EPOCH)
+                        .unwrap()
+                        .as_secs() as i64,
+                    exp: Some(
+                        crate::time::SystemTime::now()
                             .duration_since(crate::time::UNIX_EPOCH)
                             .unwrap()
-                            .as_secs() as i64,
-                        exp: Some(
-                            crate::time::SystemTime::now()
-                                .duration_since(crate::time::UNIX_EPOCH)
-                                .unwrap()
-                                .as_secs() as i64
-                                + 60 * 60,
-                        ),
-                    };
-
-                    encoder.encode(
-                        serde_json::to_string(&data).unwrap().as_bytes(),
-                    )
+                            .as_secs() as i64
+                            + 60 * 60,
+                    ),
                 };
-                let header = encoder.encode(
-                    serde_json::to_string(&JwtHeader::default())
-                        .unwrap()
-                        .as_bytes(),
-                );
-                let message = format!("{header}.{claims}");
-                let signature = {
-                    let data = key.sign(message.as_bytes());
-                    encoder.encode(&data.to_bytes())
-                };
-                let auth = format!("{message}.{signature}");
 
-                let conn_opts =
-                    ConnectionOptions::new(self.project_id.clone(), auth)
-                        .with_address(&self.relay_url);
-                conn_opts.as_url().unwrap().to_string()
+                encoder.encode(serde_json::to_string(&data).unwrap().as_bytes())
             };
+            let header = encoder.encode(
+                serde_json::to_string(&JwtHeader::default())
+                    .unwrap()
+                    .as_bytes(),
+            );
+            let message = format!("{header}.{claims}");
+            let signature = {
+                let data = key.sign(message.as_bytes());
+                encoder.encode(&data.to_bytes())
+            };
+            let auth = format!("{message}.{signature}");
 
-            let session_request_tx = self.session_request_tx.clone();
-            let (request_tx, mut request_rx) =
-                tokio::sync::mpsc::unbounded_channel();
-            let (irn_subscription_ack_tx, mut irn_subscription_ack_rx) =
-                tokio::sync::mpsc::unbounded_channel();
+            let conn_opts =
+                ConnectionOptions::new(self.project_id.clone(), auth)
+                    .with_address(&self.relay_url);
+            conn_opts.as_url().unwrap().to_string()
+        };
 
-            let handle_irn_subscription = {
-                let sessions = self.sessions.clone();
-                move |id: MessageId, sub_msg: Subscription| {
-                    let session_sym_key = {
-                        let sessions = sessions.read().unwrap();
-                        let session =
-                            sessions.get(&sub_msg.data.topic).unwrap();
-                        session.session_sym_key
-                    };
+        let session_request_tx = self.session_request_tx.clone();
+        let (request_tx, mut request_rx) =
+            tokio::sync::mpsc::unbounded_channel();
+        let (irn_subscription_ack_tx, mut irn_subscription_ack_rx) =
+            tokio::sync::mpsc::unbounded_channel();
 
-                    let decoded = BASE64
-                        .decode(sub_msg.data.message.as_bytes())
+        let handle_irn_subscription = {
+            let sessions = self.sessions.clone();
+            move |id: MessageId, sub_msg: Subscription| {
+                let session_sym_key = {
+                    let sessions = sessions.read().unwrap();
+                    let session = sessions.get(&sub_msg.data.topic).unwrap();
+                    session.session_sym_key
+                };
+
+                let decoded = BASE64
+                    .decode(sub_msg.data.message.as_bytes())
+                    .map_err(|e| {
+                        PairError::Internal(format!(
+                            "Failed to decode message: {e}"
+                        ))
+                    })
+                    .unwrap();
+                let envelope =
+                    envelope_type0::deserialize_envelope_type0(&decoded)
+                        .map_err(|e| PairError::Internal(e.to_string()))
+                        .unwrap();
+                let key = ChaCha20Poly1305::new(&session_sym_key.into());
+                let decrypted = key
+                    .decrypt(&Nonce::from(envelope.iv), envelope.sb.as_slice())
+                    .map_err(|e| PairError::Internal(e.to_string()))
+                    .unwrap();
+                let value =
+                    serde_json::from_slice::<serde_json::Value>(&decrypted)
+                        .map_err(|e| PairError::Internal(e.to_string()))
+                        .unwrap();
+                if let Some(method) = value.get("method") {
+                    if method.as_str() == Some("wc_sessionRequest") {
+                        // TODO implement relay-side request queue
+                        let request = serde_json::from_value::<
+                            SessionRequestJsonRpc,
+                        >(value)
                         .map_err(|e| {
                             PairError::Internal(format!(
-                                "Failed to decode message: {e}"
+                                "Failed to parse decrypted message: {e}"
                             ))
                         })
                         .unwrap();
-                    let envelope =
-                        envelope_type0::deserialize_envelope_type0(&decoded)
-                            .map_err(|e| PairError::Internal(e.to_string()))
+                        session_request_tx
+                            .send((sub_msg.data.topic, request))
                             .unwrap();
-                    let key = ChaCha20Poly1305::new(&session_sym_key.into());
-                    let decrypted = key
-                        .decrypt(
-                            &Nonce::from(envelope.iv),
-                            envelope.sb.as_slice(),
-                        )
-                        .map_err(|e| PairError::Internal(e.to_string()))
-                        .unwrap();
-                    let value =
-                        serde_json::from_slice::<serde_json::Value>(&decrypted)
-                            .map_err(|e| PairError::Internal(e.to_string()))
-                            .unwrap();
-                    if let Some(method) = value.get("method") {
-                        if method.as_str() == Some("wc_sessionRequest") {
-                            // TODO implement relay-side request queue
-                            let request = serde_json::from_value::<
-                                SessionRequestJsonRpc,
-                            >(value)
-                            .map_err(|e| {
-                                PairError::Internal(format!(
-                                    "Failed to parse decrypted message: {e}"
-                                ))
-                            })
-                            .unwrap();
-                            session_request_tx
-                                .send((sub_msg.data.topic, request))
-                                .unwrap();
-                            if let Err(e) = irn_subscription_ack_tx.send(id) {
-                                tracing::debug!(
-                                    "Failed to send subscription ack: {e}"
-                                );
-                            }
-                        } else if method.as_str() == Some("wc_sessionUpdate") {
-                            // TODO update session locally (if not older than last update)
-                            // TODO write state to storage (blocking)
-                            if let Err(e) = irn_subscription_ack_tx.send(id) {
-                                tracing::debug!(
-                                    "Failed to send subscription ack: {e}"
-                                );
-                            }
-                        } else if method.as_str() == Some("wc_sessionExtend") {
-                            // TODO update session locally (if not older than last update)
-                            // TODO write state to storage (blocking)
-                            if let Err(e) = irn_subscription_ack_tx.send(id) {
-                                tracing::debug!(
-                                    "Failed to send subscription ack: {e}"
-                                );
-                            }
-                        } else if method.as_str() == Some("wc_sessionEmit") {
-                            // TODO dedup events based on JSON RPC history
-                            // TODO emit event callback (blocking?)
-                            if let Err(e) = irn_subscription_ack_tx.send(id) {
-                                tracing::debug!(
-                                    "Failed to send subscription ack: {e}"
-                                );
-                            }
-                        } else if method.as_str() == Some("wc_sessionPing") {
-                            if let Err(e) = irn_subscription_ack_tx.send(id) {
-                                tracing::debug!(
-                                    "Failed to send subscription ack: {e}"
-                                );
-                            }
-                        } else {
-                            tracing::error!("Unexpected method: {}", method);
-                            if let Err(e) = irn_subscription_ack_tx.send(id) {
-                                tracing::debug!(
-                                    "Failed to send subscription ack: {e}"
-                                );
-                            }
-                        }
-                    } else {
-                        tracing::debug!(
-                            "ignoring response message: {:?}",
-                            value
-                        );
                         if let Err(e) = irn_subscription_ack_tx.send(id) {
                             tracing::debug!(
                                 "Failed to send subscription ack: {e}"
                             );
                         }
-
-                        // TODO handle session request responses. Unsure if other responses are needed
-                    }
-                }
-            };
-
-            #[cfg(not(target_arch = "wasm32"))]
-            {
-                let (mut ws_stream, _response) = connect_async(url)
-                    .await
-                    .map_err(|e| RequestError::Internal(e.to_string()))?;
-                let sessions = self.sessions.clone();
-
-                crate::spawn::spawn(async move {
-                    const MIN: u64 = 1000000000; // MessageId::MIN is private
-                    let mut message_id = MIN;
-                    let mut response_channels = HashMap::<
-                        _,
-                        tokio::sync::oneshot::Sender<Response>,
-                    >::new();
-
-                    loop {
-                        tokio::select! {
-                            Some((params, response_tx)) = request_rx.recv() => {
-                                message_id += 1;
-                                response_channels.insert(MessageId::new(message_id), response_tx);
-                                let request = Payload::Request(Request::new(MessageId::new(message_id), params));
-                                let serialized = serde_json::to_string(&request).map_err(|e| {
-                                    RequestError::ShouldNeverHappen(format!(
-                                        "Failed to serialize request: {e}"
-                                    ))
-                                }).unwrap();
-                                ws_stream.send(Message::Text(serialized.into())).await.unwrap();
-                            }
-                            Some(id) = irn_subscription_ack_rx.recv() => {
-                                let request = Payload::Response(Response::Success(SuccessfulResponse {
-                                    id,
-                                    result: serde_json::to_value(true).expect("TODO"),
-                                    jsonrpc: "2.0".to_string().into(),
-                                }));
-                                let serialized = serde_json::to_string(&request).map_err(|e| {
-                                    RequestError::ShouldNeverHappen(format!(
-                                        "Failed to serialize request: {e}"
-                                    ))
-                                }).expect("TODO");
-                                ws_stream.send(Message::Text(serialized.into())).await.unwrap();
-                            }
-                            Some(message) = ws_stream.next() => {
-                                let n = message
-                                    .map_err(|e| {
-                                        RequestError::Internal(format!(
-                                            "WebSocket stream error: {e}"
-                                        ))
-                                    })
-                                    .expect("WebSocket stream error");
-                                #[allow(clippy::single_match)]
-                                match n {
-                                    Message::Text(message) => {
-                                        let payload =
-                                            serde_json::from_str::<Payload>(&message)
-                                                .map_err(|e| {
-                                                    RequestError::Internal(format!(
-                                                        "Failed to parse payload: {e}"
-                                                    ))
-                                                });
-                                        match payload {
-                                            Ok(payload) => {
-                                                let id = payload.id();
-                                                match payload {
-                                                    Payload::Request(request) => {
-                                                        #[allow(clippy::single_match)]
-                                                        match request.params {
-                                                            Params::Subscription(
-                                                                sub_msg
-                                                            ) => {
-                                                                handle_irn_subscription(id, sub_msg);
-                                                            }
-                                                            _ => {}
-                                                        }
-                                                    }
-                                                    Payload::Response(response) => {
-                                                        if let Some(response_tx) =
-                                                            response_channels
-                                                                .remove(&response.id())
-                                                        {
-                                                            if let Err(e) =
-                                                                response_tx.send(response)
-                                                            {
-                                                                tracing::debug!("Failed to send response: {e:?}");
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                            },
-                                            Err(e) => {
-                                                // no-op
-                                            }
-                                        }
-
-                                    }
-                                    _ => {}
-                                }
-                            }
+                    } else if method.as_str() == Some("wc_sessionUpdate") {
+                        // TODO update session locally (if not older than last update)
+                        // TODO write state to storage (blocking)
+                        if let Err(e) = irn_subscription_ack_tx.send(id) {
+                            tracing::debug!(
+                                "Failed to send subscription ack: {e}"
+                            );
+                        }
+                    } else if method.as_str() == Some("wc_sessionExtend") {
+                        // TODO update session locally (if not older than last update)
+                        // TODO write state to storage (blocking)
+                        if let Err(e) = irn_subscription_ack_tx.send(id) {
+                            tracing::debug!(
+                                "Failed to send subscription ack: {e}"
+                            );
+                        }
+                    } else if method.as_str() == Some("wc_sessionEmit") {
+                        // TODO dedup events based on JSON RPC history
+                        // TODO emit event callback (blocking?)
+                        if let Err(e) = irn_subscription_ack_tx.send(id) {
+                            tracing::debug!(
+                                "Failed to send subscription ack: {e}"
+                            );
+                        }
+                    } else if method.as_str() == Some("wc_sessionPing") {
+                        if let Err(e) = irn_subscription_ack_tx.send(id) {
+                            tracing::debug!(
+                                "Failed to send subscription ack: {e}"
+                            );
+                        }
+                    } else {
+                        tracing::error!("Unexpected method: {}", method);
+                        if let Err(e) = irn_subscription_ack_tx.send(id) {
+                            tracing::debug!(
+                                "Failed to send subscription ack: {e}"
+                            );
                         }
                     }
-                });
-            }
+                } else {
+                    tracing::debug!("ignoring response message: {:?}", value);
+                    if let Err(e) = irn_subscription_ack_tx.send(id) {
+                        tracing::debug!("Failed to send subscription ack: {e}");
+                    }
 
-            #[cfg(target_arch = "wasm32")]
-            {
+                    // TODO handle session request responses. Unsure if other responses are needed
+                }
+            }
+        };
+
+        let response_oneshot = tokio::sync::oneshot::channel();
+
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let (mut ws_stream, _response) =
+                crate::time::timeout(REQUEST_TIMEOUT, connect_async(url))
+                    .await
+                    .map_err(|e| RequestError::Internal(e.to_string()))?
+                    .map_err(|e| RequestError::Internal(e.to_string()))?;
+            let sessions = self.sessions.clone();
+
+            crate::spawn::spawn(async move {
                 use {
-                    wasm_bindgen::{prelude::Closure, JsCast},
-                    web_sys::{Event, MessageEvent},
+                    tokio::net::TcpStream,
+                    tokio_tungstenite::{MaybeTlsStream, WebSocketStream},
                 };
 
-                let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
-                let (tx_send, mut rx_send) =
-                    tokio::sync::mpsc::unbounded_channel::<String>();
-                wasm_bindgen_futures::spawn_local(async move {
-                    let ws = web_sys::WebSocket::new(&url)
+                const MIN: u64 = 1000000000; // MessageId::MIN is private
+                let mut message_id = MIN;
+                let mut response_channels =
+                    HashMap::<_, tokio::sync::oneshot::Sender<Response>>::new();
+
+                async fn send_request(
+                    ws_stream: &mut WebSocketStream<MaybeTlsStream<TcpStream>>,
+                    initial_req: (
+                        Params,
+                        tokio::sync::oneshot::Sender<Response>,
+                    ),
+                    message_id: &mut u64,
+                    response_channels: &mut HashMap<
+                        MessageId,
+                        tokio::sync::oneshot::Sender<Response>,
+                    >,
+                ) {
+                    *message_id += 1;
+                    response_channels
+                        .insert(MessageId::new(*message_id), initial_req.1);
+                    let request = Payload::Request(Request::new(
+                        MessageId::new(*message_id),
+                        initial_req.0,
+                    ));
+                    let serialized = serde_json::to_string(&request)
                         .map_err(|e| {
-                            RequestError::Internal(format!(
-                                "Failed to create WebSocket: {e:?}"
+                            RequestError::ShouldNeverHappen(format!(
+                                "Failed to serialize request: {e}"
                             ))
                         })
                         .unwrap();
-                    let (tx_open, mut rx_open) = tokio::sync::mpsc::channel(1);
-                    let tx_open =
-                        std::sync::Arc::new(tokio::sync::Mutex::new(tx_open));
-                    let tx_open_clone = tx_open.clone();
-                    let onopen_closure =
-                        Closure::wrap(Box::new(move |_event: Event| {
-                            let tx_open = tx_open_clone.clone();
-                            crate::spawn::spawn(async move {
-                                let tx = tx_open.lock().await;
-                                tx.send(()).await.unwrap();
-                                // TODO unmount handler once inited once
-                            });
-                        })
-                            as Box<dyn Fn(Event)>);
-                    ws.set_onopen(Some(
-                        Box::leak(Box::new(onopen_closure))
-                            .as_ref()
-                            .unchecked_ref(),
-                    ));
-                    let onmessage_closure =
-                        Closure::wrap(Box::new(move |event: MessageEvent| {
-                            // TODO may not be string messages
-                            let message = event.data().as_string().unwrap();
-                            web_sys::console::log_1(&message.clone().into());
-                            tx.send(message.clone()).unwrap();
-                        })
-                            as Box<dyn Fn(MessageEvent)>);
-                    ws.set_onmessage(Some(
-                        Box::leak(Box::new(onmessage_closure))
-                            .as_ref()
-                            .unchecked_ref(),
-                    ));
-                    web_sys::console::log_1(&"onopen".into());
-                    rx_open.recv().await.unwrap();
-                    ws.set_onopen(None);
-                    web_sys::console::log_1(&"onopen received".into());
+                    ws_stream
+                        .send(Message::Text(serialized.into()))
+                        .await
+                        .unwrap();
+                }
 
-                    const MIN: u64 = 1000000000; // MessageId::MIN is private
-                    let mut message_id = MIN;
-                    let mut response_channels = HashMap::<
-                        _,
-                        tokio::sync::oneshot::Sender<Response>,
-                    >::new();
+                // TODO this will soon be moved to initial WebSocket request
+                send_request(
+                    &mut ws_stream,
+                    (initial_req, response_oneshot.0),
+                    &mut message_id,
+                    &mut response_channels,
+                )
+                .await;
 
-                    loop {
-                        tokio::select! {
-                            Some((params, response_tx)) = request_rx.recv() => {
-                                message_id += 1;
-                                response_channels.insert(MessageId::new(message_id), response_tx);
-                                let request = Payload::Request(Request::new(MessageId::new(message_id), params));
-                                let serialized = serde_json::to_string(&request).map_err(|e| {
-                                    RequestError::ShouldNeverHappen(format!(
-                                        "Failed to serialize request: {e}"
-                                    ))
-                                }).expect("TODO");
-                                ws.send_with_str(&serialized).expect("TODO");
-                            }
-                            Some(message) = rx.recv() => {
-                                let payload = serde_json::from_str::<Payload>(&message).map_err(|e| {
+                loop {
+                    tokio::select! {
+                        Some((params, response_tx)) = request_rx.recv() => {
+                            send_request(&mut ws_stream, (params, response_tx), &mut message_id, &mut response_channels).await;
+                        }
+                        Some(message) = ws_stream.next() => {
+                            let n = message
+                                .map_err(|e| {
                                     RequestError::Internal(format!(
-                                        "Failed to parse payload: {e}"
+                                        "WebSocket stream error: {e}"
                                     ))
-                                });
-                                match payload {
-                                    Ok(payload) => {
-                                        let id = payload.id();
-                                        match payload {
-                                            Payload::Request(request) => {
-                                                match request.params {
-                                                    Params::Subscription(
-                                                        sub_msg
-                                                    ) => {
-                                                        handle_irn_subscription(id, sub_msg);
+                                })
+                                .expect("WebSocket stream error");
+                            #[allow(clippy::single_match)]
+                            match n {
+                                Message::Text(message) => {
+                                    let payload =
+                                        serde_json::from_str::<Payload>(&message)
+                                            .map_err(|e| {
+                                                RequestError::Internal(format!(
+                                                    "Failed to parse payload: {e}"
+                                                ))
+                                            });
+                                    match payload {
+                                        Ok(payload) => {
+                                            let id = payload.id();
+                                            match payload {
+                                                Payload::Request(request) => {
+                                                    #[allow(clippy::single_match)]
+                                                    match request.params {
+                                                        Params::Subscription(
+                                                            sub_msg
+                                                        ) => {
+                                                            handle_irn_subscription(id, sub_msg);
+                                                        }
+                                                        _ => {}
                                                     }
-                                                    _ => tracing::debug!("ignoring incoming relay request: {:?}", request),
+                                                }
+                                                Payload::Response(response) => {
+                                                    if let Some(response_tx) =
+                                                        response_channels
+                                                            .remove(&response.id())
+                                                    {
+                                                        if let Err(e) =
+                                                            response_tx.send(response)
+                                                        {
+                                                            tracing::debug!("Failed to send response: {e:?}");
+                                                        }
+                                                    }
                                                 }
                                             }
-                                            Payload::Response(response) => {
-                                                if let Some(response_tx) = response_channels.remove(&response.id()) {
-                                                    if let Err(e) = response_tx.send(response) {
-                                                        web_sys::console::log_1(&format!("Failed to send response: {e:?}").into());
-                                                    }
+                                        },
+                                        Err(e) => {
+                                            // no-op
+                                        }
+                                    }
+
+                                }
+                                _ => {}
+                            }
+                        }
+                        Some(id) = irn_subscription_ack_rx.recv() => {
+                            let request = Payload::Response(Response::Success(SuccessfulResponse {
+                                id,
+                                result: serde_json::to_value(true).expect("TODO"),
+                                jsonrpc: "2.0".to_string().into(),
+                            }));
+                            let serialized = serde_json::to_string(&request).map_err(|e| {
+                                RequestError::ShouldNeverHappen(format!(
+                                    "Failed to serialize request: {e}"
+                                ))
+                            }).expect("TODO");
+                            ws_stream.send(Message::Text(serialized.into())).await.unwrap();
+                        }
+                    }
+                }
+            });
+        }
+
+        #[cfg(target_arch = "wasm32")]
+        {
+            use {
+                wasm_bindgen::{prelude::Closure, JsCast},
+                web_sys::{CloseEvent, Event, MessageEvent},
+            };
+
+            let (onmessage_tx, mut onmessage_rx) =
+                tokio::sync::mpsc::unbounded_channel();
+            let (tx_send, mut rx_send) =
+                tokio::sync::mpsc::unbounded_channel::<String>();
+
+            wasm_bindgen_futures::spawn_local(async move {
+                let ws = web_sys::WebSocket::new(&url)
+                    .map_err(|e| {
+                        RequestError::Internal(format!(
+                            "Failed to create WebSocket: {e:?}"
+                        ))
+                    })
+                    .unwrap();
+
+                let (on_close_tx, mut on_close_rx) =
+                    tokio::sync::mpsc::unbounded_channel();
+                let on_close_closure =
+                    Closure::wrap(Box::new(move |event: CloseEvent| {
+                        tracing::debug!("websocket onclose: {:?}", event);
+                        on_close_tx.send(event).unwrap();
+                    })
+                        as Box<dyn Fn(CloseEvent)>);
+                ws.set_onclose(Some(
+                    Box::leak(Box::new(on_close_closure))
+                        .as_ref()
+                        .unchecked_ref(),
+                ));
+
+                let (on_error_tx, mut on_error_rx) =
+                    tokio::sync::mpsc::unbounded_channel();
+                let on_error_closure =
+                    Closure::wrap(Box::new(move |event: Event| {
+                        tracing::debug!(
+                            "websocket onerror: {:?} {:?}",
+                            event.as_string(),
+                            event,
+                        );
+                        on_error_tx.send(event).unwrap();
+                    }) as Box<dyn Fn(Event)>);
+                ws.set_onerror(Some(
+                    Box::leak(Box::new(on_error_closure))
+                        .as_ref()
+                        .unchecked_ref(),
+                ));
+
+                let onmessage_closure =
+                    Closure::wrap(Box::new(move |event: MessageEvent| {
+                        // TODO may not be string messages
+                        let message = event.data().as_string().unwrap();
+                        tracing::debug!("websocket onmessage: {:?}", message);
+                        onmessage_tx.send(message.clone()).unwrap();
+                    })
+                        as Box<dyn Fn(MessageEvent)>);
+                ws.set_onmessage(Some(
+                    Box::leak(Box::new(onmessage_closure))
+                        .as_ref()
+                        .unchecked_ref(),
+                ));
+
+                let (tx_open, mut rx_open) = tokio::sync::mpsc::channel(1);
+                let tx_open =
+                    std::sync::Arc::new(tokio::sync::Mutex::new(tx_open));
+                let tx_open_clone = tx_open.clone();
+                let onopen_closure =
+                    Closure::wrap(Box::new(move |_event: Event| {
+                        let tx_open = tx_open_clone.clone();
+                        crate::spawn::spawn(async move {
+                            let tx = tx_open.lock().await;
+                            tx.send(()).await.unwrap();
+                        });
+                    }) as Box<dyn Fn(Event)>);
+                ws.set_onopen(Some(
+                    Box::leak(Box::new(onopen_closure))
+                        .as_ref()
+                        .unchecked_ref(),
+                ));
+
+                tracing::debug!("awaiting onopen");
+
+                crate::time::timeout(REQUEST_TIMEOUT, rx_open.recv())
+                    .await
+                    .unwrap()
+                    .unwrap();
+                ws.set_onopen(None);
+                tracing::debug!("onopen received");
+
+                const MIN: u64 = 1000000000; // MessageId::MIN is private
+                let mut message_id = MIN;
+                let mut response_channels =
+                    HashMap::<_, tokio::sync::oneshot::Sender<Response>>::new();
+
+                let send_request = |ws: &web_sys::WebSocket,
+                                    initial_req: (
+                    Params,
+                    tokio::sync::oneshot::Sender<Response>,
+                ),
+                                    message_id: &mut u64,
+                                    response_channels: &mut HashMap<
+                    MessageId,
+                    tokio::sync::oneshot::Sender<Response>,
+                >| {
+                    *message_id += 1;
+                    response_channels
+                        .insert(MessageId::new(*message_id), initial_req.1);
+                    let request = Payload::Request(Request::new(
+                        MessageId::new(*message_id),
+                        initial_req.0,
+                    ));
+                    let serialized = serde_json::to_string(&request)
+                        .map_err(|e| {
+                            RequestError::ShouldNeverHappen(format!(
+                                "Failed to serialize request: {e}"
+                            ))
+                        })
+                        .expect("TODO");
+                    ws.send_with_str(&serialized).expect("TODO");
+                };
+
+                // TODO this will soon be moved to initial WebSocket request
+                send_request(
+                    &ws,
+                    (initial_req, response_oneshot.0),
+                    &mut message_id,
+                    &mut response_channels,
+                );
+                loop {
+                    tokio::select! {
+                        Some((params, response_tx)) = request_rx.recv() => {
+                            send_request(&ws, (params, response_tx), &mut message_id, &mut response_channels);
+                        }
+                        Some(message) = onmessage_rx.recv() => {
+                            let payload = serde_json::from_str::<Payload>(&message).map_err(|e| {
+                                RequestError::Internal(format!(
+                                    "Failed to parse payload: {e}"
+                                ))
+                            });
+                            match payload {
+                                Ok(payload) => {
+                                    let id = payload.id();
+                                    match payload {
+                                        Payload::Request(request) => {
+                                            match request.params {
+                                                Params::Subscription(
+                                                    sub_msg
+                                                ) => {
+                                                    handle_irn_subscription(id, sub_msg);
+                                                }
+                                                _ => tracing::debug!("ignoring incoming relay request: {:?}", request),
+                                            }
+                                        }
+                                        Payload::Response(response) => {
+                                            if let Some(response_tx) = response_channels.remove(&response.id()) {
+                                                if let Err(e) = response_tx.send(response) {
+                                                    web_sys::console::log_1(&format!("Failed to send response: {e:?}").into());
                                                 }
                                             }
                                         }
                                     }
-                                    Err(e) => {
-                                        // no-op
-                                        // .expect("TODO")
-                                    }
+                                }
+                                Err(e) => {
+                                    // no-op
+                                    // .expect("TODO")
                                 }
                             }
-                            Some(id) = irn_subscription_ack_rx.recv() => {
-                                let request = Payload::Response(Response::Success(
-                                    SuccessfulResponse {
-                                        id,
-                                        result: serde_json::to_value(true)
-                                            .expect("TODO"),
-                                        jsonrpc: "2.0".to_string().into(),
-                                    },
-                                ));
-                                let serialized = serde_json::to_string(&request)
-                                    .map_err(|e| {
-                                        RequestError::ShouldNeverHappen(format!(
-                                            "Failed to serialize request: {e}"
-                                        ))
-                                    })
-                                    .expect("TODO");
-                                ws.send_with_str(&serialized).expect("TODO");
-                            }
+                        }
+                        Some(id) = irn_subscription_ack_rx.recv() => {
+                            let request = Payload::Response(Response::Success(
+                                SuccessfulResponse {
+                                    id,
+                                    result: serde_json::to_value(true)
+                                        .expect("TODO"),
+                                    jsonrpc: "2.0".to_string().into(),
+                                },
+                            ));
+                            let serialized = serde_json::to_string(&request)
+                                .map_err(|e| {
+                                    RequestError::ShouldNeverHappen(format!(
+                                        "Failed to serialize request: {e}"
+                                    ))
+                                })
+                                .expect("TODO");
+                            ws.send_with_str(&serialized).expect("TODO");
+                        }
+                        Some(close_event) = on_close_rx.recv() => {
+                            tracing::debug!("websocket onclose: {:?}", close_event);
+                            return;
+                        }
+                        Some(error_event) = on_error_rx.recv() => {
+                            tracing::debug!("websocket onerror: {:?}", error_event);
+                            return;
                         }
                     }
-                });
-                // WebWebSocketWrapper {}
-            }
+                }
+            });
+        }
 
-            self.websocket.insert(WebSocketState {
+        let response =
+            match crate::time::timeout(REQUEST_TIMEOUT, response_oneshot.1)
+                .await
+            {
+                Ok(Ok(response)) => response,
+                Err(e) => {
+                    tracing::debug!(
+                        "Timeout awaiting initial request response: {e}"
+                    );
+                    return Err(RequestError::Offline);
+                }
+                Ok(Err(e)) => {
+                    tracing::debug!(
+                        "Channel closed awaiting initial request response: {e}"
+                    );
+                    return Err(RequestError::Internal(format!(
+                        "Failed to connect: {e}"
+                    )));
+                }
+            };
+
+        Ok((
+            response,
+            WebSocketState {
                 // stream: ws_stream,
                 // message_id: MIN,
                 // session_request_rx,
                 request_tx,
-            })
-        };
+            },
+        ))
+    }
 
-        let (response_tx, response_rx) = tokio::sync::oneshot::channel();
-        ws_state.request_tx.send((params, response_tx)).unwrap();
-        let response = response_rx.await.unwrap();
+    async fn request<T: DeserializeOwned>(
+        &mut self,
+        params: relay_rpc::rpc::Params,
+    ) -> Result<T, RequestError> {
+        let response = if let Some(ws_state) = self.websocket.as_mut() {
+            // Try to send request to existing connection
+            let (response_tx, response_rx) = tokio::sync::oneshot::channel();
+            let send_result =
+                ws_state.request_tx.send((params.clone(), response_tx));
+            match send_result {
+                Err(e) => {
+                    self.websocket.take();
+                    // If request fails, create new connection
+                    let (response, ws_state) = self.connect(params).await?;
+                    self.websocket.insert(ws_state);
+                    response
+                }
+                Ok(()) => {
+                    let response =
+                        crate::time::timeout(REQUEST_TIMEOUT, response_rx)
+                            .await;
+                    match response {
+                        Ok(Ok(response)) => response,
+                        Err(e) => {
+                            self.websocket.take();
+                            // If request fails, create new connection
+                            let (response, ws_state) =
+                                self.connect(params).await?;
+                            self.websocket.insert(ws_state);
+                            response
+                        }
+                        Ok(Err(e)) => {
+                            self.websocket.take();
+                            // If request fails, create new connection
+                            let (response, ws_state) =
+                                self.connect(params).await?;
+                            self.websocket.insert(ws_state);
+                            response
+                        }
+                    }
+                }
+            }
+        } else {
+            // No existing connection, create new one
+            let (response, ws_state) = self.connect(params).await?;
+            self.websocket.insert(ws_state);
+            response
+        };
 
         match response {
             Response::Success(response) => {
