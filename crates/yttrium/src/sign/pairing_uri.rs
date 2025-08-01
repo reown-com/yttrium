@@ -42,9 +42,6 @@ pub enum Error {
     #[error("Sym key invalid hex")]
     SymKeyInvalidHex,
 
-    #[error("Missing expiry timestamp")]
-    MissingExpiryTimestamp,
-
     #[error("Invalid expiry timestamp")]
     InvalidExpiryTimestamp,
 }
@@ -52,7 +49,7 @@ pub enum Error {
 pub struct PairingUri {
     pub topic: Topic,
     pub sym_key: [u8; 32],
-    pub expiry_timestamp: u64,
+    pub expiry_timestamp: Option<u64>,
 }
 
 pub fn parse(uri: &str) -> Result<PairingUri, Error> {
@@ -96,9 +93,8 @@ pub fn parse(uri: &str) -> Result<PairingUri, Error> {
 
     let expiry_timestamp = query
         .get("expiryTimestamp")
-        .ok_or(Error::MissingExpiryTimestamp)?
-        .parse::<u64>()
-        .map_err(|_| Error::InvalidExpiryTimestamp)?;
+        .map(|s| s.parse::<u64>().map_err(|_| Error::InvalidExpiryTimestamp))
+        .transpose()?;
 
     Ok(PairingUri { topic, sym_key, expiry_timestamp })
 }

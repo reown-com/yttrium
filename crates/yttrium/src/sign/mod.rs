@@ -261,8 +261,6 @@ impl Client {
             .map_err(|e| PairError::Internal(e.to_string()))?;
 
         // TODO consider: immediately throw if expired? - maybe not necessary since FetchMessages returns empty array?
-        // note: no activatePairing
-        // TODO save symkey, if necessary
 
         // TODO update relay method to not remove message & approveSession removes it
 
@@ -285,46 +283,10 @@ impl Client {
                     envelope_type0::deserialize_envelope_type0(&decoded)
                         .map_err(|e| PairError::Internal(e.to_string()))?;
                 let key = ChaCha20Poly1305::new(&pairing_uri.sym_key.into());
-                let mut decrypted = key
+                let decrypted = key
                     .decrypt(&Nonce::from(envelope.iv), envelope.sb.as_slice())
                     .map_err(|e| PairError::Internal(e.to_string()))?;
-                
-                // Parse as JSON value first
-                let mut json_value: serde_json::Value = serde_json::from_slice(&decrypted)
-                    .map_err(|e| {
-                        PairError::Internal(format!(
-                            "Failed to parse decrypted message as JSON: {e}"
-                        ))
-                    })?;
 
-                // Necessary changes to avoid 
-                // "Failed to parse decrypted message: missing field `expiryTimestamp` at line 1 column 2181" and
-                // "Failed to parse decrypted message: missing field `id` at line 1 column 2181"
-                // "Failed to parse decrypted message: missing field `pairingTopic` at line 1 column 2232"
-                
-                // Get the request ID first
-                let request_id = json_value.get("id").and_then(|id| id.as_u64());
-                
-                // Add the expiryTimestamp, id, and pairingTopic fields to the params if they don't exist
-                if let Some(params) = json_value.get_mut("params") {
-                    if !params.get("expiryTimestamp").is_some() {
-                        params["expiryTimestamp"] = serde_json::Value::Number(pairing_uri.expiry_timestamp.into());
-                    }
-                    if !params.get("id").is_some() {
-                        // Use the request ID as the params ID
-                        if let Some(request_id) = request_id {
-                            params["id"] = serde_json::Value::Number(request_id.into());
-                        }
-                    }
-                    if !params.get("pairingTopic").is_some() {
-                        params["pairingTopic"] = serde_json::Value::String(pairing_uri.topic.to_string());
-                    }
-                }
-                
-                // Convert back to bytes for parsing
-                decrypted = serde_json::to_vec(&json_value)
-                    .map_err(|e| PairError::Internal(format!("Failed to serialize modified JSON: {e}")))?;
-                
                 let request =
                     serde_json::from_slice::<ProposalJsonRpc>(&decrypted)
                         .map_err(|e| {
@@ -358,13 +320,13 @@ impl Client {
                             "Failed to convert proposer public key to fixed-size array".to_owned()
                         )
                     })?;
-                tracing::debug!("pairing topic: {}", proposal.pairing_topic);
+                tracing::debug!("pairing topic: {}", pairing_uri.topic);
 
                 // TODO validate namespaces: https://specs.walletconnect.com/2.0/specs/clients/sign/namespaces#12-proposal-namespaces-must-not-have-chains-empty
 
                 return Ok(SessionProposal {
                     session_proposal_rpc_id: request.id,
-                    pairing_topic: proposal.pairing_topic,
+                    pairing_topic: pairing_uri.topic,
                     pairing_sym_key: pairing_uri.sym_key,
                     proposer_public_key,
                     requested_namespaces: proposal
