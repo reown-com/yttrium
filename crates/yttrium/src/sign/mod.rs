@@ -31,7 +31,7 @@ use {
     serde::{de::DeserializeOwned, Deserialize, Serialize},
     std::{
         collections::HashMap,
-        sync::{Arc, RwLock},
+        sync::{atomic::AtomicBool, Arc, RwLock},
         time::Duration,
     },
     tracing::debug,
@@ -54,7 +54,7 @@ mod relay_url;
 mod tests;
 mod utils;
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, thiserror::Error, Clone)]
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Error))]
 #[error("Sign request error: {0}")]
 pub enum RequestError {
@@ -63,6 +63,9 @@ pub enum RequestError {
 
     #[error("Offline")]
     Offline,
+
+    #[error("Invalid auth")]
+    InvalidAuth,
 
     #[error("Should never happen: {0}")]
     ShouldNeverHappen(String),
@@ -126,7 +129,7 @@ struct WebSocketState {
     // message_id: u64,
     request_tx: tokio::sync::mpsc::UnboundedSender<(
         Params,
-        tokio::sync::oneshot::Sender<Response>,
+        tokio::sync::oneshot::Sender<Result<Response, RequestError>>,
     )>,
 }
 
@@ -138,6 +141,7 @@ pub struct Client {
     session_request_tx:
         tokio::sync::mpsc::UnboundedSender<(Topic, SessionRequestJsonRpc)>,
     sessions: Arc<RwLock<HashMap<Topic, ApprovedSession>>>,
+    invalid_auth: Arc<AtomicBool>,
 }
 
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
@@ -149,15 +153,16 @@ const REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
 
 // TODO
 // - WS reconnection & retries
-//   - disconnect if no ping for 30s etc.
-//   - interpret relay disconnect reason
-//   - handle connection/project ID/JWT error
-// - incoming message deduplication (RPC ID/hash)
+//   - disconnect if no ping for 30s etc. (native only)
+//   - reconnect back-off w/ random jitter to prevent server overload
+//   - web online/offline hints
+//   - callbacks for native hints?
 
 // TODO
 // - session pings, update, events, emit
 // - session expiry & renew
 //   - expire implemented simply by filtering out expired sessions in `Client::add_sessions()` ?
+//     - long-lived clients might suffer here. Maybe filter each reconnect?
 
 // TODO error improvement
 // - bundle size optimization: error enums only for actionable errors higher-up
@@ -190,6 +195,12 @@ impl Client {
         Self,
         tokio::sync::mpsc::UnboundedReceiver<(Topic, SessionRequestJsonRpc)>,
     ) {
+        assert_eq!(
+            project_id.value().len(),
+            32,
+            "Project ID must be exactly 32 characters"
+        );
+
         let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
         (
             Self {
@@ -199,6 +210,7 @@ impl Client {
                 websocket: None,
                 session_request_tx: tx,
                 sessions: Arc::new(RwLock::new(HashMap::new())),
+                invalid_auth: Arc::new(AtomicBool::new(false)),
             },
             rx,
         )
@@ -591,6 +603,10 @@ impl Client {
         &mut self,
         initial_req: Params,
     ) -> Result<(Response, WebSocketState), RequestError> {
+        if self.invalid_auth.load(std::sync::atomic::Ordering::Relaxed) {
+            return Err(RequestError::InvalidAuth);
+        }
+
         let key = self
             .key
             .as_ref()
@@ -751,6 +767,7 @@ impl Client {
                     .map_err(|e| RequestError::Internal(e.to_string()))?;
             let sessions = self.sessions.clone();
 
+            let invalid_auth = self.invalid_auth.clone();
             crate::spawn::spawn(async move {
                 use {
                     tokio::net::TcpStream,
@@ -759,19 +776,27 @@ impl Client {
 
                 const MIN: u64 = 1000000000; // MessageId::MIN is private
                 let mut message_id = MIN;
-                let mut response_channels =
-                    HashMap::<_, tokio::sync::oneshot::Sender<Response>>::new();
+                let mut response_channels = HashMap::<
+                    _,
+                    tokio::sync::oneshot::Sender<
+                        Result<Response, RequestError>,
+                    >,
+                >::new();
 
                 async fn send_request(
                     ws_stream: &mut WebSocketStream<MaybeTlsStream<TcpStream>>,
                     initial_req: (
                         Params,
-                        tokio::sync::oneshot::Sender<Response>,
+                        tokio::sync::oneshot::Sender<
+                            Result<Response, RequestError>,
+                        >,
                     ),
                     message_id: &mut u64,
                     response_channels: &mut HashMap<
                         MessageId,
-                        tokio::sync::oneshot::Sender<Response>,
+                        tokio::sync::oneshot::Sender<
+                            Result<Response, RequestError>,
+                        >,
                     >,
                 ) {
                     *message_id += 1;
@@ -803,7 +828,9 @@ impl Client {
                 )
                 .await;
 
-                loop {
+                let exit_reason = loop {
+                    use tokio_tungstenite::tungstenite::protocol::frame::coding::CloseCode;
+
                     tokio::select! {
                         Some((params, response_tx)) = request_rx.recv() => {
                             send_request(&mut ws_stream, (params, response_tx), &mut message_id, &mut response_channels).await;
@@ -847,7 +874,7 @@ impl Client {
                                                             .remove(&response.id())
                                                     {
                                                         if let Err(e) =
-                                                            response_tx.send(response)
+                                                            response_tx.send(Ok(response))
                                                         {
                                                             tracing::debug!("Failed to send response: {e:?}");
                                                         }
@@ -859,9 +886,22 @@ impl Client {
                                             // no-op
                                         }
                                     }
-
                                 }
-                                _ => {}
+                                Message::Close(close_event) => {
+                                    tracing::debug!("websocket onclose: {:?}", close_event);
+                                    if let Some(close_event) = close_event {
+                                        if close_event.code == CloseCode::Iana(3000) {
+                                            tracing::error!("Invalid auth: {}", close_event.reason);
+                                            invalid_auth.store(true, std::sync::atomic::Ordering::Relaxed);
+                                            break RequestError::InvalidAuth;
+                                        } else {
+                                            break RequestError::Offline;
+                                        }
+                                    } else {
+                                        break RequestError::Offline;
+                                    }
+                                }
+                                e => tracing::debug!("ignoring tungstenite message: {:?}", e),
                             }
                         }
                         Some(id) = irn_subscription_ack_rx.recv() => {
@@ -878,6 +918,10 @@ impl Client {
                             ws_stream.send(Message::Text(serialized.into())).await.unwrap();
                         }
                     }
+                };
+
+                for (_, response_tx) in response_channels {
+                    let _ = response_tx.send(Err(exit_reason.clone()));
                 }
             });
         }
@@ -894,7 +938,9 @@ impl Client {
             let (tx_send, mut rx_send) =
                 tokio::sync::mpsc::unbounded_channel::<String>();
 
+            let invalid_auth = self.invalid_auth.clone();
             wasm_bindgen_futures::spawn_local(async move {
+                // TODO wrap in function to handle unwraps. Have 1 handler for all exit reasons (setup or loop break)                // global
                 let ws = web_sys::WebSocket::new(&url)
                     .map_err(|e| {
                         RequestError::Internal(format!(
@@ -977,18 +1023,26 @@ impl Client {
 
                 const MIN: u64 = 1000000000; // MessageId::MIN is private
                 let mut message_id = MIN;
-                let mut response_channels =
-                    HashMap::<_, tokio::sync::oneshot::Sender<Response>>::new();
+                let mut response_channels = HashMap::<
+                    _,
+                    tokio::sync::oneshot::Sender<
+                        Result<Response, RequestError>,
+                    >,
+                >::new();
 
                 let send_request = |ws: &web_sys::WebSocket,
                                     initial_req: (
                     Params,
-                    tokio::sync::oneshot::Sender<Response>,
+                    tokio::sync::oneshot::Sender<
+                        Result<Response, RequestError>,
+                    >,
                 ),
                                     message_id: &mut u64,
                                     response_channels: &mut HashMap<
                     MessageId,
-                    tokio::sync::oneshot::Sender<Response>,
+                    tokio::sync::oneshot::Sender<
+                        Result<Response, RequestError>,
+                    >,
                 >| {
                     *message_id += 1;
                     response_channels
@@ -1014,7 +1068,7 @@ impl Client {
                     &mut message_id,
                     &mut response_channels,
                 );
-                loop {
+                let exit_reason = loop {
                     tokio::select! {
                         Some((params, response_tx)) = request_rx.recv() => {
                             send_request(&ws, (params, response_tx), &mut message_id, &mut response_channels);
@@ -1041,8 +1095,8 @@ impl Client {
                                         }
                                         Payload::Response(response) => {
                                             if let Some(response_tx) = response_channels.remove(&response.id()) {
-                                                if let Err(e) = response_tx.send(response) {
-                                                    web_sys::console::log_1(&format!("Failed to send response: {e:?}").into());
+                                                if let Err(e) = response_tx.send(Ok(response)) {
+                                                    tracing::debug!("Failed to send response: {e:?}");
                                                 }
                                             }
                                         }
@@ -1074,13 +1128,23 @@ impl Client {
                         }
                         Some(close_event) = on_close_rx.recv() => {
                             tracing::debug!("websocket onclose: {:?}", close_event);
-                            return;
+                            if close_event.code() == 3000 {
+                                tracing::error!("Invalid auth: {}", close_event.reason());
+                                invalid_auth.store(true, std::sync::atomic::Ordering::Relaxed);
+                                break RequestError::InvalidAuth;
+                            } else {
+                                break RequestError::Offline;
+                            }
                         }
                         Some(error_event) = on_error_rx.recv() => {
                             tracing::debug!("websocket onerror: {:?}", error_event);
-                            return;
+                            break RequestError::Offline;
                         }
                     }
+                };
+
+                for (_, response_tx) in response_channels {
+                    let _ = response_tx.send(Err(exit_reason.clone()));
                 }
             });
         }
@@ -1089,7 +1153,7 @@ impl Client {
             match crate::time::timeout(REQUEST_TIMEOUT, response_oneshot.1)
                 .await
             {
-                Ok(Ok(response)) => response,
+                Ok(Ok(Ok(response))) => response,
                 Err(e) => {
                     tracing::debug!(
                         "Timeout awaiting initial request response: {e}"
@@ -1100,6 +1164,12 @@ impl Client {
                     tracing::debug!(
                         "Channel closed awaiting initial request response: {e}"
                     );
+                    return Err(RequestError::Internal(format!(
+                        "Failed to connect: {e}"
+                    )));
+                }
+                Ok(Ok(Err(e))) => {
+                    tracing::debug!("Request error in connect: {e}");
                     return Err(RequestError::Internal(format!(
                         "Failed to connect: {e}"
                     )));
@@ -1139,7 +1209,7 @@ impl Client {
                         crate::time::timeout(REQUEST_TIMEOUT, response_rx)
                             .await;
                     match response {
-                        Ok(Ok(response)) => response,
+                        Ok(Ok(Ok(response))) => response,
                         Err(e) => {
                             self.websocket.take();
                             // If request fails, create new connection
@@ -1149,6 +1219,14 @@ impl Client {
                             response
                         }
                         Ok(Err(e)) => {
+                            self.websocket.take();
+                            // If request fails, create new connection
+                            let (response, ws_state) =
+                                self.connect(params).await?;
+                            self.websocket.insert(ws_state);
+                            response
+                        }
+                        Ok(Ok(Err(e))) => {
                             self.websocket.take();
                             // If request fails, create new connection
                             let (response, ws_state) =
