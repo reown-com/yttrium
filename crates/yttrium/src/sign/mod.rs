@@ -1018,6 +1018,7 @@ impl SignClient {
         Self { client: std::sync::Arc::new(tokio::sync::Mutex::new(client.0)) }
     }
 
+    // set_key should be called on walletkit side on init() so it can store clientId before using pair and approve
     pub fn set_key(&self, key: Vec<u8>) {
         let mut client =
             self.client.try_lock().expect("Failed to acquire lock");
