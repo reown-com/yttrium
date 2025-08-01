@@ -5,7 +5,10 @@ pub mod sui;
 pub mod stacks;
 
 #[cfg(feature = "chain_abstraction_client")]
-use crate::chain_abstraction::{amount::Amount, api::prepare::FundingMetadata};
+use crate::chain_abstraction::{
+    amount::Amount,
+    api::prepare::{Eip155OrSolanaAddress, FundingMetadata},
+};
 #[cfg(feature = "solana")]
 use {
     crate::chain_abstraction::solana::{
@@ -21,7 +24,6 @@ use {
 };
 use {
     crate::{
-        chain_abstraction::api::prepare::Eip155OrSolanaAddress,
         smart_accounts::account_address::AccountAddress,
         wallet_service_api::{
             AddressOrNative, Asset, AssetData, Erc20Metadata, Erc721Metadata,
@@ -289,6 +291,7 @@ pub struct FfiAuthorization {
     pub nonce: u64,
 }
 
+#[cfg(feature = "chain_abstraction_client")]
 uniffi::custom_type!(Eip155OrSolanaAddress, String, {
     remote,
     try_lift: |val| Ok(val.parse()?),

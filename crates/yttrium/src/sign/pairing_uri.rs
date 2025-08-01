@@ -49,6 +49,7 @@ pub enum Error {
 pub struct PairingUri {
     pub topic: Topic,
     pub sym_key: [u8; 32],
+    #[allow(unused)]
     pub expiry_timestamp: Option<u64>,
 }
 
@@ -116,7 +117,7 @@ mod tests {
             &hex::decode("d69745274f07e8619671a527943b38a11dce540be5c0965f04cdece9912bdfd5")
                 .unwrap()[..]
         );
-        assert_eq!(result.expiry_timestamp, 1752843899);
+        assert_eq!(result.expiry_timestamp, Some(1752843899));
     }
 
     #[test]

@@ -325,7 +325,7 @@ impl Client {
                 // TODO validate namespaces: https://specs.walletconnect.com/2.0/specs/clients/sign/namespaces#12-proposal-namespaces-must-not-have-chains-empty
 
                 return Ok(SessionProposal {
-                    session_proposal_rpc_id: request.id,
+                    session_proposal_rpc_id: request.id.into_value(),
                     pairing_topic: pairing_uri.topic,
                     pairing_sym_key: pairing_uri.sym_key,
                     proposer_public_key,
@@ -814,7 +814,7 @@ impl Client {
                                                             Params::Subscription(
                                                                 sub_msg
                                                             ) => {
-                                                                handle_irn_subscription(sub_msg);
+                                                                handle_irn_subscription(id, sub_msg);
                                                             }
                                                             _ => {}
                                                         }

@@ -1,10 +1,11 @@
+#[cfg(feature = "chain_abstraction_client")]
+use crate::chain_abstraction::{
+    pulse::{PulseMetadata, PULSE_SDK_TYPE},
+    send_transaction::RpcRequestAnalytics,
+};
 use {
     crate::{
         blockchain_api::{PROXY_ENDPOINT_PATH, WALLET_ENDPOINT_PATH},
-        chain_abstraction::{
-            pulse::{PulseMetadata, PULSE_SDK_TYPE},
-            send_transaction::RpcRequestAnalytics,
-        },
         wallet_provider::WalletProvider,
     },
     alloy::{
@@ -35,6 +36,7 @@ pub struct ProviderPool {
     pub project_id: ProjectId,
     pub rpc_overrides: HashMap<String, Url>,
     pub session_id: Uuid,
+    #[cfg(feature = "chain_abstraction_client")]
     pub pulse_metadata: PulseMetadata,
     #[cfg(feature = "sui")]
     pub sui_clients: std::sync::Arc<
@@ -46,6 +48,7 @@ impl ProviderPool {
     pub fn new(
         project_id: ProjectId,
         client: ReqwestClient,
+        #[cfg(feature = "chain_abstraction_client")]
         pulse_metadata: PulseMetadata,
         blockchain_api_base_url: Url,
     ) -> Self {
@@ -60,6 +63,7 @@ impl ProviderPool {
             project_id,
             rpc_overrides: HashMap::new(),
             session_id,
+            #[cfg(feature = "chain_abstraction_client")]
             pulse_metadata,
             #[cfg(feature = "sui")]
             sui_clients: std::sync::Arc::new(tokio::sync::RwLock::new(

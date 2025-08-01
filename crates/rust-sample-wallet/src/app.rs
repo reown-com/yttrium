@@ -330,7 +330,6 @@ pub fn App() -> impl IntoView {
             })}
         </Flex>
         {move || pairing_request.get().map(|request| {
-            let request = request.clone();
             view! {
                 <Dialog open=pairing_request_open>
                     <DialogSurface>

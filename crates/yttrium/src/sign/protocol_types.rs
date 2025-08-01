@@ -1,5 +1,5 @@
 use {
-    relay_rpc::domain::Topic,
+    relay_rpc::domain::MessageId,
     serde::{Deserialize, Serialize},
     std::collections::HashMap,
 };
@@ -7,7 +7,8 @@ use {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProposalJsonRpc {
-    pub id: u64,
+    // deserialize number from string (Flutter support)
+    pub id: MessageId,
     pub method: String,
     pub params: Proposal,
 }

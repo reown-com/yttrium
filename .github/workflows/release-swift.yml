@@ -66,10 +66,12 @@ jobs:
           sed -i '' "s/^  s\.version *= *.*/  s.version      = '${VERSION}'/g" YttriumWrapper.podspec
 
           # Construct the download URL
-          DOWNLOAD_URL="https://github.com/reown-com/yttrium/releases/download/${VERSION}/libuniffi_yttrium.xcframework.zip"
+          DOWNLOAD_URL="https://github.com/reown-com/yttrium/releases/download/${VERSION}/libyttrium.xcframework.zip"
 
-          # Replace the download URL in prepare_command
-          sed -i '' "s|curl -L -o libuniffi_yttrium.xcframework.zip '.*'|curl -L -o libuniffi_yttrium.xcframework.zip '${DOWNLOAD_URL}'|g" YttriumWrapper.podspec
+          # Replace all libuniffi_yttrium references with libyttrium
+          sed -i '' "s|libuniffi_yttrium|libyttrium|g" YttriumWrapper.podspec
+          # Update the download URL to the correct version
+          sed -i '' "s|https://github.com/reown-com/yttrium/releases/download/[^']*|${DOWNLOAD_URL}|g" YttriumWrapper.podspec
 
       # 8. Commit and Push Package.swift and Podspec
       - name: Commit and Push Package.swift and Podspec
@@ -124,8 +126,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./Output/libuniffi_yttrium.xcframework.zip
-          asset_name: libuniffi_yttrium.xcframework.zip
+          asset_path: ./Output/libyttrium.xcframework.zip
+          asset_name: libyttrium.xcframework.zip
           asset_content_type: application/zip
 
       # 12. Publish to CocoaPods Trunk
