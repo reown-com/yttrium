@@ -136,7 +136,7 @@ async fn happy_path_impl(
 
         let signature = eoa.sign_hash_sync(&prepared_send.hash).unwrap();
         let receipt = client.send(signature, prepared_send.send_params).await;
-        println!("receipt: {:?}", receipt);
+        println!("receipt: {receipt:?}");
     }
 
     // Second eth_sendTransaction
@@ -168,7 +168,7 @@ async fn happy_path_impl(
 
         let signature = eoa.sign_hash_sync(&prepared_send.hash).unwrap();
         let receipt = client.send(signature, prepared_send.send_params).await;
-        println!("receipt: {:?}", receipt);
+        println!("receipt: {receipt:?}");
     }
 
     // Third eth_sendTransaction (2 calls)
@@ -206,7 +206,7 @@ async fn happy_path_impl(
 
         let signature = eoa.sign_hash_sync(&prepared_send.hash).unwrap();
         let receipt = client.send(signature, prepared_send.send_params).await;
-        println!("receipt: {:?}", receipt);
+        println!("receipt: {receipt:?}");
     }
 
     println!("success");

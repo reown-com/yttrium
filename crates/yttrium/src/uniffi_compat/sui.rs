@@ -255,7 +255,7 @@ impl SuiClient {
         let client = match client {
             Ok(client) => client,
             Err(e) => {
-                panic!("Failed to create reqwest client: {} ... {:?}", e, e)
+                panic!("Failed to create reqwest client: {e} ... {e:?}")
             }
         };
         Self {
@@ -543,8 +543,8 @@ mod tests {
         let address = sui_get_address(&sui_get_public_key(&keypair));
         let tx_sender = "0xa8669cc84f367f730ea5dbdb90955ba6d461372094e3cff80b7f267c8eb81a59";
 
-        println!("Keypair generates address: {}", address);
-        println!("Transaction sender:        {}", tx_sender);
+        println!("Keypair generates address: {address}");
+        println!("Transaction sender:        {tx_sender}");
         println!("Match: {}", address.to_string() == tx_sender);
 
         if address.to_string() != tx_sender {

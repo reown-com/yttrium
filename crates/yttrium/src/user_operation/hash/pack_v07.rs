@@ -53,7 +53,7 @@ mod tests {
         let packed_user_operation_hex = hex::encode(&packed_user_operation);
 
         assert_eq!(
-            format!("0x{}", packed_user_operation_hex),
+            format!("0x{packed_user_operation_hex}"),
             expected_packed_user_operation_hex,
         );
     }

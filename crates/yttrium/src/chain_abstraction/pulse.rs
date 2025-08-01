@@ -77,7 +77,7 @@ pub fn pulse(
     };
 
     #[cfg(not(test))]
-    super::spawn::spawn(fut);
+    crate::spawn::spawn(fut);
 
     #[cfg(test)]
     std::thread::spawn(move || {

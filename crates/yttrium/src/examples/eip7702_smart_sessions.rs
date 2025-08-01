@@ -103,7 +103,7 @@ async fn test_impl(
     paymaster_url: Url,
 ) {
     let chain_id = provider.get_chain_id().await.unwrap();
-    println!("chain_id: {:?}", chain_id);
+    println!("chain_id: {chain_id:?}");
 
     let account = LocalSigner::random();
     let safe_owner = LocalSigner::random();
@@ -213,7 +213,7 @@ async fn test_impl(
                 Address::ZERO,
             )
             .map(|mut t| {
-                println!("t: {:?}", t);
+                println!("t: {t:?}");
                 println!("t.chain_id: {:?}", t.chain_id);
                 let mut buf = Vec::new();
                 auth.encode(&mut buf);
@@ -235,7 +235,7 @@ async fn test_impl(
         .get_receipt()
         .await
         .unwrap();
-    println!("receipt: {:?}", receipt);
+    println!("receipt: {receipt:?}");
     assert!(receipt.status());
 
     let nonce = get_nonce_with_key(
@@ -329,18 +329,18 @@ async fn test_impl(
         ..user_op
     };
 
-    println!("User operation: {:?}", user_op);
+    println!("User operation: {user_op:?}");
     let user_op_hash = bundler_client
         .send_user_operation(ENTRYPOINT_ADDRESS_V07.into(), user_op.clone())
         .await
         .unwrap();
-    println!("User operation hash: {:?}", user_op_hash);
+    println!("User operation hash: {user_op_hash:?}");
     assert_eq!(Bytes::from(user_op_hash_to_sign.0), user_op_hash);
 
     let receipt = bundler_client
         .wait_for_user_operation_receipt(user_op_hash)
         .await
         .unwrap();
-    println!("User operation receipt: {:?}", receipt);
+    println!("User operation receipt: {receipt:?}");
     assert!(receipt.success);
 }

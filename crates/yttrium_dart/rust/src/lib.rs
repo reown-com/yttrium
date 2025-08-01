@@ -262,7 +262,7 @@ mod tests {
         let num = 1234567890;
 
         // Convert number to hex string
-        let num_hex = format!("0x{:x}", num);
+        let num_hex = format!("0x{num:x}");
         assert_eq!(num_hex, "0x499602d2");
     }
 
@@ -271,7 +271,7 @@ mod tests {
         let num = 1234567890;
 
         // Convert number to hex string
-        let num_hex = format!("0x{:x}", num);
+        let num_hex = format!("0x{num:x}");
         assert_eq!(num_hex, "0x499602d2");
     }
 
@@ -280,7 +280,7 @@ mod tests {
         let num = 1234567890;
 
         // Convert U256 to hex string
-        let num_hex = format!("0x{:x}", num);
+        let num_hex = format!("0x{num:x}");
         assert_eq!(num_hex, "0x499602d2");
     }
 
