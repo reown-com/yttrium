@@ -75,7 +75,7 @@ uniffi::custom_type!(SolanaKeypair, String, {
     try_lift: |val| {
         let mut buf = [0u8; relay_rpc::auth::ed25519_dalek::KEYPAIR_LENGTH];
         bs58::decode(val).onto(&mut buf)?;
-        SolanaKeypair::from_bytes(&buf).map_err(Into::into)
+        SolanaKeypair::try_from(buf.as_ref()).map_err(Into::into)
     },
     lower: |obj| obj.to_base58_string(),
 });

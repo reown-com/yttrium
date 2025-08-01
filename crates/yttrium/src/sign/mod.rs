@@ -285,9 +285,46 @@ impl Client {
                     envelope_type0::deserialize_envelope_type0(&decoded)
                         .map_err(|e| PairError::Internal(e.to_string()))?;
                 let key = ChaCha20Poly1305::new(&pairing_uri.sym_key.into());
-                let decrypted = key
+                let mut decrypted = key
                     .decrypt(&Nonce::from(envelope.iv), envelope.sb.as_slice())
                     .map_err(|e| PairError::Internal(e.to_string()))?;
+                
+                // Parse as JSON value first
+                let mut json_value: serde_json::Value = serde_json::from_slice(&decrypted)
+                    .map_err(|e| {
+                        PairError::Internal(format!(
+                            "Failed to parse decrypted message as JSON: {e}"
+                        ))
+                    })?;
+
+                // Necessary changes to avoid 
+                // "Failed to parse decrypted message: missing field `expiryTimestamp` at line 1 column 2181" and
+                // "Failed to parse decrypted message: missing field `id` at line 1 column 2181"
+                // "Failed to parse decrypted message: missing field `pairingTopic` at line 1 column 2232"
+                
+                // Get the request ID first
+                let request_id = json_value.get("id").and_then(|id| id.as_u64());
+                
+                // Add the expiryTimestamp, id, and pairingTopic fields to the params if they don't exist
+                if let Some(params) = json_value.get_mut("params") {
+                    if !params.get("expiryTimestamp").is_some() {
+                        params["expiryTimestamp"] = serde_json::Value::Number(pairing_uri.expiry_timestamp.into());
+                    }
+                    if !params.get("id").is_some() {
+                        // Use the request ID as the params ID
+                        if let Some(request_id) = request_id {
+                            params["id"] = serde_json::Value::Number(request_id.into());
+                        }
+                    }
+                    if !params.get("pairingTopic").is_some() {
+                        params["pairingTopic"] = serde_json::Value::String(pairing_uri.topic.to_string());
+                    }
+                }
+                
+                // Convert back to bytes for parsing
+                decrypted = serde_json::to_vec(&json_value)
+                    .map_err(|e| PairError::Internal(format!("Failed to serialize modified JSON: {e}")))?;
+                
                 let request =
                     serde_json::from_slice::<ProposalJsonRpc>(&decrypted)
                         .map_err(|e| {
@@ -979,6 +1016,19 @@ impl SignClient {
     pub fn new(project_id: String) -> Self {
         let client = Client::new(ProjectId::from(project_id));
         Self { client: std::sync::Arc::new(tokio::sync::Mutex::new(client.0)) }
+    }
+
+    // set_key should be called on walletkit side on init() so it can store clientId before using pair and approve
+    pub fn set_key(&self, key: Vec<u8>) {
+        let mut client =
+            self.client.try_lock().expect("Failed to acquire lock");
+        let secret_key =
+            key.try_into().expect("Invalid key format - must be 32 bytes");
+        client.set_key(secret_key);
+    }
+
+    pub fn generate_key(&self) -> Vec<u8> {
+        generate_key().to_vec()
     }
 
     pub async fn pair(

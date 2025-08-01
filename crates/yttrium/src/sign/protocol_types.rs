@@ -19,9 +19,6 @@ pub struct Proposal {
     pub optional_namespaces: ProposalNamespaces,
     pub relays: Vec<Relay>,
     pub proposer: Proposer,
-    pub expiry_timestamp: u64,
-    pub id: u64,
-    pub pairing_topic: Topic,
 }
 
 pub type ProposalNamespaces = HashMap<String, ProposalNamespace>;
