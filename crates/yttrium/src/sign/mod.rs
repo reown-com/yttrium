@@ -305,7 +305,7 @@ impl Client {
                     envelope_type0::deserialize_envelope_type0(&decoded)
                         .map_err(|e| PairError::Internal(e.to_string()))?;
                 let key = ChaCha20Poly1305::new(&pairing_uri.sym_key.into());
-                let mut decrypted = key
+                let decrypted = key
                     .decrypt(&Nonce::from(envelope.iv), envelope.sb.as_slice())
                     .map_err(|e| PairError::Internal(e.to_string()))?;
 
