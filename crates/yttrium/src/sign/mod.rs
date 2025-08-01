@@ -1245,6 +1245,22 @@ impl Client {
                             self.websocket.insert(ws_state);
                             response
                         }
+                        Ok(Ok(Err(e))) => {
+                            self.websocket.take();
+                            // If request fails, create new connection
+                            let (response, ws_state) =
+                                self.connect_ws(params).await?;
+                            self.websocket.insert(ws_state);
+                            response
+                        }
+                        Ok(Ok(Err(e))) => {
+                            self.websocket.take();
+                            // If request fails, create new connection
+                            let (response, ws_state) =
+                                self.connect_ws(params).await?;
+                            self.websocket.insert(ws_state);
+                            response
+                        }
                     }
                 }
             }
