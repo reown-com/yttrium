@@ -17,14 +17,14 @@ use {
             Metadata, SessionRequestJsonRpc, SessionRequestResponseJsonRpc,
             SettleNamespace,
         },
-        ApprovedSession, Client, SecretKey, SessionProposal, Topic,
+        Session, Client, SecretKey, SessionProposal, Topic,
     },
 };
 
 #[derive(Serialize, Deserialize, Clone, PartialEq)]
 struct MyState {
     key: SecretKey,
-    sessions: Vec<ApprovedSession>,
+    sessions: Vec<Session>,
 }
 
 // TODO disconnect support
@@ -169,7 +169,6 @@ pub fn App() -> impl IntoView {
                 match client
                     .respond(
                         request.0,
-                        request.1.id,
                         SessionRequestResponseJsonRpc {
                             id: request.1.id,
                             jsonrpc: "2.0".to_string(),

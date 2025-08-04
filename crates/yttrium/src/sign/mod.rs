@@ -140,7 +140,7 @@ pub struct Client {
     websocket: Option<WebSocketState>,
     session_request_tx:
         tokio::sync::mpsc::UnboundedSender<(Topic, SessionRequestJsonRpc)>,
-    sessions: Arc<RwLock<HashMap<Topic, ApprovedSession>>>,
+    sessions: Arc<RwLock<HashMap<Topic, Session>>>,
     invalid_auth: Arc<AtomicBool>,
 }
 
@@ -222,7 +222,7 @@ impl Client {
 
     pub fn add_sessions(
         &self,
-        sessions: impl IntoIterator<Item = ApprovedSession>,
+        sessions: impl IntoIterator<Item = Session>,
     ) {
         let mut guard = self.sessions.write().unwrap();
         for session in sessions {
@@ -230,7 +230,7 @@ impl Client {
         }
     }
 
-    pub fn get_sessions(&self) -> Vec<ApprovedSession> {
+    pub fn get_sessions(&self) -> Vec<Session> {
         let guard = self.sessions.read().unwrap();
         guard.values().cloned().collect()
     }
@@ -365,10 +365,10 @@ impl Client {
 
     pub async fn approve(
         &mut self,
-        pairing: SessionProposal,
+        proposal: SessionProposal,
         namespaces: HashMap<String, SettleNamespace>,
         metadata: Metadata,
-    ) -> Result<ApprovedSession, ApproveError> {
+    ) -> Result<Session, ApproveError> {
         // TODO implement
         // https://github.com/WalletConnect/walletconnect-monorepo/blob/5bef698dcf0ae910548481959a6a5d87eaf7aaa5/packages/sign-client/src/controllers/engine.ts#L341
 
@@ -377,13 +377,13 @@ impl Client {
         let self_key = x25519_dalek::StaticSecret::random();
         let self_public_key = PublicKey::from(&self_key);
         let shared_secret =
-            diffie_hellman(&pairing.proposer_public_key.into(), &self_key);
+            diffie_hellman(&proposal.proposer_public_key.into(), &self_key);
         let session_topic = topic_from_sym_key(&shared_secret);
         debug!("session topic: {}", session_topic);
 
         let session_proposal_response = {
             let serialized = serde_json::to_string(&ProposalResponseJsonRpc {
-                id: pairing.session_proposal_rpc_id,
+                id: proposal.session_proposal_rpc_id,
                 jsonrpc: "2.0".to_string(),
                 result: ProposalResponse {
                     relay: Relay { protocol: "irn".to_string() },
@@ -394,7 +394,7 @@ impl Client {
             })
             .map_err(|e| ApproveError::Internal(e.to_string()))?;
 
-            let key = ChaCha20Poly1305::new(&pairing.pairing_sym_key.into());
+            let key = ChaCha20Poly1305::new(&proposal.pairing_sym_key.into());
             let nonce = ChaCha20Poly1305::generate_nonce()
                 .map_err(|e| ApproveError::Internal(e.to_string()))?;
             let encrypted = key
@@ -447,7 +447,7 @@ impl Client {
         };
 
         let approve_session = ApproveSession {
-            pairing_topic: pairing.pairing_topic,
+            pairing_topic: proposal.pairing_topic,
             session_topic: session_topic.clone(),
             session_proposal_response,
             session_settlement_request,
@@ -480,7 +480,7 @@ impl Client {
             }
         }
 
-        let session = ApprovedSession { session_sym_key: shared_secret };
+        let session = Session { session_sym_key: shared_secret };
         {
             let mut sessions = self.sessions.write().unwrap();
             sessions.insert(session_topic, session.clone());
@@ -518,7 +518,6 @@ impl Client {
     pub async fn respond(
         &mut self,
         topic: Topic,
-        id: u64,
         response: SessionRequestResponseJsonRpc,
     ) -> Result<(), RespondError> {
         // TODO implement
@@ -599,7 +598,7 @@ impl Client {
         unimplemented!()
     }
 
-    async fn connect(
+    async fn connect_ws(
         &mut self,
         initial_req: Params,
     ) -> Result<(Response, WebSocketState), RequestError> {
@@ -1200,7 +1199,7 @@ impl Client {
                 Err(e) => {
                     self.websocket.take();
                     // If request fails, create new connection
-                    let (response, ws_state) = self.connect(params).await?;
+                    let (response, ws_state) = self.connect_ws(params).await?;
                     self.websocket.insert(ws_state);
                     response
                 }
@@ -1214,7 +1213,7 @@ impl Client {
                             self.websocket.take();
                             // If request fails, create new connection
                             let (response, ws_state) =
-                                self.connect(params).await?;
+                                self.connect_ws(params).await?;
                             self.websocket.insert(ws_state);
                             response
                         }
@@ -1222,7 +1221,7 @@ impl Client {
                             self.websocket.take();
                             // If request fails, create new connection
                             let (response, ws_state) =
-                                self.connect(params).await?;
+                                self.connect_ws(params).await?;
                             self.websocket.insert(ws_state);
                             response
                         }
@@ -1230,7 +1229,7 @@ impl Client {
                             self.websocket.take();
                             // If request fails, create new connection
                             let (response, ws_state) =
-                                self.connect(params).await?;
+                                self.connect_ws(params).await?;
                             self.websocket.insert(ws_state);
                             response
                         }
@@ -1239,7 +1238,7 @@ impl Client {
             }
         } else {
             // No existing connection, create new one
-            let (response, ws_state) = self.connect(params).await?;
+            let (response, ws_state) = self.connect_ws(params).await?;
             self.websocket.insert(ws_state);
             response
         };
@@ -1307,7 +1306,7 @@ impl SignClient {
     pub async fn approve(
         &self,
         pairing: SessionProposalFfi,
-    ) -> Result<ApprovedSessionFfi, ApproveError> {
+    ) -> Result<SessionFfi, ApproveError> {
         let proposal: SessionProposal = pairing.into();
 
         let mut namespaces = HashMap::new();
@@ -1427,26 +1426,26 @@ impl From<SessionProposalFfi> for SessionProposal {
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
-pub struct ApprovedSession {
+pub struct Session {
     pub session_sym_key: [u8; 32],
 }
 
 #[cfg(feature = "uniffi")]
 #[derive(uniffi_macros::Record)]
-pub struct ApprovedSessionFfi {
+pub struct SessionFfi {
     pub session_sym_key: Vec<u8>,
 }
 
 #[cfg(feature = "uniffi")]
-impl From<ApprovedSession> for ApprovedSessionFfi {
-    fn from(session: ApprovedSession) -> Self {
+impl From<Session> for SessionFfi {
+    fn from(session: Session) -> Self {
         Self { session_sym_key: session.session_sym_key.to_vec() }
     }
 }
 
 #[cfg(feature = "uniffi")]
-impl From<ApprovedSessionFfi> for ApprovedSession {
-    fn from(session: ApprovedSessionFfi) -> Self {
+impl From<SessionFfi> for Session {
+    fn from(session: SessionFfi) -> Self {
         Self { session_sym_key: session.session_sym_key.try_into().unwrap() }
     }
 }
