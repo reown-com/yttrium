@@ -1277,9 +1277,8 @@ impl SignClient {
     }
 
     // set_key should be called on walletkit side on init() so it can store clientId before using pair and approve
-    pub fn set_key(&self, key: Vec<u8>) {
-        let mut client =
-            self.client.try_lock().expect("Failed to acquire lock");
+    pub async fn set_key(&self, key: Vec<u8>) {
+        let mut client = self.client.lock().await;
         let secret_key =
             key.try_into().expect("Invalid key format - must be 32 bytes");
         client.set_key(secret_key);
