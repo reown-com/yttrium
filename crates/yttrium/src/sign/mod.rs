@@ -220,10 +220,7 @@ impl Client {
         self.key = Some(SigningKey::from_bytes(&key));
     }
 
-    pub fn add_sessions(
-        &self,
-        sessions: impl IntoIterator<Item = Session>,
-    ) {
+    pub fn add_sessions(&self, sessions: impl IntoIterator<Item = Session>) {
         let mut guard = self.sessions.write().unwrap();
         for session in sessions {
             guard.insert(topic_from_sym_key(&session.session_sym_key), session);

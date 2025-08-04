@@ -17,7 +17,7 @@ use {
             Metadata, SessionRequestJsonRpc, SessionRequestResponseJsonRpc,
             SettleNamespace,
         },
-        Session, Client, SecretKey, SessionProposal, Topic,
+        Client, SecretKey, Session, SessionProposal, Topic,
     },
 };
 
