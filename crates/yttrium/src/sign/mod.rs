@@ -127,6 +127,13 @@ pub enum RespondError {
 //     // tx: tokio::sync::mpsc::UnboundedSender<String>,
 // }
 
+#[allow(unused)]
+enum WebSocketStateEnum {
+    Disabled,
+    Enabled { shutdown_tx: tokio::sync::oneshot::Sender<()> },
+    Connected(/* TODO */), // request_tx, etc.
+}
+
 struct WebSocketState {
     // #[cfg(not(target_arch = "wasm32"))]
     // stream: WebSocketStream<MaybeTlsStream<TcpStream>>,
@@ -161,8 +168,8 @@ const REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
 // - WS reconnection & retries
 //   - disconnect if no ping for 30s etc. (native only)
 //   - reconnect back-off w/ random jitter to prevent server overload
-//   - web online/offline hints
-//   - callbacks for native hints?
+//   - online/offline hints
+//   - background/foreground hints
 
 // TODO
 // - session pings, update, events, emit
@@ -182,6 +189,9 @@ const REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
 // - https://www.notion.so/walletconnect/Design-Doc-Sign-Client-Rust-port-2303a661771e80628bdbf07c96a97b21?source=copy_link#2303a661771e808f895acbcab46bd12a
 // - don't forward ignored messages e.g. ACKing etc. do it based on client version/flag
 // - binary relay encoding: bincode?
+// - pings for web platforms: https://reown-inc.slack.com/archives/C04DB2EAHE3/p1754402214830549
+// - share scheduled disconnect time: https://reown-inc.slack.com/archives/C04DB2EAHE3/p1754406425810959
+// - Force clients off if they are not subscribed to any topics after certain interval? (opt-in with a flag?): https://reown-inc.slack.com/archives/C03RR5C0F7X/p1721459186692409?thread_ts=1712767993.823029&cid=C03RR5C0F7X
 
 // TODO
 // - Verify API
@@ -542,6 +552,9 @@ impl Client {
         // TODO implement
         // https://github.com/WalletConnect/walletconnect-monorepo/blob/5bef698dcf0ae910548481959a6a5d87eaf7aaa5/packages/sign-client/src/controllers/engine.ts#L601
         unimplemented!()
+
+        // TODO WS handling:
+        // - when a session request is pending, and we get the event that the page regained focus, should we immediately ping the WS connection to test its liveness (?)
     }
 
     pub async fn respond(
@@ -685,6 +698,8 @@ impl Client {
         let (irn_subscription_ack_tx, mut irn_subscription_ack_rx) =
             tokio::sync::mpsc::unbounded_channel();
 
+        // TODO should this logic be in here or in the client? Client makes more sense I think because we need the session sym key from the state at the same time we might need to update the state e.g. wc_sessionUpdate
+        // TODO should websocket & state be together?
         let handle_irn_subscription = {
             let sessions = self.sessions.clone();
             move |id: MessageId, sub_msg: Subscription| {
@@ -793,7 +808,6 @@ impl Client {
                     .await
                     .map_err(|e| RequestError::Internal(e.to_string()))?
                     .map_err(|e| RequestError::Internal(e.to_string()))?;
-            let sessions = self.sessions.clone();
 
             let invalid_auth = self.invalid_auth.clone();
             crate::spawn::spawn(async move {
@@ -1174,6 +1188,64 @@ impl Client {
                 for (_, response_tx) in response_channels {
                     let _ = response_tx.send(Err(exit_reason.clone()));
                 }
+
+                // TODO handle exit case
+                // just call online() again?
+                // no needs a loop of some kind? async task gets spawned to reconnect & manage the lifecycle?
+                // TODO spawn this task inside `online()`, call close_tx when wallet explicitally closes or all sessions removed
+                // TODO call disconnect_tx here
+                // if topics > 0 {
+                // fn: reconnect_loop(initial_req) - called by online() and disconnect_tx?
+                // tokio::task::spawn(async move {
+                // loop {
+                //   select! {
+                //     // cancel when wallet explicitally closes or all sessions removed, but websocket may stay open
+                //     // or when connection is established
+                //     //Some(event) = on_close_rx.recv() => {
+                //     //  break;
+                //     //}
+                //     Some(event) = disconnect_rx.recv() => {
+                //       // no-op, reconnect immediately
+                //       // check if there are sessions to reconnect to & an online hint hasn't indicated that it's offline
+                //     }
+                //   }
+                //   if topics == 0 {
+                //     // TODO maybe move this check into do_online_and_subscribe_with_backoff() so it checks each reconnect attempt
+                //     break;
+                //   }
+                //   // begin reconnect with no delay, then backoff
+                //   let disconnect_rx = do_online_and_subscribe_with_backoff(initial_req, on_close_rx).await; // TODO catch error and retry w/ backoff
+                //   // success
+                // }
+                // });
+
+                // TODO
+                // We don't want to create the reconnection loop until we have a session topic to stay subscribed to
+                // I.e. we should be able to "attach" to an existing connection, not require it to be created from here
+                // Reconnect cases:
+                //   - When WS disconnects, it should check if there are sessions to reconnect to & an online hint hasn't indicated that it's offline
+                //   - online hint will cause connect (if there are sessions to reconnect to)
+                //   - insert into sessions will cause spawning the reconnect watcher loop
+
+                // do_online_and_subscribe_with_backoff(initial_req, on_close_rx):
+                //   let backoff_ms = 0;
+                //   loop {
+                //     let response = request(initial_req);
+                //     match response {
+                //       Ok(response) => {
+                //         break response;
+                //       }
+                //       Err(e) => {
+                //         // TODO use fixed (exponential-ish) backoff times instead of math-based
+                //         // 0s, 1s, 1s, 1s, 5s, 10s
+                //         // TODO also use a random jitter of 0-1000ms (except for the first time?)
+                //         if backoff_ms < 10_000 {
+                //           backoff_ms *= 2;
+                //         }
+                //         tokio::time::sleep(Duration::from_millis(backoff_ms)).await;
+                //       }
+                //     }
+                //   }
             });
         }
 
