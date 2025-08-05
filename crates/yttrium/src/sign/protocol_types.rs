@@ -17,9 +17,12 @@ pub struct ProposalJsonRpc {
 #[serde(rename_all = "camelCase")]
 pub struct Proposal {
     pub required_namespaces: ProposalNamespaces,
-    pub optional_namespaces: ProposalNamespaces,
+    pub optional_namespaces: Option<ProposalNamespaces>,
     pub relays: Vec<Relay>,
     pub proposer: Proposer,
+    pub session_properties: Option<HashMap<String, String>>,
+    pub scoped_properties: Option<HashMap<String, String>>,
+    pub expiry_timestamp: Option<u64>
 }
 
 pub type ProposalNamespaces = HashMap<String, ProposalNamespace>;
@@ -42,7 +45,7 @@ pub struct Relay {
 #[serde(rename_all = "camelCase")]
 pub struct Proposer {
     pub public_key: String,
-    pub metadata: serde_json::Value,
+    pub metadata: Metadata,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -99,6 +102,7 @@ pub struct Controller {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
 pub struct Metadata {
     pub name: String,
     pub description: String,

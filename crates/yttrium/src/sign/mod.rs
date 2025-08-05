@@ -316,6 +316,10 @@ impl Client {
                                 "Failed to parse decrypted message: {e}"
                             ))
                         })?;
+
+
+                logger.log(format!("Decrypted Proposal: {:?}", request));
+                
                 if request.method != "wc_sessionPropose" {
                     return Err(PairError::Internal(format!(
                         "Expected wc_sessionPropose, got {}",
@@ -350,12 +354,13 @@ impl Client {
                     session_proposal_rpc_id: request.id.into_value(),
                     pairing_topic: pairing_uri.topic,
                     pairing_sym_key: pairing_uri.sym_key,
-                    proposer_public_key,
-                    requested_namespaces: proposal
-                        .required_namespaces
-                        .into_iter()
-                        .chain(proposal.optional_namespaces.into_iter())
-                        .collect(),
+                    proposer_public_key: proposer_public_key,
+                    required_namespaces: proposal.required_namespaces,
+                    optional_namespaces: proposal.optional_namespaces,
+                    metadata: proposal.proposer.metadata,
+                    session_properties: proposal.session_properties,
+                    scoped_properties: proposal.scoped_properties,
+                    expiry_timestamp: proposal.expiry_timestamp
                 });
             }
         }
@@ -1285,7 +1290,10 @@ impl SignClient {
         logger.log(format!("Creating new SignClient with project_id: {}", project_id));
 
         let client = Client::new(ProjectId::from(project_id));
-        Self { client: std::sync::Arc::new(tokio::sync::Mutex::new(client.0)), logger }
+        Self { 
+            client: std::sync::Arc::new(tokio::sync::Mutex::new(client.0)), 
+            logger 
+        }
     }
 
     // set_key should be called on walletkit side on init() so it can store clientId before using pair and approve
@@ -1319,7 +1327,7 @@ impl SignClient {
 
         let mut namespaces = HashMap::new();
         for (namespace, namespace_proposal) in
-            proposal.requested_namespaces.clone()
+            proposal.required_namespaces.clone()
         {
             let accounts = namespace_proposal
                 .chains
@@ -1361,7 +1369,12 @@ pub struct SessionProposal {
     pub pairing_topic: Topic,
     pub pairing_sym_key: [u8; 32],
     pub proposer_public_key: [u8; 32],
-    pub requested_namespaces: ProposalNamespaces,
+    pub required_namespaces: ProposalNamespaces,
+    pub optional_namespaces: Option<ProposalNamespaces>,
+    pub metadata: Metadata,
+    pub session_properties: Option<HashMap<String, String>>,
+    pub scoped_properties: Option<HashMap<String, String>>,
+    pub expiry_timestamp: Option<u64>,
 }
 
 #[cfg(feature = "uniffi")]
@@ -1371,10 +1384,12 @@ pub struct SessionProposalFfi {
     pub topic: String,
     pub pairing_sym_key: Vec<u8>,
     pub proposer_public_key: Vec<u8>,
-    pub requested_namespaces: std::collections::HashMap<
-        String,
-        crate::sign::protocol_types::ProposalNamespace,
-    >,
+    pub required_namespaces: std::collections::HashMap<String,crate::sign::protocol_types::ProposalNamespace,>,
+    pub optional_namespaces: Option<std::collections::HashMap<String,crate::sign::protocol_types::ProposalNamespace,>>,
+    pub metadata: crate::sign::protocol_types::Metadata,
+    pub session_properties: Option<std::collections::HashMap<String, String>>,
+    pub scoped_properties: Option<std::collections::HashMap<String, String>>,
+    pub expiry_timestamp: Option<u64>
 }
 
 #[cfg(feature = "uniffi")]
@@ -1412,7 +1427,12 @@ impl From<SessionProposal> for SessionProposalFfi {
             topic: topic_string,
             pairing_sym_key: proposal.pairing_sym_key.to_vec(),
             proposer_public_key: proposal.proposer_public_key.to_vec(),
-            requested_namespaces: proposal.requested_namespaces,
+            required_namespaces: proposal.required_namespaces,
+            optional_namespaces: proposal.optional_namespaces,
+            metadata: proposal.metadata,
+            session_properties: proposal.session_properties,
+            scoped_properties: proposal.scoped_properties,
+            expiry_timestamp: proposal.expiry_timestamp
         }
     }
 }
@@ -1428,7 +1448,12 @@ impl From<SessionProposalFfi> for SessionProposal {
                 .proposer_public_key
                 .try_into()
                 .unwrap(),
-            requested_namespaces: proposal.requested_namespaces,
+            required_namespaces: proposal.required_namespaces,
+            optional_namespaces: proposal.optional_namespaces,
+            metadata: proposal.metadata,
+            session_properties: proposal.session_properties,
+            scoped_properties: proposal.scoped_properties,
+            expiry_timestamp: proposal.expiry_timestamp
         }
     }
 }
@@ -1476,7 +1501,17 @@ mod conversion_tests {
             pairing_topic: test_topic.clone(),
             pairing_sym_key: [1u8; 32],
             proposer_public_key: [2u8; 32],
-            requested_namespaces: std::collections::HashMap::new(),
+            required_namespaces: std::collections::HashMap::new(),
+            optional_namespaces: std::collections::HashMap::new(),
+            metadata: Metadata {
+                name: "Test".to_string(),
+                description: "Test".to_string(),
+                url: "https://test.com".to_string(),
+                icons: vec![],
+            },
+            session_properties: None,
+            scoped_properties: None,
+            expiry_timestamp: None,
         };
 
         // Convert to FFI

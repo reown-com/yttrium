@@ -174,7 +174,7 @@ impl FromStr for Eip155OrSolanaAddress {
     tsify(into_wasm_abi, from_wasm_abi)
 )]
 #[serde(rename_all = "camelCase")]
-pub struct Metadata {
+pub struct PrepareResponseMetadata {
     pub funding_from: Vec<FundingMetadata>,
     pub initial_transaction: InitialTransactionMetadata,
     /// The number of milliseconds to delay before calling `/status` after getting successful transaction receipts from all sent transactions.
@@ -271,7 +271,7 @@ pub struct PrepareResponseAvailable {
     pub orchestration_id: String,
     pub initial_transaction: Transaction,
     pub transactions: Vec<Transactions>,
-    pub metadata: Metadata,
+    pub metadata: PrepareResponseMetadata,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
