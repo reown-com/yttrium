@@ -26,6 +26,7 @@ uniffi = [
     "dep:uniffi_macros",
     "reqwest/default-tls",
     "native",
+    "dep:tracing-subscriber",
 ]
 native = [
     "dep:tokio-tungstenite",
@@ -158,6 +159,7 @@ async-trait = { version = "0.1.83", default-features = false }
 tracing = { version = "0.1.40", default-features = false, features = [
     "release_max_level_warn",
 ] }
+tracing-subscriber = { version = "0.3.19", default-features = false, optional = true }
 # fastlz-rs = { version = "0.0.3", features = ["std"], default-features = false }
 
 # Networking
