@@ -360,7 +360,8 @@ impl Client {
                     metadata: proposal.proposer.metadata,
                     session_properties: proposal.session_properties,
                     scoped_properties: proposal.scoped_properties,
-                    expiry_timestamp: proposal.expiry_timestamp
+                    expiry_timestamp: proposal.expiry_timestamp,
+                    relays: proposal.relays
                 });
             }
         }
@@ -1353,6 +1354,8 @@ impl SignClient {
             description: "Reown Swift Sample Wallet".to_string(),
             url: "https://reown.com".to_string(),
             icons: vec![],
+            verify_url: None,
+            redirect: None,
         };
 
         let session = {
@@ -1369,6 +1372,7 @@ pub struct SessionProposal {
     pub pairing_topic: Topic,
     pub pairing_sym_key: [u8; 32],
     pub proposer_public_key: [u8; 32],
+    pub relays: Vec<Relay>,
     pub required_namespaces: ProposalNamespaces,
     pub optional_namespaces: Option<ProposalNamespaces>,
     pub metadata: Metadata,
@@ -1384,6 +1388,7 @@ pub struct SessionProposalFfi {
     pub topic: String,
     pub pairing_sym_key: Vec<u8>,
     pub proposer_public_key: Vec<u8>,
+    pub relays: Vec<crate::sign::protocol_types::Relay>,
     pub required_namespaces: std::collections::HashMap<String,crate::sign::protocol_types::ProposalNamespace,>,
     pub optional_namespaces: Option<std::collections::HashMap<String,crate::sign::protocol_types::ProposalNamespace,>>,
     pub metadata: crate::sign::protocol_types::Metadata,
@@ -1430,6 +1435,7 @@ impl From<SessionProposal> for SessionProposalFfi {
             required_namespaces: proposal.required_namespaces,
             optional_namespaces: proposal.optional_namespaces,
             metadata: proposal.metadata,
+            relays: proposal.relays,
             session_properties: proposal.session_properties,
             scoped_properties: proposal.scoped_properties,
             expiry_timestamp: proposal.expiry_timestamp
@@ -1453,7 +1459,8 @@ impl From<SessionProposalFfi> for SessionProposal {
             metadata: proposal.metadata,
             session_properties: proposal.session_properties,
             scoped_properties: proposal.scoped_properties,
-            expiry_timestamp: proposal.expiry_timestamp
+            expiry_timestamp: proposal.expiry_timestamp,
+            relays: proposal.relays,
         }
     }
 }
@@ -1508,10 +1515,13 @@ mod conversion_tests {
                 description: "Test".to_string(),
                 url: "https://test.com".to_string(),
                 icons: vec![],
+                verify_url: None,
+                redirect: None,
             },
             session_properties: None,
             scoped_properties: None,
             expiry_timestamp: None,
+            relays: vec![],
         };
 
         // Convert to FFI

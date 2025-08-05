@@ -108,6 +108,17 @@ pub struct Metadata {
     pub description: String,
     pub url: String,
     pub icons: Vec<String>,
+    pub verify_url: Option<String>,
+    pub redirect: Option<Redirect>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
+pub struct Redirect {
+    pub native: Option<String>,
+    pub universal: Option<String>,
+    pub link_mode: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
