@@ -355,7 +355,7 @@ impl Client {
                     pairing_topic: pairing_uri.topic,
                     pairing_sym_key: pairing_uri.sym_key,
                     proposer_public_key: proposer_public_key,
-                    relays: proposal.relays,
+
                     required_namespaces: proposal.required_namespaces,
                     optional_namespaces: proposal.optional_namespaces,
                     metadata: proposal.proposer.metadata,
@@ -1344,27 +1344,8 @@ impl SignClient {
     ) -> Result<SessionFfi, ApproveError> {
         let proposal: SessionProposal = proposal.into();
 
-        let mut namespaces = HashMap::new();
-        for (namespace, namespace_proposal) in proposal.required_namespaces.clone() {
-            let accounts = namespace_proposal
-                .chains
-                .iter()
-                .map(|chain| {
-                    format!(
-                        "{}:{}",
-                        chain, "0x0000000000000000000000000000000000000000"
-                    )
-                })
-                .collect();
-            let namespace_settle = SettleNamespace {
-                accounts,
-                methods: namespace_proposal.methods,
-                events: namespace_proposal.events,
-                chains: namespace_proposal.chains,
-            };
-            namespaces.insert(namespace, namespace_settle);
-        }
-        tracing::debug!("namespaces: {:?}", namespaces);
+        tracing::debug!("approved_namespaces: {:?}", approved_namespaces);
+        tracing::debug!("self_metadata: {:?}", self_metadata);
 
         let session: Session = {
             let mut client = self.client.lock().await;
@@ -1380,7 +1361,6 @@ pub struct SessionProposal {
     pub pairing_topic: Topic,
     pub pairing_sym_key: [u8; 32],
     pub proposer_public_key: [u8; 32],
-    pub relays: Vec<crate::sign::protocol_types::Relay>,
     pub required_namespaces: ProposalNamespaces,
     pub optional_namespaces: Option<ProposalNamespaces>,
     pub metadata: Metadata,
@@ -1439,7 +1419,6 @@ impl From<SessionProposal> for SessionProposalFfi {
             topic: topic_string,
             pairing_sym_key: proposal.pairing_sym_key.to_vec(),
             proposer_public_key: proposal.proposer_public_key.to_vec(),
-            relays: proposal.relays,
             required_namespaces: proposal.required_namespaces,
             optional_namespaces: proposal.optional_namespaces,
             metadata: proposal.metadata,
@@ -1461,7 +1440,6 @@ impl From<SessionProposalFfi> for SessionProposal {
                 .proposer_public_key
                 .try_into()
                 .unwrap(),
-            relays: proposal.relays,
             required_namespaces: proposal.required_namespaces,
             optional_namespaces: proposal.optional_namespaces,
             metadata: proposal.metadata,
@@ -1515,7 +1493,6 @@ mod conversion_tests {
             pairing_topic: test_topic.clone(),
             pairing_sym_key: [1u8; 32],
             proposer_public_key: [2u8; 32],
-            relays: vec![],
             required_namespaces: std::collections::HashMap::new(),
             optional_namespaces: std::collections::HashMap::new(),
             metadata: Metadata {
