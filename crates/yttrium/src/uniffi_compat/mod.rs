@@ -1,3 +1,5 @@
+pub mod log;
+
 #[cfg(feature = "sui")]
 pub mod sui;
 

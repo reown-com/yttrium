@@ -270,7 +270,6 @@ impl Client {
     pub async fn pair(
         &mut self,
         uri: &str,
-        logger: Arc<dyn Logger>
     ) -> Result<SessionProposal, PairError> {
         // TODO implement
         // https://github.com/WalletConnect/walletconnect-monorepo/blob/5bef698dcf0ae910548481959a6a5d87eaf7aaa5/packages/sign-client/src/controllers/engine.ts#L330
@@ -280,7 +279,7 @@ impl Client {
         let pairing_uri = pairing_uri::parse(uri)
             .map_err(|e| PairError::Internal(e.to_string()))?;
 
-        logger.log(format!("Pairing with URI: {}", uri));
+        tracing::debug!("Pairing with URI: {uri}");
 
         // TODO consider: immediately throw if expired? - maybe not necessary since FetchMessages returns empty array?
 
@@ -1269,32 +1268,24 @@ pub fn generate_key() -> SecretKey {
     SigningKey::generate(&mut rand::thread_rng()).to_bytes()
 }
 
-#[cfg(feature = "uniffi")]
-#[uniffi::export(with_foreign)]
-pub trait Logger: Send + Sync {
-    fn log(&self, message: String);
-}
-
 // UniFFI wrapper for better API naming
 #[cfg(feature = "uniffi")]
 #[derive(uniffi::Object)]
 pub struct SignClient {
     client: std::sync::Arc<tokio::sync::Mutex<Client>>,
-    logger: Arc<dyn Logger>
 }
 
 #[cfg(feature = "uniffi")]
 #[uniffi::export(async_runtime = "tokio")]
 impl SignClient {
     #[uniffi::constructor]
-    pub fn new(project_id: String, logger: Arc<dyn Logger>) -> Self {
-        logger.log(format!("Creating new SignClient with project_id: {}", project_id));
+    pub fn new(project_id: String) -> Self {
+        tracing::debug!(
+            "Creating new SignClient with project_id: {project_id}"
+        );
 
         let client = Client::new(ProjectId::from(project_id));
-        Self { 
-            client: std::sync::Arc::new(tokio::sync::Mutex::new(client.0)), 
-            logger 
-        }
+        Self { client: std::sync::Arc::new(tokio::sync::Mutex::new(client.0)) }
     }
 
     // set_key should be called on walletkit side on init() so it can store clientId before using pair and approve
@@ -1315,7 +1306,7 @@ impl SignClient {
     ) -> Result<SessionProposalFfi, PairError> {
         let proposal = {
             let mut client = self.client.lock().await;
-            client.pair(&uri, self.logger.clone()).await?
+            client.pair(&uri).await?
         };
         Ok(proposal.into())
     }
