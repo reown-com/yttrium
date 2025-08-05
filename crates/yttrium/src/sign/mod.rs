@@ -1316,7 +1316,10 @@ impl SignClient {
         );
 
         let client = Client::new(ProjectId::from(project_id));
-        Self { client: std::sync::Arc::new(tokio::sync::Mutex::new(client.0)), logger }
+        Self { 
+            client: std::sync::Arc::new(tokio::sync::Mutex::new(client.0)), 
+            logger 
+        }
     }
 
     // set_key should be called on walletkit side on init() so it can store clientId before using pair and approve
