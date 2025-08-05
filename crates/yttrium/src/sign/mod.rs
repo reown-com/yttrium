@@ -362,7 +362,8 @@ impl Client {
                     metadata: proposal.proposer.metadata,
                     session_properties: proposal.session_properties,
                     scoped_properties: proposal.scoped_properties,
-                    expiry_timestamp: proposal.expiry_timestamp
+                    expiry_timestamp: proposal.expiry_timestamp,
+                    relays: proposal.relays
                 });
             }
         }
@@ -1436,6 +1437,7 @@ impl From<SessionProposal> for SessionProposalFfi {
             required_namespaces: proposal.required_namespaces,
             optional_namespaces: proposal.optional_namespaces,
             metadata: proposal.metadata,
+            relays: proposal.relays,
             session_properties: proposal.session_properties,
             scoped_properties: proposal.scoped_properties,
             expiry_timestamp: proposal.expiry_timestamp
@@ -1460,7 +1462,8 @@ impl From<SessionProposalFfi> for SessionProposal {
             metadata: proposal.metadata,
             session_properties: proposal.session_properties,
             scoped_properties: proposal.scoped_properties,
-            expiry_timestamp: proposal.expiry_timestamp
+            expiry_timestamp: proposal.expiry_timestamp,
+            relays: proposal.relays,
         }
     }
 }
@@ -1522,6 +1525,7 @@ mod conversion_tests {
             session_properties: None,
             scoped_properties: None,
             expiry_timestamp: None,
+            relays: vec![],
         };
 
         // Convert to FFI
