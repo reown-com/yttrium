@@ -1347,6 +1347,7 @@ impl SignClient {
         let mut namespaces = HashMap::new();
         for (namespace, namespace_proposal) in
             proposal.required_namespaces.clone()
+            proposal.required_namespaces.clone()
         {
             let accounts = namespace_proposal
                 .chains
@@ -1521,8 +1522,6 @@ mod conversion_tests {
                 description: "Test".to_string(),
                 url: "https://test.com".to_string(),
                 icons: vec![],
-                verify_url: None,
-                redirect: None,
             },
             session_properties: None,
             scoped_properties: None,
