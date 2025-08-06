@@ -92,11 +92,27 @@ build_xcframework() {
 
   # Create headers directory structure for device
   mkdir -p target/uniffi-xcframework-staging/device/Headers/yttriumFFI
-  cp -r target/uniffi-xcframework-staging/yttriumFFI/. target/uniffi-xcframework-staging/device/Headers/yttriumFFI/
+  
+  # Copy headers - handle both cases: when yttriumFFI directory exists and when it doesn't
+  if [ -d "target/uniffi-xcframework-staging/yttriumFFI" ]; then
+    cp -r target/uniffi-xcframework-staging/yttriumFFI/. target/uniffi-xcframework-staging/device/Headers/yttriumFFI/
+  else
+    # When uniffi-bindgen generates flat files, create the structure manually
+    cp target/uniffi-xcframework-staging/yttriumFFI.h target/uniffi-xcframework-staging/device/Headers/yttriumFFI/
+    cp target/uniffi-xcframework-staging/yttriumFFI.modulemap target/uniffi-xcframework-staging/device/Headers/yttriumFFI/module.modulemap
+  fi
 
   # Create headers directory structure for simulator
   mkdir -p target/uniffi-xcframework-staging/simulator/Headers/yttriumFFI
-  cp -r target/uniffi-xcframework-staging/yttriumFFI/. target/uniffi-xcframework-staging/simulator/Headers/yttriumFFI/
+  
+  # Copy headers for simulator
+  if [ -d "target/uniffi-xcframework-staging/yttriumFFI" ]; then
+    cp -r target/uniffi-xcframework-staging/yttriumFFI/. target/uniffi-xcframework-staging/simulator/Headers/yttriumFFI/
+  else
+    # When uniffi-bindgen generates flat files, create the structure manually
+    cp target/uniffi-xcframework-staging/yttriumFFI.h target/uniffi-xcframework-staging/simulator/Headers/yttriumFFI/
+    cp target/uniffi-xcframework-staging/yttriumFFI.modulemap target/uniffi-xcframework-staging/simulator/Headers/yttriumFFI/module.modulemap
+  fi
 
   xcodebuild -create-xcframework \
       -library "target/aarch64-apple-ios/uniffi-release-swift/lib$1.a" -headers target/uniffi-xcframework-staging/device/Headers \
@@ -113,6 +129,15 @@ create_fat_simulator_lib() {
       -output "$fat_simulator_lib_dir/lib$1.a"
 }
 
+copy_swift_sources() {
+  echo "Copying Swift source files to package..."
+  # Ensure the Swift package sources directory exists
+  mkdir -p platforms/swift/Sources/Yttrium
+  
+  # Copy the generated Swift file
+  cp target/uniffi-xcframework-staging/yttrium.swift platforms/swift/Sources/Yttrium/
+}
+
 # Add the necessary Rust targets
 rustup target add aarch64-apple-ios
 rustup target add x86_64-apple-ios
@@ -123,3 +148,4 @@ build_rust_libraries
 generate_ffi $PACKAGE_NAME
 create_fat_simulator_lib $PACKAGE_NAME
 build_xcframework $PACKAGE_NAME
+copy_swift_sources
