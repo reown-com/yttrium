@@ -30,6 +30,9 @@ test-swift-apple-platforms:
 build-xcframework:
 	sh scripts/build-xcframework.sh
 
+build-utils-xcframework:
+	sh scripts/build-utils-xcframework.sh
+
 set-up-local-swift-package:
 	sh scripts/set-up-local-swift-package.sh
 
@@ -50,6 +53,11 @@ local-infra-7702:
 generate-package-swift:
 	chmod +x scripts/generate-package-swift.sh
 	./scripts/generate-package-swift.sh
+
+.PHONY: generate-package-swift-utils
+generate-package-swift-utils:
+	chmod +x scripts/generate-package-swift-utils.sh
+	./scripts/generate-package-swift-utils.sh
 
 .PHONY: build build-ios-bindings build-swift-apple-platforms test-swift-apple-platforms fetch-thirdparty setup-thirdparty test format clean local-infra local-infra-forked local-infra-7702
 
