@@ -92,11 +92,11 @@ build_xcframework() {
 
   # Create headers directory structure for device
   mkdir -p target/uniffi-xcframework-staging/device/Headers/yttriumFFI
-  cp -r target/uniffi-xcframework-staging/yttriumFFI/* target/uniffi-xcframework-staging/device/Headers/yttriumFFI/
+  cp -r target/uniffi-xcframework-staging/yttriumFFI/. target/uniffi-xcframework-staging/device/Headers/yttriumFFI/
 
   # Create headers directory structure for simulator
   mkdir -p target/uniffi-xcframework-staging/simulator/Headers/yttriumFFI
-  cp -r target/uniffi-xcframework-staging/yttriumFFI/* target/uniffi-xcframework-staging/simulator/Headers/yttriumFFI/
+  cp -r target/uniffi-xcframework-staging/yttriumFFI/. target/uniffi-xcframework-staging/simulator/Headers/yttriumFFI/
 
   xcodebuild -create-xcframework \
       -library "target/aarch64-apple-ios/uniffi-release-swift/lib$1.a" -headers target/uniffi-xcframework-staging/device/Headers \
