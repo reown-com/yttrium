@@ -1,3 +1,8 @@
+#[cfg(feature = "chain_abstraction_client")]
+use crate::chain_abstraction::{
+    pulse::{PulseMetadata, PULSE_SDK_TYPE},
+    send_transaction::RpcRequestAnalytics,
+};
 use {
     crate::{
         blockchain_api::{PROXY_ENDPOINT_PATH, WALLET_ENDPOINT_PATH},
@@ -19,12 +24,6 @@ use {
     tower::Service,
     tracing::{info, trace, warn},
     uuid::Uuid,
-};
-
-#[cfg(feature = "chain_abstraction_client")]
-use crate::chain_abstraction::{
-    pulse::{PulseMetadata, PULSE_SDK_TYPE},
-    send_transaction::RpcRequestAnalytics,
 };
 
 /// Creates Blockchain API Reqwest clients for each chain and will return the same provider for subsequent calls

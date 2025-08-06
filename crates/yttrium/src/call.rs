@@ -70,7 +70,7 @@ mod tests {
             "0x68656c6c6f".to_string(),
         )?;
 
-        println!("transaction: {:?}", transaction);
+        println!("transaction: {transaction:?}");
 
         eyre::ensure!(
             transaction == expected_transaction,

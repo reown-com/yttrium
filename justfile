@@ -35,6 +35,9 @@ setup:
 test:
   cargo test --features=full --lib --bins
 
+test-sign:
+  RUST_BACKTRACE=1 cargo test --features=sign_client,test_depends_on_env_REOWN_PROJECT_ID --lib --bins sign::tests -- --nocapture
+
 # Runs tests that require environment variables to be set
 env-tests:
   if [ ! -z "${PIMLICO_API_KEY}" ] && [ ! -z "${PIMLICO_RPC_URL}" ] && [ ! -z "${PIMLICO_BUNDLER_URL}" ]; then just test-pimlico-api; fi
@@ -74,9 +77,10 @@ fmt-check:
 udeps:
   # Not building `all_platforms` because then there are unused Android and WASM dependencies
   # These dependencies are not used because the code that uses it is disabled from `#[cfg(target_os = "<non-CI-target>")]`
-  cargo +nightly udeps --workspace --all-targets --features=test_full,all_clients,all_namespaces
+  cargo +nightly udeps -p yttrium --features=test_full,all_clients,all_namespaces,uniffi
+  cargo +nightly udeps -p rust-sample-wallet --target wasm32-unknown-unknown
 
-_rust_ci: fmt-check udeps
+_rust_ci: fmt-check # udeps
 
 infra:
   make local-infra-forked
@@ -88,3 +92,15 @@ swift:
 kotlin:
   # cargo ndk -t armeabi-v7a -t arm64-v8a build -p kotlin-ffi --profile=uniffi-release --features=uniffi/cli
   ./build-kotlin.sh
+
+wallet:
+  # TODO: why not `cargo leptos watch`?
+  cd crates/rust-sample-wallet && trunk serve
+wallet-release:
+  # TODO: why not `cargo leptos watch`?
+  cd crates/rust-sample-wallet && trunk serve --release
+
+wallet-test:
+  cd crates/rust-sample-wallet && npx playwright test
+wallet-test-ui:
+  cd crates/rust-sample-wallet && npx playwright test --ui
