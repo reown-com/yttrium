@@ -4,6 +4,7 @@ set -e
 set -u
 
 PACKAGE_NAME="yttrium"
+FEATURES="ios,erc6492_client"
 fat_simulator_lib_dir="target/ios-simulator-fat/uniffi-release-swift"
 swift_package_dir="platforms/swift/Sources/Yttrium"
 
@@ -21,7 +22,7 @@ build_rust_libraries() {
   cargo build \
     --lib --profile=uniffi-release-swift \
     --no-default-features \
-    --features=ios,erc6492_client,chain_abstraction_client,eip155 \
+    --features=$FEATURES \
     --target aarch64-apple-ios \
     -p yttrium
 
@@ -43,7 +44,7 @@ build_rust_libraries() {
   cargo build \
     --lib --profile=uniffi-release-swift \
     --no-default-features \
-    --features=ios,erc6492_client,chain_abstraction_client,eip155 \
+    --features=$FEATURES \
     --target x86_64-apple-ios \
     -p yttrium
 
@@ -53,7 +54,7 @@ build_rust_libraries() {
   unset CARGO_TARGET_X86_64_APPLE_IOS_LINKER
   unset RUSTFLAGS
 
-  #### Building for aarch64-apple-ios-sim (Simulator on ARM Macs) ####
+  #### Building for aarch64-apple-ios-sim (Simulator on Apple Silicon Macs) ####
   echo "Building for aarch64-apple-ios-sim..."
 
   # Set environment variables
@@ -65,7 +66,7 @@ build_rust_libraries() {
   cargo build \
     --lib --profile=uniffi-release-swift \
     --no-default-features \
-    --features=ios,erc6492_client,chain_abstraction_client,eip155 \
+    --features=$FEATURES \
     --target aarch64-apple-ios-sim \
     -p yttrium
 
@@ -78,25 +79,10 @@ build_rust_libraries() {
 
 generate_ffi() {
   echo "Generating framework module mapping and FFI bindings..."
-  cargo run -p yttrium --no-default-features --features=ios,erc6492_client,chain_abstraction_client,eip155,uniffi/cli --bin uniffi-bindgen generate \
-      --library "target/aarch64-apple-ios/uniffi-release-swift/lib$1.dylib" \
-      --language swift \
-      --out-dir target/uniffi-xcframework-staging
-
-  # Create yttriumFFI subdirectory for headers
-  mkdir -p target/uniffi-xcframework-staging/yttriumFFI
-
-  # Concatenate the module maps in yttriumFFI directory
-  echo "Creating module.modulemap"
-  cat target/uniffi-xcframework-staging/yttriumFFI.modulemap \
-      > target/uniffi-xcframework-staging/yttriumFFI/module.modulemap
-
-  # Move headers to yttriumFFI directory
-  mv target/uniffi-xcframework-staging/*.h target/uniffi-xcframework-staging/yttriumFFI/
-
-  # Copy only Swift files to Swift package directory
-  mkdir -p "$swift_package_dir"
-  cp target/uniffi-xcframework-staging/*.swift "$swift_package_dir/"
+  cargo run -p yttrium --no-default-features --features=$FEATURES,uniffi/cli --bin uniffi-bindgen generate \
+    --library target/aarch64-apple-ios/uniffi-release-swift/lib$PACKAGE_NAME.dylib \
+    --language swift \
+    --out-dir target/uniffi-xcframework-staging
 }
 
 build_xcframework() {
@@ -106,11 +92,27 @@ build_xcframework() {
 
   # Create headers directory structure for device
   mkdir -p target/uniffi-xcframework-staging/device/Headers/yttriumFFI
-  cp -r target/uniffi-xcframework-staging/yttriumFFI/* target/uniffi-xcframework-staging/device/Headers/yttriumFFI/
+  
+  # Copy headers - handle both cases: when yttriumFFI directory exists and when it doesn't
+  if [ -d "target/uniffi-xcframework-staging/yttriumFFI" ]; then
+    cp -r target/uniffi-xcframework-staging/yttriumFFI/. target/uniffi-xcframework-staging/device/Headers/yttriumFFI/
+  else
+    # When uniffi-bindgen generates flat files, create the structure manually
+    cp target/uniffi-xcframework-staging/yttriumFFI.h target/uniffi-xcframework-staging/device/Headers/yttriumFFI/
+    cp target/uniffi-xcframework-staging/yttriumFFI.modulemap target/uniffi-xcframework-staging/device/Headers/yttriumFFI/module.modulemap
+  fi
 
   # Create headers directory structure for simulator
   mkdir -p target/uniffi-xcframework-staging/simulator/Headers/yttriumFFI
-  cp -r target/uniffi-xcframework-staging/yttriumFFI/* target/uniffi-xcframework-staging/simulator/Headers/yttriumFFI/
+  
+  # Copy headers for simulator
+  if [ -d "target/uniffi-xcframework-staging/yttriumFFI" ]; then
+    cp -r target/uniffi-xcframework-staging/yttriumFFI/. target/uniffi-xcframework-staging/simulator/Headers/yttriumFFI/
+  else
+    # When uniffi-bindgen generates flat files, create the structure manually
+    cp target/uniffi-xcframework-staging/yttriumFFI.h target/uniffi-xcframework-staging/simulator/Headers/yttriumFFI/
+    cp target/uniffi-xcframework-staging/yttriumFFI.modulemap target/uniffi-xcframework-staging/simulator/Headers/yttriumFFI/module.modulemap
+  fi
 
   xcodebuild -create-xcframework \
       -library "target/aarch64-apple-ios/uniffi-release-swift/lib$1.a" -headers target/uniffi-xcframework-staging/device/Headers \
@@ -127,6 +129,15 @@ create_fat_simulator_lib() {
       -output "$fat_simulator_lib_dir/lib$1.a"
 }
 
+copy_swift_sources() {
+  echo "Copying Swift source files to package..."
+  # Ensure the Swift package sources directory exists
+  mkdir -p platforms/swift/Sources/Yttrium
+  
+  # Copy the generated Swift file
+  cp target/uniffi-xcframework-staging/yttrium.swift platforms/swift/Sources/Yttrium/
+}
+
 # Add the necessary Rust targets
 rustup target add aarch64-apple-ios
 rustup target add x86_64-apple-ios
@@ -137,3 +148,4 @@ build_rust_libraries
 generate_ffi $PACKAGE_NAME
 create_fat_simulator_lib $PACKAGE_NAME
 build_xcframework $PACKAGE_NAME
+copy_swift_sources
