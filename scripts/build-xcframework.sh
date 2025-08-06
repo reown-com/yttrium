@@ -83,10 +83,6 @@ generate_ffi() {
     --library target/aarch64-apple-ios/uniffi-release-swift/lib$PACKAGE_NAME.dylib \
     --language swift \
     --out-dir target/uniffi-xcframework-staging
-
-  echo "                            Creating module.modulemap"
-  cat target/uniffi-xcframework-staging/yttriumFFI.modulemap \
-      > target/uniffi-xcframework-staging/yttriumFFI/module.modulemap
 }
 
 build_xcframework() {

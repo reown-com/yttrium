@@ -95,11 +95,17 @@ impl ProviderPool {
     pub async fn get_provider_with_tracing(
         &self,
         chain_id: &str,
+        #[cfg(feature = "chain_abstraction_client")]
         tracing: Option<std::sync::mpsc::Sender<RpcRequestAnalytics>>,
+        #[cfg(not(feature = "chain_abstraction_client"))]
+        tracing: Option<()>,
     ) -> RootProvider {
         self.get_provider_inner(
             chain_id,
+            #[cfg(feature = "chain_abstraction_client")]
             tracing,
+            #[cfg(not(feature = "chain_abstraction_client"))]
+            None,
             PROXY_ENDPOINT_PATH,
             vec![("chainId", chain_id)],
         )
@@ -108,7 +114,10 @@ impl ProviderPool {
 
     pub async fn get_wallet_provider(
         &self,
+        #[cfg(feature = "chain_abstraction_client")]
         tracing: Option<std::sync::mpsc::Sender<RpcRequestAnalytics>>,
+        #[cfg(not(feature = "chain_abstraction_client"))]
+        tracing: Option<()>,
         url_override: Option<Url>,
     ) -> WalletProvider {
         WalletProvider {
@@ -127,7 +136,10 @@ impl ProviderPool {
     pub async fn get_provider_inner(
         &self,
         chain_id: &str,
+        #[cfg(feature = "chain_abstraction_client")]
         tracing: Option<std::sync::mpsc::Sender<RpcRequestAnalytics>>,
+        #[cfg(not(feature = "chain_abstraction_client"))]
+        tracing: Option<()>,
         path: &str,
         additional_query_params: impl IntoIterator<Item = (&str, &str)>,
     ) -> RootProvider {
@@ -163,7 +175,10 @@ impl ProviderPool {
 
     pub async fn get_rpc_client(
         &self,
+        #[cfg(feature = "chain_abstraction_client")]
         tracing: Option<std::sync::mpsc::Sender<RpcRequestAnalytics>>,
+        #[cfg(not(feature = "chain_abstraction_client"))]
+        tracing: Option<()>,
         path: &str,
         additional_query_params: impl IntoIterator<Item = (&str, &str)>,
         url_override: Option<Url>,
@@ -187,9 +202,15 @@ impl ProviderPool {
             let mut url = blockchain_api_base_url.join(path).unwrap();
             url.query_pairs_mut()
                 .append_pair("projectId", self.project_id.as_ref())
-                .append_pair("sessionId", self.session_id.to_string().as_str())
-                .append_pair("st", PULSE_SDK_TYPE)
-                .append_pair("sv", self.pulse_metadata.sdk_version.as_str());
+                .append_pair("sessionId", self.session_id.to_string().as_str());
+            
+            #[cfg(feature = "chain_abstraction_client")]
+            {
+                url.query_pairs_mut()
+                    .append_pair("st", PULSE_SDK_TYPE)
+                    .append_pair("sv", self.pulse_metadata.sdk_version.as_str());
+            }
+            
             url.query_pairs_mut().extend_pairs(additional_query_params);
             url
         };
@@ -215,9 +236,16 @@ impl ProviderPool {
                 self.blockchain_api_base_url.join(PROXY_ENDPOINT_PATH).unwrap();
             url.query_pairs_mut()
                 .append_pair("projectId", self.project_id.as_ref())
-                .append_pair("sessionId", self.session_id.to_string().as_str())
-                .append_pair("st", PULSE_SDK_TYPE)
-                .append_pair("sv", self.pulse_metadata.sdk_version.as_str())
+                .append_pair("sessionId", self.session_id.to_string().as_str());
+            
+            #[cfg(feature = "chain_abstraction_client")]
+            {
+                url.query_pairs_mut()
+                    .append_pair("st", PULSE_SDK_TYPE)
+                    .append_pair("sv", self.pulse_metadata.sdk_version.as_str());
+            }
+            
+            url.query_pairs_mut()
                 .append_pair("chainId", sui_chain_id.as_str());
             let sui_client =
                 sui_sdk::SuiClientBuilder::default().build(url).await.unwrap();
@@ -279,7 +307,11 @@ pub mod network {
     }
 }
 
+#[cfg(feature = "chain_abstraction_client")]
 type TracingType = Option<std::sync::mpsc::Sender<RpcRequestAnalytics>>;
+
+#[cfg(not(feature = "chain_abstraction_client"))]
+type TracingType = Option<()>;
 
 /// Custom client that enables adding things like tracing to the requests.
 #[derive(Clone)]
@@ -342,21 +374,24 @@ impl CustomClient {
         trace!("req_id: {}", req_id.as_deref().unwrap_or("none"));
 
         if let Some(tracing) = tracing {
-            let rpcs = match req {
-                RequestPacket::Single(req) => {
-                    vec![(req.id().clone(), req.method().to_owned())]
-                }
-                RequestPacket::Batch(reqs) => reqs
-                    .iter()
-                    .map(|req| (req.id().clone(), req.method().to_owned()))
-                    .collect(),
-            };
-            for (rpc_id, rpc_method) in rpcs {
-                if let Err(e) = tracing.send(RpcRequestAnalytics {
-                    req_id: req_id.clone(),
-                    rpc_id: rpc_id.to_string(),
-                }) {
-                    warn!("ProxyReqwestClient: send: {e} {rpc_method}");
+            #[cfg(feature = "chain_abstraction_client")]
+            {
+                let rpcs = match req {
+                    RequestPacket::Single(req) => {
+                        vec![(req.id().clone(), req.method().to_owned())]
+                    }
+                    RequestPacket::Batch(reqs) => reqs
+                        .iter()
+                        .map(|req| (req.id().clone(), req.method().to_owned()))
+                        .collect(),
+                };
+                for (rpc_id, rpc_method) in rpcs {
+                    if let Err(e) = tracing.send(RpcRequestAnalytics {
+                        req_id: req_id.clone(),
+                        rpc_id: rpc_id.to_string(),
+                    }) {
+                        warn!("ProxyReqwestClient: send: {e} {rpc_method}");
+                    }
                 }
             }
         }
