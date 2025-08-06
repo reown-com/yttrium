@@ -4,6 +4,7 @@ set -e
 set -u
 
 PACKAGE_NAME="yttrium"
+FEATURES="ios,erc6492_client,chain_abstraction_client,eip155"
 fat_simulator_lib_dir="target/ios-simulator-fat/uniffi-release-swift"
 swift_package_dir="platforms/swift/Sources/Yttrium"
 
@@ -21,7 +22,7 @@ build_rust_libraries() {
   cargo build \
     --lib --profile=uniffi-release-swift \
     --no-default-features \
-    --features=ios,erc6492_client,chain_abstraction_client,eip155 \
+    --features=$FEATURES \
     --target aarch64-apple-ios \
     -p yttrium
 
@@ -43,7 +44,7 @@ build_rust_libraries() {
   cargo build \
     --lib --profile=uniffi-release-swift \
     --no-default-features \
-    --features=ios,erc6492_client,chain_abstraction_client,eip155 \
+    --features=$FEATURES \
     --target x86_64-apple-ios \
     -p yttrium
 
@@ -53,7 +54,7 @@ build_rust_libraries() {
   unset CARGO_TARGET_X86_64_APPLE_IOS_LINKER
   unset RUSTFLAGS
 
-  #### Building for aarch64-apple-ios-sim (Simulator on ARM Macs) ####
+  #### Building for aarch64-apple-ios-sim (Simulator on Apple Silicon Macs) ####
   echo "Building for aarch64-apple-ios-sim..."
 
   # Set environment variables
@@ -65,7 +66,7 @@ build_rust_libraries() {
   cargo build \
     --lib --profile=uniffi-release-swift \
     --no-default-features \
-    --features=ios,erc6492_client,chain_abstraction_client,eip155 \
+    --features=$FEATURES \
     --target aarch64-apple-ios-sim \
     -p yttrium
 
@@ -78,25 +79,14 @@ build_rust_libraries() {
 
 generate_ffi() {
   echo "Generating framework module mapping and FFI bindings..."
-  cargo run -p yttrium --no-default-features --features=ios,erc6492_client,chain_abstraction_client,eip155,uniffi/cli --bin uniffi-bindgen generate \
-      --library "target/aarch64-apple-ios/uniffi-release-swift/lib$1.dylib" \
-      --language swift \
-      --out-dir target/uniffi-xcframework-staging
+  cargo run -p yttrium --no-default-features --features=$FEATURES,uniffi/cli --bin uniffi-bindgen generate \
+    --library target/aarch64-apple-ios/uniffi-release-swift/lib$PACKAGE_NAME.dylib \
+    --language swift \
+    --out-dir target/uniffi-xcframework-staging
 
-  # Create yttriumFFI subdirectory for headers
-  mkdir -p target/uniffi-xcframework-staging/yttriumFFI
-
-  # Concatenate the module maps in yttriumFFI directory
-  echo "Creating module.modulemap"
+  echo "                            Creating module.modulemap"
   cat target/uniffi-xcframework-staging/yttriumFFI.modulemap \
       > target/uniffi-xcframework-staging/yttriumFFI/module.modulemap
-
-  # Move headers to yttriumFFI directory
-  mv target/uniffi-xcframework-staging/*.h target/uniffi-xcframework-staging/yttriumFFI/
-
-  # Copy only Swift files to Swift package directory
-  mkdir -p "$swift_package_dir"
-  cp target/uniffi-xcframework-staging/*.swift "$swift_package_dir/"
 }
 
 build_xcframework() {
