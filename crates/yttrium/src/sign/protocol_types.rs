@@ -78,19 +78,21 @@ pub struct SessionSettle {
     pub relay: Relay,
     pub namespaces: SettleNamespaces,
     pub controller: Controller,
-    pub expiry_timestamp: u64,
+    pub expiry: u64,
     pub session_properties: serde_json::Value,
     pub scoped_properties: serde_json::Value,
-    pub session_config: serde_json::Value,
+    // pub session_config: serde_json::Value, //TODO: Not sure what this is
 }
 
 pub type SettleNamespaces = HashMap<String, SettleNamespace>;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
 pub struct SettleNamespace {
     pub accounts: Vec<String>,
     pub methods: Vec<String>,
     pub events: Vec<String>,
+    pub chains: Vec<String>
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

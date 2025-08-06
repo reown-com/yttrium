@@ -1,3 +1,4 @@
+use relay_rpc::rpc::AnalyticsData;
 pub use relay_rpc::{
     auth::ed25519_dalek::{SecretKey, SigningKey},
     domain::Topic,
@@ -371,8 +372,8 @@ impl Client {
     pub async fn approve(
         &mut self,
         proposal: SessionProposal,
-        namespaces: HashMap<String, SettleNamespace>,
-        metadata: Metadata,
+        approved_namespaces: HashMap<String, SettleNamespace>,
+        self_metadata: Metadata,
     ) -> Result<Session, ApproveError> {
         // TODO implement
         // https://github.com/WalletConnect/walletconnect-monorepo/blob/5bef698dcf0ae910548481959a6a5d87eaf7aaa5/packages/sign-client/src/controllers/engine.ts#L341
@@ -420,19 +421,19 @@ impl Client {
                 method: "wc_sessionSettle".to_string(),
                 params: SessionSettle {
                     relay: Relay { protocol: "irn".to_string() },
-                    namespaces,
+                    namespaces: approved_namespaces,
                     controller: Controller {
                         public_key: hex::encode(self_public_key.to_bytes()),
-                        metadata,
+                        metadata: self_metadata,
                     },
-                    expiry_timestamp: crate::time::SystemTime::now()
+                    expiry: crate::time::SystemTime::now()
                         .duration_since(crate::time::UNIX_EPOCH)
                         .unwrap()
                         .as_secs()
-                        + 60 * 60 * 24 * 30, // TODO
-                    session_properties: serde_json::Value::Null, // TODO
-                    scoped_properties: serde_json::Value::Null,  // TODO
-                    session_config: serde_json::Value::Null,     // TODO
+                        + 60 * 60 * 24 * 7, //Session expiry is 7 days
+                    session_properties: proposal.session_properties.as_ref().map(|p| serde_json::to_value(p).unwrap_or_default()).unwrap_or_default(),
+                    scoped_properties: proposal.scoped_properties.as_ref().map(|p| serde_json::to_value(p).unwrap_or_default()).unwrap_or_default(),
+                    // session_config: proposal.session_config,
                 },
             })
             .map_err(|e| ApproveError::Internal(e.to_string()))?;
@@ -456,7 +457,13 @@ impl Client {
             session_topic: session_topic.clone(),
             session_proposal_response,
             session_settlement_request,
-            analytics: None,
+            analytics: Some(AnalyticsData {
+                correlation_id: Some(proposal.session_proposal_rpc_id as i64),
+                chain_id: None,
+                rpc_methods: None,
+                tx_hashes: None,
+                contract_addresses: None,
+            }),
         };
 
         // TODO insert session into storage
@@ -1311,45 +1318,22 @@ impl SignClient {
         Ok(proposal.into())
     }
 
+    //TODO: Add approved namespaces builder util function
+
     pub async fn approve(
         &self,
-        pairing: SessionProposalFfi,
+        proposal: SessionProposalFfi,
+        approved_namespaces: HashMap<String, SettleNamespace>,
+        self_metadata: Metadata,
     ) -> Result<SessionFfi, ApproveError> {
-        let proposal: SessionProposal = pairing.into();
+        let proposal: SessionProposal = proposal.into();
 
-        let mut namespaces = HashMap::new();
-        for (namespace, namespace_proposal) in proposal.required_namespaces.clone() {
-            let accounts = namespace_proposal
-                .chains
-                .iter()
-                .map(|chain| {
-                    format!(
-                        "{}:{}",
-                        chain, "0x0000000000000000000000000000000000000000"
-                    )
-                })
-                .collect();
-            let namespace_settle = SettleNamespace {
-                accounts,
-                methods: namespace_proposal.methods,
-                events: namespace_proposal.events,
-            };
-            namespaces.insert(namespace, namespace_settle);
-        }
-        tracing::debug!("namespaces: {:?}", namespaces);
+        tracing::debug!("approved_namespaces: {:?}", approved_namespaces);
+        tracing::debug!("self_metadata: {:?}", self_metadata);
 
-        let metadata = Metadata {
-            name: "Reown Swift Sample Wallet".to_string(),
-            description: "Reown Swift Sample Wallet".to_string(),
-            url: "https://reown.com".to_string(),
-            icons: vec![],
-            verify_url: None,
-            redirect: None,
-        };
-
-        let session = {
+        let session: Session = {
             let mut client = self.client.lock().await;
-            client.approve(proposal, namespaces, metadata).await?
+            client.approve(proposal, approved_namespaces, self_metadata).await?
         };
         Ok(session.into())
     }
