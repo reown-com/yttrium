@@ -18,6 +18,7 @@ use {
         smart_accounts::safe::{SignOutputEnum, SignStep3Params},
     },
 };
+#[cfg(feature = "chain_abstraction_client")]
 use {
     alloy::{
         hex,
@@ -26,6 +27,7 @@ use {
             PrimitiveSignature as FFIPrimitiveSignature, Uint, U128 as FFIU128,
             U256 as FFIU256, U64 as FFIU64,
         },
+        sol,
     },
     yttrium::{
         chain_abstraction::{
@@ -37,7 +39,7 @@ use {
 };
 #[cfg(feature = "chain_abstraction_client")]
 use {
-    alloy::{providers::Provider, sol, sol_types::SolCall},
+    alloy::{providers::Provider, sol_types::SolCall},
     relay_rpc::domain::ProjectId,
     std::time::Duration,
     yttrium::call::Call,
@@ -54,53 +56,63 @@ use {
 };
 // extern crate yttrium; // This might work too, but I haven't tested
 
+#[cfg(feature = "chain_abstraction_client")]
 sol! {
     pragma solidity ^0.8.0;
     function transfer(address recipient, uint256 amount) external returns (bool);
 }
 
+#[cfg(feature = "chain_abstraction_client")]
 uniffi::custom_type!(FFIAddress, String, {
     remote,
     try_lift: |val| Ok(val.parse()?),
     lower: |obj| obj.to_string(),
 });
 
+#[cfg(feature = "chain_abstraction_client")]
 uniffi::custom_type!(FFIPrimitiveSignature, String, {
     remote,
     try_lift: |val| Ok(val.parse()?),
     lower: |obj| format!("0x{}", hex::encode(obj.as_bytes())),
 });
 
+#[cfg(feature = "chain_abstraction_client")]
 fn uint_to_hex<const BITS: usize, const LIMBS: usize>(
     obj: Uint<BITS, LIMBS>,
 ) -> String {
     format!("0x{obj:x}")
 }
 
+#[cfg(feature = "chain_abstraction_client")]
 uniffi::custom_type!(FFIU64, String, {
     remote,
     try_lift: |val| Ok(val.parse()?),
     lower: |obj| uint_to_hex(obj),
 });
 
+#[cfg(feature = "chain_abstraction_client")]
 uniffi::custom_type!(FFIU128, String, {
     remote,
     try_lift: |val| Ok(val.parse()?),
     lower: |obj| uint_to_hex(obj),
 });
 
+#[cfg(feature = "chain_abstraction_client")]
 uniffi::custom_type!(FFIU256, String, {
     remote,
     try_lift: |val| Ok(val.parse()?),
     lower: |obj| uint_to_hex(obj),
 });
 
+#[cfg(feature = "chain_abstraction_client")]
 uniffi::custom_type!(FFIBytes, String, {
     remote,
     try_lift: |val| Ok(val.parse()?),
     lower: |obj| obj.to_string(),
 });
 
+
+#[cfg(feature = "chain_abstraction_client")]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, uniffi::Record)]
 pub struct Eip1559Estimation {
     /// The base fee per gas.
@@ -109,6 +121,7 @@ pub struct Eip1559Estimation {
     pub max_priority_fee_per_gas: FFIU128,
 }
 
+#[cfg(feature = "chain_abstraction_client")]
 impl From<alloy::providers::utils::Eip1559Estimation> for Eip1559Estimation {
     fn from(source: alloy::providers::utils::Eip1559Estimation) -> Self {
         Self {
@@ -435,6 +448,7 @@ impl FFIAccountClient {
 }
 
 #[cfg(test)]
+#[cfg(feature = "chain_abstraction_client")]
 mod tests {
     use {
         super::*,
