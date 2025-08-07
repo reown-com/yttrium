@@ -28,6 +28,7 @@ Pod::Spec.new do |spec|
   }
 
   spec.prepare_command = <<-CMD
+    mkdir -p target/ios-utils/
     curl -L https://github.com/reown-com/yttrium/releases/download/#{spec.version}/libyttrium-utils.xcframework.zip -o libyttrium-utils.xcframework.zip
     unzip -o libyttrium-utils.xcframework.zip -d target/ios-utils/
     rm libyttrium-utils.xcframework.zip
