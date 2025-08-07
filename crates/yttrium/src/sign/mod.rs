@@ -455,7 +455,7 @@ impl Client {
             session_proposal_response,
             session_settlement_request,
             analytics: Some(AnalyticsData {
-                correlation_id: Some(proposal.session_proposal_rpc_id),
+                correlation_id: Some(proposal.session_proposal_rpc_id as i64),
                 chain_id: None,
                 rpc_methods: None,
                 tx_hashes: None,
