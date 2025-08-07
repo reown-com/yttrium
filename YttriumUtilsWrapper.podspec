@@ -1,6 +1,6 @@
 Pod::Spec.new do |spec|
   spec.name         = "YttriumUtilsWrapper"
-  spec.version      = "0.9.49"
+  spec.version      = "0.9.50"
   spec.summary      = "Yttrium Utils - Multi-blockchain utilities for EIP155, Stacks, and Chain Abstraction"
   spec.description  = <<-DESC
                    Yttrium Utils provides multi-blockchain utilities including EIP155 support, Stacks integration, 
@@ -28,7 +28,7 @@ Pod::Spec.new do |spec|
   }
 
   spec.prepare_command = <<-SCRIPT
-    curl -L -o libyttrium-utils.xcframework.zip 'https://github.com/reown-com/yttrium/releases/download/#{spec.version}/libyttrium-utils.xcframework.zip'
+    curl -L -o libyttrium-utils.xcframework.zip 'https://github.com/reown-com/yttrium/releases/download/0.9.50/libyttrium-utils.xcframework.zip'
     unzip -o libyttrium-utils.xcframework.zip -d platforms/swift/
     rm libyttrium-utils.xcframework.zip
 
