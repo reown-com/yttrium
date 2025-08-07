@@ -38,13 +38,8 @@ all_namespaces = ["eip155", "solana", "sui", "stacks"]
 eip155 = []
 solana = [
     "dep:solana-sdk",
-    "dep:solana-client",
-    "dep:spl-token",
     "dep:spl-associated-token-account",
     "dep:bincode",
-    "dep:data-encoding",
-    "dep:quinn",
-    "dep:const_format",
 ]
 sui = [
     "dep:sui_sdk",
@@ -59,6 +54,7 @@ stacks = [
     "dep:stacks-rs",
     "dep:bip32",
     "dep:stacks_secp256k1",
+    "dep:rand",
 ]
 
 # Features contributing to bundle size, that you might not need
@@ -155,17 +151,9 @@ jni = { version = "0.21", optional = true }
 derive_jserror = { version = "=0.1.0", optional = true, default-features = false }
 
 # Solana
-solana-sdk = { workspace = true, optional = true, features = [
-    "full",
-] } # TODO try to remove "full" feature
-solana-client = { workspace = true, optional = true }
-solana-seed-phrase = { workspace = true, optional = true }
-spl-token = { workspace = true, optional = true }
+solana-sdk = { workspace = true, optional = true } # Remove "full" feature to avoid OpenSSL dependencies
 spl-associated-token-account = { workspace = true, optional = true }
 bincode = { workspace = true, optional = true }
-data-encoding = { workspace = true, optional = true }
-quinn = { workspace = true, optional = true, default-features = false }
-const_format = { workspace = true, optional = true }
 
 # SUI
 sui_sdk = { workspace = true, optional = true }
