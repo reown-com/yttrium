@@ -351,7 +351,7 @@ impl Client {
                     session_proposal_rpc_id: request.id.into_value(),
                     pairing_topic: pairing_uri.topic,
                     pairing_sym_key: pairing_uri.sym_key,
-                    proposer_public_key: proposer_public_key,
+                    proposer_public_key,
                     relays: proposal.relays,
                     required_namespaces: proposal.required_namespaces,
                     optional_namespaces: proposal.optional_namespaces,
@@ -455,7 +455,7 @@ impl Client {
             session_proposal_response,
             session_settlement_request,
             analytics: Some(AnalyticsData {
-                correlation_id: Some(proposal.session_proposal_rpc_id as i64),
+                correlation_id: Some(proposal.session_proposal_rpc_id),
                 chain_id: None,
                 rpc_methods: None,
                 tx_hashes: None,
@@ -1477,7 +1477,7 @@ mod conversion_tests {
             proposer_public_key: [2u8; 32],
             relays: vec![],
             required_namespaces: std::collections::HashMap::new(),
-            optional_namespaces: std::collections::HashMap::new(),
+            optional_namespaces: Some(std::collections::HashMap::new()),
             metadata: Metadata {
                 name: "Test".to_string(),
                 description: "Test".to_string(),

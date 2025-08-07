@@ -38,6 +38,6 @@ pub fn register_logger(logger: Arc<dyn Logger>) {
 
     match result {
         Ok(_) => eprintln!("Tracing subscriber initialized successfully"),
-        Err(e) => eprintln!("Tracing subscriber initialization failed: {:?}", e),
+        Err(e) => eprintln!("Tracing subscriber initialization failed: {e:?}"),
     }
 }
