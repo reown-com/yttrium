@@ -22,7 +22,7 @@ pub struct Proposal {
     pub proposer: Proposer,
     pub session_properties: Option<HashMap<String, String>>,
     pub scoped_properties: Option<HashMap<String, String>>,
-    pub expiry_timestamp: Option<u64>
+    pub expiry_timestamp: Option<u64>,
 }
 
 pub type ProposalNamespaces = HashMap<String, ProposalNamespace>;
@@ -92,7 +92,7 @@ pub struct SettleNamespace {
     pub accounts: Vec<String>,
     pub methods: Vec<String>,
     pub events: Vec<String>,
-    pub chains: Vec<String>
+    pub chains: Vec<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

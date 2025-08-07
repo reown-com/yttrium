@@ -13,8 +13,7 @@ async fn test_sign() {
     let pairing = client.pair(&uri).await.unwrap();
 
     let mut namespaces = HashMap::new();
-    for (namespace, namespace_proposal) in pairing.required_namespaces.clone()
-    {
+    for (namespace, namespace_proposal) in pairing.required_namespaces.clone() {
         let accounts = namespace_proposal
             .chains
             .iter()

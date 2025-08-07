@@ -1,4 +1,3 @@
-use relay_rpc::rpc::AnalyticsData;
 pub use relay_rpc::{
     auth::ed25519_dalek::{SecretKey, SigningKey},
     domain::Topic,
@@ -24,9 +23,9 @@ use {
         domain::{DecodedClientId, MessageId, ProjectId, SubscriptionId},
         jwt::{JwtBasicClaims, JwtHeader},
         rpc::{
-            ApproveSession, BatchSubscribe, FetchMessages, FetchResponse,
-            Params, Payload, Publish, Request, Response, Subscription,
-            SuccessfulResponse,
+            AnalyticsData, ApproveSession, BatchSubscribe, FetchMessages,
+            FetchResponse, Params, Payload, Publish, Request, Response,
+            Subscription, SuccessfulResponse,
         },
     },
     serde::{de::DeserializeOwned, Deserialize, Serialize},
@@ -358,7 +357,7 @@ impl Client {
                     metadata: proposal.proposer.metadata,
                     session_properties: proposal.session_properties,
                     scoped_properties: proposal.scoped_properties,
-                    expiry_timestamp: proposal.expiry_timestamp
+                    expiry_timestamp: proposal.expiry_timestamp,
                 });
             }
         }
@@ -428,9 +427,17 @@ impl Client {
                         .unwrap()
                         .as_secs()
                         + 60 * 60 * 24 * 7, // Session expiry is 7 days
-                        session_properties: proposal.session_properties.as_ref().map(|p| serde_json::to_value(p).unwrap_or_default()).unwrap_or_default(),
-                        scoped_properties: proposal.scoped_properties.as_ref().map(|p| serde_json::to_value(p).unwrap_or_default()).unwrap_or_default(),
-                        // session_config: proposal.session_config,
+                    session_properties: proposal
+                        .session_properties
+                        .as_ref()
+                        .map(|p| serde_json::to_value(p).unwrap_or_default())
+                        .unwrap_or_default(),
+                    scoped_properties: proposal
+                        .scoped_properties
+                        .as_ref()
+                        .map(|p| serde_json::to_value(p).unwrap_or_default())
+                        .unwrap_or_default(),
+                    // session_config: proposal.session_config,
                 },
             })
             .map_err(|e| ApproveError::Internal(e.to_string()))?;
@@ -1356,12 +1363,20 @@ pub struct SessionProposalFfi {
     pub pairing_sym_key: Vec<u8>,
     pub proposer_public_key: Vec<u8>,
     pub relays: Vec<crate::sign::protocol_types::Relay>,
-    pub required_namespaces: std::collections::HashMap<String,crate::sign::protocol_types::ProposalNamespace,>,
-    pub optional_namespaces: Option<std::collections::HashMap<String,crate::sign::protocol_types::ProposalNamespace,>>,
+    pub required_namespaces: std::collections::HashMap<
+        String,
+        crate::sign::protocol_types::ProposalNamespace,
+    >,
+    pub optional_namespaces: Option<
+        std::collections::HashMap<
+            String,
+            crate::sign::protocol_types::ProposalNamespace,
+        >,
+    >,
     pub metadata: crate::sign::protocol_types::Metadata,
     pub session_properties: Option<std::collections::HashMap<String, String>>,
     pub scoped_properties: Option<std::collections::HashMap<String, String>>,
-    pub expiry_timestamp: Option<u64>
+    pub expiry_timestamp: Option<u64>,
 }
 
 #[cfg(feature = "uniffi")]
@@ -1405,7 +1420,7 @@ impl From<SessionProposal> for SessionProposalFfi {
             metadata: proposal.metadata,
             session_properties: proposal.session_properties,
             scoped_properties: proposal.scoped_properties,
-            expiry_timestamp: proposal.expiry_timestamp
+            expiry_timestamp: proposal.expiry_timestamp,
         }
     }
 }
@@ -1427,7 +1442,7 @@ impl From<SessionProposalFfi> for SessionProposal {
             metadata: proposal.metadata,
             session_properties: proposal.session_properties,
             scoped_properties: proposal.scoped_properties,
-            expiry_timestamp: proposal.expiry_timestamp
+            expiry_timestamp: proposal.expiry_timestamp,
         }
     }
 }
