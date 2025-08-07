@@ -59,6 +59,7 @@ stacks = [
     "dep:stacks-rs",
     "dep:bip32",
     "dep:stacks_secp256k1",
+    "dep:rand",
 ]
 
 # Features contributing to bundle size, that you might not need

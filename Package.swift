@@ -15,6 +15,17 @@ let yttriumXcframeworkTarget: Target = useLocalRustXcframework ?
         checksum: "7b77e624941103ac9618b3414f5e6386022e4bc372687112148cc10348ec9016"
     )
 
+let yttriumUtilsXcframeworkTarget: Target = useLocalRustXcframework ?
+    .binaryTarget(
+        name: "YttriumUtilsXCFramework",
+        path: "target/ios-utils/libyttrium-utils.xcframework"
+    ) :
+    .binaryTarget(
+        name: "YttriumUtilsXCFramework",
+        url: "https://github.com/reown-com/yttrium/releases/download/0.9.45/libyttrium-utils.xcframework.zip",
+        checksum: "placeholder-checksum-will-be-updated-in-release"
+    )
+
 let package = Package(
     name: "Yttrium",
     platforms: [
@@ -25,13 +36,27 @@ let package = Package(
             name: "Yttrium",
             targets: ["Yttrium"]
         ),
+        .library(
+            name: "YttriumUtils",
+            targets: ["YttriumUtils"]
+        ),
     ],
     targets: [
         yttriumXcframeworkTarget,
+        yttriumUtilsXcframeworkTarget,
         .target(
             name: "Yttrium",
             dependencies: ["YttriumXCFramework"],
             path: "platforms/swift/Sources/Yttrium",
+            publicHeadersPath: ".",
+            cSettings: [
+                .headerSearchPath(".")
+            ]
+        ),
+        .target(
+            name: "YttriumUtils",
+            dependencies: ["YttriumUtilsXCFramework"],
+            path: "platforms/swift/Sources/YttriumUtils",
             publicHeadersPath: ".",
             cSettings: [
                 .headerSearchPath(".")
