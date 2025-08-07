@@ -23,9 +23,9 @@ use {
         domain::{DecodedClientId, MessageId, ProjectId, SubscriptionId},
         jwt::{JwtBasicClaims, JwtHeader},
         rpc::{
-            ApproveSession, BatchSubscribe, FetchMessages, FetchResponse,
-            Params, Payload, Publish, Request, Response, Subscription,
-            SuccessfulResponse,
+            AnalyticsData, ApproveSession, BatchSubscribe, FetchMessages,
+            FetchResponse, Params, Payload, Publish, Request, Response,
+            Subscription, SuccessfulResponse,
         },
     },
     serde::{de::DeserializeOwned, Deserialize, Serialize},
@@ -321,6 +321,7 @@ impl Client {
                         request.method
                     )));
                 }
+                tracing::debug!("Decrypted Proposal: {:?}", request);
                 tracing::debug!("rpc request: {}", request.id);
                 tracing::debug!(
                     "{}",
@@ -350,11 +351,13 @@ impl Client {
                     pairing_topic: pairing_uri.topic,
                     pairing_sym_key: pairing_uri.sym_key,
                     proposer_public_key,
-                    requested_namespaces: proposal
-                        .required_namespaces
-                        .into_iter()
-                        .chain(proposal.optional_namespaces.into_iter())
-                        .collect(),
+                    relays: proposal.relays,
+                    required_namespaces: proposal.required_namespaces,
+                    optional_namespaces: proposal.optional_namespaces,
+                    metadata: proposal.proposer.metadata,
+                    session_properties: proposal.session_properties,
+                    scoped_properties: proposal.scoped_properties,
+                    expiry_timestamp: proposal.expiry_timestamp,
                 });
             }
         }
@@ -365,8 +368,8 @@ impl Client {
     pub async fn approve(
         &mut self,
         proposal: SessionProposal,
-        namespaces: HashMap<String, SettleNamespace>,
-        metadata: Metadata,
+        approved_namespaces: HashMap<String, SettleNamespace>,
+        self_metadata: Metadata,
     ) -> Result<Session, ApproveError> {
         // TODO implement
         // https://github.com/WalletConnect/walletconnect-monorepo/blob/5bef698dcf0ae910548481959a6a5d87eaf7aaa5/packages/sign-client/src/controllers/engine.ts#L341
@@ -414,19 +417,27 @@ impl Client {
                 method: "wc_sessionSettle".to_string(),
                 params: SessionSettle {
                     relay: Relay { protocol: "irn".to_string() },
-                    namespaces,
+                    namespaces: approved_namespaces,
                     controller: Controller {
                         public_key: hex::encode(self_public_key.to_bytes()),
-                        metadata,
+                        metadata: self_metadata,
                     },
-                    expiry_timestamp: crate::time::SystemTime::now()
+                    expiry: crate::time::SystemTime::now()
                         .duration_since(crate::time::UNIX_EPOCH)
                         .unwrap()
                         .as_secs()
-                        + 60 * 60 * 24 * 30, // TODO
-                    session_properties: serde_json::Value::Null, // TODO
-                    scoped_properties: serde_json::Value::Null,  // TODO
-                    session_config: serde_json::Value::Null,     // TODO
+                        + 60 * 60 * 24 * 7, // Session expiry is 7 days
+                    session_properties: proposal
+                        .session_properties
+                        .as_ref()
+                        .map(|p| serde_json::to_value(p).unwrap_or_default())
+                        .unwrap_or_default(),
+                    scoped_properties: proposal
+                        .scoped_properties
+                        .as_ref()
+                        .map(|p| serde_json::to_value(p).unwrap_or_default())
+                        .unwrap_or_default(),
+                    // session_config: proposal.session_config,
                 },
             })
             .map_err(|e| ApproveError::Internal(e.to_string()))?;
@@ -450,7 +461,13 @@ impl Client {
             session_topic: session_topic.clone(),
             session_proposal_response,
             session_settlement_request,
-            analytics: None,
+            analytics: Some(AnalyticsData {
+                correlation_id: Some(proposal.session_proposal_rpc_id as i64),
+                chain_id: None,
+                rpc_methods: None,
+                tx_hashes: None,
+                contract_addresses: None,
+            }),
         };
 
         // TODO insert session into storage
@@ -1305,45 +1322,19 @@ impl SignClient {
         Ok(proposal.into())
     }
 
+    //TODO: Add approved namespaces builder util function
     pub async fn approve(
         &self,
-        pairing: SessionProposalFfi,
+        proposal: SessionProposalFfi,
+        approved_namespaces: HashMap<String, SettleNamespace>,
+        self_metadata: Metadata,
     ) -> Result<SessionFfi, ApproveError> {
-        let proposal: SessionProposal = pairing.into();
-
-        let mut namespaces = HashMap::new();
-        for (namespace, namespace_proposal) in
-            proposal.requested_namespaces.clone()
-        {
-            let accounts = namespace_proposal
-                .chains
-                .iter()
-                .map(|chain| {
-                    format!(
-                        "{}:{}",
-                        chain, "0x0000000000000000000000000000000000000000"
-                    )
-                })
-                .collect();
-            let namespace_settle = SettleNamespace {
-                accounts,
-                methods: namespace_proposal.methods,
-                events: namespace_proposal.events,
-            };
-            namespaces.insert(namespace, namespace_settle);
-        }
-        tracing::debug!("namespaces: {:?}", namespaces);
-
-        let metadata = Metadata {
-            name: "Reown Swift Sample Wallet".to_string(),
-            description: "Reown Swift Sample Wallet".to_string(),
-            url: "https://reown.com".to_string(),
-            icons: vec![],
-        };
-
+        let proposal: SessionProposal = proposal.into();
+        tracing::debug!("approved_namespaces: {:?}", approved_namespaces);
+        tracing::debug!("self_metadata: {:?}", self_metadata);
         let session = {
             let mut client = self.client.lock().await;
-            client.approve(proposal, namespaces, metadata).await?
+            client.approve(proposal, approved_namespaces, self_metadata).await?
         };
         Ok(session.into())
     }
@@ -1355,7 +1346,13 @@ pub struct SessionProposal {
     pub pairing_topic: Topic,
     pub pairing_sym_key: [u8; 32],
     pub proposer_public_key: [u8; 32],
-    pub requested_namespaces: ProposalNamespaces,
+    pub relays: Vec<crate::sign::protocol_types::Relay>,
+    pub required_namespaces: ProposalNamespaces,
+    pub optional_namespaces: Option<ProposalNamespaces>,
+    pub metadata: Metadata,
+    pub session_properties: Option<HashMap<String, String>>,
+    pub scoped_properties: Option<HashMap<String, String>>,
+    pub expiry_timestamp: Option<u64>,
 }
 
 #[cfg(feature = "uniffi")]
@@ -1365,10 +1362,21 @@ pub struct SessionProposalFfi {
     pub topic: String,
     pub pairing_sym_key: Vec<u8>,
     pub proposer_public_key: Vec<u8>,
-    pub requested_namespaces: std::collections::HashMap<
+    pub relays: Vec<crate::sign::protocol_types::Relay>,
+    pub required_namespaces: std::collections::HashMap<
         String,
         crate::sign::protocol_types::ProposalNamespace,
     >,
+    pub optional_namespaces: Option<
+        std::collections::HashMap<
+            String,
+            crate::sign::protocol_types::ProposalNamespace,
+        >,
+    >,
+    pub metadata: crate::sign::protocol_types::Metadata,
+    pub session_properties: Option<std::collections::HashMap<String, String>>,
+    pub scoped_properties: Option<std::collections::HashMap<String, String>>,
+    pub expiry_timestamp: Option<u64>,
 }
 
 #[cfg(feature = "uniffi")]
@@ -1406,7 +1414,13 @@ impl From<SessionProposal> for SessionProposalFfi {
             topic: topic_string,
             pairing_sym_key: proposal.pairing_sym_key.to_vec(),
             proposer_public_key: proposal.proposer_public_key.to_vec(),
-            requested_namespaces: proposal.requested_namespaces,
+            relays: proposal.relays,
+            required_namespaces: proposal.required_namespaces,
+            optional_namespaces: proposal.optional_namespaces,
+            metadata: proposal.metadata,
+            session_properties: proposal.session_properties,
+            scoped_properties: proposal.scoped_properties,
+            expiry_timestamp: proposal.expiry_timestamp,
         }
     }
 }
@@ -1417,12 +1431,18 @@ impl From<SessionProposalFfi> for SessionProposal {
         Self {
             session_proposal_rpc_id: proposal.id.parse::<u64>().unwrap(),
             pairing_topic: proposal.topic.into(),
+            relays: proposal.relays,
             pairing_sym_key: proposal.pairing_sym_key.try_into().unwrap(),
             proposer_public_key: proposal
                 .proposer_public_key
                 .try_into()
                 .unwrap(),
-            requested_namespaces: proposal.requested_namespaces,
+            required_namespaces: proposal.required_namespaces,
+            optional_namespaces: proposal.optional_namespaces,
+            metadata: proposal.metadata,
+            session_properties: proposal.session_properties,
+            scoped_properties: proposal.scoped_properties,
+            expiry_timestamp: proposal.expiry_timestamp,
         }
     }
 }
@@ -1470,7 +1490,20 @@ mod conversion_tests {
             pairing_topic: test_topic.clone(),
             pairing_sym_key: [1u8; 32],
             proposer_public_key: [2u8; 32],
-            requested_namespaces: std::collections::HashMap::new(),
+            relays: vec![],
+            required_namespaces: std::collections::HashMap::new(),
+            optional_namespaces: Some(std::collections::HashMap::new()),
+            metadata: Metadata {
+                name: "Test".to_string(),
+                description: "Test".to_string(),
+                url: "https://test.com".to_string(),
+                icons: vec![],
+                verify_url: None,
+                redirect: None,
+            },
+            session_properties: None,
+            scoped_properties: None,
+            expiry_timestamp: None,
         };
 
         // Convert to FFI

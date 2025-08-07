@@ -17,9 +17,12 @@ pub struct ProposalJsonRpc {
 #[serde(rename_all = "camelCase")]
 pub struct Proposal {
     pub required_namespaces: ProposalNamespaces,
-    pub optional_namespaces: ProposalNamespaces,
+    pub optional_namespaces: Option<ProposalNamespaces>,
     pub relays: Vec<Relay>,
     pub proposer: Proposer,
+    pub session_properties: Option<HashMap<String, String>>,
+    pub scoped_properties: Option<HashMap<String, String>>,
+    pub expiry_timestamp: Option<u64>,
 }
 
 pub type ProposalNamespaces = HashMap<String, ProposalNamespace>;
@@ -42,7 +45,7 @@ pub struct Relay {
 #[serde(rename_all = "camelCase")]
 pub struct Proposer {
     pub public_key: String,
-    pub metadata: serde_json::Value,
+    pub metadata: Metadata,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -75,19 +78,21 @@ pub struct SessionSettle {
     pub relay: Relay,
     pub namespaces: SettleNamespaces,
     pub controller: Controller,
-    pub expiry_timestamp: u64,
+    pub expiry: u64,
     pub session_properties: serde_json::Value,
     pub scoped_properties: serde_json::Value,
-    pub session_config: serde_json::Value,
+    // pub session_config: serde_json::Value,
 }
 
 pub type SettleNamespaces = HashMap<String, SettleNamespace>;
 
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct SettleNamespace {
     pub accounts: Vec<String>,
     pub methods: Vec<String>,
     pub events: Vec<String>,
+    pub chains: Vec<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -99,11 +104,23 @@ pub struct Controller {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
 pub struct Metadata {
     pub name: String,
     pub description: String,
     pub url: String,
     pub icons: Vec<String>,
+    pub verify_url: Option<String>,
+    pub redirect: Option<Redirect>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
+pub struct Redirect {
+    pub native: Option<String>,
+    pub universal: Option<String>,
+    pub link_mode: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

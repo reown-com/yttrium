@@ -88,7 +88,7 @@ pub fn App() -> impl IntoView {
 
                 let mut namespaces = HashMap::new();
                 for (namespace, namespace_proposal) in
-                    pairing.requested_namespaces.clone()
+                    pairing.required_namespaces.clone()
                 {
                     let accounts = namespace_proposal
                         .chains
@@ -105,6 +105,7 @@ pub fn App() -> impl IntoView {
                         accounts,
                         methods: namespace_proposal.methods,
                         events: namespace_proposal.events,
+                        chains: namespace_proposal.chains,
                     };
                     namespaces.insert(namespace, namespace_settle);
                 }
@@ -115,6 +116,8 @@ pub fn App() -> impl IntoView {
                     description: "Reown Rust Sample Wallet".to_string(),
                     url: "https://reown.com".to_string(),
                     icons: vec![],
+                    verify_url: None,
+                    redirect: None,
                 };
 
                 match client.approve(pairing, namespaces, metadata).await {
