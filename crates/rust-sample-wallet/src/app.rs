@@ -105,7 +105,7 @@ pub fn App() -> impl IntoView {
                         accounts,
                         methods: namespace_proposal.methods,
                         events: namespace_proposal.events,
-                        chains: namespace_proposal.chains.clone(),
+                        chains: namespace_proposal.chains,
                     };
                     namespaces.insert(namespace, namespace_settle);
                 }
