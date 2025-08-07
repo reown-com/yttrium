@@ -53,12 +53,26 @@ jobs:
           make build-utils-xcframework
           make generate-package-swift-utils
 
-      # 7. Update Utils Podspec version
+      # 7. Calculate Utils XCFramework Checksum
+      - name: Calculate Utils XCFramework Checksum
+        id: checksum
+        run: |
+          CHECKSUM=$(swift package compute-checksum Output/libyttrium-utils.xcframework.zip)
+          echo "checksum=$CHECKSUM" >> $GITHUB_OUTPUT
+          echo "Utils XCFramework checksum: $CHECKSUM"
+
+      # 8. Update Package.swift for Utils Only
+      - name: Update Package.swift for Utils Only
+        run: |
+          chmod +x scripts/update-package-swift-utils.sh
+          ./scripts/update-package-swift-utils.sh "$VERSION" "${{ steps.checksum.outputs.checksum }}"
+
+      # 9. Update Utils Podspec version
       - name: Update Utils Podspec version
         run: |
           sed -i '' "s/spec.version      = \".*\"/spec.version      = \"$VERSION\"/" YttriumUtilsWrapper.podspec
 
-      # 8. Commit and Push Package.swift, Utils Sources, and Podspec
+      # 10. Commit and Push Package.swift, Utils Sources, and Podspec
       - name: Commit and Push Package.swift, Utils Sources, and Podspec
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -73,7 +87,7 @@ jobs:
             git push origin HEAD:$TARGET_BRANCH
           fi
 
-      # 9. Create Git Tag for Utils
+      # 11. Create Git Tag for Utils
       - name: Create Git Tag for Utils
         env:
           VERSION: ${{ env.VERSION }}
@@ -85,7 +99,7 @@ jobs:
           git tag -a "${VERSION}-utils" -m "Release YttriumUtils version ${VERSION}" "${COMMIT_HASH}"
           git push origin "${VERSION}-utils"
 
-      # 10. Create a GitHub Release for Utils
+      # 12. Create a GitHub Release for Utils
       - name: Create Release for Utils
         id: create_release_utils
         uses: actions/create-release@v1
@@ -97,7 +111,7 @@ jobs:
           draft: false
           prerelease: true
 
-      # 11. Upload Utils XCFramework to the Release
+      # 13. Upload Utils XCFramework to the Release
       - name: Upload Utils XCFramework to Release
         uses: actions/upload-release-asset@v1
         env:
@@ -108,7 +122,7 @@ jobs:
           asset_name: libyttrium-utils.xcframework.zip
           asset_content_type: application/zip
 
-      # 12. Publish Utils CocoaPods
+      # 14. Publish Utils CocoaPods
       - name: Publish Utils CocoaPods
         env:
           COCOAPODS_TRUNK_TOKEN: ${{ secrets.COCOAPODS_TRUNK_TOKEN }}
