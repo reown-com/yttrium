@@ -30,8 +30,14 @@ pub trait Logger: Send + Sync {
 
 #[uniffi::export]
 pub fn register_logger(logger: Arc<dyn Logger>) {
-    tracing_subscriber::fmt()
+    // Try to initialize the subscriber, but don't panic if it's already initialized
+    let result = tracing_subscriber::fmt()
         .with_max_level(tracing::Level::DEBUG)
         .with_writer(UniffiLogger(logger))
-        .init();
+        .try_init();
+
+    match result {
+        Ok(_) => eprintln!("Tracing subscriber initialized successfully"),
+        Err(e) => eprintln!("Tracing subscriber initialization failed: {:?}", e),
+    }
 }

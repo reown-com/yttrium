@@ -353,7 +353,7 @@ mod tests {
         super::*,
         crate::chain_abstraction::api::prepare::{
             Eip155OrSolanaAddress, FundingMetadata, InitialTransactionMetadata,
-            Metadata, Transactions,
+            PrepareResponseMetadata, Transactions,
         },
         alloy::primitives::{address, bytes, utils::Unit, Address, U64},
         std::iter,
@@ -408,7 +408,7 @@ mod tests {
         let fields = ui_fields(
             PrepareResponseAvailable {
                 orchestration_id: "".to_owned(),
-                metadata: Metadata {
+                metadata: PrepareResponseMetadata {
                     funding_from: vec![FundingMetadata {
                         chain_id: chain_id_1.clone(),
                         token_contract: Eip155OrSolanaAddress::Eip155(
