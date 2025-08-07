@@ -71,6 +71,10 @@ jobs:
       - name: Update Utils Podspec version
         run: |
           sed -i '' "s/spec.version      = \".*\"/spec.version      = \"$VERSION\"/" YttriumUtilsWrapper.podspec
+          
+          # Update the download URL to match the utils release format
+          DOWNLOAD_URL="https://github.com/reown-com/yttrium/releases/download/$VERSION/libyttrium-utils.xcframework.zip"
+          sed -i '' "s|https://github.com/reown-com/yttrium/releases/download/[^/]*/libyttrium-utils.xcframework.zip|${DOWNLOAD_URL}|g" YttriumUtilsWrapper.podspec
 
       # 10. Commit and Push Package.swift, Utils Sources, and Podspec
       - name: Commit and Push Package.swift, Utils Sources, and Podspec
@@ -95,9 +99,9 @@ jobs:
         run: |
           git fetch origin $TARGET_BRANCH
           COMMIT_HASH=$(git rev-parse HEAD)
-          echo "Tagging commit ${COMMIT_HASH} with version ${VERSION}-utils"
-          git tag -a "${VERSION}-utils" -m "Release YttriumUtils version ${VERSION}" "${COMMIT_HASH}"
-          git push origin "${VERSION}-utils"
+          echo "Tagging commit ${COMMIT_HASH} with version ${VERSION}"
+          git tag -a "${VERSION}" -m "Release YttriumUtils version ${VERSION}" "${COMMIT_HASH}"
+          git push origin "${VERSION}"
 
       # 12. Create a GitHub Release for Utils
       - name: Create Release for Utils
@@ -106,7 +110,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ env.VERSION }}-utils
+          tag_name: ${{ env.VERSION }}
           release_name: YttriumUtils ${{ env.VERSION }}
           draft: false
           prerelease: true
