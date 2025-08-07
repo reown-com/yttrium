@@ -156,8 +156,11 @@ jni = { version = "0.21", optional = true }
 derive_jserror = { version = "=0.1.0", optional = true, default-features = false }
 
 # Solana
-solana-sdk = { workspace = true, optional = true }
+solana-sdk = { workspace = true, optional = true, features = [
+    "full",
+] } # TODO try to remove "full" feature
 solana-client = { workspace = true, optional = true }
+solana-seed-phrase = { workspace = true, optional = true }
 spl-token = { workspace = true, optional = true }
 spl-associated-token-account = { workspace = true, optional = true }
 bincode = { workspace = true, optional = true }
