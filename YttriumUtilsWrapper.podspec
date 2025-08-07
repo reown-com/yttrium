@@ -16,7 +16,7 @@ Pod::Spec.new do |spec|
 
   spec.source       = { :git => "https://github.com/reown-com/yttrium.git", :tag => "#{spec.version}" }
 
-  spec.vendored_frameworks = "target/ios-utils/libyttrium-utils.xcframework"
+  spec.vendored_frameworks = "platforms/swift/target/ios-utils/libyttrium-utils.xcframework"
   spec.source_files = "platforms/swift/Sources/YttriumUtils/**/*.swift"
 
   # Since this is a utils library with fewer dependencies, we don't need complex configuration
@@ -27,10 +27,24 @@ Pod::Spec.new do |spec|
     'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'arm64'
   }
 
-  spec.prepare_command = <<-CMD
-    mkdir -p target/ios-utils/
-    curl -L https://github.com/reown-com/yttrium/releases/download/#{spec.version}/libyttrium-utils.xcframework.zip -o libyttrium-utils.xcframework.zip
-    unzip -o libyttrium-utils.xcframework.zip -d target/ios-utils/
+  spec.prepare_command = <<-SCRIPT
+    curl -L -o libyttrium-utils.xcframework.zip 'https://github.com/reown-com/yttrium/releases/download/#{spec.version}/libyttrium-utils.xcframework.zip'
+    unzip -o libyttrium-utils.xcframework.zip -d platforms/swift/
     rm libyttrium-utils.xcframework.zip
-  CMD
+
+    # Restructure the headers if needed for utils
+    if [ -d "platforms/swift/target/ios-utils/libyttrium-utils.xcframework/ios-arm64/Headers/yttriumFFI" ]; then
+      mv platforms/swift/target/ios-utils/libyttrium-utils.xcframework/ios-arm64/Headers/yttriumFFI/* platforms/swift/target/ios-utils/libyttrium-utils.xcframework/ios-arm64/Headers/
+      rm -rf platforms/swift/target/ios-utils/libyttrium-utils.xcframework/ios-arm64/Headers/yttriumFFI
+    fi
+
+    if [ -d "platforms/swift/target/ios-utils/libyttrium-utils.xcframework/ios-arm64_x86_64-simulator/Headers/yttriumFFI" ]; then
+      mv platforms/swift/target/ios-utils/libyttrium-utils.xcframework/ios-arm64_x86_64-simulator/Headers/yttriumFFI/* platforms/swift/target/ios-utils/libyttrium-utils.xcframework/ios-arm64_x86_64-simulator/Headers/
+      rm -rf platforms/swift/target/ios-utils/libyttrium-utils.xcframework/ios-arm64_x86_64-simulator/Headers/yttriumFFI
+    fi
+
+    # Copy Swift source files directly to Headers directory for both architectures
+    cp -R platforms/swift/Sources/YttriumUtils/*.swift platforms/swift/target/ios-utils/libyttrium-utils.xcframework/ios-arm64/Headers/
+    cp -R platforms/swift/Sources/YttriumUtils/*.swift platforms/swift/target/ios-utils/libyttrium-utils.xcframework/ios-arm64_x86_64-simulator/Headers/
+  SCRIPT
 end 
