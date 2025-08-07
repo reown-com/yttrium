@@ -146,6 +146,7 @@ jobs:
 
       # Build bindings
       - run: make build-xcframework
+      - run: make build-utils-xcframework
 
       # Don't think we actually need this check, since bindings will be updated during release
       # - run: git diff crates/ffi
