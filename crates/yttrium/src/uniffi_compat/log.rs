@@ -1,10 +1,8 @@
 use {std::sync::Arc, tracing_subscriber::fmt::MakeWriter};
 
-#[cfg(feature = "uniffi")]
 #[derive(Clone)]
 struct UniffiLogger(Arc<dyn Logger>);
 
-#[cfg(feature = "uniffi")]
 impl<'a> MakeWriter<'a> for UniffiLogger {
     type Writer = UniffiLogger;
 
@@ -13,7 +11,6 @@ impl<'a> MakeWriter<'a> for UniffiLogger {
     }
 }
 
-#[cfg(feature = "uniffi")]
 impl std::io::Write for UniffiLogger {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
         let message = String::from_utf8_lossy(buf);
@@ -26,13 +23,11 @@ impl std::io::Write for UniffiLogger {
     }
 }
 
-#[cfg(feature = "uniffi")]
 #[uniffi::export(with_foreign)]
 pub trait Logger: Send + Sync {
     fn log(&self, message: String);
 }
 
-#[cfg(feature = "uniffi")]
 #[uniffi::export]
 pub fn register_logger(logger: Arc<dyn Logger>) {
     // Try to initialize the subscriber, but don't panic if it's already initialized

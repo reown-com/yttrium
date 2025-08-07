@@ -355,7 +355,7 @@ impl Client {
                     pairing_topic: pairing_uri.topic,
                     pairing_sym_key: pairing_uri.sym_key,
                     proposer_public_key: proposer_public_key,
-
+                    relays: proposal.relays,
                     required_namespaces: proposal.required_namespaces,
                     optional_namespaces: proposal.optional_namespaces,
                     metadata: proposal.proposer.metadata,
@@ -1245,22 +1245,6 @@ impl Client {
                             self.websocket.insert(ws_state);
                             response
                         }
-                        Ok(Ok(Err(e))) => {
-                            self.websocket.take();
-                            // If request fails, create new connection
-                            let (response, ws_state) =
-                                self.connect_ws(params).await?;
-                            self.websocket.insert(ws_state);
-                            response
-                        }
-                        Ok(Ok(Err(e))) => {
-                            self.websocket.take();
-                            // If request fails, create new connection
-                            let (response, ws_state) =
-                                self.connect_ws(params).await?;
-                            self.websocket.insert(ws_state);
-                            response
-                        }
                     }
                 }
             }
@@ -1361,6 +1345,7 @@ pub struct SessionProposal {
     pub pairing_topic: Topic,
     pub pairing_sym_key: [u8; 32],
     pub proposer_public_key: [u8; 32],
+    pub relays: Vec<crate::sign::protocol_types::Relay>,
     pub required_namespaces: ProposalNamespaces,
     pub optional_namespaces: Option<ProposalNamespaces>,
     pub metadata: Metadata,
@@ -1376,6 +1361,7 @@ pub struct SessionProposalFfi {
     pub topic: String,
     pub pairing_sym_key: Vec<u8>,
     pub proposer_public_key: Vec<u8>,
+    pub relays: Vec<crate::sign::protocol_types::Relay>,
     pub required_namespaces: std::collections::HashMap<String,crate::sign::protocol_types::ProposalNamespace,>,
     pub optional_namespaces: Option<std::collections::HashMap<String,crate::sign::protocol_types::ProposalNamespace,>>,
     pub metadata: crate::sign::protocol_types::Metadata,
@@ -1417,6 +1403,7 @@ impl From<SessionProposal> for SessionProposalFfi {
         Self {
             id: id_string,
             topic: topic_string,
+            relays: proposal.relays,
             pairing_sym_key: proposal.pairing_sym_key.to_vec(),
             proposer_public_key: proposal.proposer_public_key.to_vec(),
             required_namespaces: proposal.required_namespaces,
@@ -1435,6 +1422,7 @@ impl From<SessionProposalFfi> for SessionProposal {
         Self {
             session_proposal_rpc_id: proposal.id.parse::<u64>().unwrap(),
             pairing_topic: proposal.topic.into(),
+            relays: proposal.relays,
             pairing_sym_key: proposal.pairing_sym_key.try_into().unwrap(),
             proposer_public_key: proposal
                 .proposer_public_key
@@ -1493,6 +1481,7 @@ mod conversion_tests {
             pairing_topic: test_topic.clone(),
             pairing_sym_key: [1u8; 32],
             proposer_public_key: [2u8; 32],
+            relays: vec![],
             required_namespaces: std::collections::HashMap::new(),
             optional_namespaces: std::collections::HashMap::new(),
             metadata: Metadata {
@@ -1500,6 +1489,8 @@ mod conversion_tests {
                 description: "Test".to_string(),
                 url: "https://test.com".to_string(),
                 icons: vec![],
+                verify_url: None,
+                redirect: None,
             },
             session_properties: None,
             scoped_properties: None,
