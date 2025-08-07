@@ -1,19 +1,19 @@
 name: Build and Release Yttrium Swift Utils
 
 on:
-    workflow_dispatch:
-      inputs:
-        version:
-          description: 'Version to release (e.g. 0.0.1)'
-          required: true
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g. 0.0.1)'
+        required: true
 
 env:
   CARGO_TERM_COLOR: always
-  VERSION: ${{ github.event.inputs.version || '0.0.24' }}
+  VERSION: ${{ github.event.inputs.version || '0.0.1' }}
   TARGET_BRANCH: ${{ github.ref_name }}
 
 permissions:
-  contents: write  # Grant write access to repository contents for this workflow
+  contents: write
 
 jobs:
   release-swift-utils-package:
@@ -23,35 +23,29 @@ jobs:
         config:
           - debug
     steps:
-      # 1. Checkout the Repository with full history
-      - name: Checkout Repository
+      # 1. Checkout
+      - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Fetch all history so that we can create and push tags
+          fetch-depth: 0
 
-      # 2. Setup ccache (Optional: Improve build speeds)
+      # 2. Install sccache
       - name: Run sccache-cache
-        uses: mozilla-actions/sccache-action@v0.0.4
+        uses: mozilla-actions/sccache-action@v0.0.6
 
-      # 3. Setup pnpm (JavaScript Package Manager)
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+      # 3. Install pnpm
+      - uses: pnpm/action-setup@v4
         with:
           version: 9
+          run_install: false
 
-      # 4. Setup Rust Environment and Dependencies
-      - name: Setup Rust Environment and Dependencies
-        env:
-          VERSION: ${{ env.VERSION }}
-        run: |
-          rustup update stable && rustup default stable
-          git submodule update --init --recursive
-          make setup-thirdparty
+      # 4. Install Rust
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
 
-      # 5. Select Specific Xcode Version
-      - name: Select Xcode 15.4
-        run: | 
-          sudo xcode-select -s /Applications/Xcode_15.4.app
+      # 5. Select Xcode
+      - name: Select Xcode
+        run: sudo xcode-select -switch /Applications/Xcode_15.4.app/Contents/Developer
 
       # 6. Build and Package Utils XCFramework
       - name: Build and Package Utils XCFramework
@@ -59,41 +53,39 @@ jobs:
           make build-utils-xcframework
           make generate-package-swift-utils
 
-      # 7. Commit and Push Package.swift and Utils Sources
-      - name: Commit and Push Package.swift and Utils Sources
+      # 7. Update Utils Podspec version
+      - name: Update Utils Podspec version
+        run: |
+          sed -i '' "s/spec.version      = \".*\"/spec.version      = \"$VERSION\"/" YttriumUtilsWrapper.podspec
+
+      # 8. Commit and Push Package.swift, Utils Sources, and Podspec
+      - name: Commit and Push Package.swift, Utils Sources, and Podspec
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Use default token
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add Package.swift platforms/swift/Sources/YttriumUtils/*
+          git add Package.swift platforms/swift/Sources/YttriumUtils/* YttriumUtilsWrapper.podspec
           if git diff --cached --quiet; then
             echo "No changes to commit."
           else
-            git commit -m "chore: update Package.swift and utils sources for version $VERSION"
+            git commit -m "chore: update Package.swift, utils sources, and podspec for version $VERSION"
             git push origin HEAD:$TARGET_BRANCH
           fi
 
-      # 8. Create Git Tag for Utils
+      # 9. Create Git Tag for Utils
       - name: Create Git Tag for Utils
         env:
           VERSION: ${{ env.VERSION }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Ensure we're on the latest commit
           git fetch origin $TARGET_BRANCH
-          
-          # Get the latest commit hash
           COMMIT_HASH=$(git rev-parse HEAD)
           echo "Tagging commit ${COMMIT_HASH} with version ${VERSION}-utils"
-          
-          # Create an annotated tag on the latest commit
           git tag -a "${VERSION}-utils" -m "Release YttriumUtils version ${VERSION}" "${COMMIT_HASH}"
-          
-          # Push the tag to the repository
           git push origin "${VERSION}-utils"
 
-      # 9. Create a GitHub Release for Utils
+      # 10. Create a GitHub Release for Utils
       - name: Create Release for Utils
         id: create_release_utils
         uses: actions/create-release@v1
@@ -105,7 +97,7 @@ jobs:
           draft: false
           prerelease: true
 
-      # 10. Upload Utils XCFramework to the Release
+      # 11. Upload Utils XCFramework to the Release
       - name: Upload Utils XCFramework to Release
         uses: actions/upload-release-asset@v1
         env:
@@ -114,4 +106,11 @@ jobs:
           upload_url: ${{ steps.create_release_utils.outputs.upload_url }}
           asset_path: ./Output/libyttrium-utils.xcframework.zip
           asset_name: libyttrium-utils.xcframework.zip
-          asset_content_type: application/zip 
+          asset_content_type: application/zip
+
+      # 12. Publish Utils CocoaPods
+      - name: Publish Utils CocoaPods
+        env:
+          COCOAPODS_TRUNK_TOKEN: ${{ secrets.COCOAPODS_TRUNK_TOKEN }}
+        run: |
+          pod trunk push YttriumUtilsWrapper.podspec --allow-warnings 
