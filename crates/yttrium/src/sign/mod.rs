@@ -1325,6 +1325,19 @@ impl SignClient {
         Ok(proposal.into())
     }
 
+    pub async fn pair_json(
+        &self,
+        uri: String,
+    ) -> Result<String, PairError> {
+        let proposal = {
+            let mut client = self.client.lock().await;
+            client.pair(&uri).await?
+        };
+        let proposal_ffi: SessionProposalFfi = proposal.into();
+        let serialized_proposal = serde_json::to_string(&proposal_ffi).expect("Failed to serialize response");
+        Ok(serialized_proposal)
+    }
+
     //TODO: Add approved namespaces builder util function
     pub async fn approve(
         &self,
@@ -1340,6 +1353,27 @@ impl SignClient {
             client.approve(proposal, approved_namespaces, self_metadata).await?
         };
         Ok(session.into())
+    }
+
+    pub async fn approve_json(
+        &self,
+        proposal: String,
+        approved_namespaces: String,
+        self_metadata: String,
+    ) -> Result<String, ApproveError> {
+        let proposal: SessionProposalFfi = serde_json::from_str(&proposal).expect("Failed to deserialize proposal");
+        let approved_namespaces: HashMap<String, SettleNamespace> = serde_json::from_str(&approved_namespaces).expect("Failed to deserialize approved_namespaces");
+        let self_metadata: Metadata = serde_json::from_str(&self_metadata).expect("Failed to deserialize self_metadata");
+
+        tracing::debug!("approved_namespaces: {:?}", approved_namespaces);
+        tracing::debug!("self_metadata: {:?}", self_metadata);
+        let session = {
+            let mut client = self.client.lock().await;
+            client.approve(proposal.into(), approved_namespaces, self_metadata).await?
+        };
+        let session_ffi: SessionFfi = session.into();
+        let serialized_session = serde_json::to_string(&session_ffi).expect("Failed to serialize response");
+        Ok(serialized_session)
     }
 }
 
@@ -1451,18 +1485,6 @@ impl From<SessionProposalFfi> for SessionProposal {
     }
 }
 
-#[cfg(feature = "uniffi")]
-#[uniffi::export]
-pub fn session_proposal_ffi_to_json(session: &SessionProposalFfi) -> String {
-    serde_json::to_string(session).expect("Failed to serialize")
-}
-
-#[cfg(feature = "uniffi")]
-#[uniffi::export]
-pub fn session_proposal_ffi_from_json(json: &str) -> SessionProposalFfi {
-    serde_json::from_str(json).expect("Failed to deserialize")
-}
-
 #[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
 pub struct Session {
     pub session_sym_key: [u8; 32],
@@ -1495,18 +1517,6 @@ impl From<SessionFfi> for Session {
             self_public_key: session.self_public_key.try_into().unwrap(),
         }
     }
-}
-
-#[cfg(feature = "uniffi")]
-#[uniffi::export]
-pub fn session_ffi_to_json(session: &SessionFfi) -> String {
-    serde_json::to_string(session).expect("Failed to serialize")
-}
-
-#[cfg(feature = "uniffi")]
-#[uniffi::export]
-pub fn session_ffi_from_json(json: &str) -> SessionFfi {
-    serde_json::from_str(json).expect("Failed to deserialize")
 }
 
 #[cfg(test)]
