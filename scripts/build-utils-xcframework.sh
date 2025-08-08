@@ -8,6 +8,8 @@ PACKAGE_NAME="yttrium"
 FEATURES="ios,eip155,chain_abstraction_client,stacks"
 fat_simulator_lib_dir="target/ios-simulator-fat/uniffi-release-swift-utils"
 swift_package_dir="platforms/swift/Sources/YttriumUtils"
+ORIG_FFI_MODULE_NAME="yttriumFFI"
+UTILS_FFI_MODULE_NAME="yttriumUtilsFFI"
 
 build_rust_libraries() {
   #### Building for aarch64-apple-ios (Physical Devices) ####
@@ -86,33 +88,57 @@ generate_ffi() {
     --out-dir target/uniffi-xcframework-staging-utils
 }
 
+rename_ffi_module() {
+  echo "Namespacing FFI module to ${UTILS_FFI_MODULE_NAME}..."
+  local staging="target/uniffi-xcframework-staging-utils"
+
+  # Directory case
+  if [ -d "$staging/$ORIG_FFI_MODULE_NAME" ]; then
+    rm -rf "$staging/$UTILS_FFI_MODULE_NAME"
+    mkdir -p "$staging/$UTILS_FFI_MODULE_NAME"
+    cp -R "$staging/$ORIG_FFI_MODULE_NAME/." "$staging/$UTILS_FFI_MODULE_NAME/"
+    if [ -f "$staging/$UTILS_FFI_MODULE_NAME/module.modulemap" ]; then
+      # Replace only the module declaration, keep header filenames unchanged
+      sed -i '' "s/^module $ORIG_FFI_MODULE_NAME/module $UTILS_FFI_MODULE_NAME/" "$staging/$UTILS_FFI_MODULE_NAME/module.modulemap"
+    fi
+  else
+    # Flat files case
+    mkdir -p "$staging/$UTILS_FFI_MODULE_NAME"
+    if [ -f "$staging/${ORIG_FFI_MODULE_NAME}.h" ]; then
+      cp "$staging/${ORIG_FFI_MODULE_NAME}.h" "$staging/$UTILS_FFI_MODULE_NAME/"
+    fi
+    if [ -f "$staging/${ORIG_FFI_MODULE_NAME}.modulemap" ]; then
+      cp "$staging/${ORIG_FFI_MODULE_NAME}.modulemap" "$staging/$UTILS_FFI_MODULE_NAME/module.modulemap"
+      sed -i '' "s/^module $ORIG_FFI_MODULE_NAME/module $UTILS_FFI_MODULE_NAME/" "$staging/$UTILS_FFI_MODULE_NAME/module.modulemap"
+    fi
+  fi
+}
+
 build_xcframework() {
   echo "Generating YttriumUtils XCFramework..."
   rm -rf target/ios-utils
   mkdir -p target/ios-utils
 
   # Create headers directory structure for device
-  mkdir -p target/uniffi-xcframework-staging-utils/device/Headers/yttriumFFI
+  mkdir -p target/uniffi-xcframework-staging-utils/device/Headers/$UTILS_FFI_MODULE_NAME
   
-  # Copy headers - handle both cases: when yttriumFFI directory exists and when it doesn't
-  if [ -d "target/uniffi-xcframework-staging-utils/yttriumFFI" ]; then
-    cp -r target/uniffi-xcframework-staging-utils/yttriumFFI/. target/uniffi-xcframework-staging-utils/device/Headers/yttriumFFI/
+  # Copy headers - handle both cases: directory vs flat files
+  if [ -d "target/uniffi-xcframework-staging-utils/$UTILS_FFI_MODULE_NAME" ]; then
+    cp -r target/uniffi-xcframework-staging-utils/$UTILS_FFI_MODULE_NAME/. target/uniffi-xcframework-staging-utils/device/Headers/$UTILS_FFI_MODULE_NAME/
   else
-    # When uniffi-bindgen generates flat files, create the structure manually
-    cp target/uniffi-xcframework-staging-utils/yttriumFFI.h target/uniffi-xcframework-staging-utils/device/Headers/yttriumFFI/
-    cp target/uniffi-xcframework-staging-utils/yttriumFFI.modulemap target/uniffi-xcframework-staging-utils/device/Headers/yttriumFFI/module.modulemap
+    cp target/uniffi-xcframework-staging-utils/${ORIG_FFI_MODULE_NAME}.h target/uniffi-xcframework-staging-utils/device/Headers/$UTILS_FFI_MODULE_NAME/
+    cp target/uniffi-xcframework-staging-utils/${ORIG_FFI_MODULE_NAME}.modulemap target/uniffi-xcframework-staging-utils/device/Headers/$UTILS_FFI_MODULE_NAME/module.modulemap
   fi
 
   # Create headers directory structure for simulator
-  mkdir -p target/uniffi-xcframework-staging-utils/simulator/Headers/yttriumFFI
+  mkdir -p target/uniffi-xcframework-staging-utils/simulator/Headers/$UTILS_FFI_MODULE_NAME
   
   # Copy headers for simulator
-  if [ -d "target/uniffi-xcframework-staging-utils/yttriumFFI" ]; then
-    cp -r target/uniffi-xcframework-staging-utils/yttriumFFI/. target/uniffi-xcframework-staging-utils/simulator/Headers/yttriumFFI/
+  if [ -d "target/uniffi-xcframework-staging-utils/$UTILS_FFI_MODULE_NAME" ]; then
+    cp -r target/uniffi-xcframework-staging-utils/$UTILS_FFI_MODULE_NAME/. target/uniffi-xcframework-staging-utils/simulator/Headers/$UTILS_FFI_MODULE_NAME/
   else
-    # When uniffi-bindgen generates flat files, create the structure manually
-    cp target/uniffi-xcframework-staging-utils/yttriumFFI.h target/uniffi-xcframework-staging-utils/simulator/Headers/yttriumFFI/
-    cp target/uniffi-xcframework-staging-utils/yttriumFFI.modulemap target/uniffi-xcframework-staging-utils/simulator/Headers/yttriumFFI/module.modulemap
+    cp target/uniffi-xcframework-staging-utils/${ORIG_FFI_MODULE_NAME}.h target/uniffi-xcframework-staging-utils/simulator/Headers/$UTILS_FFI_MODULE_NAME/
+    cp target/uniffi-xcframework-staging-utils/${ORIG_FFI_MODULE_NAME}.modulemap target/uniffi-xcframework-staging-utils/simulator/Headers/$UTILS_FFI_MODULE_NAME/module.modulemap
   fi
 
   xcodebuild -create-xcframework \
@@ -137,6 +163,10 @@ copy_swift_sources() {
   
   # Copy the generated Swift file
   cp target/uniffi-xcframework-staging-utils/yttrium.swift platforms/swift/Sources/YttriumUtils/
+
+  # Namespace the import to avoid clashing with Core
+  sed -i '' "s/canImport($ORIG_FFI_MODULE_NAME)/canImport($UTILS_FFI_MODULE_NAME)/" platforms/swift/Sources/YttriumUtils/yttrium.swift
+  sed -i '' "s/import $ORIG_FFI_MODULE_NAME/import $UTILS_FFI_MODULE_NAME/" platforms/swift/Sources/YttriumUtils/yttrium.swift
 }
 
 # Add the necessary Rust targets
@@ -147,6 +177,7 @@ rustup target add aarch64-apple-ios-sim
 # Execute the build steps
 build_rust_libraries
 generate_ffi $PACKAGE_NAME
+rename_ffi_module
 create_fat_simulator_lib $PACKAGE_NAME
 build_xcframework $PACKAGE_NAME
 copy_swift_sources 
