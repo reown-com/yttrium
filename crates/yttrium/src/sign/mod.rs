@@ -1419,6 +1419,21 @@ impl SignClient {
         let serialized_session = serde_json::to_string(&session_ffi).expect("Failed to serialize response");
         Ok(serialized_session)
     }
+
+    pub async fn respond(
+        &self,
+        topic: String,
+        response: SessionRequestResponseJsonRpcFfi,
+    ) -> Result<String, RespondError> {
+        tracing::debug!("responding session request: {:?}", response);
+
+        let mut client = self.client.lock().await;
+        let response_internal: SessionRequestResponseJsonRpc = response.into();
+        let topic_topic: Topic = topic.clone().into();
+        client.respond(topic_topic, response_internal).await?;
+        Ok(topic)
+    }
+
 }
 
 #[derive(Debug, Clone)]
