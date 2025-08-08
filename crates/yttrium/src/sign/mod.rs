@@ -496,7 +496,10 @@ impl Client {
             }
         }
 
-        let session = Session { session_sym_key: shared_secret };
+        let session = Session {
+            session_sym_key: shared_secret,
+            self_public_key: hex::encode(self_public_key.to_bytes()),
+        };
         {
             let mut sessions = self.sessions.write().unwrap();
             sessions.insert(session_topic, session.clone());
@@ -1450,25 +1453,33 @@ impl From<SessionProposalFfi> for SessionProposal {
 #[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
 pub struct Session {
     pub session_sym_key: [u8; 32],
+    pub self_public_key: String,
 }
 
 #[cfg(feature = "uniffi")]
 #[derive(uniffi_macros::Record)]
 pub struct SessionFfi {
     pub session_sym_key: Vec<u8>,
+    pub self_public_key: String,
 }
 
 #[cfg(feature = "uniffi")]
 impl From<Session> for SessionFfi {
     fn from(session: Session) -> Self {
-        Self { session_sym_key: session.session_sym_key.to_vec() }
+        Self {
+            session_sym_key: session.session_sym_key.to_vec(),
+            self_public_key: session.self_public_key,
+        }
     }
 }
 
 #[cfg(feature = "uniffi")]
 impl From<SessionFfi> for Session {
     fn from(session: SessionFfi) -> Self {
-        Self { session_sym_key: session.session_sym_key.try_into().unwrap() }
+        Self {
+            session_sym_key: session.session_sym_key.try_into().unwrap(),
+            self_public_key: session.self_public_key,
+        }
     }
 }
 
