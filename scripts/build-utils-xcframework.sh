@@ -119,6 +119,9 @@ build_xcframework() {
   rm -rf target/ios-utils
   mkdir -p target/ios-utils
 
+  # Clean staging headers to avoid leftovers from previous runs
+  rm -rf target/uniffi-xcframework-staging-utils/device target/uniffi-xcframework-staging-utils/simulator
+
   # Create headers directory structure for device
   mkdir -p target/uniffi-xcframework-staging-utils/device/Headers/$UTILS_FFI_MODULE_NAME
   
@@ -141,9 +144,17 @@ build_xcframework() {
     cp target/uniffi-xcframework-staging-utils/${ORIG_FFI_MODULE_NAME}.modulemap target/uniffi-xcframework-staging-utils/simulator/Headers/$UTILS_FFI_MODULE_NAME/module.modulemap
   fi
 
+  # Use renamed static library filenames to avoid collisions with Core
+  local device_lib_original="target/aarch64-apple-ios/uniffi-release-swift/lib$1.a"
+  local device_lib_renamed="target/aarch64-apple-ios/uniffi-release-swift/lib$1-utils.a"
+  local sim_lib_original="$fat_simulator_lib_dir/lib$1.a"
+  local sim_lib_renamed="$fat_simulator_lib_dir/lib$1-utils.a"
+  cp "$device_lib_original" "$device_lib_renamed"
+  cp "$sim_lib_original" "$sim_lib_renamed"
+
   xcodebuild -create-xcframework \
-      -library "target/aarch64-apple-ios/uniffi-release-swift/lib$1.a" -headers target/uniffi-xcframework-staging-utils/device/Headers \
-      -library "$fat_simulator_lib_dir/lib$1.a" -headers target/uniffi-xcframework-staging-utils/simulator/Headers \
+      -library "$device_lib_renamed" -headers target/uniffi-xcframework-staging-utils/device/Headers \
+      -library "$sim_lib_renamed" -headers target/uniffi-xcframework-staging-utils/simulator/Headers \
       -output "target/ios-utils/lib$1-utils.xcframework"
 }
 
