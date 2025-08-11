@@ -21,7 +21,7 @@ build_rust_libraries() {
   cargo build \
     --lib --profile=uniffi-release-swift \
     --no-default-features \
-    --features=ios,erc6492_client,chain_abstraction_client,eip155 \
+    --features=ios,erc6492_client,chain_abstraction_client,sign_client,eip155 \
     --target aarch64-apple-ios \
     -p yttrium
 
@@ -43,7 +43,7 @@ build_rust_libraries() {
   cargo build \
     --lib --profile=uniffi-release-swift \
     --no-default-features \
-    --features=ios,erc6492_client,chain_abstraction_client,eip155 \
+    --features=ios,erc6492_client,chain_abstraction_client,sign_client,eip155 \
     --target x86_64-apple-ios \
     -p yttrium
 
@@ -65,7 +65,7 @@ build_rust_libraries() {
   cargo build \
     --lib --profile=uniffi-release-swift \
     --no-default-features \
-    --features=ios,erc6492_client,chain_abstraction_client,eip155 \
+    --features=ios,erc6492_client,chain_abstraction_client,sign_client,eip155 \
     --target aarch64-apple-ios-sim \
     -p yttrium
 
@@ -78,7 +78,7 @@ build_rust_libraries() {
 
 generate_ffi() {
   echo "Generating framework module mapping and FFI bindings..."
-  cargo run -p yttrium --no-default-features --features=ios,erc6492_client,chain_abstraction_client,eip155,uniffi/cli --bin uniffi-bindgen generate \
+  cargo run -p yttrium --no-default-features --features=ios,erc6492_client,chain_abstraction_client,sign_client,eip155,uniffi/cli --bin uniffi-bindgen generate \
       --library "target/aarch64-apple-ios/uniffi-release-swift/lib$1.dylib" \
       --language swift \
       --out-dir target/uniffi-xcframework-staging
