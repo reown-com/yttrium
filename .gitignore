@@ -37,3 +37,4 @@ Utilities/InstalledSwiftPMConfiguration/config.json
 benchmark-profile-output-sizes.csv
 benchmark*.csv
 benchmark/
+*.xcframework.zip
