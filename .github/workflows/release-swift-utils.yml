@@ -45,7 +45,7 @@ jobs:
 
       # 5. Select Xcode
       - name: Select Xcode
-        run: sudo xcode-select -switch /Applications/Xcode_15.4.app/Contents/Developer
+        run: sudo xcode-select -switch /Applications/Xcode.app/Contents/Developer
 
       # 6. Build and Package Utils XCFramework
       - name: Build and Package Utils XCFramework
