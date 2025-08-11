@@ -518,6 +518,24 @@ fileprivate struct FfiConverterString: FfiConverter {
     }
 }
 
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterData: FfiConverterRustBuffer {
+    typealias SwiftType = Data
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Data {
+        let len: Int32 = try readInt(&buf)
+        return Data(try readBytes(&buf, count: Int(len)))
+    }
+
+    public static func write(_ value: Data, into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        writeBytes(&buf, value)
+    }
+}
+
 
 
 
@@ -705,6 +723,192 @@ public func FfiConverterTypeStacksClient_lower(_ value: StacksClient) -> UnsafeM
 
 
 
+
+
+public protocol SuiClientProtocol: AnyObject {
+    
+    func getAllBalances(chainId: String, address: SuiAddress) async throws  -> [Balance]
+    
+    func signAndExecuteTransaction(chainId: String, keypair: SuiKeyPair, txData: Data) async throws  -> TransactionDigest
+    
+    func signTransaction(chainId: String, keypair: SuiKeyPair, txData: Data) async throws  -> SignTransactionResult
+    
+}
+open class SuiClient: SuiClientProtocol, @unchecked Sendable {
+    fileprivate let pointer: UnsafeMutableRawPointer!
+
+    /// Used to instantiate a [FFIObject] without an actual pointer, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoPointer {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+    required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
+        self.pointer = pointer
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noPointer: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing [Pointer] the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noPointer: NoPointer) {
+        self.pointer = nil
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiClonePointer() -> UnsafeMutableRawPointer {
+        return try! rustCall { uniffi_yttrium_fn_clone_suiclient(self.pointer, $0) }
+    }
+public convenience init(projectId: ProjectId, pulseMetadata: PulseMetadata) {
+    let pointer =
+        try! rustCall() {
+    uniffi_yttrium_fn_constructor_suiclient_new(
+        FfiConverterTypeProjectId_lower(projectId),
+        FfiConverterTypePulseMetadata_lower(pulseMetadata),$0
+    )
+}
+    self.init(unsafeFromRawPointer: pointer)
+}
+
+    deinit {
+        guard let pointer = pointer else {
+            return
+        }
+
+        try! rustCall { uniffi_yttrium_fn_free_suiclient(pointer, $0) }
+    }
+
+    
+public static func withBlockchainApiUrl(projectId: ProjectId, pulseMetadata: PulseMetadata, blockchainApiBaseUrl: Url) -> SuiClient  {
+    return try!  FfiConverterTypeSuiClient_lift(try! rustCall() {
+    uniffi_yttrium_fn_constructor_suiclient_with_blockchain_api_url(
+        FfiConverterTypeProjectId_lower(projectId),
+        FfiConverterTypePulseMetadata_lower(pulseMetadata),
+        FfiConverterTypeUrl_lower(blockchainApiBaseUrl),$0
+    )
+})
+}
+    
+
+    
+open func getAllBalances(chainId: String, address: SuiAddress)async throws  -> [Balance]  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_yttrium_fn_method_suiclient_get_all_balances(
+                    self.uniffiClonePointer(),
+                    FfiConverterString.lower(chainId),FfiConverterTypeSuiAddress_lower(address)
+                )
+            },
+            pollFunc: ffi_yttrium_rust_future_poll_rust_buffer,
+            completeFunc: ffi_yttrium_rust_future_complete_rust_buffer,
+            freeFunc: ffi_yttrium_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterSequenceTypeBalance.lift,
+            errorHandler: FfiConverterTypeSuiError.lift
+        )
+}
+    
+open func signAndExecuteTransaction(chainId: String, keypair: SuiKeyPair, txData: Data)async throws  -> TransactionDigest  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_yttrium_fn_method_suiclient_sign_and_execute_transaction(
+                    self.uniffiClonePointer(),
+                    FfiConverterString.lower(chainId),FfiConverterTypeSuiKeyPair_lower(keypair),FfiConverterData.lower(txData)
+                )
+            },
+            pollFunc: ffi_yttrium_rust_future_poll_rust_buffer,
+            completeFunc: ffi_yttrium_rust_future_complete_rust_buffer,
+            freeFunc: ffi_yttrium_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeTransactionDigest_lift,
+            errorHandler: FfiConverterTypeSuiError.lift
+        )
+}
+    
+open func signTransaction(chainId: String, keypair: SuiKeyPair, txData: Data)async throws  -> SignTransactionResult  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_yttrium_fn_method_suiclient_sign_transaction(
+                    self.uniffiClonePointer(),
+                    FfiConverterString.lower(chainId),FfiConverterTypeSuiKeyPair_lower(keypair),FfiConverterData.lower(txData)
+                )
+            },
+            pollFunc: ffi_yttrium_rust_future_poll_rust_buffer,
+            completeFunc: ffi_yttrium_rust_future_complete_rust_buffer,
+            freeFunc: ffi_yttrium_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeSignTransactionResult_lift,
+            errorHandler: FfiConverterTypeSuiError.lift
+        )
+}
+    
+
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSuiClient: FfiConverter {
+
+    typealias FfiType = UnsafeMutableRawPointer
+    typealias SwiftType = SuiClient
+
+    public static func lift(_ pointer: UnsafeMutableRawPointer) throws -> SuiClient {
+        return SuiClient(unsafeFromRawPointer: pointer)
+    }
+
+    public static func lower(_ value: SuiClient) -> UnsafeMutableRawPointer {
+        return value.uniffiClonePointer()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SuiClient {
+        let v: UInt64 = try readInt(&buf)
+        // The Rust code won't compile if a pointer won't fit in a UInt64.
+        // We have to go via `UInt` because that's the thing that's the size of a pointer.
+        let ptr = UnsafeMutableRawPointer(bitPattern: UInt(truncatingIfNeeded: v))
+        if (ptr == nil) {
+            throw UniffiInternalError.unexpectedNullPointer
+        }
+        return try lift(ptr!)
+    }
+
+    public static func write(_ value: SuiClient, into buf: inout [UInt8]) {
+        // This fiddling is because `Int` is the thing that's the same size as a pointer.
+        // The Rust code won't compile if a pointer won't fit in a `UInt64`.
+        writeInt(&buf, UInt64(bitPattern: Int64(Int(bitPattern: lower(value)))))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSuiClient_lift(_ pointer: UnsafeMutableRawPointer) throws -> SuiClient {
+    return try FfiConverterTypeSuiClient.lift(pointer)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSuiClient_lower(_ value: SuiClient) -> UnsafeMutableRawPointer {
+    return FfiConverterTypeSuiClient.lower(value)
+}
+
+
+
+
 public struct Amount {
     public var symbol: String
     public var amount: U256
@@ -802,6 +1006,76 @@ public func FfiConverterTypeAmount_lift(_ buf: RustBuffer) throws -> Amount {
 #endif
 public func FfiConverterTypeAmount_lower(_ value: Amount) -> RustBuffer {
     return FfiConverterTypeAmount.lower(value)
+}
+
+
+public struct BalanceFfi {
+    public var coinType: String
+    public var totalBalance: UInt64
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(coinType: String, totalBalance: UInt64) {
+        self.coinType = coinType
+        self.totalBalance = totalBalance
+    }
+}
+
+#if compiler(>=6)
+extension BalanceFfi: Sendable {}
+#endif
+
+
+extension BalanceFfi: Equatable, Hashable {
+    public static func ==(lhs: BalanceFfi, rhs: BalanceFfi) -> Bool {
+        if lhs.coinType != rhs.coinType {
+            return false
+        }
+        if lhs.totalBalance != rhs.totalBalance {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(coinType)
+        hasher.combine(totalBalance)
+    }
+}
+
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeBalanceFfi: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> BalanceFfi {
+        return
+            try BalanceFfi(
+                coinType: FfiConverterString.read(from: &buf), 
+                totalBalance: FfiConverterUInt64.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: BalanceFfi, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.coinType, into: &buf)
+        FfiConverterUInt64.write(value.totalBalance, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBalanceFfi_lift(_ buf: RustBuffer) throws -> BalanceFfi {
+    return try FfiConverterTypeBalanceFfi.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBalanceFfi_lower(_ value: BalanceFfi) -> RustBuffer {
+    return FfiConverterTypeBalanceFfi.lower(value)
 }
 
 
@@ -3272,6 +3546,76 @@ public func FfiConverterTypeSignStep3Params_lower(_ value: SignStep3Params) -> R
 }
 
 
+public struct SignTransactionResult {
+    public var txBytes: String
+    public var signature: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(txBytes: String, signature: String) {
+        self.txBytes = txBytes
+        self.signature = signature
+    }
+}
+
+#if compiler(>=6)
+extension SignTransactionResult: Sendable {}
+#endif
+
+
+extension SignTransactionResult: Equatable, Hashable {
+    public static func ==(lhs: SignTransactionResult, rhs: SignTransactionResult) -> Bool {
+        if lhs.txBytes != rhs.txBytes {
+            return false
+        }
+        if lhs.signature != rhs.signature {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(txBytes)
+        hasher.combine(signature)
+    }
+}
+
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSignTransactionResult: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SignTransactionResult {
+        return
+            try SignTransactionResult(
+                txBytes: FfiConverterString.read(from: &buf), 
+                signature: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: SignTransactionResult, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.txBytes, into: &buf)
+        FfiConverterString.write(value.signature, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSignTransactionResult_lift(_ buf: RustBuffer) throws -> SignTransactionResult {
+    return try FfiConverterTypeSignTransactionResult.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSignTransactionResult_lower(_ value: SignTransactionResult) -> RustBuffer {
+    return FfiConverterTypeSignTransactionResult.lower(value)
+}
+
+
 public struct StacksAccount {
     public var balance: String
     public var locked: String
@@ -4721,6 +5065,89 @@ public func FfiConverterTypeCurrency_lower(_ value: Currency) -> RustBuffer {
 
 extension Currency: Equatable, Hashable {}
 
+
+
+
+public enum DeriveKeypairFromMnemonicError {
+
+    
+    
+    case InvalidMnemonicPhrase(String
+    )
+    case Derive(String
+    )
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeDeriveKeypairFromMnemonicError: FfiConverterRustBuffer {
+    typealias SwiftType = DeriveKeypairFromMnemonicError
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DeriveKeypairFromMnemonicError {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+
+        
+
+        
+        case 1: return .InvalidMnemonicPhrase(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 2: return .Derive(
+            try FfiConverterString.read(from: &buf)
+            )
+
+         default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: DeriveKeypairFromMnemonicError, into buf: inout [UInt8]) {
+        switch value {
+
+        
+
+        
+        
+        case let .InvalidMnemonicPhrase(v1):
+            writeInt(&buf, Int32(1))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .Derive(v1):
+            writeInt(&buf, Int32(2))
+            FfiConverterString.write(v1, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDeriveKeypairFromMnemonicError_lift(_ buf: RustBuffer) throws -> DeriveKeypairFromMnemonicError {
+    return try FfiConverterTypeDeriveKeypairFromMnemonicError.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDeriveKeypairFromMnemonicError_lower(_ value: DeriveKeypairFromMnemonicError) -> RustBuffer {
+    return FfiConverterTypeDeriveKeypairFromMnemonicError.lower(value)
+}
+
+
+extension DeriveKeypairFromMnemonicError: Equatable, Hashable {}
+
+
+
+extension DeriveKeypairFromMnemonicError: Foundation.LocalizedError {
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+}
 
 
 
@@ -6367,6 +6794,214 @@ extension StatusResponse: Equatable, Hashable {}
 
 
 
+
+public enum SuiError {
+
+    
+    
+    case SignTransaction(SuiSignTransactionError
+    )
+    case GetAllBalances(SuiSdkError
+    )
+    case ExecuteTransactionBlock(SuiSdkError
+    )
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSuiError: FfiConverterRustBuffer {
+    typealias SwiftType = SuiError
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SuiError {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+
+        
+
+        
+        case 1: return .SignTransaction(
+            try FfiConverterTypeSuiSignTransactionError.read(from: &buf)
+            )
+        case 2: return .GetAllBalances(
+            try FfiConverterTypeSuiSdkError.read(from: &buf)
+            )
+        case 3: return .ExecuteTransactionBlock(
+            try FfiConverterTypeSuiSdkError.read(from: &buf)
+            )
+
+         default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: SuiError, into buf: inout [UInt8]) {
+        switch value {
+
+        
+
+        
+        
+        case let .SignTransaction(v1):
+            writeInt(&buf, Int32(1))
+            FfiConverterTypeSuiSignTransactionError.write(v1, into: &buf)
+            
+        
+        case let .GetAllBalances(v1):
+            writeInt(&buf, Int32(2))
+            FfiConverterTypeSuiSdkError.write(v1, into: &buf)
+            
+        
+        case let .ExecuteTransactionBlock(v1):
+            writeInt(&buf, Int32(3))
+            FfiConverterTypeSuiSdkError.write(v1, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSuiError_lift(_ buf: RustBuffer) throws -> SuiError {
+    return try FfiConverterTypeSuiError.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSuiError_lower(_ value: SuiError) -> RustBuffer {
+    return FfiConverterTypeSuiError.lower(value)
+}
+
+
+extension SuiError: Equatable, Hashable {}
+
+
+
+extension SuiError: Foundation.LocalizedError {
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+}
+
+
+
+public enum SuiSignTransactionError {
+
+    
+    
+    case InvalidTransactionData(String
+    )
+    case MisMatchedSenderAddress(SuiAddress,SuiAddress
+    )
+    case GetReferenceGasPrice(SuiSdkError
+    )
+    case GetCoinsForGas(SuiSdkError
+    )
+    case NoCoinsAvailableForGas(SuiAddress
+    )
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSuiSignTransactionError: FfiConverterRustBuffer {
+    typealias SwiftType = SuiSignTransactionError
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SuiSignTransactionError {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+
+        
+
+        
+        case 1: return .InvalidTransactionData(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 2: return .MisMatchedSenderAddress(
+            try FfiConverterTypeSuiAddress.read(from: &buf), 
+            try FfiConverterTypeSuiAddress.read(from: &buf)
+            )
+        case 3: return .GetReferenceGasPrice(
+            try FfiConverterTypeSuiSdkError.read(from: &buf)
+            )
+        case 4: return .GetCoinsForGas(
+            try FfiConverterTypeSuiSdkError.read(from: &buf)
+            )
+        case 5: return .NoCoinsAvailableForGas(
+            try FfiConverterTypeSuiAddress.read(from: &buf)
+            )
+
+         default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: SuiSignTransactionError, into buf: inout [UInt8]) {
+        switch value {
+
+        
+
+        
+        
+        case let .InvalidTransactionData(v1):
+            writeInt(&buf, Int32(1))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .MisMatchedSenderAddress(v1,v2):
+            writeInt(&buf, Int32(2))
+            FfiConverterTypeSuiAddress.write(v1, into: &buf)
+            FfiConverterTypeSuiAddress.write(v2, into: &buf)
+            
+        
+        case let .GetReferenceGasPrice(v1):
+            writeInt(&buf, Int32(3))
+            FfiConverterTypeSuiSdkError.write(v1, into: &buf)
+            
+        
+        case let .GetCoinsForGas(v1):
+            writeInt(&buf, Int32(4))
+            FfiConverterTypeSuiSdkError.write(v1, into: &buf)
+            
+        
+        case let .NoCoinsAvailableForGas(v1):
+            writeInt(&buf, Int32(5))
+            FfiConverterTypeSuiAddress.write(v1, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSuiSignTransactionError_lift(_ buf: RustBuffer) throws -> SuiSignTransactionError {
+    return try FfiConverterTypeSuiSignTransactionError.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSuiSignTransactionError_lower(_ value: SuiSignTransactionError) -> RustBuffer {
+    return FfiConverterTypeSuiSignTransactionError.lower(value)
+}
+
+
+extension SuiSignTransactionError: Equatable, Hashable {}
+
+
+
+extension SuiSignTransactionError: Foundation.LocalizedError {
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+}
+
+
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
 
@@ -7040,6 +7675,31 @@ fileprivate struct FfiConverterSequenceTypeTransactions: FfiConverterRustBuffer 
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeBalance: FfiConverterRustBuffer {
+    typealias SwiftType = [Balance]
+
+    public static func write(_ value: [Balance], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeBalance.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [Balance] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [Balance]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeBalance.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypePrimitiveSignature: FfiConverterRustBuffer {
     typealias SwiftType = [PrimitiveSignature]
 
@@ -7418,6 +8078,50 @@ public func FfiConverterTypeB256_lift(_ value: RustBuffer) throws -> B256 {
 #endif
 public func FfiConverterTypeB256_lower(_ value: B256) -> RustBuffer {
     return FfiConverterTypeB256.lower(value)
+}
+
+
+
+/**
+ * Typealias from the type name used in the UDL file to the builtin type.  This
+ * is needed because the UDL type name is used in function/method signatures.
+ */
+public typealias Balance = BalanceFfi
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeBalance: FfiConverter {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Balance {
+        return try FfiConverterTypeBalanceFfi.read(from: &buf)
+    }
+
+    public static func write(_ value: Balance, into buf: inout [UInt8]) {
+        return FfiConverterTypeBalanceFfi.write(value, into: &buf)
+    }
+
+    public static func lift(_ value: RustBuffer) throws -> Balance {
+        return try FfiConverterTypeBalanceFfi_lift(value)
+    }
+
+    public static func lower(_ value: Balance) -> RustBuffer {
+        return FfiConverterTypeBalanceFfi_lower(value)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBalance_lift(_ value: RustBuffer) throws -> Balance {
+    return try FfiConverterTypeBalance.lift(value)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBalance_lower(_ value: Balance) -> RustBuffer {
+    return FfiConverterTypeBalance.lower(value)
 }
 
 
@@ -7822,6 +8526,50 @@ public func FfiConverterTypeProjectId_lower(_ value: ProjectId) -> RustBuffer {
  * Typealias from the type name used in the UDL file to the builtin type.  This
  * is needed because the UDL type name is used in function/method signatures.
  */
+public typealias PublicKey = String
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypePublicKey: FfiConverter {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> PublicKey {
+        return try FfiConverterString.read(from: &buf)
+    }
+
+    public static func write(_ value: PublicKey, into buf: inout [UInt8]) {
+        return FfiConverterString.write(value, into: &buf)
+    }
+
+    public static func lift(_ value: RustBuffer) throws -> PublicKey {
+        return try FfiConverterString.lift(value)
+    }
+
+    public static func lower(_ value: PublicKey) -> RustBuffer {
+        return FfiConverterString.lower(value)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePublicKey_lift(_ value: RustBuffer) throws -> PublicKey {
+    return try FfiConverterTypePublicKey.lift(value)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePublicKey_lower(_ value: PublicKey) -> RustBuffer {
+    return FfiConverterTypePublicKey.lower(value)
+}
+
+
+
+/**
+ * Typealias from the type name used in the UDL file to the builtin type.  This
+ * is needed because the UDL type name is used in function/method signatures.
+ */
 public typealias ReqwestError = String
 
 #if swift(>=5.8)
@@ -7946,6 +8694,50 @@ public func FfiConverterTypeSerdeJsonError_lift(_ value: RustBuffer) throws -> S
 #endif
 public func FfiConverterTypeSerdeJsonError_lower(_ value: SerdeJsonError) -> RustBuffer {
     return FfiConverterTypeSerdeJsonError.lower(value)
+}
+
+
+
+/**
+ * Typealias from the type name used in the UDL file to the builtin type.  This
+ * is needed because the UDL type name is used in function/method signatures.
+ */
+public typealias Signature = String
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSignature: FfiConverter {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Signature {
+        return try FfiConverterString.read(from: &buf)
+    }
+
+    public static func write(_ value: Signature, into buf: inout [UInt8]) {
+        return FfiConverterString.write(value, into: &buf)
+    }
+
+    public static func lift(_ value: RustBuffer) throws -> Signature {
+        return try FfiConverterString.lift(value)
+    }
+
+    public static func lower(_ value: Signature) -> RustBuffer {
+        return FfiConverterString.lower(value)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSignature_lift(_ value: RustBuffer) throws -> Signature {
+    return try FfiConverterTypeSignature.lift(value)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSignature_lower(_ value: Signature) -> RustBuffer {
+    return FfiConverterTypeSignature.lower(value)
 }
 
 
@@ -8122,6 +8914,182 @@ public func FfiConverterTypeStatusCode_lift(_ value: UInt16) throws -> StatusCod
 #endif
 public func FfiConverterTypeStatusCode_lower(_ value: StatusCode) -> UInt16 {
     return FfiConverterTypeStatusCode.lower(value)
+}
+
+
+
+/**
+ * Typealias from the type name used in the UDL file to the builtin type.  This
+ * is needed because the UDL type name is used in function/method signatures.
+ */
+public typealias SuiAddress = String
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSuiAddress: FfiConverter {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SuiAddress {
+        return try FfiConverterString.read(from: &buf)
+    }
+
+    public static func write(_ value: SuiAddress, into buf: inout [UInt8]) {
+        return FfiConverterString.write(value, into: &buf)
+    }
+
+    public static func lift(_ value: RustBuffer) throws -> SuiAddress {
+        return try FfiConverterString.lift(value)
+    }
+
+    public static func lower(_ value: SuiAddress) -> RustBuffer {
+        return FfiConverterString.lower(value)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSuiAddress_lift(_ value: RustBuffer) throws -> SuiAddress {
+    return try FfiConverterTypeSuiAddress.lift(value)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSuiAddress_lower(_ value: SuiAddress) -> RustBuffer {
+    return FfiConverterTypeSuiAddress.lower(value)
+}
+
+
+
+/**
+ * Typealias from the type name used in the UDL file to the builtin type.  This
+ * is needed because the UDL type name is used in function/method signatures.
+ */
+public typealias SuiKeyPair = String
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSuiKeyPair: FfiConverter {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SuiKeyPair {
+        return try FfiConverterString.read(from: &buf)
+    }
+
+    public static func write(_ value: SuiKeyPair, into buf: inout [UInt8]) {
+        return FfiConverterString.write(value, into: &buf)
+    }
+
+    public static func lift(_ value: RustBuffer) throws -> SuiKeyPair {
+        return try FfiConverterString.lift(value)
+    }
+
+    public static func lower(_ value: SuiKeyPair) -> RustBuffer {
+        return FfiConverterString.lower(value)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSuiKeyPair_lift(_ value: RustBuffer) throws -> SuiKeyPair {
+    return try FfiConverterTypeSuiKeyPair.lift(value)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSuiKeyPair_lower(_ value: SuiKeyPair) -> RustBuffer {
+    return FfiConverterTypeSuiKeyPair.lower(value)
+}
+
+
+
+/**
+ * Typealias from the type name used in the UDL file to the builtin type.  This
+ * is needed because the UDL type name is used in function/method signatures.
+ */
+public typealias SuiSdkError = String
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSuiSdkError: FfiConverter {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SuiSdkError {
+        return try FfiConverterString.read(from: &buf)
+    }
+
+    public static func write(_ value: SuiSdkError, into buf: inout [UInt8]) {
+        return FfiConverterString.write(value, into: &buf)
+    }
+
+    public static func lift(_ value: RustBuffer) throws -> SuiSdkError {
+        return try FfiConverterString.lift(value)
+    }
+
+    public static func lower(_ value: SuiSdkError) -> RustBuffer {
+        return FfiConverterString.lower(value)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSuiSdkError_lift(_ value: RustBuffer) throws -> SuiSdkError {
+    return try FfiConverterTypeSuiSdkError.lift(value)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSuiSdkError_lower(_ value: SuiSdkError) -> RustBuffer {
+    return FfiConverterTypeSuiSdkError.lower(value)
+}
+
+
+
+/**
+ * Typealias from the type name used in the UDL file to the builtin type.  This
+ * is needed because the UDL type name is used in function/method signatures.
+ */
+public typealias TransactionDigest = String
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeTransactionDigest: FfiConverter {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> TransactionDigest {
+        return try FfiConverterString.read(from: &buf)
+    }
+
+    public static func write(_ value: TransactionDigest, into buf: inout [UInt8]) {
+        return FfiConverterString.write(value, into: &buf)
+    }
+
+    public static func lift(_ value: RustBuffer) throws -> TransactionDigest {
+        return try FfiConverterString.lift(value)
+    }
+
+    public static func lower(_ value: TransactionDigest) -> RustBuffer {
+        return FfiConverterString.lower(value)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTransactionDigest_lift(_ value: RustBuffer) throws -> TransactionDigest {
+    return try FfiConverterTypeTransactionDigest.lift(value)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTransactionDigest_lower(_ value: TransactionDigest) -> RustBuffer {
+    return FfiConverterTypeTransactionDigest.lower(value)
 }
 
 
@@ -8602,6 +9570,41 @@ public func stacksSignMessage(wallet: String, message: String)throws  -> String 
     )
 })
 }
+public func suiDeriveKeypairFromMnemonic(mnemonic: String)throws  -> SuiKeyPair  {
+    return try  FfiConverterTypeSuiKeyPair_lift(try rustCallWithError(FfiConverterTypeDeriveKeypairFromMnemonicError_lift) {
+    uniffi_yttrium_fn_func_sui_derive_keypair_from_mnemonic(
+        FfiConverterString.lower(mnemonic),$0
+    )
+})
+}
+public func suiGenerateKeypair() -> SuiKeyPair  {
+    return try!  FfiConverterTypeSuiKeyPair_lift(try! rustCall() {
+    uniffi_yttrium_fn_func_sui_generate_keypair($0
+    )
+})
+}
+public func suiGetAddress(publicKey: PublicKey) -> SuiAddress  {
+    return try!  FfiConverterTypeSuiAddress_lift(try! rustCall() {
+    uniffi_yttrium_fn_func_sui_get_address(
+        FfiConverterTypePublicKey_lower(publicKey),$0
+    )
+})
+}
+public func suiGetPublicKey(keypair: SuiKeyPair) -> PublicKey  {
+    return try!  FfiConverterTypePublicKey_lift(try! rustCall() {
+    uniffi_yttrium_fn_func_sui_get_public_key(
+        FfiConverterTypeSuiKeyPair_lower(keypair),$0
+    )
+})
+}
+public func suiPersonalSign(keypair: SuiKeyPair, message: Data) -> Signature  {
+    return try!  FfiConverterTypeSignature_lift(try! rustCall() {
+    uniffi_yttrium_fn_func_sui_personal_sign(
+        FfiConverterTypeSuiKeyPair_lower(keypair),
+        FfiConverterData.lower(message),$0
+    )
+})
+}
 
 private enum InitializationResult {
     case ok
@@ -8633,6 +9636,21 @@ private let initializationResult: InitializationResult = {
     if (uniffi_yttrium_checksum_func_stacks_sign_message() != 52767) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_yttrium_checksum_func_sui_derive_keypair_from_mnemonic() != 51451) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_func_sui_generate_keypair() != 3308) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_func_sui_get_address() != 64923) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_func_sui_get_public_key() != 65033) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_func_sui_personal_sign() != 21640) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_yttrium_checksum_method_stacksclient_get_account() != 47469) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -8642,10 +9660,25 @@ private let initializationResult: InitializationResult = {
     if (uniffi_yttrium_checksum_method_stacksclient_transfer_stx() != 55030) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_yttrium_checksum_method_suiclient_get_all_balances() != 49534) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_method_suiclient_sign_and_execute_transaction() != 3492) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_method_suiclient_sign_transaction() != 14754) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_yttrium_checksum_constructor_stacksclient_new() != 14610) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_yttrium_checksum_constructor_stacksclient_with_blockchain_api_url() != 37649) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_constructor_suiclient_new() != 11380) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_constructor_suiclient_with_blockchain_api_url() != 31125) {
         return InitializationResult.apiChecksumMismatch
     }
 
