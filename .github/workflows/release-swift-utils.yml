@@ -53,7 +53,7 @@ jobs:
           make build-utils-xcframework
           make generate-package-swift-utils
 
-      # 7. Calculate Utils XCFramework Checksum
+      # 7. Calculate Utils XCFramework Checksum (SPM)
       - name: Calculate Utils XCFramework Checksum
         id: checksum
         run: |
@@ -72,9 +72,9 @@ jobs:
         run: |
           sed -i '' "s/spec.version      = \".*\"/spec.version      = \"$VERSION\"/" YttriumUtilsWrapper.podspec
           
-          # Update the download URL to match the utils release format
-          DOWNLOAD_URL="https://github.com/reown-com/yttrium/releases/download/$VERSION/libyttrium-utils.xcframework.zip"
-          sed -i '' "s|https://github.com/reown-com/yttrium/releases/download/[^/]*/libyttrium-utils.xcframework.zip|${DOWNLOAD_URL}|g" YttriumUtilsWrapper.podspec
+          # Update the binary pod URL to the new pod zip
+          DOWNLOAD_URL="https://github.com/reown-com/yttrium/releases/download/$VERSION/libyttrium-utils-pod.zip"
+          sed -i '' "s|https://github.com/reown-com/yttrium/releases/download/[^/]*/libyttrium-utils-pod.zip|${DOWNLOAD_URL}|g" YttriumUtilsWrapper.podspec
 
       # 10. Commit and Push Package.swift, Utils Sources, and Podspec
       - name: Commit and Push Package.swift, Utils Sources, and Podspec
@@ -115,8 +115,8 @@ jobs:
           draft: false
           prerelease: true
 
-      # 13. Upload Utils XCFramework  to the Release
-      - name: Upload Utils XCFramework to Release
+      # 13. Upload Utils SPM XCFramework zip to the Release
+      - name: Upload Utils SPM zip to Release
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -126,7 +126,18 @@ jobs:
           asset_name: libyttrium-utils.xcframework.zip
           asset_content_type: application/zip
 
-      # 14. Publish Utils CocoaPods
+      # 14. Upload Utils CocoaPods pod zip to the Release
+      - name: Upload Utils pod zip to Release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release_utils.outputs.upload_url }}
+          asset_path: ./Output/libyttrium-utils-pod.zip
+          asset_name: libyttrium-utils-pod.zip
+          asset_content_type: application/zip
+
+      # 15. Publish Utils CocoaPods
       - name: Publish Utils CocoaPods
         env:
           COCOAPODS_TRUNK_TOKEN: ${{ secrets.COCOAPODS_TRUNK_TOKEN }}

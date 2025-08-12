@@ -14,10 +14,13 @@ Pod::Spec.new do |spec|
   spec.ios.deployment_target = "13.0"
   spec.swift_version = "5.9"
 
-  spec.source       = { :git => "https://github.com/reown-com/yttrium.git", :tag => "#{spec.version}" }
+  # Binary pod via :http to avoid running heavy prepare_command on trunk
+  # For local validation we can temporarily point to a local server; CI will overwrite to GitHub URL
+  spec.source       = { :http => "http://localhost:8089/libyttrium-utils-pod.zip" }
 
-  spec.vendored_frameworks = "platforms/swift/libyttrium-utils.xcframework"
-  spec.source_files = "platforms/swift/Sources/YttriumUtils/**/*.swift"
+  # The zip contains libyttrium-utils.xcframework at root and Sources/YttriumUtils/*.swift
+  spec.vendored_frameworks = "libyttrium-utils.xcframework"
+  spec.source_files = "Sources/YttriumUtils/**/*.swift"
 
   # Since this is a utils library with fewer dependencies, we don't need complex configuration
   spec.user_target_xcconfig = {
@@ -27,40 +30,5 @@ Pod::Spec.new do |spec|
     'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'arm64'
   }
 
-  spec.prepare_command = <<-SCRIPT
-    curl -L -o libyttrium-utils.xcframework.zip "https://github.com/reown-com/yttrium/releases/download/#{spec.version}/libyttrium-utils.xcframework.zip"
-    unzip -o libyttrium-utils.xcframework.zip -d platforms/swift/
-    rm libyttrium-utils.xcframework.zip
-
-    # Create the XCFramework structure from the extracted files
-    mkdir -p platforms/swift/libyttrium-utils.xcframework/ios-arm64/Headers
-    mkdir -p platforms/swift/libyttrium-utils.xcframework/ios-arm64_x86_64-simulator/Headers
-    
-    # Move the library files to the XCFramework structure (note: lib name is libyttrium-utils.a)
-    mv platforms/swift/ios-arm64/libyttrium-utils.a platforms/swift/libyttrium-utils.xcframework/ios-arm64/
-    mv platforms/swift/ios-arm64_x86_64-simulator/libyttrium-utils.a platforms/swift/libyttrium-utils.xcframework/ios-arm64_x86_64-simulator/
-    
-    # Move headers and handle module subdirectory (yttriumUtilsFFI)
-    if [ -d "platforms/swift/ios-arm64/Headers/yttriumUtilsFFI" ]; then
-      mv platforms/swift/ios-arm64/Headers/yttriumUtilsFFI/* platforms/swift/libyttrium-utils.xcframework/ios-arm64/Headers/
-    else
-      mv platforms/swift/ios-arm64/Headers/* platforms/swift/libyttrium-utils.xcframework/ios-arm64/Headers/
-    fi
-    
-    if [ -d "platforms/swift/ios-arm64_x86_64-simulator/Headers/yttriumUtilsFFI" ]; then
-      mv platforms/swift/ios-arm64_x86_64-simulator/Headers/yttriumUtilsFFI/* platforms/swift/libyttrium-utils.xcframework/ios-arm64_x86_64-simulator/Headers/
-    else
-      mv platforms/swift/ios-arm64_x86_64-simulator/Headers/* platforms/swift/libyttrium-utils.xcframework/ios-arm64_x86_64-simulator/Headers/
-    fi
-    
-    # Copy Info.plist to XCFramework root
-    mv platforms/swift/Info.plist platforms/swift/libyttrium-utils.xcframework/
-    
-    # Clean up the extracted directories
-    rm -rf platforms/swift/ios-arm64 platforms/swift/ios-arm64_x86_64-simulator
-    
-    # Copy Swift source files to headers directories
-    cp -R platforms/swift/Sources/YttriumUtils/*.swift platforms/swift/libyttrium-utils.xcframework/ios-arm64/Headers/
-    cp -R platforms/swift/Sources/YttriumUtils/*.swift platforms/swift/libyttrium-utils.xcframework/ios-arm64_x86_64-simulator/Headers/
-  SCRIPT
+  # No prepare_command needed for binary pod
 end 

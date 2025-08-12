@@ -4,13 +4,29 @@ set -e
 
 # Variables
 RUST_XCFRAMEWORK_DIR="target/ios-utils/libyttrium-utils.xcframework"
-RUST_XCFRAMEWORK_ZIP="libyttrium-utils.xcframework.zip"
+RUST_XCFRAMEWORK_ZIP_SPM="libyttrium-utils.xcframework.zip"
+RUST_XCFRAMEWORK_ZIP_POD="libyttrium-utils-pod.zip"
 OUTPUT_DIR="Output"
 
-echo "Zipping Rust XCFramework..."
+echo "Preparing Utils release artifacts (SPM zip and Pod zip)..."
 mkdir -p $OUTPUT_DIR
-cd $RUST_XCFRAMEWORK_DIR
-zip -r "../../../$OUTPUT_DIR/$RUST_XCFRAMEWORK_ZIP" .
-cd ../../../
 
-echo "Utils XCFramework zipped successfully at $OUTPUT_DIR/$RUST_XCFRAMEWORK_ZIP" 
+# 1) Create SPM artifact: pure XCFramework zip
+(
+  cd "$RUST_XCFRAMEWORK_DIR"
+  zip -r "../../../$OUTPUT_DIR/$RUST_XCFRAMEWORK_ZIP_SPM" .
+)
+echo "SPM XCFramework zip created at $OUTPUT_DIR/$RUST_XCFRAMEWORK_ZIP_SPM"
+
+# 2) Create CocoaPods artifact: XCFramework + Sources
+TMPDIR=$(mktemp -d)
+cp -R "$RUST_XCFRAMEWORK_DIR" "$TMPDIR/"
+mkdir -p "$TMPDIR/Sources/YttriumUtils"
+cp platforms/swift/Sources/YttriumUtils/*.swift "$TMPDIR/Sources/YttriumUtils/"
+(
+  cd "$TMPDIR"
+  zip -r "$OLDPWD/$OUTPUT_DIR/$RUST_XCFRAMEWORK_ZIP_POD" .
+)
+rm -rf "$TMPDIR"
+
+echo "Pod zip created at $OUTPUT_DIR/$RUST_XCFRAMEWORK_ZIP_POD (contains libyttrium-utils.xcframework and Sources/YttriumUtils)"
