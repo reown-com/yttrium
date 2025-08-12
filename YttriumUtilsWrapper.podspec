@@ -15,8 +15,8 @@ Pod::Spec.new do |spec|
   spec.swift_version = "5.9"
 
   # Binary pod via :http to avoid running heavy prepare_command on trunk
-  # For local validation we can temporarily point to a local server; CI will overwrite to GitHub URL
-  spec.source       = { :http => "http://localhost:8089/libyttrium-utils-pod.zip" }
+  # Binary asset hosted on GitHub Releases; CI updates the version
+  spec.source       = { :http => "https://github.com/reown-com/yttrium/releases/download/#{spec.version}/libyttrium-utils-pod.zip" }
 
   # The zip contains libyttrium-utils.xcframework at root and Sources/YttriumUtils/*.swift
   spec.vendored_frameworks = "libyttrium-utils.xcframework"
