@@ -40,8 +40,8 @@ buildscript {
         mavenCentral()
     }
     dependencies {
-        classpath 'com.android.tools.build:gradle:8.4.1'
-        classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:1.8.10'
+        classpath 'com.android.tools.build:gradle:8.6.0'
+        classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.22'
     }
 }
 
@@ -57,11 +57,22 @@ repositories {
 android {
     namespace "com.reown.yttrium.uniffi"
 
-    compileSdkVersion 34
+    compileSdkVersion 35
 
     defaultConfig {
         minSdkVersion 21
-        targetSdkVersion 34
+        targetSdkVersion 35
+        
+        // Enable 16 KB page size support
+        externalNativeBuild {
+            cmake {
+                arguments "-DANDROID_PAGE_SIZE_16KB=ON"
+            }
+        }
+    }
+    
+    buildFeatures {
+        buildConfig = true
     }
 
     lintOptions {
@@ -94,6 +105,18 @@ android {
 
     kotlinOptions {
         jvmTarget = "11"
+    }
+    
+    // NDK build configuration for 16 KB page size support
+    ndkVersion "26.1.10909125"
+    
+    // Ensure proper alignment for 16 KB page sizes
+    packagingOptions {
+        doNotStrip "*/libuniffi_yttrium.so"
+        // Add 16 KB alignment for native libraries
+        jniLibs {
+            useLegacyPackaging = false
+        }
     }
 
     dependencies { 
