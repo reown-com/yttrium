@@ -11,10 +11,11 @@ OUTPUT_DIR="Output"
 echo "Preparing Utils release artifacts (SPM zip and Pod zip)..."
 mkdir -p $OUTPUT_DIR
 
-# 1) Create SPM artifact: pure XCFramework zip
+# 1) Create SPM artifact: pure XCFramework zip (keep the xcframework directory at top-level)
+rm -f "$OUTPUT_DIR/$RUST_XCFRAMEWORK_ZIP_SPM"
 (
-  cd "$RUST_XCFRAMEWORK_DIR"
-  zip -r "../../../$OUTPUT_DIR/$RUST_XCFRAMEWORK_ZIP_SPM" .
+  cd "$(dirname "$RUST_XCFRAMEWORK_DIR")"
+  zip -r "../../$OUTPUT_DIR/$RUST_XCFRAMEWORK_ZIP_SPM" "$(basename "$RUST_XCFRAMEWORK_DIR")"
 )
 echo "SPM XCFramework zip created at $OUTPUT_DIR/$RUST_XCFRAMEWORK_ZIP_SPM"
 
