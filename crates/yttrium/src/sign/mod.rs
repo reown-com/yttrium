@@ -1,3 +1,8 @@
+#[cfg(feature = "uniffi")]
+use crate::sign::ffi_types::{
+    SessionFfi, SessionProposalFfi, SessionRequestJsonRpcFfi,
+    SessionRequestResponseJsonRpcFfi,
+};
 pub use relay_rpc::{
     auth::ed25519_dalek::{SecretKey, SigningKey},
     domain::Topic,
@@ -37,8 +42,6 @@ use {
     tracing::debug,
     x25519_dalek::PublicKey,
 };
-#[cfg(feature = "uniffi")]
-use crate::sign::ffi_types::{SessionProposalFfi, SessionFfi, SessionRequestJsonRpcFfi, SessionRequestResponseJsonRpcFfi};
 #[cfg(not(target_arch = "wasm32"))]
 use {
     futures::{SinkExt, StreamExt},
@@ -46,19 +49,20 @@ use {
 };
 
 const RELAY_URL: &str = "wss://relay.walletconnect.org";
+const MIN_RPC_ID: u64 = 1000000000; // MessageId::MIN is private
 
 mod envelope_type0;
 mod envelope_type1;
+#[cfg(feature = "uniffi")]
+mod ffi_types;
+#[cfg(feature = "uniffi")]
+mod mapper;
 mod pairing_uri;
 pub mod protocol_types;
 mod relay_url;
 #[cfg(test)]
 mod tests;
 mod utils;
-#[cfg(feature = "uniffi")]
-mod ffi_types;
-#[cfg(feature = "uniffi")]
-mod mapper;
 
 #[derive(Debug, thiserror::Error, Clone)]
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Error))]
@@ -73,8 +77,13 @@ pub enum RequestError {
     #[error("Invalid auth")]
     InvalidAuth,
 
+    /// An error that shouldn't happen (e.g. JSON serializing constant values)
     #[error("Should never happen: {0}")]
     ShouldNeverHappen(String),
+
+    /// An error that shouldn't happen because the relay should be behaving as expected
+    #[error("Server misbehaved: {0}")]
+    ServerMisbehaved(String),
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -182,6 +191,7 @@ const REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
 // - use a single string variant for all errors (which would be shown to users!)
 // - other is internal errors we don't expect to EVER happen (so show error code instead w/ GitHub issue link)
 // TODO bundle size optimization
+// - flutter JSON serialization, avoid back/forth in UniFFI?
 // - use native crypto utils
 // TODO relay changes
 // - subscribe to other sessions as part of `wc_approveSession` etc.
@@ -202,6 +212,10 @@ const REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
 // - Network state hinting (offline/online)
 //   - offline: don't try to reconnect, but also don't force a disconnect
 //   - online: reconnect if online() was called
+
+// TODO tests
+// - memory leak slow tests, run for days?. Kill WS many times over and over again to test. Create many sessions over and over again, update sessions, session requests, etc.
+// - test killing the WS, not returning request, failing to connect, etc. in various stages of the lifecycle
 
 #[allow(unused)]
 impl Client {
@@ -816,8 +830,7 @@ impl Client {
                     tokio_tungstenite::{MaybeTlsStream, WebSocketStream},
                 };
 
-                const MIN: u64 = 1000000000; // MessageId::MIN is private
-                let mut message_id = MIN;
+                let mut message_id = MIN_RPC_ID;
                 let mut response_channels = HashMap::<
                     _,
                     tokio::sync::oneshot::Sender<
@@ -1063,8 +1076,7 @@ impl Client {
                 ws.set_onopen(None);
                 tracing::debug!("onopen received");
 
-                const MIN: u64 = 1000000000; // MessageId::MIN is private
-                let mut message_id = MIN;
+                let mut message_id = MIN_RPC_ID;
                 let mut response_channels = HashMap::<
                     _,
                     tokio::sync::oneshot::Sender<
@@ -1360,13 +1372,748 @@ impl Client {
     }
 }
 
+type ConnectionLoopParams = (
+    // TODO try to use a lock-free structure: https://chatgpt.com/share/e/689baa02-fec8-8005-880f-0c3304fc6f5a
+    std::sync::Arc<tokio::sync::Mutex<Vec<[u8; 32]>>>,
+    tokio::sync::mpsc::UnboundedReceiver<(
+        Params,
+        tokio::sync::oneshot::Sender<Result<Response, RequestError>>,
+    )>,
+);
+
+async fn connection_loop(
+    relay_url: String,
+    project_id: ProjectId,
+    key: &SigningKey,
+    params: ConnectionLoopParams,
+) {
+    use futures_concurrency::prelude::*;
+    let (sessions, request_rx) = params;
+    loop {
+        // TODO dedicated "online" channel, use enum in request_rx, or don't start this loop until one or the other happens. For now, we'll double-send the batchSubscribe or do some ping over request_rx
+        // idle state, wait for initial request
+        // TODO alternative: jump straight to reconnect loop for `online()`
+        
+        // let mut req = match request_rx.recv().await {
+        //     Some(req) => req,
+        //     None => return, // consider using `while let Some` instead
+        // };
+
+        // let (mut last_request_message_id, mut on_incomingmessage_rx) =
+        //     (0, tokio::sync::mpsc::unbounded_channel().1);
+        let mut connected_state = None;
+        // let (mut last_request_message_id, mut on_incomingmessage_rx) =
+        //     match connect(relay_url, project_id, key, req.0).await {
+        //         Ok(success) => success,
+        //         Err(e) => {
+        //             let _ = req.1.send(Err(e)).ok();
+        //             // return to idle state
+        //             // TODO check if sessions are set, if so, enter reconnecting state
+        //             continue;
+        //         }
+        //     };
+
+        // let result = crate::time::timeout(REQUEST_TIMEOUT, async {
+        //     // next message should be response or close
+        //     if let Some(message) = on_incomingmessage_rx.recv().await {
+        //         match message {
+        //             IncomingMessage::Close(reason) => match reason {
+        //                 CloseReason::InvalidAuth => {
+        //                      Err(RequestError::InvalidAuth)
+        //                 }
+        //                 CloseReason::Error(reason) => {
+        //                      Err(RequestError::Offline)
+        //                 }
+        //             },
+        //             IncomingMessage::Message(payload) => {
+        //                 let id = payload.id();
+        //                 match payload {
+        //                     Payload::Request(request) => {
+        //                          Err(
+        //                             RequestError::ServerMisbehaved(
+        //                                 format!(
+        //                                     "incoming relay request: {:?}",
+        //                                     request
+        //                                 ),
+        //                             ),
+        //                         )
+        //                     }
+        //                     Payload::Response(response) => {
+        //                         if id == MessageId::new(last_request_message_id)
+        //                         {
+        //                              Ok(response)
+        //                         } else {
+        //                              Err(RequestError::ServerMisbehaved(
+        //                                 format!(
+        //                                     "ignoring incoming relay response for different request: {:?}",
+        //                                     response
+        //                                 ),
+        //                             ))
+        //                         }
+        //                     }
+        //                 }
+        //             }
+        //         }
+        //     } else {
+        //         Err(RequestError::Offline)
+        //     }
+        // })
+        // .await;
+
+        // match result {
+        //     Ok(response) => match response {
+        //         Ok(response) => {
+        //             let _ = req.1.send(Ok(response)).ok();
+        //         }
+        //         Err(e) => {
+        //             let _ = req.1.send(Err(e)).ok();
+        //             if e == RequestError::InvalidAuth {
+        //                 while let Some(req) = request_rx.recv().await {
+        //                     let _ = req.1.send(Err(e)).ok();
+        //                 }
+        //                 return;
+        //             }
+        //         }
+        //     },
+        //     Err(e) => {
+        //         tracing::debug!(
+        //             "Timeout waiting for initial request response: {e}"
+        //         );
+        //         let _ = req.1.send(Err(RequestError::Offline)).ok();
+        //         // TODO conditionally enter reconnect loop (if sessions)
+        //     }
+        // }
+
+        // connected state, wait for incoming or outgoing messages
+        let reason = loop {
+            let request_fut = request_rx.recv();
+            let on_incomingmessage_rx =
+                if let Some((_, on_incomingmessage_rx)) = connected_state {
+                    on_incomingmessage_rx
+                } else {
+                    tokio::sync::mpsc::unbounded_channel().1
+                };
+
+            tokio::select! {
+                req = request_fut => {
+                    if let Some(req) = req {
+                        let ( last_request_message_id,  on_incomingmessage_rx) = if let Some(connected_state) = connected_state { connected_state } else {
+                            let ( last_request_message_id,  on_incomingmessage_rx) =
+                                match connect(relay_url, project_id, key, req.0).await {
+                                    Ok(success) => success,
+                                    Err(e) => {
+                                        let _ = req.1.send(Err(e)).ok();
+                                        break false;
+                                    }
+                                };
+
+                            let result = crate::time::timeout(REQUEST_TIMEOUT, async {
+                                // next message should be response or close
+                                if let Some(message) = on_incomingmessage_rx.recv().await {
+                                    // TODO match outside the timeout
+                                    match message {
+                                        IncomingMessage::Close(reason) => match reason {
+                                            CloseReason::InvalidAuth => {
+                                                Err(RequestError::InvalidAuth)
+                                            }
+                                            CloseReason::Error(reason) => {
+                                                Err(RequestError::Offline)
+                                            }
+                                        },
+                                        IncomingMessage::Message(payload) => {
+                                            let id = payload.id();
+                                            match payload {
+                                                Payload::Request(request) => {
+                                                    Err(
+                                                        RequestError::ServerMisbehaved(
+                                                            format!(
+                                                                "incoming relay request: {:?}",
+                                                                request
+                                                            ),
+                                                        ),
+                                                    )
+                                                }
+                                                Payload::Response(response) => {
+                                                    if id == MessageId::new(last_request_message_id)
+                                                    {
+                                                        Ok(response)
+                                                    } else {
+                                                        Err(RequestError::ServerMisbehaved(
+                                                            format!(
+                                                                "ignoring incoming relay response for different request: {:?}",
+                                                                response
+                                                            ),
+                                                        ))
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    Err(RequestError::Offline)
+                                }
+                            })
+                            .await;
+
+                            match result {
+                                Ok(response) => match response {
+                                    Ok(response) => {
+                                        let _ = req.1.send(Ok(response)).ok();
+                                    }
+                                    Err(e) => {
+                                        let _ = req.1.send(Err(e)).ok();
+                                        if e == RequestError::InvalidAuth {
+                                            break true;
+                                        }
+                                    }
+                                },
+                                Err(e) => {
+                                    tracing::debug!(
+                                        "Timeout waiting for initial request response: {e}"
+                                    );
+                                    let _ = req.1.send(Err(RequestError::Offline)).ok();
+                                    break false;
+                                }
+                            }
+
+                            (last_request_message_id, on_incomingmessage_rx)
+                        };
+
+                    let result = crate::time::timeout(REQUEST_TIMEOUT, async {
+                        // In-request state: wait for response, error, or incoming subscription
+                        while let Some(message) = on_incomingmessage_rx.recv().await {
+                            match message {
+                                IncomingMessage::Close(reason) => match reason {
+                                    CloseReason::InvalidAuth => {
+                                        return Err(RequestError::ServerMisbehaved("invalid auth after initial connection".to_owned()));
+                                    }
+                                    CloseReason::Error(reason) => {
+                                        return Err(RequestError::Offline);
+                                    }
+                                },
+                                IncomingMessage::Message(payload) => {
+                                    let id = payload.id();
+                                    match payload {
+                                        Payload::Request(request) => {
+                                            // TODO handle subscription
+                                            tracing::debug!("TODO incoming relay request: {:?}", request);
+                                        }
+                                        Payload::Response(response) => {
+                                            if id == MessageId::new(last_request_message_id)
+                                            {
+                                                return Ok(response);
+                                            } else {
+                                                return Err(RequestError::ServerMisbehaved(
+                                                    format!(
+                                                        "ignoring incoming relay response: {:?}",
+                                                        response
+                                                    ),
+                                                ));
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        Err(RequestError::Offline)
+                    })
+                    .await;
+
+                    match result {
+                        Ok(Ok(response)) => {
+                            let _ = req.1.send(Ok(response)).ok();
+                        },
+                        e => {
+                            tracing::debug!(
+                                "error waiting for request response: {e}"
+                            );
+
+                            (last_request_message_id, on_incomingmessage_rx) =
+                            match connect(relay_url, project_id, key, req.0).await {
+                                Ok(success) => success,
+                                Err(e) => {
+                                    let _ = req.1.send(Err(e)).ok();
+                                    break false;
+                                }
+                            };
+
+                            let result = crate::time::timeout(REQUEST_TIMEOUT, async {
+                                // next message should be response (or close)
+                                if let Some(message) = on_incomingmessage_rx.recv().await {
+                                    match message {
+                                        IncomingMessage::Close(reason) => match reason {
+                                            CloseReason::InvalidAuth => {
+                                                 Err(RequestError::InvalidAuth)
+                                            }
+                                            CloseReason::Error(reason) => {
+                                                 Err(RequestError::Offline)
+                                            }
+                                        },
+                                        IncomingMessage::Message(payload) => {
+                                            let id = payload.id();
+                                            match payload {
+                                                Payload::Request(request) => {
+                                                     Err(
+                                                        RequestError::ServerMisbehaved(
+                                                            format!(
+                                                                "incoming relay request: {:?}",
+                                                                request
+                                                            ),
+                                                        ),
+                                                    )
+                                                }
+                                                Payload::Response(response) => {
+                                                    if id == MessageId::new(last_request_message_id)
+                                                    {
+                                                         Ok(response)
+                                                    } else {
+                                                         Err(RequestError::ServerMisbehaved(
+                                                            format!(
+                                                                "ignoring incoming relay response for different request: {:?}",
+                                                                response
+                                                            ),
+                                                        ))
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    Err(RequestError::Offline)
+                                }
+                            })
+                            .await;
+
+                            match result {
+                                Ok(response) => match response {
+                                    Ok(response) => {
+                                        let _ = req.1.send(Ok(response)).ok();
+                                    }
+                                    Err(e) => {
+                                        let _ = req.1.send(Err(e)).ok();
+                                        if e == RequestError::InvalidAuth {
+                                            break true;
+                                        }
+                                    }
+                                },
+                                Err(e) => {
+                                    tracing::debug!(
+                                        "Timeout waiting for initial request response: {e}"
+                                    );
+                                    let _ = req.1.send(Err(RequestError::Offline)).ok();
+                                }
+                            }
+                        }
+                    }} else {
+                        break false;
+                    }
+                }
+                Some(message) = on_incomingmessage_rx.recv() => {
+                    match message {
+                        IncomingMessage::Close(reason) => {
+                            match reason {
+                                CloseReason::InvalidAuth => {
+                                    tracing::error!("server misbehaved: invalid auth after initial connection (2)");
+                                    break true;
+                                }
+                                CloseReason::Error(reason) => {
+                                    break false;
+                                }
+                            }
+                        }
+                        IncomingMessage::Message(payload) => {
+                            let id = payload.id();
+                            match payload {
+                                Payload::Request(request) => {
+                                    match request.params {
+                                        Params::Subscription(sub_msg) => {
+                                            // handle_irn_subscription(id, sub_msg);
+                                            // TODO
+                                        }
+                                        _ => tracing::debug!(
+                                            "ignoring incoming relay request: {:?}",
+                                            request
+                                        ),
+                                    }
+                                }
+                                Payload::Response(response) => {
+                                    tracing::debug!("ignoring incoming relay response: {:?}", response);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        };
+
+        connected_state = None;
+
+        if reason {
+            while let Some(req) = request_rx.recv().await {
+                let _ = req.1.send(Err(RequestError::InvalidAuth)).ok();
+            }
+            return;
+        }
+
+        loop {
+            let sessions = {
+                let sessions = sessions.lock().await;
+                sessions.clone()
+            };
+            if !sessions.is_empty() {
+                break;
+            }
+
+            // TODO connect & concurrently await request_rx for interrupt on sleeps
+
+            // TODO backoff
+        }
+    }
+}
+
+enum IncomingMessage {
+    Close(CloseReason),
+    Message(Payload),
+}
+
+enum CloseReason {
+    InvalidAuth,
+    Error(String),
+}
+
+async fn connect(
+    relay_url: String,
+    project_id: ProjectId,
+    key: &SigningKey,
+    initial_req: Params,
+) -> Result<
+    (u64, tokio::sync::mpsc::UnboundedReceiver<IncomingMessage>),
+    RequestError,
+> {
+    let url = {
+        let encoder = &data_encoding::BASE64URL_NOPAD;
+        let claims = {
+            let data = JwtBasicClaims {
+                iss: DecodedClientId::from_key(&key.verifying_key()).into(),
+                sub: "http://example.com".to_owned(),
+                aud: relay_url.clone(),
+                iat: crate::time::SystemTime::now()
+                    .duration_since(crate::time::UNIX_EPOCH)
+                    .unwrap()
+                    .as_secs() as i64,
+                exp: Some(
+                    crate::time::SystemTime::now()
+                        .duration_since(crate::time::UNIX_EPOCH)
+                        .unwrap()
+                        .as_secs() as i64
+                        + 60 * 60,
+                ),
+            };
+
+            encoder.encode(serde_json::to_string(&data).unwrap().as_bytes())
+        };
+        let header = encoder.encode(
+            serde_json::to_string(&JwtHeader::default()).unwrap().as_bytes(),
+        );
+        let message = format!("{header}.{claims}");
+        let signature = {
+            let data = key.sign(message.as_bytes());
+            encoder.encode(&data.to_bytes())
+        };
+        let auth = format!("{message}.{signature}");
+
+        let conn_opts =
+            ConnectionOptions::new(project_id, auth).with_address(&relay_url);
+        conn_opts.as_url().unwrap().to_string()
+    };
+
+    #[cfg(target_arch = "wasm32")]
+    {
+        use {
+            wasm_bindgen::{prelude::Closure, JsCast},
+            web_sys::{CloseEvent, Event, MessageEvent},
+        };
+
+        let ws = web_sys::WebSocket::new(&url).map_err(|e| {
+            RequestError::Internal(format!("Failed to create WebSocket: {e:?}"))
+        })?;
+
+        let (on_incomingmessage_tx, mut on_incomingmessage_rx) =
+            tokio::sync::mpsc::unbounded_channel();
+
+        let on_close_closure =
+            Closure::wrap(Box::new(move |event: CloseEvent| {
+                tracing::debug!("websocket onclose: {:?}", event);
+
+                if event.code() == 3000 {
+                    tracing::error!("Invalid auth: {}", event.reason());
+                    if let Err(e) = on_incomingmessage_tx
+                        .send(IncomingMessage::Close(CloseReason::InvalidAuth))
+                    {
+                        tracing::debug!(
+                            "OK: Failed to send invalid auth close event: {e}"
+                        );
+                    }
+                } else {
+                    // TODO rename CloseReason::Error? It's not necessesarly an error but a "normal" close event.
+                    if let Err(e) = on_incomingmessage_tx.send(
+                        IncomingMessage::Close(CloseReason::Error(format!(
+                            "{}: {}",
+                            event.code(),
+                            event.reason()
+                        ))),
+                    ) {
+                        tracing::debug!("OK: Failed to send close event: {e}");
+                    }
+                }
+            }) as Box<dyn Fn(CloseEvent)>);
+        ws.set_onclose(Some(
+            // TODO fix leak
+            Box::leak(Box::new(on_close_closure)).as_ref().unchecked_ref(),
+        ));
+
+        let on_error_closure = Closure::wrap(Box::new(move |event: Event| {
+            tracing::debug!(
+                "websocket onerror: {:?} {:?}",
+                event.as_string(),
+                event,
+            );
+            if let Err(e) = on_incomingmessage_tx.send(IncomingMessage::Close(
+                CloseReason::Error(
+                    event
+                        .as_string()
+                        .unwrap_or_else(|| "unknown error".to_string()),
+                ),
+            )) {
+                tracing::debug!(
+                    "OK: Failed to send close even (error handler): {e}"
+                );
+            }
+        }) as Box<dyn Fn(Event)>);
+        ws.set_onerror(Some(
+            // TODO fix leak
+            Box::leak(Box::new(on_error_closure)).as_ref().unchecked_ref(),
+        ));
+
+        let onmessage_closure =
+            Closure::wrap(Box::new(move |event: MessageEvent| {
+                if let Some(message) = event.data().as_string() {
+                    tracing::debug!("websocket onmessage: {:?}", message);
+                    let result = serde_json::from_str::<Payload>(&message);
+                    match result {
+                        Ok(payload) => {
+                            let _ = on_incomingmessage_tx
+                                .send(IncomingMessage::Message(payload))
+                                .ok();
+                        }
+                        Err(e) => {
+                            tracing::warn!("Failed to parse payload: {e}");
+                        }
+                    }
+                } else {
+                    tracing::warn!(
+                        "received non-string JsValue for WS onmessage"
+                    )
+                }
+            }) as Box<dyn Fn(MessageEvent)>);
+        ws.set_onmessage(Some(
+            // TODO fix leak
+            Box::leak(Box::new(onmessage_closure)).as_ref().unchecked_ref(),
+        ));
+
+        let (tx_open, mut rx_open) = tokio::sync::oneshot::channel();
+        let onopen_closure = Closure::wrap(Box::new(move |_event: Event| {
+            let _ = tx_open.send(()).ok();
+        }) as Box<dyn Fn(Event)>);
+        ws.set_onopen(Some(
+            // TODO fix leak
+            Box::leak(Box::new(onopen_closure)).as_ref().unchecked_ref(),
+        ));
+
+        tracing::debug!("awaiting onopen");
+
+        crate::time::timeout(REQUEST_TIMEOUT, rx_open)
+            .await
+            .map_err(|e| {
+                RequestError::Internal(format!(
+                    "Timeout waiting for onopen: {e}"
+                ))
+            })?
+            .map_err(|e| {
+                RequestError::Internal(format!("Failed to receive onopen: {e}"))
+            })?;
+        ws.set_onopen(None);
+        tracing::debug!("onopen received");
+
+        let mut message_id = MIN_RPC_ID + 1;
+
+        // TODO this will soon be moved to initial WebSocket request
+        let request = Payload::Request(Request::new(
+            MessageId::new(*message_id),
+            initial_req,
+        ));
+        let serialized = serde_json::to_string(&request)
+            .map_err(|e| {
+                RequestError::ShouldNeverHappen(format!(
+                    "Failed to serialize request: {e}"
+                ))
+            })
+            .expect("TODO");
+        ws.send_with_str(&serialized).expect("TODO");
+
+        // let exit_reason = loop {
+        //     tokio::select! {
+        //         Some((params, response_tx)) = request_rx.recv() => {
+        //             send_request(&ws, (params, response_tx), &mut message_id, &mut response_channels);
+        //         }
+        //         Some(message) = onmessage_rx.recv() => {
+        //             let payload = serde_json::from_str::<Payload>(&message).map_err(|e| {
+        //                 RequestError::Internal(format!(
+        //                     "Failed to parse payload: {e}"
+        //                 ))
+        //             });
+        //             match payload {
+        //                 Ok(payload) => {
+        //                     let id = payload.id();
+        //                     match payload {
+        //                         Payload::Request(request) => {
+        //                             match request.params {
+        //                                 Params::Subscription(
+        //                                     sub_msg
+        //                                 ) => {
+        //                                     handle_irn_subscription(id, sub_msg);
+        //                                 }
+        //                                 _ => tracing::debug!("ignoring incoming relay request: {:?}", request),
+        //                             }
+        //                         }
+        //                         Payload::Response(response) => {
+        //                             if let Some(response_tx) = response_channels.remove(&response.id()) {
+        //                                 if let Err(e) = response_tx.send(Ok(response)) {
+        //                                     tracing::debug!("Failed to send response: {e:?}");
+        //                                 }
+        //                             }
+        //                         }
+        //                     }
+        //                 }
+        //                 Err(e) => {
+        //                     // no-op
+        //                     // .expect("TODO")
+        //                 }
+        //             }
+        //         }
+        //         Some(id) = irn_subscription_ack_rx.recv() => {
+        //             let request = Payload::Response(Response::Success(
+        //                 SuccessfulResponse {
+        //                     id,
+        //                     result: serde_json::to_value(true)
+        //                         .expect("TODO"),
+        //                     jsonrpc: "2.0".to_string().into(),
+        //                 },
+        //             ));
+        //             let serialized = serde_json::to_string(&request)
+        //                 .map_err(|e| {
+        //                     RequestError::ShouldNeverHappen(format!(
+        //                         "Failed to serialize request: {e}"
+        //                     ))
+        //                 })
+        //                 .expect("TODO");
+        //             ws.send_with_str(&serialized).expect("TODO");
+        //         }
+        //         Some(close_event) = on_close_rx.recv() => {
+        //             tracing::debug!("websocket onclose: {:?}", close_event);
+        //             if close_event.code() == 3000 {
+        //                 tracing::error!("Invalid auth: {}", close_event.reason());
+        //                 invalid_auth.store(true, std::sync::atomic::Ordering::Relaxed);
+        //                 break RequestError::InvalidAuth;
+        //             } else {
+        //                 break RequestError::Offline;
+        //             }
+        //         }
+        //         Some(error_event) = on_error_rx.recv() => {
+        //             tracing::debug!("websocket onerror: {:?}", error_event);
+        //             break RequestError::Offline;
+        //         }
+        //     }
+        // };
+
+        // for (_, response_tx) in response_channels {
+        //     let _ = response_tx.send(Err(exit_reason.clone()));
+        // }
+
+        // TODO handle exit case
+        // just call online() again?
+        // no needs a loop of some kind? async task gets spawned to reconnect & manage the lifecycle?
+        // TODO spawn this task inside `online()`, call close_tx when wallet explicitally closes or all sessions removed
+        // TODO call disconnect_tx here
+        // if topics > 0 {
+        // fn: reconnect_loop(initial_req) - called by online() and disconnect_tx?
+        // tokio::task::spawn(async move {
+        // loop {
+        //   select! {
+        //     // cancel when wallet explicitally closes or all sessions removed, but websocket may stay open
+        //     // or when connection is established
+        //     //Some(event) = on_close_rx.recv() => {
+        //     //  break;
+        //     //}
+        //     Some(event) = disconnect_rx.recv() => {
+        //       // no-op, reconnect immediately
+        //       // check if there are sessions to reconnect to & an online hint hasn't indicated that it's offline
+        //     }
+        //   }
+        //   if topics == 0 {
+        //     // TODO maybe move this check into do_online_and_subscribe_with_backoff() so it checks each reconnect attempt
+        //     break;
+        //   }
+        //   // begin reconnect with no delay, then backoff
+        //   let disconnect_rx = do_online_and_subscribe_with_backoff(initial_req, on_close_rx).await; // TODO catch error and retry w/ backoff
+        //   // success
+        // }
+        // });
+
+        // TODO
+        // We don't want to create the reconnection loop until we have a session topic to stay subscribed to
+        // I.e. we should be able to "attach" to an existing connection, not require it to be created from here
+        // Reconnect cases:
+        //   - When WS disconnects, it should check if there are sessions to reconnect to & an online hint hasn't indicated that it's offline
+        //   - online hint will cause connect (if there are sessions to reconnect to)
+        //   - insert into sessions will cause spawning the reconnect watcher loop
+
+        // do_online_and_subscribe_with_backoff(initial_req, on_close_rx):
+        //   let backoff_ms = 0;
+        //   loop {
+        //     let response = request(initial_req);
+        //     match response {
+        //       Ok(response) => {
+        //         break response;
+        //       }
+        //       Err(e) => {
+        //         // TODO use fixed (exponential-ish) backoff times instead of math-based
+        //         // 0s, 1s, 1s, 1s, 5s, 10s
+        //         // TODO also use a random jitter of 0-1000ms (except for the first time?)
+        //         if backoff_ms < 10_000 {
+        //           backoff_ms *= 2;
+        //         }
+        //         tokio::time::sleep(Duration::from_millis(backoff_ms)).await;
+        //       }
+        //     }
+        //   }
+
+        return Ok((message_id, on_incomingmessage_rx));
+    }
+}
+
 pub fn generate_key() -> SecretKey {
     SigningKey::generate(&mut rand::thread_rng()).to_bytes()
 }
 
 #[uniffi::export(with_foreign)]
 pub trait SessionRequestListener: Send + Sync {
-    fn on_session_request(&self, topic: String, session_request: SessionRequestJsonRpcFfi);
+    fn on_session_request(
+        &self,
+        topic: String,
+        session_request: SessionRequestJsonRpcFfi,
+    );
 }
 
 // UniFFI wrapper for better API naming
@@ -1374,7 +2121,14 @@ pub trait SessionRequestListener: Send + Sync {
 #[derive(uniffi::Object)]
 pub struct SignClient {
     client: std::sync::Arc<tokio::sync::Mutex<Client>>,
-    session_request_rx: std::sync::Mutex<Option<tokio::sync::mpsc::UnboundedReceiver<(Topic, SessionRequestJsonRpc)>>>,
+    session_request_rx: std::sync::Mutex<
+        Option<
+            tokio::sync::mpsc::UnboundedReceiver<(
+                Topic,
+                SessionRequestJsonRpc,
+            )>,
+        >,
+    >,
 }
 
 #[cfg(feature = "uniffi")]
@@ -1382,9 +2136,12 @@ pub struct SignClient {
 impl SignClient {
     #[uniffi::constructor]
     pub fn new(project_id: String) -> Self {
-        tracing::debug!("Creating new SignClient with project_id: {project_id}");
-        let (client, session_request_rx) = Client::new(ProjectId::from(project_id));
-        Self { 
+        tracing::debug!(
+            "Creating new SignClient with project_id: {project_id}"
+        );
+        let (client, session_request_rx) =
+            Client::new(ProjectId::from(project_id));
+        Self {
             client: std::sync::Arc::new(tokio::sync::Mutex::new(client)),
             session_request_rx: std::sync::Mutex::new(Some(session_request_rx)),
         }
@@ -1402,15 +2159,24 @@ impl SignClient {
         generate_key().to_vec()
     }
 
-    pub async fn register_session_request_listener(&self, listener: Arc<dyn SessionRequestListener>) {
+    pub async fn register_session_request_listener(
+        &self,
+        listener: Arc<dyn SessionRequestListener>,
+    ) {
         let mut rx_guard = self.session_request_rx.lock().unwrap();
         if let Some(mut rx) = rx_guard.take() {
             tokio::spawn(async move {
-                tracing::info!("Starting session request listener with debug logging");
+                tracing::info!(
+                    "Starting session request listener with debug logging"
+                );
                 while let Some((topic, session_request)) = rx.recv().await {
                     tracing::debug!("Received session request - Topic: {:?}, SessionRequest: {:?}", topic, session_request);
-                    let session_request_ffi: SessionRequestJsonRpcFfi = session_request.into();
-                    listener.on_session_request(topic.to_string(), session_request_ffi);
+                    let session_request_ffi: SessionRequestJsonRpcFfi =
+                        session_request.into();
+                    listener.on_session_request(
+                        topic.to_string(),
+                        session_request_ffi,
+                    );
                 }
                 tracing::info!("Session request listener stopped");
             });
@@ -1430,16 +2196,14 @@ impl SignClient {
         Ok(proposal.into())
     }
 
-    pub async fn pair_json(
-        &self,
-        uri: String,
-    ) -> Result<String, PairError> {
+    pub async fn pair_json(&self, uri: String) -> Result<String, PairError> {
         let proposal = {
             let mut client = self.client.lock().await;
             client.pair(&uri).await?
         };
         let proposal_ffi: SessionProposalFfi = proposal.into();
-        let serialized_proposal = serde_json::to_string(&proposal_ffi).expect("Failed to serialize response");
+        let serialized_proposal = serde_json::to_string(&proposal_ffi)
+            .expect("Failed to serialize response");
         Ok(serialized_proposal)
     }
 
@@ -1466,18 +2230,25 @@ impl SignClient {
         approved_namespaces: String,
         self_metadata: String,
     ) -> Result<String, ApproveError> {
-        let proposal: SessionProposalFfi = serde_json::from_str(&proposal).expect("Failed to deserialize proposal");
-        let approved_namespaces: HashMap<String, SettleNamespace> = serde_json::from_str(&approved_namespaces).expect("Failed to deserialize approved_namespaces");
-        let self_metadata: Metadata = serde_json::from_str(&self_metadata).expect("Failed to deserialize self_metadata");
+        let proposal: SessionProposalFfi = serde_json::from_str(&proposal)
+            .expect("Failed to deserialize proposal");
+        let approved_namespaces: HashMap<String, SettleNamespace> =
+            serde_json::from_str(&approved_namespaces)
+                .expect("Failed to deserialize approved_namespaces");
+        let self_metadata: Metadata = serde_json::from_str(&self_metadata)
+            .expect("Failed to deserialize self_metadata");
 
         tracing::debug!("approved_namespaces: {:?}", approved_namespaces);
         tracing::debug!("self_metadata: {:?}", self_metadata);
         let session = {
             let mut client = self.client.lock().await;
-            client.approve(proposal.into(), approved_namespaces, self_metadata).await?
+            client
+                .approve(proposal.into(), approved_namespaces, self_metadata)
+                .await?
         };
         let session_ffi: SessionFfi = session.into();
-        let serialized_session = serde_json::to_string(&session_ffi).expect("Failed to serialize response");
+        let serialized_session = serde_json::to_string(&session_ffi)
+            .expect("Failed to serialize response");
         Ok(serialized_session)
     }
 

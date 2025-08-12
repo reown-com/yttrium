@@ -1,40 +1,29 @@
-Network state. On startup status is undetermined. But when receiving an online or offline event this state machine will transition.
-
-```mermaid
-stateDiagram-v2
-    [*] --> Undetermined
-    Undetermined --> Online: online hint received
-    Undetermined --> Offline: offline hint received
-    Online --> Offline: offline hint received
-    Offline --> Online: online hint received
-```
-
-
-```mermaid
-stateDiagram-v2
-    [*] --> Online: currently online
-    [*] --> Offline: currently offline
-    Online --> Offline: offline hint received
-    Offline --> Online: online hint received
-```
-
 ```mermaid
 stateDiagram-v2
     [*] --> Idle
-    Connected --> Reconnecting: disconnected (if sessions>0 & network!=offline)
-    Connected --> Offline: disconnected (if network=offline)
-    Connected --> Idle: disconnected (if sessions=0)
-    Reconnecting --> Connected: connected
-    Reconnecting --> Idle: sessions cleared
-    Reconnecting --> Offline: offline hint
-    Offline --> Reconnecting: online hint
-    Offline --> Idle: sessions cleared
-    Idle --> Connecting: request
-    Connecting --> Connected: insert session(s)
-    Connecting --> Idle: timeout
-    Connecting --> [*]: auth error
+    Idle --> MaybeReconnect: online()
+    Idle --> ConnectRequest: request_rx
+    MaybeReconnect --> ConnectSubscribe: sessions > 0
+    MaybeReconnect --> Idle: sessions = 0
+    ConnectSubscribe --> AwaitingSubscribeResponse: connected
+    ConnectSubscribe --> Backoff: error/timeout
+    Backoff --> MaybeReconnect: sleeped
+    Backoff --> ConnectRequest: request_rx
+    Connected --> MaybeReconnect: disconnected
+    Connected --> AwaitingRequestResponse: request_rx
+    AwaitingSubscribeResponse --> Connected: response received
+    AwaitingSubscribeResponse --> Poisoned: auth error
+    AwaitingConnectRequestResponse --> Poisoned: auth error
+    ConnectRequest --> AwaitingConnectRequestResponse: connected
+    AwaitingConnectRequestResponse --> Connected: response received
+    AwaitingConnectRequestResponse --> MaybeReconnect: error/timeout
+    Poisoned --> Poisoned: request_rx
+    AwaitingSubscribeResponse --> Backoff: error/timeout
+    ConnectRequest --> Idle: error/timeout
+    AwaitingRequestResponse --> ConnectRetryRequest: error/timeout
+    AwaitingRequestResponse --> Connected: response received
+    ConnectRetryRequest --> MaybeReconnect: error/timeout
+    AwaitingConnectRetryRequestResponse --> MaybeReconnect: error/timeout
+    AwaitingConnectRetryRequestResponse --> Connected: response received
+    ConnectRetryRequest --> AwaitingConnectRetryRequestResponse: connected
 ```
-
-Requirements:
-
-- 
