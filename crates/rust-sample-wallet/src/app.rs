@@ -38,9 +38,7 @@ pub fn App() -> impl IntoView {
     let my_state = RwSignal::new(None::<MyState>);
 
     let pairing_uri = RwSignal::new(String::new());
-
-    let (client, request_rx) =
-        Client::new(include_str!("../.project-id").trim().into());
+    let (client, request_rx) = Client::new("YOUR_PROJECT_ID".into());
     let client = StoredValue::new(Arc::new(tokio::sync::Mutex::new(client)));
     let request_rx = StoredValue::new(Some(request_rx));
 
