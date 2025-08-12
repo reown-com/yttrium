@@ -1422,43 +1422,6 @@ impl SignClient {
         client.respond(topic_topic, response_internal).await?;
         Ok(topic)
     }
-
-
-    pub async fn approve_json(
-        &self,
-        proposal: String,
-        approved_namespaces: String,
-        self_metadata: String,
-    ) -> Result<String, ApproveError> {
-        let proposal: SessionProposalFfi = serde_json::from_str(&proposal).expect("Failed to deserialize proposal");
-        let approved_namespaces: HashMap<String, SettleNamespace> = serde_json::from_str(&approved_namespaces).expect("Failed to deserialize approved_namespaces");
-        let self_metadata: Metadata = serde_json::from_str(&self_metadata).expect("Failed to deserialize self_metadata");
-
-        tracing::debug!("approved_namespaces: {:?}", approved_namespaces);
-        tracing::debug!("self_metadata: {:?}", self_metadata);
-        let session = {
-            let mut client = self.client.lock().await;
-            client.approve(proposal.into(), approved_namespaces, self_metadata).await?
-        };
-        let session_ffi: SessionFfi = session.into();
-        let serialized_session = serde_json::to_string(&session_ffi).expect("Failed to serialize response");
-        Ok(serialized_session)
-    }
-
-    pub async fn respond(
-        &self,
-        topic: String,
-        response: SessionRequestResponseJsonRpcFfi,
-    ) -> Result<String, RespondError> {
-        tracing::debug!("responding session request: {:?}", response);
-
-        let mut client = self.client.lock().await;
-        let response_internal: SessionRequestResponseJsonRpc = response.into();
-        let topic_topic: Topic = topic.clone().into();
-        client.respond(topic_topic, response_internal).await?;
-        Ok(topic)
-    }
-
 }
 
 #[derive(Debug, Clone)]
@@ -1476,131 +1439,10 @@ pub struct SessionProposal {
     pub expiry_timestamp: Option<u64>,
 }
 
-#[cfg(feature = "uniffi")]
-#[derive(uniffi_macros::Record, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct SessionProposalFfi {
-    pub id: String,
-    pub topic: String,
-    pub pairing_sym_key: Vec<u8>,
-    pub proposer_public_key: Vec<u8>,
-    pub relays: Vec<crate::sign::protocol_types::Relay>,
-    pub required_namespaces: std::collections::HashMap<
-        String,
-        crate::sign::protocol_types::ProposalNamespace,
-    >,
-    pub optional_namespaces: Option<
-        std::collections::HashMap<
-            String,
-            crate::sign::protocol_types::ProposalNamespace,
-        >,
-    >,
-    pub metadata: crate::sign::protocol_types::Metadata,
-    pub session_properties: Option<std::collections::HashMap<String, String>>,
-    pub scoped_properties: Option<std::collections::HashMap<String, String>>,
-    pub expiry_timestamp: Option<u64>,
-}
-
-#[cfg(feature = "uniffi")]
-impl From<SessionProposal> for SessionProposalFfi {
-    fn from(proposal: SessionProposal) -> Self {
-        // Ensure both id and topic are properly converted to valid UTF-8 strings
-        let id_string = proposal.session_proposal_rpc_id.to_string();
-
-        // Be extremely defensive about topic string conversion
-        let topic_string = {
-            let raw_string = if let Ok(serialized) =
-                serde_json::to_string(&proposal.pairing_topic)
-            {
-                // Remove quotes from JSON string
-                serialized.trim_matches('"').to_string()
-            } else {
-                // Fallback to display format
-                format!("{}", proposal.pairing_topic)
-            };
-
-            // Ensure the string is valid UTF-8 and only contains safe ASCII characters
-            if raw_string.is_ascii()
-                && raw_string.chars().all(|c| c.is_ascii_alphanumeric())
-            {
-                raw_string
-            } else {
-                // If anything looks suspicious, force it to be safe ASCII hex
-                // This is a defensive fallback that should never be needed
-                format!("fallback_{}", hex::encode(raw_string.as_bytes()))
-            }
-        };
-
-        Self {
-            id: id_string,
-            topic: topic_string,
-            pairing_sym_key: proposal.pairing_sym_key.to_vec(),
-            proposer_public_key: proposal.proposer_public_key.to_vec(),
-            relays: proposal.relays,
-            required_namespaces: proposal.required_namespaces,
-            optional_namespaces: proposal.optional_namespaces,
-            metadata: proposal.metadata,
-            session_properties: proposal.session_properties,
-            scoped_properties: proposal.scoped_properties,
-            expiry_timestamp: proposal.expiry_timestamp,
-        }
-    }
-}
-
-#[cfg(feature = "uniffi")]
-impl From<SessionProposalFfi> for SessionProposal {
-    fn from(proposal: SessionProposalFfi) -> Self {
-        Self {
-            session_proposal_rpc_id: proposal.id.parse::<u64>().unwrap(),
-            pairing_topic: proposal.topic.into(),
-            relays: proposal.relays,
-            pairing_sym_key: proposal.pairing_sym_key.try_into().unwrap(),
-            proposer_public_key: proposal
-                .proposer_public_key
-                .try_into()
-                .unwrap(),
-            required_namespaces: proposal.required_namespaces,
-            optional_namespaces: proposal.optional_namespaces,
-            metadata: proposal.metadata,
-            session_properties: proposal.session_properties,
-            scoped_properties: proposal.scoped_properties,
-            expiry_timestamp: proposal.expiry_timestamp,
-        }
-    }
-}
-
 #[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
 pub struct Session {
     pub session_sym_key: [u8; 32],
     pub self_public_key: [u8; 32],
-}
-
-#[cfg(feature = "uniffi")]
-#[derive(uniffi_macros::Record, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct SessionFfi {
-    pub session_sym_key: Vec<u8>,
-    pub self_public_key: Vec<u8>,
-}
-
-#[cfg(feature = "uniffi")]
-impl From<Session> for SessionFfi {
-    fn from(session: Session) -> Self {
-        Self {
-            session_sym_key: session.session_sym_key.to_vec(),
-            self_public_key: session.self_public_key.to_vec(),
-        }
-    }
-}
-
-#[cfg(feature = "uniffi")]
-impl From<SessionFfi> for Session {
-    fn from(session: SessionFfi) -> Self {
-        Self {
-            session_sym_key: session.session_sym_key.try_into().unwrap(),
-            self_public_key: session.self_public_key.try_into().unwrap(),
-        }
-    }
 }
 
 #[cfg(test)]

@@ -1,6 +1,8 @@
+use serde::{Serialize, Deserialize};
 
 #[cfg(feature = "uniffi")]
-#[derive(uniffi_macros::Record, Debug)]
+#[derive(uniffi_macros::Record, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SessionProposalFfi {
     pub id: String,
     pub topic: String,
@@ -24,9 +26,11 @@ pub struct SessionProposalFfi {
 }
 
 #[cfg(feature = "uniffi")]
-#[derive(uniffi_macros::Record)]
+#[derive(uniffi_macros::Record, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SessionFfi {
     pub session_sym_key: Vec<u8>,
+    pub self_public_key: Vec<u8>,
 }
 
 #[cfg(feature = "uniffi")]

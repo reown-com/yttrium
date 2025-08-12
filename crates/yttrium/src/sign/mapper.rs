@@ -43,20 +43,6 @@ impl From<SessionRequestJsonRpc> for SessionRequestJsonRpcFfi {
 }
 
 #[cfg(feature = "uniffi")]
-impl From<Session> for SessionFfi {
-    fn from(session: Session) -> Self {
-        Self { session_sym_key: session.session_sym_key.to_vec() }
-    }
-}
-
-#[cfg(feature = "uniffi")]
-impl From<SessionFfi> for Session {
-    fn from(session: SessionFfi) -> Self {
-        Self { session_sym_key: session.session_sym_key.try_into().unwrap() }
-    }
-}
-
-#[cfg(feature = "uniffi")]
 impl From<SessionProposal> for SessionProposalFfi {
     fn from(proposal: SessionProposal) -> Self {
         // Ensure both id and topic are properly converted to valid UTF-8 strings
@@ -109,6 +95,26 @@ impl From<SessionRequestResponseJsonRpcFfi> for SessionRequestResponseJsonRpc {
             id: response.id,
             jsonrpc: response.jsonrpc,
             result: serde_json::from_str(&response.result).unwrap_or_default(),
+        }
+    }
+}
+
+#[cfg(feature = "uniffi")]
+impl From<Session> for SessionFfi {
+    fn from(session: Session) -> Self {
+        Self {
+            session_sym_key: session.session_sym_key.to_vec(),
+            self_public_key: session.self_public_key.to_vec(),
+        }
+    }
+}
+
+#[cfg(feature = "uniffi")]
+impl From<SessionFfi> for Session {
+    fn from(session: SessionFfi) -> Self {
+        Self {
+            session_sym_key: session.session_sym_key.try_into().unwrap(),
+            self_public_key: session.self_public_key.try_into().unwrap(),
         }
     }
 }
