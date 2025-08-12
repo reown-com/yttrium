@@ -90,28 +90,33 @@ build_xcframework() {
   rm -rf target/ios
   mkdir -p target/ios
 
-  # Create headers directory structure for device
-  mkdir -p target/uniffi-xcframework-staging/device/Headers/yttriumFFI
+  # Clean staging headers to avoid leftovers from previous runs
+  rm -rf target/uniffi-xcframework-staging/device target/uniffi-xcframework-staging/simulator
+
+  # Create headers directory structure for device (flattened at Headers root for SPM)
+  mkdir -p target/uniffi-xcframework-staging/device/Headers
   
-  # Copy headers - handle both cases: when yttriumFFI directory exists and when it doesn't
+  # Copy headers - always flatten so module.modulemap is at Headers root
   if [ -d "target/uniffi-xcframework-staging/yttriumFFI" ]; then
-    cp -r target/uniffi-xcframework-staging/yttriumFFI/. target/uniffi-xcframework-staging/device/Headers/yttriumFFI/
+    cp target/uniffi-xcframework-staging/yttriumFFI/yttriumFFI.h target/uniffi-xcframework-staging/device/Headers/yttriumFFI.h || true
+    cp target/uniffi-xcframework-staging/yttriumFFI/module.modulemap target/uniffi-xcframework-staging/device/Headers/module.modulemap || true
   else
     # When uniffi-bindgen generates flat files, create the structure manually
-    cp target/uniffi-xcframework-staging/yttriumFFI.h target/uniffi-xcframework-staging/device/Headers/yttriumFFI/
-    cp target/uniffi-xcframework-staging/yttriumFFI.modulemap target/uniffi-xcframework-staging/device/Headers/yttriumFFI/module.modulemap
+    cp target/uniffi-xcframework-staging/yttriumFFI.h target/uniffi-xcframework-staging/device/Headers/yttriumFFI.h || true
+    cp target/uniffi-xcframework-staging/yttriumFFI.modulemap target/uniffi-xcframework-staging/device/Headers/module.modulemap || true
   fi
 
-  # Create headers directory structure for simulator
-  mkdir -p target/uniffi-xcframework-staging/simulator/Headers/yttriumFFI
+  # Create headers directory structure for simulator (flattened at Headers root for SPM)
+  mkdir -p target/uniffi-xcframework-staging/simulator/Headers
   
-  # Copy headers for simulator
+  # Copy headers for simulator - flattened
   if [ -d "target/uniffi-xcframework-staging/yttriumFFI" ]; then
-    cp -r target/uniffi-xcframework-staging/yttriumFFI/. target/uniffi-xcframework-staging/simulator/Headers/yttriumFFI/
+    cp target/uniffi-xcframework-staging/yttriumFFI/yttriumFFI.h target/uniffi-xcframework-staging/simulator/Headers/yttriumFFI.h || true
+    cp target/uniffi-xcframework-staging/yttriumFFI/module.modulemap target/uniffi-xcframework-staging/simulator/Headers/module.modulemap || true
   else
     # When uniffi-bindgen generates flat files, create the structure manually
-    cp target/uniffi-xcframework-staging/yttriumFFI.h target/uniffi-xcframework-staging/simulator/Headers/yttriumFFI/
-    cp target/uniffi-xcframework-staging/yttriumFFI.modulemap target/uniffi-xcframework-staging/simulator/Headers/yttriumFFI/module.modulemap
+    cp target/uniffi-xcframework-staging/yttriumFFI.h target/uniffi-xcframework-staging/simulator/Headers/yttriumFFI.h || true
+    cp target/uniffi-xcframework-staging/yttriumFFI.modulemap target/uniffi-xcframework-staging/simulator/Headers/module.modulemap || true
   fi
 
   xcodebuild -create-xcframework \

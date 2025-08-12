@@ -1,6 +1,6 @@
 Pod::Spec.new do |spec|
   spec.name         = "YttriumUtilsWrapper"
-  spec.version      = "0.9.46"
+  spec.version      = "0.9.62"
   spec.summary      = "Yttrium Utils - Multi-blockchain utilities for EIP155, Stacks, and Chain Abstraction"
   spec.description  = <<-DESC
                    Yttrium Utils provides multi-blockchain utilities including EIP155 support, Stacks integration, 
@@ -14,10 +14,13 @@ Pod::Spec.new do |spec|
   spec.ios.deployment_target = "13.0"
   spec.swift_version = "5.9"
 
-  spec.source       = { :git => "https://github.com/reown-com/yttrium.git", :tag => "#{spec.version}" }
+  # Binary pod via :http to avoid running heavy prepare_command on trunk
+  # Binary asset hosted on GitHub Releases; CI updates the version
+  spec.source       = { :http => "https://github.com/reown-com/yttrium/releases/download/0.9.62/libyttrium-utils-pod.zip" }
 
-  spec.vendored_frameworks = "target/ios-utils/libyttrium-utils.xcframework"
-  spec.source_files = "platforms/swift/Sources/YttriumUtils/**/*.swift"
+  # The zip contains libyttrium-utils.xcframework at root and Sources/YttriumUtils/*.swift
+  spec.vendored_frameworks = "libyttrium-utils.xcframework"
+  spec.source_files = "Sources/YttriumUtils/**/*.swift"
 
   # Since this is a utils library with fewer dependencies, we don't need complex configuration
   spec.user_target_xcconfig = {
@@ -27,9 +30,5 @@ Pod::Spec.new do |spec|
     'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'arm64'
   }
 
-  spec.prepare_command = <<-CMD
-    curl -L https://github.com/reown-com/yttrium/releases/download/#{spec.version}/libyttrium-utils.xcframework.zip -o libyttrium-utils.xcframework.zip
-    unzip -o libyttrium-utils.xcframework.zip -d target/ios-utils/
-    rm libyttrium-utils.xcframework.zip
-  CMD
+  # No prepare_command needed for binary pod
 end 
