@@ -506,6 +506,10 @@ impl Client {
             session_sym_key: shared_secret,
             self_public_key: self_public_key.to_bytes(),
         };
+        let session = Session {
+            session_sym_key: shared_secret,
+            self_public_key: self_public_key.to_bytes(),
+        };
         {
             let mut sessions = self.sessions.write().unwrap();
             sessions.insert(session_topic, session.clone());
@@ -1382,6 +1386,27 @@ impl SignClient {
             client.approve(proposal, approved_namespaces, self_metadata).await?
         };
         Ok(session.into())
+    }
+
+    pub async fn approve_json(
+        &self,
+        proposal: String,
+        approved_namespaces: String,
+        self_metadata: String,
+    ) -> Result<String, ApproveError> {
+        let proposal: SessionProposalFfi = serde_json::from_str(&proposal).expect("Failed to deserialize proposal");
+        let approved_namespaces: HashMap<String, SettleNamespace> = serde_json::from_str(&approved_namespaces).expect("Failed to deserialize approved_namespaces");
+        let self_metadata: Metadata = serde_json::from_str(&self_metadata).expect("Failed to deserialize self_metadata");
+
+        tracing::debug!("approved_namespaces: {:?}", approved_namespaces);
+        tracing::debug!("self_metadata: {:?}", self_metadata);
+        let session = {
+            let mut client = self.client.lock().await;
+            client.approve(proposal.into(), approved_namespaces, self_metadata).await?
+        };
+        let session_ffi: SessionFfi = session.into();
+        let serialized_session = serde_json::to_string(&session_ffi).expect("Failed to serialize response");
+        Ok(serialized_session)
     }
 
     pub async fn respond(
