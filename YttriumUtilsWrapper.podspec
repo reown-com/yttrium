@@ -1,6 +1,6 @@
 Pod::Spec.new do |spec|
   spec.name         = "YttriumUtilsWrapper"
-  spec.version      = "0.9.56"
+  spec.version      = "0.9.58"
   spec.summary      = "Yttrium Utils - Multi-blockchain utilities for EIP155, Stacks, and Chain Abstraction"
   spec.description  = <<-DESC
                    Yttrium Utils provides multi-blockchain utilities including EIP155 support, Stacks integration, 
