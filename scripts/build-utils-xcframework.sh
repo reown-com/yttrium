@@ -97,20 +97,30 @@ rename_ffi_module() {
     rm -rf "$staging/$UTILS_FFI_MODULE_NAME"
     mkdir -p "$staging/$UTILS_FFI_MODULE_NAME"
     cp -R "$staging/$ORIG_FFI_MODULE_NAME/." "$staging/$UTILS_FFI_MODULE_NAME/"
-    if [ -f "$staging/$UTILS_FFI_MODULE_NAME/module.modulemap" ]; then
-      # Replace only the module declaration, keep header filenames unchanged
-      sed -i '' "s/^module $ORIG_FFI_MODULE_NAME/module $UTILS_FFI_MODULE_NAME/" "$staging/$UTILS_FFI_MODULE_NAME/module.modulemap"
+    # Rename header to avoid collision and update modulemap
+    if [ -f "$staging/$UTILS_FFI_MODULE_NAME/yttriumFFI.h" ]; then
+      mv "$staging/$UTILS_FFI_MODULE_NAME/yttriumFFI.h" "$staging/$UTILS_FFI_MODULE_NAME/${UTILS_FFI_MODULE_NAME}.h"
     fi
+    # Overwrite module.modulemap to ensure correct module name and header reference
+    cat > "$staging/$UTILS_FFI_MODULE_NAME/module.modulemap" <<EOF
+module $UTILS_FFI_MODULE_NAME {
+  header "${UTILS_FFI_MODULE_NAME}.h"
+  export *
+}
+EOF
   else
     # Flat files case
     mkdir -p "$staging/$UTILS_FFI_MODULE_NAME"
     if [ -f "$staging/${ORIG_FFI_MODULE_NAME}.h" ]; then
-      cp "$staging/${ORIG_FFI_MODULE_NAME}.h" "$staging/$UTILS_FFI_MODULE_NAME/"
+      cp "$staging/${ORIG_FFI_MODULE_NAME}.h" "$staging/$UTILS_FFI_MODULE_NAME/${UTILS_FFI_MODULE_NAME}.h"
     fi
-    if [ -f "$staging/${ORIG_FFI_MODULE_NAME}.modulemap" ]; then
-      cp "$staging/${ORIG_FFI_MODULE_NAME}.modulemap" "$staging/$UTILS_FFI_MODULE_NAME/module.modulemap"
-      sed -i '' "s/^module $ORIG_FFI_MODULE_NAME/module $UTILS_FFI_MODULE_NAME/" "$staging/$UTILS_FFI_MODULE_NAME/module.modulemap"
-    fi
+    # Create a fresh module.modulemap
+    cat > "$staging/$UTILS_FFI_MODULE_NAME/module.modulemap" <<EOF
+module $UTILS_FFI_MODULE_NAME {
+  header "${UTILS_FFI_MODULE_NAME}.h"
+  export *
+}
+EOF
   fi
 }
 
@@ -122,26 +132,28 @@ build_xcframework() {
   # Clean staging headers to avoid leftovers from previous runs
   rm -rf target/uniffi-xcframework-staging-utils/device target/uniffi-xcframework-staging-utils/simulator
 
-  # Create headers directory structure for device
+  # Create headers directory structure for device (namespaced to avoid collisions)
   mkdir -p target/uniffi-xcframework-staging-utils/device/Headers/$UTILS_FFI_MODULE_NAME
   
-  # Copy headers - handle both cases: directory vs flat files
+  # Copy namespaced headers into namespaced folder
   if [ -d "target/uniffi-xcframework-staging-utils/$UTILS_FFI_MODULE_NAME" ]; then
-    cp -r target/uniffi-xcframework-staging-utils/$UTILS_FFI_MODULE_NAME/. target/uniffi-xcframework-staging-utils/device/Headers/$UTILS_FFI_MODULE_NAME/
+    cp -R target/uniffi-xcframework-staging-utils/$UTILS_FFI_MODULE_NAME/. target/uniffi-xcframework-staging-utils/device/Headers/$UTILS_FFI_MODULE_NAME/
   else
-    cp target/uniffi-xcframework-staging-utils/${ORIG_FFI_MODULE_NAME}.h target/uniffi-xcframework-staging-utils/device/Headers/$UTILS_FFI_MODULE_NAME/
-    cp target/uniffi-xcframework-staging-utils/${ORIG_FFI_MODULE_NAME}.modulemap target/uniffi-xcframework-staging-utils/device/Headers/$UTILS_FFI_MODULE_NAME/module.modulemap
+    mkdir -p target/uniffi-xcframework-staging-utils/device/Headers/$UTILS_FFI_MODULE_NAME
+    cp target/uniffi-xcframework-staging-utils/${ORIG_FFI_MODULE_NAME}.modulemap target/uniffi-xcframework-staging-utils/device/Headers/$UTILS_FFI_MODULE_NAME/module.modulemap || true
+    cp target/uniffi-xcframework-staging-utils/${ORIG_FFI_MODULE_NAME}.h target/uniffi-xcframework-staging-utils/device/Headers/$UTILS_FFI_MODULE_NAME/${UTILS_FFI_MODULE_NAME}.h || true
   fi
 
-  # Create headers directory structure for simulator
+  # Create headers directory structure for simulator (namespaced to avoid collisions)
   mkdir -p target/uniffi-xcframework-staging-utils/simulator/Headers/$UTILS_FFI_MODULE_NAME
   
-  # Copy headers for simulator
+  # Copy namespaced headers for simulator
   if [ -d "target/uniffi-xcframework-staging-utils/$UTILS_FFI_MODULE_NAME" ]; then
-    cp -r target/uniffi-xcframework-staging-utils/$UTILS_FFI_MODULE_NAME/. target/uniffi-xcframework-staging-utils/simulator/Headers/$UTILS_FFI_MODULE_NAME/
+    cp -R target/uniffi-xcframework-staging-utils/$UTILS_FFI_MODULE_NAME/. target/uniffi-xcframework-staging-utils/simulator/Headers/$UTILS_FFI_MODULE_NAME/
   else
-    cp target/uniffi-xcframework-staging-utils/${ORIG_FFI_MODULE_NAME}.h target/uniffi-xcframework-staging-utils/simulator/Headers/$UTILS_FFI_MODULE_NAME/
-    cp target/uniffi-xcframework-staging-utils/${ORIG_FFI_MODULE_NAME}.modulemap target/uniffi-xcframework-staging-utils/simulator/Headers/$UTILS_FFI_MODULE_NAME/module.modulemap
+    mkdir -p target/uniffi-xcframework-staging-utils/simulator/Headers/$UTILS_FFI_MODULE_NAME
+    cp target/uniffi-xcframework-staging-utils/${ORIG_FFI_MODULE_NAME}.modulemap target/uniffi-xcframework-staging-utils/simulator/Headers/$UTILS_FFI_MODULE_NAME/module.modulemap || true
+    cp target/uniffi-xcframework-staging-utils/${ORIG_FFI_MODULE_NAME}.h target/uniffi-xcframework-staging-utils/simulator/Headers/$UTILS_FFI_MODULE_NAME/${UTILS_FFI_MODULE_NAME}.h || true
   fi
 
   # Use renamed static library filenames to avoid collisions with Core

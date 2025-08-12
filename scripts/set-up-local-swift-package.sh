@@ -30,20 +30,12 @@ let package = Package(
         .target(
             name: "Yttrium",
             dependencies: ["YttriumXCFramework"],
-            path: "platforms/swift/Sources/Yttrium",
-            publicHeadersPath: ".",
-            cSettings: [
-                .headerSearchPath("."),
-            ]
+            path: "platforms/swift/Sources/Yttrium"
         ),
         .target(
             name: "YttriumUtils",
             dependencies: ["YttriumUtilsXCFramework"],
-            path: "platforms/swift/Sources/YttriumUtils",
-            publicHeadersPath: ".",
-            cSettings: [
-                .headerSearchPath("."),
-            ]
+            path: "platforms/swift/Sources/YttriumUtils"
         ),
         .binaryTarget(
             name: "YttriumXCFramework",
