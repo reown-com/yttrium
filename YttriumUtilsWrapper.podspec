@@ -1,6 +1,6 @@
 Pod::Spec.new do |spec|
   spec.name         = "YttriumUtilsWrapper"
-  spec.version      = "0.9.52"
+  spec.version      = "0.9.56"
   spec.summary      = "Yttrium Utils - Multi-blockchain utilities for EIP155, Stacks, and Chain Abstraction"
   spec.description  = <<-DESC
                    Yttrium Utils provides multi-blockchain utilities including EIP155 support, Stacks integration, 
@@ -28,7 +28,7 @@ Pod::Spec.new do |spec|
   }
 
   spec.prepare_command = <<-SCRIPT
-    curl -L -o libyttrium-utils.xcframework.zip 'https://github.com/reown-com/yttrium/releases/download/0.9.52/libyttrium-utils.xcframework.zip'
+    curl -L -o libyttrium-utils.xcframework.zip "https://github.com/reown-com/yttrium/releases/download/#{spec.version}/libyttrium-utils.xcframework.zip"
     unzip -o libyttrium-utils.xcframework.zip -d platforms/swift/
     rm libyttrium-utils.xcframework.zip
 
@@ -36,19 +36,19 @@ Pod::Spec.new do |spec|
     mkdir -p platforms/swift/libyttrium-utils.xcframework/ios-arm64/Headers
     mkdir -p platforms/swift/libyttrium-utils.xcframework/ios-arm64_x86_64-simulator/Headers
     
-    # Move the library files to the XCFramework structure
-    mv platforms/swift/ios-arm64/libyttrium.a platforms/swift/libyttrium-utils.xcframework/ios-arm64/
-    mv platforms/swift/ios-arm64_x86_64-simulator/libyttrium.a platforms/swift/libyttrium-utils.xcframework/ios-arm64_x86_64-simulator/
+    # Move the library files to the XCFramework structure (note: lib name is libyttrium-utils.a)
+    mv platforms/swift/ios-arm64/libyttrium-utils.a platforms/swift/libyttrium-utils.xcframework/ios-arm64/
+    mv platforms/swift/ios-arm64_x86_64-simulator/libyttrium-utils.a platforms/swift/libyttrium-utils.xcframework/ios-arm64_x86_64-simulator/
     
-    # Move headers and handle yttriumFFI subdirectory
-    if [ -d "platforms/swift/ios-arm64/Headers/yttriumFFI" ]; then
-      mv platforms/swift/ios-arm64/Headers/yttriumFFI/* platforms/swift/libyttrium-utils.xcframework/ios-arm64/Headers/
+    # Move headers and handle module subdirectory (yttriumUtilsFFI)
+    if [ -d "platforms/swift/ios-arm64/Headers/yttriumUtilsFFI" ]; then
+      mv platforms/swift/ios-arm64/Headers/yttriumUtilsFFI/* platforms/swift/libyttrium-utils.xcframework/ios-arm64/Headers/
     else
       mv platforms/swift/ios-arm64/Headers/* platforms/swift/libyttrium-utils.xcframework/ios-arm64/Headers/
     fi
     
-    if [ -d "platforms/swift/ios-arm64_x86_64-simulator/Headers/yttriumFFI" ]; then
-      mv platforms/swift/ios-arm64_x86_64-simulator/Headers/yttriumFFI/* platforms/swift/libyttrium-utils.xcframework/ios-arm64_x86_64-simulator/Headers/
+    if [ -d "platforms/swift/ios-arm64_x86_64-simulator/Headers/yttriumUtilsFFI" ]; then
+      mv platforms/swift/ios-arm64_x86_64-simulator/Headers/yttriumUtilsFFI/* platforms/swift/libyttrium-utils.xcframework/ios-arm64_x86_64-simulator/Headers/
     else
       mv platforms/swift/ios-arm64_x86_64-simulator/Headers/* platforms/swift/libyttrium-utils.xcframework/ios-arm64_x86_64-simulator/Headers/
     fi
