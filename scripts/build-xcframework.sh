@@ -16,6 +16,9 @@ build_rust_libraries() {
   export CC_aarch64_apple_ios="$(xcrun --sdk iphoneos --find clang)"
   export AR_aarch64_apple_ios="$(xcrun --sdk iphoneos --find ar)"
   export CARGO_TARGET_AARCH64_APPLE_IOS_LINKER="$CC_aarch64_apple_ios"
+  # Ensure all C/C++ code built by cc crate uses a consistent min iOS version
+  export IPHONEOS_DEPLOYMENT_TARGET="13.0"
+  export CFLAGS_aarch64_apple_ios="-miphoneos-version-min=13.0"
   export RUSTFLAGS="-C linker=$CC_aarch64_apple_ios -C link-arg=-miphoneos-version-min=13.0"
 
   # Build
@@ -30,6 +33,8 @@ build_rust_libraries() {
   unset CC_aarch64_apple_ios
   unset AR_aarch64_apple_ios
   unset CARGO_TARGET_AARCH64_APPLE_IOS_LINKER
+  unset IPHONEOS_DEPLOYMENT_TARGET
+  unset CFLAGS_aarch64_apple_ios
   unset RUSTFLAGS
 
   #### Building for x86_64-apple-ios (Simulator on Intel Macs) ####
@@ -39,6 +44,9 @@ build_rust_libraries() {
   export CC_x86_64_apple_ios="$(xcrun --sdk iphonesimulator --find clang)"
   export AR_x86_64_apple_ios="$(xcrun --sdk iphonesimulator --find ar)"
   export CARGO_TARGET_X86_64_APPLE_IOS_LINKER="$CC_x86_64_apple_ios"
+  # Ensure all C/C++ code built by cc crate uses a consistent min iOS Simulator version
+  export IPHONEOS_DEPLOYMENT_TARGET="13.0"
+  export CFLAGS_x86_64_apple_ios="-mios-simulator-version-min=13.0"
   export RUSTFLAGS="-C linker=$CC_x86_64_apple_ios -C link-arg=-mios-simulator-version-min=13.0"
 
   cargo build \
@@ -52,6 +60,8 @@ build_rust_libraries() {
   unset CC_x86_64_apple_ios
   unset AR_x86_64_apple_ios
   unset CARGO_TARGET_X86_64_APPLE_IOS_LINKER
+  unset IPHONEOS_DEPLOYMENT_TARGET
+  unset CFLAGS_x86_64_apple_ios
   unset RUSTFLAGS
 
   #### Building for aarch64-apple-ios-sim (Simulator on Apple Silicon Macs) ####
@@ -61,6 +71,9 @@ build_rust_libraries() {
   export CC_aarch64_apple_ios_sim="$(xcrun --sdk iphonesimulator --find clang)"
   export AR_aarch64_apple_ios_sim="$(xcrun --sdk iphonesimulator --find ar)"
   export CARGO_TARGET_AARCH64_APPLE_IOS_SIM_LINKER="$CC_aarch64_apple_ios_sim"
+  # Ensure all C/C++ code built by cc crate uses a consistent min iOS Simulator version
+  export IPHONEOS_DEPLOYMENT_TARGET="13.0"
+  export CFLAGS_aarch64_apple_ios_sim="-mios-simulator-version-min=13.0"
   export RUSTFLAGS="-C linker=$CC_aarch64_apple_ios_sim -C link-arg=-mios-simulator-version-min=13.0"
 
   cargo build \
@@ -74,6 +87,8 @@ build_rust_libraries() {
   unset CC_aarch64_apple_ios_sim
   unset AR_aarch64_apple_ios_sim
   unset CARGO_TARGET_AARCH64_APPLE_IOS_SIM_LINKER
+  unset IPHONEOS_DEPLOYMENT_TARGET
+  unset CFLAGS_aarch64_apple_ios_sim
   unset RUSTFLAGS
 }
 
