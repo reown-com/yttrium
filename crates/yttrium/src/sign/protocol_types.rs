@@ -4,6 +4,12 @@ use {
     std::collections::HashMap,
 };
 
+#[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
+pub struct Session {
+    pub session_sym_key: [u8; 32],
+    pub self_public_key: [u8; 32],
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProposalJsonRpc {

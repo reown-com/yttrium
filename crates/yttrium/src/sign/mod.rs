@@ -165,7 +165,8 @@ const REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
 //   - callbacks for native hints?
 
 // TODO
-// - session pings, update, events, emit
+// - session pings, update, events, emit, extend, disconnect
+// - emit events for session pings, update, events, extend, disconnect
 // - session expiry & renew
 //   - expire implemented simply by filtering out expired sessions in `Client::add_sessions()` ?
 //     - long-lived clients might suffer here. Maybe filter each reconnect?
@@ -192,6 +193,8 @@ const REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
 // - Network state hinting (offline/online)
 //   - offline: don't try to reconnect, but also don't force a disconnect
 //   - online: reconnect if online() was called
+//TODO
+// - Validation and Utils methods
 
 #[allow(unused)]
 impl Client {
@@ -226,6 +229,7 @@ impl Client {
         self.key = Some(SigningKey::from_bytes(&key));
     }
 
+    //Add session on SDK initialization
     pub fn add_sessions(&self, sessions: impl IntoIterator<Item = Session>) {
         let mut guard = self.sessions.write().unwrap();
         for session in sessions {
@@ -233,10 +237,11 @@ impl Client {
         }
     }
 
-    pub fn get_sessions(&self) -> Vec<Session> {
-        let guard = self.sessions.read().unwrap();
-        guard.values().cloned().collect()
-    }
+    // //TODO: why do we need this?
+    // pub fn get_sessions(&self) -> Vec<Session> {
+    //     let guard = self.sessions.read().unwrap();
+    //     guard.values().cloned().collect()
+    // }
 
     /// Call this when the app and user are ready to receive session requests.
     /// Skip calling this if you intend to shortly call another SDK method, as those other methods will themselves call this.
@@ -280,7 +285,7 @@ impl Client {
         // TODO implement
         // https://github.com/WalletConnect/walletconnect-monorepo/blob/5bef698dcf0ae910548481959a6a5d87eaf7aaa5/packages/sign-client/src/controllers/engine.ts#L330
 
-        // TODO parse URI
+        // TODO parse URI and URI validation
         // https://github.com/WalletConnect/walletconnect-monorepo/blob/5bef698dcf0ae910548481959a6a5d87eaf7aaa5/packages/core/src/controllers/pairing.ts#L132
         let pairing_uri = pairing_uri::parse(uri)
             .map_err(|e| PairError::Internal(e.to_string()))?;
@@ -371,6 +376,7 @@ impl Client {
         Err(PairError::Internal("No message found".to_string()))
     }
 
+    //TODO: callbacks for add and delete session
     pub async fn approve(
         &mut self,
         proposal: SessionProposal,
@@ -380,7 +386,7 @@ impl Client {
         // TODO implement
         // https://github.com/WalletConnect/walletconnect-monorepo/blob/5bef698dcf0ae910548481959a6a5d87eaf7aaa5/packages/sign-client/src/controllers/engine.ts#L341
 
-        // TODO check is valid
+        // TODO check is valid: validate namespaces, validate metadata, validate expiry timestamp
 
         let self_key = x25519_dalek::StaticSecret::random();
         let self_public_key = PublicKey::from(&self_key);
@@ -401,6 +407,8 @@ impl Client {
                 },
             })
             .map_err(|e| ApproveError::Internal(e.to_string()))?;
+
+        addSession(session_topic, session_sym_key, self_public_key);
 
             let key = ChaCha20Poly1305::new(&proposal.pairing_sym_key.into());
             let nonce = ChaCha20Poly1305::generate_nonce()
@@ -443,7 +451,6 @@ impl Client {
                         .as_ref()
                         .map(|p| serde_json::to_value(p).unwrap_or_default())
                         .unwrap_or_default(),
-                    // session_config: proposal.session_config,
                 },
             })
             .map_err(|e| ApproveError::Internal(e.to_string()))?;
@@ -1293,7 +1300,8 @@ pub fn generate_key() -> SecretKey {
 }
 
 #[uniffi::export(with_foreign)]
-pub trait SessionRequestListener: Send + Sync {
+pub trait SignListener: Send + Sync {
+    //TODO: add on_session_ping, on_session_update, on_session_event, on_session_extend, on_session_disconnect etc.
     fn on_session_request(&self, topic: String, session_request: SessionRequestJsonRpcFfi);
 }
 
@@ -1330,7 +1338,7 @@ impl SignClient {
         generate_key().to_vec()
     }
 
-    pub async fn register_session_request_listener(&self, listener: Arc<dyn SessionRequestListener>) {
+    pub async fn register_sign_listener(&self, listener: Arc<dyn SignListener>) {
         let mut rx_guard = self.session_request_rx.lock().unwrap();
         if let Some(mut rx) = rx_guard.take() {
             tokio::spawn(async move {
@@ -1437,12 +1445,6 @@ pub struct SessionProposal {
     pub session_properties: Option<HashMap<String, String>>,
     pub scoped_properties: Option<HashMap<String, String>>,
     pub expiry_timestamp: Option<u64>,
-}
-
-#[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
-pub struct Session {
-    pub session_sym_key: [u8; 32],
-    pub self_public_key: [u8; 32],
 }
 
 #[cfg(test)]
