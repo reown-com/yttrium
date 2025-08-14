@@ -6,7 +6,7 @@ use {
     crate::sign::{
         envelope_type0::{encode_envelope_type0, EnvelopeType0},
         protocol_types::{
-            Controller, Metadata, ProposalJsonRpc, ProposalNamespaces,
+            Controller, Metadata, ProposalJsonRpc,
             ProposalResponse, ProposalResponseJsonRpc, Relay,
             SessionRequestJsonRpc, SessionRequestResponseJsonRpc,
             SessionSettle, SessionSettleJsonRpc, SettleNamespace,
@@ -28,7 +28,7 @@ use {
             Subscription, SuccessfulResponse,
         },
     },
-    serde::{de::DeserializeOwned, Deserialize, Serialize},
+    serde::{de::DeserializeOwned},
     std::{
         collections::HashMap,
         sync::{atomic::AtomicBool, Arc, RwLock},
@@ -38,7 +38,8 @@ use {
     x25519_dalek::PublicKey,
 };
 #[cfg(feature = "uniffi")]
-use crate::sign::ffi_types::{SessionProposalFfi, SessionFfi, SessionRequestJsonRpcFfi, SessionRequestResponseJsonRpcFfi};
+use crate::sign::ffi_types::{SessionProposalFfi, SessionFfi, Session, SessionRequestJsonRpcFfi, SessionRequestResponseJsonRpcFfi};
+use crate::sign::{ffi_types::SessionProposal};
 #[cfg(not(target_arch = "wasm32"))]
 use {
     futures::{SinkExt, StreamExt},
@@ -408,7 +409,7 @@ impl Client {
             })
             .map_err(|e| ApproveError::Internal(e.to_string()))?;
 
-        addSession(session_topic, session_sym_key, self_public_key);
+        // addSession(session_topic, session_sym_key, self_public_key);
 
             let key = ChaCha20Poly1305::new(&proposal.pairing_sym_key.into());
             let nonce = ChaCha20Poly1305::generate_nonce()
@@ -1386,6 +1387,8 @@ impl SignClient {
         approved_namespaces: HashMap<String, SettleNamespace>,
         self_metadata: Metadata,
     ) -> Result<SessionFfi, ApproveError> {
+        use crate::sign::ffi_types::SessionProposal;
+
         let proposal: SessionProposal = proposal.into();
         tracing::debug!("approved_namespaces: {:?}", approved_namespaces);
         tracing::debug!("self_metadata: {:?}", self_metadata);
@@ -1430,21 +1433,6 @@ impl SignClient {
         client.respond(topic_topic, response_internal).await?;
         Ok(topic)
     }
-}
-
-#[derive(Debug, Clone)]
-pub struct SessionProposal {
-    pub session_proposal_rpc_id: u64,
-    pub pairing_topic: Topic,
-    pub pairing_sym_key: [u8; 32],
-    pub proposer_public_key: [u8; 32],
-    pub relays: Vec<crate::sign::protocol_types::Relay>,
-    pub required_namespaces: ProposalNamespaces,
-    pub optional_namespaces: Option<ProposalNamespaces>,
-    pub metadata: Metadata,
-    pub session_properties: Option<HashMap<String, String>>,
-    pub scoped_properties: Option<HashMap<String, String>>,
-    pub expiry_timestamp: Option<u64>,
 }
 
 #[cfg(test)]

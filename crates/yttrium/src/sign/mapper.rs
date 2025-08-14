@@ -1,4 +1,6 @@
-use crate::sign::{SessionProposal, Session};
+#[cfg(feature = "uniffi")]
+use crate::sign::ffi_types::SessionProposal;
+use crate::sign::{Session};
 use crate::sign::ffi_types::{SessionProposalFfi, SessionFfi, SessionRequestJsonRpcFfi, SessionRequestFfi, SessionRequestRequestFfi, SessionRequestResponseJsonRpcFfi};
 use crate::sign::protocol_types::{SessionRequestJsonRpc, SessionRequestResponseJsonRpc};
 
