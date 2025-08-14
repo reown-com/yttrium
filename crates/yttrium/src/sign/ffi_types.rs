@@ -110,15 +110,15 @@ pub struct Session {
     pub session_sym_key: [u8; 32],
     pub self_public_key: [u8; 32],
     pub self_meta_data: Metadata,
-    pub peer_public_key: Option<Vec<u8>>,
+    pub peer_public_key: Option<[u8; 32]>,
     pub peer_meta_data: Option<Metadata>,
     pub session_namespaces: HashMap<String, SettleNamespace>,
     pub required_namespaces: HashMap<String, ProposalNamespace>,
     pub optional_namespaces: Option<HashMap<String, ProposalNamespace>>,
-    pub properties: Option<HashMap<String, String>>,
+    pub session_properties: Option<HashMap<String, String>>,
     pub scoped_properties: Option<HashMap<String, String>>,
     pub is_acknowledged: bool,
-    pub pairing_topic: String,
+    pub pairing_topic: Topic,
     pub transport_type: Option<TransportType>,
 }
 

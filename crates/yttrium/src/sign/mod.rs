@@ -147,7 +147,7 @@ pub struct Client {
     websocket: Option<WebSocketState>,
     session_request_tx:
         tokio::sync::mpsc::UnboundedSender<(Topic, SessionRequestJsonRpc)>,
-    sessions: Arc<RwLock<HashMap<Topic, Session>>>,
+    // sessions: Arc<RwLock<HashMap<Topic, Session>>>,
     invalid_auth: Arc<AtomicBool>,
 }
 
@@ -219,7 +219,7 @@ impl Client {
                 key: None,
                 websocket: None,
                 session_request_tx: tx,
-                sessions: Arc::new(RwLock::new(HashMap::new())),
+                // sessions: Arc::new(RwLock::new(HashMap::new())),
                 invalid_auth: Arc::new(AtomicBool::new(false)),
             },
             rx,
@@ -230,13 +230,13 @@ impl Client {
         self.key = Some(SigningKey::from_bytes(&key));
     }
 
-    //Add session on SDK initialization
-    pub fn add_sessions(&self, sessions: impl IntoIterator<Item = Session>) {
-        let mut guard = self.sessions.write().unwrap();
-        for session in sessions {
-            guard.insert(topic_from_sym_key(&session.session_sym_key), session);
-        }
-    }
+    // //Add session on SDK initialization
+    // pub fn add_sessions(&self, sessions: impl IntoIterator<Item = Session>) {
+    //     let mut guard = self.sessions.write().unwrap();
+    //     for session in sessions {
+    //         guard.insert(topic_from_sym_key(&session.session_sym_key), session);
+    //     }
+    // }
 
     // //TODO: why do we need this?
     // pub fn get_sessions(&self) -> Vec<Session> {
@@ -248,6 +248,8 @@ impl Client {
     /// Skip calling this if you intend to shortly call another SDK method, as those other methods will themselves call this.
     /// TODO actually call this from other methods
     pub async fn online(&mut self) {
+
+        //TODO: get topics from storage trait
         let topics = {
             let sessions = self.sessions.read().unwrap();
             sessions.keys().cloned().collect::<Vec<_>>()
@@ -425,6 +427,12 @@ impl Client {
             BASE64.encode(encoded.as_slice()).into()
         };
 
+        let session_expiry = crate::time::SystemTime::now()
+            .duration_since(crate::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs()
+            + 60 * 60 * 24 * 7; // Session expiry is 7 days
+
         let session_settlement_request = {
             let serialized = serde_json::to_string(&SessionSettleJsonRpc {
                 id: generate_rpc_id(),
@@ -432,16 +440,12 @@ impl Client {
                 method: "wc_sessionSettle".to_string(),
                 params: SessionSettle {
                     relay: Relay { protocol: "irn".to_string() },
-                    namespaces: approved_namespaces,
+                    namespaces: approved_namespaces.clone(),
                     controller: Controller {
                         public_key: hex::encode(self_public_key.to_bytes()),
-                        metadata: self_metadata,
+                        metadata: self_metadata.clone(),
                     },
-                    expiry: crate::time::SystemTime::now()
-                        .duration_since(crate::time::UNIX_EPOCH)
-                        .unwrap()
-                        .as_secs()
-                        + 60 * 60 * 24 * 7, // Session expiry is 7 days
+                    expiry: session_expiry,
                     session_properties: proposal
                         .session_properties
                         .as_ref()
@@ -471,7 +475,7 @@ impl Client {
         };
 
         let approve_session = ApproveSession {
-            pairing_topic: proposal.pairing_topic,
+            pairing_topic: proposal.pairing_topic.clone(),
             session_topic: session_topic.clone(),
             session_proposal_response,
             session_settlement_request,
@@ -494,13 +498,13 @@ impl Client {
         {
             Ok(true) => {}
             Ok(false) => {
-                // TODO remove from storage
+                // TODO remove session from storage
                 return Err(ApproveError::Internal(
                     "Session rejected by relay".to_owned(),
                 ));
             }
             Err(e) => {
-                // TODO if error, remove from storage
+                // TODO if error, remove session from storage
                 // https://github.com/reown-com/reown-kotlin/blob/1488873e0ac655bdc492ab12d8ea29b9985dd97c/protocol/sign/src/main/kotlin/com/reown/sign/engine/use_case/calls/ApproveSessionUseCase.kt#L115
                 // https://github.com/WalletConnect/walletconnect-monorepo/blob/5bef698dcf0ae910548481959a6a5d87eaf7aaa5/packages/sign-client/src/controllers/engine.ts#L476
                 // consistency: ok if wallet thinks session is approved, but app never received approval
@@ -513,15 +517,27 @@ impl Client {
         let session = Session {
             session_sym_key: shared_secret,
             self_public_key: self_public_key.to_bytes(),
+            topic: session_topic,
+            expiry: session_expiry,
+            relay_protocol: "irn".to_string(),
+            relay_data: None,
+            controller_key: Some(self_public_key.to_bytes()),
+            self_meta_data: self_metadata.clone(),
+            peer_public_key: Some(proposal.proposer_public_key),
+            peer_meta_data: Some(proposal.metadata),
+            session_namespaces: approved_namespaces,
+            required_namespaces: proposal.required_namespaces.clone(),
+            optional_namespaces: proposal.optional_namespaces.clone(),
+            session_properties: proposal.session_properties.clone(),
+            scoped_properties: proposal.scoped_properties.clone(),
+            is_acknowledged: false,
+            pairing_topic: proposal.pairing_topic.clone(),
+            transport_type: None, //TODO: add transport type for link mode
         };
-        let session = Session {
-            session_sym_key: shared_secret,
-            self_public_key: self_public_key.to_bytes(),
-        };
-        {
-            let mut sessions = self.sessions.write().unwrap();
-            sessions.insert(session_topic, session.clone());
-        }
+        // {
+        //     let mut sessions = self.sessions.write().unwrap();
+        //     sessions.insert(session_topic, session.clone());
+        // }
 
         Ok(session)
     }
@@ -563,6 +579,7 @@ impl Client {
         let serialized = serde_json::to_string(&response)
             .map_err(|e| RespondError::Internal(e.to_string()))?;
 
+        //TODO: get session from storage
         let shared_secret = {
             let sessions = self.sessions.read().unwrap();
             let session = sessions.get(&topic).ok_or(
@@ -694,6 +711,7 @@ impl Client {
             tokio::sync::mpsc::unbounded_channel();
 
         let handle_irn_subscription = {
+            //TODO: get sessions from storage by topic
             let sessions = self.sessions.clone();
             move |id: MessageId, sub_msg: Subscription| {
                 let session_sym_key = {
@@ -801,6 +819,7 @@ impl Client {
                     .await
                     .map_err(|e| RequestError::Internal(e.to_string()))?
                     .map_err(|e| RequestError::Internal(e.to_string()))?;
+            //TODO: get sessions from storage
             let sessions = self.sessions.clone();
 
             let invalid_auth = self.invalid_auth.clone();
