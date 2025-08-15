@@ -248,20 +248,6 @@ impl Client {
         self.key = Some(SigningKey::from_bytes(&key));
     }
 
-    // //Add session on SDK initialization
-    // pub fn add_sessions(&self, sessions: impl IntoIterator<Item = Session>) {
-    //     let mut guard = self.sessions.write().unwrap();
-    //     for session in sessions {
-    //         guard.insert(topic_from_sym_key(&session.session_sym_key), session);
-    //     }
-    // }
-
-    // //TODO: why do we need this?
-    // pub fn get_sessions(&self) -> Vec<Session> {
-    //     let guard = self.sessions.read().unwrap();
-    //     guard.values().cloned().collect()
-    // }
-
     /// Call this when the app and user are ready to receive session requests.
     /// Skip calling this if you intend to shortly call another SDK method, as those other methods will themselves call this.
     /// TODO actually call this from other methods
@@ -338,6 +324,9 @@ impl Client {
                             "Failed to decode message: {e}"
                         ))
                     })?;
+
+                tracing::debug!("Subscription Data: {:?}", message);
+
                 let envelope =
                     envelope_type0::deserialize_envelope_type0(&decoded)
                         .map_err(|e| PairError::Internal(e.to_string()))?;
@@ -403,7 +392,6 @@ impl Client {
         Err(PairError::Internal("No message found".to_string()))
     }
 
-    //TODO: callbacks for add and delete session
     pub async fn approve(
         &mut self,
         proposal: SessionProposal,
@@ -1381,6 +1369,7 @@ impl SignClient {
 
     // set_key should be called on walletkit side on init() so it can store clientId before using pair and approve
     pub async fn set_key(&self, key: Vec<u8>) {
+        tracing::info!("Setting key");
         let mut client = self.client.lock().await;
         let secret_key =
             key.try_into().expect("Invalid key format - must be 32 bytes");
