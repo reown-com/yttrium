@@ -65,6 +65,7 @@ pub struct SessionRequestResponseJsonRpcFfi {
 #[derive(uniffi_macros::Record, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SessionFfi {
+    pub request_id: u64,
     pub session_sym_key: Vec<u8>,
     pub self_public_key: Vec<u8>,
     pub topic: Topic,
@@ -102,6 +103,7 @@ pub struct SessionProposal {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Session {
+    pub request_id: u64,
     pub topic: Topic,
     pub expiry: u64,
     pub relay_protocol: String,
