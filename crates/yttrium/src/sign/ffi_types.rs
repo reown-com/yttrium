@@ -34,7 +34,7 @@ pub struct SessionFfi {
 }
 
 #[cfg(feature = "uniffi")]
-#[derive(uniffi_macros::Record)]
+#[derive(uniffi_macros::Record, Serialize, Deserialize)]
 pub struct SessionRequestRequestFfi {
     pub method: String,
     pub params: String, // JSON string instead of serde_json::Value
@@ -42,14 +42,15 @@ pub struct SessionRequestRequestFfi {
 }
 
 #[cfg(feature = "uniffi")]
-#[derive(uniffi_macros::Record)]
+#[derive(uniffi_macros::Record, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SessionRequestFfi {
     pub chain_id: String,
     pub request: SessionRequestRequestFfi,
 }
 
 #[cfg(feature = "uniffi")]
-#[derive(uniffi_macros::Record)]
+#[derive(uniffi_macros::Record, Serialize, Deserialize)]
 pub struct SessionRequestJsonRpcFfi {
     pub id: u64,
     pub method: String,
