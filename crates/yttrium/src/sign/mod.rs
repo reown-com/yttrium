@@ -146,7 +146,6 @@ struct WebSocketState {
 pub trait SignListener: Send + Sync {
     //TODO: add on_session_ping, on_session_update, on_session_event, on_session_extend, on_session_disconnect etc.
     fn on_session_request(&self, topic: String, session_request: SessionRequestJsonRpcFfi);
-    fn on_session_request_json(&self, topic: String, session_request_json: String);
 }
 
 #[uniffi::export(with_foreign)]
@@ -1385,11 +1384,6 @@ impl Client {
 
 pub fn generate_key() -> SecretKey {
     SigningKey::generate(&mut rand::thread_rng()).to_bytes()
-}
-
-#[uniffi::export(with_foreign)]
-pub trait SessionRequestListener: Send + Sync {
-    fn on_session_request(&self, topic: String, session_request: SessionRequestJsonRpcFfi);
 }
 
 // UniFFI wrapper for better API naming
