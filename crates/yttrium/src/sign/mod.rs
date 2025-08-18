@@ -241,7 +241,9 @@ impl Client {
     }
 
     pub fn register_session_store(&mut self, session_store: Arc<dyn SessionStore>) {
+        tracing::debug!("Registering session store");
         self.session_store = Some(session_store);
+        tracing::debug!("Session store registered successfully");
     }
 
     pub fn set_key(&mut self, key: SecretKey) {
@@ -255,9 +257,10 @@ impl Client {
 
         let topics = {
             let sessions: Vec<Session> = if let Some(store) = &self.session_store {
-                debug!("Online: Getting all sessions from storage");
+                tracing::debug!("Online: Getting all sessions from storage");
                 store.get_all_sessions().into_iter().map(|s| s.into()).collect()
             } else {
+                tracing::debug!("Online: No sessions");
                 Vec::new()
             };
             sessions.iter().map(|s| s.topic.clone()).collect::<Vec<_>>()
@@ -525,30 +528,25 @@ impl Client {
         }
     
         match self
-            .request::<bool>(relay_rpc::rpc::Params::ApproveSession(
-                approve_session,
-            ))
-            .await
-        {
-            Ok(true) => {}
+            .request::<bool>(relay_rpc::rpc::Params::ApproveSession(approve_session,)).await {
+            Ok(true) => {
+                Ok(session)
+            }
             Ok(false) => {
-                // TODO remove session from storage
-                return Err(ApproveError::Internal(
+                if let Some(store) = &self.session_store {
+                    store.delete_session(session.topic.to_string());
+                }
+                Err(ApproveError::Internal(
                     "Session rejected by relay".to_owned(),
-                ));
+                ))
             }
             Err(e) => {
-                // TODO if error, remove session from storage
-                // https://github.com/reown-com/reown-kotlin/blob/1488873e0ac655bdc492ab12d8ea29b9985dd97c/protocol/sign/src/main/kotlin/com/reown/sign/engine/use_case/calls/ApproveSessionUseCase.kt#L115
-                // https://github.com/WalletConnect/walletconnect-monorepo/blob/5bef698dcf0ae910548481959a6a5d87eaf7aaa5/packages/sign-client/src/controllers/engine.ts#L476
-                // consistency: ok if wallet thinks session is approved, but app never received approval
-                // ideally one way we fix this via relay source of truth
-
-                return Err(ApproveError::Request(e));
+                if let Some(store) = &self.session_store {
+                    store.delete_session(session.topic.to_string());
+                }
+                Err(ApproveError::Request(e))
             }
         }
-
-        Ok(session)
     }
 
     pub async fn _reject(&self) {
@@ -591,12 +589,14 @@ impl Client {
         //TODO: get session from storage
         let shared_secret = {
             let sessions: Vec<Session> = if let Some(store) = &self.session_store {
-                store.get_all_sessions().into_iter().map(|s| s.into()).collect()
+                let ffi_sessions = store.get_all_sessions();
+                tracing::debug!("Respond: FFI sessions count: {}", ffi_sessions.len());
+                ffi_sessions.into_iter().map(|s| s.into()).collect()
             } else {
                 return Err(RespondError::Internal("No session store available".to_owned()));
             };
             let session = sessions.iter().find(|s| s.topic == topic).ok_or(
-                RespondError::Internal("Session not found".to_owned()),
+                RespondError::Internal(format!("Session not found for topic: {:?}. Available topics: {:?}", topic, sessions.iter().map(|s| &s.topic).collect::<Vec<_>>())),
             )?;
             session.session_sym_key
         };
@@ -669,6 +669,8 @@ impl Client {
         &mut self,
         initial_req: Params,
     ) -> Result<(Response, WebSocketState), RequestError> {
+        tracing::debug!("Connect: Call");
+
         if self.invalid_auth.load(std::sync::atomic::Ordering::Relaxed) {
             return Err(RequestError::InvalidAuth);
         }
@@ -720,22 +722,53 @@ impl Client {
         let session_request_tx = self.session_request_tx.clone();
         let (request_tx, mut request_rx) =
             tokio::sync::mpsc::unbounded_channel();
+
+        tracing::debug!("Connect: request_tx: {:?}", request_tx);
+
         let (irn_subscription_ack_tx, mut irn_subscription_ack_rx) =
             tokio::sync::mpsc::unbounded_channel();
 
-        let handle_irn_subscription = {
-            let sessions: Vec<Session> = if let Some(store) = &self.session_store {
-                debug!("Connect: Getting all sessions from storage");
-                store.get_all_sessions().into_iter().map(|s| s.into()).collect()
-            } else {
-                Vec::new()
-            };
 
+        tracing::debug!("Connect: Handle IRN Subscription");
+        let handle_irn_subscription = {
+            let session_store = self.session_store.clone();
+            
             move |id: MessageId, sub_msg: Subscription| {
-                let session_sym_key = {
-                    let session = sessions.iter().find(|s| s.topic == sub_msg.data.topic).unwrap();
-                    session.session_sym_key
+                // Get fresh sessions list each time to avoid stale data
+                let sessions: Vec<Session> = if let Some(store) = &session_store {
+                    tracing::debug!("Connect: Getting fresh sessions for topic lookup: {:?}", sub_msg.data.topic);
+                    let fresh_sessions: Vec<Session> = store.get_all_sessions().into_iter().map(|s| s.into()).collect();
+                    tracing::debug!("Connect: Fresh FFI sessions count: {}", fresh_sessions.len());
+                    tracing::debug!("Connect: Fresh session topics: {:?}", fresh_sessions.iter().map(|s| &s.topic).collect::<Vec<_>>());
+                    fresh_sessions
+                } else {
+                    tracing::debug!("Connect: No session store available for fresh lookup");
+                    Vec::new()
                 };
+
+                let session_sym_key = {
+                    tracing::debug!("Connect: Looking for session with topic: {:?}", sub_msg.data.topic);
+                    tracing::debug!("Connect: Available session topics: {:?}", sessions.iter().map(|s| &s.topic).collect::<Vec<_>>());
+                
+                    let session = sessions.iter().find(|s| s.topic == sub_msg.data.topic);
+                    match session {
+                        Some(s) => {
+                            tracing::debug!("Connect: Found session for topic: {:?}", s.topic);
+                            s.session_sym_key
+                        },
+                        None => {
+                            tracing::error!("Connect: No session found for topic: {:?}", sub_msg.data.topic);
+                            tracing::error!("Connect: Available sessions: {:?}", sessions.iter().map(|s| &s.topic).collect::<Vec<_>>());
+                            // Send ACK to prevent blocking, but skip processing
+                            if let Err(e) = irn_subscription_ack_tx.send(id) {
+                                tracing::debug!("Failed to send subscription ack: {e}");
+                            }
+                            return;
+                        }
+                    }
+                };
+
+                tracing::debug!("Connect: Session Sym Key: {:?}", session_sym_key);
 
                 let decoded = BASE64
                     .decode(sub_msg.data.message.as_bytes())
@@ -745,6 +778,9 @@ impl Client {
                         ))
                     })
                     .unwrap();
+
+                tracing::debug!("Connect: Decoded: {:?}", decoded);
+
                 let envelope =
                     envelope_type0::deserialize_envelope_type0(&decoded)
                         .map_err(|e| PairError::Internal(e.to_string()))
@@ -758,6 +794,9 @@ impl Client {
                     serde_json::from_slice::<serde_json::Value>(&decrypted)
                         .map_err(|e| PairError::Internal(e.to_string()))
                         .unwrap();
+
+                tracing::debug!("Connect: Decrypted: {:?}", value);
+
                 if let Some(method) = value.get("method") {
                     if method.as_str() == Some("wc_sessionRequest") {
                         // TODO implement relay-side request queue
@@ -770,6 +809,9 @@ impl Client {
                             ))
                         })
                         .unwrap();
+
+                        tracing::debug!("Connect: Session Request: {:?}", request);
+
                         session_request_tx
                             .send((sub_msg.data.topic, request))
                             .unwrap();
@@ -837,8 +879,11 @@ impl Client {
                     .map_err(|e| RequestError::Internal(e.to_string()))?
                     .map_err(|e| RequestError::Internal(e.to_string()))?;
             let sessions: Vec<Session> = if let Some(store) = &self.session_store {
-                store.get_all_sessions().into_iter().map(|s| s.into()).collect()
+                let ffi_sessions = store.get_all_sessions();
+                tracing::debug!("Connect WS: FFI sessions count: {}", ffi_sessions.len());
+                ffi_sessions.into_iter().map(|s| s.into()).collect()
             } else {
+                tracing::debug!("Connect WS: No session store registered");
                 Vec::new()
             };
 
