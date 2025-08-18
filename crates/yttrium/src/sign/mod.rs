@@ -1442,6 +1442,12 @@ impl SignClient {
         }
     }
 
+    pub async fn online(&self) {
+        tracing::info!("Calling online method");
+        let mut client = self.client.lock().await;
+        client.online().await;
+    }
+
     pub async fn pair(
         &self,
         uri: String,
