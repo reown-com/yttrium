@@ -493,7 +493,7 @@ impl Client {
             session_proposal_response,
             session_settlement_request,
             analytics: Some(AnalyticsData {
-                correlation_id: Some(proposal.session_proposal_rpc_id),
+                correlation_id: Some(proposal.session_proposal_rpc_id.try_into().unwrap()),
                 chain_id: None,
                 rpc_methods: None,
                 tx_hashes: None,
@@ -1384,6 +1384,12 @@ pub fn generate_key() -> SecretKey {
     SigningKey::generate(&mut rand::thread_rng()).to_bytes()
 }
 
+#[uniffi::export(with_foreign)]
+pub trait SessionRequestListener: Send + Sync {
+    fn on_session_request(&self, topic: String, session_request: SessionRequestJsonRpcFfi);
+    fn on_session_request_json(&self, topic: String, session_request: String);
+}
+
 // UniFFI wrapper for better API naming
 #[cfg(feature = "uniffi")]
 #[derive(uniffi::Object)]
@@ -1433,7 +1439,10 @@ impl SignClient {
                 while let Some((topic, session_request)) = rx.recv().await {
                     tracing::debug!("Received session request - Topic: {:?}, SessionRequest: {:?}", topic, session_request);
                     let session_request_ffi: SessionRequestJsonRpcFfi = session_request.into();
+                    let session_request_ffi_json = serde_json::to_string(&session_request_ffi).expect("Failed to serialize response");
+                    
                     listener.on_session_request(topic.to_string(), session_request_ffi);
+                    listener.on_session_request_json(topic.to_string(), session_request_ffi_json);
                 }
                 tracing::info!("Session request listener stopped");
             });
