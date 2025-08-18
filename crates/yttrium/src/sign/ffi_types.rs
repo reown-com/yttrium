@@ -58,7 +58,7 @@ pub struct SessionRequestJsonRpcFfi {
 }
 
 #[cfg(feature = "uniffi")]
-#[derive(uniffi_macros::Record, Debug)]
+#[derive(uniffi_macros::Record, Debug, Serialize, Deserialize)]
 pub struct SessionRequestResponseJsonRpcFfi {
     pub id: u64,
     pub jsonrpc: String,
