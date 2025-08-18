@@ -131,7 +131,7 @@ pub enum RespondError {
 struct WebSocketState {
     // #[cfg(not(target_arch = "wasm32"))]
     // stream: WebSocketStream<MaybeTlsStream<TcpStream>>,
-    // #[cfg(target_arch = "wasm32")]``
+    // #[cfg(target_arch = "wasm32")]
     // stream: WebWebSocketWrapper,
     // message_id: u64,
     request_tx: tokio::sync::mpsc::UnboundedSender<(
@@ -230,7 +230,7 @@ impl Client {
         (
             Self {
                 relay_url: RELAY_URL.to_string(),
-                project_id: project_id,
+                project_id,
                 key: None,
                 websocket: None,
                 session_request_tx: tx,     
@@ -494,7 +494,7 @@ impl Client {
             session_proposal_response,
             session_settlement_request,
             analytics: Some(AnalyticsData {
-                correlation_id: Some(proposal.session_proposal_rpc_id.try_into().unwrap()),
+                correlation_id: Some(proposal.session_proposal_rpc_id),
                 chain_id: None,
                 rpc_methods: None,
                 tx_hashes: None,
