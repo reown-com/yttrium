@@ -1,4 +1,6 @@
-use crate::sign::{SessionProposal, Session};
+#[cfg(feature = "uniffi")]
+use crate::sign::ffi_types::SessionProposal;
+use crate::sign::{Session};
 use crate::sign::ffi_types::{SessionProposalFfi, SessionFfi, SessionRequestJsonRpcFfi, SessionRequestFfi, SessionRequestRequestFfi, SessionRequestResponseJsonRpcFfi};
 use crate::sign::protocol_types::{SessionRequestJsonRpc, SessionRequestResponseJsonRpc};
 
@@ -103,8 +105,25 @@ impl From<SessionRequestResponseJsonRpcFfi> for SessionRequestResponseJsonRpc {
 impl From<Session> for SessionFfi {
     fn from(session: Session) -> Self {
         Self {
+            request_id: session.request_id,
             session_sym_key: session.session_sym_key.to_vec(),
             self_public_key: session.self_public_key.to_vec(),
+            topic: session.topic,
+            expiry: session.expiry,
+            relay_protocol: session.relay_protocol,
+            relay_data: session.relay_data,
+            controller_key: session.controller_key.map(|k| k.to_vec()),
+            self_meta_data: session.self_meta_data,
+            peer_public_key: session.peer_public_key.map(|k| k.to_vec()),
+            peer_meta_data: session.peer_meta_data,
+            session_namespaces: session.session_namespaces,
+            required_namespaces: session.required_namespaces,
+            optional_namespaces: session.optional_namespaces,
+            properties: session.session_properties,
+            scoped_properties: session.scoped_properties,
+            is_acknowledged: session.is_acknowledged,
+            pairing_topic: session.pairing_topic.to_string(),
+            transport_type: session.transport_type,
         }
     }
 }
@@ -113,8 +132,25 @@ impl From<Session> for SessionFfi {
 impl From<SessionFfi> for Session {
     fn from(session: SessionFfi) -> Self {
         Self {
+            request_id: session.request_id,
             session_sym_key: session.session_sym_key.try_into().unwrap(),
             self_public_key: session.self_public_key.try_into().unwrap(),
+            topic: session.topic,
+            expiry: session.expiry,
+            relay_protocol: session.relay_protocol,
+            relay_data: session.relay_data,
+            controller_key: session.controller_key.map(|k| k.try_into().unwrap()),
+            self_meta_data: session.self_meta_data,
+            peer_public_key: session.peer_public_key.map(|k| k.try_into().unwrap()),
+            peer_meta_data: session.peer_meta_data,
+            session_namespaces: session.session_namespaces,
+            required_namespaces: session.required_namespaces,
+            optional_namespaces: session.optional_namespaces,
+            session_properties: session.properties,
+            scoped_properties: session.scoped_properties,
+            is_acknowledged: session.is_acknowledged,
+            pairing_topic: session.pairing_topic.into(),
+            transport_type: session.transport_type,
         }
     }
 }

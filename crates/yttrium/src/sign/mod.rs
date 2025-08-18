@@ -6,7 +6,7 @@ use {
     crate::sign::{
         envelope_type0::{encode_envelope_type0, EnvelopeType0},
         protocol_types::{
-            Controller, Metadata, ProposalJsonRpc, ProposalNamespaces,
+            Controller, Metadata, ProposalJsonRpc,
             ProposalResponse, ProposalResponseJsonRpc, Relay,
             SessionRequestJsonRpc, SessionRequestResponseJsonRpc,
             SessionSettle, SessionSettleJsonRpc, SettleNamespace,
@@ -28,17 +28,18 @@ use {
             Subscription, SuccessfulResponse,
         },
     },
-    serde::{de::DeserializeOwned, Deserialize, Serialize},
+    serde::{de::DeserializeOwned},
     std::{
         collections::HashMap,
-        sync::{atomic::AtomicBool, Arc, RwLock},
+        sync::{atomic::AtomicBool, Arc},
         time::Duration,
     },
     tracing::debug,
     x25519_dalek::PublicKey,
 };
 #[cfg(feature = "uniffi")]
-use crate::sign::ffi_types::{SessionProposalFfi, SessionFfi, SessionRequestJsonRpcFfi, SessionRequestResponseJsonRpcFfi};
+use crate::sign::ffi_types::{SessionProposalFfi, SessionFfi, Session, SessionRequestJsonRpcFfi, SessionRequestResponseJsonRpcFfi};
+use crate::sign::{ffi_types::SessionProposal};
 #[cfg(not(target_arch = "wasm32"))]
 use {
     futures::{SinkExt, StreamExt},
@@ -141,6 +142,20 @@ struct WebSocketState {
     )>,
 }
 
+#[uniffi::export(with_foreign)]
+pub trait SignListener: Send + Sync {
+    //TODO: add on_session_ping, on_session_update, on_session_event, on_session_extend, on_session_disconnect etc.
+    fn on_session_request(&self, topic: String, session_request: SessionRequestJsonRpcFfi);
+}
+
+#[uniffi::export(with_foreign)]
+pub trait SessionStore: Send + Sync {
+    fn add_session(&self, session: SessionFfi);
+    fn delete_session(&self, topic: String);
+    fn get_session(&self, topic: String) -> Option<SessionFfi>;
+    fn get_all_sessions(&self) -> Vec<SessionFfi>;
+}
+
 pub struct Client {
     relay_url: String,
     project_id: ProjectId,
@@ -148,8 +163,8 @@ pub struct Client {
     websocket: Option<WebSocketState>,
     session_request_tx:
         tokio::sync::mpsc::UnboundedSender<(Topic, SessionRequestJsonRpc)>,
-    sessions: Arc<RwLock<HashMap<Topic, Session>>>,
     invalid_auth: Arc<AtomicBool>,
+    session_store: Option<Arc<dyn SessionStore>>,
 }
 
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
@@ -167,7 +182,8 @@ const REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
 //   - callbacks for native hints?
 
 // TODO
-// - session pings, update, events, emit
+// - session pings, update, events, emit, extend, disconnect
+// - emit events for session pings, update, events, extend, disconnect
 // - session expiry & renew
 //   - expire implemented simply by filtering out expired sessions in `Client::add_sessions()` ?
 //     - long-lived clients might suffer here. Maybe filter each reconnect?
@@ -194,11 +210,13 @@ const REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
 // - Network state hinting (offline/online)
 //   - offline: don't try to reconnect, but also don't force a disconnect
 //   - online: reconnect if online() was called
+//TODO
+// - Validation and Utils methods
 
 #[allow(unused)]
 impl Client {
     pub fn new(
-        project_id: ProjectId,
+        project_id: ProjectId
     ) -> (
         Self,
         tokio::sync::mpsc::UnboundedReceiver<(Topic, SessionRequestJsonRpc)>,
@@ -216,37 +234,38 @@ impl Client {
                 project_id,
                 key: None,
                 websocket: None,
-                session_request_tx: tx,
-                sessions: Arc::new(RwLock::new(HashMap::new())),
+                session_request_tx: tx,     
+                session_store: None,
                 invalid_auth: Arc::new(AtomicBool::new(false)),
             },
             rx,
         )
     }
 
+    pub fn register_session_store(&mut self, session_store: Arc<dyn SessionStore>) {
+        tracing::debug!("Registering session store");
+        self.session_store = Some(session_store);
+        tracing::debug!("Session store registered successfully");
+    }
+
     pub fn set_key(&mut self, key: SecretKey) {
         self.key = Some(SigningKey::from_bytes(&key));
-    }
-
-    pub fn add_sessions(&self, sessions: impl IntoIterator<Item = Session>) {
-        let mut guard = self.sessions.write().unwrap();
-        for session in sessions {
-            guard.insert(topic_from_sym_key(&session.session_sym_key), session);
-        }
-    }
-
-    pub fn get_sessions(&self) -> Vec<Session> {
-        let guard = self.sessions.read().unwrap();
-        guard.values().cloned().collect()
     }
 
     /// Call this when the app and user are ready to receive session requests.
     /// Skip calling this if you intend to shortly call another SDK method, as those other methods will themselves call this.
     /// TODO actually call this from other methods
     pub async fn online(&mut self) {
+
         let topics = {
-            let sessions = self.sessions.read().unwrap();
-            sessions.keys().cloned().collect::<Vec<_>>()
+            let sessions: Vec<Session> = if let Some(store) = &self.session_store {
+                tracing::debug!("Online: Getting all sessions from storage");
+                store.get_all_sessions().into_iter().map(|s| s.into()).collect()
+            } else {
+                tracing::debug!("Online: No sessions");
+                Vec::new()
+            };
+            sessions.iter().map(|s| s.topic.clone()).collect::<Vec<_>>()
         };
         if !topics.is_empty() {
             // TODO request w/ empty request
@@ -282,15 +301,15 @@ impl Client {
         // TODO implement
         // https://github.com/WalletConnect/walletconnect-monorepo/blob/5bef698dcf0ae910548481959a6a5d87eaf7aaa5/packages/sign-client/src/controllers/engine.ts#L330
 
-        // TODO parse URI
+        // TODO parse URI and URI validation
         // https://github.com/WalletConnect/walletconnect-monorepo/blob/5bef698dcf0ae910548481959a6a5d87eaf7aaa5/packages/core/src/controllers/pairing.ts#L132
+        
         let pairing_uri = pairing_uri::parse(uri)
             .map_err(|e| PairError::Internal(e.to_string()))?;
 
         tracing::debug!("Pairing with URI: {uri}");
 
         // TODO consider: immediately throw if expired? - maybe not necessary since FetchMessages returns empty array?
-
         // TODO update relay method to not remove message & approveSession removes it
 
         let response = self
@@ -300,6 +319,8 @@ impl Client {
             .await
             .map_err(|e| PairError::Internal(e.to_string()))?;
 
+        tracing::debug!("Pairing Response: {:?}", response);
+
         for message in response.messages {
             if message.topic == pairing_uri.topic {
                 let decoded =
@@ -308,6 +329,9 @@ impl Client {
                             "Failed to decode message: {e}"
                         ))
                     })?;
+
+                tracing::debug!("Subscription Data: {:?}", message);
+
                 let envelope =
                     envelope_type0::deserialize_envelope_type0(&decoded)
                         .map_err(|e| PairError::Internal(e.to_string()))?;
@@ -382,7 +406,7 @@ impl Client {
         // TODO implement
         // https://github.com/WalletConnect/walletconnect-monorepo/blob/5bef698dcf0ae910548481959a6a5d87eaf7aaa5/packages/sign-client/src/controllers/engine.ts#L341
 
-        // TODO check is valid
+        // TODO check is valid: validate namespaces, validate metadata, validate expiry timestamp
 
         let self_key = x25519_dalek::StaticSecret::random();
         let self_public_key = PublicKey::from(&self_key);
@@ -418,6 +442,12 @@ impl Client {
             BASE64.encode(encoded.as_slice()).into()
         };
 
+        let session_expiry = crate::time::SystemTime::now()
+            .duration_since(crate::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs()
+            + 60 * 60 * 24 * 7; // Session expiry is 7 days
+
         let session_settlement_request = {
             let serialized = serde_json::to_string(&SessionSettleJsonRpc {
                 id: generate_rpc_id(),
@@ -425,16 +455,12 @@ impl Client {
                 method: "wc_sessionSettle".to_string(),
                 params: SessionSettle {
                     relay: Relay { protocol: "irn".to_string() },
-                    namespaces: approved_namespaces,
+                    namespaces: approved_namespaces.clone(),
                     controller: Controller {
                         public_key: hex::encode(self_public_key.to_bytes()),
-                        metadata: self_metadata,
+                        metadata: self_metadata.clone(),
                     },
-                    expiry: crate::time::SystemTime::now()
-                        .duration_since(crate::time::UNIX_EPOCH)
-                        .unwrap()
-                        .as_secs()
-                        + 60 * 60 * 24 * 7, // Session expiry is 7 days
+                    expiry: session_expiry,
                     session_properties: proposal
                         .session_properties
                         .as_ref()
@@ -445,7 +471,6 @@ impl Client {
                         .as_ref()
                         .map(|p| serde_json::to_value(p).unwrap_or_default())
                         .unwrap_or_default(),
-                    // session_config: proposal.session_config,
                 },
             })
             .map_err(|e| ApproveError::Internal(e.to_string()))?;
@@ -465,59 +490,65 @@ impl Client {
         };
 
         let approve_session = ApproveSession {
-            pairing_topic: proposal.pairing_topic,
+            pairing_topic: proposal.pairing_topic.clone(),
             session_topic: session_topic.clone(),
             session_proposal_response,
             session_settlement_request,
             analytics: Some(AnalyticsData {
-                correlation_id: Some(proposal.session_proposal_rpc_id.try_into().unwrap()),
+                correlation_id: Some(proposal.session_proposal_rpc_id),
                 chain_id: None,
                 rpc_methods: None,
                 tx_hashes: None,
                 contract_addresses: None,
             }),
         };
+        let session = Session {
+            request_id: proposal.session_proposal_rpc_id,
+            session_sym_key: shared_secret,
+            self_public_key: self_public_key.to_bytes(),
+            topic: session_topic,
+            expiry: session_expiry,
+            relay_protocol: "irn".to_string(),
+            relay_data: None,
+            controller_key: Some(self_public_key.to_bytes()),
+            self_meta_data: self_metadata.clone(),
+            peer_public_key: Some(proposal.proposer_public_key),
+            peer_meta_data: Some(proposal.metadata),
+            session_namespaces: approved_namespaces,
+            required_namespaces: proposal.required_namespaces.clone(),
+            optional_namespaces: proposal.optional_namespaces.clone(),
+            session_properties: proposal.session_properties.clone(),
+            scoped_properties: proposal.scoped_properties.clone(),
+            is_acknowledged: false,
+            pairing_topic: proposal.pairing_topic.clone(),
+            transport_type: None, //TODO: add transport type for link mode
+        };
 
-        // TODO insert session into storage
-
+        
+        if let Some(store) = &self.session_store {
+            store.add_session(session.clone().into());
+        }
+    
         match self
-            .request::<bool>(relay_rpc::rpc::Params::ApproveSession(
-                approve_session,
-            ))
-            .await
-        {
-            Ok(true) => {}
+            .request::<bool>(relay_rpc::rpc::Params::ApproveSession(approve_session,)).await {
+            Ok(true) => {
+                Ok(session)
+            }
             Ok(false) => {
-                // TODO remove from storage
-                return Err(ApproveError::Internal(
+                if let Some(store) = &self.session_store {
+                    store.delete_session(session.topic.to_string());
+                }
+                Err(ApproveError::Internal(
                     "Session rejected by relay".to_owned(),
-                ));
+                ))
             }
             Err(e) => {
-                // TODO if error, remove from storage
-                // https://github.com/reown-com/reown-kotlin/blob/1488873e0ac655bdc492ab12d8ea29b9985dd97c/protocol/sign/src/main/kotlin/com/reown/sign/engine/use_case/calls/ApproveSessionUseCase.kt#L115
-                // https://github.com/WalletConnect/walletconnect-monorepo/blob/5bef698dcf0ae910548481959a6a5d87eaf7aaa5/packages/sign-client/src/controllers/engine.ts#L476
-                // consistency: ok if wallet thinks session is approved, but app never received approval
-                // ideally one way we fix this via relay source of truth
-
-                return Err(ApproveError::Request(e));
+                if let Some(store) = &self.session_store {
+                    store.delete_session(session.topic.to_string());
+                }
+                Err(ApproveError::Request(e))
             }
         }
-
-        let session = Session {
-            session_sym_key: shared_secret,
-            self_public_key: self_public_key.to_bytes(),
-        };
-        let session = Session {
-            session_sym_key: shared_secret,
-            self_public_key: self_public_key.to_bytes(),
-        };
-        {
-            let mut sessions = self.sessions.write().unwrap();
-            sessions.insert(session_topic, session.clone());
-        }
-
-        Ok(session)
     }
 
     pub async fn _reject(&self) {
@@ -557,10 +588,17 @@ impl Client {
         let serialized = serde_json::to_string(&response)
             .map_err(|e| RespondError::Internal(e.to_string()))?;
 
+        //TODO: get session from storage
         let shared_secret = {
-            let sessions = self.sessions.read().unwrap();
-            let session = sessions.get(&topic).ok_or(
-                RespondError::Internal("Session not found".to_owned()),
+            let sessions: Vec<Session> = if let Some(store) = &self.session_store {
+                let ffi_sessions = store.get_all_sessions();
+                tracing::debug!("Respond: FFI sessions count: {}", ffi_sessions.len());
+                ffi_sessions.into_iter().map(|s| s.into()).collect()
+            } else {
+                return Err(RespondError::Internal("No session store available".to_owned()));
+            };
+            let session = sessions.iter().find(|s| s.topic == topic).ok_or(
+                RespondError::Internal(format!("Session not found for topic: {:?}. Available topics: {:?}", topic, sessions.iter().map(|s| &s.topic).collect::<Vec<_>>())),
             )?;
             session.session_sym_key
         };
@@ -633,6 +671,8 @@ impl Client {
         &mut self,
         initial_req: Params,
     ) -> Result<(Response, WebSocketState), RequestError> {
+        tracing::debug!("Connect: Call");
+
         if self.invalid_auth.load(std::sync::atomic::Ordering::Relaxed) {
             return Err(RequestError::InvalidAuth);
         }
@@ -684,17 +724,53 @@ impl Client {
         let session_request_tx = self.session_request_tx.clone();
         let (request_tx, mut request_rx) =
             tokio::sync::mpsc::unbounded_channel();
+
+        tracing::debug!("Connect: request_tx: {:?}", request_tx);
+
         let (irn_subscription_ack_tx, mut irn_subscription_ack_rx) =
             tokio::sync::mpsc::unbounded_channel();
 
+
+        tracing::debug!("Connect: Handle IRN Subscription");
         let handle_irn_subscription = {
-            let sessions = self.sessions.clone();
+            let session_store = self.session_store.clone();
+            
             move |id: MessageId, sub_msg: Subscription| {
-                let session_sym_key = {
-                    let sessions = sessions.read().unwrap();
-                    let session = sessions.get(&sub_msg.data.topic).unwrap();
-                    session.session_sym_key
+                // Get fresh sessions list each time to avoid stale data
+                let sessions: Vec<Session> = if let Some(store) = &session_store {
+                    tracing::debug!("Connect: Getting fresh sessions for topic lookup: {:?}", sub_msg.data.topic);
+                    let fresh_sessions: Vec<Session> = store.get_all_sessions().into_iter().map(|s| s.into()).collect();
+                    tracing::debug!("Connect: Fresh FFI sessions count: {}", fresh_sessions.len());
+                    tracing::debug!("Connect: Fresh session topics: {:?}", fresh_sessions.iter().map(|s| &s.topic).collect::<Vec<_>>());
+                    fresh_sessions
+                } else {
+                    tracing::debug!("Connect: No session store available for fresh lookup");
+                    Vec::new()
                 };
+
+                let session_sym_key = {
+                    tracing::debug!("Connect: Looking for session with topic: {:?}", sub_msg.data.topic);
+                    tracing::debug!("Connect: Available session topics: {:?}", sessions.iter().map(|s| &s.topic).collect::<Vec<_>>());
+                
+                    let session = sessions.iter().find(|s| s.topic == sub_msg.data.topic);
+                    match session {
+                        Some(s) => {
+                            tracing::debug!("Connect: Found session for topic: {:?}", s.topic);
+                            s.session_sym_key
+                        },
+                        None => {
+                            tracing::error!("Connect: No session found for topic: {:?}", sub_msg.data.topic);
+                            tracing::error!("Connect: Available sessions: {:?}", sessions.iter().map(|s| &s.topic).collect::<Vec<_>>());
+                            // Send ACK to prevent blocking, but skip processing
+                            if let Err(e) = irn_subscription_ack_tx.send(id) {
+                                tracing::debug!("Failed to send subscription ack: {e}");
+                            }
+                            return;
+                        }
+                    }
+                };
+
+                tracing::debug!("Connect: Session Sym Key: {:?}", session_sym_key);
 
                 let decoded = BASE64
                     .decode(sub_msg.data.message.as_bytes())
@@ -704,6 +780,9 @@ impl Client {
                         ))
                     })
                     .unwrap();
+
+                tracing::debug!("Connect: Decoded: {:?}", decoded);
+
                 let envelope =
                     envelope_type0::deserialize_envelope_type0(&decoded)
                         .map_err(|e| PairError::Internal(e.to_string()))
@@ -717,6 +796,9 @@ impl Client {
                     serde_json::from_slice::<serde_json::Value>(&decrypted)
                         .map_err(|e| PairError::Internal(e.to_string()))
                         .unwrap();
+
+                tracing::debug!("Connect: Decrypted: {:?}", value);
+
                 if let Some(method) = value.get("method") {
                     if method.as_str() == Some("wc_sessionRequest") {
                         // TODO implement relay-side request queue
@@ -729,6 +811,9 @@ impl Client {
                             ))
                         })
                         .unwrap();
+
+                        tracing::debug!("Connect: Session Request: {:?}", request);
+
                         session_request_tx
                             .send((sub_msg.data.topic, request))
                             .unwrap();
@@ -795,7 +880,14 @@ impl Client {
                     .await
                     .map_err(|e| RequestError::Internal(e.to_string()))?
                     .map_err(|e| RequestError::Internal(e.to_string()))?;
-            let sessions = self.sessions.clone();
+            let sessions: Vec<Session> = if let Some(store) = &self.session_store {
+                let ffi_sessions = store.get_all_sessions();
+                tracing::debug!("Connect WS: FFI sessions count: {}", ffi_sessions.len());
+                ffi_sessions.into_iter().map(|s| s.into()).collect()
+            } else {
+                tracing::debug!("Connect WS: No session store registered");
+                Vec::new()
+            };
 
             let invalid_auth = self.invalid_auth.clone();
             crate::spawn::spawn(async move {
@@ -1294,11 +1386,6 @@ pub fn generate_key() -> SecretKey {
     SigningKey::generate(&mut rand::thread_rng()).to_bytes()
 }
 
-#[uniffi::export(with_foreign)]
-pub trait SessionRequestListener: Send + Sync {
-    fn on_session_request(&self, topic: String, session_request: SessionRequestJsonRpcFfi);
-}
-
 // UniFFI wrapper for better API naming
 #[cfg(feature = "uniffi")]
 #[derive(uniffi::Object)]
@@ -1314,14 +1401,22 @@ impl SignClient {
     pub fn new(project_id: String) -> Self {
         tracing::debug!("Creating new SignClient with project_id: {project_id}");
         let (client, session_request_rx) = Client::new(ProjectId::from(project_id));
+
         Self { 
             client: std::sync::Arc::new(tokio::sync::Mutex::new(client)),
             session_request_rx: std::sync::Mutex::new(Some(session_request_rx)),
         }
     }
 
+    pub async fn register_session_store(&self, session_store: Arc<dyn SessionStore>) {
+        tracing::info!("Registering session store");
+        let mut client = self.client.lock().await;
+        client.register_session_store(session_store);
+    }
+
     // set_key should be called on walletkit side on init() so it can store clientId before using pair and approve
     pub async fn set_key(&self, key: Vec<u8>) {
+        tracing::info!("Setting key");
         let mut client = self.client.lock().await;
         let secret_key =
             key.try_into().expect("Invalid key format - must be 32 bytes");
@@ -1332,7 +1427,7 @@ impl SignClient {
         generate_key().to_vec()
     }
 
-    pub async fn register_session_request_listener(&self, listener: Arc<dyn SessionRequestListener>) {
+    pub async fn register_sign_listener(&self, listener: Arc<dyn SignListener>) {
         let mut rx_guard = self.session_request_rx.lock().unwrap();
         if let Some(mut rx) = rx_guard.take() {
             tokio::spawn(async move {
@@ -1347,6 +1442,12 @@ impl SignClient {
         } else {
             tracing::warn!("Session request listener already started or receiver not available");
         }
+    }
+
+    pub async fn online(&self) {
+        tracing::info!("Calling online method");
+        let mut client = self.client.lock().await;
+        client.online().await;
     }
 
     pub async fn pair(
@@ -1368,6 +1469,8 @@ impl SignClient {
         approved_namespaces: HashMap<String, SettleNamespace>,
         self_metadata: Metadata,
     ) -> Result<SessionFfi, ApproveError> {
+        use crate::sign::ffi_types::SessionProposal;
+
         let proposal: SessionProposal = proposal.into();
         tracing::debug!("approved_namespaces: {:?}", approved_namespaces);
         tracing::debug!("self_metadata: {:?}", self_metadata);
@@ -1392,27 +1495,6 @@ impl SignClient {
         client.respond(topic_topic, response_internal).await?;
         Ok(topic)
     }
-}
-
-#[derive(Debug, Clone)]
-pub struct SessionProposal {
-    pub session_proposal_rpc_id: u64,
-    pub pairing_topic: Topic,
-    pub pairing_sym_key: [u8; 32],
-    pub proposer_public_key: [u8; 32],
-    pub relays: Vec<crate::sign::protocol_types::Relay>,
-    pub required_namespaces: ProposalNamespaces,
-    pub optional_namespaces: Option<ProposalNamespaces>,
-    pub metadata: Metadata,
-    pub session_properties: Option<HashMap<String, String>>,
-    pub scoped_properties: Option<HashMap<String, String>>,
-    pub expiry_timestamp: Option<u64>,
-}
-
-#[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
-pub struct Session {
-    pub session_sym_key: [u8; 32],
-    pub self_public_key: [u8; 32],
 }
 
 #[cfg(test)]
