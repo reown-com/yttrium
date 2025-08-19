@@ -21,9 +21,11 @@ stateDiagram-v2
     AwaitingSubscribeResponse --> Backoff: error/timeout
     ConnectRequest --> Idle: error/timeout
     AwaitingRequestResponse --> ConnectRetryRequest: error/timeout
+    AwaitingRequestResponse --> Poisoned: auth error
     AwaitingRequestResponse --> Connected: response received
     ConnectRetryRequest --> MaybeReconnect: error/timeout
     AwaitingConnectRetryRequestResponse --> MaybeReconnect: error/timeout
+    AwaitingConnectRetryRequestResponse --> Poisoned: auth error
     AwaitingConnectRetryRequestResponse --> Connected: response received
     ConnectRetryRequest --> AwaitingConnectRetryRequestResponse: connected
 ```

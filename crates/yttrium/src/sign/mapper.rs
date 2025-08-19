@@ -1,6 +1,12 @@
-use crate::sign::{SessionProposal, Session};
-use crate::sign::ffi_types::{SessionProposalFfi, SessionFfi, SessionRequestJsonRpcFfi, SessionRequestFfi, SessionRequestRequestFfi, SessionRequestResponseJsonRpcFfi};
-use crate::sign::protocol_types::{SessionRequestJsonRpc, SessionRequestResponseJsonRpc};
+use crate::sign::{
+    ffi_types::{
+        SessionFfi, SessionProposalFfi, SessionRequestFfi,
+        SessionRequestJsonRpcFfi, SessionRequestRequestFfi,
+        SessionRequestResponseJsonRpcFfi,
+    },
+    protocol_types::{SessionRequestJsonRpc, SessionRequestResponseJsonRpc},
+    Session, SessionProposal,
+};
 
 #[cfg(feature = "uniffi")]
 impl From<SessionProposalFfi> for SessionProposal {
@@ -34,7 +40,10 @@ impl From<SessionRequestJsonRpc> for SessionRequestJsonRpcFfi {
                 chain_id: request.params.chain_id,
                 request: SessionRequestRequestFfi {
                     method: request.params.request.method,
-                    params: serde_json::to_string(&request.params.request.params).unwrap_or_default(),
+                    params: serde_json::to_string(
+                        &request.params.request.params,
+                    )
+                    .unwrap_or_default(),
                     expiry: request.params.request.expiry,
                 },
             },

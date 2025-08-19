@@ -23,6 +23,7 @@ use {
         aead::Aead, AeadCore, ChaCha20Poly1305, KeyInit, Nonce,
     },
     data_encoding::BASE64,
+    futures::FutureExt,
     relay_rpc::{
         auth::ed25519_dalek::Signer,
         domain::{DecodedClientId, MessageId, ProjectId, SubscriptionId},
@@ -34,11 +35,8 @@ use {
         },
     },
     serde::{de::DeserializeOwned, Deserialize, Serialize},
-    std::{
-        collections::HashMap,
-        sync::{atomic::AtomicBool, Arc, RwLock},
-        time::Duration,
-    },
+    spl_associated_token_account::solana_program::message,
+    std::{collections::HashMap, sync::Arc, time::Duration},
     tracing::debug,
     x25519_dalek::PublicKey,
 };
@@ -130,40 +128,16 @@ pub enum RespondError {
     Internal(String),
 }
 
-// #[cfg(target_arch = "wasm32")]
-// struct WebWebSocketWrapper {
-//     // rx: tokio::sync::mpsc::UnboundedReceiver<String>,
-//     // tx: tokio::sync::mpsc::UnboundedSender<String>,
-// }
-
-#[allow(unused)]
-enum WebSocketStateEnum {
-    Disabled,
-    Enabled { shutdown_tx: tokio::sync::oneshot::Sender<()> },
-    Connected(/* TODO */), // request_tx, etc.
-}
-
-struct WebSocketState {
-    // #[cfg(not(target_arch = "wasm32"))]
-    // stream: WebSocketStream<MaybeTlsStream<TcpStream>>,
-    // #[cfg(target_arch = "wasm32")]
-    // stream: WebWebSocketWrapper,
-    // message_id: u64,
+pub struct Client {
+    relay_url: String,
+    project_id: ProjectId,
+    key: SigningKey,
     request_tx: tokio::sync::mpsc::UnboundedSender<(
         Params,
         tokio::sync::oneshot::Sender<Result<Response, RequestError>>,
     )>,
-}
-
-pub struct Client {
-    relay_url: String,
-    project_id: ProjectId,
-    key: Option<SigningKey>,
-    websocket: Option<WebSocketState>,
-    session_request_tx:
-        tokio::sync::mpsc::UnboundedSender<(Topic, SessionRequestJsonRpc)>,
-    sessions: Arc<RwLock<HashMap<Topic, Session>>>,
-    invalid_auth: Arc<AtomicBool>,
+    sessions: Arc<tokio::sync::RwLock<HashMap<Topic, Session>>>,
+    online_tx: Option<tokio::sync::oneshot::Sender<()>>,
 }
 
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
@@ -221,6 +195,7 @@ const REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
 impl Client {
     pub fn new(
         project_id: ProjectId,
+        key: SecretKey,
     ) -> (
         Self,
         tokio::sync::mpsc::UnboundedReceiver<(Topic, SessionRequestJsonRpc)>,
@@ -231,34 +206,46 @@ impl Client {
             "Project ID must be exactly 32 characters"
         );
 
+        let sessions = Arc::new(tokio::sync::RwLock::new(HashMap::new()));
         let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
+        let (request_tx, request_rx) = tokio::sync::mpsc::unbounded_channel();
+        let (online_tx, online_rx) = tokio::sync::oneshot::channel();
+
+        tokio::spawn(connect_loop_state_machine(
+            RELAY_URL.to_string(),
+            project_id,
+            &SigningKey::from_bytes(&key),
+            sessions.clone(),
+            tx,
+            request_rx,
+            online_rx,
+        ));
+
         (
             Self {
                 relay_url: RELAY_URL.to_string(),
                 project_id,
-                key: None,
-                websocket: None,
-                session_request_tx: tx,
-                sessions: Arc::new(RwLock::new(HashMap::new())),
-                invalid_auth: Arc::new(AtomicBool::new(false)),
+                key: SigningKey::from_bytes(&key),
+                request_tx,
+                sessions,
+                online_tx: Some(online_tx),
             },
             rx,
         )
     }
 
-    pub fn set_key(&mut self, key: SecretKey) {
-        self.key = Some(SigningKey::from_bytes(&key));
-    }
-
-    pub fn add_sessions(&self, sessions: impl IntoIterator<Item = Session>) {
-        let mut guard = self.sessions.write().unwrap();
+    pub async fn add_sessions(
+        &self,
+        sessions: impl IntoIterator<Item = Session>,
+    ) {
+        let mut guard = self.sessions.write().await;
         for session in sessions {
             guard.insert(topic_from_sym_key(&session.session_sym_key), session);
         }
     }
 
-    pub fn get_sessions(&self) -> Vec<Session> {
-        let guard = self.sessions.read().unwrap();
+    pub async fn get_sessions(&self) -> Vec<Session> {
+        let guard = self.sessions.read().await;
         guard.values().cloned().collect()
     }
 
@@ -266,26 +253,12 @@ impl Client {
     /// Skip calling this if you intend to shortly call another SDK method, as those other methods will themselves call this.
     /// TODO actually call this from other methods
     pub async fn online(&mut self) {
-        let topics = {
-            let sessions = self.sessions.read().unwrap();
-            sessions.keys().cloned().collect::<Vec<_>>()
-        };
-        if !topics.is_empty() {
-            // TODO request w/ empty request
-            // the WS "layer" will add the irn_batchSubscribe automatically (as it does for all things)
-
-            // ~~TODO actually:~~
-            // Don't call irn_batchSubscribe or batchFetch at all. Do this automatically when the app calls another methods e.g. wc_approveSession
-            // hmm actually, currently the relay doesn't know then when to expire an individual topic. Let's revisit this once the relay keeps track of sessions
-            // for now, pass the session topics via the `subscribeTopics` param of wc_approveSession etc.
-
-            self.request::<Vec<SubscriptionId>>(
-                relay_rpc::rpc::Params::BatchSubscribe(BatchSubscribe {
-                    topics,
-                }),
-            )
-            .await
-            .unwrap();
+        if let Some(online_tx) = self.online_tx.take() {
+            if let Err(e) = online_tx.send(()) {
+                tracing::warn!("Failed to send online signal: {e:?}");
+            }
+        } else {
+            tracing::warn!("Already called online()");
         }
     }
 
@@ -535,7 +508,7 @@ impl Client {
             self_public_key: self_public_key.to_bytes(),
         };
         {
-            let mut sessions = self.sessions.write().unwrap();
+            let mut sessions = self.sessions.write().await;
             sessions.insert(session_topic, session.clone());
         }
 
@@ -583,7 +556,7 @@ impl Client {
             .map_err(|e| RespondError::Internal(e.to_string()))?;
 
         let shared_secret = {
-            let sessions = self.sessions.read().unwrap();
+            let sessions = self.sessions.read().await;
             let session = sessions.get(&topic).ok_or(
                 RespondError::Internal("Session not found".to_owned()),
             )?;
@@ -654,707 +627,13 @@ impl Client {
         unimplemented!()
     }
 
-    async fn connect_ws(
-        &mut self,
-        initial_req: Params,
-    ) -> Result<(Response, WebSocketState), RequestError> {
-        if self.invalid_auth.load(std::sync::atomic::Ordering::Relaxed) {
-            return Err(RequestError::InvalidAuth);
-        }
-
-        let key = self
-            .key
-            .as_ref()
-            .ok_or(RequestError::Internal("Key not set".to_string()))?;
-        let url = {
-            let encoder = &data_encoding::BASE64URL_NOPAD;
-            let claims = {
-                let data = JwtBasicClaims {
-                    iss: DecodedClientId::from_key(&key.verifying_key()).into(),
-                    sub: "http://example.com".to_owned(),
-                    aud: self.relay_url.clone(),
-                    iat: crate::time::SystemTime::now()
-                        .duration_since(crate::time::UNIX_EPOCH)
-                        .unwrap()
-                        .as_secs() as i64,
-                    exp: Some(
-                        crate::time::SystemTime::now()
-                            .duration_since(crate::time::UNIX_EPOCH)
-                            .unwrap()
-                            .as_secs() as i64
-                            + 60 * 60,
-                    ),
-                };
-
-                encoder.encode(serde_json::to_string(&data).unwrap().as_bytes())
-            };
-            let header = encoder.encode(
-                serde_json::to_string(&JwtHeader::default())
-                    .unwrap()
-                    .as_bytes(),
-            );
-            let message = format!("{header}.{claims}");
-            let signature = {
-                let data = key.sign(message.as_bytes());
-                encoder.encode(&data.to_bytes())
-            };
-            let auth = format!("{message}.{signature}");
-
-            let conn_opts =
-                ConnectionOptions::new(self.project_id.clone(), auth)
-                    .with_address(&self.relay_url);
-            conn_opts.as_url().unwrap().to_string()
-        };
-
-        let session_request_tx = self.session_request_tx.clone();
-        let (request_tx, mut request_rx) =
-            tokio::sync::mpsc::unbounded_channel();
-        let (irn_subscription_ack_tx, mut irn_subscription_ack_rx) =
-            tokio::sync::mpsc::unbounded_channel();
-
-        // TODO should this logic be in here or in the client? Client makes more sense I think because we need the session sym key from the state at the same time we might need to update the state e.g. wc_sessionUpdate
-        // TODO should websocket & state be together?
-        let handle_irn_subscription = {
-            let sessions = self.sessions.clone();
-            move |id: MessageId, sub_msg: Subscription| {
-                let session_sym_key = {
-                    let sessions = sessions.read().unwrap();
-                    let session = sessions.get(&sub_msg.data.topic).unwrap();
-                    session.session_sym_key
-                };
-
-                let decoded = BASE64
-                    .decode(sub_msg.data.message.as_bytes())
-                    .map_err(|e| {
-                        PairError::Internal(format!(
-                            "Failed to decode message: {e}"
-                        ))
-                    })
-                    .unwrap();
-                let envelope =
-                    envelope_type0::deserialize_envelope_type0(&decoded)
-                        .map_err(|e| PairError::Internal(e.to_string()))
-                        .unwrap();
-                let key = ChaCha20Poly1305::new(&session_sym_key.into());
-                let decrypted = key
-                    .decrypt(&Nonce::from(envelope.iv), envelope.sb.as_slice())
-                    .map_err(|e| PairError::Internal(e.to_string()))
-                    .unwrap();
-                let value =
-                    serde_json::from_slice::<serde_json::Value>(&decrypted)
-                        .map_err(|e| PairError::Internal(e.to_string()))
-                        .unwrap();
-                if let Some(method) = value.get("method") {
-                    if method.as_str() == Some("wc_sessionRequest") {
-                        // TODO implement relay-side request queue
-                        let request = serde_json::from_value::<
-                            SessionRequestJsonRpc,
-                        >(value)
-                        .map_err(|e| {
-                            PairError::Internal(format!(
-                                "Failed to parse decrypted message: {e}"
-                            ))
-                        })
-                        .unwrap();
-                        session_request_tx
-                            .send((sub_msg.data.topic, request))
-                            .unwrap();
-                        if let Err(e) = irn_subscription_ack_tx.send(id) {
-                            tracing::debug!(
-                                "Failed to send subscription ack: {e}"
-                            );
-                        }
-                    } else if method.as_str() == Some("wc_sessionUpdate") {
-                        // TODO update session locally (if not older than last update)
-                        // TODO write state to storage (blocking)
-                        if let Err(e) = irn_subscription_ack_tx.send(id) {
-                            tracing::debug!(
-                                "Failed to send subscription ack: {e}"
-                            );
-                        }
-                    } else if method.as_str() == Some("wc_sessionExtend") {
-                        // TODO update session locally (if not older than last update)
-                        // TODO write state to storage (blocking)
-                        if let Err(e) = irn_subscription_ack_tx.send(id) {
-                            tracing::debug!(
-                                "Failed to send subscription ack: {e}"
-                            );
-                        }
-                    } else if method.as_str() == Some("wc_sessionEmit") {
-                        // TODO dedup events based on JSON RPC history
-                        // TODO emit event callback (blocking?)
-                        if let Err(e) = irn_subscription_ack_tx.send(id) {
-                            tracing::debug!(
-                                "Failed to send subscription ack: {e}"
-                            );
-                        }
-                    } else if method.as_str() == Some("wc_sessionPing") {
-                        if let Err(e) = irn_subscription_ack_tx.send(id) {
-                            tracing::debug!(
-                                "Failed to send subscription ack: {e}"
-                            );
-                        }
-                    } else {
-                        tracing::error!("Unexpected method: {}", method);
-                        if let Err(e) = irn_subscription_ack_tx.send(id) {
-                            tracing::debug!(
-                                "Failed to send subscription ack: {e}"
-                            );
-                        }
-                    }
-                } else {
-                    tracing::debug!("ignoring response message: {:?}", value);
-                    if let Err(e) = irn_subscription_ack_tx.send(id) {
-                        tracing::debug!("Failed to send subscription ack: {e}");
-                    }
-
-                    // TODO handle session request responses. Unsure if other responses are needed
-                }
-            }
-        };
-
-        let response_oneshot = tokio::sync::oneshot::channel();
-
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            let (mut ws_stream, _response) =
-                crate::time::timeout(REQUEST_TIMEOUT, connect_async(url))
-                    .await
-                    .map_err(|e| RequestError::Internal(e.to_string()))?
-                    .map_err(|e| RequestError::Internal(e.to_string()))?;
-
-            let invalid_auth = self.invalid_auth.clone();
-            crate::spawn::spawn(async move {
-                use {
-                    tokio::net::TcpStream,
-                    tokio_tungstenite::{MaybeTlsStream, WebSocketStream},
-                };
-
-                let mut message_id = MIN_RPC_ID;
-                let mut response_channels = HashMap::<
-                    _,
-                    tokio::sync::oneshot::Sender<
-                        Result<Response, RequestError>,
-                    >,
-                >::new();
-
-                async fn send_request(
-                    ws_stream: &mut WebSocketStream<MaybeTlsStream<TcpStream>>,
-                    initial_req: (
-                        Params,
-                        tokio::sync::oneshot::Sender<
-                            Result<Response, RequestError>,
-                        >,
-                    ),
-                    message_id: &mut u64,
-                    response_channels: &mut HashMap<
-                        MessageId,
-                        tokio::sync::oneshot::Sender<
-                            Result<Response, RequestError>,
-                        >,
-                    >,
-                ) {
-                    *message_id += 1;
-                    response_channels
-                        .insert(MessageId::new(*message_id), initial_req.1);
-                    let request = Payload::Request(Request::new(
-                        MessageId::new(*message_id),
-                        initial_req.0,
-                    ));
-                    let serialized = serde_json::to_string(&request)
-                        .map_err(|e| {
-                            RequestError::ShouldNeverHappen(format!(
-                                "Failed to serialize request: {e}"
-                            ))
-                        })
-                        .unwrap();
-                    ws_stream
-                        .send(Message::Text(serialized.into()))
-                        .await
-                        .unwrap();
-                }
-
-                // TODO this will soon be moved to initial WebSocket request
-                send_request(
-                    &mut ws_stream,
-                    (initial_req, response_oneshot.0),
-                    &mut message_id,
-                    &mut response_channels,
-                )
-                .await;
-
-                let exit_reason = loop {
-                    use tokio_tungstenite::tungstenite::protocol::frame::coding::CloseCode;
-
-                    tokio::select! {
-                        Some((params, response_tx)) = request_rx.recv() => {
-                            send_request(&mut ws_stream, (params, response_tx), &mut message_id, &mut response_channels).await;
-                        }
-                        Some(message) = ws_stream.next() => {
-                            let n = message
-                                .map_err(|e| {
-                                    RequestError::Internal(format!(
-                                        "WebSocket stream error: {e}"
-                                    ))
-                                })
-                                .expect("WebSocket stream error");
-                            #[allow(clippy::single_match)]
-                            match n {
-                                Message::Text(message) => {
-                                    let payload =
-                                        serde_json::from_str::<Payload>(&message)
-                                            .map_err(|e| {
-                                                RequestError::Internal(format!(
-                                                    "Failed to parse payload: {e}"
-                                                ))
-                                            });
-                                    match payload {
-                                        Ok(payload) => {
-                                            let id = payload.id();
-                                            match payload {
-                                                Payload::Request(request) => {
-                                                    #[allow(clippy::single_match)]
-                                                    match request.params {
-                                                        Params::Subscription(
-                                                            sub_msg
-                                                        ) => {
-                                                            handle_irn_subscription(id, sub_msg);
-                                                        }
-                                                        _ => {}
-                                                    }
-                                                }
-                                                Payload::Response(response) => {
-                                                    if let Some(response_tx) =
-                                                        response_channels
-                                                            .remove(&response.id())
-                                                    {
-                                                        if let Err(e) =
-                                                            response_tx.send(Ok(response))
-                                                        {
-                                                            tracing::debug!("Failed to send response: {e:?}");
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        },
-                                        Err(e) => {
-                                            // no-op
-                                        }
-                                    }
-                                }
-                                Message::Close(close_event) => {
-                                    tracing::debug!("websocket onclose: {:?}", close_event);
-                                    if let Some(close_event) = close_event {
-                                        if close_event.code == CloseCode::Iana(3000) {
-                                            tracing::error!("Invalid auth: {}", close_event.reason);
-                                            invalid_auth.store(true, std::sync::atomic::Ordering::Relaxed);
-                                            break RequestError::InvalidAuth;
-                                        } else {
-                                            break RequestError::Offline;
-                                        }
-                                    } else {
-                                        break RequestError::Offline;
-                                    }
-                                }
-                                e => tracing::debug!("ignoring tungstenite message: {:?}", e),
-                            }
-                        }
-                        Some(id) = irn_subscription_ack_rx.recv() => {
-                            let request = Payload::Response(Response::Success(SuccessfulResponse {
-                                id,
-                                result: serde_json::to_value(true).expect("TODO"),
-                                jsonrpc: "2.0".to_string().into(),
-                            }));
-                            let serialized = serde_json::to_string(&request).map_err(|e| {
-                                RequestError::ShouldNeverHappen(format!(
-                                    "Failed to serialize request: {e}"
-                                ))
-                            }).expect("TODO");
-                            ws_stream.send(Message::Text(serialized.into())).await.unwrap();
-                        }
-                    }
-                };
-
-                for (_, response_tx) in response_channels {
-                    let _ = response_tx.send(Err(exit_reason.clone()));
-                }
-            });
-        }
-
-        #[cfg(target_arch = "wasm32")]
-        {
-            use {
-                wasm_bindgen::{prelude::Closure, JsCast},
-                web_sys::{CloseEvent, Event, MessageEvent},
-            };
-
-            let (onmessage_tx, mut onmessage_rx) =
-                tokio::sync::mpsc::unbounded_channel();
-            let (tx_send, mut rx_send) =
-                tokio::sync::mpsc::unbounded_channel::<String>();
-
-            let invalid_auth = self.invalid_auth.clone();
-            wasm_bindgen_futures::spawn_local(async move {
-                // TODO wrap in function to handle unwraps. Have 1 handler for all exit reasons (setup or loop break)                // global
-                let ws = web_sys::WebSocket::new(&url)
-                    .map_err(|e| {
-                        RequestError::Internal(format!(
-                            "Failed to create WebSocket: {e:?}"
-                        ))
-                    })
-                    .unwrap();
-
-                let (on_close_tx, mut on_close_rx) =
-                    tokio::sync::mpsc::unbounded_channel();
-                let on_close_closure =
-                    Closure::wrap(Box::new(move |event: CloseEvent| {
-                        tracing::debug!("websocket onclose: {:?}", event);
-                        on_close_tx.send(event).unwrap();
-                    })
-                        as Box<dyn Fn(CloseEvent)>);
-                ws.set_onclose(Some(
-                    Box::leak(Box::new(on_close_closure))
-                        .as_ref()
-                        .unchecked_ref(),
-                ));
-
-                let (on_error_tx, mut on_error_rx) =
-                    tokio::sync::mpsc::unbounded_channel();
-                let on_error_closure =
-                    Closure::wrap(Box::new(move |event: Event| {
-                        tracing::debug!(
-                            "websocket onerror: {:?} {:?}",
-                            event.as_string(),
-                            event,
-                        );
-                        on_error_tx.send(event).unwrap();
-                    }) as Box<dyn Fn(Event)>);
-                ws.set_onerror(Some(
-                    Box::leak(Box::new(on_error_closure))
-                        .as_ref()
-                        .unchecked_ref(),
-                ));
-
-                let onmessage_closure =
-                    Closure::wrap(Box::new(move |event: MessageEvent| {
-                        // TODO may not be string messages
-                        let message = event.data().as_string().unwrap();
-                        tracing::debug!("websocket onmessage: {:?}", message);
-                        onmessage_tx.send(message.clone()).unwrap();
-                    })
-                        as Box<dyn Fn(MessageEvent)>);
-                ws.set_onmessage(Some(
-                    Box::leak(Box::new(onmessage_closure))
-                        .as_ref()
-                        .unchecked_ref(),
-                ));
-
-                let (tx_open, mut rx_open) = tokio::sync::mpsc::channel(1);
-                let tx_open =
-                    std::sync::Arc::new(tokio::sync::Mutex::new(tx_open));
-                let tx_open_clone = tx_open.clone();
-                let onopen_closure =
-                    Closure::wrap(Box::new(move |_event: Event| {
-                        let tx_open = tx_open_clone.clone();
-                        crate::spawn::spawn(async move {
-                            let tx = tx_open.lock().await;
-                            tx.send(()).await.unwrap();
-                        });
-                    }) as Box<dyn Fn(Event)>);
-                ws.set_onopen(Some(
-                    Box::leak(Box::new(onopen_closure))
-                        .as_ref()
-                        .unchecked_ref(),
-                ));
-
-                tracing::debug!("awaiting onopen");
-
-                crate::time::timeout(REQUEST_TIMEOUT, rx_open.recv())
-                    .await
-                    .unwrap()
-                    .unwrap();
-                ws.set_onopen(None);
-                tracing::debug!("onopen received");
-
-                let mut message_id = MIN_RPC_ID;
-                let mut response_channels = HashMap::<
-                    _,
-                    tokio::sync::oneshot::Sender<
-                        Result<Response, RequestError>,
-                    >,
-                >::new();
-
-                let send_request = |ws: &web_sys::WebSocket,
-                                    initial_req: (
-                    Params,
-                    tokio::sync::oneshot::Sender<
-                        Result<Response, RequestError>,
-                    >,
-                ),
-                                    message_id: &mut u64,
-                                    response_channels: &mut HashMap<
-                    MessageId,
-                    tokio::sync::oneshot::Sender<
-                        Result<Response, RequestError>,
-                    >,
-                >| {
-                    *message_id += 1;
-                    response_channels
-                        .insert(MessageId::new(*message_id), initial_req.1);
-                    let request = Payload::Request(Request::new(
-                        MessageId::new(*message_id),
-                        initial_req.0,
-                    ));
-                    let serialized = serde_json::to_string(&request)
-                        .map_err(|e| {
-                            RequestError::ShouldNeverHappen(format!(
-                                "Failed to serialize request: {e}"
-                            ))
-                        })
-                        .expect("TODO");
-                    ws.send_with_str(&serialized).expect("TODO");
-                };
-
-                // TODO this will soon be moved to initial WebSocket request
-                send_request(
-                    &ws,
-                    (initial_req, response_oneshot.0),
-                    &mut message_id,
-                    &mut response_channels,
-                );
-                let exit_reason = loop {
-                    tokio::select! {
-                        Some((params, response_tx)) = request_rx.recv() => {
-                            send_request(&ws, (params, response_tx), &mut message_id, &mut response_channels);
-                        }
-                        Some(message) = onmessage_rx.recv() => {
-                            let payload = serde_json::from_str::<Payload>(&message).map_err(|e| {
-                                RequestError::Internal(format!(
-                                    "Failed to parse payload: {e}"
-                                ))
-                            });
-                            match payload {
-                                Ok(payload) => {
-                                    let id = payload.id();
-                                    match payload {
-                                        Payload::Request(request) => {
-                                            match request.params {
-                                                Params::Subscription(
-                                                    sub_msg
-                                                ) => {
-                                                    handle_irn_subscription(id, sub_msg);
-                                                }
-                                                _ => tracing::debug!("ignoring incoming relay request: {:?}", request),
-                                            }
-                                        }
-                                        Payload::Response(response) => {
-                                            if let Some(response_tx) = response_channels.remove(&response.id()) {
-                                                if let Err(e) = response_tx.send(Ok(response)) {
-                                                    tracing::debug!("Failed to send response: {e:?}");
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                                Err(e) => {
-                                    // no-op
-                                    // .expect("TODO")
-                                }
-                            }
-                        }
-                        Some(id) = irn_subscription_ack_rx.recv() => {
-                            let request = Payload::Response(Response::Success(
-                                SuccessfulResponse {
-                                    id,
-                                    result: serde_json::to_value(true)
-                                        .expect("TODO"),
-                                    jsonrpc: "2.0".to_string().into(),
-                                },
-                            ));
-                            let serialized = serde_json::to_string(&request)
-                                .map_err(|e| {
-                                    RequestError::ShouldNeverHappen(format!(
-                                        "Failed to serialize request: {e}"
-                                    ))
-                                })
-                                .expect("TODO");
-                            ws.send_with_str(&serialized).expect("TODO");
-                        }
-                        Some(close_event) = on_close_rx.recv() => {
-                            tracing::debug!("websocket onclose: {:?}", close_event);
-                            if close_event.code() == 3000 {
-                                tracing::error!("Invalid auth: {}", close_event.reason());
-                                invalid_auth.store(true, std::sync::atomic::Ordering::Relaxed);
-                                break RequestError::InvalidAuth;
-                            } else {
-                                break RequestError::Offline;
-                            }
-                        }
-                        Some(error_event) = on_error_rx.recv() => {
-                            tracing::debug!("websocket onerror: {:?}", error_event);
-                            break RequestError::Offline;
-                        }
-                    }
-                };
-
-                for (_, response_tx) in response_channels {
-                    let _ = response_tx.send(Err(exit_reason.clone()));
-                }
-
-                // TODO handle exit case
-                // just call online() again?
-                // no needs a loop of some kind? async task gets spawned to reconnect & manage the lifecycle?
-                // TODO spawn this task inside `online()`, call close_tx when wallet explicitally closes or all sessions removed
-                // TODO call disconnect_tx here
-                // if topics > 0 {
-                // fn: reconnect_loop(initial_req) - called by online() and disconnect_tx?
-                // tokio::task::spawn(async move {
-                // loop {
-                //   select! {
-                //     // cancel when wallet explicitally closes or all sessions removed, but websocket may stay open
-                //     // or when connection is established
-                //     //Some(event) = on_close_rx.recv() => {
-                //     //  break;
-                //     //}
-                //     Some(event) = disconnect_rx.recv() => {
-                //       // no-op, reconnect immediately
-                //       // check if there are sessions to reconnect to & an online hint hasn't indicated that it's offline
-                //     }
-                //   }
-                //   if topics == 0 {
-                //     // TODO maybe move this check into do_online_and_subscribe_with_backoff() so it checks each reconnect attempt
-                //     break;
-                //   }
-                //   // begin reconnect with no delay, then backoff
-                //   let disconnect_rx = do_online_and_subscribe_with_backoff(initial_req, on_close_rx).await; // TODO catch error and retry w/ backoff
-                //   // success
-                // }
-                // });
-
-                // TODO
-                // We don't want to create the reconnection loop until we have a session topic to stay subscribed to
-                // I.e. we should be able to "attach" to an existing connection, not require it to be created from here
-                // Reconnect cases:
-                //   - When WS disconnects, it should check if there are sessions to reconnect to & an online hint hasn't indicated that it's offline
-                //   - online hint will cause connect (if there are sessions to reconnect to)
-                //   - insert into sessions will cause spawning the reconnect watcher loop
-
-                // do_online_and_subscribe_with_backoff(initial_req, on_close_rx):
-                //   let backoff_ms = 0;
-                //   loop {
-                //     let response = request(initial_req);
-                //     match response {
-                //       Ok(response) => {
-                //         break response;
-                //       }
-                //       Err(e) => {
-                //         // TODO use fixed (exponential-ish) backoff times instead of math-based
-                //         // 0s, 1s, 1s, 1s, 5s, 10s
-                //         // TODO also use a random jitter of 0-1000ms (except for the first time?)
-                //         if backoff_ms < 10_000 {
-                //           backoff_ms *= 2;
-                //         }
-                //         tokio::time::sleep(Duration::from_millis(backoff_ms)).await;
-                //       }
-                //     }
-                //   }
-            });
-        }
-
-        let response =
-            match crate::time::timeout(REQUEST_TIMEOUT, response_oneshot.1)
-                .await
-            {
-                Ok(Ok(Ok(response))) => response,
-                Err(e) => {
-                    tracing::debug!(
-                        "Timeout awaiting initial request response: {e}"
-                    );
-                    return Err(RequestError::Offline);
-                }
-                Ok(Err(e)) => {
-                    tracing::debug!(
-                        "Channel closed awaiting initial request response: {e}"
-                    );
-                    return Err(RequestError::Internal(format!(
-                        "Failed to connect: {e}"
-                    )));
-                }
-                Ok(Ok(Err(e))) => {
-                    tracing::debug!("Request error in connect: {e}");
-                    return Err(RequestError::Internal(format!(
-                        "Failed to connect: {e}"
-                    )));
-                }
-            };
-
-        Ok((
-            response,
-            WebSocketState {
-                // stream: ws_stream,
-                // message_id: MIN,
-                // session_request_rx,
-                request_tx,
-            },
-        ))
-    }
-
     async fn request<T: DeserializeOwned>(
         &mut self,
         params: relay_rpc::rpc::Params,
     ) -> Result<T, RequestError> {
-        let response = if let Some(ws_state) = self.websocket.as_mut() {
-            // Try to send request to existing connection
-            let (response_tx, response_rx) = tokio::sync::oneshot::channel();
-            let send_result =
-                ws_state.request_tx.send((params.clone(), response_tx));
-            match send_result {
-                Err(e) => {
-                    self.websocket.take();
-                    // If request fails, create new connection
-                    let (response, ws_state) = self.connect_ws(params).await?;
-                    self.websocket.insert(ws_state);
-                    response
-                }
-                Ok(()) => {
-                    let response =
-                        crate::time::timeout(REQUEST_TIMEOUT, response_rx)
-                            .await;
-                    match response {
-                        Ok(Ok(Ok(response))) => response,
-                        Err(e) => {
-                            self.websocket.take();
-                            // If request fails, create new connection
-                            let (response, ws_state) =
-                                self.connect_ws(params).await?;
-                            self.websocket.insert(ws_state);
-                            response
-                        }
-                        Ok(Err(e)) => {
-                            self.websocket.take();
-                            // If request fails, create new connection
-                            let (response, ws_state) =
-                                self.connect_ws(params).await?;
-                            self.websocket.insert(ws_state);
-                            response
-                        }
-                        Ok(Ok(Err(e))) => {
-                            self.websocket.take();
-                            // If request fails, create new connection
-                            let (response, ws_state) =
-                                self.connect_ws(params).await?;
-                            self.websocket.insert(ws_state);
-                            response
-                        }
-                    }
-                }
-            }
-        } else {
-            // No existing connection, create new one
-            let (response, ws_state) = self.connect_ws(params).await?;
-            self.websocket.insert(ws_state);
-            response
-        };
+        let (response_tx, response_rx) = tokio::sync::oneshot::channel();
+        self.request_tx.send((params, response_tx))?;
+        let response = response_rx.await??;
 
         match response {
             Response::Success(response) => {
@@ -1372,406 +651,6 @@ impl Client {
     }
 }
 
-type ConnectionLoopParams = (
-    // TODO try to use a lock-free structure: https://chatgpt.com/share/e/689baa02-fec8-8005-880f-0c3304fc6f5a
-    std::sync::Arc<tokio::sync::Mutex<Vec<[u8; 32]>>>,
-    tokio::sync::mpsc::UnboundedReceiver<(
-        Params,
-        tokio::sync::oneshot::Sender<Result<Response, RequestError>>,
-    )>,
-);
-
-async fn connection_loop(
-    relay_url: String,
-    project_id: ProjectId,
-    key: &SigningKey,
-    params: ConnectionLoopParams,
-) {
-    use futures_concurrency::prelude::*;
-    let (sessions, request_rx) = params;
-    loop {
-        // TODO dedicated "online" channel, use enum in request_rx, or don't start this loop until one or the other happens. For now, we'll double-send the batchSubscribe or do some ping over request_rx
-        // idle state, wait for initial request
-        // TODO alternative: jump straight to reconnect loop for `online()`
-        
-        // let mut req = match request_rx.recv().await {
-        //     Some(req) => req,
-        //     None => return, // consider using `while let Some` instead
-        // };
-
-        // let (mut last_request_message_id, mut on_incomingmessage_rx) =
-        //     (0, tokio::sync::mpsc::unbounded_channel().1);
-        let mut connected_state = None;
-        // let (mut last_request_message_id, mut on_incomingmessage_rx) =
-        //     match connect(relay_url, project_id, key, req.0).await {
-        //         Ok(success) => success,
-        //         Err(e) => {
-        //             let _ = req.1.send(Err(e)).ok();
-        //             // return to idle state
-        //             // TODO check if sessions are set, if so, enter reconnecting state
-        //             continue;
-        //         }
-        //     };
-
-        // let result = crate::time::timeout(REQUEST_TIMEOUT, async {
-        //     // next message should be response or close
-        //     if let Some(message) = on_incomingmessage_rx.recv().await {
-        //         match message {
-        //             IncomingMessage::Close(reason) => match reason {
-        //                 CloseReason::InvalidAuth => {
-        //                      Err(RequestError::InvalidAuth)
-        //                 }
-        //                 CloseReason::Error(reason) => {
-        //                      Err(RequestError::Offline)
-        //                 }
-        //             },
-        //             IncomingMessage::Message(payload) => {
-        //                 let id = payload.id();
-        //                 match payload {
-        //                     Payload::Request(request) => {
-        //                          Err(
-        //                             RequestError::ServerMisbehaved(
-        //                                 format!(
-        //                                     "incoming relay request: {:?}",
-        //                                     request
-        //                                 ),
-        //                             ),
-        //                         )
-        //                     }
-        //                     Payload::Response(response) => {
-        //                         if id == MessageId::new(last_request_message_id)
-        //                         {
-        //                              Ok(response)
-        //                         } else {
-        //                              Err(RequestError::ServerMisbehaved(
-        //                                 format!(
-        //                                     "ignoring incoming relay response for different request: {:?}",
-        //                                     response
-        //                                 ),
-        //                             ))
-        //                         }
-        //                     }
-        //                 }
-        //             }
-        //         }
-        //     } else {
-        //         Err(RequestError::Offline)
-        //     }
-        // })
-        // .await;
-
-        // match result {
-        //     Ok(response) => match response {
-        //         Ok(response) => {
-        //             let _ = req.1.send(Ok(response)).ok();
-        //         }
-        //         Err(e) => {
-        //             let _ = req.1.send(Err(e)).ok();
-        //             if e == RequestError::InvalidAuth {
-        //                 while let Some(req) = request_rx.recv().await {
-        //                     let _ = req.1.send(Err(e)).ok();
-        //                 }
-        //                 return;
-        //             }
-        //         }
-        //     },
-        //     Err(e) => {
-        //         tracing::debug!(
-        //             "Timeout waiting for initial request response: {e}"
-        //         );
-        //         let _ = req.1.send(Err(RequestError::Offline)).ok();
-        //         // TODO conditionally enter reconnect loop (if sessions)
-        //     }
-        // }
-
-        // connected state, wait for incoming or outgoing messages
-        let reason = loop {
-            let request_fut = request_rx.recv();
-            let on_incomingmessage_rx =
-                if let Some((_, on_incomingmessage_rx)) = connected_state {
-                    on_incomingmessage_rx
-                } else {
-                    tokio::sync::mpsc::unbounded_channel().1
-                };
-
-            tokio::select! {
-                req = request_fut => {
-                    if let Some(req) = req {
-                        let ( last_request_message_id,  on_incomingmessage_rx) = if let Some(connected_state) = connected_state { connected_state } else {
-                            let ( last_request_message_id,  on_incomingmessage_rx) =
-                                match connect(relay_url, project_id, key, req.0).await {
-                                    Ok(success) => success,
-                                    Err(e) => {
-                                        let _ = req.1.send(Err(e)).ok();
-                                        break false;
-                                    }
-                                };
-
-                            let result = crate::time::timeout(REQUEST_TIMEOUT, async {
-                                // next message should be response or close
-                                if let Some(message) = on_incomingmessage_rx.recv().await {
-                                    // TODO match outside the timeout
-                                    match message {
-                                        IncomingMessage::Close(reason) => match reason {
-                                            CloseReason::InvalidAuth => {
-                                                Err(RequestError::InvalidAuth)
-                                            }
-                                            CloseReason::Error(reason) => {
-                                                Err(RequestError::Offline)
-                                            }
-                                        },
-                                        IncomingMessage::Message(payload) => {
-                                            let id = payload.id();
-                                            match payload {
-                                                Payload::Request(request) => {
-                                                    Err(
-                                                        RequestError::ServerMisbehaved(
-                                                            format!(
-                                                                "incoming relay request: {:?}",
-                                                                request
-                                                            ),
-                                                        ),
-                                                    )
-                                                }
-                                                Payload::Response(response) => {
-                                                    if id == MessageId::new(last_request_message_id)
-                                                    {
-                                                        Ok(response)
-                                                    } else {
-                                                        Err(RequestError::ServerMisbehaved(
-                                                            format!(
-                                                                "ignoring incoming relay response for different request: {:?}",
-                                                                response
-                                                            ),
-                                                        ))
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                } else {
-                                    Err(RequestError::Offline)
-                                }
-                            })
-                            .await;
-
-                            match result {
-                                Ok(response) => match response {
-                                    Ok(response) => {
-                                        let _ = req.1.send(Ok(response)).ok();
-                                    }
-                                    Err(e) => {
-                                        let _ = req.1.send(Err(e)).ok();
-                                        if e == RequestError::InvalidAuth {
-                                            break true;
-                                        }
-                                    }
-                                },
-                                Err(e) => {
-                                    tracing::debug!(
-                                        "Timeout waiting for initial request response: {e}"
-                                    );
-                                    let _ = req.1.send(Err(RequestError::Offline)).ok();
-                                    break false;
-                                }
-                            }
-
-                            (last_request_message_id, on_incomingmessage_rx)
-                        };
-
-                    let result = crate::time::timeout(REQUEST_TIMEOUT, async {
-                        // In-request state: wait for response, error, or incoming subscription
-                        while let Some(message) = on_incomingmessage_rx.recv().await {
-                            match message {
-                                IncomingMessage::Close(reason) => match reason {
-                                    CloseReason::InvalidAuth => {
-                                        return Err(RequestError::ServerMisbehaved("invalid auth after initial connection".to_owned()));
-                                    }
-                                    CloseReason::Error(reason) => {
-                                        return Err(RequestError::Offline);
-                                    }
-                                },
-                                IncomingMessage::Message(payload) => {
-                                    let id = payload.id();
-                                    match payload {
-                                        Payload::Request(request) => {
-                                            // TODO handle subscription
-                                            tracing::debug!("TODO incoming relay request: {:?}", request);
-                                        }
-                                        Payload::Response(response) => {
-                                            if id == MessageId::new(last_request_message_id)
-                                            {
-                                                return Ok(response);
-                                            } else {
-                                                return Err(RequestError::ServerMisbehaved(
-                                                    format!(
-                                                        "ignoring incoming relay response: {:?}",
-                                                        response
-                                                    ),
-                                                ));
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        Err(RequestError::Offline)
-                    })
-                    .await;
-
-                    match result {
-                        Ok(Ok(response)) => {
-                            let _ = req.1.send(Ok(response)).ok();
-                        },
-                        e => {
-                            tracing::debug!(
-                                "error waiting for request response: {e}"
-                            );
-
-                            (last_request_message_id, on_incomingmessage_rx) =
-                            match connect(relay_url, project_id, key, req.0).await {
-                                Ok(success) => success,
-                                Err(e) => {
-                                    let _ = req.1.send(Err(e)).ok();
-                                    break false;
-                                }
-                            };
-
-                            let result = crate::time::timeout(REQUEST_TIMEOUT, async {
-                                // next message should be response (or close)
-                                if let Some(message) = on_incomingmessage_rx.recv().await {
-                                    match message {
-                                        IncomingMessage::Close(reason) => match reason {
-                                            CloseReason::InvalidAuth => {
-                                                 Err(RequestError::InvalidAuth)
-                                            }
-                                            CloseReason::Error(reason) => {
-                                                 Err(RequestError::Offline)
-                                            }
-                                        },
-                                        IncomingMessage::Message(payload) => {
-                                            let id = payload.id();
-                                            match payload {
-                                                Payload::Request(request) => {
-                                                     Err(
-                                                        RequestError::ServerMisbehaved(
-                                                            format!(
-                                                                "incoming relay request: {:?}",
-                                                                request
-                                                            ),
-                                                        ),
-                                                    )
-                                                }
-                                                Payload::Response(response) => {
-                                                    if id == MessageId::new(last_request_message_id)
-                                                    {
-                                                         Ok(response)
-                                                    } else {
-                                                         Err(RequestError::ServerMisbehaved(
-                                                            format!(
-                                                                "ignoring incoming relay response for different request: {:?}",
-                                                                response
-                                                            ),
-                                                        ))
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                } else {
-                                    Err(RequestError::Offline)
-                                }
-                            })
-                            .await;
-
-                            match result {
-                                Ok(response) => match response {
-                                    Ok(response) => {
-                                        let _ = req.1.send(Ok(response)).ok();
-                                    }
-                                    Err(e) => {
-                                        let _ = req.1.send(Err(e)).ok();
-                                        if e == RequestError::InvalidAuth {
-                                            break true;
-                                        }
-                                    }
-                                },
-                                Err(e) => {
-                                    tracing::debug!(
-                                        "Timeout waiting for initial request response: {e}"
-                                    );
-                                    let _ = req.1.send(Err(RequestError::Offline)).ok();
-                                }
-                            }
-                        }
-                    }} else {
-                        break false;
-                    }
-                }
-                Some(message) = on_incomingmessage_rx.recv() => {
-                    match message {
-                        IncomingMessage::Close(reason) => {
-                            match reason {
-                                CloseReason::InvalidAuth => {
-                                    tracing::error!("server misbehaved: invalid auth after initial connection (2)");
-                                    break true;
-                                }
-                                CloseReason::Error(reason) => {
-                                    break false;
-                                }
-                            }
-                        }
-                        IncomingMessage::Message(payload) => {
-                            let id = payload.id();
-                            match payload {
-                                Payload::Request(request) => {
-                                    match request.params {
-                                        Params::Subscription(sub_msg) => {
-                                            // handle_irn_subscription(id, sub_msg);
-                                            // TODO
-                                        }
-                                        _ => tracing::debug!(
-                                            "ignoring incoming relay request: {:?}",
-                                            request
-                                        ),
-                                    }
-                                }
-                                Payload::Response(response) => {
-                                    tracing::debug!("ignoring incoming relay response: {:?}", response);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        };
-
-        connected_state = None;
-
-        if reason {
-            while let Some(req) = request_rx.recv().await {
-                let _ = req.1.send(Err(RequestError::InvalidAuth)).ok();
-            }
-            return;
-        }
-
-        loop {
-            let sessions = {
-                let sessions = sessions.lock().await;
-                sessions.clone()
-            };
-            if !sessions.is_empty() {
-                break;
-            }
-
-            // TODO connect & concurrently await request_rx for interrupt on sleeps
-
-            // TODO backoff
-        }
-    }
-}
-
 enum IncomingMessage {
     Close(CloseReason),
     Message(Payload),
@@ -1782,13 +661,23 @@ enum CloseReason {
     Error(String),
 }
 
+#[cfg(target_arch = "wasm32")]
+type ConnectWebSocket = web_sys::WebSocket;
+
+#[cfg(not(target_arch = "wasm32"))]
+type ConnectWebSocket = ();
+
 async fn connect(
     relay_url: String,
     project_id: ProjectId,
     key: &SigningKey,
     initial_req: Params,
 ) -> Result<
-    (u64, tokio::sync::mpsc::UnboundedReceiver<IncomingMessage>),
+    (
+        u64,
+        tokio::sync::mpsc::UnboundedReceiver<IncomingMessage>,
+        ConnectWebSocket,
+    ),
     RequestError,
 > {
     let url = {
@@ -1827,6 +716,167 @@ async fn connect(
             ConnectionOptions::new(project_id, auth).with_address(&relay_url);
         conn_opts.as_url().unwrap().to_string()
     };
+
+    // #[cfg(not(target_arch = "wasm32"))]
+    // {
+    //     let (mut ws_stream, _response) =
+    //         crate::time::timeout(REQUEST_TIMEOUT, connect_async(url))
+    //             .await
+    //             .map_err(|e| RequestError::Internal(e.to_string()))?
+    //             .map_err(|e| RequestError::Internal(e.to_string()))?;
+
+    //     let invalid_auth = self.invalid_auth.clone();
+    //     crate::spawn::spawn(async move {
+    //         use {
+    //             tokio::net::TcpStream,
+    //             tokio_tungstenite::{MaybeTlsStream, WebSocketStream},
+    //         };
+
+    //         let mut message_id = MIN_RPC_ID;
+    //         let mut response_channels = HashMap::<
+    //             _,
+    //             tokio::sync::oneshot::Sender<Result<Response, RequestError>>,
+    //         >::new();
+
+    //         async fn send_request(
+    //             ws_stream: &mut WebSocketStream<MaybeTlsStream<TcpStream>>,
+    //             initial_req: (
+    //                 Params,
+    //                 tokio::sync::oneshot::Sender<
+    //                     Result<Response, RequestError>,
+    //                 >,
+    //             ),
+    //             message_id: &mut u64,
+    //             response_channels: &mut HashMap<
+    //                 MessageId,
+    //                 tokio::sync::oneshot::Sender<
+    //                     Result<Response, RequestError>,
+    //                 >,
+    //             >,
+    //         ) {
+    //             *message_id += 1;
+    //             response_channels
+    //                 .insert(MessageId::new(*message_id), initial_req.1);
+    //             let request = Payload::Request(Request::new(
+    //                 MessageId::new(*message_id),
+    //                 initial_req.0,
+    //             ));
+    //             let serialized = serde_json::to_string(&request)
+    //                 .map_err(|e| {
+    //                     RequestError::ShouldNeverHappen(format!(
+    //                         "Failed to serialize request: {e}"
+    //                     ))
+    //                 })
+    //                 .unwrap();
+    //             ws_stream.send(Message::Text(serialized.into())).await.unwrap();
+    //         }
+
+    //         // TODO this will soon be moved to initial WebSocket request
+    //         send_request(
+    //             &mut ws_stream,
+    //             (initial_req, response_oneshot.0),
+    //             &mut message_id,
+    //             &mut response_channels,
+    //         )
+    //         .await;
+
+    //         let exit_reason = loop {
+    //             use tokio_tungstenite::tungstenite::protocol::frame::coding::CloseCode;
+
+    //             tokio::select! {
+    //                 Some((params, response_tx)) = request_rx.recv() => {
+    //                     send_request(&mut ws_stream, (params, response_tx), &mut message_id, &mut response_channels).await;
+    //                 }
+    //                 Some(message) = ws_stream.next() => {
+    //                     let n = message
+    //                         .map_err(|e| {
+    //                             RequestError::Internal(format!(
+    //                                 "WebSocket stream error: {e}"
+    //                             ))
+    //                         })
+    //                         .expect("WebSocket stream error");
+    //                     #[allow(clippy::single_match)]
+    //                     match n {
+    //                         Message::Text(message) => {
+    //                             let payload =
+    //                                 serde_json::from_str::<Payload>(&message)
+    //                                     .map_err(|e| {
+    //                                         RequestError::Internal(format!(
+    //                                             "Failed to parse payload: {e}"
+    //                                         ))
+    //                                     });
+    //                             match payload {
+    //                                 Ok(payload) => {
+    //                                     let id = payload.id();
+    //                                     match payload {
+    //                                         Payload::Request(request) => {
+    //                                             #[allow(clippy::single_match)]
+    //                                             match request.params {
+    //                                                 Params::Subscription(
+    //                                                     sub_msg
+    //                                                 ) => {
+    //                                                     handle_irn_subscription(id, sub_msg);
+    //                                                 }
+    //                                                 _ => {}
+    //                                             }
+    //                                         }
+    //                                         Payload::Response(response) => {
+    //                                             if let Some(response_tx) =
+    //                                                 response_channels
+    //                                                     .remove(&response.id())
+    //                                             {
+    //                                                 if let Err(e) =
+    //                                                     response_tx.send(Ok(response))
+    //                                                 {
+    //                                                     tracing::debug!("Failed to send response: {e:?}");
+    //                                                 }
+    //                                             }
+    //                                         }
+    //                                     }
+    //                                 },
+    //                                 Err(e) => {
+    //                                     // no-op
+    //                                 }
+    //                             }
+    //                         }
+    //                         Message::Close(close_event) => {
+    //                             tracing::debug!("websocket onclose: {:?}", close_event);
+    //                             if let Some(close_event) = close_event {
+    //                                 if close_event.code == CloseCode::Iana(3000) {
+    //                                     tracing::error!("Invalid auth: {}", close_event.reason);
+    //                                     invalid_auth.store(true, std::sync::atomic::Ordering::Relaxed);
+    //                                     break RequestError::InvalidAuth;
+    //                                 } else {
+    //                                     break RequestError::Offline;
+    //                                 }
+    //                             } else {
+    //                                 break RequestError::Offline;
+    //                             }
+    //                         }
+    //                         e => tracing::debug!("ignoring tungstenite message: {:?}", e),
+    //                     }
+    //                 }
+    //                 Some(id) = irn_subscription_ack_rx.recv() => {
+    //                     let request = Payload::Response(Response::Success(SuccessfulResponse {
+    //                         id,
+    //                         result: serde_json::to_value(true).expect("TODO"),
+    //                         jsonrpc: "2.0".to_string().into(),
+    //                     }));
+    //                     let serialized = serde_json::to_string(&request).map_err(|e| {
+    //                         RequestError::ShouldNeverHappen(format!(
+    //                             "Failed to serialize request: {e}"
+    //                         ))
+    //                     }).expect("TODO");
+    //                     ws_stream.send(Message::Text(serialized.into())).await.unwrap();
+    //                 }
+    //             }
+    //         };
+
+    //         for (_, response_tx) in response_channels {
+    //             let _ = response_tx.send(Err(exit_reason.clone()));
+    //         }
+    //     });
+    // }
 
     #[cfg(target_arch = "wasm32")]
     {
@@ -1962,144 +1012,601 @@ async fn connect(
             .expect("TODO");
         ws.send_with_str(&serialized).expect("TODO");
 
-        // let exit_reason = loop {
-        //     tokio::select! {
-        //         Some((params, response_tx)) = request_rx.recv() => {
-        //             send_request(&ws, (params, response_tx), &mut message_id, &mut response_channels);
-        //         }
-        //         Some(message) = onmessage_rx.recv() => {
-        //             let payload = serde_json::from_str::<Payload>(&message).map_err(|e| {
-        //                 RequestError::Internal(format!(
-        //                     "Failed to parse payload: {e}"
-        //                 ))
-        //             });
-        //             match payload {
-        //                 Ok(payload) => {
-        //                     let id = payload.id();
-        //                     match payload {
-        //                         Payload::Request(request) => {
-        //                             match request.params {
-        //                                 Params::Subscription(
-        //                                     sub_msg
-        //                                 ) => {
-        //                                     handle_irn_subscription(id, sub_msg);
-        //                                 }
-        //                                 _ => tracing::debug!("ignoring incoming relay request: {:?}", request),
-        //                             }
-        //                         }
-        //                         Payload::Response(response) => {
-        //                             if let Some(response_tx) = response_channels.remove(&response.id()) {
-        //                                 if let Err(e) = response_tx.send(Ok(response)) {
-        //                                     tracing::debug!("Failed to send response: {e:?}");
-        //                                 }
-        //                             }
-        //                         }
-        //                     }
-        //                 }
-        //                 Err(e) => {
-        //                     // no-op
-        //                     // .expect("TODO")
-        //                 }
-        //             }
-        //         }
-        //         Some(id) = irn_subscription_ack_rx.recv() => {
-        //             let request = Payload::Response(Response::Success(
-        //                 SuccessfulResponse {
-        //                     id,
-        //                     result: serde_json::to_value(true)
-        //                         .expect("TODO"),
-        //                     jsonrpc: "2.0".to_string().into(),
-        //                 },
-        //             ));
-        //             let serialized = serde_json::to_string(&request)
-        //                 .map_err(|e| {
-        //                     RequestError::ShouldNeverHappen(format!(
-        //                         "Failed to serialize request: {e}"
-        //                     ))
-        //                 })
-        //                 .expect("TODO");
-        //             ws.send_with_str(&serialized).expect("TODO");
-        //         }
-        //         Some(close_event) = on_close_rx.recv() => {
-        //             tracing::debug!("websocket onclose: {:?}", close_event);
-        //             if close_event.code() == 3000 {
-        //                 tracing::error!("Invalid auth: {}", close_event.reason());
-        //                 invalid_auth.store(true, std::sync::atomic::Ordering::Relaxed);
-        //                 break RequestError::InvalidAuth;
-        //             } else {
-        //                 break RequestError::Offline;
-        //             }
-        //         }
-        //         Some(error_event) = on_error_rx.recv() => {
-        //             tracing::debug!("websocket onerror: {:?}", error_event);
-        //             break RequestError::Offline;
-        //         }
-        //     }
-        // };
+        return Ok((message_id, on_incomingmessage_rx, ws));
+    }
+}
 
-        // for (_, response_tx) in response_channels {
-        //     let _ = response_tx.send(Err(exit_reason.clone()));
-        // }
+enum ConnectionState {
+    Idle,
+    Poisoned,
+    MaybeReconnect,
+    ConnectSubscribe,
+    AwaitingSubscribeResponse(
+        u64,
+        tokio::sync::mpsc::UnboundedReceiver<IncomingMessage>,
+        ConnectWebSocket,
+        Sleep,
+    ),
+    Backoff,
+    ConnectRequest(
+        (Params, tokio::sync::oneshot::Sender<Result<Response, RequestError>>),
+    ),
+    AwaitingConnectRequestResponse(
+        u64,
+        tokio::sync::mpsc::UnboundedReceiver<IncomingMessage>,
+        ConnectWebSocket,
+        (Params, tokio::sync::oneshot::Sender<Result<Response, RequestError>>),
+        Sleep,
+    ),
+    Connected(
+        u64,
+        tokio::sync::mpsc::UnboundedReceiver<IncomingMessage>,
+        ConnectWebSocket,
+    ),
+    AwaitingRequestResponse(
+        u64,
+        tokio::sync::mpsc::UnboundedReceiver<IncomingMessage>,
+        ConnectWebSocket,
+        (Params, tokio::sync::oneshot::Sender<Result<Response, RequestError>>),
+        Sleep,
+    ),
+    ConnectRetryRequest(
+        (Params, tokio::sync::oneshot::Sender<Result<Response, RequestError>>),
+    ),
+    AwaitingConnectRetryRequestResponse(
+        u64,
+        tokio::sync::mpsc::UnboundedReceiver<IncomingMessage>,
+        ConnectWebSocket,
+        (Params, tokio::sync::oneshot::Sender<Result<Response, RequestError>>),
+        Sleep,
+    ),
+}
 
-        // TODO handle exit case
-        // just call online() again?
-        // no needs a loop of some kind? async task gets spawned to reconnect & manage the lifecycle?
-        // TODO spawn this task inside `online()`, call close_tx when wallet explicitally closes or all sessions removed
-        // TODO call disconnect_tx here
-        // if topics > 0 {
-        // fn: reconnect_loop(initial_req) - called by online() and disconnect_tx?
-        // tokio::task::spawn(async move {
-        // loop {
-        //   select! {
-        //     // cancel when wallet explicitally closes or all sessions removed, but websocket may stay open
-        //     // or when connection is established
-        //     //Some(event) = on_close_rx.recv() => {
-        //     //  break;
-        //     //}
-        //     Some(event) = disconnect_rx.recv() => {
-        //       // no-op, reconnect immediately
-        //       // check if there are sessions to reconnect to & an online hint hasn't indicated that it's offline
-        //     }
-        //   }
-        //   if topics == 0 {
-        //     // TODO maybe move this check into do_online_and_subscribe_with_backoff() so it checks each reconnect attempt
-        //     break;
-        //   }
-        //   // begin reconnect with no delay, then backoff
-        //   let disconnect_rx = do_online_and_subscribe_with_backoff(initial_req, on_close_rx).await; // TODO catch error and retry w/ backoff
-        //   // success
-        // }
-        // });
+async fn connect_loop_state_machine(
+    relay_url: String,
+    project_id: ProjectId,
+    key: &SigningKey,
+    sessions: std::sync::Arc<tokio::sync::RwLock<HashMap<Topic, Session>>>,
+    session_request_tx: tokio::sync::mpsc::UnboundedSender<(
+        Topic,
+        SessionRequestJsonRpc,
+    )>,
+    request_rx: tokio::sync::mpsc::UnboundedReceiver<(
+        Params,
+        tokio::sync::oneshot::Sender<Result<Response, RequestError>>,
+    )>,
+    online_rx: tokio::sync::oneshot::Receiver<()>,
+) {
+    let (irn_subscription_ack_tx, irn_subscription_ack_rx) =
+        tokio::sync::mpsc::unbounded_channel();
+    let handle_irn_subscription = {
+        let sessions = sessions.clone();
+        move |id: MessageId, sub_msg: Subscription| async {
+            let session_sym_key = {
+                let sessions = sessions.read().await;
+                // TODO drop message if cannot find decryption key
+                let session = sessions.get(&sub_msg.data.topic).unwrap();
+                session.session_sym_key
+            };
 
-        // TODO
-        // We don't want to create the reconnection loop until we have a session topic to stay subscribed to
-        // I.e. we should be able to "attach" to an existing connection, not require it to be created from here
-        // Reconnect cases:
-        //   - When WS disconnects, it should check if there are sessions to reconnect to & an online hint hasn't indicated that it's offline
-        //   - online hint will cause connect (if there are sessions to reconnect to)
-        //   - insert into sessions will cause spawning the reconnect watcher loop
+            let decoded = BASE64
+                .decode(sub_msg.data.message.as_bytes())
+                .map_err(|e| {
+                    PairError::Internal(format!(
+                        "Failed to decode message: {e}"
+                    ))
+                })
+                .unwrap();
+            let envelope = envelope_type0::deserialize_envelope_type0(&decoded)
+                .map_err(|e| PairError::Internal(e.to_string()))
+                .unwrap();
+            let key = ChaCha20Poly1305::new(&session_sym_key.into());
+            let decrypted = key
+                .decrypt(&Nonce::from(envelope.iv), envelope.sb.as_slice())
+                .map_err(|e| PairError::Internal(e.to_string()))
+                .unwrap();
+            let value = serde_json::from_slice::<serde_json::Value>(&decrypted)
+                .map_err(|e| PairError::Internal(e.to_string()))
+                .unwrap();
+            if let Some(method) = value.get("method") {
+                if method.as_str() == Some("wc_sessionRequest") {
+                    // TODO implement relay-side request queue
+                    let request =
+                        serde_json::from_value::<SessionRequestJsonRpc>(value)
+                            .map_err(|e| {
+                                PairError::Internal(format!(
+                                    "Failed to parse decrypted message: {e}"
+                                ))
+                            })
+                            .unwrap();
+                    session_request_tx
+                        .send((sub_msg.data.topic, request))
+                        .unwrap();
+                    if let Err(e) = irn_subscription_ack_tx.send(id) {
+                        tracing::debug!("Failed to send subscription ack: {e}");
+                    }
+                } else if method.as_str() == Some("wc_sessionUpdate") {
+                    // TODO update session locally (if not older than last update)
+                    // TODO write state to storage (blocking)
+                    if let Err(e) = irn_subscription_ack_tx.send(id) {
+                        tracing::debug!("Failed to send subscription ack: {e}");
+                    }
+                } else if method.as_str() == Some("wc_sessionExtend") {
+                    // TODO update session locally (if not older than last update)
+                    // TODO write state to storage (blocking)
+                    if let Err(e) = irn_subscription_ack_tx.send(id) {
+                        tracing::debug!("Failed to send subscription ack: {e}");
+                    }
+                } else if method.as_str() == Some("wc_sessionEmit") {
+                    // TODO dedup events based on JSON RPC history
+                    // TODO emit event callback (blocking?)
+                    if let Err(e) = irn_subscription_ack_tx.send(id) {
+                        tracing::debug!("Failed to send subscription ack: {e}");
+                    }
+                } else if method.as_str() == Some("wc_sessionPing") {
+                    if let Err(e) = irn_subscription_ack_tx.send(id) {
+                        tracing::debug!("Failed to send subscription ack: {e}");
+                    }
+                } else {
+                    tracing::error!("Unexpected method: {}", method);
+                    if let Err(e) = irn_subscription_ack_tx.send(id) {
+                        tracing::debug!("Failed to send subscription ack: {e}");
+                    }
+                }
+            } else {
+                tracing::debug!("ignoring response message: {:?}", value);
+                if let Err(e) = irn_subscription_ack_tx.send(id) {
+                    tracing::debug!("Failed to send subscription ack: {e}");
+                }
 
-        // do_online_and_subscribe_with_backoff(initial_req, on_close_rx):
-        //   let backoff_ms = 0;
-        //   loop {
-        //     let response = request(initial_req);
-        //     match response {
-        //       Ok(response) => {
-        //         break response;
-        //       }
-        //       Err(e) => {
-        //         // TODO use fixed (exponential-ish) backoff times instead of math-based
-        //         // 0s, 1s, 1s, 1s, 5s, 10s
-        //         // TODO also use a random jitter of 0-1000ms (except for the first time?)
-        //         if backoff_ms < 10_000 {
-        //           backoff_ms *= 2;
-        //         }
-        //         tokio::time::sleep(Duration::from_millis(backoff_ms)).await;
-        //       }
-        //     }
-        //   }
+                // TODO handle session request responses. Unsure if other responses are needed
+            }
+        }
+    };
 
-        return Ok((message_id, on_incomingmessage_rx));
+    let mut state = ConnectionState::Idle;
+    loop {
+        match state {
+            ConnectionState::Idle => {
+                // TODO avoid select! as it doesn't guarantee that `else` branch exists (it will panic otherwise)
+                tokio::select! {
+                    Some(request) = request_rx.recv() => state = ConnectionState::ConnectRequest(request),
+                    Ok(()) = online_rx => state = ConnectionState::MaybeReconnect,
+                    else => break,
+                }
+            }
+            ConnectionState::Poisoned => {
+                if let Some((_params, response_tx)) = request_rx.recv().await {
+                    if let Err(e) =
+                        response_tx.send(Err(RequestError::InvalidAuth))
+                    {
+                        tracing::debug!("Failed to send error response: {e:?}");
+                    }
+                }
+                state = ConnectionState::Idle;
+            }
+            ConnectionState::MaybeReconnect => {
+                if sessions.read().await.is_empty() {
+                    state = ConnectionState::Idle;
+                } else {
+                    state = ConnectionState::ConnectSubscribe;
+                }
+            }
+            ConnectionState::ConnectSubscribe => {
+                let topics = {
+                    let sessions = sessions.read().await;
+                    sessions.iter().map(|topic| Topic::from(topic)).collect()
+                };
+                let connect_res = connect(
+                    relay_url,
+                    project_id,
+                    key,
+                    Params::BatchSubscribe(BatchSubscribe { topics }),
+                )
+                .await;
+                match connect_res {
+                    Ok((message_id, on_incomingmessage_rx, ws)) => {
+                        state = ConnectionState::AwaitingSubscribeResponse(
+                            message_id,
+                            on_incomingmessage_rx,
+                            ws,
+                            crate::time::sleep(REQUEST_TIMEOUT),
+                        );
+                    }
+                    Err(e) => {
+                        state = ConnectionState::Backoff;
+                    }
+                }
+            }
+            ConnectionState::AwaitingSubscribeResponse(
+                message_id,
+                on_incomingmessage_rx,
+                ws,
+                sleep,
+            ) => {
+                // TODO avoid select! as it doesn't guarantee that all branches are covered (it will panic otherwise)
+                tokio::select! {
+                    message = on_incomingmessage_rx.recv() => {
+                        if let Some(message) = message {
+                        match message {
+                            IncomingMessage::Close(reason) => {
+                                match reason {
+                                    CloseReason::InvalidAuth => {
+                                        state = ConnectionState::Poisoned;
+                                    }
+                                    CloseReason::Error(reason) => {
+                                        state = ConnectionState::Backoff;
+                                    }
+                                }
+                            }
+                            IncomingMessage::Message(payload) => {
+                                let id = payload.id();
+                                match payload {
+                                    Payload::Request(request) => {
+                                        tracing::warn!("ignoring message request in AwaitingSubscribeResponse state: {:?}", request);
+                                    }
+                                    Payload::Response(response) => {
+                                        if id == MessageId::new(message_id) {
+                                            state = ConnectionState::Connected(message_id, on_incomingmessage_rx, ws);
+                                        } else {
+                                            tracing::warn!("ignoring message response in AwaitingSubscribeResponse state: {:?}", response);
+                                        }
+                                    }
+                                }
+                                }
+                            }
+                        } else {
+                            state = ConnectionState::Backoff;
+                        }
+                    },
+                    () = sleep => state = ConnectionState::Backoff,
+                }
+            }
+            ConnectionState::Backoff => {
+                let sleep = tokio::time::sleep(Duration::from_millis(1000));
+                // TODO avoid select! as it doesn't guarantee that all branches are covered (it will panic otherwise)
+                tokio::select! {
+                    Some(req) = request_rx.recv() => state = ConnectionState::ConnectRequest(req),
+                    () = sleep => state = ConnectionState::MaybeReconnect,
+                    else => break,
+                }
+            }
+            ConnectionState::ConnectRequest((request, response_tx)) => {
+                // TODO also subscribe to sessions
+                let connect_res =
+                    connect(relay_url, project_id, key, request).await;
+                match connect_res {
+                    Ok((message_id, on_incomingmessage_rx, ws)) => {
+                        state = ConnectionState::AwaitingConnectRequestResponse(
+                            message_id,
+                            on_incomingmessage_rx,
+                            ws,
+                            (request, response_tx),
+                            crate::time::sleep(REQUEST_TIMEOUT),
+                        );
+                    }
+                    Err(e) => {
+                        if let Err(e) = response_tx.send(Err(e)) {
+                            tracing::warn!(
+                                "Failed to send error response: {e:?}"
+                            );
+                        }
+                        state = ConnectionState::Backoff;
+                    }
+                }
+            }
+            ConnectionState::AwaitingConnectRequestResponse(
+                message_id,
+                on_incomingmessage_rx,
+                ws,
+                (request, response_tx),
+                sleep,
+            ) => {
+                // TODO avoid select! as it doesn't guarantee that all branches are covered (it will panic otherwise)
+                tokio::select! {
+                    message = on_incomingmessage_rx.recv() => {
+                        if let Some(message) = message {
+                        match message {
+                            IncomingMessage::Close(reason) => {
+                                match reason {
+                                    CloseReason::InvalidAuth => {
+                                        if let Err(e) =
+                                            response_tx.send(Err(RequestError::InvalidAuth))
+                                        {
+                                            tracing::warn!("Failed to send error response: {e:?}");
+                                        }
+                                        state = ConnectionState::Poisoned;
+                                    }
+                                    CloseReason::Error(reason) => {
+                                        if let Err(e) =
+                                            response_tx.send(Err(RequestError::Offline))
+                                        {
+                                            tracing::warn!("Failed to send error response: {e:?}");
+                                        }
+                                        state = ConnectionState::MaybeReconnect;
+                                    }
+                                }
+                            }
+                            IncomingMessage::Message(payload) => {
+                                let id = payload.id();
+                                match payload {
+                                    Payload::Request(request) => {
+                                        tracing::warn!("ignoring message request in AwaitingSubscribeResponse state: {:?}", request);
+                                    }
+                                    Payload::Response(response) => {
+                                        if id == MessageId::new(message_id) {
+                                            if let Err(e) =
+                                                response_tx.send(Ok(response))
+                                            {
+                                                tracing::warn!("Failed to send response: {e:?}");
+                                            }
+                                            state = ConnectionState::Connected(message_id, on_incomingmessage_rx, ws);
+                                        } else {
+                                            tracing::warn!("ignoring message response in AwaitingSubscribeResponse state: {:?}", response);
+                                        }
+                                    }
+                                }
+                            }
+                            }
+                        } else {
+                            if let Err(e) =
+                                response_tx.send(Err(RequestError::Offline))
+                            {
+                                tracing::warn!("Failed to send error response: {e:?}");
+                            }
+                            state = ConnectionState::MaybeReconnect;
+                        }
+                    },
+                    () = sleep => {
+                        if let Err(e) =
+                            response_tx.send(Err(RequestError::Offline))
+                        {
+                            tracing::warn!("Failed to send error response: {e:?}");
+                        }
+                        state = ConnectionState::MaybeReconnect;
+                    }
+                }
+            }
+            ConnectionState::Connected(
+                message_id,
+                on_incomingmessage_rx,
+                ws,
+            ) => {
+                // TODO avoid select! as it doesn't guarantee that all branches are covered (it will panic otherwise)
+                tokio::select! {
+                    message = on_incomingmessage_rx.recv() => {
+                        if let Some(message) = message {
+                            match message {
+                                IncomingMessage::Close(reason) => {
+                                    if reason == CloseReason::InvalidAuth {
+                                        tracing::warn!("server misbehaved: invalid auth in Connected state");
+                                        state = ConnectionState::Poisoned;
+                                    } else {
+                                        state = ConnectionState::MaybeReconnect;
+                                    }
+                                }
+                                IncomingMessage::Message(payload) => {
+                                    let id = payload.id();
+                                    match payload {
+                                        Payload::Request(request) => {
+                                            #[allow(clippy::single_match)]
+                                            match request.params {
+                                                Params::Subscription(
+                                                    sub_msg
+                                                ) => {
+                                                    handle_irn_subscription(id, sub_msg);
+                                                }
+                                                _ => tracing::warn!("ignoring message request in Connected state: {:?}", request),
+                                            }
+                                        }
+                                        Payload::Response(response) => {
+                                            tracing::warn!("ignoring message response in Connected state: {:?}", response);
+                                        }
+                                    }
+                                }
+                            }
+                        } else {
+                            state = ConnectionState::MaybeReconnect;
+                        }
+                    }
+                    request = request_rx.recv() => {
+                        if let Some((request, response_tx)) = request {
+                            let message_id = message_id + 1;
+                            let payload_request = Payload::Request(Request::new(
+                                MessageId::new(message_id),
+                                request,
+                            ));
+                            let serialized = serde_json::to_string(&payload_request)
+                                .map_err(|e| {
+                                    RequestError::ShouldNeverHappen(format!(
+                                        "Failed to serialize request: {e}"
+                                    ))
+                                })
+                                .expect("TODO");
+                            ws.send_with_str(&serialized).expect("TODO");
+
+                            state = ConnectionState::AwaitingRequestResponse(
+                                *message_id,
+                                on_incomingmessage_rx,
+                                ws,
+                                (request, response_tx),
+                                crate::time::sleep(REQUEST_TIMEOUT),
+                            );
+                        } else {
+                            break;
+                        }
+                    }
+                    id = irn_subscription_ack_rx.recv() => {
+                        if let Some(id) = id {
+                            let request = Payload::Response(Response::Success(
+                                SuccessfulResponse {
+                                    id,
+                                    result: serde_json::to_value(true)
+                                        .expect("TODO"),
+                                    jsonrpc: "2.0".to_string().into(),
+                                },
+                            ));
+                            let serialized = serde_json::to_string(&request)
+                                .map_err(|e| {
+                                    RequestError::ShouldNeverHappen(format!(
+                                        "Failed to serialize request: {e}"
+                                    ))
+                                })
+                                .expect("TODO");
+                            ws.send_with_str(&serialized).expect("TODO");
+                        }
+                    }
+                }
+            }
+            ConnectionState::AwaitingRequestResponse(
+                message_id,
+                on_incomingmessage_rx,
+                ws,
+                (request, response_tx),
+                sleep,
+            ) => {
+                // TODO avoid select! as it doesn't guarantee that all branches are covered (it will panic otherwise)
+                tokio::select! {
+                    message = on_incomingmessage_rx.recv() => {
+                        if let Some(message) = message {
+                            match message {
+                                IncomingMessage::Close(reason) => {
+                                    if reason == CloseReason::InvalidAuth {
+                                        tracing::warn!("server misbehaved: invalid auth in Connected state");
+                                        if let Err(e) =
+                                            response_tx.send(Err(RequestError::InvalidAuth))
+                                        {
+                                            tracing::warn!("Failed to send error response: {e:?}");
+                                        }
+                                        state = ConnectionState::Poisoned;
+                                    } else {
+                                        state = ConnectionState::ConnectRetryRequest((request, response_tx));
+                                    }
+                                }
+                                IncomingMessage::Message(payload) => {
+                                    let id = payload.id();
+                                    match payload {
+                                        Payload::Request(request) => {
+                                            #[allow(clippy::single_match)]
+                                            match request.params {
+                                                Params::Subscription(
+                                                    sub_msg
+                                                ) => {
+                                                    handle_irn_subscription(id, sub_msg);
+                                                }
+                                                _ => tracing::warn!("ignoring message request in AwaitingRequestResponse state: {:?}", request),
+                                            }
+                                        }
+                                        Payload::Response(response) => {
+                                            if id == MessageId::new(*message_id) {
+                                                if let Err(e) =
+                                                    response_tx.send(Ok(response))
+                                                {
+                                                    tracing::warn!("Failed to send response in AwaitingRequestResponse state: {e:?}");
+                                                }
+                                                state = ConnectionState::Connected(message_id, on_incomingmessage_rx, ws);
+                                            } else {
+                                                tracing::warn!("ignoring message response in AwaitingSubscribeResponse state: {:?}", response);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    () = sleep => state = ConnectionState::ConnectRetryRequest((request, response_tx)),
+                }
+            }
+            ConnectionState::ConnectRetryRequest((request, response_tx)) => {
+                // TODO also subscribe to sessions
+                let connect_res =
+                    connect(relay_url, project_id, key, request).await;
+                match connect_res {
+                    Ok((message_id, on_incomingmessage_rx, ws)) => {
+                        state = ConnectionState::AwaitingConnectRetryRequestResponse(
+                            message_id,
+                            on_incomingmessage_rx,
+                            ws,
+                            (request, response_tx),
+                            crate::time::sleep(REQUEST_TIMEOUT),
+                        );
+                    }
+                    Err(e) => {
+                        if let Err(e) = response_tx.send(Err(e)) {
+                            tracing::warn!(
+                                "Failed to send error response: {e:?}"
+                            );
+                        }
+                        state = ConnectionState::MaybeReconnect;
+                    }
+                }
+            }
+            ConnectionState::AwaitingConnectRetryRequestResponse(
+                message_id,
+                on_incomingmessage_rx,
+                ws,
+                (request, response_tx),
+                sleep,
+            ) => {
+                // TODO avoid select! as it doesn't guarantee that all branches are covered (it will panic otherwise)
+                tokio::select! {
+                    message = on_incomingmessage_rx.recv() => {
+                        if let Some(message) = message {
+                            match message {
+                                IncomingMessage::Close(reason) => {
+                                    if reason == CloseReason::InvalidAuth {
+                                        tracing::warn!("server misbehaved: invalid auth in Connected state");
+                                        if let Err(e) =
+                                            response_tx.send(Err(RequestError::InvalidAuth))
+                                        {
+                                            tracing::warn!("Failed to send error response: {e:?}");
+                                        }
+                                        state = ConnectionState::Poisoned;
+                                    } else {
+                                        if let Err(e) =
+                                            response_tx.send(Err(RequestError::Offline))
+                                        {
+                                            tracing::warn!("Failed to send error response: {e:?}");
+                                        }
+                                        state = ConnectionState::MaybeReconnect;
+                                    }
+                                }
+                                IncomingMessage::Message(payload) => {
+                                    let id = payload.id();
+                                    match payload {
+                                        Payload::Request(request) => {
+                                            // TODO consider handling anyway, if possible
+                                            tracing::warn!("ignoring message request in AwaitingConnectRetryRequestResponse state: {:?}", request);
+                                        }
+                                        Payload::Response(response) => {
+                                            if id == MessageId::new(*message_id) {
+                                                if let Err(e) =
+                                                    response_tx.send(Ok(response))
+                                                {
+                                                    tracing::warn!("Failed to send response: {e:?}");
+                                                }
+                                                state = ConnectionState::Connected(message_id, on_incomingmessage_rx, ws);
+                                            } else {
+                                                tracing::warn!("ignoring message response in AwaitingConnectRetryRequestResponse state: {:?}", response);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    () = sleep => state = ConnectionState::MaybeReconnect,
+                }
+            }
+        }
+    }
+
+    while let Some((request, response_tx)) = request_rx.recv().await {
+        if let Err(e) = response_tx
+            .send(Err(RequestError::Internal("request_rx closed".to_string())))
+        {
+            tracing::warn!("Failed to send error response: {e:?}");
+        }
     }
 }
 
@@ -2135,24 +1642,18 @@ pub struct SignClient {
 #[uniffi::export(async_runtime = "tokio")]
 impl SignClient {
     #[uniffi::constructor]
-    pub fn new(project_id: String) -> Self {
+    pub fn new(project_id: String, key: Vec<u8>) -> Self {
         tracing::debug!(
             "Creating new SignClient with project_id: {project_id}"
         );
-        let (client, session_request_rx) =
-            Client::new(ProjectId::from(project_id));
+        let (client, session_request_rx) = Client::new(
+            ProjectId::from(project_id),
+            key.try_into().expect("Invalid key format - must be 32 bytes"),
+        );
         Self {
             client: std::sync::Arc::new(tokio::sync::Mutex::new(client)),
             session_request_rx: std::sync::Mutex::new(Some(session_request_rx)),
         }
-    }
-
-    // set_key should be called on walletkit side on init() so it can store clientId before using pair and approve
-    pub async fn set_key(&self, key: Vec<u8>) {
-        let mut client = self.client.lock().await;
-        let secret_key =
-            key.try_into().expect("Invalid key format - must be 32 bytes");
-        client.set_key(secret_key);
     }
 
     pub fn generate_key(&self) -> Vec<u8> {

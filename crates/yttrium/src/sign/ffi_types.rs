@@ -1,4 +1,4 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "uniffi")]
 #[derive(uniffi_macros::Record, Debug, Serialize, Deserialize)]
