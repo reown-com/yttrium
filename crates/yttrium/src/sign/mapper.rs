@@ -1,7 +1,9 @@
+use relay_rpc::rpc::ErrorData;
+
 #[cfg(feature = "uniffi")]
 use crate::sign::ffi_types::SessionProposal;
 use crate::sign::{Session};
-use crate::sign::ffi_types::{SessionProposalFfi, SessionFfi, SessionRequestJsonRpcFfi, SessionRequestFfi, SessionRequestRequestFfi, SessionRequestResponseJsonRpcFfi};
+use crate::sign::ffi_types::{ErrorDataFfi, SessionFfi, SessionProposalFfi, SessionRequestFfi, SessionRequestJsonRpcFfi, SessionRequestRequestFfi, SessionRequestResponseJsonRpcFfi};
 use crate::sign::protocol_types::{SessionRequestJsonRpc, SessionRequestResponseJsonRpc};
 
 #[cfg(feature = "uniffi")]
@@ -151,6 +153,17 @@ impl From<SessionFfi> for Session {
             is_acknowledged: session.is_acknowledged,
             pairing_topic: session.pairing_topic.into(),
             transport_type: session.transport_type,
+        }
+    }
+}
+
+#[cfg(feature = "uniffi")]
+impl From<ErrorDataFfi> for ErrorData {
+    fn from(error_data: ErrorDataFfi) -> Self {
+        Self {
+            code: error_data.code,
+            message: error_data.message,
+            data: error_data.data,
         }
     }
 }

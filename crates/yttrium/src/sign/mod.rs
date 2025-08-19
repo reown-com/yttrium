@@ -118,6 +118,20 @@ pub enum ApproveError {
 
 #[derive(Debug, thiserror::Error)]
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Error))]
+#[error("Sign reject error: {0}")]
+pub enum RejectError {
+    #[error("Request error: {0}")]
+    Request(RequestError),
+
+    #[error("Internal: {0}")]
+    Internal(String),
+
+    #[error("Should never happen: {0}")]
+    ShouldNeverHappen(String),
+}
+
+#[derive(Debug, thiserror::Error)]
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Error))]
 #[error("Sign respond error: {0}")]
 pub enum RespondError {
     #[error("Internal: {0}")]
@@ -495,7 +509,7 @@ impl Client {
             session_proposal_response,
             session_settlement_request,
             analytics: Some(AnalyticsData {
-                correlation_id: Some(proposal.session_proposal_rpc_id),
+                correlation_id: Some(proposal.session_proposal_rpc_id.try_into().unwrap()),
                 chain_id: None,
                 rpc_methods: None,
                 tx_hashes: None,
@@ -551,12 +565,50 @@ impl Client {
         }
     }
 
-    pub async fn _reject(&self) {
-        // TODO implement
-        // https://github.com/WalletConnect/walletconnect-monorepo/blob/5bef698dcf0ae910548481959a6a5d87eaf7aaa5/packages/sign-client/src/controllers/engine.ts#L497
-        unimplemented!()
+    pub async fn reject(
+        &mut self, 
+        proposal: SessionProposal, 
+        reason: relay_rpc::rpc::ErrorData,
+    ) -> Result<(), RejectError> {
+        
+        // Send error response to the pairing topic
+        let error_response = relay_rpc::rpc::ErrorResponse {
+            id: relay_rpc::domain::MessageId::new(proposal.session_proposal_rpc_id),
+            jsonrpc: relay_rpc::rpc::JSON_RPC_VERSION.clone(),
+            error: reason,
+        };
 
-        // TODO consider new relay method?
+        // Encrypt and send the error response using the pairing sym key
+        let serialized = serde_json::to_string(&error_response)
+            .map_err(|e| RejectError::Internal(e.to_string()))?;
+
+        let key = ChaCha20Poly1305::new(&proposal.pairing_sym_key.into());
+        let nonce = ChaCha20Poly1305::generate_nonce()
+            .map_err(|e| RejectError::Internal(e.to_string()))?;
+        let encrypted = key
+            .encrypt(&nonce, serialized.as_bytes())
+            .map_err(|e| RejectError::Internal(e.to_string()))?;
+        let encoded = encode_envelope_type0(&EnvelopeType0 {
+            iv: nonce.into(),
+            sb: encrypted,
+        })
+        .map_err(|e| RejectError::Internal(e.to_string()))?;
+        let message = BASE64.encode(encoded.as_slice()).into();
+
+        // Publish error response to pairing topic
+        self.request::<bool>(relay_rpc::rpc::Params::Publish(Publish {
+            topic: proposal.pairing_topic.clone(),
+            message,
+            attestation: None, // TODO
+            ttl_secs: 300,
+            tag: 1120,
+            prompt: false,
+            analytics: None, // TODO
+        }))
+        .await
+        .map_err(|e| RejectError::Request(e))?;
+
+        Ok(())
     }
 
     pub async fn _update(&self) {
@@ -1481,6 +1533,22 @@ impl SignClient {
         Ok(session.into())
     }
 
+    pub async fn reject(
+        &self,
+        proposal: SessionProposalFfi,
+        reason: ffi_types::ErrorDataFfi,
+    ) -> Result<(), RejectError> {
+        use crate::sign::ffi_types::SessionProposal;
+        use relay_rpc::rpc::ErrorData;
+
+        let proposal: SessionProposal = proposal.into();
+        let reason: ErrorData = reason.into();
+        tracing::debug!("reject session propose: {:?}", reason);
+
+        let mut client = self.client.lock().await;
+        client.reject(proposal, reason).await?;
+        Ok(())
+    }
 
     pub async fn respond(
         &self,

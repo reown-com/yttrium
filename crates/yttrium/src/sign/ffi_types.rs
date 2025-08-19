@@ -131,3 +131,18 @@ pub enum TransportType {
     Relay,
     LinkMode,
 }
+
+#[cfg(feature = "uniffi")]
+#[derive(uniffi_macros::Record, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ErrorDataFfi {
+    /// Error code.
+    pub code: i32,
+
+    /// Error message.
+    pub message: String,
+
+    /// Error data, if any.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub data: Option<String>,
+}

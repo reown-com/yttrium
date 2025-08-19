@@ -59,6 +59,16 @@ pub fn session_request_response_json_rpc_from_json(json: &str) -> super::ffi_typ
     serde_json::from_str(json).expect("Failed to deserialize session request response json")
 }
 
+#[uniffi::export]
+pub fn error_data_ffi_to_json(object: &super::ffi_types::ErrorDataFfi) -> String {
+    serde_json::to_string(object).expect("Failed to serialize error data")
+}
+
+#[uniffi::export]
+pub fn error_data_ffi_from_json(json: &str) -> super::ffi_types::ErrorDataFfi {
+    serde_json::from_str(json).expect("Failed to deserialize error data")
+}
+
 // protocol types
 
 #[uniffi::export]
