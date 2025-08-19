@@ -23,10 +23,9 @@ use {
         aead::Aead, AeadCore, ChaCha20Poly1305, KeyInit, Nonce,
     },
     data_encoding::BASE64,
-    futures::FutureExt,
     relay_rpc::{
         auth::ed25519_dalek::Signer,
-        domain::{DecodedClientId, MessageId, ProjectId, SubscriptionId},
+        domain::{DecodedClientId, MessageId, ProjectId},
         jwt::{JwtBasicClaims, JwtHeader},
         rpc::{
             AnalyticsData, ApproveSession, BatchSubscribe, FetchMessages,
@@ -35,7 +34,6 @@ use {
         },
     },
     serde::{de::DeserializeOwned, Deserialize, Serialize},
-    spl_associated_token_account::solana_program::message,
     std::{collections::HashMap, sync::Arc, time::Duration},
     tracing::debug,
     x25519_dalek::PublicKey,
@@ -129,15 +127,12 @@ pub enum RespondError {
 }
 
 pub struct Client {
-    relay_url: String,
-    project_id: ProjectId,
-    key: SigningKey,
     request_tx: tokio::sync::mpsc::UnboundedSender<(
         Params,
         tokio::sync::oneshot::Sender<Result<Response, RequestError>>,
     )>,
     sessions: Arc<tokio::sync::RwLock<HashMap<Topic, Session>>>,
-    online_tx: Option<tokio::sync::oneshot::Sender<()>>,
+    online_tx: Option<tokio::sync::mpsc::UnboundedSender<()>>,
 }
 
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
@@ -205,33 +200,24 @@ impl Client {
             32,
             "Project ID must be exactly 32 characters"
         );
+        // TODO validate format i.e. hex
 
         let sessions = Arc::new(tokio::sync::RwLock::new(HashMap::new()));
         let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
         let (request_tx, request_rx) = tokio::sync::mpsc::unbounded_channel();
-        let (online_tx, online_rx) = tokio::sync::oneshot::channel();
+        let (online_tx, online_rx) = tokio::sync::mpsc::unbounded_channel();
 
-        tokio::spawn(connect_loop_state_machine(
+        crate::spawn::spawn(connect_loop_state_machine(
             RELAY_URL.to_string(),
             project_id,
-            &SigningKey::from_bytes(&key),
+            SigningKey::from_bytes(&key),
             sessions.clone(),
             tx,
             request_rx,
             online_rx,
         ));
 
-        (
-            Self {
-                relay_url: RELAY_URL.to_string(),
-                project_id,
-                key: SigningKey::from_bytes(&key),
-                request_tx,
-                sessions,
-                online_tx: Some(online_tx),
-            },
-            rx,
-        )
+        (Self { request_tx, sessions, online_tx: Some(online_tx) }, rx)
     }
 
     pub async fn add_sessions(
@@ -252,7 +238,7 @@ impl Client {
     /// Call this when the app and user are ready to receive session requests.
     /// Skip calling this if you intend to shortly call another SDK method, as those other methods will themselves call this.
     /// TODO actually call this from other methods
-    pub async fn online(&mut self) {
+    pub fn online(&mut self) {
         if let Some(online_tx) = self.online_tx.take() {
             if let Err(e) = online_tx.send(()) {
                 tracing::warn!("Failed to send online signal: {e:?}");
@@ -465,7 +451,7 @@ impl Client {
             session_proposal_response,
             session_settlement_request,
             analytics: Some(AnalyticsData {
-                correlation_id: Some(proposal.session_proposal_rpc_id),
+                correlation_id: Some(proposal.session_proposal_rpc_id as i64),
                 chain_id: None,
                 rpc_methods: None,
                 tx_hashes: None,
@@ -632,8 +618,24 @@ impl Client {
         params: relay_rpc::rpc::Params,
     ) -> Result<T, RequestError> {
         let (response_tx, response_rx) = tokio::sync::oneshot::channel();
-        self.request_tx.send((params, response_tx))?;
-        let response = response_rx.await??;
+        self.request_tx.send((params, response_tx)).map_err(|e| {
+            RequestError::Internal(format!(
+                "Failed to send request, request_tx closed: {e}"
+            ))
+        })?;
+        let response = match response_rx.await {
+            Ok(Ok(response)) => response,
+            Ok(Err(e)) => {
+                return Err(RequestError::Internal(format!(
+                    "Failed to receive response: {e}"
+                )));
+            }
+            Err(e) => {
+                return Err(RequestError::Internal(format!(
+                    "Failed to receive response (2): {e}"
+                )));
+            }
+        };
 
         match response {
             Response::Success(response) => {
@@ -651,11 +653,13 @@ impl Client {
     }
 }
 
+#[derive(Debug, PartialEq)]
 enum IncomingMessage {
     Close(CloseReason),
     Message(Payload),
 }
 
+#[derive(Debug, PartialEq)]
 enum CloseReason {
     InvalidAuth,
     Error(String),
@@ -671,6 +675,7 @@ async fn connect(
     relay_url: String,
     project_id: ProjectId,
     key: &SigningKey,
+    topics: Vec<Topic>,
     initial_req: Params,
 ) -> Result<
     (
@@ -892,8 +897,9 @@ async fn connect(
         let (on_incomingmessage_tx, mut on_incomingmessage_rx) =
             tokio::sync::mpsc::unbounded_channel();
 
-        let on_close_closure =
-            Closure::wrap(Box::new(move |event: CloseEvent| {
+        let on_close_closure = Closure::wrap(Box::new({
+            let on_incomingmessage_tx = on_incomingmessage_tx.clone();
+            move |event: CloseEvent| {
                 tracing::debug!("websocket onclose: {:?}", event);
 
                 if event.code() == 3000 {
@@ -917,28 +923,33 @@ async fn connect(
                         tracing::debug!("OK: Failed to send close event: {e}");
                     }
                 }
-            }) as Box<dyn Fn(CloseEvent)>);
+            }
+        })
+            as Box<dyn Fn(CloseEvent)>);
         ws.set_onclose(Some(
             // TODO fix leak
             Box::leak(Box::new(on_close_closure)).as_ref().unchecked_ref(),
         ));
 
-        let on_error_closure = Closure::wrap(Box::new(move |event: Event| {
-            tracing::debug!(
-                "websocket onerror: {:?} {:?}",
-                event.as_string(),
-                event,
-            );
-            if let Err(e) = on_incomingmessage_tx.send(IncomingMessage::Close(
-                CloseReason::Error(
-                    event
-                        .as_string()
-                        .unwrap_or_else(|| "unknown error".to_string()),
-                ),
-            )) {
+        let on_error_closure = Closure::wrap(Box::new({
+            let on_incomingmessage_tx = on_incomingmessage_tx.clone();
+            move |event: Event| {
                 tracing::debug!(
-                    "OK: Failed to send close even (error handler): {e}"
+                    "websocket onerror: {:?} {:?}",
+                    event.as_string(),
+                    event,
                 );
+                if let Err(e) = on_incomingmessage_tx.send(
+                    IncomingMessage::Close(CloseReason::Error(
+                        event
+                            .as_string()
+                            .unwrap_or_else(|| "unknown error".to_string()),
+                    )),
+                ) {
+                    tracing::debug!(
+                        "OK: Failed to send close even (error handler): {e}"
+                    );
+                }
             }
         }) as Box<dyn Fn(Event)>);
         ws.set_onerror(Some(
@@ -954,6 +965,7 @@ async fn connect(
                     match result {
                         Ok(payload) => {
                             let _ = on_incomingmessage_tx
+                                .clone()
                                 .send(IncomingMessage::Message(payload))
                                 .ok();
                         }
@@ -972,9 +984,12 @@ async fn connect(
             Box::leak(Box::new(onmessage_closure)).as_ref().unchecked_ref(),
         ));
 
-        let (tx_open, mut rx_open) = tokio::sync::oneshot::channel();
+        let (tx_open, mut rx_open) = tokio::sync::mpsc::channel(1);
         let onopen_closure = Closure::wrap(Box::new(move |_event: Event| {
-            let _ = tx_open.send(()).ok();
+            let tx_open = tx_open.clone();
+            crate::spawn::spawn(async move {
+                let _ = tx_open.send(()).await.ok();
+            });
         }) as Box<dyn Fn(Event)>);
         ws.set_onopen(Some(
             // TODO fix leak
@@ -983,24 +998,96 @@ async fn connect(
 
         tracing::debug!("awaiting onopen");
 
-        crate::time::timeout(REQUEST_TIMEOUT, rx_open)
+        crate::time::timeout(REQUEST_TIMEOUT, rx_open.recv())
             .await
             .map_err(|e| {
                 RequestError::Internal(format!(
                     "Timeout waiting for onopen: {e}"
                 ))
             })?
-            .map_err(|e| {
-                RequestError::Internal(format!("Failed to receive onopen: {e}"))
+            .ok_or_else(|| {
+                RequestError::Internal("Failed to receive onopen".to_string())
             })?;
         ws.set_onopen(None);
         tracing::debug!("onopen received");
 
         let mut message_id = MIN_RPC_ID + 1;
 
+        if !topics.is_empty() {
+            // TODO batch this extra request together with the initial connection
+
+            message_id = message_id + 1;
+            let payload_request = Payload::Request(Request::new(
+                MessageId::new(message_id),
+                Params::BatchSubscribe(BatchSubscribe { topics }),
+            ));
+            let serialized = serde_json::to_string(&payload_request)
+                .map_err(|e| {
+                    RequestError::ShouldNeverHappen(format!(
+                        "Failed to serialize request: {e}"
+                    ))
+                })
+                .expect("TODO");
+            ws.send_with_str(&serialized).expect("TODO");
+
+            let incoming_message = match crate::time::timeout(
+                REQUEST_TIMEOUT,
+                on_incomingmessage_rx.recv(),
+            )
+            .await
+            {
+                Ok(Some(message)) => message,
+                Ok(None) => {
+                    return Err(RequestError::Internal(
+                        "Timeout waiting for batch subscribe response"
+                            .to_string(),
+                    ));
+                }
+                Err(e) => {
+                    return Err(RequestError::Internal(format!(
+                        "Timeout waiting for batch subscribe response: {e:?}"
+                    )));
+                }
+            };
+            match incoming_message {
+                IncomingMessage::Close(reason) => match reason {
+                    CloseReason::InvalidAuth => {
+                        return Err(RequestError::InvalidAuth);
+                    }
+                    CloseReason::Error(reason) => {
+                        tracing::debug!(
+                            "ConnectRequest: CloseReason::Error: {reason}"
+                        );
+                        return Err(RequestError::Offline);
+                    }
+                },
+                IncomingMessage::Message(payload) => {
+                    let id = payload.id();
+                    match payload {
+                        Payload::Request(request) => {
+                            tracing::error!("unexpected message request in ConnectRequest state: {:?}", request);
+                            return Err(RequestError::Internal(
+                                "unexpected message request in ConnectRequest state".to_string(),
+                            ));
+                        }
+                        Payload::Response(response) => {
+                            if id == MessageId::new(message_id) {
+                                // success, no-op
+                            } else {
+                                tracing::error!("unexpected message response in ConnectRequest state: {:?}", response);
+                                return Err(RequestError::Internal(
+                                    "unexpected message response in ConnectRequest state".to_string(),
+                                ));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         // TODO this will soon be moved to initial WebSocket request
         let request = Payload::Request(Request::new(
-            MessageId::new(*message_id),
+            MessageId::new(message_id),
             initial_req,
         ));
         let serialized = serde_json::to_string(&request)
@@ -1025,7 +1112,7 @@ enum ConnectionState {
         u64,
         tokio::sync::mpsc::UnboundedReceiver<IncomingMessage>,
         ConnectWebSocket,
-        Sleep,
+        tokio::sync::mpsc::Receiver<()>,
     ),
     Backoff,
     ConnectRequest(
@@ -1036,7 +1123,7 @@ enum ConnectionState {
         tokio::sync::mpsc::UnboundedReceiver<IncomingMessage>,
         ConnectWebSocket,
         (Params, tokio::sync::oneshot::Sender<Result<Response, RequestError>>),
-        Sleep,
+        tokio::sync::mpsc::Receiver<()>,
     ),
     Connected(
         u64,
@@ -1048,7 +1135,7 @@ enum ConnectionState {
         tokio::sync::mpsc::UnboundedReceiver<IncomingMessage>,
         ConnectWebSocket,
         (Params, tokio::sync::oneshot::Sender<Result<Response, RequestError>>),
-        Sleep,
+        tokio::sync::mpsc::Receiver<()>,
     ),
     ConnectRetryRequest(
         (Params, tokio::sync::oneshot::Sender<Result<Response, RequestError>>),
@@ -1057,109 +1144,131 @@ enum ConnectionState {
         u64,
         tokio::sync::mpsc::UnboundedReceiver<IncomingMessage>,
         ConnectWebSocket,
-        (Params, tokio::sync::oneshot::Sender<Result<Response, RequestError>>),
-        Sleep,
+        tokio::sync::oneshot::Sender<Result<Response, RequestError>>,
+        tokio::sync::mpsc::Receiver<()>,
     ),
 }
 
 async fn connect_loop_state_machine(
     relay_url: String,
     project_id: ProjectId,
-    key: &SigningKey,
+    key: SigningKey,
     sessions: std::sync::Arc<tokio::sync::RwLock<HashMap<Topic, Session>>>,
     session_request_tx: tokio::sync::mpsc::UnboundedSender<(
         Topic,
         SessionRequestJsonRpc,
     )>,
-    request_rx: tokio::sync::mpsc::UnboundedReceiver<(
+    mut request_rx: tokio::sync::mpsc::UnboundedReceiver<(
         Params,
         tokio::sync::oneshot::Sender<Result<Response, RequestError>>,
     )>,
-    online_rx: tokio::sync::oneshot::Receiver<()>,
+    mut online_rx: tokio::sync::mpsc::UnboundedReceiver<()>,
 ) {
-    let (irn_subscription_ack_tx, irn_subscription_ack_rx) =
+    let (irn_subscription_ack_tx, mut irn_subscription_ack_rx) =
         tokio::sync::mpsc::unbounded_channel();
     let handle_irn_subscription = {
         let sessions = sessions.clone();
-        move |id: MessageId, sub_msg: Subscription| async {
-            let session_sym_key = {
-                let sessions = sessions.read().await;
-                // TODO drop message if cannot find decryption key
-                let session = sessions.get(&sub_msg.data.topic).unwrap();
-                session.session_sym_key
-            };
+        let session_request_tx = session_request_tx.clone();
+        let irn_subscription_ack_tx = irn_subscription_ack_tx.clone();
+        move |id: MessageId, sub_msg: Subscription| {
+            let sessions = sessions.clone();
+            let session_request_tx = session_request_tx.clone();
+            let irn_subscription_ack_tx = irn_subscription_ack_tx.clone();
+            async move {
+                let session_sym_key = {
+                    let sessions = sessions.read().await;
+                    // TODO drop message if cannot find decryption key
+                    let session = sessions.get(&sub_msg.data.topic).unwrap();
+                    session.session_sym_key
+                };
 
-            let decoded = BASE64
-                .decode(sub_msg.data.message.as_bytes())
-                .map_err(|e| {
-                    PairError::Internal(format!(
-                        "Failed to decode message: {e}"
-                    ))
-                })
-                .unwrap();
-            let envelope = envelope_type0::deserialize_envelope_type0(&decoded)
-                .map_err(|e| PairError::Internal(e.to_string()))
-                .unwrap();
-            let key = ChaCha20Poly1305::new(&session_sym_key.into());
-            let decrypted = key
-                .decrypt(&Nonce::from(envelope.iv), envelope.sb.as_slice())
-                .map_err(|e| PairError::Internal(e.to_string()))
-                .unwrap();
-            let value = serde_json::from_slice::<serde_json::Value>(&decrypted)
-                .map_err(|e| PairError::Internal(e.to_string()))
-                .unwrap();
-            if let Some(method) = value.get("method") {
-                if method.as_str() == Some("wc_sessionRequest") {
-                    // TODO implement relay-side request queue
-                    let request =
-                        serde_json::from_value::<SessionRequestJsonRpc>(value)
-                            .map_err(|e| {
-                                PairError::Internal(format!(
-                                    "Failed to parse decrypted message: {e}"
-                                ))
-                            })
-                            .unwrap();
-                    session_request_tx
-                        .send((sub_msg.data.topic, request))
+                let decoded = BASE64
+                    .decode(sub_msg.data.message.as_bytes())
+                    .map_err(|e| {
+                        PairError::Internal(format!(
+                            "Failed to decode message: {e}"
+                        ))
+                    })
+                    .unwrap();
+                let envelope =
+                    envelope_type0::deserialize_envelope_type0(&decoded)
+                        .map_err(|e| PairError::Internal(e.to_string()))
                         .unwrap();
-                    if let Err(e) = irn_subscription_ack_tx.send(id) {
-                        tracing::debug!("Failed to send subscription ack: {e}");
-                    }
-                } else if method.as_str() == Some("wc_sessionUpdate") {
-                    // TODO update session locally (if not older than last update)
-                    // TODO write state to storage (blocking)
-                    if let Err(e) = irn_subscription_ack_tx.send(id) {
-                        tracing::debug!("Failed to send subscription ack: {e}");
-                    }
-                } else if method.as_str() == Some("wc_sessionExtend") {
-                    // TODO update session locally (if not older than last update)
-                    // TODO write state to storage (blocking)
-                    if let Err(e) = irn_subscription_ack_tx.send(id) {
-                        tracing::debug!("Failed to send subscription ack: {e}");
-                    }
-                } else if method.as_str() == Some("wc_sessionEmit") {
-                    // TODO dedup events based on JSON RPC history
-                    // TODO emit event callback (blocking?)
-                    if let Err(e) = irn_subscription_ack_tx.send(id) {
-                        tracing::debug!("Failed to send subscription ack: {e}");
-                    }
-                } else if method.as_str() == Some("wc_sessionPing") {
-                    if let Err(e) = irn_subscription_ack_tx.send(id) {
-                        tracing::debug!("Failed to send subscription ack: {e}");
+                let key = ChaCha20Poly1305::new(&session_sym_key.into());
+                let decrypted = key
+                    .decrypt(&Nonce::from(envelope.iv), envelope.sb.as_slice())
+                    .map_err(|e| PairError::Internal(e.to_string()))
+                    .unwrap();
+                let value =
+                    serde_json::from_slice::<serde_json::Value>(&decrypted)
+                        .map_err(|e| PairError::Internal(e.to_string()))
+                        .unwrap();
+                if let Some(method) = value.get("method") {
+                    if method.as_str() == Some("wc_sessionRequest") {
+                        // TODO implement relay-side request queue
+                        let request = serde_json::from_value::<
+                            SessionRequestJsonRpc,
+                        >(value)
+                        .map_err(|e| {
+                            PairError::Internal(format!(
+                                "Failed to parse decrypted message: {e}"
+                            ))
+                        })
+                        .unwrap();
+                        session_request_tx
+                            .send((sub_msg.data.topic, request))
+                            .unwrap();
+                        if let Err(e) = irn_subscription_ack_tx.send(id) {
+                            tracing::debug!(
+                                "Failed to send subscription ack: {e}"
+                            );
+                        }
+                    } else if method.as_str() == Some("wc_sessionUpdate") {
+                        // TODO update session locally (if not older than last update)
+                        // TODO write state to storage (blocking)
+                        if let Err(e) = irn_subscription_ack_tx.send(id) {
+                            tracing::debug!(
+                                "Failed to send subscription ack: {e}"
+                            );
+                        }
+                    } else if method.as_str() == Some("wc_sessionExtend") {
+                        // TODO update session locally (if not older than last update)
+                        // TODO write state to storage (blocking)
+                        if let Err(e) = irn_subscription_ack_tx.send(id) {
+                            tracing::debug!(
+                                "Failed to send subscription ack: {e}"
+                            );
+                        }
+                    } else if method.as_str() == Some("wc_sessionEmit") {
+                        // TODO dedup events based on JSON RPC history
+                        // TODO emit event callback (blocking?)
+                        if let Err(e) = irn_subscription_ack_tx.send(id) {
+                            tracing::debug!(
+                                "Failed to send subscription ack: {e}"
+                            );
+                        }
+                    } else if method.as_str() == Some("wc_sessionPing") {
+                        if let Err(e) = irn_subscription_ack_tx.send(id) {
+                            tracing::debug!(
+                                "Failed to send subscription ack: {e}"
+                            );
+                        }
+                    } else {
+                        tracing::error!("Unexpected method: {}", method);
+                        if let Err(e) = irn_subscription_ack_tx.send(id) {
+                            tracing::debug!(
+                                "Failed to send subscription ack: {e}"
+                            );
+                        }
                     }
                 } else {
-                    tracing::error!("Unexpected method: {}", method);
+                    tracing::debug!("ignoring response message: {:?}", value);
                     if let Err(e) = irn_subscription_ack_tx.send(id) {
                         tracing::debug!("Failed to send subscription ack: {e}");
                     }
-                }
-            } else {
-                tracing::debug!("ignoring response message: {:?}", value);
-                if let Err(e) = irn_subscription_ack_tx.send(id) {
-                    tracing::debug!("Failed to send subscription ack: {e}");
-                }
 
-                // TODO handle session request responses. Unsure if other responses are needed
+                    // TODO handle session request responses. Unsure if other responses are needed
+                }
             }
         }
     };
@@ -1171,7 +1280,7 @@ async fn connect_loop_state_machine(
                 // TODO avoid select! as it doesn't guarantee that `else` branch exists (it will panic otherwise)
                 tokio::select! {
                     Some(request) = request_rx.recv() => state = ConnectionState::ConnectRequest(request),
-                    Ok(()) = online_rx => state = ConnectionState::MaybeReconnect,
+                    Some(()) = online_rx.recv() => state = ConnectionState::MaybeReconnect,
                     else => break,
                 }
             }
@@ -1195,12 +1304,13 @@ async fn connect_loop_state_machine(
             ConnectionState::ConnectSubscribe => {
                 let topics = {
                     let sessions = sessions.read().await;
-                    sessions.iter().map(|topic| Topic::from(topic)).collect()
+                    sessions.iter().map(|(topic, _)| topic.clone()).collect()
                 };
                 let connect_res = connect(
-                    relay_url,
-                    project_id,
-                    key,
+                    relay_url.clone(),
+                    project_id.clone(),
+                    &key,
+                    vec![],
                     Params::BatchSubscribe(BatchSubscribe { topics }),
                 )
                 .await;
@@ -1210,19 +1320,20 @@ async fn connect_loop_state_machine(
                             message_id,
                             on_incomingmessage_rx,
                             ws,
-                            crate::time::sleep(REQUEST_TIMEOUT),
+                            crate::time::durable_sleep(REQUEST_TIMEOUT),
                         );
                     }
                     Err(e) => {
+                        tracing::debug!("ConnectSubscribe failed: {e:?}");
                         state = ConnectionState::Backoff;
                     }
                 }
             }
             ConnectionState::AwaitingSubscribeResponse(
                 message_id,
-                on_incomingmessage_rx,
+                mut on_incomingmessage_rx,
                 ws,
-                sleep,
+                mut sleep,
             ) => {
                 // TODO avoid select! as it doesn't guarantee that all branches are covered (it will panic otherwise)
                 tokio::select! {
@@ -1235,6 +1346,7 @@ async fn connect_loop_state_machine(
                                         state = ConnectionState::Poisoned;
                                     }
                                     CloseReason::Error(reason) => {
+                                        tracing::debug!("AwaitingSubscribeResponse: CloseReason::Error: {reason}");
                                         state = ConnectionState::Backoff;
                                     }
                                 }
@@ -1244,12 +1356,24 @@ async fn connect_loop_state_machine(
                                 match payload {
                                     Payload::Request(request) => {
                                         tracing::warn!("ignoring message request in AwaitingSubscribeResponse state: {:?}", request);
+                                        state = ConnectionState::AwaitingSubscribeResponse(
+                                            message_id,
+                                             on_incomingmessage_rx,
+                                            ws,
+                                            sleep,
+                                        );
                                     }
                                     Payload::Response(response) => {
                                         if id == MessageId::new(message_id) {
                                             state = ConnectionState::Connected(message_id, on_incomingmessage_rx, ws);
                                         } else {
                                             tracing::warn!("ignoring message response in AwaitingSubscribeResponse state: {:?}", response);
+                                            state = ConnectionState::AwaitingSubscribeResponse(
+                                                message_id,
+                                                 on_incomingmessage_rx,
+                                                ws,
+                                                sleep,
+                                            );
                                         }
                                     }
                                 }
@@ -1259,11 +1383,13 @@ async fn connect_loop_state_machine(
                             state = ConnectionState::Backoff;
                         }
                     },
-                    () = sleep => state = ConnectionState::Backoff,
+                    Some(()) = sleep.recv() => state = ConnectionState::Backoff,
                 }
             }
             ConnectionState::Backoff => {
-                let sleep = tokio::time::sleep(Duration::from_millis(1000));
+                // TODO start at 0, then etc.
+                // TODO consider max 1s polling? Why go less frequently?
+                let sleep = crate::time::sleep(Duration::from_millis(1000));
                 // TODO avoid select! as it doesn't guarantee that all branches are covered (it will panic otherwise)
                 tokio::select! {
                     Some(req) = request_rx.recv() => state = ConnectionState::ConnectRequest(req),
@@ -1272,9 +1398,18 @@ async fn connect_loop_state_machine(
                 }
             }
             ConnectionState::ConnectRequest((request, response_tx)) => {
-                // TODO also subscribe to sessions
-                let connect_res =
-                    connect(relay_url, project_id, key, request).await;
+                let topics = {
+                    let sessions = sessions.read().await;
+                    sessions.iter().map(|(topic, _)| topic.clone()).collect()
+                };
+                let connect_res = connect(
+                    relay_url.clone(),
+                    project_id.clone(),
+                    &key,
+                    topics,
+                    request.clone(),
+                )
+                .await;
                 match connect_res {
                     Ok((message_id, on_incomingmessage_rx, ws)) => {
                         state = ConnectionState::AwaitingConnectRequestResponse(
@@ -1282,7 +1417,7 @@ async fn connect_loop_state_machine(
                             on_incomingmessage_rx,
                             ws,
                             (request, response_tx),
-                            crate::time::sleep(REQUEST_TIMEOUT),
+                            crate::time::durable_sleep(REQUEST_TIMEOUT),
                         );
                     }
                     Err(e) => {
@@ -1291,16 +1426,16 @@ async fn connect_loop_state_machine(
                                 "Failed to send error response: {e:?}"
                             );
                         }
-                        state = ConnectionState::Backoff;
+                        state = ConnectionState::MaybeReconnect;
                     }
                 }
             }
             ConnectionState::AwaitingConnectRequestResponse(
                 message_id,
-                on_incomingmessage_rx,
+                mut on_incomingmessage_rx,
                 ws,
                 (request, response_tx),
-                sleep,
+                mut sleep,
             ) => {
                 // TODO avoid select! as it doesn't guarantee that all branches are covered (it will panic otherwise)
                 tokio::select! {
@@ -1318,6 +1453,7 @@ async fn connect_loop_state_machine(
                                         state = ConnectionState::Poisoned;
                                     }
                                     CloseReason::Error(reason) => {
+                                        tracing::debug!("AwaitingConnectRequestResponse: CloseReason::Error: {reason}");
                                         if let Err(e) =
                                             response_tx.send(Err(RequestError::Offline))
                                         {
@@ -1330,8 +1466,15 @@ async fn connect_loop_state_machine(
                             IncomingMessage::Message(payload) => {
                                 let id = payload.id();
                                 match payload {
-                                    Payload::Request(request) => {
-                                        tracing::warn!("ignoring message request in AwaitingSubscribeResponse state: {:?}", request);
+                                    Payload::Request(payload_request) => {
+                                        tracing::warn!("ignoring message request in AwaitingSubscribeResponse state: {:?}", payload_request);
+                                        state = ConnectionState::AwaitingConnectRequestResponse(
+                                            message_id,
+                                            on_incomingmessage_rx,
+                                            ws,
+                                            (request, response_tx),
+                                            sleep,
+                                        );
                                     }
                                     Payload::Response(response) => {
                                         if id == MessageId::new(message_id) {
@@ -1343,6 +1486,13 @@ async fn connect_loop_state_machine(
                                             state = ConnectionState::Connected(message_id, on_incomingmessage_rx, ws);
                                         } else {
                                             tracing::warn!("ignoring message response in AwaitingSubscribeResponse state: {:?}", response);
+                                            state = ConnectionState::AwaitingConnectRequestResponse(
+                                                message_id,
+                                                on_incomingmessage_rx,
+                                                ws,
+                                                (request, response_tx),
+                                                sleep,
+                                            );
                                         }
                                     }
                                 }
@@ -1357,7 +1507,7 @@ async fn connect_loop_state_machine(
                             state = ConnectionState::MaybeReconnect;
                         }
                     },
-                    () = sleep => {
+                    Some(()) = sleep.recv() => {
                         if let Err(e) =
                             response_tx.send(Err(RequestError::Offline))
                         {
@@ -1369,7 +1519,7 @@ async fn connect_loop_state_machine(
             }
             ConnectionState::Connected(
                 message_id,
-                on_incomingmessage_rx,
+                mut on_incomingmessage_rx,
                 ws,
             ) => {
                 // TODO avoid select! as it doesn't guarantee that all branches are covered (it will panic otherwise)
@@ -1394,13 +1544,23 @@ async fn connect_loop_state_machine(
                                                 Params::Subscription(
                                                     sub_msg
                                                 ) => {
-                                                    handle_irn_subscription(id, sub_msg);
+                                                    handle_irn_subscription(id, sub_msg).await;
                                                 }
                                                 _ => tracing::warn!("ignoring message request in Connected state: {:?}", request),
                                             }
+                                            state = ConnectionState::Connected(
+                                                message_id,
+                                                on_incomingmessage_rx,
+                                                ws,
+                                            );
                                         }
                                         Payload::Response(response) => {
                                             tracing::warn!("ignoring message response in Connected state: {:?}", response);
+                                            state = ConnectionState::Connected(
+                                                message_id,
+                                                on_incomingmessage_rx,
+                                                ws,
+                                            );
                                         }
                                     }
                                 }
@@ -1414,7 +1574,7 @@ async fn connect_loop_state_machine(
                             let message_id = message_id + 1;
                             let payload_request = Payload::Request(Request::new(
                                 MessageId::new(message_id),
-                                request,
+                                request.clone(),
                             ));
                             let serialized = serde_json::to_string(&payload_request)
                                 .map_err(|e| {
@@ -1426,11 +1586,11 @@ async fn connect_loop_state_machine(
                             ws.send_with_str(&serialized).expect("TODO");
 
                             state = ConnectionState::AwaitingRequestResponse(
-                                *message_id,
+                                message_id,
                                 on_incomingmessage_rx,
                                 ws,
                                 (request, response_tx),
-                                crate::time::sleep(REQUEST_TIMEOUT),
+                                crate::time::durable_sleep(REQUEST_TIMEOUT),
                             );
                         } else {
                             break;
@@ -1454,16 +1614,24 @@ async fn connect_loop_state_machine(
                                 })
                                 .expect("TODO");
                             ws.send_with_str(&serialized).expect("TODO");
+
+                            state = ConnectionState::Connected(
+                                message_id,
+                                on_incomingmessage_rx,
+                                ws,
+                            );
+                        } else {
+                            break;
                         }
                     }
                 }
             }
             ConnectionState::AwaitingRequestResponse(
                 message_id,
-                on_incomingmessage_rx,
+                mut on_incomingmessage_rx,
                 ws,
                 (request, response_tx),
-                sleep,
+                mut sleep,
             ) => {
                 // TODO avoid select! as it doesn't guarantee that all branches are covered (it will panic otherwise)
                 tokio::select! {
@@ -1486,19 +1654,26 @@ async fn connect_loop_state_machine(
                                 IncomingMessage::Message(payload) => {
                                     let id = payload.id();
                                     match payload {
-                                        Payload::Request(request) => {
+                                        Payload::Request(payload_request) => {
                                             #[allow(clippy::single_match)]
-                                            match request.params {
+                                            match payload_request.params {
                                                 Params::Subscription(
                                                     sub_msg
                                                 ) => {
-                                                    handle_irn_subscription(id, sub_msg);
+                                                    handle_irn_subscription(id, sub_msg).await;
                                                 }
-                                                _ => tracing::warn!("ignoring message request in AwaitingRequestResponse state: {:?}", request),
+                                                _ => tracing::warn!("ignoring message request in AwaitingRequestResponse state: {:?}", payload_request),
                                             }
+                                            state = ConnectionState::AwaitingRequestResponse(
+                                                message_id,
+                                                on_incomingmessage_rx,
+                                                ws,
+                                                (request, response_tx),
+                                                sleep,
+                                            );
                                         }
                                         Payload::Response(response) => {
-                                            if id == MessageId::new(*message_id) {
+                                            if id == MessageId::new(message_id) {
                                                 if let Err(e) =
                                                     response_tx.send(Ok(response))
                                                 {
@@ -1507,28 +1682,46 @@ async fn connect_loop_state_machine(
                                                 state = ConnectionState::Connected(message_id, on_incomingmessage_rx, ws);
                                             } else {
                                                 tracing::warn!("ignoring message response in AwaitingSubscribeResponse state: {:?}", response);
+                                                state = ConnectionState::AwaitingRequestResponse(
+                                                    message_id,
+                                                    on_incomingmessage_rx,
+                                                    ws,
+                                                    (request, response_tx),
+                                                    sleep,
+                                                );
                                             }
                                         }
                                     }
                                 }
                             }
+                        } else {
+                            break;
                         }
                     }
-                    () = sleep => state = ConnectionState::ConnectRetryRequest((request, response_tx)),
+                    Some(()) = sleep.recv() => state = ConnectionState::ConnectRetryRequest((request, response_tx)),
                 }
             }
             ConnectionState::ConnectRetryRequest((request, response_tx)) => {
-                // TODO also subscribe to sessions
-                let connect_res =
-                    connect(relay_url, project_id, key, request).await;
+                let topics = {
+                    let sessions = sessions.read().await;
+                    sessions.iter().map(|(topic, _)| topic.clone()).collect()
+                };
+                let connect_res = connect(
+                    relay_url.clone(),
+                    project_id.clone(),
+                    &key,
+                    topics,
+                    request,
+                )
+                .await;
                 match connect_res {
                     Ok((message_id, on_incomingmessage_rx, ws)) => {
                         state = ConnectionState::AwaitingConnectRetryRequestResponse(
                             message_id,
                             on_incomingmessage_rx,
                             ws,
-                            (request, response_tx),
-                            crate::time::sleep(REQUEST_TIMEOUT),
+                            response_tx,
+                            crate::time::durable_sleep(REQUEST_TIMEOUT),
                         );
                     }
                     Err(e) => {
@@ -1543,10 +1736,10 @@ async fn connect_loop_state_machine(
             }
             ConnectionState::AwaitingConnectRetryRequestResponse(
                 message_id,
-                on_incomingmessage_rx,
+                mut on_incomingmessage_rx,
                 ws,
-                (request, response_tx),
-                sleep,
+                response_tx,
+                mut sleep,
             ) => {
                 // TODO avoid select! as it doesn't guarantee that all branches are covered (it will panic otherwise)
                 tokio::select! {
@@ -1577,9 +1770,16 @@ async fn connect_loop_state_machine(
                                         Payload::Request(request) => {
                                             // TODO consider handling anyway, if possible
                                             tracing::warn!("ignoring message request in AwaitingConnectRetryRequestResponse state: {:?}", request);
+                                            state = ConnectionState::AwaitingConnectRetryRequestResponse(
+                                                message_id,
+                                                on_incomingmessage_rx,
+                                                ws,
+                                                response_tx,
+                                                sleep,
+                                            );
                                         }
                                         Payload::Response(response) => {
-                                            if id == MessageId::new(*message_id) {
+                                            if id == MessageId::new(message_id) {
                                                 if let Err(e) =
                                                     response_tx.send(Ok(response))
                                                 {
@@ -1588,20 +1788,29 @@ async fn connect_loop_state_machine(
                                                 state = ConnectionState::Connected(message_id, on_incomingmessage_rx, ws);
                                             } else {
                                                 tracing::warn!("ignoring message response in AwaitingConnectRetryRequestResponse state: {:?}", response);
+                                                state = ConnectionState::AwaitingConnectRetryRequestResponse(
+                                                    message_id,
+                                                    on_incomingmessage_rx,
+                                                    ws,
+                                                    response_tx,
+                                                    sleep,
+                                                );
                                             }
                                         }
                                     }
                                 }
                             }
+                        } else {
+                            break;
                         }
                     }
-                    () = sleep => state = ConnectionState::MaybeReconnect,
+                    Some(()) = sleep.recv() => state = ConnectionState::MaybeReconnect,
                 }
             }
         }
     }
 
-    while let Some((request, response_tx)) = request_rx.recv().await {
+    while let Some((_request, response_tx)) = request_rx.recv().await {
         if let Err(e) = response_tx
             .send(Err(RequestError::Internal("request_rx closed".to_string())))
         {
@@ -1614,6 +1823,7 @@ pub fn generate_key() -> SecretKey {
     SigningKey::generate(&mut rand::thread_rng()).to_bytes()
 }
 
+#[cfg(feature = "uniffi")]
 #[uniffi::export(with_foreign)]
 pub trait SessionRequestListener: Send + Sync {
     fn on_session_request(
@@ -1776,7 +1986,7 @@ pub struct SessionProposal {
     pub proposer_public_key: [u8; 32],
     pub relays: Vec<crate::sign::protocol_types::Relay>,
     pub required_namespaces: ProposalNamespaces,
-    pub optional_namespaces: Option<ProposalNamespaces>,
+    pub optional_namespaces: ProposalNamespaces,
     pub metadata: Metadata,
     pub session_properties: Option<HashMap<String, String>>,
     pub scoped_properties: Option<HashMap<String, String>>,
@@ -1809,7 +2019,7 @@ mod conversion_tests {
             proposer_public_key: [2u8; 32],
             relays: vec![],
             required_namespaces: std::collections::HashMap::new(),
-            optional_namespaces: Some(std::collections::HashMap::new()),
+            optional_namespaces: std::collections::HashMap::new(),
             metadata: Metadata {
                 name: "Test".to_string(),
                 description: "Test".to_string(),
