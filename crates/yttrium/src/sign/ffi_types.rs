@@ -1,9 +1,11 @@
-use std::collections::HashMap;
-
-use relay_rpc::domain::Topic;
-use serde::{Serialize, Deserialize};
-
-use crate::sign::protocol_types::{Metadata, ProposalNamespace, ProposalNamespaces, SettleNamespace};
+use {
+    crate::sign::protocol_types::{
+        Metadata, ProposalNamespace, ProposalNamespaces, SettleNamespace,
+    },
+    relay_rpc::domain::Topic,
+    serde::{Deserialize, Serialize},
+    std::collections::HashMap,
+};
 
 #[cfg(feature = "uniffi")]
 #[derive(uniffi_macros::Record, Debug, Serialize, Deserialize)]
