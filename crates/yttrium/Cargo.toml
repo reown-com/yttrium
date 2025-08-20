@@ -45,6 +45,9 @@ wasm = [
     "uuid/js",
     "dep:wasmtimer",
     "dep:web-sys",
+    "web-sys/WebSocket",
+    "web-sys/CloseEvent",
+    "web-sys/MessageEvent",
 ]
 
 all_namespaces = ["eip155", "solana", "sui", "stacks"]
