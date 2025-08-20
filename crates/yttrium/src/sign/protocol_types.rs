@@ -17,7 +17,7 @@ pub struct ProposalJsonRpc {
 #[serde(rename_all = "camelCase")]
 pub struct Proposal {
     pub required_namespaces: ProposalNamespaces,
-    pub optional_namespaces: ProposalNamespaces,
+    pub optional_namespaces: Option<ProposalNamespaces>,
     pub relays: Vec<Relay>,
     pub proposer: Proposer,
     pub session_properties: Option<HashMap<String, String>>,

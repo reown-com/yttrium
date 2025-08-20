@@ -367,7 +367,7 @@ impl Client {
                     proposer_public_key,
                     relays: proposal.relays,
                     required_namespaces: proposal.required_namespaces,
-                    optional_namespaces: Some(proposal.optional_namespaces),
+                    optional_namespaces: proposal.optional_namespaces,
                     metadata: proposal.proposer.metadata,
                     session_properties: proposal.session_properties,
                     scoped_properties: proposal.scoped_properties,
