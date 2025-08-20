@@ -1426,7 +1426,7 @@ async fn connect_loop_state_machine(
                                 "Failed to send error response: {e:?}"
                             );
                         }
-                        state = ConnectionState::MaybeReconnect;
+                        state = ConnectionState::Idle;
                     }
                 }
             }
