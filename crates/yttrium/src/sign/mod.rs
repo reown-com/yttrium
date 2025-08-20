@@ -19,6 +19,7 @@ use {
         relay_url::ConnectionOptions,
         utils::{diffie_hellman, generate_rpc_id, topic_from_sym_key},
     },
+    crate::time::Sleep,
     chacha20poly1305::{
         aead::Aead, AeadCore, ChaCha20Poly1305, KeyInit, Nonce,
     },
@@ -1112,7 +1113,7 @@ enum ConnectionState {
         u64,
         tokio::sync::mpsc::UnboundedReceiver<IncomingMessage>,
         ConnectWebSocket,
-        tokio::sync::mpsc::Receiver<()>,
+        Sleep,
     ),
     Backoff,
     ConnectRequest(
@@ -1123,7 +1124,7 @@ enum ConnectionState {
         tokio::sync::mpsc::UnboundedReceiver<IncomingMessage>,
         ConnectWebSocket,
         (Params, tokio::sync::oneshot::Sender<Result<Response, RequestError>>),
-        tokio::sync::mpsc::Receiver<()>,
+        Sleep,
     ),
     Connected(
         u64,
@@ -1135,7 +1136,7 @@ enum ConnectionState {
         tokio::sync::mpsc::UnboundedReceiver<IncomingMessage>,
         ConnectWebSocket,
         (Params, tokio::sync::oneshot::Sender<Result<Response, RequestError>>),
-        tokio::sync::mpsc::Receiver<()>,
+        Sleep,
     ),
     ConnectRetryRequest(
         (Params, tokio::sync::oneshot::Sender<Result<Response, RequestError>>),
@@ -1145,7 +1146,7 @@ enum ConnectionState {
         tokio::sync::mpsc::UnboundedReceiver<IncomingMessage>,
         ConnectWebSocket,
         tokio::sync::oneshot::Sender<Result<Response, RequestError>>,
-        tokio::sync::mpsc::Receiver<()>,
+        Sleep,
     ),
 }
 
@@ -1320,7 +1321,7 @@ async fn connect_loop_state_machine(
                             message_id,
                             on_incomingmessage_rx,
                             ws,
-                            crate::time::durable_sleep(REQUEST_TIMEOUT),
+                            crate::time::sleep(REQUEST_TIMEOUT),
                         );
                     }
                     Err(e) => {
@@ -1339,51 +1340,51 @@ async fn connect_loop_state_machine(
                 tokio::select! {
                     message = on_incomingmessage_rx.recv() => {
                         if let Some(message) = message {
-                        match message {
-                            IncomingMessage::Close(reason) => {
-                                match reason {
-                                    CloseReason::InvalidAuth => {
-                                        state = ConnectionState::Poisoned;
-                                    }
-                                    CloseReason::Error(reason) => {
-                                        tracing::debug!("AwaitingSubscribeResponse: CloseReason::Error: {reason}");
-                                        state = ConnectionState::Backoff;
+                            match message {
+                                IncomingMessage::Close(reason) => {
+                                    match reason {
+                                        CloseReason::InvalidAuth => {
+                                            state = ConnectionState::Poisoned;
+                                        }
+                                        CloseReason::Error(reason) => {
+                                            tracing::debug!("AwaitingSubscribeResponse: CloseReason::Error: {reason}");
+                                            state = ConnectionState::Backoff;
+                                        }
                                     }
                                 }
-                            }
-                            IncomingMessage::Message(payload) => {
-                                let id = payload.id();
-                                match payload {
-                                    Payload::Request(request) => {
-                                        tracing::warn!("ignoring message request in AwaitingSubscribeResponse state: {:?}", request);
-                                        state = ConnectionState::AwaitingSubscribeResponse(
-                                            message_id,
-                                             on_incomingmessage_rx,
-                                            ws,
-                                            sleep,
-                                        );
-                                    }
-                                    Payload::Response(response) => {
-                                        if id == MessageId::new(message_id) {
-                                            state = ConnectionState::Connected(message_id, on_incomingmessage_rx, ws);
-                                        } else {
-                                            tracing::warn!("ignoring message response in AwaitingSubscribeResponse state: {:?}", response);
+                                IncomingMessage::Message(payload) => {
+                                    let id = payload.id();
+                                    match payload {
+                                        Payload::Request(request) => {
+                                            tracing::warn!("ignoring message request in AwaitingSubscribeResponse state: {:?}", request);
                                             state = ConnectionState::AwaitingSubscribeResponse(
                                                 message_id,
-                                                 on_incomingmessage_rx,
+                                                on_incomingmessage_rx,
                                                 ws,
                                                 sleep,
                                             );
                                         }
+                                        Payload::Response(response) => {
+                                            if id == MessageId::new(message_id) {
+                                                state = ConnectionState::Connected(message_id, on_incomingmessage_rx, ws);
+                                            } else {
+                                                tracing::warn!("ignoring message response in AwaitingSubscribeResponse state: {:?}", response);
+                                                state = ConnectionState::AwaitingSubscribeResponse(
+                                                    message_id,
+                                                    on_incomingmessage_rx,
+                                                    ws,
+                                                    sleep,
+                                                );
+                                            }
+                                        }
                                     }
-                                }
                                 }
                             }
                         } else {
                             state = ConnectionState::Backoff;
                         }
                     },
-                    Some(()) = sleep.recv() => state = ConnectionState::Backoff,
+                    () = &mut sleep => state = ConnectionState::Backoff,
                 }
             }
             ConnectionState::Backoff => {
@@ -1417,7 +1418,7 @@ async fn connect_loop_state_machine(
                             on_incomingmessage_rx,
                             ws,
                             (request, response_tx),
-                            crate::time::durable_sleep(REQUEST_TIMEOUT),
+                            crate::time::sleep(REQUEST_TIMEOUT),
                         );
                     }
                     Err(e) => {
@@ -1507,7 +1508,7 @@ async fn connect_loop_state_machine(
                             state = ConnectionState::MaybeReconnect;
                         }
                     },
-                    Some(()) = sleep.recv() => {
+                    () = &mut sleep => {
                         if let Err(e) =
                             response_tx.send(Err(RequestError::Offline))
                         {
@@ -1590,7 +1591,7 @@ async fn connect_loop_state_machine(
                                 on_incomingmessage_rx,
                                 ws,
                                 (request, response_tx),
-                                crate::time::durable_sleep(REQUEST_TIMEOUT),
+                                crate::time::sleep(REQUEST_TIMEOUT),
                             );
                         } else {
                             break;
@@ -1698,7 +1699,7 @@ async fn connect_loop_state_machine(
                             break;
                         }
                     }
-                    Some(()) = sleep.recv() => state = ConnectionState::ConnectRetryRequest((request, response_tx)),
+                    () = &mut sleep => state = ConnectionState::ConnectRetryRequest((request, response_tx)),
                 }
             }
             ConnectionState::ConnectRetryRequest((request, response_tx)) => {
@@ -1721,7 +1722,7 @@ async fn connect_loop_state_machine(
                             on_incomingmessage_rx,
                             ws,
                             response_tx,
-                            crate::time::durable_sleep(REQUEST_TIMEOUT),
+                            crate::time::sleep(REQUEST_TIMEOUT),
                         );
                     }
                     Err(e) => {
@@ -1804,7 +1805,7 @@ async fn connect_loop_state_machine(
                             break;
                         }
                     }
-                    Some(()) = sleep.recv() => state = ConnectionState::MaybeReconnect,
+                    () = &mut sleep => state = ConnectionState::MaybeReconnect,
                 }
             }
         }
