@@ -175,7 +175,6 @@ const REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
 //   - does deduplication happen at the irn_subscription layer (like current SDKs) or do we do it for each action e.g. update, event, etc. (remember layered state and stateless architecture)
 
 // TODO
-// - WS reconnection & retries
 //   - disconnect if no ping for 30s etc. (native only)
 //   - reconnect back-off w/ random jitter to prevent server overload
 //   - online/offline hints
@@ -1140,18 +1139,23 @@ async fn connect(
     }
 }
 
+struct BackoffState {
+    attempt: usize,
+}
+
 enum ConnectionState {
     Idle,
     Poisoned,
-    MaybeReconnect,
-    ConnectSubscribe,
+    MaybeReconnect(Option<BackoffState>),
+    ConnectSubscribe(BackoffState),
     AwaitingSubscribeResponse(
+        BackoffState,
         u64,
         tokio::sync::mpsc::UnboundedReceiver<IncomingMessage>,
         ConnectWebSocket,
         DurableSleep,
     ),
-    Backoff,
+    Backoff(BackoffState),
     ConnectRequest(
         (Params, tokio::sync::oneshot::Sender<Result<Response, RequestError>>),
     ),
@@ -1387,14 +1391,16 @@ async fn connect_loop_state_machine(
                 }
                 state = ConnectionState::Idle;
             }
-            ConnectionState::MaybeReconnect => {
+            ConnectionState::MaybeReconnect(backoff_state) => {
                 if session_store.get_all_sessions().is_empty() {
                     state = ConnectionState::Idle;
                 } else {
-                    state = ConnectionState::ConnectSubscribe;
+                    state = ConnectionState::ConnectSubscribe(
+                        backoff_state.unwrap_or(BackoffState { attempt: 0 }),
+                    );
                 }
             }
-            ConnectionState::ConnectSubscribe => {
+            ConnectionState::ConnectSubscribe(backoff_state) => {
                 let topics = {
                     session_store
                         .get_all_sessions()
@@ -1413,6 +1419,7 @@ async fn connect_loop_state_machine(
                 match connect_res {
                     Ok((message_id, on_incomingmessage_rx, ws)) => {
                         state = ConnectionState::AwaitingSubscribeResponse(
+                            backoff_state,
                             message_id,
                             on_incomingmessage_rx,
                             ws,
@@ -1421,11 +1428,12 @@ async fn connect_loop_state_machine(
                     }
                     Err(e) => {
                         tracing::debug!("ConnectSubscribe failed: {e:?}");
-                        state = ConnectionState::Backoff;
+                        state = ConnectionState::Backoff(backoff_state);
                     }
                 }
             }
             ConnectionState::AwaitingSubscribeResponse(
+                backoff_state,
                 message_id,
                 mut on_incomingmessage_rx,
                 ws,
@@ -1443,7 +1451,7 @@ async fn connect_loop_state_machine(
                                         }
                                         CloseReason::Error(reason) => {
                                             tracing::debug!("AwaitingSubscribeResponse: CloseReason::Error: {reason}");
-                                            state = ConnectionState::Backoff;
+                                            state = ConnectionState::Backoff(backoff_state);
                                         }
                                     }
                                 }
@@ -1453,6 +1461,7 @@ async fn connect_loop_state_machine(
                                         Payload::Request(request) => {
                                             tracing::warn!("ignoring message request in AwaitingSubscribeResponse state: {:?}", request);
                                             state = ConnectionState::AwaitingSubscribeResponse(
+                                                backoff_state,
                                                 message_id,
                                                 on_incomingmessage_rx,
                                                 ws,
@@ -1465,6 +1474,7 @@ async fn connect_loop_state_machine(
                                             } else {
                                                 tracing::warn!("ignoring message response in AwaitingSubscribeResponse state: {:?}", response);
                                                 state = ConnectionState::AwaitingSubscribeResponse(
+                                                    backoff_state,
                                                     message_id,
                                                     on_incomingmessage_rx,
                                                     ws,
@@ -1476,20 +1486,26 @@ async fn connect_loop_state_machine(
                                 }
                             }
                         } else {
-                            state = ConnectionState::Backoff;
+                            state = ConnectionState::Backoff(backoff_state);
                         }
                     },
-                    Some(()) = sleep.recv() => state = ConnectionState::Backoff,
+                    Some(()) = sleep.recv() => state = ConnectionState::Backoff(backoff_state),
                 }
             }
-            ConnectionState::Backoff => {
-                // TODO start at 0, then etc.
-                // TODO consider max 1s polling? Why go less frequently?
-                let sleep = crate::time::sleep(Duration::from_millis(1000));
+            ConnectionState::Backoff(backoff_state) => {
+                let attempt = backoff_state.attempt;
+                const BACKOFF_VALUES: [u64; 4] = [1000, 1000, 2000, 5000];
+                let sleep = crate::time::sleep(Duration::from_millis(
+                    BACKOFF_VALUES[attempt],
+                ));
+
                 // TODO avoid select! as it doesn't guarantee that all branches are covered (it will panic otherwise)
                 tokio::select! {
                     Some(req) = request_rx.recv() => state = ConnectionState::ConnectRequest(req),
-                    () = sleep => state = ConnectionState::MaybeReconnect,
+                    () = sleep => {
+                        let next_attempt = (attempt + 1).min(BACKOFF_VALUES.len() - 1);
+                        state = ConnectionState::MaybeReconnect(Some(BackoffState { attempt: next_attempt }));
+                    }
                     else => break,
                 }
             }
@@ -1558,7 +1574,7 @@ async fn connect_loop_state_machine(
                                         {
                                             tracing::warn!("Failed to send error response: {e:?}");
                                         }
-                                        state = ConnectionState::MaybeReconnect;
+                                        state = ConnectionState::MaybeReconnect(None);
                                     }
                                 }
                             }
@@ -1603,7 +1619,7 @@ async fn connect_loop_state_machine(
                             {
                                 tracing::warn!("Failed to send error response: {e:?}");
                             }
-                            state = ConnectionState::MaybeReconnect;
+                            state = ConnectionState::MaybeReconnect(None);
                         }
                     },
                     Some(()) = sleep.recv() => {
@@ -1612,7 +1628,7 @@ async fn connect_loop_state_machine(
                         {
                             tracing::warn!("Failed to send error response: {e:?}");
                         }
-                        state = ConnectionState::MaybeReconnect;
+                        state = ConnectionState::MaybeReconnect(None);
                     }
                 }
             }
@@ -1631,7 +1647,7 @@ async fn connect_loop_state_machine(
                                         tracing::warn!("server misbehaved: invalid auth in Connected state");
                                         state = ConnectionState::Poisoned;
                                     } else {
-                                        state = ConnectionState::MaybeReconnect;
+                                        state = ConnectionState::MaybeReconnect(None);
                                     }
                                 }
                                 IncomingMessage::Message(payload) => {
@@ -1665,7 +1681,7 @@ async fn connect_loop_state_machine(
                                 }
                             }
                         } else {
-                            state = ConnectionState::MaybeReconnect;
+                            state = ConnectionState::MaybeReconnect(None);
                         }
                     }
                     request = request_rx.recv() => {
@@ -1838,7 +1854,7 @@ async fn connect_loop_state_machine(
                                 "Failed to send error response: {e:?}"
                             );
                         }
-                        state = ConnectionState::MaybeReconnect;
+                        state = ConnectionState::MaybeReconnect(None);
                     }
                 }
             }
@@ -1869,7 +1885,7 @@ async fn connect_loop_state_machine(
                                         {
                                             tracing::warn!("Failed to send error response: {e:?}");
                                         }
-                                        state = ConnectionState::MaybeReconnect;
+                                        state = ConnectionState::MaybeReconnect(None);
                                     }
                                 }
                                 IncomingMessage::Message(payload) => {
@@ -1912,7 +1928,7 @@ async fn connect_loop_state_machine(
                             break;
                         }
                     }
-                    Some(()) = sleep.recv() => state = ConnectionState::MaybeReconnect,
+                    Some(()) = sleep.recv() => state = ConnectionState::MaybeReconnect(None),
                 }
             }
         }

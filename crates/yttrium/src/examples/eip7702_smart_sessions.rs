@@ -135,7 +135,8 @@ async fn test_impl(
         permitERC4337Paymaster: true,
     };
 
-    let smart_sessions = get_smart_sessions_validator(&[session.clone()], None);
+    let smart_sessions =
+        get_smart_sessions_validator(std::slice::from_ref(&session), None);
 
     let auth_7702 = Authorization {
         chain_id: U256::from(chain_id),
