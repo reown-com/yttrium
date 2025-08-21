@@ -93,6 +93,7 @@ sign_client = [
     "dep:x25519-dalek",
     "dep:hkdf",
     "dep:sha2",
+    "dep:tokio-util",
 ]
 
 # Features enabling test coverage
@@ -148,6 +149,7 @@ thiserror.workspace = true
 
 # Async
 tokio = { workspace = true, default-features = false, features = ["rt"] }
+tokio-util = { workspace = true, optional = true, default-features = false }
 futures.workspace = true
 
 # Serialization
