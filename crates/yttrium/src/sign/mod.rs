@@ -39,7 +39,7 @@ use {
 };
 #[cfg(feature = "uniffi")]
 use crate::sign::ffi_types::{SessionProposalFfi, SessionFfi, Session, SessionRequestJsonRpcFfi, SessionRequestResponseJsonRpcFfi};
-use crate::sign::{ffi_types::SessionProposal};
+use crate::sign::{ffi_types::SessionProposal, utils::is_expired};
 #[cfg(not(target_arch = "wasm32"))]
 use {
     futures::{SinkExt, StreamExt},
@@ -248,7 +248,7 @@ impl Client {
                 project_id,
                 key: None,
                 websocket: None,
-                session_request_tx: tx,     
+                session_request_tx: tx,
                 session_store: None,
                 invalid_auth: Arc::new(AtomicBool::new(false)),
             },
@@ -317,7 +317,7 @@ impl Client {
 
         // TODO parse URI and URI validation
         // https://github.com/WalletConnect/walletconnect-monorepo/blob/5bef698dcf0ae910548481959a6a5d87eaf7aaa5/packages/core/src/controllers/pairing.ts#L132
-        
+
         let pairing_uri = pairing_uri::parse(uri)
             .map_err(|e| PairError::Internal(e.to_string()))?;
 
@@ -538,11 +538,11 @@ impl Client {
             transport_type: None, //TODO: add transport type for link mode
         };
 
-        
+
         if let Some(store) = &self.session_store {
             store.add_session(session.clone().into());
         }
-    
+
         match self
             .request::<bool>(relay_rpc::rpc::Params::ApproveSession(approve_session,)).await {
             Ok(true) => {
@@ -565,15 +565,29 @@ impl Client {
         }
     }
 
+    // TODO will use storage in the future, for now it's ok to receive the whole proposal as parameter much like on approve() method.
     pub async fn reject(
-        &mut self, 
-        proposal: SessionProposal, 
+        &mut self,
+        proposal: SessionProposal,
         reason: relay_rpc::rpc::ErrorData,
     ) -> Result<(), RejectError> {
-        
+        // https://github.com/WalletConnect/walletconnect-monorepo/blob/5bef698dcf0ae910548481959a6a5d87eaf7aaa5/packages/sign-client/src/controllers/engine.ts#L497
+
+        // Check if proposal is expired
+        if let Some(expiry) = proposal.expiry_timestamp {
+            if is_expired(expiry) {
+                return Err(RejectError::Internal(format!(
+                    "Proposal id {} has expired",
+                    proposal.session_proposal_rpc_id
+                )));
+            }
+        }
+
         // Send error response to the pairing topic
         let error_response = relay_rpc::rpc::ErrorResponse {
-            id: relay_rpc::domain::MessageId::new(proposal.session_proposal_rpc_id),
+            id: relay_rpc::domain::MessageId::new(
+                proposal.session_proposal_rpc_id,
+            ),
             jsonrpc: relay_rpc::rpc::JSON_RPC_VERSION.clone(),
             error: reason,
         };
@@ -596,19 +610,38 @@ impl Client {
         let message = BASE64.encode(encoded.as_slice()).into();
 
         // Publish error response to pairing topic
-        self.request::<bool>(relay_rpc::rpc::Params::Publish(Publish {
-            topic: proposal.pairing_topic.clone(),
-            message,
-            attestation: None, // TODO
-            ttl_secs: 300,
-            tag: 1120,
-            prompt: false,
-            analytics: None, // TODO
-        }))
-        .await
-        .map_err(|e| RejectError::Request(e))?;
-
-        Ok(())
+        match self
+            .request::<bool>(relay_rpc::rpc::Params::Publish(Publish {
+                topic: proposal.pairing_topic.clone(),
+                message,
+                attestation: None, // TODO
+                ttl_secs: 300,
+                tag: 1120,
+                prompt: false,
+                analytics: Some(AnalyticsData {
+                    correlation_id: Some(
+                        proposal.session_proposal_rpc_id.try_into().unwrap(),
+                    ),
+                    chain_id: None,
+                    rpc_methods: None,
+                    tx_hashes: None,
+                    contract_addresses: None,
+                }),
+            }))
+            .await
+        {
+            Ok(true) => Ok(()),
+            Ok(false) => {
+                // we don't need delete from storage from rust side (like on approve method does for session) as is not implemented for proposal
+                // proposal will be deleted from each SDK storage.
+                return Err(RejectError::Internal(
+                    "Failed to send rejection to relay".to_string(),
+                ));
+            }
+            Err(e) => {
+                return Err(RejectError::Request(e));
+            }
+        }
     }
 
     pub async fn _update(&self) {
@@ -643,12 +676,12 @@ impl Client {
         //TODO: get session from storage
         let shared_secret = {
             let sessions: Vec<Session> = if let Some(store) = &self.session_store {
-                let ffi_sessions = store.get_all_sessions();
+                    let ffi_sessions = store.get_all_sessions();
                 tracing::debug!("Respond: FFI sessions count: {}", ffi_sessions.len());
-                ffi_sessions.into_iter().map(|s| s.into()).collect()
-            } else {
+                    ffi_sessions.into_iter().map(|s| s.into()).collect()
+                } else {
                 return Err(RespondError::Internal("No session store available".to_owned()));
-            };
+                };
             let session = sessions.iter().find(|s| s.topic == topic).ok_or(
                 RespondError::Internal(format!("Session not found for topic: {:?}. Available topics: {:?}", topic, sessions.iter().map(|s| &s.topic).collect::<Vec<_>>())),
             )?;
@@ -786,7 +819,7 @@ impl Client {
         tracing::debug!("Connect: Handle IRN Subscription");
         let handle_irn_subscription = {
             let session_store = self.session_store.clone();
-            
+
             move |id: MessageId, sub_msg: Subscription| {
                 // Get fresh sessions list each time to avoid stale data
                 let sessions: Vec<Session> = if let Some(store) = &session_store {
@@ -803,7 +836,7 @@ impl Client {
                 let session_sym_key = {
                     tracing::debug!("Connect: Looking for session with topic: {:?}", sub_msg.data.topic);
                     tracing::debug!("Connect: Available session topics: {:?}", sessions.iter().map(|s| &s.topic).collect::<Vec<_>>());
-                
+
                     let session = sessions.iter().find(|s| s.topic == sub_msg.data.topic);
                     match session {
                         Some(s) => {
@@ -933,13 +966,13 @@ impl Client {
                     .map_err(|e| RequestError::Internal(e.to_string()))?
                     .map_err(|e| RequestError::Internal(e.to_string()))?;
             let sessions: Vec<Session> = if let Some(store) = &self.session_store {
-                let ffi_sessions = store.get_all_sessions();
+                    let ffi_sessions = store.get_all_sessions();
                 tracing::debug!("Connect WS: FFI sessions count: {}", ffi_sessions.len());
-                ffi_sessions.into_iter().map(|s| s.into()).collect()
-            } else {
-                tracing::debug!("Connect WS: No session store registered");
-                Vec::new()
-            };
+                    ffi_sessions.into_iter().map(|s| s.into()).collect()
+                } else {
+                    tracing::debug!("Connect WS: No session store registered");
+                    Vec::new()
+                };
 
             let invalid_auth = self.invalid_auth.clone();
             crate::spawn::spawn(async move {
@@ -1454,7 +1487,7 @@ impl SignClient {
         tracing::debug!("Creating new SignClient with project_id: {project_id}");
         let (client, session_request_rx) = Client::new(ProjectId::from(project_id));
 
-        Self { 
+        Self {
             client: std::sync::Arc::new(tokio::sync::Mutex::new(client)),
             session_request_rx: std::sync::Mutex::new(Some(session_request_rx)),
         }
