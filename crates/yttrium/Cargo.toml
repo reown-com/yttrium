@@ -45,6 +45,9 @@ wasm = [
     "uuid/js",
     "dep:wasmtimer",
     "dep:web-sys",
+    "web-sys/WebSocket",
+    "web-sys/CloseEvent",
+    "web-sys/MessageEvent",
 ]
 
 all_namespaces = ["eip155", "solana", "sui", "stacks"]
@@ -83,6 +86,7 @@ erc6492_client = []
 chain_abstraction_client = []
 transaction_sponsorship_client = []
 sign_client = [
+    "dep:futures-concurrency",
     "dep:chacha20poly1305",
     "dep:rand",
     "dep:data-encoding",
@@ -212,6 +216,7 @@ num-bigint = "0.4.6"
 rand = { workspace = true, optional = true }
 
 # Sign Client
+futures-concurrency = { version = "7.6.3", optional = true }
 tokio-tungstenite = { workspace = true, optional = true }
 web-sys = { workspace = true, optional = true }
 chacha20poly1305 = { workspace = true, optional = true, features = [

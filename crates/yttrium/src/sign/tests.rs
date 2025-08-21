@@ -1,14 +1,40 @@
 #![cfg(feature = "test_depends_on_env_REOWN_PROJECT_ID")]
 use {
-    crate::sign::{Client, Metadata, SettleNamespace},
-    std::collections::HashMap,
+    crate::sign::{
+        generate_key, Client, Metadata, Session, SessionStore, SettleNamespace,
+    },
+    std::{collections::HashMap, sync::Arc},
 };
+
+struct MySessionStore;
+impl SessionStore for MySessionStore {
+    fn add_session(&self, session: Session) {
+        println!("add_session: {session:?}");
+    }
+
+    fn delete_session(&self, topic: String) {
+        println!("delete_session: {topic:?}");
+    }
+
+    fn get_session(&self, topic: String) -> Option<Session> {
+        println!("get_session: {topic:?}");
+        None
+    }
+
+    fn get_all_sessions(&self) -> Vec<Session> {
+        println!("get_all_sessions");
+        vec![]
+    }
+}
 
 #[tokio::test]
 #[ignore]
 async fn test_sign() {
-    let (mut client, mut session_request_rx) =
-        Client::new(std::env::var("REOWN_PROJECT_ID").unwrap().into());
+    let (mut client, mut session_request_rx) = Client::new(
+        std::env::var("REOWN_PROJECT_ID").unwrap().into(),
+        generate_key(),
+        Arc::new(MySessionStore),
+    );
     let uri = std::env::var("PAIRING_URI").unwrap();
     let pairing = client.pair(&uri).await.unwrap();
 

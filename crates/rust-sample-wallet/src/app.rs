@@ -12,19 +12,78 @@ use {
         ToasterInjection,
     },
     yttrium::sign::{
+        ffi_types::{Session, SessionProposal},
         generate_key,
         protocol_types::{
             Metadata, SessionRequestJsonRpc, SessionRequestResponseJsonRpc,
             SettleNamespace,
         },
-        Client, SecretKey, Session, SessionProposal, Topic,
+        Client, SecretKey, SessionStore, Topic,
     },
 };
 
-#[derive(Serialize, Deserialize, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Clone)]
 struct MyState {
     key: SecretKey,
     sessions: Vec<Session>,
+}
+
+struct MySessionStore;
+
+fn read_local_storage() -> MyState {
+    let state = web_sys::window()
+        .unwrap()
+        .local_storage()
+        .unwrap()
+        .unwrap()
+        .get_item("wc")
+        .unwrap();
+    if let Some(state) = state {
+        if let Ok(state) = serde_json::from_str(&state) {
+            state
+        } else {
+            MyState { key: generate_key(), sessions: Vec::new() }
+        }
+    } else {
+        MyState { key: generate_key(), sessions: Vec::new() }
+    }
+}
+
+fn write_local_storage(state: MyState) {
+    web_sys::window()
+        .unwrap()
+        .local_storage()
+        .unwrap()
+        .unwrap()
+        .set_item("wc", &serde_json::to_string(&state).unwrap())
+        .unwrap();
+}
+
+impl SessionStore for MySessionStore {
+    fn get_all_sessions(&self) -> Vec<Session> {
+        read_local_storage().sessions
+    }
+
+    fn add_session(&self, session: Session) {
+        let mut state = read_local_storage();
+        state.sessions.push(session);
+        write_local_storage(state);
+    }
+
+    fn delete_session(&self, topic: String) {
+        let mut state = read_local_storage();
+        state
+            .sessions
+            .retain(|session| session.topic.value().to_string() != topic);
+        write_local_storage(state);
+    }
+
+    fn get_session(&self, topic: String) -> Option<Session> {
+        read_local_storage()
+            .sessions
+            .into_iter()
+            .find(|session| session.topic.value().to_string() == topic)
+    }
 }
 
 // TODO disconnect support
@@ -35,12 +94,9 @@ struct MyState {
 pub fn App() -> impl IntoView {
     let toaster = ToasterInjection::expect_context();
 
-    let my_state = RwSignal::new(None::<MyState>);
-
     let pairing_uri = RwSignal::new(String::new());
-    let (client, request_rx) = Client::new("YOUR_PROJECT_ID".into());
-    let client = StoredValue::new(Arc::new(tokio::sync::Mutex::new(client)));
-    let request_rx = StoredValue::new(Some(request_rx));
+    let client =
+        StoredValue::new(None::<std::sync::Arc<tokio::sync::Mutex<Client>>>);
 
     let pairing_request =
         RwSignal::new(None::<RwSignal<Option<SessionProposal>>>);
@@ -50,7 +106,7 @@ pub fn App() -> impl IntoView {
             let signal = RwSignal::new(None::<SessionProposal>);
             pairing_request_open.set(true);
             pairing_request.set(Some(signal));
-            let client = client.read_value().clone();
+            let client = client.read_value().as_ref().unwrap().clone();
             let pairing_uri = pairing_uri.clone();
             async move {
                 let mut client = client.lock().await;
@@ -80,13 +136,13 @@ pub fn App() -> impl IntoView {
     let approve_pairing_action = Action::new({
         move |pairing: &SessionProposal| {
             let pairing = pairing.clone();
-            let client = client.read_value().clone();
+            let client = client.read_value().as_ref().unwrap().clone();
             async move {
-                let mut client = client.lock().await;
+                let mut client_guard = client.lock().await;
 
                 let mut namespaces = HashMap::new();
                 for (namespace, namespace_proposal) in
-                    pairing.required_namespaces.clone()
+                    pairing.optional_namespaces.clone().unwrap()
                 {
                     let accounts = namespace_proposal
                         .chains
@@ -118,33 +174,21 @@ pub fn App() -> impl IntoView {
                     redirect: None,
                 };
 
-                match client.approve(pairing, namespaces, metadata).await {
+                match client_guard.approve(pairing, namespaces, metadata).await
+                {
                     Ok(_approved_session) => {
-                        my_state.update(|my_state| {
-                            let my_state = my_state.as_mut().unwrap();
-                            my_state.sessions = client.get_sessions();
-                            web_sys::window()
-                                .unwrap()
-                                .local_storage()
-                                .unwrap()
-                                .unwrap()
-                                .set_item(
-                                    "wc",
-                                    &serde_json::to_string(&my_state).unwrap(),
-                                )
-                                .unwrap();
+                        leptos::task::spawn_local(async move {
                             show_success_toast(
                                 toaster,
                                 "Pairing approved".to_owned(),
                             );
                             pairing_request_open.set(false);
-                            leptos::task::spawn_local(async move {
-                                yttrium::time::sleep(
-                                    std::time::Duration::from_secs(1),
-                                )
-                                .await;
-                                pairing_request.set(None);
-                            });
+
+                            yttrium::time::sleep(
+                                std::time::Duration::from_secs(1),
+                            )
+                            .await;
+                            pairing_request.set(None);
                         });
                     }
                     Err(e) => {
@@ -164,7 +208,7 @@ pub fn App() -> impl IntoView {
     let session_request_action = Action::new({
         move |request: &(Topic, SessionRequestJsonRpc)| {
             let request = request.clone();
-            let client = client.read_value().clone();
+            let client = client.read_value().as_ref().unwrap().clone();
             async move {
                 let mut client = client.lock().await;
                 match client
@@ -220,93 +264,58 @@ pub fn App() -> impl IntoView {
     });
 
     Effect::new({
-        let client = client.read_value().clone();
         let unmounted = unmounted.clone();
         move |_| {
-            let client = client.clone();
             let unmounted = unmounted.clone();
-            request_rx.update_value(|request_rx| {
-                let request_rx = request_rx.take();
-                if let Some(mut request_rx) = request_rx {
-                    leptos::task::spawn_local(async move {
-                        let sessions = web_sys::window()
-                            .unwrap()
-                            .local_storage()
-                            .unwrap()
-                            .unwrap()
-                            .get_item("wc")
-                            .unwrap();
-                        if let Some(sessions) = sessions {
-                            let state =
-                                serde_json::from_str::<MyState>(&sessions)
-                                    .unwrap();
-                            my_state.set(Some(state.clone()));
-                            let mut client = client.lock().await;
-                            client.set_key(state.key);
-                            if !state.sessions.is_empty() {
-                                client.add_sessions(state.sessions);
-                                client.online().await;
-                            }
-                        } else {
-                            let state = MyState {
-                                key: generate_key(),
-                                sessions: Vec::new(),
-                            };
-                            let mut client = client.lock().await;
-                            client.set_key(state.key);
-                            my_state.set(Some(state.clone()));
-                            web_sys::window()
-                                .unwrap()
-                                .local_storage()
-                                .unwrap()
-                                .unwrap()
-                                .set_item(
-                                    "wc",
-                                    &serde_json::to_string(&state).unwrap(),
-                                )
-                                .unwrap();
-                        }
+            client.update_value(|client| {
+                assert!(client.is_none());
 
-                        while !unmounted
-                            .load(std::sync::atomic::Ordering::Relaxed)
-                        {
-                            let next = request_rx.recv().await;
-                            match next {
-                                Some(message) => {
-                                    tracing::info!(
-                                        "signature request on topic: {:?}: {:?}",
-                                        message.0,
-                                        message.1
-                                    );
-                                    match message
-                                        .1
-                                        .params
-                                        .request
-                                        .method
-                                        .as_str()
-                                    {
-                                        "personal_sign" => {
-                                            signature_request_open.set(true);
-                                            signature_request
-                                                .set(Some(message));
-                                        }
-                                        method => {
-                                            tracing::error!(
-                                                "Unexpected method: {method}"
-                                            );
-                                        }
+                let (new_client, mut request_rx) = Client::new(
+                    std::option_env!("REOWN_PROJECT_ID").unwrap_or("").into(),
+                    read_local_storage().key,
+                    Arc::new(MySessionStore),
+                );
+                let client_arc = Arc::new(tokio::sync::Mutex::new(new_client));
+                *client = Some(client_arc.clone());
+
+                leptos::task::spawn_local(async move {
+                    {
+                        let mut client = client_arc.lock().await;
+                        if !read_local_storage().sessions.is_empty() {
+                            client.online();
+                        }
+                    }
+                    while !unmounted.load(std::sync::atomic::Ordering::Relaxed)
+                    {
+                        let next = request_rx.recv().await;
+                        match next {
+                            Some(message) => {
+                                tracing::info!(
+                                    "signature request on topic: {:?}: {:?}",
+                                    message.0,
+                                    message.1
+                                );
+                                match message.1.params.request.method.as_str() {
+                                    "personal_sign" => {
+                                        signature_request_open.set(true);
+                                        signature_request.set(Some(message));
+                                    }
+                                    method => {
+                                        tracing::error!(
+                                            "Unexpected method: {method}"
+                                        );
                                     }
                                 }
-                                None => {
-                                    show_error_toast(
-                                        toaster,
-                                        "Next failed".to_owned(),
-                                    );
-                                }
+                            }
+                            None => {
+                                show_error_toast(
+                                    toaster,
+                                    "Next failed".to_owned(),
+                                );
                             }
                         }
-                    });
-                }
+                    }
+                });
             });
         }
     });
@@ -325,17 +334,13 @@ pub fn App() -> impl IntoView {
                     "Pair"
                 </Button>
             </Flex>
-            {move || my_state.get().map(|my_state| {
-                view! {
-                    <ul>
-                        {move || my_state.sessions.iter().map(|_session| {
-                            view! {
-                                <li>"Session"</li>
-                            }
-                        }).collect::<Vec<_>>()}
-                    </ul>
-                }
-            })}
+            <ul>
+                {move || read_local_storage().sessions.iter().map(|_session| {
+                    view! {
+                        <li>"Session"</li>
+                    }
+                }).collect::<Vec<_>>()}
+            </ul>
         </Flex>
         {move || pairing_request.get().map(|request| {
             view! {
