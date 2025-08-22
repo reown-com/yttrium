@@ -1,12 +1,13 @@
 #[cfg(feature = "uniffi")]
 use ffi_types::{
-    SessionFfi, SessionProposalFfi, SessionRequestJsonRpcFfi,
-    SessionRequestResponseJsonRpcFfi,
+    SessionFfi, SessionProposalFfi, SessionRequestJsonRpcFfi, SessionRequestJsonRpcResponseFfi,
 };
 pub use relay_rpc::{
     auth::ed25519_dalek::{SecretKey, SigningKey},
     domain::Topic,
 };
+use crate::sign::{protocol_types::SessionRequestJsonRpcResponse, utils::is_expired};
+
 use {
     crate::{
         sign::{
@@ -15,7 +16,7 @@ use {
             protocol_types::{
                 Controller, Metadata, ProposalJsonRpc, ProposalResponse,
                 ProposalResponseJsonRpc, Relay, SessionRequestJsonRpc,
-                SessionRequestResponseJsonRpc, SessionSettle,
+                SessionSettle,
                 SessionSettleJsonRpc, SettleNamespace,
             },
             relay_url::ConnectionOptions,
@@ -2175,6 +2176,8 @@ impl SignClient {
         topic: String,
         response: SessionRequestJsonRpcResponseFfi,
     ) -> Result<String, RespondError> {
+        use crate::sign::protocol_types::SessionRequestJsonRpcResponse;
+
         tracing::debug!("responding session request: {:?}", response);
 
         let mut client = self.client.lock().await;

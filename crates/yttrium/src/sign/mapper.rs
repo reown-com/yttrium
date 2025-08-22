@@ -6,15 +6,6 @@ use crate::sign::ffi_types::{SessionProposal, SessionRequestJsonRpcResponseFfi};
 use crate::sign::{Session};
 use crate::sign::ffi_types::{ErrorDataFfi, SessionFfi, SessionProposalFfi, SessionRequestFfi, SessionRequestJsonRpcFfi, SessionRequestRequestFfi, SessionRequestJsonRpcResultResponseFfi};
 use crate::sign::protocol_types::{SessionRequestJsonRpc, SessionRequestJsonRpcResultResponse};
-use crate::sign::ffi_types::{Session, SessionProposal};
-use crate::sign::{
-    ffi_types::{
-        SessionFfi, SessionProposalFfi, SessionRequestFfi,
-        SessionRequestJsonRpcFfi, SessionRequestRequestFfi,
-        SessionRequestResponseJsonRpcFfi,
-    },
-    protocol_types::{SessionRequestJsonRpc, SessionRequestResponseJsonRpc},
-};
 
 #[cfg(feature = "uniffi")]
 impl From<SessionProposalFfi> for SessionProposal {
