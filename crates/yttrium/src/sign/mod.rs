@@ -1442,12 +1442,12 @@ async fn connect_loop_state_machine(
 
     let mut state = ConnectionState::Idle;
     loop {
-        match state {
+        state = match state {
             ConnectionState::Idle => {
                 // TODO avoid select! as it doesn't guarantee that `else` branch exists (it will panic otherwise)
                 tokio::select! {
-                    Some(request) = request_rx.recv() => state = ConnectionState::ConnectRequest(request),
-                    Some(()) = online_rx.recv() => state = ConnectionState::MaybeReconnect(None),
+                    Some(request) = request_rx.recv() => ConnectionState::ConnectRequest(request),
+                    Some(()) = online_rx.recv() => ConnectionState::MaybeReconnect(None),
                     _ = cleanup_rx.cancelled() => break,
                     else => break,
                 }
@@ -1461,7 +1461,7 @@ async fn connect_loop_state_machine(
                         {
                             tracing::debug!("Failed to send error response: {e:?}");
                         }
-                        state = ConnectionState::Idle;
+                        ConnectionState::Idle
                     }
                     _ = cleanup_rx.cancelled() => break,
                     else => break,
@@ -1469,11 +1469,11 @@ async fn connect_loop_state_machine(
             }
             ConnectionState::MaybeReconnect(backoff_state) => {
                 if session_store.get_all_sessions().is_empty() {
-                    state = ConnectionState::Idle;
+                    ConnectionState::Idle
                 } else {
-                    state = ConnectionState::ConnectSubscribe(
+                    ConnectionState::ConnectSubscribe(
                         backoff_state.unwrap_or(BackoffState { attempt: 0 }),
-                    );
+                    )
                 }
             }
             ConnectionState::ConnectSubscribe(backoff_state) => {
@@ -1495,30 +1495,28 @@ async fn connect_loop_state_machine(
                 .await;
                 match connect_res {
                     Ok((message_id, on_incomingmessage_rx, ws)) => {
-                        state = ConnectionState::AwaitingSubscribeResponse(
+                        ConnectionState::AwaitingSubscribeResponse(
                             backoff_state,
                             message_id,
                             on_incomingmessage_rx,
                             ws,
                             crate::time::durable_sleep(REQUEST_TIMEOUT),
-                        );
+                        )
                     }
                     Err(e) => match e {
                         ConnectError::ConnectFail(reason) => {
                             tracing::debug!(
                                 "ConnectSubscribe failed: {reason}"
                             );
-                            state = ConnectionState::Backoff(backoff_state);
+                            ConnectionState::Backoff(backoff_state)
                         }
                         ConnectError::Cleanup => {
                             break;
                         }
-                        ConnectError::InvalidAuth => {
-                            state = ConnectionState::Poisoned;
-                        }
+                        ConnectError::InvalidAuth => ConnectionState::Poisoned,
                         ConnectError::ShouldNeverHappen(reason) => {
                             tracing::error!("ConnectSubscribe should never happen: {reason}");
-                            state = ConnectionState::Backoff(backoff_state);
+                            ConnectionState::Backoff(backoff_state)
                         }
                     },
                 }
@@ -1538,11 +1536,11 @@ async fn connect_loop_state_machine(
                                 IncomingMessage::Close(reason) => {
                                     match reason {
                                         CloseReason::InvalidAuth => {
-                                            state = ConnectionState::Poisoned;
+                                            ConnectionState::Poisoned
                                         }
                                         CloseReason::Error(reason) => {
                                             tracing::debug!("AwaitingSubscribeResponse: CloseReason::Error: {reason}");
-                                            state = ConnectionState::Backoff(backoff_state);
+                                            ConnectionState::Backoff(backoff_state)
                                         }
                                     }
                                 }
@@ -1551,36 +1549,36 @@ async fn connect_loop_state_machine(
                                     match payload {
                                         Payload::Request(request) => {
                                             tracing::warn!("ignoring message request in AwaitingSubscribeResponse state: {:?}", request);
-                                            state = ConnectionState::AwaitingSubscribeResponse(
+                                            ConnectionState::AwaitingSubscribeResponse(
                                                 backoff_state,
                                                 message_id,
                                                 on_incomingmessage_rx,
                                                 ws,
                                                 sleep,
-                                            );
+                                            )
                                         }
                                         Payload::Response(response) => {
                                             if id == MessageId::new(message_id) {
-                                                state = ConnectionState::Connected(message_id, on_incomingmessage_rx, ws);
+                                                ConnectionState::Connected(message_id, on_incomingmessage_rx, ws)
                                             } else {
                                                 tracing::warn!("ignoring message response in AwaitingSubscribeResponse state: {:?}", response);
-                                                state = ConnectionState::AwaitingSubscribeResponse(
+                                                ConnectionState::AwaitingSubscribeResponse(
                                                     backoff_state,
                                                     message_id,
                                                     on_incomingmessage_rx,
                                                     ws,
                                                     sleep,
-                                                );
+                                                )
                                             }
                                         }
                                     }
                                 }
                             }
                         } else {
-                            state = ConnectionState::Backoff(backoff_state);
+                            ConnectionState::Backoff(backoff_state)
                         }
                     },
-                    Some(()) = sleep.recv() => state = ConnectionState::Backoff(backoff_state),
+                    Some(()) = sleep.recv() => ConnectionState::Backoff(backoff_state),
                     _ = cleanup_rx.cancelled() => break,
                 }
             }
@@ -1593,10 +1591,10 @@ async fn connect_loop_state_machine(
 
                 // TODO avoid select! as it doesn't guarantee that all branches are covered (it will panic otherwise)
                 tokio::select! {
-                    Some(req) = request_rx.recv() => state = ConnectionState::ConnectRequest(req),
+                    Some(req) = request_rx.recv() => ConnectionState::ConnectRequest(req),
                     () = sleep => {
                         let next_attempt = (attempt + 1).min(BACKOFF_VALUES.len() - 1);
-                        state = ConnectionState::MaybeReconnect(Some(BackoffState { attempt: next_attempt }));
+                        ConnectionState::MaybeReconnect(Some(BackoffState { attempt: next_attempt }))
                     }
                     _ = cleanup_rx.cancelled() => break,
                     else => break,
@@ -1621,13 +1619,13 @@ async fn connect_loop_state_machine(
                 .await;
                 match connect_res {
                     Ok((message_id, on_incomingmessage_rx, ws)) => {
-                        state = ConnectionState::AwaitingConnectRequestResponse(
+                        ConnectionState::AwaitingConnectRequestResponse(
                             message_id,
                             on_incomingmessage_rx,
                             ws,
                             (request, response_tx),
                             crate::time::durable_sleep(REQUEST_TIMEOUT),
-                        );
+                        )
                     }
                     Err(e) => {
                         if let Err(e) = response_tx.send(Err(e.clone().into()))
@@ -1641,17 +1639,17 @@ async fn connect_loop_state_machine(
                                 tracing::debug!(
                                     "ConnectRequest failed: {reason}"
                                 );
-                                state = ConnectionState::Idle;
+                                ConnectionState::Idle
                             }
                             ConnectError::Cleanup => {
                                 break;
                             }
                             ConnectError::InvalidAuth => {
-                                state = ConnectionState::Poisoned;
+                                ConnectionState::Poisoned
                             }
                             ConnectError::ShouldNeverHappen(reason) => {
                                 tracing::error!("ConnectRequest should never happen: {reason}");
-                                state = ConnectionState::Idle;
+                                ConnectionState::Idle
                             }
                         }
                     }
@@ -1677,7 +1675,7 @@ async fn connect_loop_state_machine(
                                             {
                                                 tracing::warn!("Failed to send error response: {e:?}");
                                             }
-                                            state = ConnectionState::Poisoned;
+                                            ConnectionState::Poisoned
                                         }
                                         CloseReason::Error(reason) => {
                                             tracing::debug!("AwaitingConnectRequestResponse: CloseReason::Error: {reason}");
@@ -1686,7 +1684,7 @@ async fn connect_loop_state_machine(
                                             {
                                                 tracing::warn!("Failed to send error response: {e:?}");
                                             }
-                                            state = ConnectionState::MaybeReconnect(None);
+                                            ConnectionState::MaybeReconnect(None)
                                         }
                                     }
                                 }
@@ -1695,13 +1693,13 @@ async fn connect_loop_state_machine(
                                     match payload {
                                         Payload::Request(payload_request) => {
                                             tracing::warn!("ignoring message request in AwaitingSubscribeResponse state: {:?}", payload_request);
-                                            state = ConnectionState::AwaitingConnectRequestResponse(
+                                            ConnectionState::AwaitingConnectRequestResponse(
                                                 message_id,
                                                 on_incomingmessage_rx,
                                                 ws,
                                                 (request, response_tx),
                                                 sleep,
-                                            );
+                                            )
                                         }
                                         Payload::Response(response) => {
                                             if id == MessageId::new(message_id) {
@@ -1710,16 +1708,16 @@ async fn connect_loop_state_machine(
                                                 {
                                                     tracing::warn!("Failed to send response: {e:?}");
                                                 }
-                                                state = ConnectionState::Connected(message_id, on_incomingmessage_rx, ws);
+                                                ConnectionState::Connected(message_id, on_incomingmessage_rx, ws)
                                             } else {
                                                 tracing::warn!("ignoring message response in AwaitingSubscribeResponse state: {:?}", response);
-                                                state = ConnectionState::AwaitingConnectRequestResponse(
+                                                ConnectionState::AwaitingConnectRequestResponse(
                                                     message_id,
                                                     on_incomingmessage_rx,
                                                     ws,
                                                     (request, response_tx),
                                                     sleep,
-                                                );
+                                                )
                                             }
                                         }
                                     }
@@ -1731,7 +1729,7 @@ async fn connect_loop_state_machine(
                             {
                                 tracing::warn!("Failed to send error response: {e:?}");
                             }
-                            state = ConnectionState::MaybeReconnect(None);
+                            ConnectionState::MaybeReconnect(None)
                         }
                     },
                     Some(()) = sleep.recv() => {
@@ -1740,7 +1738,7 @@ async fn connect_loop_state_machine(
                         {
                             tracing::warn!("Failed to send error response: {e:?}");
                         }
-                        state = ConnectionState::MaybeReconnect(None);
+                        ConnectionState::MaybeReconnect(None)
                     }
                     _ = cleanup_rx.cancelled() => break,
                 }
@@ -1758,9 +1756,9 @@ async fn connect_loop_state_machine(
                                 IncomingMessage::Close(reason) => {
                                     if reason == CloseReason::InvalidAuth {
                                         tracing::warn!("server misbehaved: invalid auth in Connected state");
-                                        state = ConnectionState::Poisoned;
+                                        ConnectionState::Poisoned
                                     } else {
-                                        state = ConnectionState::MaybeReconnect(None);
+                                        ConnectionState::MaybeReconnect(None)
                                     }
                                 }
                                 IncomingMessage::Message(payload) => {
@@ -1776,25 +1774,25 @@ async fn connect_loop_state_machine(
                                                 }
                                                 _ => tracing::warn!("ignoring message request in Connected state: {:?}", request),
                                             }
-                                            state = ConnectionState::Connected(
+                                            ConnectionState::Connected(
                                                 message_id,
                                                 on_incomingmessage_rx,
                                                 ws,
-                                            );
+                                            )
                                         }
                                         Payload::Response(response) => {
                                             tracing::warn!("ignoring message response in Connected state: {:?}", response);
-                                            state = ConnectionState::Connected(
+                                            ConnectionState::Connected(
                                                 message_id,
                                                 on_incomingmessage_rx,
                                                 ws,
-                                            );
+                                            )
                                         }
                                     }
                                 }
                             }
                         } else {
-                            state = ConnectionState::MaybeReconnect(None);
+                            ConnectionState::MaybeReconnect(None)
                         }
                     }
                     request = request_rx.recv() => {
@@ -1816,13 +1814,13 @@ async fn connect_loop_state_machine(
                             #[cfg(not(target_arch = "wasm32"))]
                             ws.send(serialized).expect("TODO");
 
-                            state = ConnectionState::AwaitingRequestResponse(
+                            ConnectionState::AwaitingRequestResponse(
                                 message_id,
                                 on_incomingmessage_rx,
                                 ws,
                                 (request, response_tx),
                                 crate::time::durable_sleep(REQUEST_TIMEOUT),
-                            );
+                            )
                         } else {
                             break;
                         }
@@ -1849,11 +1847,11 @@ async fn connect_loop_state_machine(
                             #[cfg(not(target_arch = "wasm32"))]
                             ws.send(serialized).expect("TODO");
 
-                            state = ConnectionState::Connected(
+                            ConnectionState::Connected(
                                 message_id,
                                 on_incomingmessage_rx,
                                 ws,
-                            );
+                            )
                         } else {
                             break;
                         }
@@ -1881,9 +1879,9 @@ async fn connect_loop_state_machine(
                                         {
                                             tracing::warn!("Failed to send error response: {e:?}");
                                         }
-                                        state = ConnectionState::Poisoned;
+                                        ConnectionState::Poisoned
                                     } else {
-                                        state = ConnectionState::ConnectRetryRequest((request, response_tx));
+                                        ConnectionState::ConnectRetryRequest((request, response_tx))
                                     }
                                 }
                                 IncomingMessage::Message(payload) => {
@@ -1899,13 +1897,13 @@ async fn connect_loop_state_machine(
                                                 }
                                                 _ => tracing::warn!("ignoring message request in AwaitingRequestResponse state: {:?}", payload_request),
                                             }
-                                            state = ConnectionState::AwaitingRequestResponse(
+                                            ConnectionState::AwaitingRequestResponse(
                                                 message_id,
                                                 on_incomingmessage_rx,
                                                 ws,
                                                 (request, response_tx),
                                                 sleep,
-                                            );
+                                            )
                                         }
                                         Payload::Response(response) => {
                                             if id == MessageId::new(message_id) {
@@ -1914,16 +1912,16 @@ async fn connect_loop_state_machine(
                                                 {
                                                     tracing::warn!("Failed to send response in AwaitingRequestResponse state: {e:?}");
                                                 }
-                                                state = ConnectionState::Connected(message_id, on_incomingmessage_rx, ws);
+                                                ConnectionState::Connected(message_id, on_incomingmessage_rx, ws)
                                             } else {
                                                 tracing::warn!("ignoring message response in AwaitingSubscribeResponse state: {:?}", response);
-                                                state = ConnectionState::AwaitingRequestResponse(
+                                                ConnectionState::AwaitingRequestResponse(
                                                     message_id,
                                                     on_incomingmessage_rx,
                                                     ws,
                                                     (request, response_tx),
                                                     sleep,
-                                                );
+                                                )
                                             }
                                         }
                                     }
@@ -1933,7 +1931,7 @@ async fn connect_loop_state_machine(
                             break;
                         }
                     }
-                    Some(()) = sleep.recv() => state = ConnectionState::ConnectRetryRequest((request, response_tx)),
+                    Some(()) = sleep.recv() => ConnectionState::ConnectRetryRequest((request, response_tx)),
                     _ = cleanup_rx.cancelled() => break,
                 }
             }
@@ -1957,13 +1955,13 @@ async fn connect_loop_state_machine(
                     connect_res = connect_fut => {
                         match connect_res {
                             Ok((message_id, on_incomingmessage_rx, ws)) => {
-                                state = ConnectionState::AwaitingConnectRetryRequestResponse(
+                                ConnectionState::AwaitingConnectRetryRequestResponse(
                                     message_id,
                                     on_incomingmessage_rx,
                                     ws,
                                     response_tx,
                                     crate::time::durable_sleep(REQUEST_TIMEOUT),
-                                );
+                                )
                             }
                             Err(e) => {
                                 if let Err(e) = response_tx.send(Err(e.clone().into())) {
@@ -1974,17 +1972,17 @@ async fn connect_loop_state_machine(
                                 match e {
                                     ConnectError::ConnectFail(reason) => {
                                         tracing::debug!("ConnectRequest failed: {reason}");
-                                        state = ConnectionState::MaybeReconnect(None);
+                                        ConnectionState::MaybeReconnect(None)
                                     }
                                     ConnectError::Cleanup => {
                                         break;
                                     }
                                     ConnectError::InvalidAuth => {
-                                        state = ConnectionState::Poisoned;
+                                        ConnectionState::Poisoned
                                     }
                                     ConnectError::ShouldNeverHappen(reason) => {
                                         tracing::error!("ConnectRequest should never happen: {reason}");
-                                        state = ConnectionState::MaybeReconnect(None);
+                                        ConnectionState::MaybeReconnect(None)
                                     }
                                 }
                             }
@@ -2013,14 +2011,14 @@ async fn connect_loop_state_machine(
                                         {
                                             tracing::warn!("Failed to send error response: {e:?}");
                                         }
-                                        state = ConnectionState::Poisoned;
+                                        ConnectionState::Poisoned
                                     } else {
                                         if let Err(e) =
                                             response_tx.send(Err(RequestError::Offline))
                                         {
                                             tracing::warn!("Failed to send error response: {e:?}");
                                         }
-                                        state = ConnectionState::MaybeReconnect(None);
+                                        ConnectionState::MaybeReconnect(None)
                                     }
                                 }
                                 IncomingMessage::Message(payload) => {
@@ -2029,13 +2027,13 @@ async fn connect_loop_state_machine(
                                         Payload::Request(request) => {
                                             // TODO consider handling anyway, if possible
                                             tracing::warn!("ignoring message request in AwaitingConnectRetryRequestResponse state: {:?}", request);
-                                            state = ConnectionState::AwaitingConnectRetryRequestResponse(
+                                            ConnectionState::AwaitingConnectRetryRequestResponse(
                                                 message_id,
                                                 on_incomingmessage_rx,
                                                 ws,
                                                 response_tx,
                                                 sleep,
-                                            );
+                                            )
                                         }
                                         Payload::Response(response) => {
                                             if id == MessageId::new(message_id) {
@@ -2044,16 +2042,16 @@ async fn connect_loop_state_machine(
                                                 {
                                                     tracing::warn!("Failed to send response: {e:?}");
                                                 }
-                                                state = ConnectionState::Connected(message_id, on_incomingmessage_rx, ws);
+                                                ConnectionState::Connected(message_id, on_incomingmessage_rx, ws)
                                             } else {
                                                 tracing::warn!("ignoring message response in AwaitingConnectRetryRequestResponse state: {:?}", response);
-                                                state = ConnectionState::AwaitingConnectRetryRequestResponse(
+                                                ConnectionState::AwaitingConnectRetryRequestResponse(
                                                     message_id,
                                                     on_incomingmessage_rx,
                                                     ws,
                                                     response_tx,
                                                     sleep,
-                                                );
+                                                )
                                             }
                                         }
                                     }
@@ -2063,18 +2061,16 @@ async fn connect_loop_state_machine(
                             break;
                         }
                     }
-                    Some(()) = sleep.recv() => state = ConnectionState::MaybeReconnect(None),
+                    Some(()) = sleep.recv() => ConnectionState::MaybeReconnect(None),
                     _ = cleanup_rx.cancelled() => break,
                 }
             }
-        }
+        };
     }
 
     while let Some((_request, response_tx)) = request_rx.recv().await {
-        if let Err(e) = response_tx
-            .send(Err(RequestError::Internal("request_rx closed".to_string())))
-        {
-            tracing::warn!("Failed to send error response: {e:?}");
+        if let Err(e) = response_tx.send(Err(RequestError::Cleanup)) {
+            tracing::warn!("Failed to send cleanup error response: {e:?}");
         }
     }
 }
