@@ -50,12 +50,22 @@ pub fn session_request_json_rpc_ffi_from_json(json: &str) -> super::ffi_types::S
 }
 
 #[uniffi::export]
-pub fn session_request_response_json_rpc_ffi_to_json(object: &super::ffi_types::SessionRequestResponseJsonRpcFfi) -> String {
+pub fn session_request_json_rpc_result_response_ffi_to_json(object: &super::ffi_types::SessionRequestJsonRpcResultResponseFfi) -> String {
     serde_json::to_string(object).expect("Failed to serialize session request response json")
 }
 
 #[uniffi::export]
-pub fn session_request_response_json_rpc_from_json(json: &str) -> super::ffi_types::SessionRequestResponseJsonRpcFfi {
+pub fn session_request_json_rpc_result_response_ffi_from_json(json: &str) -> super::ffi_types::SessionRequestJsonRpcResultResponseFfi {
+    serde_json::from_str(json).expect("Failed to deserialize session request response json")
+}
+
+#[uniffi::export]
+pub fn session_request_json_rpc_error_response_ffi_to_json(object: &super::ffi_types::SessionRequestJsonRpcErrorResponseFfi) -> String {
+    serde_json::to_string(object).expect("Failed to serialize session request response json")
+}
+
+#[uniffi::export]
+pub fn session_request_json_rpc_error_response_ffi_from_json(json: &str) -> super::ffi_types::SessionRequestJsonRpcErrorResponseFfi {
     serde_json::from_str(json).expect("Failed to deserialize session request response json")
 }
 

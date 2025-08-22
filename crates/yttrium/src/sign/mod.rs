@@ -8,7 +8,7 @@ use {
         protocol_types::{
             Controller, Metadata, ProposalJsonRpc,
             ProposalResponse, ProposalResponseJsonRpc, Relay,
-            SessionRequestJsonRpc, SessionRequestResponseJsonRpc,
+            SessionRequestJsonRpc,
             SessionSettle, SessionSettleJsonRpc, SettleNamespace,
         },
         relay_url::ConnectionOptions,
@@ -38,8 +38,8 @@ use {
     x25519_dalek::PublicKey,
 };
 #[cfg(feature = "uniffi")]
-use crate::sign::ffi_types::{SessionProposalFfi, SessionFfi, Session, SessionRequestJsonRpcFfi, SessionRequestResponseJsonRpcFfi};
-use crate::sign::{ffi_types::SessionProposal, utils::is_expired};
+use crate::sign::ffi_types::{SessionProposalFfi, SessionFfi, Session, SessionRequestJsonRpcFfi, SessionRequestJsonRpcResponseFfi};
+use crate::sign::{ffi_types::SessionProposal, protocol_types::SessionRequestJsonRpcResponse, utils::is_expired};
 #[cfg(not(target_arch = "wasm32"))]
 use {
     futures::{SinkExt, StreamExt},
@@ -665,7 +665,7 @@ impl Client {
     pub async fn respond(
         &mut self,
         topic: Topic,
-        response: SessionRequestResponseJsonRpc,
+        response: SessionRequestJsonRpcResponse,
     ) -> Result<(), RespondError> {
         // TODO implement
         // https://github.com/WalletConnect/walletconnect-monorepo/blob/5bef698dcf0ae910548481959a6a5d87eaf7aaa5/packages/sign-client/src/controllers/engine.ts#L701
@@ -708,7 +708,18 @@ impl Client {
             ttl_secs: 300,
             tag: 1109,
             prompt: false,
-            analytics: None, // TODO
+            analytics: Some(AnalyticsData {
+                    correlation_id: Some(
+                        match &response {
+                            SessionRequestJsonRpcResponse::Result(r) => r.id,
+                            SessionRequestJsonRpcResponse::Error(e) => e.id,
+                        }.try_into().unwrap(),
+                    ),
+                    chain_id: None, // TODO
+                    rpc_methods: None, // TODO
+                    tx_hashes: None, // TODO
+                    contract_addresses: None, // TODO
+                }),
         }))
         .await
         .map_err(|e| RespondError::Internal(e.to_string()))?;
@@ -1586,12 +1597,12 @@ impl SignClient {
     pub async fn respond(
         &self,
         topic: String,
-        response: SessionRequestResponseJsonRpcFfi,
+        response: SessionRequestJsonRpcResponseFfi,
     ) -> Result<String, RespondError> {
         tracing::debug!("responding session request: {:?}", response);
 
         let mut client = self.client.lock().await;
-        let response_internal: SessionRequestResponseJsonRpc = response.into();
+        let response_internal: SessionRequestJsonRpcResponse = response.into();
         let topic_topic: Topic = topic.clone().into();
         client.respond(topic_topic, response_internal).await?;
         Ok(topic)

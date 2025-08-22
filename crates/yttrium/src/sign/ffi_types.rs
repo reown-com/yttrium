@@ -56,10 +56,26 @@ pub struct SessionRequestJsonRpcFfi {
 
 #[cfg(feature = "uniffi")]
 #[derive(uniffi_macros::Record, Debug, Serialize, Deserialize)]
-pub struct SessionRequestResponseJsonRpcFfi {
+pub struct SessionRequestJsonRpcResultResponseFfi {
     pub id: u64,
     pub jsonrpc: String,
     pub result: String, // JSON string instead of serde_json::Value
+}
+
+#[cfg(feature = "uniffi")]
+#[derive(uniffi_macros::Record, Debug, Serialize, Deserialize)]
+pub struct SessionRequestJsonRpcErrorResponseFfi {
+    pub id: u64,
+    pub jsonrpc: String,
+    pub error: String, // JSON string instead of serde_json::Value
+}
+
+#[cfg(feature = "uniffi")]
+#[derive(uniffi_macros::Enum, Debug, Serialize, Deserialize)]
+#[serde(untagged)]  
+pub enum SessionRequestJsonRpcResponseFfi {
+    Result(SessionRequestJsonRpcResultResponseFfi),
+    Error(SessionRequestJsonRpcErrorResponseFfi),
 }
 
 #[cfg(feature = "uniffi")]
