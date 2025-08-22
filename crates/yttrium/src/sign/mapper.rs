@@ -6,6 +6,15 @@ use crate::sign::ffi_types::{SessionProposal, SessionRequestJsonRpcResponseFfi};
 use crate::sign::{Session};
 use crate::sign::ffi_types::{ErrorDataFfi, SessionFfi, SessionProposalFfi, SessionRequestFfi, SessionRequestJsonRpcFfi, SessionRequestRequestFfi, SessionRequestJsonRpcResultResponseFfi};
 use crate::sign::protocol_types::{SessionRequestJsonRpc, SessionRequestJsonRpcResultResponse};
+use crate::sign::ffi_types::{Session, SessionProposal};
+use crate::sign::{
+    ffi_types::{
+        SessionFfi, SessionProposalFfi, SessionRequestFfi,
+        SessionRequestJsonRpcFfi, SessionRequestRequestFfi,
+        SessionRequestResponseJsonRpcFfi,
+    },
+    protocol_types::{SessionRequestJsonRpc, SessionRequestResponseJsonRpc},
+};
 
 #[cfg(feature = "uniffi")]
 impl From<SessionProposalFfi> for SessionProposal {
@@ -39,7 +48,10 @@ impl From<SessionRequestJsonRpc> for SessionRequestJsonRpcFfi {
                 chain_id: request.params.chain_id,
                 request: SessionRequestRequestFfi {
                     method: request.params.request.method,
-                    params: serde_json::to_string(&request.params.request.params).unwrap_or_default(),
+                    params: serde_json::to_string(
+                        &request.params.request.params,
+                    )
+                    .unwrap_or_default(),
                     expiry: request.params.request.expiry,
                 },
             },
@@ -168,9 +180,13 @@ impl From<SessionFfi> for Session {
             expiry: session.expiry,
             relay_protocol: session.relay_protocol,
             relay_data: session.relay_data,
-            controller_key: session.controller_key.map(|k| k.try_into().unwrap()),
+            controller_key: session
+                .controller_key
+                .map(|k| k.try_into().unwrap()),
             self_meta_data: session.self_meta_data,
-            peer_public_key: session.peer_public_key.map(|k| k.try_into().unwrap()),
+            peer_public_key: session
+                .peer_public_key
+                .map(|k| k.try_into().unwrap()),
             peer_meta_data: session.peer_meta_data,
             session_namespaces: session.session_namespaces,
             required_namespaces: session.required_namespaces,
