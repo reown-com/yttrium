@@ -584,9 +584,8 @@ impl Client {
         proposal: SessionProposal,
         reason: relay_rpc::rpc::ErrorData,
     ) -> Result<(), RejectError> {
-        // https://github.com/WalletConnect/walletconnect-monorepo/blob/5bef698dcf0ae910548481959a6a5d87eaf7aaa5/packages/sign-client/src/controllers/engine.ts#L497
-
         // Check if proposal is expired
+        // TODO remove this check: https://reown-inc.slack.com/archives/C098LHLHCNM/p1756148081338769
         if let Some(expiry) = proposal.expiry_timestamp {
             if is_expired(expiry) {
                 return Err(RejectError::Internal(format!(
@@ -605,21 +604,11 @@ impl Client {
             error: reason,
         };
 
-        // Encrypt and send the error response using the pairing sym key
-        let serialized = serde_json::to_string(&error_response)
-            .map_err(|e| RejectError::Internal(e.to_string()))?;
-
-        let key = ChaCha20Poly1305::new(&proposal.pairing_sym_key.into());
-        let nonce = ChaCha20Poly1305::generate_nonce()
-            .map_err(|e| RejectError::Internal(e.to_string()))?;
-        let encrypted = key
-            .encrypt(&nonce, serialized.as_bytes())
-            .map_err(|e| RejectError::Internal(e.to_string()))?;
-        let encoded = encode_envelope_type0(&EnvelopeType0 {
-            iv: nonce.into(),
-            sb: encrypted,
-        });
-        let message = BASE64.encode(encoded.as_slice()).into();
+        let message = serialize_and_encrypt_message_type0_envelope(
+            proposal.pairing_sym_key,
+            &error_response,
+        )
+        .map_err(RejectError::ShouldNeverHappen)?;
 
         // Publish error response to pairing topic
         match self
