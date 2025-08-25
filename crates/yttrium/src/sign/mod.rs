@@ -14,7 +14,8 @@ use {
             ffi_types::{Session, SessionProposal},
             protocol_types::{
                 Controller, Metadata, ProposalJsonRpc, ProposalResponse,
-                ProposalResponseJsonRpc, Relay, SessionRequestJsonRpc,
+                ProposalResponseJsonRpc, Relay, SessionDelete,
+                SessionDeleteJsonRpc, SessionRequestJsonRpc,
                 SessionRequestResponseJsonRpc, SessionSettle,
                 SessionSettleJsonRpc, SettleNamespace,
             },
@@ -37,7 +38,7 @@ use {
             Subscription, SuccessfulResponse,
         },
     },
-    serde::de::DeserializeOwned,
+    serde::{de::DeserializeOwned, Serialize},
     std::{collections::HashMap, sync::Arc, time::Duration},
     tracing::debug,
     x25519_dalek::PublicKey,
@@ -143,18 +144,41 @@ pub enum ApproveError {
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Error))]
 #[error("Sign respond error: {0}")]
 pub enum RespondError {
-    #[error("Internal: {0}")]
-    Internal(String),
+    #[error("Session not found")]
+    SessionNotFound,
+
+    #[error("Request: {0}")]
+    Request(RequestError),
+
+    #[error("Should never happen: {0}")]
+    ShouldNeverHappen(String),
+}
+
+#[derive(Debug, thiserror::Error)]
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Error))]
+#[error("Sign disconnect error: {0}")]
+pub enum DisconnectError {
+    #[error("Should never happen: {0}")]
+    ShouldNeverHappen(String),
+
+    #[error("Request error: {0}")]
+    Request(RequestError),
 }
 
 #[cfg(feature = "uniffi")]
 #[uniffi::export(with_foreign)]
 pub trait SignListener: Send + Sync {
-    //TODO: add on_session_ping, on_session_update, on_session_event, on_session_extend, on_session_disconnect etc.
+    //TODO: add on_session_ping, on_session_update, on_session_event, on_session_extend etc.
     fn on_session_request(
         &self,
         topic: String,
         session_request: SessionRequestJsonRpcFfi,
+    );
+
+    fn on_session_disconnect(
+        &self,
+        topic: String,
+        session_delete: SessionDeleteJsonRpc,
     );
 }
 
@@ -245,7 +269,7 @@ impl Client {
         session_store: Arc<dyn SessionStore>,
     ) -> (
         Self,
-        tokio::sync::mpsc::UnboundedReceiver<(Topic, SessionRequestJsonRpc)>,
+        tokio::sync::mpsc::UnboundedReceiver<(Topic, IncomingSessionMessage)>,
     ) {
         assert_eq!(
             project_id.value().len(),
@@ -424,7 +448,7 @@ impl Client {
         debug!("session topic: {}", session_topic);
 
         let session_proposal_response = {
-            let serialized = serde_json::to_string(&ProposalResponseJsonRpc {
+            let proposal_response = ProposalResponseJsonRpc {
                 id: proposal.session_proposal_rpc_id,
                 jsonrpc: "2.0".to_string(),
                 result: ProposalResponse {
@@ -433,21 +457,12 @@ impl Client {
                         self_public_key.to_bytes(),
                     ),
                 },
-            })
-            .map_err(|e| ApproveError::Internal(e.to_string()))?;
-
-            let key = ChaCha20Poly1305::new(&proposal.pairing_sym_key.into());
-            let nonce = ChaCha20Poly1305::generate_nonce()
-                .map_err(|e| ApproveError::Internal(e.to_string()))?;
-            let encrypted = key
-                .encrypt(&nonce, serialized.as_bytes())
-                .map_err(|e| ApproveError::Internal(e.to_string()))?;
-            let encoded = encode_envelope_type0(&EnvelopeType0 {
-                iv: nonce.into(),
-                sb: encrypted,
-            })
-            .map_err(|e| ApproveError::Internal(e.to_string()))?;
-            BASE64.encode(encoded.as_slice()).into()
+            };
+            serialize_and_encrypt_message_type0_envelope(
+                proposal.pairing_sym_key,
+                &proposal_response,
+            )
+            .map_err(ApproveError::ShouldNeverHappen)?
         };
 
         let session_expiry = crate::time::SystemTime::now()
@@ -457,7 +472,7 @@ impl Client {
             + 60 * 60 * 24 * 7; // Session expiry is 7 days
 
         let session_settlement_request = {
-            let serialized = serde_json::to_string(&SessionSettleJsonRpc {
+            let message = SessionSettleJsonRpc {
                 id: generate_rpc_id(),
                 jsonrpc: "2.0".to_string(),
                 method: "wc_sessionSettle".to_string(),
@@ -480,21 +495,13 @@ impl Client {
                         .map(|p| serde_json::to_value(p).unwrap_or_default())
                         .unwrap_or_default(),
                 },
-            })
-            .map_err(|e| ApproveError::Internal(e.to_string()))?;
+            };
 
-            let key = ChaCha20Poly1305::new(&shared_secret.into());
-            let nonce = ChaCha20Poly1305::generate_nonce()
-                .map_err(|e| ApproveError::Internal(e.to_string()))?;
-            let encrypted = key
-                .encrypt(&nonce, serialized.as_bytes())
-                .map_err(|e| ApproveError::Internal(e.to_string()))?;
-            let encoded = encode_envelope_type0(&EnvelopeType0 {
-                iv: nonce.into(),
-                sb: encrypted,
-            })
-            .map_err(|e| ApproveError::Internal(e.to_string()))?;
-            BASE64.encode(encoded.as_slice()).into()
+            serialize_and_encrypt_message_type0_envelope(
+                shared_secret,
+                &message,
+            )
+            .map_err(ApproveError::ShouldNeverHappen)?
         };
 
         let approve_session = ApproveSession {
@@ -588,45 +595,17 @@ impl Client {
         topic: Topic,
         response: SessionRequestResponseJsonRpc,
     ) -> Result<(), RespondError> {
-        // TODO implement
-        // https://github.com/WalletConnect/walletconnect-monorepo/blob/5bef698dcf0ae910548481959a6a5d87eaf7aaa5/packages/sign-client/src/controllers/engine.ts#L701
+        let shared_secret = self
+            .session_store
+            .get_session(topic.to_string())
+            .map(|s| s.session_sym_key)
+            .ok_or(RespondError::SessionNotFound)?;
 
-        let serialized = serde_json::to_string(&response)
-            .map_err(|e| RespondError::Internal(e.to_string()))?;
-
-        //TODO: get session from storage
-        let shared_secret = {
-            let sessions: Vec<Session> = {
-                let ffi_sessions = self.session_store.get_all_sessions();
-                tracing::debug!(
-                    "Respond: FFI sessions count: {}",
-                    ffi_sessions.len()
-                );
-                ffi_sessions
-            };
-
-            let session = sessions.iter().find(|s| s.topic == topic).ok_or(
-                RespondError::Internal(format!(
-                    "Session not found for topic: {:?}. Available topics: {:?}",
-                    topic,
-                    sessions.iter().map(|s| &s.topic).collect::<Vec<_>>()
-                )),
-            )?;
-            session.session_sym_key
-        };
-
-        let key = ChaCha20Poly1305::new(&shared_secret.into());
-        let nonce = ChaCha20Poly1305::generate_nonce()
-            .map_err(|e| RespondError::Internal(e.to_string()))?;
-        let encrypted = key
-            .encrypt(&nonce, serialized.as_bytes())
-            .map_err(|e| RespondError::Internal(e.to_string()))?;
-        let encoded = encode_envelope_type0(&EnvelopeType0 {
-            iv: nonce.into(),
-            sb: encrypted,
-        })
-        .map_err(|e| RespondError::Internal(e.to_string()))?;
-        let message = BASE64.encode(encoded.as_slice()).into();
+        let message = serialize_and_encrypt_message_type0_envelope(
+            shared_secret,
+            &response,
+        )
+        .map_err(RespondError::ShouldNeverHappen)?;
 
         self.request::<bool>(relay_rpc::rpc::Params::Publish(Publish {
             topic,
@@ -638,7 +617,7 @@ impl Client {
             analytics: None, // TODO
         }))
         .await
-        .map_err(|e| RespondError::Internal(e.to_string()))?;
+        .map_err(RespondError::Request)?;
 
         Ok(())
     }
@@ -655,10 +634,55 @@ impl Client {
         unimplemented!()
     }
 
-    pub async fn _disconnect(&self) {
-        // TODO implement
-        // https://github.com/WalletConnect/walletconnect-monorepo/blob/5bef698dcf0ae910548481959a6a5d87eaf7aaa5/packages/sign-client/src/controllers/engine.ts#L781
-        unimplemented!()
+    pub async fn disconnect(
+        &mut self,
+        topic: Topic,
+    ) -> Result<(), DisconnectError> {
+        let shared_secret = self
+            .session_store
+            .get_session(topic.to_string())
+            .map(|s| s.session_sym_key);
+
+        if let Some(shared_secret) = shared_secret {
+            let message = {
+                let message = SessionDeleteJsonRpc {
+                    id: generate_rpc_id(),
+                    jsonrpc: "2.0".to_string(),
+                    method: "wc_sessionDelete".to_string(),
+                    params: SessionDelete {
+                        code: 6000,
+                        message: "User disconnected.".to_string(),
+                    },
+                };
+
+                serialize_and_encrypt_message_type0_envelope(
+                    shared_secret,
+                    &message,
+                )
+                .map_err(DisconnectError::ShouldNeverHappen)?
+            };
+
+            self.request::<bool>(relay_rpc::rpc::Params::Publish(Publish {
+                topic: topic.clone(),
+                message,
+                attestation: None, // TODO
+                ttl_secs: 86400,
+                tag: 1112,
+                prompt: false,
+                analytics: None, // TODO
+            }))
+            .await
+            .map_err(DisconnectError::Request)?;
+
+            self.session_store.delete_session(topic.to_string());
+        } else {
+            tracing::debug!(
+                "disconnect: session not found for topic, ignoring: {:?}",
+                topic
+            );
+        }
+
+        Ok(())
     }
 
     pub async fn _authenticate(&self) {
@@ -730,6 +754,27 @@ impl Drop for Client {
             tracing::warn!("cleanup_tx already taken");
         }
     }
+}
+
+/// Should never fail, but will return a string error if it does
+fn serialize_and_encrypt_message_type0_envelope<T: Serialize>(
+    shared_secret: [u8; 32],
+    message: &T,
+) -> Result<Arc<str>, String> {
+    let serialized = serde_json::to_vec(&message)
+        .map_err(|e| format!("Failed to serialize message: {e}"))?;
+
+    let key = ChaCha20Poly1305::new(&shared_secret.into());
+    let nonce = ChaCha20Poly1305::generate_nonce()
+        .map_err(|e| format!("Failed to generate nonce: {e}"))?;
+    let encrypted = key
+        .encrypt(&nonce, serialized.as_slice())
+        .map_err(|e| format!("Failed to encrypt message: {e}"))?;
+    let encoded = encode_envelope_type0(&EnvelopeType0 {
+        iv: nonce.into(),
+        sb: encrypted,
+    });
+    Ok(BASE64.encode(encoded.as_slice()).into())
 }
 
 #[derive(Debug, PartialEq)]
@@ -1258,6 +1303,12 @@ enum ConnectionState {
     ),
 }
 
+#[derive(Debug)]
+pub enum IncomingSessionMessage {
+    SessionRequest(SessionRequestJsonRpc),
+    Disconnect(SessionDeleteJsonRpc),
+}
+
 #[allow(clippy::too_many_arguments)]
 async fn connect_loop_state_machine(
     relay_url: String,
@@ -1266,7 +1317,7 @@ async fn connect_loop_state_machine(
     session_store: Arc<dyn SessionStore>,
     session_request_tx: tokio::sync::mpsc::UnboundedSender<(
         Topic,
-        SessionRequestJsonRpc,
+        IncomingSessionMessage,
     )>,
     mut request_rx: tokio::sync::mpsc::UnboundedReceiver<(
         Params,
@@ -1383,7 +1434,10 @@ async fn connect_loop_state_machine(
                         );
 
                         session_request_tx
-                            .send((sub_msg.data.topic, request))
+                            .send((
+                                sub_msg.data.topic,
+                                IncomingSessionMessage::SessionRequest(request),
+                            ))
                             .unwrap();
                         if let Err(e) = irn_subscription_ack_tx.send(id) {
                             tracing::debug!(
@@ -1420,6 +1474,20 @@ async fn connect_loop_state_machine(
                                 "Failed to send subscription ack: {e}"
                             );
                         }
+                    } else if method.as_str() == Some("wc_sessionDelete") {
+                        let delete = serde_json::from_value::<
+                            SessionDeleteJsonRpc,
+                        >(value)
+                        .map_err(|e| PairError::Internal(e.to_string()))
+                        .unwrap();
+                        session_store
+                            .delete_session(sub_msg.data.topic.to_string());
+                        session_request_tx
+                            .send((
+                                sub_msg.data.topic,
+                                IncomingSessionMessage::Disconnect(delete),
+                            ))
+                            .unwrap();
                     } else {
                         tracing::error!("Unexpected method: {}", method);
                         if let Err(e) = irn_subscription_ack_tx.send(id) {
@@ -2088,7 +2156,7 @@ pub struct SignClient {
         Option<
             tokio::sync::mpsc::UnboundedReceiver<(
                 Topic,
-                SessionRequestJsonRpc,
+                IncomingSessionMessage,
             )>,
         >,
     >,
@@ -2153,14 +2221,24 @@ impl SignClient {
                 tracing::info!(
                     "Starting session request listener with debug logging"
                 );
-                while let Some((topic, session_request)) = rx.recv().await {
-                    tracing::debug!("Received session request - Topic: {:?}, SessionRequest: {:?}", topic, session_request);
-                    let session_request_ffi: SessionRequestJsonRpcFfi =
-                        session_request.into();
-                    listener.on_session_request(
-                        topic.to_string(),
-                        session_request_ffi,
-                    );
+                while let Some((topic, message)) = rx.recv().await {
+                    match message {
+                        IncomingSessionMessage::SessionRequest(request) => {
+                            tracing::debug!("Received session request - Topic: {:?}, SessionRequest: {:?}", topic, request);
+                            let session_request_ffi: SessionRequestJsonRpcFfi =
+                                request.into();
+                            listener.on_session_request(
+                                topic.to_string(),
+                                session_request_ffi,
+                            );
+                        }
+                        IncomingSessionMessage::Disconnect(delete) => {
+                            listener.on_session_disconnect(
+                                topic.to_string(),
+                                delete,
+                            );
+                        }
+                    }
                 }
                 tracing::info!("Session request listener stopped");
             });
@@ -2217,6 +2295,15 @@ impl SignClient {
         let topic_topic: Topic = topic.clone().into();
         client.respond(topic_topic, response_internal).await?;
         Ok(topic)
+    }
+
+    pub async fn disconnect(
+        &self,
+        topic: String,
+    ) -> Result<(), DisconnectError> {
+        let mut client = self.client.lock().await;
+        client.disconnect(topic.into()).await?;
+        Ok(())
     }
 }
 
