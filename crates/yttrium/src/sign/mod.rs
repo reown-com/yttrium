@@ -1,12 +1,13 @@
 #[cfg(feature = "uniffi")]
 use ffi_types::{
-    SessionFfi, SessionProposalFfi, SessionRequestJsonRpcFfi,
-    SessionRequestResponseJsonRpcFfi,
+    SessionFfi, SessionProposalFfi, SessionRequestJsonRpcFfi, SessionRequestJsonRpcResponseFfi,
 };
 pub use relay_rpc::{
     auth::ed25519_dalek::{SecretKey, SigningKey},
     domain::Topic,
 };
+use crate::sign::{protocol_types::SessionRequestJsonRpcResponse, utils::is_expired};
+
 use {
     crate::{
         sign::{
@@ -15,7 +16,7 @@ use {
             protocol_types::{
                 Controller, Metadata, ProposalJsonRpc, ProposalResponse,
                 ProposalResponseJsonRpc, Relay, SessionRequestJsonRpc,
-                SessionRequestResponseJsonRpc, SessionSettle,
+                SessionSettle,
                 SessionSettleJsonRpc, SettleNamespace,
             },
             relay_url::ConnectionOptions,
@@ -113,6 +114,20 @@ pub enum PairError {
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Error))]
 #[error("Sign approve error: {0}")]
 pub enum ApproveError {
+    #[error("Request error: {0}")]
+    Request(RequestError),
+
+    #[error("Internal: {0}")]
+    Internal(String),
+
+    #[error("Should never happen: {0}")]
+    ShouldNeverHappen(String),
+}
+
+#[derive(Debug, thiserror::Error)]
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Error))]
+#[error("Sign reject error: {0}")]
+pub enum RejectError {
     #[error("Request error: {0}")]
     Request(RequestError),
 
@@ -528,12 +543,83 @@ impl Client {
         }
     }
 
-    pub async fn _reject(&self) {
-        // TODO implement
+    // TODO will use storage in the future, for now it's ok to receive the whole proposal as parameter much like on approve() method.
+    pub async fn reject(
+        &mut self,
+        proposal: SessionProposal,
+        reason: relay_rpc::rpc::ErrorData,
+    ) -> Result<(), RejectError> {
         // https://github.com/WalletConnect/walletconnect-monorepo/blob/5bef698dcf0ae910548481959a6a5d87eaf7aaa5/packages/sign-client/src/controllers/engine.ts#L497
-        unimplemented!()
 
-        // TODO consider new relay method?
+        // Check if proposal is expired
+        if let Some(expiry) = proposal.expiry_timestamp {
+            if is_expired(expiry) {
+                return Err(RejectError::Internal(format!(
+                    "Proposal id {} has expired",
+                    proposal.session_proposal_rpc_id
+                )));
+            }
+        }
+
+        // Send error response to the pairing topic
+        let error_response = relay_rpc::rpc::ErrorResponse {
+            id: relay_rpc::domain::MessageId::new(
+                proposal.session_proposal_rpc_id,
+            ),
+            jsonrpc: relay_rpc::rpc::JSON_RPC_VERSION.clone(),
+            error: reason,
+        };
+
+        // Encrypt and send the error response using the pairing sym key
+        let serialized = serde_json::to_string(&error_response)
+            .map_err(|e| RejectError::Internal(e.to_string()))?;
+
+        let key = ChaCha20Poly1305::new(&proposal.pairing_sym_key.into());
+        let nonce = ChaCha20Poly1305::generate_nonce()
+            .map_err(|e| RejectError::Internal(e.to_string()))?;
+        let encrypted = key
+            .encrypt(&nonce, serialized.as_bytes())
+            .map_err(|e| RejectError::Internal(e.to_string()))?;
+        let encoded = encode_envelope_type0(&EnvelopeType0 {
+            iv: nonce.into(),
+            sb: encrypted,
+        })
+        .map_err(|e| RejectError::Internal(e.to_string()))?;
+        let message = BASE64.encode(encoded.as_slice()).into();
+
+        // Publish error response to pairing topic
+        match self
+            .request::<bool>(relay_rpc::rpc::Params::Publish(Publish {
+                topic: proposal.pairing_topic.clone(),
+                message,
+                attestation: None, // TODO
+                ttl_secs: 300,
+                tag: 1120,
+                prompt: false,
+                analytics: Some(AnalyticsData {
+                    correlation_id: Some(
+                        proposal.session_proposal_rpc_id.try_into().unwrap(),
+                    ),
+                    chain_id: None,
+                    rpc_methods: None,
+                    tx_hashes: None,
+                    contract_addresses: None,
+                }),
+            }))
+            .await
+        {
+            Ok(true) => Ok(()),
+            Ok(false) => {
+                // we don't need delete from storage from rust side (like on approve method does for session) as is not implemented for proposal
+                // proposal will be deleted from each SDK storage.
+                return Err(RejectError::Internal(
+                    "Failed to send rejection to relay".to_string(),
+                ));
+            }
+            Err(e) => {
+                return Err(RejectError::Request(e));
+            }
+        }
     }
 
     pub async fn _update(&self) {
@@ -560,7 +646,7 @@ impl Client {
     pub async fn respond(
         &mut self,
         topic: Topic,
-        response: SessionRequestResponseJsonRpc,
+        response: SessionRequestJsonRpcResponse,
     ) -> Result<(), RespondError> {
         // TODO implement
         // https://github.com/WalletConnect/walletconnect-monorepo/blob/5bef698dcf0ae910548481959a6a5d87eaf7aaa5/packages/sign-client/src/controllers/engine.ts#L701
@@ -609,7 +695,18 @@ impl Client {
             ttl_secs: 300,
             tag: 1109,
             prompt: false,
-            analytics: None, // TODO
+            analytics: Some(AnalyticsData {
+                    correlation_id: Some(
+                        match &response {
+                            SessionRequestJsonRpcResponse::Result(r) => r.id,
+                            SessionRequestJsonRpcResponse::Error(e) => e.id,
+                        }.try_into().unwrap(),
+                    ),
+                    chain_id: None, // TODO
+                    rpc_methods: None, // TODO
+                    tx_hashes: None, // TODO
+                    contract_addresses: None, // TODO
+                }),
         }))
         .await
         .map_err(|e| RespondError::Internal(e.to_string()))?;
@@ -2057,15 +2154,34 @@ impl SignClient {
         Ok(session.into())
     }
 
+    pub async fn reject(
+        &self,
+        proposal: SessionProposalFfi,
+        reason: ffi_types::ErrorDataFfi,
+    ) -> Result<(), RejectError> {
+        use crate::sign::ffi_types::SessionProposal;
+        use relay_rpc::rpc::ErrorData;
+
+        let proposal: SessionProposal = proposal.into();
+        let reason: ErrorData = reason.into();
+        tracing::debug!("reject session propose: {:?}", reason);
+
+        let mut client = self.client.lock().await;
+        client.reject(proposal, reason).await?;
+        Ok(())
+    }
+
     pub async fn respond(
         &self,
         topic: String,
-        response: SessionRequestResponseJsonRpcFfi,
+        response: SessionRequestJsonRpcResponseFfi,
     ) -> Result<String, RespondError> {
+        use crate::sign::protocol_types::SessionRequestJsonRpcResponse;
+
         tracing::debug!("responding session request: {:?}", response);
 
         let mut client = self.client.lock().await;
-        let response_internal: SessionRequestResponseJsonRpc = response.into();
+        let response_internal: SessionRequestJsonRpcResponse = response.into();
         let topic_topic: Topic = topic.clone().into();
         client.respond(topic_topic, response_internal).await?;
         Ok(topic)

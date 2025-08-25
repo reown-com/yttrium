@@ -148,8 +148,23 @@ pub struct SessionRequestRequest {
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct SessionRequestResponseJsonRpc {
+pub struct SessionRequestJsonRpcResultResponse {
     pub id: u64,
     pub jsonrpc: String,
     pub result: serde_json::Value,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SessionRequestJsonRpcErrorResponse {
+    pub id: u64,
+    pub jsonrpc: String,
+    pub error: serde_json::Value,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(untagged)]  
+pub enum SessionRequestJsonRpcResponse {
+    Result(SessionRequestJsonRpcResultResponse),
+    Error(SessionRequestJsonRpcErrorResponse),
 }
