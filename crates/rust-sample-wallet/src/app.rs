@@ -189,7 +189,6 @@ pub fn App() -> impl IntoView {
                             )
                             .await;
                             pairing_request.set(None);
-                            sessions.set(read_local_storage().sessions);
                         });
                     }
                     Err(e) => {
@@ -230,7 +229,6 @@ pub fn App() -> impl IntoView {
                         yttrium::time::sleep(std::time::Duration::from_secs(1))
                             .await;
                         pairing_request.set(None);
-                        sessions.set(read_local_storage().sessions);
                     }
                     Err(e) => {
                         show_error_toast(
@@ -333,6 +331,7 @@ pub fn App() -> impl IntoView {
                         let next = request_rx.recv().await;
                         match next {
                             Some((topic, message)) => {
+                                sessions.set(read_local_storage().sessions);
                                 match message {
                                     IncomingSessionMessage::SessionRequest(request) => {
                                         tracing::info!(
@@ -352,13 +351,30 @@ pub fn App() -> impl IntoView {
                                             }
                                         }
                                     }
-                                    IncomingSessionMessage::Disconnect(delete) => {
+                                    IncomingSessionMessage::Disconnect(id, topic) => {
                                         tracing::info!(
-                                            "session delete on topic: {:?}: {:?}",
-                                            topic,
-                                            delete
+                                            "session delete on topic: {id}: {topic}",
                                         );
-                                        sessions.set(read_local_storage().sessions);
+                                    }
+                                    IncomingSessionMessage::SessionEvent(id, topic, params) => {
+                                        tracing::info!(
+                                            "session event on topic: {id}: {topic}: {params:?}",
+                                        );
+                                    }
+                                    IncomingSessionMessage::SessionUpdate(id, topic, params) => {
+                                        tracing::info!(
+                                            "session update on topic: {id}: {topic}: {params:?}",
+                                        );
+                                    }
+                                    IncomingSessionMessage::SessionExtend(id, topic) => {
+                                        tracing::info!(
+                                            "session extend on topic: {id}: {topic}",
+                                        );
+                                    }
+                                    IncomingSessionMessage::SessionConnect(id) => {
+                                        tracing::info!(
+                                            "session connect on topic: {id}",
+                                        );
                                     }
                                 }
                             }
@@ -409,7 +425,6 @@ pub fn App() -> impl IntoView {
                                                 show_error_toast(toaster, format!("Disconnect failed: {e}"));
                                             }
                                         }
-                                        sessions.set(read_local_storage().sessions);
                                     });
                                 }>
                                 "Disconnect"

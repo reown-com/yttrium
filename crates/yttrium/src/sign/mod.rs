@@ -185,18 +185,17 @@ pub enum DisconnectError {
 #[cfg(feature = "uniffi")]
 #[uniffi::export(with_foreign)]
 pub trait SignListener: Send + Sync {
-    //TODO: add on_session_ping, on_session_update, on_session_event, on_session_extend etc.
     fn on_session_request(
         &self,
         topic: String,
         session_request: SessionRequestJsonRpcFfi,
     );
 
-    fn on_session_disconnect(
-        &self,
-        topic: String,
-        session_delete: SessionDeleteJsonRpc,
-    );
+    fn on_session_disconnect(&self, id: u64, topic: String);
+    fn on_session_event(&self, id: u64, topic: String, params: bool);
+    fn on_session_extend(&self, id: u64, topic: String);
+    fn on_session_update(&self, id: u64, topic: String, params: bool);
+    fn on_session_connect(&self, id: u64);
 }
 
 #[cfg(feature = "uniffi")]
@@ -216,6 +215,7 @@ pub trait SessionStore: Send + Sync {
 }
 
 pub struct Client {
+    tx: tokio::sync::mpsc::UnboundedSender<(Topic, IncomingSessionMessage)>,
     request_tx: tokio::sync::mpsc::UnboundedSender<(
         Params,
         tokio::sync::oneshot::Sender<Result<Response, RequestError>>,
@@ -234,12 +234,12 @@ const REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
 
 // TODO
 //   - disconnect if no ping for 30s etc. (native only)
-//   - reconnect back-off w/ random jitter to prevent server overload
+//   - back-off w/ random jitter to prevent server overload
 //   - online/offline hints
 //   - background/foreground hints
 
 // TODO
-// - session pings, update, events, emit, extend, disconnect
+// - session pings, update, events, emit, extend
 // - emit events for session pings, update, events, extend, disconnect
 // - session expiry & renew
 //   - expire implemented simply by filtering out expired sessions in `Client::add_sessions()` ?
@@ -305,7 +305,7 @@ impl Client {
             project_id,
             SigningKey::from_bytes(&key),
             session_store.clone(),
-            tx,
+            tx.clone(),
             request_rx,
             online_rx,
             cleanup_rx.clone(),
@@ -313,6 +313,7 @@ impl Client {
 
         (
             Self {
+                tx,
                 request_tx,
                 session_store,
                 online_tx: Some(online_tx),
@@ -564,7 +565,17 @@ impl Client {
             ))
             .await
         {
-            Ok(true) => Ok(session),
+            Ok(true) => {
+                self.tx
+                    .send((
+                        session.topic.clone(),
+                        IncomingSessionMessage::SessionConnect(
+                            proposal.session_proposal_rpc_id,
+                        ),
+                    ))
+                    .unwrap();
+                Ok(session)
+            }
             Ok(false) => {
                 self.session_store.delete_session(session.topic.to_string());
                 Err(ApproveError::Internal(
@@ -731,9 +742,10 @@ impl Client {
             .map(|s| s.session_sym_key);
 
         if let Some(shared_secret) = shared_secret {
+            let id = generate_rpc_id();
             let message = {
                 let message = SessionDeleteJsonRpc {
-                    id: generate_rpc_id(),
+                    id,
                     jsonrpc: "2.0".to_string(),
                     method: "wc_sessionDelete".to_string(),
                     params: SessionDelete {
@@ -762,6 +774,13 @@ impl Client {
             .map_err(DisconnectError::Request)?;
 
             self.session_store.delete_session(topic.to_string());
+
+            self.tx
+                .send((
+                    topic.clone(),
+                    IncomingSessionMessage::Disconnect(id, topic),
+                ))
+                .unwrap();
         } else {
             tracing::debug!(
                 "disconnect: session not found for topic, ignoring: {:?}",
@@ -1390,10 +1409,15 @@ enum ConnectionState {
     ),
 }
 
+// TODO rename to something more generic, e.g. IncomingEvent
 #[derive(Debug)]
 pub enum IncomingSessionMessage {
     SessionRequest(SessionRequestJsonRpc),
-    Disconnect(SessionDeleteJsonRpc),
+    Disconnect(u64, Topic),
+    SessionEvent(u64, Topic, bool),
+    SessionUpdate(u64, Topic, bool),
+    SessionExtend(u64, Topic),
+    SessionConnect(u64),
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1534,6 +1558,16 @@ async fn connect_loop_state_machine(
                     } else if method.as_str() == Some("wc_sessionUpdate") {
                         // TODO update session locally (if not older than last update)
                         // TODO write state to storage (blocking)
+                        session_request_tx
+                            .send((
+                                sub_msg.data.topic.clone(),
+                                IncomingSessionMessage::SessionUpdate(
+                                    0, // TODO
+                                    sub_msg.data.topic,
+                                    false, // TODO
+                                ),
+                            ))
+                            .unwrap();
                         if let Err(e) = irn_subscription_ack_tx.send(id) {
                             tracing::debug!(
                                 "Failed to send subscription ack: {e}"
@@ -1542,6 +1576,15 @@ async fn connect_loop_state_machine(
                     } else if method.as_str() == Some("wc_sessionExtend") {
                         // TODO update session locally (if not older than last update)
                         // TODO write state to storage (blocking)
+                        session_request_tx
+                            .send((
+                                sub_msg.data.topic.clone(),
+                                IncomingSessionMessage::SessionExtend(
+                                    0, // TODO
+                                    sub_msg.data.topic,
+                                ),
+                            ))
+                            .unwrap();
                         if let Err(e) = irn_subscription_ack_tx.send(id) {
                             tracing::debug!(
                                 "Failed to send subscription ack: {e}"
@@ -1550,12 +1593,23 @@ async fn connect_loop_state_machine(
                     } else if method.as_str() == Some("wc_sessionEmit") {
                         // TODO dedup events based on JSON RPC history
                         // TODO emit event callback (blocking?)
+                        session_request_tx
+                            .send((
+                                sub_msg.data.topic.clone(),
+                                IncomingSessionMessage::SessionEvent(
+                                    0, // TODO
+                                    sub_msg.data.topic,
+                                    false, // TODO
+                                ),
+                            ))
+                            .unwrap();
                         if let Err(e) = irn_subscription_ack_tx.send(id) {
                             tracing::debug!(
                                 "Failed to send subscription ack: {e}"
                             );
                         }
                     } else if method.as_str() == Some("wc_sessionPing") {
+                        // ignore pings
                         if let Err(e) = irn_subscription_ack_tx.send(id) {
                             tracing::debug!(
                                 "Failed to send subscription ack: {e}"
@@ -1571,10 +1625,18 @@ async fn connect_loop_state_machine(
                             .delete_session(sub_msg.data.topic.to_string());
                         session_request_tx
                             .send((
-                                sub_msg.data.topic,
-                                IncomingSessionMessage::Disconnect(delete),
+                                sub_msg.data.topic.clone(),
+                                IncomingSessionMessage::Disconnect(
+                                    delete.id,
+                                    sub_msg.data.topic,
+                                ),
                             ))
                             .unwrap();
+                        if let Err(e) = irn_subscription_ack_tx.send(id) {
+                            tracing::debug!(
+                                "Failed to send subscription ack: {e}"
+                            );
+                        }
                     } else {
                         tracing::error!("Unexpected method: {}", method);
                         if let Err(e) = irn_subscription_ack_tx.send(id) {
@@ -2319,11 +2381,37 @@ impl SignClient {
                                 session_request_ffi,
                             );
                         }
-                        IncomingSessionMessage::Disconnect(delete) => {
-                            listener.on_session_disconnect(
+                        IncomingSessionMessage::Disconnect(id, topic) => {
+                            listener
+                                .on_session_disconnect(id, topic.to_string());
+                        }
+                        IncomingSessionMessage::SessionEvent(
+                            id,
+                            topic,
+                            params,
+                        ) => {
+                            listener.on_session_event(
+                                id,
                                 topic.to_string(),
-                                delete,
+                                params,
                             );
+                        }
+                        IncomingSessionMessage::SessionUpdate(
+                            id,
+                            topic,
+                            params,
+                        ) => {
+                            listener.on_session_update(
+                                id,
+                                topic.to_string(),
+                                params,
+                            );
+                        }
+                        IncomingSessionMessage::SessionExtend(id, topic) => {
+                            listener.on_session_extend(id, topic.to_string());
+                        }
+                        IncomingSessionMessage::SessionConnect(id) => {
+                            listener.on_session_connect(id);
                         }
                     }
                 }
