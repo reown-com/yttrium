@@ -54,3 +54,12 @@ pub fn generate_rpc_id() -> u64 {
     let random = rng.gen_range(0..=u16::MAX);
     time + random as u64
 }
+
+pub fn is_expired(expiry: u64) -> bool {
+    let current_time = crate::time::SystemTime::now()
+        .duration_since(crate::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
+    
+    current_time >= expiry
+}

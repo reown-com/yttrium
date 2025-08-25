@@ -1,13 +1,11 @@
+use relay_rpc::rpc::ErrorData;
+
 #[cfg(feature = "uniffi")]
-use crate::sign::ffi_types::{Session, SessionProposal};
-use crate::sign::{
-    ffi_types::{
-        SessionFfi, SessionProposalFfi, SessionRequestFfi,
-        SessionRequestJsonRpcFfi, SessionRequestRequestFfi,
-        SessionRequestResponseJsonRpcFfi,
-    },
-    protocol_types::{SessionRequestJsonRpc, SessionRequestResponseJsonRpc},
-};
+use crate::sign::ffi_types::{SessionProposal, SessionRequestJsonRpcResponseFfi};
+#[cfg(feature = "uniffi")]
+use crate::sign::{Session};
+use crate::sign::ffi_types::{ErrorDataFfi, SessionFfi, SessionProposalFfi, SessionRequestFfi, SessionRequestJsonRpcFfi, SessionRequestRequestFfi, SessionRequestJsonRpcResultResponseFfi};
+use crate::sign::protocol_types::{SessionRequestJsonRpc, SessionRequestJsonRpcResultResponse};
 
 #[cfg(feature = "uniffi")]
 impl From<SessionProposalFfi> for SessionProposal {
@@ -99,12 +97,38 @@ impl From<SessionProposal> for SessionProposalFfi {
 }
 
 #[cfg(feature = "uniffi")]
-impl From<SessionRequestResponseJsonRpcFfi> for SessionRequestResponseJsonRpc {
-    fn from(response: SessionRequestResponseJsonRpcFfi) -> Self {
+impl From<SessionRequestJsonRpcResultResponseFfi> for SessionRequestJsonRpcResultResponse {
+    fn from(response: SessionRequestJsonRpcResultResponseFfi) -> Self {
         Self {
             id: response.id,
             jsonrpc: response.jsonrpc,
             result: serde_json::from_str(&response.result).unwrap_or_default(),
+        }
+    }
+}
+
+#[cfg(feature = "uniffi")]
+impl From<SessionRequestJsonRpcResponseFfi> for crate::sign::protocol_types::SessionRequestJsonRpcResponse {
+    fn from(ffi: SessionRequestJsonRpcResponseFfi) -> Self {
+        match ffi {
+            SessionRequestJsonRpcResponseFfi::Result(result) => {
+                crate::sign::protocol_types::SessionRequestJsonRpcResponse::Result(
+                    crate::sign::protocol_types::SessionRequestJsonRpcResultResponse {
+                        id: result.id,
+                        jsonrpc: result.jsonrpc,
+                        result: serde_json::from_str(&result.result).unwrap_or_default(),
+                    }
+                )
+            }
+            SessionRequestJsonRpcResponseFfi::Error(error) => {
+                crate::sign::protocol_types::SessionRequestJsonRpcResponse::Error(
+                    crate::sign::protocol_types::SessionRequestJsonRpcErrorResponse {
+                        id: error.id,
+                        jsonrpc: error.jsonrpc,
+                        error: serde_json::from_str(&error.error).unwrap_or_default(),
+                    }
+                )
+            }
         }
     }
 }
@@ -163,6 +187,17 @@ impl From<SessionFfi> for Session {
             is_acknowledged: session.is_acknowledged,
             pairing_topic: session.pairing_topic.into(),
             transport_type: session.transport_type,
+        }
+    }
+}
+
+#[cfg(feature = "uniffi")]
+impl From<ErrorDataFfi> for ErrorData {
+    fn from(error_data: ErrorDataFfi) -> Self {
+        Self {
+            code: error_data.code,
+            message: error_data.message,
+            data: error_data.data,
         }
     }
 }
