@@ -74,7 +74,7 @@ pub struct SessionRequestJsonRpcErrorResponseFfi {
 
 #[cfg(feature = "uniffi")]
 #[derive(uniffi_macros::Enum, Debug, Serialize, Deserialize)]
-#[serde(untagged)]  
+#[serde(untagged)]
 pub enum SessionRequestJsonRpcResponseFfi {
     Result(SessionRequestJsonRpcResultResponseFfi),
     Error(SessionRequestJsonRpcErrorResponseFfi),

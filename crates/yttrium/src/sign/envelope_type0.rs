@@ -40,11 +40,9 @@ pub fn deserialize_envelope_type0(
     })
 }
 
-pub fn encode_envelope_type0(
-    envelope: &EnvelopeType0,
-) -> Result<Vec<u8>, EnvelopeType0Error> {
+pub fn encode_envelope_type0(envelope: &EnvelopeType0) -> Vec<u8> {
     let mut result = vec![0];
     result.extend_from_slice(&envelope.iv);
     result.extend_from_slice(&envelope.sb);
-    Ok(result)
+    result
 }

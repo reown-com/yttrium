@@ -1,11 +1,22 @@
-use relay_rpc::rpc::ErrorData;
-
 #[cfg(feature = "uniffi")]
-use crate::sign::ffi_types::{SessionProposal, SessionRequestJsonRpcResponseFfi};
+use crate::sign::ffi_types::{
+    SessionProposal, SessionRequestJsonRpcResponseFfi,
+};
 #[cfg(feature = "uniffi")]
-use crate::sign::{Session};
-use crate::sign::ffi_types::{ErrorDataFfi, SessionFfi, SessionProposalFfi, SessionRequestFfi, SessionRequestJsonRpcFfi, SessionRequestRequestFfi, SessionRequestJsonRpcResultResponseFfi};
-use crate::sign::protocol_types::{SessionRequestJsonRpc, SessionRequestJsonRpcResultResponse};
+use crate::sign::Session;
+use {
+    crate::sign::{
+        ffi_types::{
+            ErrorDataFfi, SessionFfi, SessionProposalFfi, SessionRequestFfi,
+            SessionRequestJsonRpcFfi, SessionRequestJsonRpcResultResponseFfi,
+            SessionRequestRequestFfi,
+        },
+        protocol_types::{
+            SessionRequestJsonRpc, SessionRequestJsonRpcResultResponse,
+        },
+    },
+    relay_rpc::rpc::ErrorData,
+};
 
 #[cfg(feature = "uniffi")]
 impl From<SessionProposalFfi> for SessionProposal {
@@ -97,7 +108,9 @@ impl From<SessionProposal> for SessionProposalFfi {
 }
 
 #[cfg(feature = "uniffi")]
-impl From<SessionRequestJsonRpcResultResponseFfi> for SessionRequestJsonRpcResultResponse {
+impl From<SessionRequestJsonRpcResultResponseFfi>
+    for SessionRequestJsonRpcResultResponse
+{
     fn from(response: SessionRequestJsonRpcResultResponseFfi) -> Self {
         Self {
             id: response.id,
@@ -108,7 +121,9 @@ impl From<SessionRequestJsonRpcResultResponseFfi> for SessionRequestJsonRpcResul
 }
 
 #[cfg(feature = "uniffi")]
-impl From<SessionRequestJsonRpcResponseFfi> for crate::sign::protocol_types::SessionRequestJsonRpcResponse {
+impl From<SessionRequestJsonRpcResponseFfi>
+    for crate::sign::protocol_types::SessionRequestJsonRpcResponse
+{
     fn from(ffi: SessionRequestJsonRpcResponseFfi) -> Self {
         match ffi {
             SessionRequestJsonRpcResponseFfi::Result(result) => {

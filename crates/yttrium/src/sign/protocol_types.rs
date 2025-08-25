@@ -163,8 +163,25 @@ pub struct SessionRequestJsonRpcErrorResponse {
 }
 
 #[derive(Serialize, Deserialize)]
-#[serde(untagged)]  
+#[serde(untagged)]
 pub enum SessionRequestJsonRpcResponse {
     Result(SessionRequestJsonRpcResultResponse),
     Error(SessionRequestJsonRpcErrorResponse),
+}
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
+pub struct SessionDeleteJsonRpc {
+    pub id: u64,
+    pub jsonrpc: String,
+    pub method: String,
+    pub params: SessionDelete,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
+pub struct SessionDelete {
+    pub code: u64,
+    pub message: String,
 }

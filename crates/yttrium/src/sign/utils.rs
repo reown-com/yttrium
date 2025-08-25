@@ -60,6 +60,6 @@ pub fn is_expired(expiry: u64) -> bool {
         .duration_since(crate::time::UNIX_EPOCH)
         .unwrap()
         .as_secs();
-    
+
     current_time >= expiry
 }

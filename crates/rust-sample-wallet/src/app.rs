@@ -15,10 +15,10 @@ use {
         ffi_types::{Session, SessionProposal},
         generate_key,
         protocol_types::{
-            Metadata, SessionRequestJsonRpc, SessionRequestResponseJsonRpc,
-            SettleNamespace,
+            Metadata, SessionRequestJsonRpc, SessionRequestJsonRpcResponse,
+            SessionRequestJsonRpcResultResponse, SettleNamespace,
         },
-        Client, SecretKey, SessionStore, Topic,
+        Client, IncomingSessionMessage, SecretKey, SessionStore, Topic,
     },
 };
 
@@ -93,6 +93,8 @@ impl SessionStore for MySessionStore {
 #[component]
 pub fn App() -> impl IntoView {
     let toaster = ToasterInjection::expect_context();
+
+    let sessions = RwSignal::new(Vec::new());
 
     let pairing_uri = RwSignal::new(String::new());
     let client =
@@ -189,6 +191,7 @@ pub fn App() -> impl IntoView {
                             )
                             .await;
                             pairing_request.set(None);
+                            sessions.set(read_local_storage().sessions);
                         });
                     }
                     Err(e) => {
@@ -214,11 +217,13 @@ pub fn App() -> impl IntoView {
                 match client
                     .respond(
                         request.0,
-                        SessionRequestResponseJsonRpc {
-                            id: request.1.id,
-                            jsonrpc: "2.0".to_string(),
-                            result: "0x0".to_string().into(),
-                        },
+                        SessionRequestJsonRpcResponse::Result(
+                            SessionRequestJsonRpcResultResponse {
+                                id: request.1.id,
+                                jsonrpc: "2.0".to_string(),
+                                result: "0x0".to_string().into(),
+                            },
+                        ),
                     )
                     .await
                 {
@@ -289,21 +294,33 @@ pub fn App() -> impl IntoView {
                     {
                         let next = request_rx.recv().await;
                         match next {
-                            Some(message) => {
-                                tracing::info!(
-                                    "signature request on topic: {:?}: {:?}",
-                                    message.0,
-                                    message.1
-                                );
-                                match message.1.params.request.method.as_str() {
-                                    "personal_sign" => {
-                                        signature_request_open.set(true);
-                                        signature_request.set(Some(message));
-                                    }
-                                    method => {
-                                        tracing::error!(
-                                            "Unexpected method: {method}"
+                            Some((topic, message)) => {
+                                match message {
+                                    IncomingSessionMessage::SessionRequest(request) => {
+                                        tracing::info!(
+                                            "signature request on topic: {:?}: {:?}",
+                                            topic,
+                                            request
                                         );
+                                        match request.params.request.method.as_str() {
+                                            "personal_sign" => {
+                                                signature_request_open.set(true);
+                                                signature_request.set(Some((topic, request)));
+                                            }
+                                            method => {
+                                                tracing::error!(
+                                                    "Unexpected method: {method}"
+                                                );
+                                            }
+                                        }
+                                    }
+                                    IncomingSessionMessage::Disconnect(delete) => {
+                                        tracing::info!(
+                                            "session delete on topic: {:?}: {:?}",
+                                            topic,
+                                            delete
+                                        );
+                                        sessions.set(read_local_storage().sessions);
                                     }
                                 }
                             }
@@ -335,9 +352,31 @@ pub fn App() -> impl IntoView {
                 </Button>
             </Flex>
             <ul>
-                {move || read_local_storage().sessions.iter().map(|_session| {
+                {move || sessions.get().iter().map(|session| {
+                    let topic = session.topic.clone();
                     view! {
-                        <li>"Session"</li>
+                        <li>
+                            "Session"
+                            <Button
+                                on_click=move |_| {
+                                    let topic = topic.clone();
+                                    leptos::task::spawn_local(async move {
+                                        let client = client.read_value().as_ref().unwrap().clone();
+                                        let mut client = client.lock().await;
+                                        match client.disconnect(topic).await {
+                                            Ok(_) => {
+                                                show_success_toast(toaster, "Disconnected".to_owned());
+                                            }
+                                            Err(e) => {
+                                                show_error_toast(toaster, format!("Disconnect failed: {e}"));
+                                            }
+                                        }
+                                        sessions.set(read_local_storage().sessions);
+                                    });
+                                }>
+                                "Disconnect"
+                            </Button>
+                        </li>
                     }
                 }).collect::<Vec<_>>()}
             </ul>
