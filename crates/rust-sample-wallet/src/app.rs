@@ -86,8 +86,6 @@ impl SessionStore for MySessionStore {
     }
 }
 
-// TODO disconnect support
-// TODO reject session proposal
 // TODO reject session request
 
 #[component]
@@ -198,6 +196,46 @@ pub fn App() -> impl IntoView {
                         show_error_toast(
                             toaster,
                             format!("Approval failed: {e}"),
+                        );
+                    }
+                }
+            }
+        }
+    });
+
+    let reject_pairing_action = Action::new({
+        move |pairing: &SessionProposal| {
+            let pairing = pairing.clone();
+            let client = client.read_value().as_ref().unwrap().clone();
+            async move {
+                let mut client = client.lock().await;
+                match client
+                    .reject(
+                        pairing,
+                        yttrium::sign::ErrorData {
+                            code: 5000,
+                            message: "User rejected.".to_owned(),
+                            data: None,
+                        },
+                    )
+                    .await
+                {
+                    Ok(_) => {
+                        show_success_toast(
+                            toaster,
+                            "Pairing rejected".to_owned(),
+                        );
+                        pairing_request_open.set(false);
+
+                        yttrium::time::sleep(std::time::Duration::from_secs(1))
+                            .await;
+                        pairing_request.set(None);
+                        sessions.set(read_local_storage().sessions);
+                    }
+                    Err(e) => {
+                        show_error_toast(
+                            toaster,
+                            format!("Pairing rejection failed: {e}"),
                         );
                     }
                 }
@@ -405,11 +443,11 @@ pub fn App() -> impl IntoView {
                                             "Approve"
                                         </Button>
                                         <Button
-                                            // loading=session_request_reject_action.pending()
+                                            loading=reject_pairing_action.pending()
                                             on_click={
                                                 let _request = request.clone();
                                                 move |_| {
-                                                    // session_request_reject_action.dispatch(request.clone());
+                                                    reject_pairing_action.dispatch(request.clone());
                                                 }
                                             }>
                                                 "Reject"

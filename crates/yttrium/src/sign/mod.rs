@@ -6,6 +6,7 @@ use ffi_types::{
 pub use relay_rpc::{
     auth::ed25519_dalek::{SecretKey, SigningKey},
     domain::Topic,
+    rpc::ErrorData,
 };
 use {
     crate::{
