@@ -1,5 +1,5 @@
 use {
-    relay_rpc::domain::MessageId,
+    relay_rpc::domain::{MessageId, Topic},
     serde::{Deserialize, Serialize},
     std::collections::HashMap,
 };
@@ -35,6 +35,22 @@ pub struct ProposalNamespace {
     pub events: Vec<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SessionProposal {
+    pub session_proposal_rpc_id: u64,
+    pub pairing_topic: Topic,
+    pub pairing_sym_key: [u8; 32],
+    pub proposer_public_key: [u8; 32],
+    pub relays: Vec<crate::sign::protocol_types::Relay>,
+    pub required_namespaces: ProposalNamespaces,
+    pub optional_namespaces: Option<ProposalNamespaces>,
+    pub metadata: Metadata,
+    pub session_properties: Option<HashMap<String, String>>,
+    pub scoped_properties: Option<HashMap<String, String>>,
+    pub expiry_timestamp: Option<u64>,
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
 pub struct Relay {
@@ -65,11 +81,18 @@ pub struct ProposalResponse {
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct SessionSettleJsonRpc {
+pub struct JsonRpcRequest {
     pub id: u64,
     pub jsonrpc: String,
     pub method: String,
-    pub params: SessionSettle,
+    pub params: JsonRpcRequestParams,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum JsonRpcRequestParams {
+    SessionSettle(SessionSettle),
+    SessionPropose(SessionProposal),
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

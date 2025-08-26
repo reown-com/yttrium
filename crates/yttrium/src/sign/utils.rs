@@ -24,9 +24,14 @@
 // }
 
 use {
+    crate::sign::envelope_type0::{encode_envelope_type0, EnvelopeType0},
+    chacha20poly1305::{aead::Aead, AeadCore, ChaCha20Poly1305, KeyInit},
+    data_encoding::BASE64,
     rand::Rng,
     relay_rpc::domain::Topic,
+    serde::Serialize,
     sha2::{Digest, Sha256},
+    std::sync::Arc,
 };
 
 pub fn topic_from_sym_key(sym_key: &[u8]) -> Topic {
@@ -60,6 +65,26 @@ pub fn is_expired(expiry: u64) -> bool {
         .duration_since(crate::time::UNIX_EPOCH)
         .unwrap()
         .as_secs();
-
     current_time >= expiry
+}
+
+/// Should never fail, but will return a string error if it does
+pub fn serialize_and_encrypt_message_type0_envelope<T: Serialize>(
+    shared_secret: [u8; 32],
+    message: &T,
+) -> Result<Arc<str>, String> {
+    let serialized = serde_json::to_vec(&message)
+        .map_err(|e| format!("Failed to serialize message: {e}"))?;
+
+    let key = ChaCha20Poly1305::new(&shared_secret.into());
+    let nonce = ChaCha20Poly1305::generate_nonce()
+        .map_err(|e| format!("Failed to generate nonce: {e}"))?;
+    let encrypted = key
+        .encrypt(&nonce, serialized.as_slice())
+        .map_err(|e| format!("Failed to encrypt message: {e}"))?;
+    let encoded = encode_envelope_type0(&EnvelopeType0 {
+        iv: nonce.into(),
+        sb: encrypted,
+    });
+    Ok(BASE64.encode(encoded.as_slice()).into())
 }

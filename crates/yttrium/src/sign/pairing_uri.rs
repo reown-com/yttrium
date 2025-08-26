@@ -1,4 +1,7 @@
-use {relay_rpc::domain::Topic, std::collections::HashMap, url::Url};
+use {
+    crate::sign::protocol_types::Relay, relay_rpc::domain::Topic,
+    std::collections::HashMap, url::Url, x25519_dalek::StaticSecret,
+};
 
 #[derive(Debug, thiserror::Error)]
 #[error("Pairing URI parse error: {0}")]
@@ -98,6 +101,22 @@ pub fn parse(uri: &str) -> Result<PairingUri, Error> {
         .transpose()?;
 
     Ok(PairingUri { topic, sym_key, expiry_timestamp })
+}
+
+pub fn format(
+    pairing_topic: &Topic,
+    sym_key: &StaticSecret,
+    relay: &Relay,
+    expiry: u64,
+) -> String {
+    format!(
+        "wc:{}?topic={}&symKey={}&relay-protocol={}&expiryTimestamp={}",
+        "2.0", // protocol version
+        pairing_topic,
+        hex::encode(sym_key),
+        relay.protocol,
+        expiry
+    )
 }
 
 #[cfg(test)]

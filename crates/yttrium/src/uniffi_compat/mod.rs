@@ -1,5 +1,8 @@
 pub mod log;
 
+#[cfg(feature = "sign_client")]
+pub mod sign;
+
 #[cfg(feature = "sui")]
 pub mod sui;
 

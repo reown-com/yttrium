@@ -1,24 +1,22 @@
-#[cfg(feature = "uniffi")]
-use crate::sign::ffi_types::{
-    SessionProposal, SessionRequestJsonRpcResponseFfi,
-};
-#[cfg(feature = "uniffi")]
-use crate::sign::Session;
 use {
-    crate::sign::{
-        ffi_types::{
-            ErrorDataFfi, SessionFfi, SessionProposalFfi, SessionRequestFfi,
-            SessionRequestJsonRpcFfi, SessionRequestJsonRpcResultResponseFfi,
-            SessionRequestRequestFfi,
+    crate::{
+        sign::{
+            client_types::{ConnectParams, ConnectResult, Session},
+            protocol_types::{
+                SessionProposal, SessionRequestJsonRpc,
+                SessionRequestJsonRpcResultResponse,
+            },
         },
-        protocol_types::{
-            SessionRequestJsonRpc, SessionRequestJsonRpcResultResponse,
+        uniffi_compat::sign::ffi_types::{
+            ConnectParamsFfi, ConnectResultFfi, ErrorDataFfi, SessionFfi,
+            SessionProposalFfi, SessionRequestFfi, SessionRequestJsonRpcFfi,
+            SessionRequestJsonRpcResponseFfi,
+            SessionRequestJsonRpcResultResponseFfi, SessionRequestRequestFfi,
         },
     },
     relay_rpc::rpc::ErrorData,
 };
 
-#[cfg(feature = "uniffi")]
 impl From<SessionProposalFfi> for SessionProposal {
     fn from(proposal: SessionProposalFfi) -> Self {
         Self {
@@ -40,7 +38,6 @@ impl From<SessionProposalFfi> for SessionProposal {
     }
 }
 
-#[cfg(feature = "uniffi")]
 impl From<SessionRequestJsonRpc> for SessionRequestJsonRpcFfi {
     fn from(request: SessionRequestJsonRpc) -> Self {
         Self {
@@ -61,7 +58,6 @@ impl From<SessionRequestJsonRpc> for SessionRequestJsonRpcFfi {
     }
 }
 
-#[cfg(feature = "uniffi")]
 impl From<SessionProposal> for SessionProposalFfi {
     fn from(proposal: SessionProposal) -> Self {
         // Ensure both id and topic are properly converted to valid UTF-8 strings
@@ -107,7 +103,6 @@ impl From<SessionProposal> for SessionProposalFfi {
     }
 }
 
-#[cfg(feature = "uniffi")]
 impl From<SessionRequestJsonRpcResultResponseFfi>
     for SessionRequestJsonRpcResultResponse
 {
@@ -120,7 +115,6 @@ impl From<SessionRequestJsonRpcResultResponseFfi>
     }
 }
 
-#[cfg(feature = "uniffi")]
 impl From<SessionRequestJsonRpcResponseFfi>
     for crate::sign::protocol_types::SessionRequestJsonRpcResponse
 {
@@ -148,7 +142,6 @@ impl From<SessionRequestJsonRpcResponseFfi>
     }
 }
 
-#[cfg(feature = "uniffi")]
 impl From<Session> for SessionFfi {
     fn from(session: Session) -> Self {
         Self {
@@ -175,7 +168,6 @@ impl From<Session> for SessionFfi {
     }
 }
 
-#[cfg(feature = "uniffi")]
 impl From<SessionFfi> for Session {
     fn from(session: SessionFfi) -> Self {
         Self {
@@ -206,13 +198,96 @@ impl From<SessionFfi> for Session {
     }
 }
 
-#[cfg(feature = "uniffi")]
 impl From<ErrorDataFfi> for ErrorData {
     fn from(error_data: ErrorDataFfi) -> Self {
         Self {
             code: error_data.code,
             message: error_data.message,
             data: error_data.data,
+        }
+    }
+}
+
+impl From<ConnectParamsFfi> for ConnectParams {
+    fn from(params: ConnectParamsFfi) -> Self {
+        Self {
+            optional_namespaces: params.optional_namespaces,
+            relays: params.relays,
+            session_properties: params.session_properties,
+            scoped_properties: params.scoped_properties,
+        }
+    }
+}
+
+impl From<ConnectResult> for ConnectResultFfi {
+    fn from(result: ConnectResult) -> Self {
+        Self { topic: result.topic, uri: result.uri }
+    }
+}
+
+#[cfg(test)]
+mod conversion_tests {
+    use {
+        super::*, crate::sign::protocol_types::Metadata,
+        relay_rpc::domain::Topic,
+    };
+
+    #[test]
+    fn test_session_proposal_conversion() {
+        // Create a test SessionProposal with known values
+        let test_topic = Topic::from(
+            "0c814f7d2d56c0e840f75612addaa170af479b1c8499632430b41c298bf49907"
+                .to_string(),
+        );
+        let test_id = 1234567890;
+
+        let session_proposal = SessionProposal {
+            session_proposal_rpc_id: test_id,
+            pairing_topic: test_topic.clone(),
+            pairing_sym_key: [1u8; 32],
+            proposer_public_key: [2u8; 32],
+            relays: vec![],
+            required_namespaces: std::collections::HashMap::new(),
+            optional_namespaces: Some(std::collections::HashMap::new()),
+            metadata: Metadata {
+                name: "Test".to_string(),
+                description: "Test".to_string(),
+                url: "https://test.com".to_string(),
+                icons: vec![],
+                verify_url: None,
+                redirect: None,
+            },
+            session_properties: None,
+            scoped_properties: None,
+            expiry_timestamp: None,
+        };
+
+        // Convert to FFI
+        let ffi_proposal: SessionProposalFfi = session_proposal.into();
+
+        // Print the actual values to see what we get
+        println!("Original topic: {test_topic:?}");
+        println!("Topic Display: {test_topic}");
+        println!("Topic Debug: {test_topic:?}");
+        println!("Topic JSON: {:?}", serde_json::to_string(&test_topic));
+
+        println!("FFI id: {}", ffi_proposal.id);
+        println!("FFI topic: {}", ffi_proposal.topic);
+        println!("FFI topic bytes: {:?}", ffi_proposal.topic.as_bytes());
+        println!("FFI topic len: {}", ffi_proposal.topic.len());
+
+        // Check if the values are reasonable
+        assert_eq!(ffi_proposal.id, "1234567890");
+        assert!(!ffi_proposal.topic.is_empty(), "Topic should not be empty");
+        assert!(ffi_proposal.topic.is_ascii(), "Topic should be ASCII");
+
+        // The topic should be a hex string
+        if ffi_proposal.topic.len() == 64 {
+            assert!(
+                ffi_proposal.topic.chars().all(|c| c.is_ascii_hexdigit()),
+                "Topic should be a hex string, got: {}",
+                ffi_proposal.topic
+            );
         }
     }
 }

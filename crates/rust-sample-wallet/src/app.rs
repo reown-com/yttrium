@@ -12,11 +12,12 @@ use {
         ToasterInjection,
     },
     yttrium::sign::{
-        ffi_types::{Session, SessionProposal},
+        client_types::Session,
         generate_key,
         protocol_types::{
-            Metadata, SessionRequestJsonRpc, SessionRequestJsonRpcResponse,
-            SessionRequestJsonRpcResultResponse, SettleNamespace,
+            Metadata, SessionProposal, SessionRequestJsonRpc,
+            SessionRequestJsonRpcResponse, SessionRequestJsonRpcResultResponse,
+            SettleNamespace,
         },
         Client, IncomingSessionMessage, SecretKey, SessionStore, Topic,
     },
