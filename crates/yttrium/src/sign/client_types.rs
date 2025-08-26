@@ -7,6 +7,13 @@ use {
     std::collections::HashMap,
 };
 
+pub trait SessionStore: Send + Sync {
+    fn add_session(&self, session: Session);
+    fn delete_session(&self, topic: String);
+    fn get_session(&self, topic: String) -> Option<Session>;
+    fn get_all_sessions(&self) -> Vec<Session>;
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Session {
     pub request_id: u64,

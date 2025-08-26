@@ -1,11 +1,14 @@
 use {
     crate::{
         sign::{
+            client::{generate_client_id_key, Client},
+            client_errors::{
+                ApproveError, ConnectError, DisconnectError, PairError,
+                RejectError, RespondError,
+            },
             client_types::ConnectParams,
-            generate_key,
             protocol_types::{Metadata, SessionProposal, SettleNamespace},
-            ApproveError, Client, ConnectError, DisconnectError,
-            IncomingSessionMessage, PairError, RejectError, RespondError,
+            IncomingSessionMessage,
         },
         uniffi_compat::sign::{
             ffi_types::{
@@ -74,7 +77,7 @@ impl SignClient {
     }
 
     pub fn generate_key(&self) -> Vec<u8> {
-        generate_key().to_vec()
+        generate_client_id_key().to_vec()
     }
 
     pub async fn register_sign_listener(

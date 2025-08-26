@@ -12,14 +12,14 @@ use {
         ToasterInjection,
     },
     yttrium::sign::{
-        client_types::Session,
-        generate_key,
+        client::{generate_client_id_key, Client},
+        client_types::{Session, SessionStore},
         protocol_types::{
             Metadata, SessionProposal, SessionRequestJsonRpc,
             SessionRequestJsonRpcResponse, SessionRequestJsonRpcResultResponse,
             SettleNamespace,
         },
-        Client, IncomingSessionMessage, SecretKey, SessionStore, Topic,
+        IncomingSessionMessage, SecretKey, Topic,
     },
 };
 
@@ -43,10 +43,10 @@ fn read_local_storage() -> MyState {
         if let Ok(state) = serde_json::from_str(&state) {
             state
         } else {
-            MyState { key: generate_key(), sessions: Vec::new() }
+            MyState { key: generate_client_id_key(), sessions: Vec::new() }
         }
     } else {
-        MyState { key: generate_key(), sessions: Vec::new() }
+        MyState { key: generate_client_id_key(), sessions: Vec::new() }
     }
 }
 

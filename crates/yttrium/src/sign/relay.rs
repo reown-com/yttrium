@@ -1,10 +1,11 @@
 use {
     crate::{
         sign::{
+            client_errors::{PairError, RequestError},
+            client_types::SessionStore,
             envelope_type0,
             protocol_types::{SessionDeleteJsonRpc, SessionRequestJsonRpc},
             relay_url::ConnectionOptions,
-            PairError, RequestError, SessionStore,
         },
         time::DurableSleep,
     },

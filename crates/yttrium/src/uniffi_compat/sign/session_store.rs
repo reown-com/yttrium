@@ -1,6 +1,6 @@
 use {
     crate::{
-        sign::{client_types::Session, SessionStore},
+        sign::client_types::{Session, SessionStore},
         uniffi_compat::sign::ffi_types::SessionFfi,
     },
     std::sync::Arc,
