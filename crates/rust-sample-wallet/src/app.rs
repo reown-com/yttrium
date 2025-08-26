@@ -558,160 +558,190 @@ pub fn App() -> impl IntoView {
                     on_click=move |_| {
                         pair_action.dispatch(pairing_uri.get());
                         pairing_uri.set(String::new());
-                    }>
+                    }
+                >
                     "Pair"
                 </Button>
             </Flex>
             <Flex>
-                <Button
-                    on_click=move |_| {
-                        connect_action.dispatch(());
-                    }>
-                    "Connect"
-                </Button>
+                <Button on_click=move |_| {
+                    connect_action.dispatch(());
+                }>"Connect"</Button>
             </Flex>
             <ul>
-                {move || wallet_sessions.get().iter().map(|session| {
-                    let topic = session.topic.clone();
-                    view! {
-                        <li>
-                            <Flex>
-                                "Wallet session"
-                                <Button
-                                    on_click=move |_| {
-                                        let topic = topic.clone();
-                                        leptos::task::spawn_local(async move {
-                                            let client = clients.read_value().as_ref().unwrap().clone();
-                                            let mut client = client.lock().await;
-                                            match client.wallet_client.disconnect(topic).await {
-                                                Ok(_) => {
-                                                    show_success_toast(toaster, "Disconnected".to_owned());
+                {move || {
+                    wallet_sessions
+                        .get()
+                        .iter()
+                        .map(|session| {
+                            let topic = session.topic.clone();
+                            view! {
+                                <li>
+                                    <Flex>
+                                        "Wallet session"
+                                        <Button on_click=move |_| {
+                                            let topic = topic.clone();
+                                            leptos::task::spawn_local(async move {
+                                                let client = clients.read_value().as_ref().unwrap().clone();
+                                                let mut client = client.lock().await;
+                                                match client.wallet_client.disconnect(topic).await {
+                                                    Ok(_) => {
+                                                        show_success_toast(toaster, "Disconnected".to_owned());
+                                                    }
+                                                    Err(e) => {
+                                                        show_error_toast(
+                                                            toaster,
+                                                            format!("Disconnect failed: {e}"),
+                                                        );
+                                                    }
                                                 }
-                                                Err(e) => {
-                                                    show_error_toast(toaster, format!("Disconnect failed: {e}"));
-                                                }
-                                            }
-                                        });
-                                    }>
-                                    "Disconnect"
-                                </Button>
-                            </Flex>
-                        </li>
-                    }
-                }).collect::<Vec<_>>()}
+                                            });
+                                        }>"Disconnect"</Button>
+                                    </Flex>
+                                </li>
+                            }
+                        })
+                        .collect::<Vec<_>>()
+                }}
             </ul>
             <ul>
-                {move || app_sessions.get().iter().map(|session| {
-                    let topic = session.topic.clone();
-                    view! {
-                        <li>
-                            <Flex>
-                                "App session"
-                                <Button
-                                    on_click=move |_| {
-                                        let topic = topic.clone();
-                                        leptos::task::spawn_local(async move {
-                                            let client = clients.read_value().as_ref().unwrap().clone();
-                                            let mut client = client.lock().await;
-                                            match client.app_client.disconnect(topic).await {
-                                                Ok(_) => {
-                                                    show_success_toast(toaster, "Disconnected (app)".to_owned());
+                {move || {
+                    app_sessions
+                        .get()
+                        .iter()
+                        .map(|session| {
+                            let topic = session.topic.clone();
+                            view! {
+                                <li>
+                                    <Flex>
+                                        "App session"
+                                        <Button on_click=move |_| {
+                                            let topic = topic.clone();
+                                            leptos::task::spawn_local(async move {
+                                                let client = clients.read_value().as_ref().unwrap().clone();
+                                                let mut client = client.lock().await;
+                                                match client.app_client.disconnect(topic).await {
+                                                    Ok(_) => {
+                                                        show_success_toast(
+                                                            toaster,
+                                                            "Disconnected (app)".to_owned(),
+                                                        );
+                                                    }
+                                                    Err(e) => {
+                                                        show_error_toast(
+                                                            toaster,
+                                                            format!("Disconnect failed (app): {e}"),
+                                                        );
+                                                    }
                                                 }
-                                                Err(e) => {
-                                                    show_error_toast(toaster, format!("Disconnect failed (app): {e}"));
-                                                }
-                                            }
-                                        });
-                                    }>
-                                    "Disconnect"
-                                </Button>
-                            </Flex>
-                        </li>
-                    }
-                }).collect::<Vec<_>>()}
+                                            });
+                                        }>"Disconnect"</Button>
+                                    </Flex>
+                                </li>
+                            }
+                        })
+                        .collect::<Vec<_>>()
+                }}
             </ul>
         </Flex>
-        {move || pairing_request.get().map(|request| {
-            view! {
-                <Dialog open=pairing_request_open>
-                    <DialogSurface>
-                        <DialogBody>
-                            <DialogTitle>"Approve pairing"</DialogTitle>
-                            {move || request.get().map(|request| {
-                                // TODO avoid flash here
-                                view!{
-                                    <DialogContent>
-                                        {format!("{request:?}")}
-                                    </DialogContent>
+        {move || {
+            pairing_request
+                .get()
+                .map(|request| {
+                    view! {
+                        <Dialog open=pairing_request_open>
+                            <DialogSurface>
+                                <DialogBody>
+                                    <DialogTitle>"Approve pairing"</DialogTitle>
+                                    {move || {
+                                        request
+                                            .get()
+                                            .map(|request| {
+                                                // TODO avoid flash here
+                                                view! {
+                                                    <DialogContent>{format!("{request:?}")}</DialogContent>
+                                                    <DialogActions>
+                                                        <Button
+                                                            loading=approve_pairing_action.pending()
+                                                            on_click={
+                                                                let request = request.clone();
+                                                                move |_| {
+                                                                    approve_pairing_action.dispatch(request.clone());
+                                                                }
+                                                            }
+                                                        >
+                                                            "Approve"
+                                                        </Button>
+                                                        <Button
+                                                            loading=reject_pairing_action.pending()
+                                                            on_click={
+                                                                let _request = request.clone();
+                                                                move |_| {
+                                                                    reject_pairing_action.dispatch(request.clone());
+                                                                }
+                                                            }
+                                                        >
+                                                            "Reject"
+                                                        </Button>
+                                                    </DialogActions>
+                                                }
+                                                    .into_any()
+                                            })
+                                            .unwrap_or_else(|| {
+                                                view! {
+                                                    <DialogContent>
+                                                        <Spinner />
+                                                    </DialogContent>
+                                                }
+                                                    .into_any()
+                                            })
+                                    }}
+                                </DialogBody>
+                            </DialogSurface>
+                        </Dialog>
+                    }
+                })
+        }}
+        {move || {
+            signature_request
+                .get()
+                .map(|request| {
+                    view! {
+                        <Dialog open=signature_request_open>
+                            <DialogSurface>
+                                <DialogBody>
+                                    <DialogTitle>"Signature request"</DialogTitle>
+                                    <DialogContent>{format!("{request:?}")}</DialogContent>
                                     <DialogActions>
                                         <Button
-                                            loading=approve_pairing_action.pending()
+                                            loading=session_request_action.pending()
                                             on_click={
                                                 let request = request.clone();
                                                 move |_| {
-                                                    approve_pairing_action.dispatch(request.clone());
+                                                    session_request_action.dispatch(request.clone());
                                                 }
-                                            }>
+                                            }
+                                        >
                                             "Approve"
                                         </Button>
                                         <Button
-                                            loading=reject_pairing_action.pending()
+                                            loading=session_request_reject_action.pending()
                                             on_click={
-                                                let _request = request.clone();
+                                                let request = request.clone();
                                                 move |_| {
-                                                    reject_pairing_action.dispatch(request.clone());
+                                                    session_request_reject_action.dispatch(request.clone());
                                                 }
-                                            }>
-                                                "Reject"
+                                            }
+                                        >
+                                            "Reject"
                                         </Button>
                                     </DialogActions>
-                                }.into_any()
-                            }).unwrap_or_else(|| view! {
-                                <DialogContent>
-                                    <Spinner/>
-                                </DialogContent>
-                            }.into_any())}
-                        </DialogBody>
-                    </DialogSurface>
-                </Dialog>
-            }
-        })}
-        {move || signature_request.get().map(|request| {
-            view! {
-                <Dialog open=signature_request_open>
-                    <DialogSurface>
-                        <DialogBody>
-                            <DialogTitle>"Signature request"</DialogTitle>
-                            <DialogContent>
-                                {format!("{request:?}")}
-                            </DialogContent>
-                            <DialogActions>
-                                <Button
-                                    loading=session_request_action.pending()
-                                    on_click={
-                                        let request = request.clone();
-                                        move |_| {
-                                            session_request_action.dispatch(request.clone());
-                                        }
-                                    }>
-                                    "Approve"
-                                </Button>
-                                <Button
-                                    loading=session_request_reject_action.pending()
-                                    on_click={
-                                        let request = request.clone();
-                                        move |_| {
-                                            session_request_reject_action.dispatch(request.clone());
-                                        }
-                                    }>
-                                        "Reject"
-                                </Button>
-                            </DialogActions>
-                        </DialogBody>
-                    </DialogSurface>
-                </Dialog>
-            }
-        })}
+                                </DialogBody>
+                            </DialogSurface>
+                        </Dialog>
+                    }
+                })
+        }}
         {move || {
             view! {
                 <Dialog open=connect_uri.get().is_some()>
@@ -719,41 +749,22 @@ pub fn App() -> impl IntoView {
                         <DialogBody>
                             <DialogTitle>"Connect"</DialogTitle>
                             <DialogContent>
-                                {move || connect_uri.get().unwrap_or_default().map(|uri| {
-                                    view! {
-                                        <p>{uri.clone()}</p>
-                                        <Button on_click=move |_| {
-                                            pair_action.dispatch(uri.clone());
-                                        }>
-                                            "Self connect"
-                                        </Button>
-                                    }.into_any()
-                                }).unwrap_or_else(|| view! {
-                                    <Spinner />
-                                }.into_any())}
+                                {move || {
+                                    connect_uri
+                                        .get()
+                                        .unwrap_or_default()
+                                        .map(|uri| {
+                                            view! {
+                                                <p>{uri.clone()}</p>
+                                                <Button on_click=move |_| {
+                                                    pair_action.dispatch(uri.clone());
+                                                }>"Self connect"</Button>
+                                            }
+                                                .into_any()
+                                        })
+                                        .unwrap_or_else(|| view! { <Spinner /> }.into_any())
+                                }}
                             </DialogContent>
-                            // <DialogActions>
-                                // <Button
-                                //     loading=session_request_action.pending()
-                                //     on_click={
-                                //         let request = request.clone();
-                                //         move |_| {
-                                //             session_request_action.dispatch(request.clone());
-                                //         }
-                                //     }>
-                                //     "Approve"
-                                // </Button>
-                                // <Button
-                                //     loading=session_request_reject_action.pending()
-                                //     on_click={
-                                //         let request = request.clone();
-                                //         move |_| {
-                                //             session_request_reject_action.dispatch(request.clone());
-                                //         }
-                                //     }>
-                                //         "Reject"
-                                // </Button>
-                            // </DialogActions>
                         </DialogBody>
                     </DialogSurface>
                 </Dialog>
