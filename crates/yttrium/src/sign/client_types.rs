@@ -14,6 +14,22 @@ pub trait SessionStore: Send + Sync {
     fn get_all_sessions(&self) -> Vec<Session>;
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SessionProposal {
+    pub session_proposal_rpc_id: u64,
+    pub pairing_topic: Topic,
+    pub pairing_sym_key: [u8; 32],
+    pub proposer_public_key: [u8; 32],
+    pub relays: Vec<crate::sign::protocol_types::Relay>,
+    pub required_namespaces: ProposalNamespaces,
+    pub optional_namespaces: Option<ProposalNamespaces>,
+    pub metadata: Metadata,
+    pub session_properties: Option<HashMap<String, String>>,
+    pub scoped_properties: Option<HashMap<String, String>>,
+    pub expiry_timestamp: Option<u64>,
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Session {
     pub request_id: u64,
@@ -47,8 +63,7 @@ pub enum TransportType {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
 pub struct ConnectParams {
-    pub optional_namespaces: Option<ProposalNamespaces>,
-    pub relays: Option<Vec<Relay>>,
+    pub optional_namespaces: ProposalNamespaces,
     pub session_properties: Option<HashMap<String, String>>,
     pub scoped_properties: Option<HashMap<String, String>>,
 }

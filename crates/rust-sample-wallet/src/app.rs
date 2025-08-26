@@ -13,11 +13,9 @@ use {
     },
     yttrium::sign::{
         client::{generate_client_id_key, Client},
-        client_types::{ConnectParams, Session, SessionStore},
+        client_types::{ConnectParams, Session, SessionProposal, SessionStore},
         protocol_types::{
-            Metadata, SessionProposal, SessionRequestJsonRpc,
-            SessionRequestJsonRpcResponse, SessionRequestJsonRpcResultResponse,
-            SettleNamespace,
+            Metadata, ProposalNamespace, SessionRequestJsonRpc, SessionRequestJsonRpcResponse, SessionRequestJsonRpcResultResponse, SettleNamespace
         },
         IncomingSessionMessage, SecretKey, Topic,
     },
@@ -308,8 +306,14 @@ pub fn App() -> impl IntoView {
                 match client
                     .connect(
                         ConnectParams {
-                            optional_namespaces: None,
-                            relays: None,
+                            optional_namespaces: HashMap::from([(
+                                "eip155".to_string(),
+                                ProposalNamespace {
+                                    chains: vec!["eip155:11155111".to_string()],
+                                    methods: vec!["personal_sign".to_string()],
+                                    events: vec![],
+                                },
+                            )]),
                             session_properties: None,
                             scoped_properties: None,
                         },

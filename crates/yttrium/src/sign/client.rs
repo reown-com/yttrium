@@ -5,14 +5,12 @@ use {
             RejectError, RequestError, RespondError,
         },
         client_types::{
-            ConnectParams, ConnectResult, PairingInfo, Session, SessionStore,
+            ConnectParams, ConnectResult, PairingInfo, Session,
+            SessionProposal, SessionStore,
         },
         envelope_type0, pairing_uri,
         protocol_types::{
-            Controller, JsonRpcRequest, JsonRpcRequestParams, Metadata,
-            ProposalJsonRpc, ProposalResponse, ProposalResponseJsonRpc, Relay,
-            SessionDelete, SessionDeleteJsonRpc, SessionProposal,
-            SessionRequestJsonRpcResponse, SessionSettle, SettleNamespace,
+            Controller, JsonRpcRequest, JsonRpcRequestParams, Metadata, Proposal, ProposalJsonRpc, ProposalResponse, ProposalResponseJsonRpc, Proposer, Relay, SessionDelete, SessionDeleteJsonRpc, SessionRequestJsonRpcResponse, SessionSettle, SettleNamespace
         },
         relay::IncomingSessionMessage,
         utils::{
@@ -269,9 +267,6 @@ impl Client {
         // Validate connect parameters
         self.is_valid_connect(&params)?;
 
-        // required namespaces are deprecated, walletkit will send everything through optional_namespaces
-        let optional_namespaces = params.optional_namespaces.clone();
-
         // Always create new pairing topic (reuse is deprecated)
         let pairing_info = Self::create_pairing().await?;
         let uri = pairing_info.uri.clone();
@@ -281,28 +276,25 @@ impl Client {
         let self_key = x25519_dalek::StaticSecret::random();
         let self_public_key = PublicKey::from(&self_key);
 
-        let session_proposal = SessionProposal {
-            session_proposal_rpc_id: generate_rpc_id(),
-            pairing_topic: pairing_info.topic.clone().into(),
-            pairing_sym_key: sym_key,
-            proposer_public_key: self_public_key.to_bytes(),
-            relays: params
-                .relays
-                .unwrap_or_else(|| vec![Relay { protocol: "irn".to_string() }]),
+        let session_proposal = Proposal {
+            relays: vec![Relay { protocol: "irn".to_string() }],
             required_namespaces: HashMap::new(), // Deprecated, now empty
-            optional_namespaces,
-            metadata: self_metadata.clone(),
+            optional_namespaces: Some(params.optional_namespaces),
+            proposer: Proposer {
+                public_key: hex::encode(self_public_key.to_bytes()),
+                metadata: self_metadata.clone(),
+            },
             session_properties: params.session_properties.clone(),
             scoped_properties: params.scoped_properties.clone(),
             expiry_timestamp: Some(expiry_timestamp),
         };
 
-        let proposal_id = session_proposal.session_proposal_rpc_id;
+        let rpc_id = generate_rpc_id();
 
         let message = serialize_and_encrypt_message_type0_envelope(
             sym_key,
             &JsonRpcRequest {
-                id: generate_rpc_id(),
+                id: rpc_id,
                 jsonrpc: "2.0".to_string(),
                 method: "wc_sessionPropose".to_string(),
                 params: JsonRpcRequestParams::SessionPropose(session_proposal),
@@ -316,7 +308,7 @@ impl Client {
                 session_proposal: message,
                 attestation: None, // TODO
                 analytics: Some(AnalyticsData {
-                    correlation_id: Some(proposal_id.try_into().unwrap()),
+                    correlation_id: Some(rpc_id.try_into().unwrap()),
                     chain_id: None,
                     rpc_methods: None,
                     tx_hashes: None,
