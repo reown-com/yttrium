@@ -105,3 +105,5 @@ wallet-test:
   cd crates/rust-sample-wallet && npx playwright test
 wallet-test-ui:
   cd crates/rust-sample-wallet && npx playwright test --ui
+wallet-fmt:
+  leptosfmt crates/rust-sample-wallet/**/*.rs
