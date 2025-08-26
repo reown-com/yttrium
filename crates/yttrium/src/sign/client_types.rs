@@ -63,7 +63,7 @@ pub struct ConnectResult {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
 pub struct PairingInfo {
-    pub topic: String,
+    pub topic: Topic,
     pub uri: String,
     pub sym_key: Vec<u8>,
     pub expiry: u64,

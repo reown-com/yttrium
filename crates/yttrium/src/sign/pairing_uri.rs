@@ -104,23 +104,22 @@ pub fn parse(uri: &str) -> Result<PairingUri, Error> {
 }
 
 pub fn format(
-    pairing_topic: &Topic,
+    topic: &Topic,
     sym_key: &StaticSecret,
     relay: &Relay,
     expiry: u64,
 ) -> String {
+    let protocol = &relay.protocol;
+    let sym_key = hex::encode(sym_key.as_bytes());
     format!(
-        "wc:{}?topic={}&symKey={}&relay-protocol={}&expiryTimestamp={}",
-        "2.0", // protocol version
-        pairing_topic,
-        hex::encode(sym_key),
-        relay.protocol,
-        expiry
+        "wc:{topic}@2?relay-protocol={protocol}&symKey={sym_key}&expiryTimestamp={expiry}",
     )
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::sign::utils::topic_from_sym_key;
+
     use super::*;
 
     #[test]
@@ -144,5 +143,27 @@ mod tests {
         let uri = "";
         let result = parse(uri);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_format_and_parse_compat() {
+        let sym_key = StaticSecret::from([0u8; 32]);
+        let topic = topic_from_sym_key(sym_key.as_bytes());
+        let relay = Relay { protocol: "irn".to_string() };
+        let expiry = 1752843899;
+        let uri = format(&topic, &sym_key, &relay, expiry);
+
+        assert_eq!(uri, "wc:66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925@2?relay-protocol=irn&symKey=0000000000000000000000000000000000000000000000000000000000000000&expiryTimestamp=1752843899");
+
+        assert!(uri.starts_with("wc:"));
+        assert!(uri.contains("@2"));
+        assert!(uri.contains("?relay-protocol=irn"));
+        assert!(uri.contains("&symKey="));
+        assert!(uri.contains("&expiryTimestamp="));
+
+        let result = parse(&uri).unwrap();
+        assert_eq!(result.topic, topic);
+        assert_eq!(&result.sym_key, sym_key.as_bytes());
+        assert_eq!(result.expiry_timestamp, Some(expiry));
     }
 }

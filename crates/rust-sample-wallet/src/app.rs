@@ -13,7 +13,7 @@ use {
     },
     yttrium::sign::{
         client::{generate_client_id_key, Client},
-        client_types::{Session, SessionStore},
+        client_types::{ConnectParams, Session, SessionStore},
         protocol_types::{
             Metadata, SessionProposal, SessionRequestJsonRpc,
             SessionRequestJsonRpcResponse, SessionRequestJsonRpcResultResponse,
@@ -297,6 +297,58 @@ pub fn App() -> impl IntoView {
         }
     });
 
+    let connect_uri = RwSignal::new(None::<Option<String>>);
+    // let connect_request_open = RwSignal::new(false);
+    let connect_action = Action::new({
+        move |_request: &()| {
+            connect_uri.set(Some(None));
+            let client = client.read_value().as_ref().unwrap().clone();
+            async move {
+                let mut client = client.lock().await;
+                match client
+                    .connect(
+                        ConnectParams {
+                            optional_namespaces: None,
+                            relays: None,
+                            session_properties: None,
+                            scoped_properties: None,
+                        },
+                        Metadata {
+                            name: "Reown Rust Sample App".to_string(),
+                            description: "Reown Rust Sample App".to_string(),
+                            url: "https://reown.com".to_string(),
+                            icons: vec![],
+                            verify_url: None,
+                            redirect: None,
+                        },
+                    )
+                    .await
+                {
+                    Ok(connect_result) => {
+                        connect_uri.set(Some(Some(connect_result.uri)));
+                        leptos::task::spawn_local(async move {
+                            yttrium::time::sleep(
+                                std::time::Duration::from_secs(5 * 60), // TODO use actual expiry
+                            )
+                            .await;
+                            connect_uri.set(None);
+                            show_error_toast(
+                                toaster,
+                                "Connection expired".to_owned(),
+                            );
+                        });
+                    }
+                    Err(e) => {
+                        show_error_toast(
+                            toaster,
+                            format!("Connection propose failed: {e}"),
+                        );
+                    }
+                }
+            }
+        }
+    });
+
     let unmounted = Arc::new(AtomicBool::new(false));
     on_cleanup({
         let unmounted = unmounted.clone();
@@ -404,6 +456,14 @@ pub fn App() -> impl IntoView {
                         pairing_uri.set(String::new());
                     }>
                     "Pair"
+                </Button>
+            </Flex>
+            <Flex>
+                <Button
+                    on_click=move |_| {
+                        connect_action.dispatch(());
+                    }>
+                    "Connect"
                 </Button>
             </Flex>
             <ul>
@@ -516,5 +576,52 @@ pub fn App() -> impl IntoView {
                 </Dialog>
             }
         })}
+        {move || {
+            view! {
+                <Dialog open=connect_uri.get().is_some()>
+                    <DialogSurface>
+                        <DialogBody>
+                            <DialogTitle>"Connect"</DialogTitle>
+                            <DialogContent>
+                                {move || connect_uri.get().unwrap_or_default().map(|uri| {
+                                    view! {
+                                        <p>{uri.clone()}</p>
+                                        <Button on_click=move |_| {
+                                            pair_action.dispatch(uri.clone());
+                                        }>
+                                            "Self connect"
+                                        </Button>
+                                    }.into_any()
+                                }).unwrap_or_else(|| view! {
+                                    <Spinner />
+                                }.into_any())}
+                            </DialogContent>
+                            // <DialogActions>
+                                // <Button
+                                //     loading=session_request_action.pending()
+                                //     on_click={
+                                //         let request = request.clone();
+                                //         move |_| {
+                                //             session_request_action.dispatch(request.clone());
+                                //         }
+                                //     }>
+                                //     "Approve"
+                                // </Button>
+                                // <Button
+                                //     loading=session_request_reject_action.pending()
+                                //     on_click={
+                                //         let request = request.clone();
+                                //         move |_| {
+                                //             session_request_reject_action.dispatch(request.clone());
+                                //         }
+                                //     }>
+                                //         "Reject"
+                                // </Button>
+                            // </DialogActions>
+                        </DialogBody>
+                    </DialogSurface>
+                </Dialog>
+            }
+        }}
     }
 }

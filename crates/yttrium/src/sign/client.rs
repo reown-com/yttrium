@@ -274,7 +274,6 @@ impl Client {
 
         // Always create new pairing topic (reuse is deprecated)
         let pairing_info = Self::create_pairing().await?;
-        let topic = pairing_info.topic.clone();
         let uri = pairing_info.uri.clone();
         let sym_key = pairing_info.sym_key.clone().try_into().unwrap();
         let expiry_timestamp = pairing_info.expiry;
@@ -282,11 +281,9 @@ impl Client {
         let self_key = x25519_dalek::StaticSecret::random();
         let self_public_key = PublicKey::from(&self_key);
 
-        // Create session proposal
-        let pairing_topic = Topic::new(topic.clone().into());
         let session_proposal = SessionProposal {
             session_proposal_rpc_id: generate_rpc_id(),
-            pairing_topic: pairing_topic.clone(),
+            pairing_topic: pairing_info.topic.clone().into(),
             pairing_sym_key: sym_key,
             proposer_public_key: self_public_key.to_bytes(),
             relays: params
@@ -315,7 +312,7 @@ impl Client {
 
         self.request::<bool>(relay_rpc::rpc::Params::ProposeSession(
             ProposeSession {
-                pairing_topic,
+                pairing_topic: pairing_info.topic.clone(),
                 session_proposal: message,
                 attestation: None, // TODO
                 analytics: Some(AnalyticsData {
@@ -334,32 +331,21 @@ impl Client {
         // TODO: Implement proposal storage
 
         // TODO should return a promise/completer like JS/Flutter or should we just await the on_session_connect event?
-        Ok(ConnectResult { topic: topic.into(), uri })
+        Ok(ConnectResult { topic: pairing_info.topic.clone(), uri })
     }
 
-    pub async fn create_pairing() -> Result<PairingInfo, ConnectError> {
-        // Generate random symmetric key
+    async fn create_pairing() -> Result<PairingInfo, ConnectError> {
         let sym_key = x25519_dalek::StaticSecret::random();
-
-        // Create topic from symmetric key
         let pairing_topic = topic_from_sym_key(sym_key.as_bytes());
-
-        // Calculate expiry (5 minutes)
         let expiry = crate::time::SystemTime::now()
             .duration_since(crate::time::UNIX_EPOCH)
             .unwrap()
             .as_secs()
             + 5 * 60;
-
-        // Create relay info
         let relay = Relay { protocol: "irn".to_string() };
-
-        // Format URI with pairing details
         let uri = pairing_uri::format(&pairing_topic, &sym_key, &relay, expiry);
-
-        // Create PairingInfo
         let pairing_info = PairingInfo {
-            topic: pairing_topic.to_string(),
+            topic: pairing_topic.clone(),
             uri,
             sym_key: sym_key.as_bytes().to_vec(),
             expiry,
@@ -369,7 +355,6 @@ impl Client {
             peer_metadata: None, // TODO: Add peer metadata parameter
         };
 
-        // TODO: Subscribe to topic in relay
         // TODO: Store pairing in local storage
         // TODO: Emit pairing created event
 
