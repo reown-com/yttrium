@@ -3,19 +3,15 @@ use ffi_types::{
     SessionFfi, SessionProposalFfi, SessionRequestJsonRpcFfi,
     SessionRequestJsonRpcResponseFfi,
 };
-use relay_rpc::rpc::ProposeSession;
-
-use crate::sign::ffi_types::{ConnectParams, ConnectResult, PairingInfo, Session};
-
 use {
     crate::{
         sign::{
             envelope_type0::{encode_envelope_type0, EnvelopeType0},
+            ffi_types::{ConnectParams, ConnectResult, PairingInfo, Session},
             protocol_types::{
-                Controller, JsonRpcRequest,
-                JsonRpcRequestParams, Metadata, ProposalJsonRpc,
-                ProposalResponse, ProposalResponseJsonRpc, Relay,
-                SessionProposal, SessionRequestJsonRpc,
+                Controller, JsonRpcRequest, JsonRpcRequestParams, Metadata,
+                ProposalJsonRpc, ProposalResponse, ProposalResponseJsonRpc,
+                Relay, SessionProposal, SessionRequestJsonRpc,
                 SessionRequestJsonRpcResponse, SessionSettle, SettleNamespace,
             },
             relay_url::ConnectionOptions,
@@ -35,8 +31,8 @@ use {
         jwt::{JwtBasicClaims, JwtHeader},
         rpc::{
             AnalyticsData, ApproveSession, BatchSubscribe, FetchMessages,
-            FetchResponse, Params, Payload, Publish, Request, Response,
-            Subscription, SuccessfulResponse,
+            FetchResponse, Params, Payload, ProposeSession, Publish, Request,
+            Response, Subscription, SuccessfulResponse,
         },
     },
     serde::de::DeserializeOwned,
@@ -465,18 +461,20 @@ impl Client {
             .map_err(|e| ConnectError::Internal(e.to_string()))?;
             let message = BASE64.encode(encoded.as_slice()).into();
 
-            self.request::<bool>(relay_rpc::rpc::Params::ProposeSession(ProposeSession {
-                pairing_topic: pairing_topic,
-                session_proposal: message,
-                attestation: None,
-                analytics: Some(AnalyticsData {
-                    correlation_id: Some(proposal_id.try_into().unwrap()),
-                    chain_id: None,
-                    rpc_methods: None,
-                    tx_hashes: None,
-                    contract_addresses: None,
-                }),
-            }))
+            self.request::<bool>(relay_rpc::rpc::Params::ProposeSession(
+                ProposeSession {
+                    pairing_topic: pairing_topic,
+                    session_proposal: message,
+                    attestation: None,
+                    analytics: Some(AnalyticsData {
+                        correlation_id: Some(proposal_id.try_into().unwrap()),
+                        chain_id: None,
+                        rpc_methods: None,
+                        tx_hashes: None,
+                        contract_addresses: None,
+                    }),
+                },
+            ))
             .await
             .map_err(|e| ConnectError::Request(e))?;
         };
@@ -2330,8 +2328,10 @@ impl SignClient {
         proposal: SessionProposalFfi,
         reason: ffi_types::ErrorDataFfi,
     ) -> Result<(), RejectError> {
-        use crate::sign::protocol_types::SessionProposal;
-        use relay_rpc::rpc::ErrorData;
+        use {
+            crate::sign::protocol_types::SessionProposal,
+            relay_rpc::rpc::ErrorData,
+        };
 
         let proposal: SessionProposal = proposal.into();
         let reason: ErrorData = reason.into();

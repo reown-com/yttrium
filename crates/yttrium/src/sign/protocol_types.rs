@@ -1,5 +1,7 @@
 use {
-    relay_rpc::domain::{MessageId, Topic}, serde::{Deserialize, Serialize}, std::collections::HashMap
+    relay_rpc::domain::{MessageId, Topic},
+    serde::{Deserialize, Serialize},
+    std::collections::HashMap,
 };
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -49,7 +51,6 @@ pub struct SessionProposal {
     pub expiry_timestamp: Option<u64>,
 }
 
-
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
 pub struct Relay {
@@ -91,7 +92,7 @@ pub struct JsonRpcRequest {
 #[serde(untagged)]
 pub enum JsonRpcRequestParams {
     SessionSettle(SessionSettle),
-    SessionPropose(SessionProposal)
+    SessionPropose(SessionProposal),
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
