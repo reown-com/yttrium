@@ -1,10 +1,11 @@
 use {
     crate::{
         sign::{
-            client_types::{ConnectParams, ConnectResult, Session},
+            client_types::{
+                ConnectParams, ConnectResult, Session, SessionProposal,
+            },
             protocol_types::{
-                SessionProposal, SessionRequestJsonRpc,
-                SessionRequestJsonRpcResultResponse,
+                SessionRequestJsonRpc, SessionRequestJsonRpcResultResponse,
             },
         },
         uniffi_compat::sign::ffi_types::{
@@ -212,7 +213,6 @@ impl From<ConnectParamsFfi> for ConnectParams {
     fn from(params: ConnectParamsFfi) -> Self {
         Self {
             optional_namespaces: params.optional_namespaces,
-            relays: params.relays,
             session_properties: params.session_properties,
             scoped_properties: params.scoped_properties,
         }

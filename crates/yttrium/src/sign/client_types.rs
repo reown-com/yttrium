@@ -7,11 +7,13 @@ use {
     std::collections::HashMap,
 };
 
-pub trait SessionStore: Send + Sync {
+pub trait Storage: Send + Sync {
     fn add_session(&self, session: Session);
-    fn delete_session(&self, topic: String);
-    fn get_session(&self, topic: String) -> Option<Session>;
+    fn delete_session(&self, topic: Topic) -> Option<Session>;
+    fn get_session(&self, topic: Topic) -> Option<Session>;
     fn get_all_sessions(&self) -> Vec<Session>;
+    fn get_decryption_key_for_topic(&self, topic: Topic) -> Option<[u8; 32]>;
+    fn save_pairing_key(&self, topic: Topic, sym_key: [u8; 32]);
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

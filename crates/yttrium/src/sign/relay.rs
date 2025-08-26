@@ -2,7 +2,7 @@ use {
     crate::{
         sign::{
             client_errors::{PairError, RequestError},
-            client_types::SessionStore,
+            client_types::Storage,
             envelope_type0,
             protocol_types::{SessionDeleteJsonRpc, SessionRequestJsonRpc},
             relay_url::ConnectionOptions,
@@ -571,6 +571,7 @@ enum ConnectionState {
 }
 
 // TODO rename to something more generic, e.g. IncomingEvent
+// TODO refactor this architecutre (Topic is also passed outside this enum, why duplicate it here? Also what exact values are needed and why (JSON RPC ID, etc.))
 #[derive(Debug)]
 pub enum IncomingSessionMessage {
     SessionRequest(SessionRequestJsonRpc),
@@ -586,7 +587,7 @@ pub async fn connect_loop_state_machine(
     relay_url: String,
     project_id: ProjectId,
     key: SigningKey,
-    session_store: Arc<dyn SessionStore>,
+    session_store: Arc<dyn Storage>,
     session_request_tx: tokio::sync::mpsc::UnboundedSender<(
         Topic,
         IncomingSessionMessage,
@@ -609,53 +610,26 @@ pub async fn connect_loop_state_machine(
             let session_request_tx = session_request_tx.clone();
             let irn_subscription_ack_tx = irn_subscription_ack_tx.clone();
             async move {
-                let session_sym_key = {
-                    let sessions = session_store.get_all_sessions();
-
-                    tracing::debug!(
-                        "Connect: Looking for session with topic: {:?}",
+                let session_sym_key = if let Some(session_sym_key) =
+                    session_store.get_decryption_key_for_topic(
+                        sub_msg.data.topic.clone(),
+                    ) {
+                    session_sym_key
+                } else {
+                    tracing::error!(
+                        "handle_irn_subscription: No decryption key found to decrypt message, ACKing and ignoring: {:?}",
                         sub_msg.data.topic
                     );
-                    tracing::debug!(
-                        "Connect: Available session topics: {:?}",
-                        sessions.iter().map(|s| &s.topic).collect::<Vec<_>>()
-                    );
 
-                    let session =
-                        sessions.iter().find(|s| s.topic == sub_msg.data.topic);
-                    match session {
-                        Some(s) => {
-                            tracing::debug!(
-                                "Connect: Found session for topic: {:?}",
-                                s.topic
-                            );
-                            s.session_sym_key
-                        }
-                        None => {
-                            tracing::error!(
-                                "Connect: No session found for topic: {:?}",
-                                sub_msg.data.topic
-                            );
-                            tracing::error!(
-                                "Connect: Available sessions: {:?}",
-                                sessions
-                                    .iter()
-                                    .map(|s| &s.topic)
-                                    .collect::<Vec<_>>()
-                            );
-                            // Send ACK to prevent blocking, but skip processing
-                            if let Err(e) = irn_subscription_ack_tx.send(id) {
-                                tracing::debug!(
-                                    "Failed to send subscription ack: {e}"
-                                );
-                            }
-                            return;
-                        }
+                    // Send ACK to prevent blocking, but skip processing
+                    if let Err(e) = irn_subscription_ack_tx.send(id) {
+                        tracing::debug!("Failed to send subscription ack: {e}");
                     }
+                    return;
                 };
 
                 tracing::debug!(
-                    "Connect: Session Sym Key: {:?}",
+                    "handle_irn_subscription: Session Sym Key: {:?}",
                     session_sym_key
                 );
 
@@ -668,7 +642,10 @@ pub async fn connect_loop_state_machine(
                     })
                     .unwrap();
 
-                tracing::debug!("Connect: Decoded: {:?}", decoded);
+                tracing::debug!(
+                    "handle_irn_subscription: Decoded: {:?}",
+                    decoded
+                );
 
                 let envelope =
                     envelope_type0::deserialize_envelope_type0(&decoded)
@@ -684,7 +661,10 @@ pub async fn connect_loop_state_machine(
                         .map_err(|e| PairError::Internal(e.to_string()))
                         .unwrap();
 
-                tracing::debug!("Connect: Decrypted: {:?}", value);
+                tracing::debug!(
+                    "handle_irn_subscription: Decrypted: {:?}",
+                    value
+                );
 
                 if let Some(method) = value.get("method") {
                     if method.as_str() == Some("wc_sessionRequest") {
@@ -700,7 +680,7 @@ pub async fn connect_loop_state_machine(
                         .unwrap();
 
                         tracing::debug!(
-                            "Connect: Session Request: {:?}",
+                            "handle_irn_subscription: Session Request: {:?}",
                             request
                         );
 
@@ -782,7 +762,7 @@ pub async fn connect_loop_state_machine(
                         .map_err(|e| PairError::Internal(e.to_string()))
                         .unwrap();
                         session_store
-                            .delete_session(sub_msg.data.topic.to_string());
+                            .delete_session(sub_msg.data.topic.clone());
                         session_request_tx
                             .send((
                                 sub_msg.data.topic.clone(),
@@ -811,7 +791,7 @@ pub async fn connect_loop_state_machine(
                         tracing::debug!("Failed to send subscription ack: {e}");
                     }
 
-                    // TODO handle session request responses. Unsure if other responses are needed
+                    // TODO handle connection responses & session request responses. Unsure if other responses are needed
                 }
             }
         }

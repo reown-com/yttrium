@@ -6,11 +6,15 @@ use {
         },
         client_types::{
             ConnectParams, ConnectResult, PairingInfo, Session,
-            SessionProposal, SessionStore,
+            SessionProposal, Storage,
         },
         envelope_type0, pairing_uri,
         protocol_types::{
-            Controller, JsonRpcRequest, JsonRpcRequestParams, Metadata, Proposal, ProposalJsonRpc, ProposalResponse, ProposalResponseJsonRpc, Proposer, Relay, SessionDelete, SessionDeleteJsonRpc, SessionRequestJsonRpcResponse, SessionSettle, SettleNamespace
+            Controller, JsonRpcRequest, JsonRpcRequestParams, Metadata,
+            Proposal, ProposalJsonRpc, ProposalResponse,
+            ProposalResponseJsonRpc, Proposer, Relay, SessionDelete,
+            SessionDeleteJsonRpc, SessionRequestJsonRpcResponse, SessionSettle,
+            SettleNamespace,
         },
         relay::IncomingSessionMessage,
         utils::{
@@ -44,7 +48,7 @@ pub struct Client {
     )>,
     online_tx: Option<tokio::sync::mpsc::UnboundedSender<()>>,
     cleanup_tx: Option<tokio_util::sync::CancellationToken>,
-    session_store: Arc<dyn SessionStore>,
+    session_store: Arc<dyn Storage>,
 }
 
 // TODO bindings integration
@@ -103,7 +107,7 @@ impl Client {
     pub fn new(
         project_id: ProjectId,
         key: SecretKey,
-        session_store: Arc<dyn SessionStore>,
+        session_store: Arc<dyn Storage>,
     ) -> (
         Self,
         tokio::sync::mpsc::UnboundedReceiver<(Topic, IncomingSessionMessage)>,
@@ -319,8 +323,8 @@ impl Client {
         .await
         .map_err(ConnectError::Request)?;
 
-        // Store proposal for later approval/rejection
-        // TODO: Implement proposal storage
+        self.session_store
+            .save_pairing_key(pairing_info.topic.clone(), sym_key);
 
         // TODO should return a promise/completer like JS/Flutter or should we just await the on_session_connect event?
         Ok(ConnectResult { topic: pairing_info.topic.clone(), uri })
@@ -495,13 +499,13 @@ impl Client {
                 Ok(session)
             }
             Ok(false) => {
-                self.session_store.delete_session(session.topic.to_string());
+                self.session_store.delete_session(session.topic);
                 Err(ApproveError::Internal(
                     "Session rejected by relay".to_owned(),
                 ))
             }
             Err(e) => {
-                self.session_store.delete_session(session.topic.to_string());
+                self.session_store.delete_session(session.topic);
                 Err(ApproveError::Request(e))
             }
         }
@@ -600,7 +604,7 @@ impl Client {
     ) -> Result<(), RespondError> {
         let shared_secret = self
             .session_store
-            .get_session(topic.to_string())
+            .get_session(topic.clone())
             .map(|s| s.session_sym_key)
             .ok_or(RespondError::SessionNotFound)?;
 
@@ -656,7 +660,7 @@ impl Client {
     ) -> Result<(), DisconnectError> {
         let shared_secret = self
             .session_store
-            .get_session(topic.to_string())
+            .get_session(topic.clone())
             .map(|s| s.session_sym_key);
 
         if let Some(shared_secret) = shared_secret {
@@ -691,7 +695,7 @@ impl Client {
             .await
             .map_err(DisconnectError::Request)?;
 
-            self.session_store.delete_session(topic.to_string());
+            self.session_store.delete_session(topic.clone());
 
             self.tx
                 .send((

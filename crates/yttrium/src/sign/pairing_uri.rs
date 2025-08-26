@@ -118,9 +118,7 @@ pub fn format(
 
 #[cfg(test)]
 mod tests {
-    use crate::sign::utils::topic_from_sym_key;
-
-    use super::*;
+    use {super::*, crate::sign::utils::topic_from_sym_key};
 
     #[test]
     fn test_parse() {

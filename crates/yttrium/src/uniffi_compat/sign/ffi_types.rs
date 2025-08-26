@@ -1,9 +1,7 @@
 use {
     crate::sign::{
         client_types::TransportType,
-        protocol_types::{
-            Metadata, ProposalNamespaces, Relay, SettleNamespace,
-        },
+        protocol_types::{Metadata, ProposalNamespaces, SettleNamespace},
     },
     relay_rpc::domain::Topic,
     serde::{Deserialize, Serialize},
@@ -117,8 +115,7 @@ pub struct ErrorDataFfi {
 #[derive(uniffi_macros::Record, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ConnectParamsFfi {
-    pub optional_namespaces: Option<ProposalNamespaces>,
-    pub relays: Option<Vec<Relay>>,
+    pub optional_namespaces: ProposalNamespaces,
     pub session_properties: Option<HashMap<String, String>>,
     pub scoped_properties: Option<HashMap<String, String>>,
     pub metadata: Metadata,

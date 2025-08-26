@@ -6,8 +6,8 @@ use {
                 ApproveError, ConnectError, DisconnectError, PairError,
                 RejectError, RespondError,
             },
-            client_types::ConnectParams,
-            protocol_types::{Metadata, SessionProposal, SettleNamespace},
+            client_types::{ConnectParams, SessionProposal},
+            protocol_types::{Metadata, SettleNamespace},
             IncomingSessionMessage,
         },
         uniffi_compat::sign::{

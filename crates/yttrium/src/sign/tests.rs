@@ -2,23 +2,25 @@
 use {
     crate::sign::{
         client::{generate_client_id_key, Client},
-        client_types::{Session, SessionStore},
+        client_types::{Session, Storage},
         protocol_types::{Metadata, SettleNamespace},
     },
+    relay_rpc::domain::Topic,
     std::{collections::HashMap, sync::Arc},
 };
 
 struct MySessionStore;
-impl SessionStore for MySessionStore {
+impl Storage for MySessionStore {
     fn add_session(&self, session: Session) {
         println!("add_session: {session:?}");
     }
 
-    fn delete_session(&self, topic: String) {
+    fn delete_session(&self, topic: Topic) -> Option<Session> {
         println!("delete_session: {topic:?}");
+        None
     }
 
-    fn get_session(&self, topic: String) -> Option<Session> {
+    fn get_session(&self, topic: Topic) -> Option<Session> {
         println!("get_session: {topic:?}");
         None
     }
@@ -26,6 +28,15 @@ impl SessionStore for MySessionStore {
     fn get_all_sessions(&self) -> Vec<Session> {
         println!("get_all_sessions");
         vec![]
+    }
+
+    fn get_decryption_key_for_topic(&self, topic: Topic) -> Option<[u8; 32]> {
+        println!("get_decryption_key_for_topic: {topic:?}");
+        None
+    }
+
+    fn save_pairing_key(&self, topic: Topic, _sym_key: [u8; 32]) {
+        println!("save_pairing_key: {topic:?}");
     }
 }
 
