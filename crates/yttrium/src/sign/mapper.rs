@@ -1,11 +1,20 @@
 use relay_rpc::rpc::ErrorData;
 
+use crate::sign::ffi_types::{
+    ConnectParamsFfi, ConnectResultFfi, ErrorDataFfi, SessionFfi,
+    SessionProposalFfi, SessionRequestFfi, SessionRequestJsonRpcFfi,
+    SessionRequestJsonRpcResultResponseFfi, SessionRequestRequestFfi,
+};
+use crate::sign::protocol_types::{
+    SessionRequestJsonRpc, SessionRequestJsonRpcResultResponse,
+};
 #[cfg(feature = "uniffi")]
-use crate::sign::ffi_types::{SessionProposal, SessionRequestJsonRpcResponseFfi};
+use crate::sign::Session;
 #[cfg(feature = "uniffi")]
-use crate::sign::{Session};
-use crate::sign::ffi_types::{ErrorDataFfi, SessionFfi, SessionProposalFfi, SessionRequestFfi, SessionRequestJsonRpcFfi, SessionRequestRequestFfi, SessionRequestJsonRpcResultResponseFfi};
-use crate::sign::protocol_types::{SessionRequestJsonRpc, SessionRequestJsonRpcResultResponse};
+use crate::sign::{
+    ffi_types::SessionRequestJsonRpcResponseFfi,
+    protocol_types::SessionProposal,
+};
 
 #[cfg(feature = "uniffi")]
 impl From<SessionProposalFfi> for SessionProposal {
@@ -199,5 +208,24 @@ impl From<ErrorDataFfi> for ErrorData {
             message: error_data.message,
             data: error_data.data,
         }
+    }
+}
+
+#[cfg(feature = "uniffi")]
+impl From<ConnectParamsFfi> for crate::sign::ffi_types::ConnectParams {
+    fn from(params: ConnectParamsFfi) -> Self {
+        Self {
+            optional_namespaces: params.optional_namespaces,
+            relays: params.relays,
+            session_properties: params.session_properties,
+            scoped_properties: params.scoped_properties,
+        }
+    }
+}
+
+#[cfg(feature = "uniffi")]
+impl From<crate::sign::ffi_types::ConnectResult> for ConnectResultFfi {
+    fn from(result: crate::sign::ffi_types::ConnectResult) -> Self {
+        Self { topic: result.topic.into(), uri: result.uri }
     }
 }

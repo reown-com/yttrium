@@ -1,26 +1,27 @@
 #[cfg(feature = "uniffi")]
 use ffi_types::{
-    SessionFfi, SessionProposalFfi, SessionRequestJsonRpcFfi, SessionRequestJsonRpcResponseFfi,
+    SessionFfi, SessionProposalFfi, SessionRequestJsonRpcFfi,
+    SessionRequestJsonRpcResponseFfi,
 };
-pub use relay_rpc::{
-    auth::ed25519_dalek::{SecretKey, SigningKey},
-    domain::Topic,
-};
-use crate::sign::{protocol_types::SessionRequestJsonRpcResponse, utils::is_expired};
+use relay_rpc::rpc::ProposeSession;
+
+use crate::sign::ffi_types::{ConnectParams, ConnectResult, PairingInfo, Session};
 
 use {
     crate::{
         sign::{
             envelope_type0::{encode_envelope_type0, EnvelopeType0},
-            ffi_types::{Session, SessionProposal},
             protocol_types::{
-                Controller, Metadata, ProposalJsonRpc, ProposalResponse,
-                ProposalResponseJsonRpc, Relay, SessionRequestJsonRpc,
-                SessionSettle,
-                SessionSettleJsonRpc, SettleNamespace,
+                Controller, JsonRpcRequest,
+                JsonRpcRequestParams, Metadata, ProposalJsonRpc,
+                ProposalResponse, ProposalResponseJsonRpc, Relay,
+                SessionProposal, SessionRequestJsonRpc,
+                SessionRequestJsonRpcResponse, SessionSettle, SettleNamespace,
             },
             relay_url::ConnectionOptions,
-            utils::{diffie_hellman, generate_rpc_id, topic_from_sym_key},
+            utils::{
+                diffie_hellman, generate_rpc_id, is_expired, topic_from_sym_key,
+            },
         },
         time::DurableSleep,
     },
@@ -29,8 +30,8 @@ use {
     },
     data_encoding::BASE64,
     relay_rpc::{
-        auth::ed25519_dalek::Signer,
-        domain::{DecodedClientId, MessageId, ProjectId},
+        auth::ed25519_dalek::{SecretKey, Signer, SigningKey},
+        domain::{DecodedClientId, MessageId, ProjectId, Topic},
         jwt::{JwtBasicClaims, JwtHeader},
         rpc::{
             AnalyticsData, ApproveSession, BatchSubscribe, FetchMessages,
@@ -144,6 +145,20 @@ pub enum RejectError {
 pub enum RespondError {
     #[error("Internal: {0}")]
     Internal(String),
+}
+
+#[derive(Debug, thiserror::Error)]
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Error))]
+#[error("Sign connect error: {0}")]
+pub enum ConnectError {
+    #[error("Request error: {0}")]
+    Request(RequestError),
+
+    #[error("Internal: {0}")]
+    Internal(String),
+
+    #[error("Should never happen: {0}")]
+    ShouldNeverHappen(String),
 }
 
 #[cfg(feature = "uniffi")]
@@ -283,14 +298,6 @@ impl Client {
         }
     }
 
-    pub async fn _connect(&self) {
-        // TODO implement
-        // https://github.com/WalletConnect/walletconnect-monorepo/blob/5bef698dcf0ae910548481959a6a5d87eaf7aaa5/packages/sign-client/src/controllers/engine.ts#L220
-        unimplemented!()
-
-        // TODO call `wc_proposeSession`
-    }
-
     pub async fn pair(
         &mut self,
         uri: &str,
@@ -394,6 +401,151 @@ impl Client {
         Err(PairError::Internal("No message found".to_string()))
     }
 
+    pub async fn connect(
+        &mut self,
+        params: ConnectParams,
+        self_metadata: Metadata,
+    ) -> Result<ConnectResult, ConnectError> {
+        // Validate connect parameters
+        self.is_valid_connect(&params)?;
+
+        // required namespaces are deprecated, walletkit will send everything through optional_namespaces
+        let optional_namespaces = params.optional_namespaces.clone();
+
+        // Always create new pairing topic (reuse is deprecated)
+        let pairing_info = Self::create_pairing().await?;
+        let topic = pairing_info.topic.clone();
+        let uri = pairing_info.uri.clone();
+        let sym_key = pairing_info.sym_key.clone().try_into().unwrap();
+        let expiry_timestamp = pairing_info.expiry;
+
+        let self_key = x25519_dalek::StaticSecret::random();
+        let self_public_key = PublicKey::from(&self_key);
+
+        // Create session proposal
+        let pairing_topic = Topic::new(topic.clone().into());
+        let session_proposal = SessionProposal {
+            session_proposal_rpc_id: generate_rpc_id(),
+            pairing_topic: pairing_topic.clone(),
+            pairing_sym_key: sym_key,
+            proposer_public_key: self_public_key.to_bytes(),
+            relays: params
+                .relays
+                .unwrap_or_else(|| vec![Relay { protocol: "irn".to_string() }]),
+            required_namespaces: HashMap::new(), // Deprecated, now empty
+            optional_namespaces: optional_namespaces,
+            metadata: self_metadata.clone(),
+            session_properties: params.session_properties.clone(),
+            scoped_properties: params.scoped_properties.clone(),
+            expiry_timestamp: Some(expiry_timestamp),
+        };
+
+        // Send session proposal
+        let proposal_id = session_proposal.session_proposal_rpc_id;
+        let session_proposal_request = {
+            let serialized = serde_json::to_string(&JsonRpcRequest {
+                id: generate_rpc_id(),
+                jsonrpc: "2.0".to_string(),
+                method: "wc_sessionPropose".to_string(),
+                params: JsonRpcRequestParams::SessionPropose(session_proposal),
+            })
+            .map_err(|e| ConnectError::Internal(e.to_string()))?;
+
+            // Encrypt with pairing sym key
+            let key = ChaCha20Poly1305::new(&sym_key.into());
+            let nonce = ChaCha20Poly1305::generate_nonce()
+                .map_err(|e| ConnectError::Internal(e.to_string()))?;
+            let encrypted = key
+                .encrypt(&nonce, serialized.as_bytes())
+                .map_err(|e| ConnectError::Internal(e.to_string()))?;
+            let encoded = encode_envelope_type0(&EnvelopeType0 {
+                iv: nonce.into(),
+                sb: encrypted,
+            })
+            .map_err(|e| ConnectError::Internal(e.to_string()))?;
+            let message = BASE64.encode(encoded.as_slice()).into();
+
+            self.request::<bool>(relay_rpc::rpc::Params::ProposeSession(ProposeSession {
+                pairing_topic: pairing_topic,
+                session_proposal: message,
+                attestation: None,
+                analytics: Some(AnalyticsData {
+                    correlation_id: Some(proposal_id.try_into().unwrap()),
+                    chain_id: None,
+                    rpc_methods: None,
+                    tx_hashes: None,
+                    contract_addresses: None,
+                }),
+            }))
+            .await
+            .map_err(|e| ConnectError::Request(e))?;
+        };
+
+        // Store proposal for later approval/rejection
+        // TODO: Implement proposal storage
+
+        // TODO should return a promise/completer like JS/Flutter or should we just await the on_session_connect event?
+        Ok(ConnectResult { topic: topic.into(), uri })
+    }
+
+    pub async fn create_pairing() -> Result<PairingInfo, ConnectError> {
+        // Generate random symmetric key
+        let sym_key = utils::generate_random_sym_key();
+
+        // Create topic from symmetric key
+        let pairing_topic = topic_from_sym_key(&sym_key);
+
+        // Calculate expiry (5 minutes)
+        let expiry = crate::time::SystemTime::now()
+            .duration_since(crate::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs()
+            + 5 * 60;
+
+        // Create relay info
+        let relay = Relay { protocol: "irn".to_string() };
+
+        // Format URI with pairing details
+        let uri = format!(
+            "wc:{}?topic={}&symKey={}&relay-protocol={}&expiryTimestamp={}",
+            "2.0", // protocol version
+            pairing_topic.to_string(),
+            hex::encode(sym_key),
+            relay.protocol,
+            expiry
+        );
+
+        // Create PairingInfo
+        let pairing_info = PairingInfo {
+            topic: pairing_topic.to_string(),
+            uri,
+            sym_key: sym_key.to_vec(),
+            expiry,
+            relay,
+            active: false,
+            methods: None,       // TODO: Add methods parameter
+            peer_metadata: None, // TODO: Add peer metadata parameter
+        };
+
+        // TODO: Subscribe to topic in relay
+        // TODO: Store pairing in local storage
+        // TODO: Emit pairing created event
+
+        Ok(pairing_info)
+    }
+
+    // TODO implement and move to utils
+    fn is_valid_connect(
+        &self,
+        _params: &ConnectParams,
+    ) -> Result<(), ConnectError> {
+        // TODO: Implement validation logic
+        // - Check if namespaces are valid
+        // - Validate metadata
+        // - Check other constraints
+        Ok(())
+    }
+
     pub async fn approve(
         &mut self,
         proposal: SessionProposal,
@@ -446,11 +598,11 @@ impl Client {
             + 60 * 60 * 24 * 7; // Session expiry is 7 days
 
         let session_settlement_request = {
-            let serialized = serde_json::to_string(&SessionSettleJsonRpc {
+            let serialized = serde_json::to_string(&JsonRpcRequest {
                 id: generate_rpc_id(),
                 jsonrpc: "2.0".to_string(),
                 method: "wc_sessionSettle".to_string(),
-                params: SessionSettle {
+                params: JsonRpcRequestParams::SessionSettle(SessionSettle {
                     relay: Relay { protocol: "irn".to_string() },
                     namespaces: approved_namespaces.clone(),
                     controller: Controller {
@@ -468,7 +620,7 @@ impl Client {
                         .as_ref()
                         .map(|p| serde_json::to_value(p).unwrap_or_default())
                         .unwrap_or_default(),
-                },
+                }),
             })
             .map_err(|e| ApproveError::Internal(e.to_string()))?;
 
@@ -696,17 +848,19 @@ impl Client {
             tag: 1109,
             prompt: false,
             analytics: Some(AnalyticsData {
-                    correlation_id: Some(
-                        match &response {
-                            SessionRequestJsonRpcResponse::Result(r) => r.id,
-                            SessionRequestJsonRpcResponse::Error(e) => e.id,
-                        }.try_into().unwrap(),
-                    ),
-                    chain_id: None, // TODO
-                    rpc_methods: None, // TODO
-                    tx_hashes: None, // TODO
-                    contract_addresses: None, // TODO
-                }),
+                correlation_id: Some(
+                    match &response {
+                        SessionRequestJsonRpcResponse::Result(r) => r.id,
+                        SessionRequestJsonRpcResponse::Error(e) => e.id,
+                    }
+                    .try_into()
+                    .unwrap(),
+                ),
+                chain_id: None,           // TODO
+                rpc_methods: None,        // TODO
+                tx_hashes: None,          // TODO
+                contract_addresses: None, // TODO
+            }),
         }))
         .await
         .map_err(|e| RespondError::Internal(e.to_string()))?;
@@ -2135,6 +2289,23 @@ impl SignClient {
         Ok(proposal.into())
     }
 
+    pub async fn connect(
+        &self,
+        params: ffi_types::ConnectParamsFfi,
+        self_metadata: Metadata,
+    ) -> Result<ffi_types::ConnectResultFfi, ConnectError> {
+        use crate::sign::ffi_types::ConnectParams;
+
+        let params: ConnectParams = params.into();
+        tracing::debug!("connect params: {:?}", params);
+        tracing::debug!("self_metadata: {:?}", self_metadata);
+        let result = {
+            let mut client = self.client.lock().await;
+            client.connect(params, self_metadata).await?
+        };
+        Ok(result.into())
+    }
+
     //TODO: Add approved namespaces builder util function
     pub async fn approve(
         &self,
@@ -2142,7 +2313,7 @@ impl SignClient {
         approved_namespaces: HashMap<String, SettleNamespace>,
         self_metadata: Metadata,
     ) -> Result<SessionFfi, ApproveError> {
-        use crate::sign::ffi_types::SessionProposal;
+        use crate::sign::protocol_types::SessionProposal;
 
         let proposal: SessionProposal = proposal.into();
         tracing::debug!("approved_namespaces: {:?}", approved_namespaces);
@@ -2159,7 +2330,7 @@ impl SignClient {
         proposal: SessionProposalFfi,
         reason: ffi_types::ErrorDataFfi,
     ) -> Result<(), RejectError> {
-        use crate::sign::ffi_types::SessionProposal;
+        use crate::sign::protocol_types::SessionProposal;
         use relay_rpc::rpc::ErrorData;
 
         let proposal: SessionProposal = proposal.into();

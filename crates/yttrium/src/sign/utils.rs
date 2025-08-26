@@ -24,7 +24,7 @@
 // }
 
 use {
-    rand::Rng,
+    rand::{Rng, RngCore},
     relay_rpc::domain::Topic,
     sha2::{Digest, Sha256},
 };
@@ -60,6 +60,11 @@ pub fn is_expired(expiry: u64) -> bool {
         .duration_since(crate::time::UNIX_EPOCH)
         .unwrap()
         .as_secs();
-    
     current_time >= expiry
+}
+
+pub fn generate_random_sym_key() -> [u8; 32] {
+    let mut key = [0u8; 32];
+    rand::thread_rng().fill_bytes(&mut key);
+    key
 }

@@ -1,6 +1,6 @@
 use {
     crate::sign::protocol_types::{
-        Metadata, ProposalNamespace, ProposalNamespaces, SettleNamespace,
+        Metadata, ProposalNamespaces, Relay, SettleNamespace,
     },
     relay_rpc::domain::Topic,
     serde::{Deserialize, Serialize},
@@ -74,7 +74,7 @@ pub struct SessionRequestJsonRpcErrorResponseFfi {
 
 #[cfg(feature = "uniffi")]
 #[derive(uniffi_macros::Enum, Debug, Serialize, Deserialize)]
-#[serde(untagged)]  
+#[serde(untagged)]
 pub enum SessionRequestJsonRpcResponseFfi {
     Result(SessionRequestJsonRpcResultResponseFfi),
     Error(SessionRequestJsonRpcErrorResponseFfi),
@@ -96,28 +96,13 @@ pub struct SessionFfi {
     pub peer_public_key: Option<Vec<u8>>,
     pub peer_meta_data: Option<Metadata>,
     pub session_namespaces: HashMap<String, SettleNamespace>,
-    pub required_namespaces: HashMap<String, ProposalNamespace>,
-    pub optional_namespaces: Option<HashMap<String, ProposalNamespace>>,
+    pub required_namespaces: ProposalNamespaces,
+    pub optional_namespaces: Option<ProposalNamespaces>,
     pub properties: Option<HashMap<String, String>>,
     pub scoped_properties: Option<HashMap<String, String>>,
     pub is_acknowledged: bool,
     pub pairing_topic: String,
     pub transport_type: Option<TransportType>,
-}
-
-#[derive(Debug, Clone)]
-pub struct SessionProposal {
-    pub session_proposal_rpc_id: u64,
-    pub pairing_topic: Topic,
-    pub pairing_sym_key: [u8; 32],
-    pub proposer_public_key: [u8; 32],
-    pub relays: Vec<crate::sign::protocol_types::Relay>,
-    pub required_namespaces: ProposalNamespaces,
-    pub optional_namespaces: Option<ProposalNamespaces>,
-    pub metadata: Metadata,
-    pub session_properties: Option<HashMap<String, String>>,
-    pub scoped_properties: Option<HashMap<String, String>>,
-    pub expiry_timestamp: Option<u64>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -134,8 +119,8 @@ pub struct Session {
     pub peer_public_key: Option<[u8; 32]>,
     pub peer_meta_data: Option<Metadata>,
     pub session_namespaces: HashMap<String, SettleNamespace>,
-    pub required_namespaces: HashMap<String, ProposalNamespace>,
-    pub optional_namespaces: Option<HashMap<String, ProposalNamespace>>,
+    pub required_namespaces: ProposalNamespaces,
+    pub optional_namespaces: Option<ProposalNamespaces>,
     pub session_properties: Option<HashMap<String, String>>,
     pub scoped_properties: Option<HashMap<String, String>>,
     pub is_acknowledged: bool,
@@ -163,4 +148,59 @@ pub struct ErrorDataFfi {
     /// Error data, if any.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub data: Option<String>,
+}
+
+#[cfg(feature = "uniffi")]
+#[derive(uniffi_macros::Record, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ConnectParamsFfi {
+    pub optional_namespaces: Option<ProposalNamespaces>,
+    pub relays: Option<Vec<Relay>>,
+    pub session_properties: Option<HashMap<String, String>>,
+    pub scoped_properties: Option<HashMap<String, String>>,
+    pub metadata: Metadata,
+}
+
+#[cfg(feature = "uniffi")]
+#[derive(uniffi_macros::Record, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ConnectResultFfi {
+    pub topic: Topic,
+    pub uri: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
+pub struct ConnectParams {
+    pub optional_namespaces: Option<ProposalNamespaces>,
+    pub relays: Option<Vec<Relay>>,
+    pub session_properties: Option<std::collections::HashMap<String, String>>,
+    pub scoped_properties: Option<std::collections::HashMap<String, String>>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
+pub struct ConnectResult {
+    pub topic: Topic,
+    pub uri: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
+pub struct Pairing {
+    pub topic: String,
+    pub uri: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
+pub struct PairingInfo {
+    pub topic: String,
+    pub uri: String,
+    pub sym_key: Vec<u8>,
+    pub expiry: u64,
+    pub relay: Relay,
+    pub active: bool,
+    pub methods: Option<Vec<String>>,
+    pub peer_metadata: Option<Metadata>,
 }
