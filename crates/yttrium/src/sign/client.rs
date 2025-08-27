@@ -5,8 +5,7 @@ use {
             RejectError, RequestError, RespondError,
         },
         client_types::{
-            ConnectParams, ConnectResult, PairingInfo, Session,
-            SessionProposal, Storage,
+            ConnectParams, ConnectResult, PairingInfo, Session, SessionProposal,
         },
         envelope_type0, pairing_uri,
         protocol_types::{
@@ -17,6 +16,7 @@ use {
             SettleNamespace,
         },
         relay::IncomingSessionMessage,
+        storage::Storage,
         utils::{
             diffie_hellman, generate_rpc_id, is_expired,
             serialize_and_encrypt_message_type0_envelope, topic_from_sym_key,
@@ -323,8 +323,12 @@ impl Client {
         .await
         .map_err(ConnectError::Request)?;
 
-        self.session_store
-            .save_pairing_key(pairing_info.topic.clone(), sym_key);
+        self.session_store.save_pairing(
+            pairing_info.topic.clone(),
+            rpc_id,
+            sym_key,
+            self_key.to_bytes(),
+        );
 
         // TODO should return a promise/completer like JS/Flutter or should we just await the on_session_connect event?
         Ok(ConnectResult { topic: pairing_info.topic.clone(), uri })
@@ -424,16 +428,8 @@ impl Client {
                         metadata: self_metadata.clone(),
                     },
                     expiry: session_expiry,
-                    session_properties: proposal
-                        .session_properties
-                        .as_ref()
-                        .map(|p| serde_json::to_value(p).unwrap_or_default())
-                        .unwrap_or_default(),
-                    scoped_properties: proposal
-                        .scoped_properties
-                        .as_ref()
-                        .map(|p| serde_json::to_value(p).unwrap_or_default())
-                        .unwrap_or_default(),
+                    session_properties: proposal.session_properties.clone(),
+                    scoped_properties: proposal.scoped_properties.clone(),
                 }),
             };
 

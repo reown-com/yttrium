@@ -16,7 +16,7 @@ use {
                 SessionProposalFfi, SessionRequestJsonRpcFfi,
                 SessionRequestJsonRpcResponseFfi,
             },
-            session_store::{SessionStoreFfi, SessionStoreFfiProxy},
+            storage::{StorageFfi, StorageFfiProxy},
         },
     },
     relay_rpc::{
@@ -60,7 +60,7 @@ impl SignClient {
     pub fn new(
         project_id: String,
         key: Vec<u8>,
-        session_store: Arc<dyn SessionStoreFfi>,
+        session_store: Arc<dyn StorageFfi>,
     ) -> Self {
         tracing::debug!(
             "Creating new SignClient with project_id: {project_id}"
@@ -68,7 +68,7 @@ impl SignClient {
         let (client, session_request_rx) = Client::new(
             ProjectId::from(project_id),
             key.try_into().expect("Invalid key format - must be 32 bytes"),
-            Arc::new(SessionStoreFfiProxy(session_store)),
+            Arc::new(StorageFfiProxy(session_store)),
         );
         Self {
             client: std::sync::Arc::new(tokio::sync::Mutex::new(client)),

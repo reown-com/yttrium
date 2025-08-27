@@ -2,10 +2,16 @@ use {
     crate::{
         sign::{
             client_errors::{PairError, RequestError},
-            client_types::Storage,
+            client_types::Session,
             envelope_type0,
-            protocol_types::{SessionDeleteJsonRpc, SessionRequestJsonRpc},
+            priority_future::PriorityReceiver,
+            protocol_types::{
+                ProposalResponseJsonRpc, SessionDeleteJsonRpc,
+                SessionRequestJsonRpc, SessionSettle,
+            },
             relay_url::ConnectionOptions,
+            storage::Storage,
+            utils::{diffie_hellman, topic_from_sym_key},
         },
         time::DurableSleep,
     },
@@ -20,7 +26,8 @@ use {
             SuccessfulResponse,
         },
     },
-    std::{sync::Arc, time::Duration},
+    serde_json::Value,
+    std::{collections::HashMap, sync::Arc, time::Duration},
 };
 #[cfg(not(target_arch = "wasm32"))]
 use {
@@ -612,7 +619,7 @@ pub async fn connect_loop_state_machine(
         Topic,
         IncomingSessionMessage,
     )>,
-    mut request_rx: tokio::sync::mpsc::UnboundedReceiver<(
+    request_rx: tokio::sync::mpsc::UnboundedReceiver<(
         Params,
         tokio::sync::oneshot::Sender<Result<Response, RequestError>>,
     )>,
@@ -621,11 +628,20 @@ pub async fn connect_loop_state_machine(
 ) {
     let (irn_subscription_ack_tx, mut irn_subscription_ack_rx) =
         tokio::sync::mpsc::unbounded_channel();
+    let (priority_request_tx, priority_request_rx) =
+        tokio::sync::mpsc::unbounded_channel();
+    let mut request_rx = PriorityReceiver::new(priority_request_rx, request_rx);
+
     let handle_irn_subscription = {
         let session_store = session_store.clone();
         let session_request_tx = session_request_tx.clone();
         let irn_subscription_ack_tx = irn_subscription_ack_tx.clone();
-        move |id: MessageId, sub_msg: Subscription| {
+        move |id: MessageId,
+              sub_msg: Subscription,
+              priority_request_tx: tokio::sync::mpsc::UnboundedSender<(
+            Params,
+            tokio::sync::oneshot::Sender<Result<Response, RequestError>>,
+        )>| {
             let session_store = session_store.clone();
             let session_request_tx = session_request_tx.clone();
             let irn_subscription_ack_tx = irn_subscription_ack_tx.clone();
@@ -687,7 +703,68 @@ pub async fn connect_loop_state_machine(
                 );
 
                 if let Some(method) = value.get("method") {
-                    if method.as_str() == Some("wc_sessionRequest") {
+                    if method.as_str() == Some("wc_sessionSettle") {
+                        let request = serde_json::from_value::<SessionSettle>(
+                            value.get("params").unwrap().clone(),
+                        )
+                        .map_err(|e| {
+                            PairError::Internal(format!(
+                                "Failed to parse decrypted message: {e}"
+                            ))
+                        })
+                        .unwrap();
+
+                        tracing::debug!(
+                            "handle_irn_subscription: Session Settle: {:?}",
+                            request
+                        );
+
+                        session_store.add_session(Session {
+                            request_id: 0,
+                            topic: sub_msg.data.topic.clone(),
+                            expiry: request.expiry,
+                            relay_protocol: "irn".to_string(),
+                            relay_data: None,
+                            self_public_key: session_sym_key, // TODO this is wrong
+                            controller_key: Some(
+                                hex::decode(
+                                    request.controller.public_key.clone(),
+                                )
+                                .unwrap()
+                                .try_into()
+                                .unwrap(),
+                            ),
+                            session_sym_key,
+                            self_meta_data: request.controller.metadata.clone(),
+                            peer_public_key: None,
+                            peer_meta_data: None,
+                            session_namespaces: request.namespaces.clone(),
+                            required_namespaces: HashMap::new(),
+                            optional_namespaces: None,
+                            session_properties: request
+                                .session_properties
+                                .clone(),
+                            scoped_properties: request
+                                .scoped_properties
+                                .clone(),
+                            is_acknowledged: false,
+                            pairing_topic: "".to_string().into(),
+                            transport_type: None,
+                        });
+
+                        session_request_tx
+                            .send((
+                                sub_msg.data.topic.clone(),
+                                IncomingSessionMessage::SessionConnect(0),
+                            ))
+                            .unwrap();
+
+                        if let Err(e) = irn_subscription_ack_tx.send(id) {
+                            tracing::debug!(
+                                "Failed to send subscription ack: {e}"
+                            );
+                        }
+                    } else if method.as_str() == Some("wc_sessionRequest") {
                         // TODO implement relay-side request queue
                         let request = serde_json::from_value::<
                             SessionRequestJsonRpc,
@@ -806,12 +883,99 @@ pub async fn connect_loop_state_machine(
                         }
                     }
                 } else {
-                    tracing::debug!("ignoring response message: {:?}", value);
-                    if let Err(e) = irn_subscription_ack_tx.send(id) {
-                        tracing::debug!("Failed to send subscription ack: {e}");
-                    }
+                    let rpc_id = value.get("id");
+                    if let Some(rpc_id) = rpc_id {
+                        let rpc_id = match rpc_id {
+                            Value::Number(n) => n.as_u64(),
+                            Value::String(s) => s.parse::<u64>().ok(),
+                            _ => None,
+                        };
+                        if let Some(rpc_id) = rpc_id {
+                            // TODO avoid second call... get the type from the first call (enum response)
+                            let pairing = session_store.get_pairing(
+                                sub_msg.data.topic.clone(),
+                                rpc_id,
+                            );
+                            if let Some((_sym_key, self_key)) = pairing {
+                                // TODO handle parse errors by ignoring the message
+                                let response =
+                                    serde_json::from_value::<
+                                        ProposalResponseJsonRpc,
+                                    >(value)
+                                    .unwrap();
+                                let response = response.result;
 
-                    // TODO handle connection responses & session request responses. Unsure if other responses are needed
+                                tracing::debug!(
+                                    "handle_irn_subscription: Proposal Response: {:?}",
+                                    response
+                                );
+
+                                let self_key =
+                                    x25519_dalek::StaticSecret::from(self_key);
+                                let responder_public_key: [u8; 32] =
+                                    hex::decode(response.responder_public_key)
+                                        .unwrap()
+                                        .try_into()
+                                        .unwrap();
+                                let responder_public_key =
+                                    x25519_dalek::PublicKey::from(
+                                        responder_public_key,
+                                    );
+                                let shared_secret = diffie_hellman(
+                                    &responder_public_key,
+                                    &self_key,
+                                );
+                                let session_topic =
+                                    topic_from_sym_key(&shared_secret);
+                                session_store.save_partial_session(
+                                    session_topic.clone(),
+                                    shared_secret,
+                                );
+                                if let Err(e) = priority_request_tx.send((
+                                    Params::BatchSubscribe(BatchSubscribe {
+                                        topics: vec![session_topic],
+                                    }),
+                                    tokio::sync::oneshot::channel().0,
+                                )) {
+                                    tracing::debug!(
+                                        "Failed to send priority request: {e}"
+                                    );
+                                }
+                                // TODO handle session request responses
+                            } else {
+                                tracing::error!(
+                                    "ignoring message with invalid ID: {:?}",
+                                    value
+                                );
+                                if let Err(e) = irn_subscription_ack_tx.send(id)
+                                {
+                                    tracing::debug!(
+                                        "Failed to send subscription ack: {e}"
+                                    );
+                                }
+                            }
+                        } else {
+                            tracing::error!(
+                                "ignoring message with invalid ID: {:?}",
+                                value
+                            );
+                            if let Err(e) = irn_subscription_ack_tx.send(id) {
+                                tracing::debug!(
+                                    "Failed to send subscription ack: {e}"
+                                );
+                            }
+                        }
+                    } else {
+                        tracing::debug!(
+                            "ignoring message without method or ID: {:?}",
+                            value
+                        );
+                        if let Err(e) = irn_subscription_ack_tx.send(id) {
+                            tracing::debug!(
+                                "Failed to send subscription ack: {e}"
+                            );
+                        }
+                    }
                 }
             }
         }
@@ -845,7 +1009,7 @@ pub async fn connect_loop_state_machine(
                 }
             }
             ConnectionState::MaybeReconnect(backoff_state) => {
-                if session_store.get_all_sessions().is_empty() {
+                if session_store.get_all_topics().is_empty() {
                     ConnectionState::Idle
                 } else {
                     ConnectionState::ConnectSubscribe(
@@ -854,13 +1018,7 @@ pub async fn connect_loop_state_machine(
                 }
             }
             ConnectionState::ConnectSubscribe(backoff_state) => {
-                let topics = {
-                    session_store
-                        .get_all_sessions()
-                        .into_iter()
-                        .map(|s| s.topic.clone())
-                        .collect()
-                };
+                let topics = session_store.get_all_topics();
                 let connect_res = connect(
                     relay_url.clone(),
                     project_id.clone(),
@@ -988,13 +1146,7 @@ pub async fn connect_loop_state_machine(
                 }
             }
             ConnectionState::ConnectRequest((request, response_tx)) => {
-                let topics = {
-                    session_store
-                        .get_all_sessions()
-                        .into_iter()
-                        .map(|s| s.topic.clone())
-                        .collect()
-                };
+                let topics = session_store.get_all_topics();
                 let connect_res = connect(
                     relay_url.clone(),
                     project_id.clone(),
@@ -1167,7 +1319,12 @@ pub async fn connect_loop_state_machine(
                                                 Params::Subscription(
                                                     sub_msg
                                                 ) => {
-                                                    handle_irn_subscription(id, sub_msg).await;
+                                                    handle_irn_subscription(
+                                                        id,
+                                                        sub_msg,
+                                                        priority_request_tx.clone(),
+                                                    )
+                                                    .await;
                                                 }
                                                 _ => tracing::warn!("ignoring message request in Connected state: {:?}", request),
                                             }
@@ -1316,7 +1473,12 @@ pub async fn connect_loop_state_machine(
                                                 Params::Subscription(
                                                     sub_msg
                                                 ) => {
-                                                    handle_irn_subscription(id, sub_msg).await;
+                                                    handle_irn_subscription(
+                                                        id,
+                                                        sub_msg,
+                                                        priority_request_tx.clone(),
+                                                    )
+                                                    .await;
                                                 }
                                                 _ => tracing::warn!("ignoring message request in AwaitingRequestResponse state: {:?}", payload_request),
                                             }
@@ -1377,13 +1539,7 @@ pub async fn connect_loop_state_machine(
                 }
             }
             ConnectionState::ConnectRetryRequest((request, response_tx)) => {
-                let topics = {
-                    session_store
-                        .get_all_sessions()
-                        .into_iter()
-                        .map(|s| s.topic)
-                        .collect()
-                };
+                let topics = session_store.get_all_topics();
                 let connect_fut = connect(
                     relay_url.clone(),
                     project_id.clone(),
@@ -1527,6 +1683,7 @@ pub async fn connect_loop_state_machine(
         };
     }
 
+    request_rx.close();
     while let Some((_request, response_tx)) = request_rx.recv().await {
         if let Err(e) = response_tx.send(Err(RequestError::Cleanup)) {
             tracing::warn!("Failed to send cleanup error response: {e:?}");
