@@ -56,7 +56,10 @@ struct Closures {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-type ConnectWebSocket = tokio::sync::mpsc::UnboundedSender<String>;
+type ConnectWebSocket = (
+    tokio::sync::mpsc::UnboundedSender<String>,
+    tokio::sync::mpsc::UnboundedSender<()>,
+);
 
 #[derive(Debug, Clone)]
 enum ConnectError {
@@ -228,11 +231,13 @@ async fn connect(
                                             tracing::debug!("Failed to send invalid auth close event: {e}");
                                         }
                                     } else {
+                                        #[allow(clippy::collapsible_else_if)]
                                         if let Err(e) = on_incomingmessage_tx.send(IncomingMessage::Close(CloseReason::Error(format!("{}: {}", close_event.code, close_event.reason)))) {
                                             tracing::debug!("Failed to send close event (error): {e}");
                                         }
                                     }
                                 } else {
+                                    #[allow(clippy::collapsible_else_if)]
                                     if let Err(e) = on_incomingmessage_tx.send(IncomingMessage::Close(CloseReason::Error("Unknown close event".to_string()))) {
                                         tracing::debug!("Failed to send close event (unknown): {e}");
                                     }
@@ -318,7 +323,7 @@ async fn connect(
             .send(serialized)
             .map_err(|e| ConnectError::ConnectFail(e.to_string()))?;
 
-        Ok((message_id, on_incomingmessage_rx, outgoing_tx))
+        Ok((message_id, on_incomingmessage_rx, (outgoing_tx, close_tx)))
     }
 
     #[cfg(target_arch = "wasm32")]
@@ -951,7 +956,17 @@ pub async fn connect_loop_state_machine(
                         }
                     },
                     Some(()) = sleep.recv() => ConnectionState::Backoff(backoff_state),
-                    _ = cleanup_rx.cancelled() => break,
+                    _ = cleanup_rx.cancelled() => {
+                        #[cfg(target_arch = "wasm32")]
+                        if let Err(e) = ws.0.close() {
+                            tracing::debug!("Failed to close websocket: {e:?}");
+                        }
+                        #[cfg(not(target_arch = "wasm32"))]
+                        if let Err(e) = ws.1.send(()) {
+                            tracing::debug!("Failed to send close event: {e}");
+                        }
+                        break;
+                    }
                 }
             }
             ConnectionState::Backoff(backoff_state) => {
@@ -1112,7 +1127,17 @@ pub async fn connect_loop_state_machine(
                         }
                         ConnectionState::MaybeReconnect(None)
                     }
-                    _ = cleanup_rx.cancelled() => break,
+                    _ = cleanup_rx.cancelled() => {
+                        #[cfg(target_arch = "wasm32")]
+                        if let Err(e) = ws.0.close() {
+                            tracing::debug!("Failed to close websocket: {e:?}");
+                        }
+                        #[cfg(not(target_arch = "wasm32"))]
+                        if let Err(e) = ws.1.send(()) {
+                            tracing::debug!("Failed to send close event: {e}");
+                        }
+                        break;
+                    },
                 }
             }
             ConnectionState::Connected(
@@ -1184,7 +1209,7 @@ pub async fn connect_loop_state_machine(
                             #[cfg(target_arch = "wasm32")]
                             ws.0.send_with_str(&serialized).expect("TODO");
                             #[cfg(not(target_arch = "wasm32"))]
-                            ws.send(serialized).expect("TODO");
+                            ws.0.send(serialized).expect("TODO");
 
                             ConnectionState::AwaitingRequestResponse(
                                 message_id,
@@ -1194,6 +1219,14 @@ pub async fn connect_loop_state_machine(
                                 crate::time::durable_sleep(REQUEST_TIMEOUT),
                             )
                         } else {
+                            #[cfg(target_arch = "wasm32")]
+                            if let Err(e) = ws.0.close() {
+                                tracing::debug!("Failed to close websocket: {e:?}");
+                            }
+                            #[cfg(not(target_arch = "wasm32"))]
+                            if let Err(e) = ws.1.send(()) {
+                                tracing::debug!("Failed to send close event: {e}");
+                            }
                             break;
                         }
                     }
@@ -1217,7 +1250,7 @@ pub async fn connect_loop_state_machine(
                             #[cfg(target_arch = "wasm32")]
                             ws.0.send_with_str(&serialized).expect("TODO");
                             #[cfg(not(target_arch = "wasm32"))]
-                            ws.send(serialized).expect("TODO");
+                            ws.0.send(serialized).expect("TODO");
 
                             ConnectionState::Connected(
                                 message_id,
@@ -1225,10 +1258,28 @@ pub async fn connect_loop_state_machine(
                                 ws,
                             )
                         } else {
+                            #[cfg(target_arch = "wasm32")]
+                            if let Err(e) = ws.0.close() {
+                                tracing::debug!("Failed to close websocket: {e:?}");
+                            }
+                            #[cfg(not(target_arch = "wasm32"))]
+                            if let Err(e) = ws.1.send(()) {
+                                tracing::debug!("Failed to send close event: {e}");
+                            }
                             break;
                         }
                     }
-                    _ = cleanup_rx.cancelled() => break,
+                    _ = cleanup_rx.cancelled() => {
+                        #[cfg(target_arch = "wasm32")]
+                        if let Err(e) = ws.0.close() {
+                            tracing::debug!("Failed to close websocket: {e:?}");
+                        }
+                        #[cfg(not(target_arch = "wasm32"))]
+                        if let Err(e) = ws.1.send(()) {
+                            tracing::debug!("Failed to send close event: {e}");
+                        }
+                        break;
+                    },
                 }
             }
             ConnectionState::AwaitingRequestResponse(
@@ -1300,11 +1351,29 @@ pub async fn connect_loop_state_machine(
                                 }
                             }
                         } else {
+                            #[cfg(target_arch = "wasm32")]
+                            if let Err(e) = ws.0.close() {
+                                tracing::debug!("Failed to close websocket: {e:?}");
+                            }
+                            #[cfg(not(target_arch = "wasm32"))]
+                            if let Err(e) = ws.1.send(()) {
+                                tracing::debug!("Failed to send close event: {e}");
+                            }
                             break;
                         }
                     }
                     Some(()) = sleep.recv() => ConnectionState::ConnectRetryRequest((request, response_tx)),
-                    _ = cleanup_rx.cancelled() => break,
+                    _ = cleanup_rx.cancelled() => {
+                        #[cfg(target_arch = "wasm32")]
+                        if let Err(e) = ws.0.close() {
+                            tracing::debug!("Failed to close websocket: {e:?}");
+                        }
+                        #[cfg(not(target_arch = "wasm32"))]
+                        if let Err(e) = ws.1.send(()) {
+                            tracing::debug!("Failed to send close event: {e}");
+                        }
+                        break;
+                    },
                 }
             }
             ConnectionState::ConnectRetryRequest((request, response_tx)) => {
@@ -1430,11 +1499,29 @@ pub async fn connect_loop_state_machine(
                                 }
                             }
                         } else {
+                            #[cfg(target_arch = "wasm32")]
+                            if let Err(e) = ws.0.close() {
+                                tracing::debug!("Failed to close websocket: {e:?}");
+                            }
+                            #[cfg(not(target_arch = "wasm32"))]
+                            if let Err(e) = ws.1.send(()) {
+                                tracing::debug!("Failed to send close event: {e}");
+                            }
                             break;
                         }
                     }
                     Some(()) = sleep.recv() => ConnectionState::MaybeReconnect(None),
-                    _ = cleanup_rx.cancelled() => break,
+                    _ = cleanup_rx.cancelled() => {
+                        #[cfg(target_arch = "wasm32")]
+                        if let Err(e) = ws.0.close() {
+                            tracing::debug!("Failed to close websocket: {e:?}");
+                        }
+                        #[cfg(not(target_arch = "wasm32"))]
+                        if let Err(e) = ws.1.send(()) {
+                            tracing::debug!("Failed to send close event: {e}");
+                        }
+                        break;
+                    },
                 }
             }
         };
