@@ -183,13 +183,17 @@ async fn connect(
 
                 tokio::select! {
                     Some(message) = outgoing_rx.recv() => {
-                        ws_stream.send(Message::Text(message.into())).await.unwrap();
+                        if let Err(e) = ws_stream.send(Message::Text(message.into())).await {
+                            tracing::debug!("Failed to send outgoing message: {e}");
+                            break;
+                        }
                     }
                     _ = close_rx.recv() => {
                         if let Err(e) = ws_stream.close(None).await {
                             tracing::debug!("Failed to close WebSocket (for cleanup): {e}");
                         }
-                        return;
+                        tracing::debug!("tungstenite connection loop ending (cleanup)");
+                        break;
                     }
                     Some(message) = ws_stream.next() => {
                         let n = message
@@ -205,8 +209,9 @@ async fn connect(
                                 let result = serde_json::from_str::<Payload>(&message);
                                 match result {
                                     Ok(payload) => {
-                                        let _ = on_incomingmessage_tx.send(IncomingMessage::Message(payload))
-                                            .ok();
+                                        if let Err(e) = on_incomingmessage_tx.send(IncomingMessage::Message(payload)) {
+                                            tracing::debug!("Failed to send incoming message: {e}");
+                                        }
                                     }
                                     Err(e) => {
                                         tracing::warn!("Failed to parse payload: {e}");
@@ -219,20 +224,30 @@ async fn connect(
                                 if let Some(close_event) = close_event {
                                     if close_event.code == CloseCode::Iana(3000) {
                                         tracing::error!("Invalid auth: {}", close_event.reason);
-                                        let _ = on_incomingmessage_tx.send(IncomingMessage::Close(CloseReason::InvalidAuth)).ok();
+                                        if let Err(e) = on_incomingmessage_tx.send(IncomingMessage::Close(CloseReason::InvalidAuth)) {
+                                            tracing::debug!("Failed to send invalid auth close event: {e}");
+                                        }
                                     } else {
-                                        let _ = on_incomingmessage_tx.send(IncomingMessage::Close(CloseReason::Error(format!("{}: {}", close_event.code, close_event.reason)))).ok();
+                                        if let Err(e) = on_incomingmessage_tx.send(IncomingMessage::Close(CloseReason::Error(format!("{}: {}", close_event.code, close_event.reason)))) {
+                                            tracing::debug!("Failed to send close event (error): {e}");
+                                        }
                                     }
                                 } else {
-                                    let _ = on_incomingmessage_tx.send(IncomingMessage::Close(CloseReason::Error("Unknown close event".to_string()))).ok();
+                                    if let Err(e) = on_incomingmessage_tx.send(IncomingMessage::Close(CloseReason::Error("Unknown close event".to_string()))) {
+                                        tracing::debug!("Failed to send close event (unknown): {e}");
+                                    }
                                 }
                             }
                             e => tracing::debug!("ignoring tungstenite message: {:?}", e),
                         }
                     }
-                    else => break,
+                    else => {
+                        tracing::debug!("tungstenite connection loop ending (else)");
+                        break;
+                    }
                 }
             }
+            tracing::debug!("tungstenite connection loop ending");
         });
 
         let mut message_id = MIN_RPC_ID;
