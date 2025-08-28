@@ -1244,6 +1244,8 @@ public protocol SignClientProtocol: AnyObject, Sendable {
     
     func respond(topic: String, response: SessionRequestJsonRpcResponseFfi) async throws  -> String
     
+    func start() async 
+    
 }
 open class SignClient: SignClientProtocol, @unchecked Sendable {
     fileprivate let pointer: UnsafeMutableRawPointer!
@@ -1449,6 +1451,24 @@ open func respond(topic: String, response: SessionRequestJsonRpcResponseFfi)asyn
             freeFunc: ffi_yttrium_rust_future_free_rust_buffer,
             liftFunc: FfiConverterString.lift,
             errorHandler: FfiConverterTypeRespondError_lift
+        )
+}
+    
+open func start()async   {
+    return
+        try!  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_yttrium_fn_method_signclient_start(
+                    self.uniffiClonePointer()
+                    
+                )
+            },
+            pollFunc: ffi_yttrium_rust_future_poll_void,
+            completeFunc: ffi_yttrium_rust_future_complete_void,
+            freeFunc: ffi_yttrium_rust_future_free_void,
+            liftFunc: { $0 },
+            errorHandler: nil
+            
         )
 }
     
@@ -12133,6 +12153,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_yttrium_checksum_method_signclient_respond() != 17745) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_method_signclient_start() != 35500) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_yttrium_checksum_method_signlistener_on_session_request() != 45061) {
