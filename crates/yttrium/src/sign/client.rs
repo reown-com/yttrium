@@ -11,7 +11,7 @@ use {
         envelope_type0, pairing_uri,
         protocol_types::{
             Controller, JsonRpcRequest, JsonRpcRequestParams, Metadata,
-            Proposal, ProposalJsonRpc, ProposalResponse,
+            Proposal, ProposalResponse,
             ProposalResponseJsonRpc, Proposer, Relay, SessionDelete,
             SessionDeleteJsonRpc, SessionRequestJsonRpcResponse, SessionSettle,
             SettleNamespace,
@@ -22,8 +22,7 @@ use {
             serialize_and_encrypt_message_type0_envelope, topic_from_sym_key,
         },
     },
-    chacha20poly1305::{aead::Aead, ChaCha20Poly1305, KeyInit, Nonce},
-    data_encoding::BASE64,
+
     relay_rpc::{
         auth::ed25519_dalek::{SecretKey, SigningKey},
         domain::{ProjectId, Topic},
@@ -219,30 +218,10 @@ impl Client {
 
         for message in response.messages {
             if message.topic == pairing_uri.topic {
-                let decoded =
-                    BASE64.decode(message.message.as_bytes()).map_err(|e| {
-                        PairError::Internal(format!(
-                            "Failed to decode message: {e}"
-                        ))
-                    })?;
-
-                tracing::debug!("Subscription Data: {:?}", message);
-
-                let envelope =
-                    envelope_type0::deserialize_envelope_type0(&decoded)
-                        .map_err(|e| PairError::Internal(e.to_string()))?;
-                let key = ChaCha20Poly1305::new(&pairing_uri.sym_key.into());
-                let decrypted = key
-                    .decrypt(&Nonce::from(envelope.iv), envelope.sb.as_slice())
-                    .map_err(|e| PairError::Internal(e.to_string()))?;
-
-                let request =
-                    serde_json::from_slice::<ProposalJsonRpc>(&decrypted)
-                        .map_err(|e| {
-                            PairError::Internal(format!(
-                                "Failed to parse decrypted message: {e}"
-                            ))
-                        })?;
+                let request = envelope_type0::decode_type0_encrypted_proposal_message(
+                    pairing_uri.sym_key,
+                    &message.message,
+                )?;
                 if request.method != "wc_sessionPropose" {
                     return Err(PairError::Internal(format!(
                         "Expected wc_sessionPropose, got {}",
