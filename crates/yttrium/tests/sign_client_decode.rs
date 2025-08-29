@@ -1,15 +1,6 @@
-use yttrium::sign::client::Client;
-use chacha20poly1305::{aead::Aead, ChaCha20Poly1305, KeyInit};
-use chacha20poly1305::aead::AeadCore;
+use yttrium::sign::envelope_type0;
 use data_encoding::BASE64;
-use serde_json::json;
-
-fn sym_key() -> [u8; 32] {
-    hex::decode("0653ca620c7b4990392e1c53c4a51c14a2840cd20f0f1524cf435b17b6fe988c")
-        .unwrap()
-        .try_into()
-        .unwrap()
-}
+// no-op
 
 #[test]
 fn decrypt_type0_envelope_matches_swift_vectors() {
@@ -35,7 +26,7 @@ fn decrypt_type0_envelope_matches_swift_vectors() {
     envelope.extend_from_slice(ct_tag);
     let envelope_b64 = BASE64.encode(&envelope);
 
-    let decrypted = Client::decrypt_type0_envelope(key_bytes, &envelope_b64)
+    let decrypted = envelope_type0::decrypt_type0_envelope(key_bytes, &envelope_b64)
         .expect("decrypt envelope");
     assert_eq!(decrypted, b"WalletConnect");
 }

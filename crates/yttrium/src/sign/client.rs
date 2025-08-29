@@ -11,7 +11,7 @@ use {
         envelope_type0, pairing_uri,
         protocol_types::{
             Controller, JsonRpcRequest, JsonRpcRequestParams, Metadata,
-            Proposal, ProposalJsonRpc, ProposalResponse,
+            Proposal, ProposalResponse,
             ProposalResponseJsonRpc, Proposer, Relay, SessionDelete,
             SessionDeleteJsonRpc, SessionRequestJsonRpcResponse, SessionSettle,
             SettleNamespace,
@@ -22,8 +22,7 @@ use {
             serialize_and_encrypt_message_type0_envelope, topic_from_sym_key,
         },
     },
-    chacha20poly1305::{aead::Aead, ChaCha20Poly1305, KeyInit, Nonce},
-    data_encoding::BASE64,
+
     relay_rpc::{
         auth::ed25519_dalek::{SecretKey, SigningKey},
         domain::{ProjectId, Topic},
