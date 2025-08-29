@@ -114,42 +114,6 @@ pub struct Client {
 
 #[allow(unused)]
 impl Client {
-    /// Decrypt a type-0 envelope and return the decrypted bytes.
-    pub fn decrypt_type0_envelope(
-        sym_key: [u8; 32],
-        message_b64: &str,
-    ) -> Result<Vec<u8>, PairError> {
-        let decoded = BASE64
-            .decode(message_b64.as_bytes())
-            .map_err(|e| PairError::Internal(format!(
-                "Failed to decode message: {e}"
-            )))?;
-
-        let envelope = envelope_type0::deserialize_envelope_type0(&decoded)
-            .map_err(|e| PairError::Internal(e.to_string()))?;
-
-        let key = ChaCha20Poly1305::new(&sym_key.into());
-        let decrypted = key
-            .decrypt(&Nonce::from(envelope.iv), envelope.sb.as_slice())
-            .map_err(|e| PairError::Internal(e.to_string()))?;
-        Ok(decrypted)
-    }
-    /// Decode a type-0 envelope proposal message coming from IRN and return the parsed JSON-RPC request
-    /// (method: wc_sessionPropose).
-    pub fn decode_type0_encrypted_proposal_message(
-        sym_key: [u8; 32],
-        message_b64: &str,
-    ) -> Result<ProposalJsonRpc, PairError> {
-        let decrypted = Self::decrypt_type0_envelope(sym_key, message_b64)?;
-
-        let request = serde_json::from_slice::<ProposalJsonRpc>(&decrypted)
-            .map_err(|e| {
-                PairError::Internal(format!(
-                    "Failed to parse decrypted message: {e}"
-                ))
-            })?;
-        Ok(request)
-    }
     pub fn new(
         project_id: ProjectId,
         key: SecretKey,
@@ -255,7 +219,7 @@ impl Client {
 
         for message in response.messages {
             if message.topic == pairing_uri.topic {
-                let request = Self::decode_type0_encrypted_proposal_message(
+                let request = envelope_type0::decode_type0_encrypted_proposal_message(
                     pairing_uri.sym_key,
                     &message.message,
                 )?;
