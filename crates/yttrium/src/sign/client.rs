@@ -49,6 +49,16 @@ pub struct Client {
     online_tx: Option<tokio::sync::mpsc::UnboundedSender<()>>,
     cleanup_tx: Option<tokio_util::sync::CancellationToken>,
     session_store: Arc<dyn Storage>,
+    // Lazy-start fields for spawning the relay loop
+    project_id: ProjectId,
+    signing_key_bytes: [u8; 32],
+    pending_request_rx: Option<
+        tokio::sync::mpsc::UnboundedReceiver<(
+            Params,
+            tokio::sync::oneshot::Sender<Result<Response, RequestError>>,
+        )>,
+    >,
+    pending_online_rx: Option<tokio::sync::mpsc::UnboundedReceiver<()>>,
 }
 
 // TODO bindings integration
@@ -124,17 +134,6 @@ impl Client {
         let (online_tx, online_rx) = tokio::sync::mpsc::unbounded_channel();
         let cleanup_rx = tokio_util::sync::CancellationToken::new();
 
-        crate::spawn::spawn(crate::sign::relay::connect_loop_state_machine(
-            RELAY_URL.to_string(),
-            project_id,
-            SigningKey::from_bytes(&key),
-            session_store.clone(),
-            tx.clone(),
-            request_rx,
-            online_rx,
-            cleanup_rx.clone(),
-        ));
-
         (
             Self {
                 tx,
@@ -142,9 +141,40 @@ impl Client {
                 session_store,
                 online_tx: Some(online_tx),
                 cleanup_tx: Some(cleanup_rx),
+                project_id,
+                signing_key_bytes: SigningKey::from_bytes(&key).to_bytes(),
+                pending_request_rx: Some(request_rx),
+                pending_online_rx: Some(online_rx),
             },
             rx,
         )
+    }
+
+    pub fn start(&mut self) {
+        if let (Some(request_rx), Some(online_rx)) =
+            (self.pending_request_rx.take(), self.pending_online_rx.take())
+        {
+            let cleanup_rx = self
+                .cleanup_tx
+                .as_ref()
+                .expect("cleanup token must exist")
+                .clone();
+            let project_id = self.project_id.clone();
+            let signing_key = SigningKey::from_bytes(&self.signing_key_bytes);
+            let session_store = self.session_store.clone();
+            let tx = self.tx.clone();
+
+            crate::spawn::spawn(crate::sign::relay::connect_loop_state_machine(
+                RELAY_URL.to_string(),
+                project_id,
+                signing_key,
+                session_store,
+                tx,
+                request_rx,
+                online_rx,
+                cleanup_rx,
+            ));
+        }
     }
 
     /// Call this when the app and user are ready to receive session requests.

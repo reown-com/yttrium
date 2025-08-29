@@ -438,6 +438,22 @@ fileprivate struct FfiConverterUInt16: FfiConverterPrimitive {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterInt32: FfiConverterPrimitive {
+    typealias FfiType = Int32
+    typealias SwiftType = Int32
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Int32 {
+        return try lift(readInt(&buf))
+    }
+
+    public static func write(_ value: Int32, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterUInt64: FfiConverterPrimitive {
     typealias FfiType = UInt64
     typealias SwiftType = UInt64
@@ -866,19 +882,369 @@ public func FfiConverterTypeLogger_lower(_ value: Logger) -> UnsafeMutableRawPoi
 
 
 
+public protocol SessionStoreFfi: AnyObject, Sendable {
+    
+    func addSession(session: SessionFfi) 
+    
+    func deleteSession(topic: String)  -> SessionFfi?
+    
+    func getSession(topic: String)  -> SessionFfi?
+    
+    func getAllSessions()  -> [SessionFfi]
+    
+    func getDecryptionKeyForTopic(topic: String)  -> Data?
+    
+    func savePairingKey(topic: String, symKey: Data) 
+    
+}
+open class SessionStoreFfiImpl: SessionStoreFfi, @unchecked Sendable {
+    fileprivate let pointer: UnsafeMutableRawPointer!
+
+    /// Used to instantiate a [FFIObject] without an actual pointer, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoPointer {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
+        self.pointer = pointer
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noPointer: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing [Pointer] the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noPointer: NoPointer) {
+        self.pointer = nil
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiClonePointer() -> UnsafeMutableRawPointer {
+        return try! rustCall { uniffi_yttrium_fn_clone_sessionstoreffi(self.pointer, $0) }
+    }
+    // No primary constructor declared for this class.
+
+    deinit {
+        guard let pointer = pointer else {
+            return
+        }
+
+        try! rustCall { uniffi_yttrium_fn_free_sessionstoreffi(pointer, $0) }
+    }
+
+    
+
+    
+open func addSession(session: SessionFfi)  {try! rustCall() {
+    uniffi_yttrium_fn_method_sessionstoreffi_add_session(self.uniffiClonePointer(),
+        FfiConverterTypeSessionFfi_lower(session),$0
+    )
+}
+}
+    
+open func deleteSession(topic: String) -> SessionFfi?  {
+    return try!  FfiConverterOptionTypeSessionFfi.lift(try! rustCall() {
+    uniffi_yttrium_fn_method_sessionstoreffi_delete_session(self.uniffiClonePointer(),
+        FfiConverterString.lower(topic),$0
+    )
+})
+}
+    
+open func getSession(topic: String) -> SessionFfi?  {
+    return try!  FfiConverterOptionTypeSessionFfi.lift(try! rustCall() {
+    uniffi_yttrium_fn_method_sessionstoreffi_get_session(self.uniffiClonePointer(),
+        FfiConverterString.lower(topic),$0
+    )
+})
+}
+    
+open func getAllSessions() -> [SessionFfi]  {
+    return try!  FfiConverterSequenceTypeSessionFfi.lift(try! rustCall() {
+    uniffi_yttrium_fn_method_sessionstoreffi_get_all_sessions(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+open func getDecryptionKeyForTopic(topic: String) -> Data?  {
+    return try!  FfiConverterOptionData.lift(try! rustCall() {
+    uniffi_yttrium_fn_method_sessionstoreffi_get_decryption_key_for_topic(self.uniffiClonePointer(),
+        FfiConverterString.lower(topic),$0
+    )
+})
+}
+    
+open func savePairingKey(topic: String, symKey: Data)  {try! rustCall() {
+    uniffi_yttrium_fn_method_sessionstoreffi_save_pairing_key(self.uniffiClonePointer(),
+        FfiConverterString.lower(topic),
+        FfiConverterData.lower(symKey),$0
+    )
+}
+}
+    
+
+}
+
+
+// Put the implementation in a struct so we don't pollute the top-level namespace
+fileprivate struct UniffiCallbackInterfaceSessionStoreFfi {
+
+    // Create the VTable using a series of closures.
+    // Swift automatically converts these into C callback functions.
+    //
+    // This creates 1-element array, since this seems to be the only way to construct a const
+    // pointer that we can pass to the Rust code.
+    static let vtable: [UniffiVTableCallbackInterfaceSessionStoreFfi] = [UniffiVTableCallbackInterfaceSessionStoreFfi(
+        addSession: { (
+            uniffiHandle: UInt64,
+            session: RustBuffer,
+            uniffiOutReturn: UnsafeMutableRawPointer,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> () in
+                guard let uniffiObj = try? FfiConverterTypeSessionStoreFfi.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return uniffiObj.addSession(
+                     session: try FfiConverterTypeSessionFfi_lift(session)
+                )
+            }
+
+            
+            let writeReturn = { () }
+            uniffiTraitInterfaceCall(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn
+            )
+        },
+        deleteSession: { (
+            uniffiHandle: UInt64,
+            topic: RustBuffer,
+            uniffiOutReturn: UnsafeMutablePointer<RustBuffer>,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> SessionFfi? in
+                guard let uniffiObj = try? FfiConverterTypeSessionStoreFfi.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return uniffiObj.deleteSession(
+                     topic: try FfiConverterString.lift(topic)
+                )
+            }
+
+            
+            let writeReturn = { uniffiOutReturn.pointee = FfiConverterOptionTypeSessionFfi.lower($0) }
+            uniffiTraitInterfaceCall(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn
+            )
+        },
+        getSession: { (
+            uniffiHandle: UInt64,
+            topic: RustBuffer,
+            uniffiOutReturn: UnsafeMutablePointer<RustBuffer>,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> SessionFfi? in
+                guard let uniffiObj = try? FfiConverterTypeSessionStoreFfi.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return uniffiObj.getSession(
+                     topic: try FfiConverterString.lift(topic)
+                )
+            }
+
+            
+            let writeReturn = { uniffiOutReturn.pointee = FfiConverterOptionTypeSessionFfi.lower($0) }
+            uniffiTraitInterfaceCall(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn
+            )
+        },
+        getAllSessions: { (
+            uniffiHandle: UInt64,
+            uniffiOutReturn: UnsafeMutablePointer<RustBuffer>,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> [SessionFfi] in
+                guard let uniffiObj = try? FfiConverterTypeSessionStoreFfi.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return uniffiObj.getAllSessions(
+                )
+            }
+
+            
+            let writeReturn = { uniffiOutReturn.pointee = FfiConverterSequenceTypeSessionFfi.lower($0) }
+            uniffiTraitInterfaceCall(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn
+            )
+        },
+        getDecryptionKeyForTopic: { (
+            uniffiHandle: UInt64,
+            topic: RustBuffer,
+            uniffiOutReturn: UnsafeMutablePointer<RustBuffer>,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> Data? in
+                guard let uniffiObj = try? FfiConverterTypeSessionStoreFfi.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return uniffiObj.getDecryptionKeyForTopic(
+                     topic: try FfiConverterString.lift(topic)
+                )
+            }
+
+            
+            let writeReturn = { uniffiOutReturn.pointee = FfiConverterOptionData.lower($0) }
+            uniffiTraitInterfaceCall(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn
+            )
+        },
+        savePairingKey: { (
+            uniffiHandle: UInt64,
+            topic: RustBuffer,
+            symKey: RustBuffer,
+            uniffiOutReturn: UnsafeMutableRawPointer,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> () in
+                guard let uniffiObj = try? FfiConverterTypeSessionStoreFfi.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return uniffiObj.savePairingKey(
+                     topic: try FfiConverterString.lift(topic),
+                     symKey: try FfiConverterData.lift(symKey)
+                )
+            }
+
+            
+            let writeReturn = { () }
+            uniffiTraitInterfaceCall(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn
+            )
+        },
+        uniffiFree: { (uniffiHandle: UInt64) -> () in
+            let result = try? FfiConverterTypeSessionStoreFfi.handleMap.remove(handle: uniffiHandle)
+            if result == nil {
+                print("Uniffi callback interface SessionStoreFfi: handle missing in uniffiFree")
+            }
+        }
+    )]
+}
+
+private func uniffiCallbackInitSessionStoreFfi() {
+    uniffi_yttrium_fn_init_callback_vtable_sessionstoreffi(UniffiCallbackInterfaceSessionStoreFfi.vtable)
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSessionStoreFfi: FfiConverter {
+    fileprivate static let handleMap = UniffiHandleMap<SessionStoreFfi>()
+
+    typealias FfiType = UnsafeMutableRawPointer
+    typealias SwiftType = SessionStoreFfi
+
+    public static func lift(_ pointer: UnsafeMutableRawPointer) throws -> SessionStoreFfi {
+        return SessionStoreFfiImpl(unsafeFromRawPointer: pointer)
+    }
+
+    public static func lower(_ value: SessionStoreFfi) -> UnsafeMutableRawPointer {
+        guard let ptr = UnsafeMutableRawPointer(bitPattern: UInt(truncatingIfNeeded: handleMap.insert(obj: value))) else {
+            fatalError("Cast to UnsafeMutableRawPointer failed")
+        }
+        return ptr
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SessionStoreFfi {
+        let v: UInt64 = try readInt(&buf)
+        // The Rust code won't compile if a pointer won't fit in a UInt64.
+        // We have to go via `UInt` because that's the thing that's the size of a pointer.
+        let ptr = UnsafeMutableRawPointer(bitPattern: UInt(truncatingIfNeeded: v))
+        if (ptr == nil) {
+            throw UniffiInternalError.unexpectedNullPointer
+        }
+        return try lift(ptr!)
+    }
+
+    public static func write(_ value: SessionStoreFfi, into buf: inout [UInt8]) {
+        // This fiddling is because `Int` is the thing that's the same size as a pointer.
+        // The Rust code won't compile if a pointer won't fit in a `UInt64`.
+        writeInt(&buf, UInt64(bitPattern: Int64(Int(bitPattern: lower(value)))))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSessionStoreFfi_lift(_ pointer: UnsafeMutableRawPointer) throws -> SessionStoreFfi {
+    return try FfiConverterTypeSessionStoreFfi.lift(pointer)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSessionStoreFfi_lower(_ value: SessionStoreFfi) -> UnsafeMutableRawPointer {
+    return FfiConverterTypeSessionStoreFfi.lower(value)
+}
+
+
+
+
+
+
 public protocol SignClientProtocol: AnyObject, Sendable {
     
     func approve(proposal: SessionProposalFfi, approvedNamespaces: [String: SettleNamespace], selfMetadata: Metadata) async throws  -> SessionFfi
     
-    func approveJson(proposal: String, approvedNamespaces: String, selfMetadata: String) async throws  -> String
+    func connect(params: ConnectParamsFfi, selfMetadata: Metadata) async throws  -> ConnectResultFfi
+    
+    func disconnect(topic: String) async throws 
     
     func generateKey()  -> Data
     
+    func online() async 
+    
     func pair(uri: String) async throws  -> SessionProposalFfi
     
-    func pairJson(uri: String) async throws  -> String
+    func registerSignListener(listener: SignListener) async 
     
-    func setKey(key: Data) async 
+    func reject(proposal: SessionProposalFfi, reason: ErrorDataFfi) async throws 
+    
+    func respond(topic: String, response: SessionRequestJsonRpcResponseFfi) async throws  -> String
+    
+    func start() async 
     
 }
 open class SignClient: SignClientProtocol, @unchecked Sendable {
@@ -920,11 +1286,13 @@ open class SignClient: SignClientProtocol, @unchecked Sendable {
     public func uniffiClonePointer() -> UnsafeMutableRawPointer {
         return try! rustCall { uniffi_yttrium_fn_clone_signclient(self.pointer, $0) }
     }
-public convenience init(projectId: String) {
+public convenience init(projectId: String, key: Data, sessionStore: SessionStoreFfi) {
     let pointer =
         try! rustCall() {
     uniffi_yttrium_fn_constructor_signclient_new(
-        FfiConverterString.lower(projectId),$0
+        FfiConverterString.lower(projectId),
+        FfiConverterData.lower(key),
+        FfiConverterTypeSessionStoreFfi_lower(sessionStore),$0
     )
 }
     self.init(unsafeFromRawPointer: pointer)
@@ -958,20 +1326,37 @@ open func approve(proposal: SessionProposalFfi, approvedNamespaces: [String: Set
         )
 }
     
-open func approveJson(proposal: String, approvedNamespaces: String, selfMetadata: String)async throws  -> String  {
+open func connect(params: ConnectParamsFfi, selfMetadata: Metadata)async throws  -> ConnectResultFfi  {
     return
         try  await uniffiRustCallAsync(
             rustFutureFunc: {
-                uniffi_yttrium_fn_method_signclient_approve_json(
+                uniffi_yttrium_fn_method_signclient_connect(
                     self.uniffiClonePointer(),
-                    FfiConverterString.lower(proposal),FfiConverterString.lower(approvedNamespaces),FfiConverterString.lower(selfMetadata)
+                    FfiConverterTypeConnectParamsFfi_lower(params),FfiConverterTypeMetadata_lower(selfMetadata)
                 )
             },
             pollFunc: ffi_yttrium_rust_future_poll_rust_buffer,
             completeFunc: ffi_yttrium_rust_future_complete_rust_buffer,
             freeFunc: ffi_yttrium_rust_future_free_rust_buffer,
-            liftFunc: FfiConverterString.lift,
-            errorHandler: FfiConverterTypeApproveError_lift
+            liftFunc: FfiConverterTypeConnectResultFfi_lift,
+            errorHandler: FfiConverterTypeConnectError_lift
+        )
+}
+    
+open func disconnect(topic: String)async throws   {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_yttrium_fn_method_signclient_disconnect(
+                    self.uniffiClonePointer(),
+                    FfiConverterString.lower(topic)
+                )
+            },
+            pollFunc: ffi_yttrium_rust_future_poll_void,
+            completeFunc: ffi_yttrium_rust_future_complete_void,
+            freeFunc: ffi_yttrium_rust_future_free_void,
+            liftFunc: { $0 },
+            errorHandler: FfiConverterTypeDisconnectError_lift
         )
 }
     
@@ -980,6 +1365,24 @@ open func generateKey() -> Data  {
     uniffi_yttrium_fn_method_signclient_generate_key(self.uniffiClonePointer(),$0
     )
 })
+}
+    
+open func online()async   {
+    return
+        try!  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_yttrium_fn_method_signclient_online(
+                    self.uniffiClonePointer()
+                    
+                )
+            },
+            pollFunc: ffi_yttrium_rust_future_poll_void,
+            completeFunc: ffi_yttrium_rust_future_complete_void,
+            freeFunc: ffi_yttrium_rust_future_free_void,
+            liftFunc: { $0 },
+            errorHandler: nil
+            
+        )
 }
     
 open func pair(uri: String)async throws  -> SessionProposalFfi  {
@@ -999,30 +1402,65 @@ open func pair(uri: String)async throws  -> SessionProposalFfi  {
         )
 }
     
-open func pairJson(uri: String)async throws  -> String  {
+open func registerSignListener(listener: SignListener)async   {
+    return
+        try!  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_yttrium_fn_method_signclient_register_sign_listener(
+                    self.uniffiClonePointer(),
+                    FfiConverterTypeSignListener_lower(listener)
+                )
+            },
+            pollFunc: ffi_yttrium_rust_future_poll_void,
+            completeFunc: ffi_yttrium_rust_future_complete_void,
+            freeFunc: ffi_yttrium_rust_future_free_void,
+            liftFunc: { $0 },
+            errorHandler: nil
+            
+        )
+}
+    
+open func reject(proposal: SessionProposalFfi, reason: ErrorDataFfi)async throws   {
     return
         try  await uniffiRustCallAsync(
             rustFutureFunc: {
-                uniffi_yttrium_fn_method_signclient_pair_json(
+                uniffi_yttrium_fn_method_signclient_reject(
                     self.uniffiClonePointer(),
-                    FfiConverterString.lower(uri)
+                    FfiConverterTypeSessionProposalFfi_lower(proposal),FfiConverterTypeErrorDataFfi_lower(reason)
+                )
+            },
+            pollFunc: ffi_yttrium_rust_future_poll_void,
+            completeFunc: ffi_yttrium_rust_future_complete_void,
+            freeFunc: ffi_yttrium_rust_future_free_void,
+            liftFunc: { $0 },
+            errorHandler: FfiConverterTypeRejectError_lift
+        )
+}
+    
+open func respond(topic: String, response: SessionRequestJsonRpcResponseFfi)async throws  -> String  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_yttrium_fn_method_signclient_respond(
+                    self.uniffiClonePointer(),
+                    FfiConverterString.lower(topic),FfiConverterTypeSessionRequestJsonRpcResponseFfi_lower(response)
                 )
             },
             pollFunc: ffi_yttrium_rust_future_poll_rust_buffer,
             completeFunc: ffi_yttrium_rust_future_complete_rust_buffer,
             freeFunc: ffi_yttrium_rust_future_free_rust_buffer,
             liftFunc: FfiConverterString.lift,
-            errorHandler: FfiConverterTypePairError_lift
+            errorHandler: FfiConverterTypeRespondError_lift
         )
 }
     
-open func setKey(key: Data)async   {
+open func start()async   {
     return
         try!  await uniffiRustCallAsync(
             rustFutureFunc: {
-                uniffi_yttrium_fn_method_signclient_set_key(
-                    self.uniffiClonePointer(),
-                    FfiConverterData.lower(key)
+                uniffi_yttrium_fn_method_signclient_start(
+                    self.uniffiClonePointer()
+                    
                 )
             },
             pollFunc: ffi_yttrium_rust_future_poll_void,
@@ -1085,6 +1523,365 @@ public func FfiConverterTypeSignClient_lift(_ pointer: UnsafeMutableRawPointer) 
 #endif
 public func FfiConverterTypeSignClient_lower(_ value: SignClient) -> UnsafeMutableRawPointer {
     return FfiConverterTypeSignClient.lower(value)
+}
+
+
+
+
+
+
+public protocol SignListener: AnyObject, Sendable {
+    
+    func onSessionRequest(topic: String, sessionRequest: SessionRequestJsonRpcFfi) 
+    
+    func onSessionDisconnect(id: UInt64, topic: String) 
+    
+    func onSessionEvent(id: UInt64, topic: String, params: Bool) 
+    
+    func onSessionExtend(id: UInt64, topic: String) 
+    
+    func onSessionUpdate(id: UInt64, topic: String, params: Bool) 
+    
+    func onSessionConnect(id: UInt64) 
+    
+}
+open class SignListenerImpl: SignListener, @unchecked Sendable {
+    fileprivate let pointer: UnsafeMutableRawPointer!
+
+    /// Used to instantiate a [FFIObject] without an actual pointer, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoPointer {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
+        self.pointer = pointer
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noPointer: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing [Pointer] the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noPointer: NoPointer) {
+        self.pointer = nil
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiClonePointer() -> UnsafeMutableRawPointer {
+        return try! rustCall { uniffi_yttrium_fn_clone_signlistener(self.pointer, $0) }
+    }
+    // No primary constructor declared for this class.
+
+    deinit {
+        guard let pointer = pointer else {
+            return
+        }
+
+        try! rustCall { uniffi_yttrium_fn_free_signlistener(pointer, $0) }
+    }
+
+    
+
+    
+open func onSessionRequest(topic: String, sessionRequest: SessionRequestJsonRpcFfi)  {try! rustCall() {
+    uniffi_yttrium_fn_method_signlistener_on_session_request(self.uniffiClonePointer(),
+        FfiConverterString.lower(topic),
+        FfiConverterTypeSessionRequestJsonRpcFfi_lower(sessionRequest),$0
+    )
+}
+}
+    
+open func onSessionDisconnect(id: UInt64, topic: String)  {try! rustCall() {
+    uniffi_yttrium_fn_method_signlistener_on_session_disconnect(self.uniffiClonePointer(),
+        FfiConverterUInt64.lower(id),
+        FfiConverterString.lower(topic),$0
+    )
+}
+}
+    
+open func onSessionEvent(id: UInt64, topic: String, params: Bool)  {try! rustCall() {
+    uniffi_yttrium_fn_method_signlistener_on_session_event(self.uniffiClonePointer(),
+        FfiConverterUInt64.lower(id),
+        FfiConverterString.lower(topic),
+        FfiConverterBool.lower(params),$0
+    )
+}
+}
+    
+open func onSessionExtend(id: UInt64, topic: String)  {try! rustCall() {
+    uniffi_yttrium_fn_method_signlistener_on_session_extend(self.uniffiClonePointer(),
+        FfiConverterUInt64.lower(id),
+        FfiConverterString.lower(topic),$0
+    )
+}
+}
+    
+open func onSessionUpdate(id: UInt64, topic: String, params: Bool)  {try! rustCall() {
+    uniffi_yttrium_fn_method_signlistener_on_session_update(self.uniffiClonePointer(),
+        FfiConverterUInt64.lower(id),
+        FfiConverterString.lower(topic),
+        FfiConverterBool.lower(params),$0
+    )
+}
+}
+    
+open func onSessionConnect(id: UInt64)  {try! rustCall() {
+    uniffi_yttrium_fn_method_signlistener_on_session_connect(self.uniffiClonePointer(),
+        FfiConverterUInt64.lower(id),$0
+    )
+}
+}
+    
+
+}
+
+
+// Put the implementation in a struct so we don't pollute the top-level namespace
+fileprivate struct UniffiCallbackInterfaceSignListener {
+
+    // Create the VTable using a series of closures.
+    // Swift automatically converts these into C callback functions.
+    //
+    // This creates 1-element array, since this seems to be the only way to construct a const
+    // pointer that we can pass to the Rust code.
+    static let vtable: [UniffiVTableCallbackInterfaceSignListener] = [UniffiVTableCallbackInterfaceSignListener(
+        onSessionRequest: { (
+            uniffiHandle: UInt64,
+            topic: RustBuffer,
+            sessionRequest: RustBuffer,
+            uniffiOutReturn: UnsafeMutableRawPointer,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> () in
+                guard let uniffiObj = try? FfiConverterTypeSignListener.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return uniffiObj.onSessionRequest(
+                     topic: try FfiConverterString.lift(topic),
+                     sessionRequest: try FfiConverterTypeSessionRequestJsonRpcFfi_lift(sessionRequest)
+                )
+            }
+
+            
+            let writeReturn = { () }
+            uniffiTraitInterfaceCall(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn
+            )
+        },
+        onSessionDisconnect: { (
+            uniffiHandle: UInt64,
+            id: UInt64,
+            topic: RustBuffer,
+            uniffiOutReturn: UnsafeMutableRawPointer,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> () in
+                guard let uniffiObj = try? FfiConverterTypeSignListener.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return uniffiObj.onSessionDisconnect(
+                     id: try FfiConverterUInt64.lift(id),
+                     topic: try FfiConverterString.lift(topic)
+                )
+            }
+
+            
+            let writeReturn = { () }
+            uniffiTraitInterfaceCall(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn
+            )
+        },
+        onSessionEvent: { (
+            uniffiHandle: UInt64,
+            id: UInt64,
+            topic: RustBuffer,
+            params: Int8,
+            uniffiOutReturn: UnsafeMutableRawPointer,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> () in
+                guard let uniffiObj = try? FfiConverterTypeSignListener.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return uniffiObj.onSessionEvent(
+                     id: try FfiConverterUInt64.lift(id),
+                     topic: try FfiConverterString.lift(topic),
+                     params: try FfiConverterBool.lift(params)
+                )
+            }
+
+            
+            let writeReturn = { () }
+            uniffiTraitInterfaceCall(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn
+            )
+        },
+        onSessionExtend: { (
+            uniffiHandle: UInt64,
+            id: UInt64,
+            topic: RustBuffer,
+            uniffiOutReturn: UnsafeMutableRawPointer,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> () in
+                guard let uniffiObj = try? FfiConverterTypeSignListener.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return uniffiObj.onSessionExtend(
+                     id: try FfiConverterUInt64.lift(id),
+                     topic: try FfiConverterString.lift(topic)
+                )
+            }
+
+            
+            let writeReturn = { () }
+            uniffiTraitInterfaceCall(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn
+            )
+        },
+        onSessionUpdate: { (
+            uniffiHandle: UInt64,
+            id: UInt64,
+            topic: RustBuffer,
+            params: Int8,
+            uniffiOutReturn: UnsafeMutableRawPointer,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> () in
+                guard let uniffiObj = try? FfiConverterTypeSignListener.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return uniffiObj.onSessionUpdate(
+                     id: try FfiConverterUInt64.lift(id),
+                     topic: try FfiConverterString.lift(topic),
+                     params: try FfiConverterBool.lift(params)
+                )
+            }
+
+            
+            let writeReturn = { () }
+            uniffiTraitInterfaceCall(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn
+            )
+        },
+        onSessionConnect: { (
+            uniffiHandle: UInt64,
+            id: UInt64,
+            uniffiOutReturn: UnsafeMutableRawPointer,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> () in
+                guard let uniffiObj = try? FfiConverterTypeSignListener.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return uniffiObj.onSessionConnect(
+                     id: try FfiConverterUInt64.lift(id)
+                )
+            }
+
+            
+            let writeReturn = { () }
+            uniffiTraitInterfaceCall(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn
+            )
+        },
+        uniffiFree: { (uniffiHandle: UInt64) -> () in
+            let result = try? FfiConverterTypeSignListener.handleMap.remove(handle: uniffiHandle)
+            if result == nil {
+                print("Uniffi callback interface SignListener: handle missing in uniffiFree")
+            }
+        }
+    )]
+}
+
+private func uniffiCallbackInitSignListener() {
+    uniffi_yttrium_fn_init_callback_vtable_signlistener(UniffiCallbackInterfaceSignListener.vtable)
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSignListener: FfiConverter {
+    fileprivate static let handleMap = UniffiHandleMap<SignListener>()
+
+    typealias FfiType = UnsafeMutableRawPointer
+    typealias SwiftType = SignListener
+
+    public static func lift(_ pointer: UnsafeMutableRawPointer) throws -> SignListener {
+        return SignListenerImpl(unsafeFromRawPointer: pointer)
+    }
+
+    public static func lower(_ value: SignListener) -> UnsafeMutableRawPointer {
+        guard let ptr = UnsafeMutableRawPointer(bitPattern: UInt(truncatingIfNeeded: handleMap.insert(obj: value))) else {
+            fatalError("Cast to UnsafeMutableRawPointer failed")
+        }
+        return ptr
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SignListener {
+        let v: UInt64 = try readInt(&buf)
+        // The Rust code won't compile if a pointer won't fit in a UInt64.
+        // We have to go via `UInt` because that's the thing that's the size of a pointer.
+        let ptr = UnsafeMutableRawPointer(bitPattern: UInt(truncatingIfNeeded: v))
+        if (ptr == nil) {
+            throw UniffiInternalError.unexpectedNullPointer
+        }
+        return try lift(ptr!)
+    }
+
+    public static func write(_ value: SignListener, into buf: inout [UInt8]) {
+        // This fiddling is because `Int` is the thing that's the same size as a pointer.
+        // The Rust code won't compile if a pointer won't fit in a `UInt64`.
+        writeInt(&buf, UInt64(bitPattern: Int64(Int(bitPattern: lower(value)))))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSignListener_lift(_ pointer: UnsafeMutableRawPointer) throws -> SignListener {
+    return try FfiConverterTypeSignListener.lift(pointer)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSignListener_lower(_ value: SignListener) -> UnsafeMutableRawPointer {
+    return FfiConverterTypeSignListener.lower(value)
 }
 
 
@@ -1327,6 +2124,310 @@ public func FfiConverterTypeConfig_lift(_ buf: RustBuffer) throws -> Config {
 #endif
 public func FfiConverterTypeConfig_lower(_ value: Config) -> RustBuffer {
     return FfiConverterTypeConfig.lower(value)
+}
+
+
+public struct ConnectParams {
+    public var optionalNamespaces: [String: ProposalNamespace]
+    public var sessionProperties: [String: String]?
+    public var scopedProperties: [String: String]?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(optionalNamespaces: [String: ProposalNamespace], sessionProperties: [String: String]?, scopedProperties: [String: String]?) {
+        self.optionalNamespaces = optionalNamespaces
+        self.sessionProperties = sessionProperties
+        self.scopedProperties = scopedProperties
+    }
+}
+
+#if compiler(>=6)
+extension ConnectParams: Sendable {}
+#endif
+
+
+extension ConnectParams: Equatable, Hashable {
+    public static func ==(lhs: ConnectParams, rhs: ConnectParams) -> Bool {
+        if lhs.optionalNamespaces != rhs.optionalNamespaces {
+            return false
+        }
+        if lhs.sessionProperties != rhs.sessionProperties {
+            return false
+        }
+        if lhs.scopedProperties != rhs.scopedProperties {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(optionalNamespaces)
+        hasher.combine(sessionProperties)
+        hasher.combine(scopedProperties)
+    }
+}
+
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeConnectParams: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ConnectParams {
+        return
+            try ConnectParams(
+                optionalNamespaces: FfiConverterDictionaryStringTypeProposalNamespace.read(from: &buf), 
+                sessionProperties: FfiConverterOptionDictionaryStringString.read(from: &buf), 
+                scopedProperties: FfiConverterOptionDictionaryStringString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ConnectParams, into buf: inout [UInt8]) {
+        FfiConverterDictionaryStringTypeProposalNamespace.write(value.optionalNamespaces, into: &buf)
+        FfiConverterOptionDictionaryStringString.write(value.sessionProperties, into: &buf)
+        FfiConverterOptionDictionaryStringString.write(value.scopedProperties, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeConnectParams_lift(_ buf: RustBuffer) throws -> ConnectParams {
+    return try FfiConverterTypeConnectParams.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeConnectParams_lower(_ value: ConnectParams) -> RustBuffer {
+    return FfiConverterTypeConnectParams.lower(value)
+}
+
+
+public struct ConnectParamsFfi {
+    public var optionalNamespaces: [String: ProposalNamespace]
+    public var sessionProperties: [String: String]?
+    public var scopedProperties: [String: String]?
+    public var metadata: Metadata
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(optionalNamespaces: [String: ProposalNamespace], sessionProperties: [String: String]?, scopedProperties: [String: String]?, metadata: Metadata) {
+        self.optionalNamespaces = optionalNamespaces
+        self.sessionProperties = sessionProperties
+        self.scopedProperties = scopedProperties
+        self.metadata = metadata
+    }
+}
+
+#if compiler(>=6)
+extension ConnectParamsFfi: Sendable {}
+#endif
+
+
+extension ConnectParamsFfi: Equatable, Hashable {
+    public static func ==(lhs: ConnectParamsFfi, rhs: ConnectParamsFfi) -> Bool {
+        if lhs.optionalNamespaces != rhs.optionalNamespaces {
+            return false
+        }
+        if lhs.sessionProperties != rhs.sessionProperties {
+            return false
+        }
+        if lhs.scopedProperties != rhs.scopedProperties {
+            return false
+        }
+        if lhs.metadata != rhs.metadata {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(optionalNamespaces)
+        hasher.combine(sessionProperties)
+        hasher.combine(scopedProperties)
+        hasher.combine(metadata)
+    }
+}
+
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeConnectParamsFfi: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ConnectParamsFfi {
+        return
+            try ConnectParamsFfi(
+                optionalNamespaces: FfiConverterDictionaryStringTypeProposalNamespace.read(from: &buf), 
+                sessionProperties: FfiConverterOptionDictionaryStringString.read(from: &buf), 
+                scopedProperties: FfiConverterOptionDictionaryStringString.read(from: &buf), 
+                metadata: FfiConverterTypeMetadata.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ConnectParamsFfi, into buf: inout [UInt8]) {
+        FfiConverterDictionaryStringTypeProposalNamespace.write(value.optionalNamespaces, into: &buf)
+        FfiConverterOptionDictionaryStringString.write(value.sessionProperties, into: &buf)
+        FfiConverterOptionDictionaryStringString.write(value.scopedProperties, into: &buf)
+        FfiConverterTypeMetadata.write(value.metadata, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeConnectParamsFfi_lift(_ buf: RustBuffer) throws -> ConnectParamsFfi {
+    return try FfiConverterTypeConnectParamsFfi.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeConnectParamsFfi_lower(_ value: ConnectParamsFfi) -> RustBuffer {
+    return FfiConverterTypeConnectParamsFfi.lower(value)
+}
+
+
+public struct ConnectResult {
+    public var topic: Topic
+    public var uri: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(topic: Topic, uri: String) {
+        self.topic = topic
+        self.uri = uri
+    }
+}
+
+#if compiler(>=6)
+extension ConnectResult: Sendable {}
+#endif
+
+
+extension ConnectResult: Equatable, Hashable {
+    public static func ==(lhs: ConnectResult, rhs: ConnectResult) -> Bool {
+        if lhs.topic != rhs.topic {
+            return false
+        }
+        if lhs.uri != rhs.uri {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(topic)
+        hasher.combine(uri)
+    }
+}
+
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeConnectResult: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ConnectResult {
+        return
+            try ConnectResult(
+                topic: FfiConverterTypeTopic.read(from: &buf), 
+                uri: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ConnectResult, into buf: inout [UInt8]) {
+        FfiConverterTypeTopic.write(value.topic, into: &buf)
+        FfiConverterString.write(value.uri, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeConnectResult_lift(_ buf: RustBuffer) throws -> ConnectResult {
+    return try FfiConverterTypeConnectResult.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeConnectResult_lower(_ value: ConnectResult) -> RustBuffer {
+    return FfiConverterTypeConnectResult.lower(value)
+}
+
+
+public struct ConnectResultFfi {
+    public var topic: Topic
+    public var uri: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(topic: Topic, uri: String) {
+        self.topic = topic
+        self.uri = uri
+    }
+}
+
+#if compiler(>=6)
+extension ConnectResultFfi: Sendable {}
+#endif
+
+
+extension ConnectResultFfi: Equatable, Hashable {
+    public static func ==(lhs: ConnectResultFfi, rhs: ConnectResultFfi) -> Bool {
+        if lhs.topic != rhs.topic {
+            return false
+        }
+        if lhs.uri != rhs.uri {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(topic)
+        hasher.combine(uri)
+    }
+}
+
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeConnectResultFfi: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ConnectResultFfi {
+        return
+            try ConnectResultFfi(
+                topic: FfiConverterTypeTopic.read(from: &buf), 
+                uri: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ConnectResultFfi, into buf: inout [UInt8]) {
+        FfiConverterTypeTopic.write(value.topic, into: &buf)
+        FfiConverterString.write(value.uri, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeConnectResultFfi_lift(_ buf: RustBuffer) throws -> ConnectResultFfi {
+    return try FfiConverterTypeConnectResultFfi.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeConnectResultFfi_lower(_ value: ConnectResultFfi) -> RustBuffer {
+    return FfiConverterTypeConnectResultFfi.lower(value)
 }
 
 
@@ -1725,6 +2826,102 @@ public func FfiConverterTypeErc721Metadata_lift(_ buf: RustBuffer) throws -> Erc
 #endif
 public func FfiConverterTypeErc721Metadata_lower(_ value: Erc721Metadata) -> RustBuffer {
     return FfiConverterTypeErc721Metadata.lower(value)
+}
+
+
+public struct ErrorDataFfi {
+    /**
+     * Error code.
+     */
+    public var code: Int32
+    /**
+     * Error message.
+     */
+    public var message: String
+    /**
+     * Error data, if any.
+     */
+    public var data: String?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Error code.
+         */code: Int32, 
+        /**
+         * Error message.
+         */message: String, 
+        /**
+         * Error data, if any.
+         */data: String?) {
+        self.code = code
+        self.message = message
+        self.data = data
+    }
+}
+
+#if compiler(>=6)
+extension ErrorDataFfi: Sendable {}
+#endif
+
+
+extension ErrorDataFfi: Equatable, Hashable {
+    public static func ==(lhs: ErrorDataFfi, rhs: ErrorDataFfi) -> Bool {
+        if lhs.code != rhs.code {
+            return false
+        }
+        if lhs.message != rhs.message {
+            return false
+        }
+        if lhs.data != rhs.data {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(code)
+        hasher.combine(message)
+        hasher.combine(data)
+    }
+}
+
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeErrorDataFfi: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ErrorDataFfi {
+        return
+            try ErrorDataFfi(
+                code: FfiConverterInt32.read(from: &buf), 
+                message: FfiConverterString.read(from: &buf), 
+                data: FfiConverterOptionString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ErrorDataFfi, into buf: inout [UInt8]) {
+        FfiConverterInt32.write(value.code, into: &buf)
+        FfiConverterString.write(value.message, into: &buf)
+        FfiConverterOptionString.write(value.data, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeErrorDataFfi_lift(_ buf: RustBuffer) throws -> ErrorDataFfi {
+    return try FfiConverterTypeErrorDataFfi.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeErrorDataFfi_lower(_ value: ErrorDataFfi) -> RustBuffer {
+    return FfiConverterTypeErrorDataFfi.lower(value)
 }
 
 
@@ -2638,6 +3835,194 @@ public func FfiConverterTypeOwnerSignature_lower(_ value: OwnerSignature) -> Rus
 }
 
 
+public struct Pairing {
+    public var topic: String
+    public var uri: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(topic: String, uri: String) {
+        self.topic = topic
+        self.uri = uri
+    }
+}
+
+#if compiler(>=6)
+extension Pairing: Sendable {}
+#endif
+
+
+extension Pairing: Equatable, Hashable {
+    public static func ==(lhs: Pairing, rhs: Pairing) -> Bool {
+        if lhs.topic != rhs.topic {
+            return false
+        }
+        if lhs.uri != rhs.uri {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(topic)
+        hasher.combine(uri)
+    }
+}
+
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypePairing: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Pairing {
+        return
+            try Pairing(
+                topic: FfiConverterString.read(from: &buf), 
+                uri: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: Pairing, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.topic, into: &buf)
+        FfiConverterString.write(value.uri, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePairing_lift(_ buf: RustBuffer) throws -> Pairing {
+    return try FfiConverterTypePairing.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePairing_lower(_ value: Pairing) -> RustBuffer {
+    return FfiConverterTypePairing.lower(value)
+}
+
+
+public struct PairingInfo {
+    public var topic: Topic
+    public var uri: String
+    public var symKey: Data
+    public var expiry: UInt64
+    public var relay: Relay
+    public var active: Bool
+    public var methods: [String]?
+    public var peerMetadata: Metadata?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(topic: Topic, uri: String, symKey: Data, expiry: UInt64, relay: Relay, active: Bool, methods: [String]?, peerMetadata: Metadata?) {
+        self.topic = topic
+        self.uri = uri
+        self.symKey = symKey
+        self.expiry = expiry
+        self.relay = relay
+        self.active = active
+        self.methods = methods
+        self.peerMetadata = peerMetadata
+    }
+}
+
+#if compiler(>=6)
+extension PairingInfo: Sendable {}
+#endif
+
+
+extension PairingInfo: Equatable, Hashable {
+    public static func ==(lhs: PairingInfo, rhs: PairingInfo) -> Bool {
+        if lhs.topic != rhs.topic {
+            return false
+        }
+        if lhs.uri != rhs.uri {
+            return false
+        }
+        if lhs.symKey != rhs.symKey {
+            return false
+        }
+        if lhs.expiry != rhs.expiry {
+            return false
+        }
+        if lhs.relay != rhs.relay {
+            return false
+        }
+        if lhs.active != rhs.active {
+            return false
+        }
+        if lhs.methods != rhs.methods {
+            return false
+        }
+        if lhs.peerMetadata != rhs.peerMetadata {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(topic)
+        hasher.combine(uri)
+        hasher.combine(symKey)
+        hasher.combine(expiry)
+        hasher.combine(relay)
+        hasher.combine(active)
+        hasher.combine(methods)
+        hasher.combine(peerMetadata)
+    }
+}
+
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypePairingInfo: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> PairingInfo {
+        return
+            try PairingInfo(
+                topic: FfiConverterTypeTopic.read(from: &buf), 
+                uri: FfiConverterString.read(from: &buf), 
+                symKey: FfiConverterData.read(from: &buf), 
+                expiry: FfiConverterUInt64.read(from: &buf), 
+                relay: FfiConverterTypeRelay.read(from: &buf), 
+                active: FfiConverterBool.read(from: &buf), 
+                methods: FfiConverterOptionSequenceString.read(from: &buf), 
+                peerMetadata: FfiConverterOptionTypeMetadata.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: PairingInfo, into buf: inout [UInt8]) {
+        FfiConverterTypeTopic.write(value.topic, into: &buf)
+        FfiConverterString.write(value.uri, into: &buf)
+        FfiConverterData.write(value.symKey, into: &buf)
+        FfiConverterUInt64.write(value.expiry, into: &buf)
+        FfiConverterTypeRelay.write(value.relay, into: &buf)
+        FfiConverterBool.write(value.active, into: &buf)
+        FfiConverterOptionSequenceString.write(value.methods, into: &buf)
+        FfiConverterOptionTypeMetadata.write(value.peerMetadata, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePairingInfo_lift(_ buf: RustBuffer) throws -> PairingInfo {
+    return try FfiConverterTypePairingInfo.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePairingInfo_lower(_ value: PairingInfo) -> RustBuffer {
+    return FfiConverterTypePairingInfo.lower(value)
+}
+
+
 public struct PrepareResponseAvailable {
     public var orchestrationId: String
     public var initialTransaction: Transaction
@@ -3509,15 +4894,205 @@ public func FfiConverterTypeSafeOp_lower(_ value: SafeOp) -> RustBuffer {
 }
 
 
-public struct SessionFfi {
-    public var sessionSymKey: Data
-    public var selfPublicKey: Data
+public struct SessionDelete {
+    public var code: UInt64
+    public var message: String
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(sessionSymKey: Data, selfPublicKey: Data) {
+    public init(code: UInt64, message: String) {
+        self.code = code
+        self.message = message
+    }
+}
+
+#if compiler(>=6)
+extension SessionDelete: Sendable {}
+#endif
+
+
+extension SessionDelete: Equatable, Hashable {
+    public static func ==(lhs: SessionDelete, rhs: SessionDelete) -> Bool {
+        if lhs.code != rhs.code {
+            return false
+        }
+        if lhs.message != rhs.message {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(code)
+        hasher.combine(message)
+    }
+}
+
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSessionDelete: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SessionDelete {
+        return
+            try SessionDelete(
+                code: FfiConverterUInt64.read(from: &buf), 
+                message: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: SessionDelete, into buf: inout [UInt8]) {
+        FfiConverterUInt64.write(value.code, into: &buf)
+        FfiConverterString.write(value.message, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSessionDelete_lift(_ buf: RustBuffer) throws -> SessionDelete {
+    return try FfiConverterTypeSessionDelete.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSessionDelete_lower(_ value: SessionDelete) -> RustBuffer {
+    return FfiConverterTypeSessionDelete.lower(value)
+}
+
+
+public struct SessionDeleteJsonRpc {
+    public var id: UInt64
+    public var jsonrpc: String
+    public var method: String
+    public var params: SessionDelete
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(id: UInt64, jsonrpc: String, method: String, params: SessionDelete) {
+        self.id = id
+        self.jsonrpc = jsonrpc
+        self.method = method
+        self.params = params
+    }
+}
+
+#if compiler(>=6)
+extension SessionDeleteJsonRpc: Sendable {}
+#endif
+
+
+extension SessionDeleteJsonRpc: Equatable, Hashable {
+    public static func ==(lhs: SessionDeleteJsonRpc, rhs: SessionDeleteJsonRpc) -> Bool {
+        if lhs.id != rhs.id {
+            return false
+        }
+        if lhs.jsonrpc != rhs.jsonrpc {
+            return false
+        }
+        if lhs.method != rhs.method {
+            return false
+        }
+        if lhs.params != rhs.params {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+        hasher.combine(jsonrpc)
+        hasher.combine(method)
+        hasher.combine(params)
+    }
+}
+
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSessionDeleteJsonRpc: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SessionDeleteJsonRpc {
+        return
+            try SessionDeleteJsonRpc(
+                id: FfiConverterUInt64.read(from: &buf), 
+                jsonrpc: FfiConverterString.read(from: &buf), 
+                method: FfiConverterString.read(from: &buf), 
+                params: FfiConverterTypeSessionDelete.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: SessionDeleteJsonRpc, into buf: inout [UInt8]) {
+        FfiConverterUInt64.write(value.id, into: &buf)
+        FfiConverterString.write(value.jsonrpc, into: &buf)
+        FfiConverterString.write(value.method, into: &buf)
+        FfiConverterTypeSessionDelete.write(value.params, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSessionDeleteJsonRpc_lift(_ buf: RustBuffer) throws -> SessionDeleteJsonRpc {
+    return try FfiConverterTypeSessionDeleteJsonRpc.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSessionDeleteJsonRpc_lower(_ value: SessionDeleteJsonRpc) -> RustBuffer {
+    return FfiConverterTypeSessionDeleteJsonRpc.lower(value)
+}
+
+
+public struct SessionFfi {
+    public var requestId: UInt64
+    public var sessionSymKey: Data
+    public var selfPublicKey: Data
+    public var topic: Topic
+    public var expiry: UInt64
+    public var relayProtocol: String
+    public var relayData: String?
+    public var controllerKey: Data?
+    public var selfMetaData: Metadata
+    public var peerPublicKey: Data?
+    public var peerMetaData: Metadata?
+    public var sessionNamespaces: [String: SettleNamespace]
+    public var requiredNamespaces: [String: ProposalNamespace]
+    public var optionalNamespaces: [String: ProposalNamespace]?
+    public var properties: [String: String]?
+    public var scopedProperties: [String: String]?
+    public var isAcknowledged: Bool
+    public var pairingTopic: String
+    public var transportType: TransportType?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(requestId: UInt64, sessionSymKey: Data, selfPublicKey: Data, topic: Topic, expiry: UInt64, relayProtocol: String, relayData: String?, controllerKey: Data?, selfMetaData: Metadata, peerPublicKey: Data?, peerMetaData: Metadata?, sessionNamespaces: [String: SettleNamespace], requiredNamespaces: [String: ProposalNamespace], optionalNamespaces: [String: ProposalNamespace]?, properties: [String: String]?, scopedProperties: [String: String]?, isAcknowledged: Bool, pairingTopic: String, transportType: TransportType?) {
+        self.requestId = requestId
         self.sessionSymKey = sessionSymKey
         self.selfPublicKey = selfPublicKey
+        self.topic = topic
+        self.expiry = expiry
+        self.relayProtocol = relayProtocol
+        self.relayData = relayData
+        self.controllerKey = controllerKey
+        self.selfMetaData = selfMetaData
+        self.peerPublicKey = peerPublicKey
+        self.peerMetaData = peerMetaData
+        self.sessionNamespaces = sessionNamespaces
+        self.requiredNamespaces = requiredNamespaces
+        self.optionalNamespaces = optionalNamespaces
+        self.properties = properties
+        self.scopedProperties = scopedProperties
+        self.isAcknowledged = isAcknowledged
+        self.pairingTopic = pairingTopic
+        self.transportType = transportType
     }
 }
 
@@ -3528,18 +5103,86 @@ extension SessionFfi: Sendable {}
 
 extension SessionFfi: Equatable, Hashable {
     public static func ==(lhs: SessionFfi, rhs: SessionFfi) -> Bool {
+        if lhs.requestId != rhs.requestId {
+            return false
+        }
         if lhs.sessionSymKey != rhs.sessionSymKey {
             return false
         }
         if lhs.selfPublicKey != rhs.selfPublicKey {
             return false
         }
+        if lhs.topic != rhs.topic {
+            return false
+        }
+        if lhs.expiry != rhs.expiry {
+            return false
+        }
+        if lhs.relayProtocol != rhs.relayProtocol {
+            return false
+        }
+        if lhs.relayData != rhs.relayData {
+            return false
+        }
+        if lhs.controllerKey != rhs.controllerKey {
+            return false
+        }
+        if lhs.selfMetaData != rhs.selfMetaData {
+            return false
+        }
+        if lhs.peerPublicKey != rhs.peerPublicKey {
+            return false
+        }
+        if lhs.peerMetaData != rhs.peerMetaData {
+            return false
+        }
+        if lhs.sessionNamespaces != rhs.sessionNamespaces {
+            return false
+        }
+        if lhs.requiredNamespaces != rhs.requiredNamespaces {
+            return false
+        }
+        if lhs.optionalNamespaces != rhs.optionalNamespaces {
+            return false
+        }
+        if lhs.properties != rhs.properties {
+            return false
+        }
+        if lhs.scopedProperties != rhs.scopedProperties {
+            return false
+        }
+        if lhs.isAcknowledged != rhs.isAcknowledged {
+            return false
+        }
+        if lhs.pairingTopic != rhs.pairingTopic {
+            return false
+        }
+        if lhs.transportType != rhs.transportType {
+            return false
+        }
         return true
     }
 
     public func hash(into hasher: inout Hasher) {
+        hasher.combine(requestId)
         hasher.combine(sessionSymKey)
         hasher.combine(selfPublicKey)
+        hasher.combine(topic)
+        hasher.combine(expiry)
+        hasher.combine(relayProtocol)
+        hasher.combine(relayData)
+        hasher.combine(controllerKey)
+        hasher.combine(selfMetaData)
+        hasher.combine(peerPublicKey)
+        hasher.combine(peerMetaData)
+        hasher.combine(sessionNamespaces)
+        hasher.combine(requiredNamespaces)
+        hasher.combine(optionalNamespaces)
+        hasher.combine(properties)
+        hasher.combine(scopedProperties)
+        hasher.combine(isAcknowledged)
+        hasher.combine(pairingTopic)
+        hasher.combine(transportType)
     }
 }
 
@@ -3552,14 +5195,48 @@ public struct FfiConverterTypeSessionFfi: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SessionFfi {
         return
             try SessionFfi(
+                requestId: FfiConverterUInt64.read(from: &buf), 
                 sessionSymKey: FfiConverterData.read(from: &buf), 
-                selfPublicKey: FfiConverterData.read(from: &buf)
+                selfPublicKey: FfiConverterData.read(from: &buf), 
+                topic: FfiConverterTypeTopic.read(from: &buf), 
+                expiry: FfiConverterUInt64.read(from: &buf), 
+                relayProtocol: FfiConverterString.read(from: &buf), 
+                relayData: FfiConverterOptionString.read(from: &buf), 
+                controllerKey: FfiConverterOptionData.read(from: &buf), 
+                selfMetaData: FfiConverterTypeMetadata.read(from: &buf), 
+                peerPublicKey: FfiConverterOptionData.read(from: &buf), 
+                peerMetaData: FfiConverterOptionTypeMetadata.read(from: &buf), 
+                sessionNamespaces: FfiConverterDictionaryStringTypeSettleNamespace.read(from: &buf), 
+                requiredNamespaces: FfiConverterDictionaryStringTypeProposalNamespace.read(from: &buf), 
+                optionalNamespaces: FfiConverterOptionDictionaryStringTypeProposalNamespace.read(from: &buf), 
+                properties: FfiConverterOptionDictionaryStringString.read(from: &buf), 
+                scopedProperties: FfiConverterOptionDictionaryStringString.read(from: &buf), 
+                isAcknowledged: FfiConverterBool.read(from: &buf), 
+                pairingTopic: FfiConverterString.read(from: &buf), 
+                transportType: FfiConverterOptionTypeTransportType.read(from: &buf)
         )
     }
 
     public static func write(_ value: SessionFfi, into buf: inout [UInt8]) {
+        FfiConverterUInt64.write(value.requestId, into: &buf)
         FfiConverterData.write(value.sessionSymKey, into: &buf)
         FfiConverterData.write(value.selfPublicKey, into: &buf)
+        FfiConverterTypeTopic.write(value.topic, into: &buf)
+        FfiConverterUInt64.write(value.expiry, into: &buf)
+        FfiConverterString.write(value.relayProtocol, into: &buf)
+        FfiConverterOptionString.write(value.relayData, into: &buf)
+        FfiConverterOptionData.write(value.controllerKey, into: &buf)
+        FfiConverterTypeMetadata.write(value.selfMetaData, into: &buf)
+        FfiConverterOptionData.write(value.peerPublicKey, into: &buf)
+        FfiConverterOptionTypeMetadata.write(value.peerMetaData, into: &buf)
+        FfiConverterDictionaryStringTypeSettleNamespace.write(value.sessionNamespaces, into: &buf)
+        FfiConverterDictionaryStringTypeProposalNamespace.write(value.requiredNamespaces, into: &buf)
+        FfiConverterOptionDictionaryStringTypeProposalNamespace.write(value.optionalNamespaces, into: &buf)
+        FfiConverterOptionDictionaryStringString.write(value.properties, into: &buf)
+        FfiConverterOptionDictionaryStringString.write(value.scopedProperties, into: &buf)
+        FfiConverterBool.write(value.isAcknowledged, into: &buf)
+        FfiConverterString.write(value.pairingTopic, into: &buf)
+        FfiConverterOptionTypeTransportType.write(value.transportType, into: &buf)
     }
 }
 
@@ -3718,6 +5395,388 @@ public func FfiConverterTypeSessionProposalFfi_lift(_ buf: RustBuffer) throws ->
 #endif
 public func FfiConverterTypeSessionProposalFfi_lower(_ value: SessionProposalFfi) -> RustBuffer {
     return FfiConverterTypeSessionProposalFfi.lower(value)
+}
+
+
+public struct SessionRequestFfi {
+    public var chainId: String
+    public var request: SessionRequestRequestFfi
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(chainId: String, request: SessionRequestRequestFfi) {
+        self.chainId = chainId
+        self.request = request
+    }
+}
+
+#if compiler(>=6)
+extension SessionRequestFfi: Sendable {}
+#endif
+
+
+extension SessionRequestFfi: Equatable, Hashable {
+    public static func ==(lhs: SessionRequestFfi, rhs: SessionRequestFfi) -> Bool {
+        if lhs.chainId != rhs.chainId {
+            return false
+        }
+        if lhs.request != rhs.request {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(chainId)
+        hasher.combine(request)
+    }
+}
+
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSessionRequestFfi: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SessionRequestFfi {
+        return
+            try SessionRequestFfi(
+                chainId: FfiConverterString.read(from: &buf), 
+                request: FfiConverterTypeSessionRequestRequestFfi.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: SessionRequestFfi, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.chainId, into: &buf)
+        FfiConverterTypeSessionRequestRequestFfi.write(value.request, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSessionRequestFfi_lift(_ buf: RustBuffer) throws -> SessionRequestFfi {
+    return try FfiConverterTypeSessionRequestFfi.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSessionRequestFfi_lower(_ value: SessionRequestFfi) -> RustBuffer {
+    return FfiConverterTypeSessionRequestFfi.lower(value)
+}
+
+
+public struct SessionRequestJsonRpcErrorResponseFfi {
+    public var id: UInt64
+    public var jsonrpc: String
+    public var error: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(id: UInt64, jsonrpc: String, error: String) {
+        self.id = id
+        self.jsonrpc = jsonrpc
+        self.error = error
+    }
+}
+
+#if compiler(>=6)
+extension SessionRequestJsonRpcErrorResponseFfi: Sendable {}
+#endif
+
+
+extension SessionRequestJsonRpcErrorResponseFfi: Equatable, Hashable {
+    public static func ==(lhs: SessionRequestJsonRpcErrorResponseFfi, rhs: SessionRequestJsonRpcErrorResponseFfi) -> Bool {
+        if lhs.id != rhs.id {
+            return false
+        }
+        if lhs.jsonrpc != rhs.jsonrpc {
+            return false
+        }
+        if lhs.error != rhs.error {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+        hasher.combine(jsonrpc)
+        hasher.combine(error)
+    }
+}
+
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSessionRequestJsonRpcErrorResponseFfi: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SessionRequestJsonRpcErrorResponseFfi {
+        return
+            try SessionRequestJsonRpcErrorResponseFfi(
+                id: FfiConverterUInt64.read(from: &buf), 
+                jsonrpc: FfiConverterString.read(from: &buf), 
+                error: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: SessionRequestJsonRpcErrorResponseFfi, into buf: inout [UInt8]) {
+        FfiConverterUInt64.write(value.id, into: &buf)
+        FfiConverterString.write(value.jsonrpc, into: &buf)
+        FfiConverterString.write(value.error, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSessionRequestJsonRpcErrorResponseFfi_lift(_ buf: RustBuffer) throws -> SessionRequestJsonRpcErrorResponseFfi {
+    return try FfiConverterTypeSessionRequestJsonRpcErrorResponseFfi.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSessionRequestJsonRpcErrorResponseFfi_lower(_ value: SessionRequestJsonRpcErrorResponseFfi) -> RustBuffer {
+    return FfiConverterTypeSessionRequestJsonRpcErrorResponseFfi.lower(value)
+}
+
+
+public struct SessionRequestJsonRpcFfi {
+    public var id: UInt64
+    public var method: String
+    public var params: SessionRequestFfi
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(id: UInt64, method: String, params: SessionRequestFfi) {
+        self.id = id
+        self.method = method
+        self.params = params
+    }
+}
+
+#if compiler(>=6)
+extension SessionRequestJsonRpcFfi: Sendable {}
+#endif
+
+
+extension SessionRequestJsonRpcFfi: Equatable, Hashable {
+    public static func ==(lhs: SessionRequestJsonRpcFfi, rhs: SessionRequestJsonRpcFfi) -> Bool {
+        if lhs.id != rhs.id {
+            return false
+        }
+        if lhs.method != rhs.method {
+            return false
+        }
+        if lhs.params != rhs.params {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+        hasher.combine(method)
+        hasher.combine(params)
+    }
+}
+
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSessionRequestJsonRpcFfi: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SessionRequestJsonRpcFfi {
+        return
+            try SessionRequestJsonRpcFfi(
+                id: FfiConverterUInt64.read(from: &buf), 
+                method: FfiConverterString.read(from: &buf), 
+                params: FfiConverterTypeSessionRequestFfi.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: SessionRequestJsonRpcFfi, into buf: inout [UInt8]) {
+        FfiConverterUInt64.write(value.id, into: &buf)
+        FfiConverterString.write(value.method, into: &buf)
+        FfiConverterTypeSessionRequestFfi.write(value.params, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSessionRequestJsonRpcFfi_lift(_ buf: RustBuffer) throws -> SessionRequestJsonRpcFfi {
+    return try FfiConverterTypeSessionRequestJsonRpcFfi.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSessionRequestJsonRpcFfi_lower(_ value: SessionRequestJsonRpcFfi) -> RustBuffer {
+    return FfiConverterTypeSessionRequestJsonRpcFfi.lower(value)
+}
+
+
+public struct SessionRequestJsonRpcResultResponseFfi {
+    public var id: UInt64
+    public var jsonrpc: String
+    public var result: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(id: UInt64, jsonrpc: String, result: String) {
+        self.id = id
+        self.jsonrpc = jsonrpc
+        self.result = result
+    }
+}
+
+#if compiler(>=6)
+extension SessionRequestJsonRpcResultResponseFfi: Sendable {}
+#endif
+
+
+extension SessionRequestJsonRpcResultResponseFfi: Equatable, Hashable {
+    public static func ==(lhs: SessionRequestJsonRpcResultResponseFfi, rhs: SessionRequestJsonRpcResultResponseFfi) -> Bool {
+        if lhs.id != rhs.id {
+            return false
+        }
+        if lhs.jsonrpc != rhs.jsonrpc {
+            return false
+        }
+        if lhs.result != rhs.result {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+        hasher.combine(jsonrpc)
+        hasher.combine(result)
+    }
+}
+
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSessionRequestJsonRpcResultResponseFfi: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SessionRequestJsonRpcResultResponseFfi {
+        return
+            try SessionRequestJsonRpcResultResponseFfi(
+                id: FfiConverterUInt64.read(from: &buf), 
+                jsonrpc: FfiConverterString.read(from: &buf), 
+                result: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: SessionRequestJsonRpcResultResponseFfi, into buf: inout [UInt8]) {
+        FfiConverterUInt64.write(value.id, into: &buf)
+        FfiConverterString.write(value.jsonrpc, into: &buf)
+        FfiConverterString.write(value.result, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSessionRequestJsonRpcResultResponseFfi_lift(_ buf: RustBuffer) throws -> SessionRequestJsonRpcResultResponseFfi {
+    return try FfiConverterTypeSessionRequestJsonRpcResultResponseFfi.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSessionRequestJsonRpcResultResponseFfi_lower(_ value: SessionRequestJsonRpcResultResponseFfi) -> RustBuffer {
+    return FfiConverterTypeSessionRequestJsonRpcResultResponseFfi.lower(value)
+}
+
+
+public struct SessionRequestRequestFfi {
+    public var method: String
+    public var params: String
+    public var expiry: UInt64?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(method: String, params: String, expiry: UInt64?) {
+        self.method = method
+        self.params = params
+        self.expiry = expiry
+    }
+}
+
+#if compiler(>=6)
+extension SessionRequestRequestFfi: Sendable {}
+#endif
+
+
+extension SessionRequestRequestFfi: Equatable, Hashable {
+    public static func ==(lhs: SessionRequestRequestFfi, rhs: SessionRequestRequestFfi) -> Bool {
+        if lhs.method != rhs.method {
+            return false
+        }
+        if lhs.params != rhs.params {
+            return false
+        }
+        if lhs.expiry != rhs.expiry {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(method)
+        hasher.combine(params)
+        hasher.combine(expiry)
+    }
+}
+
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSessionRequestRequestFfi: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SessionRequestRequestFfi {
+        return
+            try SessionRequestRequestFfi(
+                method: FfiConverterString.read(from: &buf), 
+                params: FfiConverterString.read(from: &buf), 
+                expiry: FfiConverterOptionUInt64.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: SessionRequestRequestFfi, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.method, into: &buf)
+        FfiConverterString.write(value.params, into: &buf)
+        FfiConverterOptionUInt64.write(value.expiry, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSessionRequestRequestFfi_lift(_ buf: RustBuffer) throws -> SessionRequestRequestFfi {
+    return try FfiConverterTypeSessionRequestRequestFfi.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSessionRequestRequestFfi_lower(_ value: SessionRequestRequestFfi) -> RustBuffer {
+    return FfiConverterTypeSessionRequestRequestFfi.lower(value)
 }
 
 
@@ -5210,6 +7269,102 @@ extension BridgingError: Equatable, Hashable {}
 
 
 
+
+public enum ConnectError: Swift.Error {
+
+    
+    
+    case Request(RequestError
+    )
+    case Internal(String
+    )
+    case ShouldNeverHappen(String
+    )
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeConnectError: FfiConverterRustBuffer {
+    typealias SwiftType = ConnectError
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ConnectError {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+
+        
+
+        
+        case 1: return .Request(
+            try FfiConverterTypeRequestError.read(from: &buf)
+            )
+        case 2: return .Internal(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 3: return .ShouldNeverHappen(
+            try FfiConverterString.read(from: &buf)
+            )
+
+         default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: ConnectError, into buf: inout [UInt8]) {
+        switch value {
+
+        
+
+        
+        
+        case let .Request(v1):
+            writeInt(&buf, Int32(1))
+            FfiConverterTypeRequestError.write(v1, into: &buf)
+            
+        
+        case let .Internal(v1):
+            writeInt(&buf, Int32(2))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .ShouldNeverHappen(v1):
+            writeInt(&buf, Int32(3))
+            FfiConverterString.write(v1, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeConnectError_lift(_ buf: RustBuffer) throws -> ConnectError {
+    return try FfiConverterTypeConnectError.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeConnectError_lower(_ value: ConnectError) -> RustBuffer {
+    return FfiConverterTypeConnectError.lower(value)
+}
+
+
+extension ConnectError: Equatable, Hashable {}
+
+
+
+
+extension ConnectError: Foundation.LocalizedError {
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+}
+
+
+
+
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
 
@@ -5325,6 +7480,92 @@ public func FfiConverterTypeCurrency_lower(_ value: Currency) -> RustBuffer {
 extension Currency: Equatable, Hashable {}
 
 
+
+
+
+
+
+public enum DisconnectError: Swift.Error {
+
+    
+    
+    case ShouldNeverHappen(String
+    )
+    case Request(RequestError
+    )
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeDisconnectError: FfiConverterRustBuffer {
+    typealias SwiftType = DisconnectError
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DisconnectError {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+
+        
+
+        
+        case 1: return .ShouldNeverHappen(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 2: return .Request(
+            try FfiConverterTypeRequestError.read(from: &buf)
+            )
+
+         default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: DisconnectError, into buf: inout [UInt8]) {
+        switch value {
+
+        
+
+        
+        
+        case let .ShouldNeverHappen(v1):
+            writeInt(&buf, Int32(1))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .Request(v1):
+            writeInt(&buf, Int32(2))
+            FfiConverterTypeRequestError.write(v1, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDisconnectError_lift(_ buf: RustBuffer) throws -> DisconnectError {
+    return try FfiConverterTypeDisconnectError.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDisconnectError_lower(_ value: DisconnectError) -> RustBuffer {
+    return FfiConverterTypeDisconnectError.lower(value)
+}
+
+
+extension DisconnectError: Equatable, Hashable {}
+
+
+
+
+extension DisconnectError: Foundation.LocalizedError {
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+}
 
 
 
@@ -6056,6 +8297,102 @@ extension PrepareResponseSuccess: Equatable, Hashable {}
 
 
 
+public enum RejectError: Swift.Error {
+
+    
+    
+    case Request(RequestError
+    )
+    case Internal(String
+    )
+    case ShouldNeverHappen(String
+    )
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeRejectError: FfiConverterRustBuffer {
+    typealias SwiftType = RejectError
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> RejectError {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+
+        
+
+        
+        case 1: return .Request(
+            try FfiConverterTypeRequestError.read(from: &buf)
+            )
+        case 2: return .Internal(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 3: return .ShouldNeverHappen(
+            try FfiConverterString.read(from: &buf)
+            )
+
+         default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: RejectError, into buf: inout [UInt8]) {
+        switch value {
+
+        
+
+        
+        
+        case let .Request(v1):
+            writeInt(&buf, Int32(1))
+            FfiConverterTypeRequestError.write(v1, into: &buf)
+            
+        
+        case let .Internal(v1):
+            writeInt(&buf, Int32(2))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .ShouldNeverHappen(v1):
+            writeInt(&buf, Int32(3))
+            FfiConverterString.write(v1, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRejectError_lift(_ buf: RustBuffer) throws -> RejectError {
+    return try FfiConverterTypeRejectError.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRejectError_lower(_ value: RejectError) -> RustBuffer {
+    return FfiConverterTypeRejectError.lower(value)
+}
+
+
+extension RejectError: Equatable, Hashable {}
+
+
+
+
+extension RejectError: Foundation.LocalizedError {
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+}
+
+
+
+
+
 public enum RequestError: Swift.Error {
 
     
@@ -6064,8 +8401,17 @@ public enum RequestError: Swift.Error {
     )
     case Offline
     case InvalidAuth
+    /**
+     * An error that shouldn't happen (e.g. JSON serializing constant values)
+     */
     case ShouldNeverHappen(String
     )
+    /**
+     * An error that shouldn't happen because the relay should be behaving as expected
+     */
+    case ServerMisbehaved(String
+    )
+    case Cleanup
 }
 
 
@@ -6090,6 +8436,10 @@ public struct FfiConverterTypeRequestError: FfiConverterRustBuffer {
         case 4: return .ShouldNeverHappen(
             try FfiConverterString.read(from: &buf)
             )
+        case 5: return .ServerMisbehaved(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 6: return .Cleanup
 
          default: throw UniffiInternalError.unexpectedEnumCase
         }
@@ -6119,6 +8469,15 @@ public struct FfiConverterTypeRequestError: FfiConverterRustBuffer {
             writeInt(&buf, Int32(4))
             FfiConverterString.write(v1, into: &buf)
             
+        
+        case let .ServerMisbehaved(v1):
+            writeInt(&buf, Int32(5))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case .Cleanup:
+            writeInt(&buf, Int32(6))
+        
         }
     }
 }
@@ -6158,7 +8517,10 @@ public enum RespondError: Swift.Error {
 
     
     
-    case Internal(String
+    case SessionNotFound
+    case Request(RequestError
+    )
+    case ShouldNeverHappen(String
     )
 }
 
@@ -6176,7 +8538,11 @@ public struct FfiConverterTypeRespondError: FfiConverterRustBuffer {
         
 
         
-        case 1: return .Internal(
+        case 1: return .SessionNotFound
+        case 2: return .Request(
+            try FfiConverterTypeRequestError.read(from: &buf)
+            )
+        case 3: return .ShouldNeverHappen(
             try FfiConverterString.read(from: &buf)
             )
 
@@ -6191,8 +8557,17 @@ public struct FfiConverterTypeRespondError: FfiConverterRustBuffer {
 
         
         
-        case let .Internal(v1):
+        case .SessionNotFound:
             writeInt(&buf, Int32(1))
+        
+        
+        case let .Request(v1):
+            writeInt(&buf, Int32(2))
+            FfiConverterTypeRequestError.write(v1, into: &buf)
+            
+        
+        case let .ShouldNeverHappen(v1):
+            writeInt(&buf, Int32(3))
             FfiConverterString.write(v1, into: &buf)
             
         }
@@ -6453,6 +8828,82 @@ extension SendTransactionError: Foundation.LocalizedError {
         String(reflecting: self)
     }
 }
+
+
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+
+public enum SessionRequestJsonRpcResponseFfi {
+    
+    case result(SessionRequestJsonRpcResultResponseFfi
+    )
+    case error(SessionRequestJsonRpcErrorResponseFfi
+    )
+}
+
+
+#if compiler(>=6)
+extension SessionRequestJsonRpcResponseFfi: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSessionRequestJsonRpcResponseFfi: FfiConverterRustBuffer {
+    typealias SwiftType = SessionRequestJsonRpcResponseFfi
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SessionRequestJsonRpcResponseFfi {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .result(try FfiConverterTypeSessionRequestJsonRpcResultResponseFfi.read(from: &buf)
+        )
+        
+        case 2: return .error(try FfiConverterTypeSessionRequestJsonRpcErrorResponseFfi.read(from: &buf)
+        )
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: SessionRequestJsonRpcResponseFfi, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case let .result(v1):
+            writeInt(&buf, Int32(1))
+            FfiConverterTypeSessionRequestJsonRpcResultResponseFfi.write(v1, into: &buf)
+            
+        
+        case let .error(v1):
+            writeInt(&buf, Int32(2))
+            FfiConverterTypeSessionRequestJsonRpcErrorResponseFfi.write(v1, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSessionRequestJsonRpcResponseFfi_lift(_ buf: RustBuffer) throws -> SessionRequestJsonRpcResponseFfi {
+    return try FfiConverterTypeSessionRequestJsonRpcResponseFfi.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSessionRequestJsonRpcResponseFfi_lower(_ value: SessionRequestJsonRpcResponseFfi) -> RustBuffer {
+    return FfiConverterTypeSessionRequestJsonRpcResponseFfi.lower(value)
+}
+
+
+extension SessionRequestJsonRpcResponseFfi: Equatable, Hashable {}
+
+
 
 
 
@@ -6912,6 +9363,76 @@ extension Transactions: Equatable, Hashable {}
 
 
 
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+
+public enum TransportType {
+    
+    case relay
+    case linkMode
+}
+
+
+#if compiler(>=6)
+extension TransportType: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeTransportType: FfiConverterRustBuffer {
+    typealias SwiftType = TransportType
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> TransportType {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .relay
+        
+        case 2: return .linkMode
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: TransportType, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .relay:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .linkMode:
+            writeInt(&buf, Int32(2))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTransportType_lift(_ buf: RustBuffer) throws -> TransportType {
+    return try FfiConverterTypeTransportType.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTransportType_lower(_ value: TransportType) -> RustBuffer {
+    return FfiConverterTypeTransportType.lower(value)
+}
+
+
+extension TransportType: Equatable, Hashable {}
+
+
+
+
+
+
 
 public enum WaitForSuccessError: Swift.Error {
 
@@ -7083,6 +9604,54 @@ fileprivate struct FfiConverterOptionString: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionData: FfiConverterRustBuffer {
+    typealias SwiftType = Data?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterData.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterData.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeMetadata: FfiConverterRustBuffer {
+    typealias SwiftType = Metadata?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeMetadata.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeMetadata.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeRedirect: FfiConverterRustBuffer {
     typealias SwiftType = Redirect?
 
@@ -7099,6 +9668,78 @@ fileprivate struct FfiConverterOptionTypeRedirect: FfiConverterRustBuffer {
         switch try readInt(&buf) as Int8 {
         case 0: return nil
         case 1: return try FfiConverterTypeRedirect.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeSessionFfi: FfiConverterRustBuffer {
+    typealias SwiftType = SessionFfi?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeSessionFfi.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeSessionFfi.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeTransportType: FfiConverterRustBuffer {
+    typealias SwiftType = TransportType?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeTransportType.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeTransportType.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionSequenceString: FfiConverterRustBuffer {
+    typealias SwiftType = [String]?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterSequenceString.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterSequenceString.read(from: &buf)
         default: throw UniffiInternalError.unexpectedOptionalTag
         }
     }
@@ -7390,6 +10031,31 @@ fileprivate struct FfiConverterSequenceTypeRelay: FfiConverterRustBuffer {
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeRelay.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeSessionFfi: FfiConverterRustBuffer {
+    typealias SwiftType = [SessionFfi]
+
+    public static func write(_ value: [SessionFfi], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeSessionFfi.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [SessionFfi] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [SessionFfi]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeSessionFfi.read(from: &buf))
         }
         return seq
     }
@@ -9133,6 +11799,20 @@ fileprivate func uniffiFutureContinuationCallback(handle: UInt64, pollResult: In
         print("uniffiFutureContinuationCallback invalid handle")
     }
 }
+public func errorDataFfiFromJson(json: String) -> ErrorDataFfi  {
+    return try!  FfiConverterTypeErrorDataFfi_lift(try! rustCall() {
+    uniffi_yttrium_fn_func_error_data_ffi_from_json(
+        FfiConverterString.lower(json),$0
+    )
+})
+}
+public func errorDataFfiToJson(object: ErrorDataFfi) -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+    uniffi_yttrium_fn_func_error_data_ffi_to_json(
+        FfiConverterTypeErrorDataFfi_lower(object),$0
+    )
+})
+}
 public func fundingMetadataToAmount(value: FundingMetadata) -> Amount  {
     return try!  FfiConverterTypeAmount_lift(try! rustCall() {
     uniffi_yttrium_fn_func_funding_metadata_to_amount(
@@ -9147,11 +11827,179 @@ public func fundingMetadataToBridgingFeeAmount(value: FundingMetadata) -> Amount
     )
 })
 }
+public func metadataFromJson(json: String) -> Metadata  {
+    return try!  FfiConverterTypeMetadata_lift(try! rustCall() {
+    uniffi_yttrium_fn_func_metadata_from_json(
+        FfiConverterString.lower(json),$0
+    )
+})
+}
+public func metadataToJson(object: Metadata) -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+    uniffi_yttrium_fn_func_metadata_to_json(
+        FfiConverterTypeMetadata_lower(object),$0
+    )
+})
+}
+public func proposalNamespaceFromJson(json: String) -> ProposalNamespace  {
+    return try!  FfiConverterTypeProposalNamespace_lift(try! rustCall() {
+    uniffi_yttrium_fn_func_proposal_namespace_from_json(
+        FfiConverterString.lower(json),$0
+    )
+})
+}
+public func proposalNamespaceToJson(object: ProposalNamespace) -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+    uniffi_yttrium_fn_func_proposal_namespace_to_json(
+        FfiConverterTypeProposalNamespace_lower(object),$0
+    )
+})
+}
+public func redirectFromJson(json: String) -> Redirect  {
+    return try!  FfiConverterTypeRedirect_lift(try! rustCall() {
+    uniffi_yttrium_fn_func_redirect_from_json(
+        FfiConverterString.lower(json),$0
+    )
+})
+}
+public func redirectToJson(object: Redirect) -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+    uniffi_yttrium_fn_func_redirect_to_json(
+        FfiConverterTypeRedirect_lower(object),$0
+    )
+})
+}
 public func registerLogger(logger: Logger)  {try! rustCall() {
     uniffi_yttrium_fn_func_register_logger(
         FfiConverterTypeLogger_lower(logger),$0
     )
 }
+}
+public func relayFromJson(json: String) -> Relay  {
+    return try!  FfiConverterTypeRelay_lift(try! rustCall() {
+    uniffi_yttrium_fn_func_relay_from_json(
+        FfiConverterString.lower(json),$0
+    )
+})
+}
+public func relayToJson(object: Relay) -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+    uniffi_yttrium_fn_func_relay_to_json(
+        FfiConverterTypeRelay_lower(object),$0
+    )
+})
+}
+public func sessionFfiFromJson(json: String) -> SessionFfi  {
+    return try!  FfiConverterTypeSessionFfi_lift(try! rustCall() {
+    uniffi_yttrium_fn_func_session_ffi_from_json(
+        FfiConverterString.lower(json),$0
+    )
+})
+}
+public func sessionFfiToJson(object: SessionFfi) -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+    uniffi_yttrium_fn_func_session_ffi_to_json(
+        FfiConverterTypeSessionFfi_lower(object),$0
+    )
+})
+}
+public func sessionProposalFfiFromJson(json: String) -> SessionProposalFfi  {
+    return try!  FfiConverterTypeSessionProposalFfi_lift(try! rustCall() {
+    uniffi_yttrium_fn_func_session_proposal_ffi_from_json(
+        FfiConverterString.lower(json),$0
+    )
+})
+}
+public func sessionProposalFfiToJson(object: SessionProposalFfi) -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+    uniffi_yttrium_fn_func_session_proposal_ffi_to_json(
+        FfiConverterTypeSessionProposalFfi_lower(object),$0
+    )
+})
+}
+public func sessionRequestFfiFromJson(json: String) -> SessionRequestFfi  {
+    return try!  FfiConverterTypeSessionRequestFfi_lift(try! rustCall() {
+    uniffi_yttrium_fn_func_session_request_ffi_from_json(
+        FfiConverterString.lower(json),$0
+    )
+})
+}
+public func sessionRequestFfiToJson(object: SessionRequestFfi) -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+    uniffi_yttrium_fn_func_session_request_ffi_to_json(
+        FfiConverterTypeSessionRequestFfi_lower(object),$0
+    )
+})
+}
+public func sessionRequestJsonRpcErrorResponseFfiFromJson(json: String) -> SessionRequestJsonRpcErrorResponseFfi  {
+    return try!  FfiConverterTypeSessionRequestJsonRpcErrorResponseFfi_lift(try! rustCall() {
+    uniffi_yttrium_fn_func_session_request_json_rpc_error_response_ffi_from_json(
+        FfiConverterString.lower(json),$0
+    )
+})
+}
+public func sessionRequestJsonRpcErrorResponseFfiToJson(object: SessionRequestJsonRpcErrorResponseFfi) -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+    uniffi_yttrium_fn_func_session_request_json_rpc_error_response_ffi_to_json(
+        FfiConverterTypeSessionRequestJsonRpcErrorResponseFfi_lower(object),$0
+    )
+})
+}
+public func sessionRequestJsonRpcFfiFromJson(json: String) -> SessionRequestJsonRpcFfi  {
+    return try!  FfiConverterTypeSessionRequestJsonRpcFfi_lift(try! rustCall() {
+    uniffi_yttrium_fn_func_session_request_json_rpc_ffi_from_json(
+        FfiConverterString.lower(json),$0
+    )
+})
+}
+public func sessionRequestJsonRpcFfiToJson(object: SessionRequestJsonRpcFfi) -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+    uniffi_yttrium_fn_func_session_request_json_rpc_ffi_to_json(
+        FfiConverterTypeSessionRequestJsonRpcFfi_lower(object),$0
+    )
+})
+}
+public func sessionRequestJsonRpcResultResponseFfiFromJson(json: String) -> SessionRequestJsonRpcResultResponseFfi  {
+    return try!  FfiConverterTypeSessionRequestJsonRpcResultResponseFfi_lift(try! rustCall() {
+    uniffi_yttrium_fn_func_session_request_json_rpc_result_response_ffi_from_json(
+        FfiConverterString.lower(json),$0
+    )
+})
+}
+public func sessionRequestJsonRpcResultResponseFfiToJson(object: SessionRequestJsonRpcResultResponseFfi) -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+    uniffi_yttrium_fn_func_session_request_json_rpc_result_response_ffi_to_json(
+        FfiConverterTypeSessionRequestJsonRpcResultResponseFfi_lower(object),$0
+    )
+})
+}
+public func sessionRequestRequestFfiToJson(object: SessionRequestRequestFfi) -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+    uniffi_yttrium_fn_func_session_request_request_ffi_to_json(
+        FfiConverterTypeSessionRequestRequestFfi_lower(object),$0
+    )
+})
+}
+public func sessionRequestRequestFromJson(json: String) -> SessionRequestRequestFfi  {
+    return try!  FfiConverterTypeSessionRequestRequestFfi_lift(try! rustCall() {
+    uniffi_yttrium_fn_func_session_request_request_from_json(
+        FfiConverterString.lower(json),$0
+    )
+})
+}
+public func settleNamespaceFromJson(json: String) -> SettleNamespace  {
+    return try!  FfiConverterTypeSettleNamespace_lift(try! rustCall() {
+    uniffi_yttrium_fn_func_settle_namespace_from_json(
+        FfiConverterString.lower(json),$0
+    )
+})
+}
+public func settleNamespaceToJson(object: SettleNamespace) -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+    uniffi_yttrium_fn_func_settle_namespace_to_json(
+        FfiConverterTypeSettleNamespace_lower(object),$0
+    )
+})
 }
 
 private enum InitializationResult {
@@ -9169,13 +12017,91 @@ private let initializationResult: InitializationResult = {
     if bindings_contract_version != scaffolding_contract_version {
         return InitializationResult.contractVersionMismatch
     }
+    if (uniffi_yttrium_checksum_func_error_data_ffi_from_json() != 45212) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_func_error_data_ffi_to_json() != 30275) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_yttrium_checksum_func_funding_metadata_to_amount() != 52092) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_yttrium_checksum_func_funding_metadata_to_bridging_fee_amount() != 38273) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_yttrium_checksum_func_metadata_from_json() != 29441) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_func_metadata_to_json() != 41553) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_func_proposal_namespace_from_json() != 339) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_func_proposal_namespace_to_json() != 60026) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_func_redirect_from_json() != 21514) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_func_redirect_to_json() != 31534) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_yttrium_checksum_func_register_logger() != 53062) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_func_relay_from_json() != 49040) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_func_relay_to_json() != 35189) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_func_session_ffi_from_json() != 41917) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_func_session_ffi_to_json() != 30234) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_func_session_proposal_ffi_from_json() != 30864) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_func_session_proposal_ffi_to_json() != 43109) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_func_session_request_ffi_from_json() != 33789) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_func_session_request_ffi_to_json() != 17435) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_func_session_request_json_rpc_error_response_ffi_from_json() != 6802) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_func_session_request_json_rpc_error_response_ffi_to_json() != 19261) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_func_session_request_json_rpc_ffi_from_json() != 60984) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_func_session_request_json_rpc_ffi_to_json() != 10372) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_func_session_request_json_rpc_result_response_ffi_from_json() != 57212) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_func_session_request_json_rpc_result_response_ffi_to_json() != 47087) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_func_session_request_request_ffi_to_json() != 34926) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_func_session_request_request_from_json() != 11151) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_func_settle_namespace_from_json() != 852) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_func_settle_namespace_to_json() != 48776) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_yttrium_checksum_method_erc6492client_verify_signature() != 43990) {
@@ -9184,32 +12110,82 @@ private let initializationResult: InitializationResult = {
     if (uniffi_yttrium_checksum_method_logger_log() != 540) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_yttrium_checksum_method_sessionstoreffi_add_session() != 881) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_method_sessionstoreffi_delete_session() != 60173) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_method_sessionstoreffi_get_session() != 42025) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_method_sessionstoreffi_get_all_sessions() != 28896) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_method_sessionstoreffi_get_decryption_key_for_topic() != 56110) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_method_sessionstoreffi_save_pairing_key() != 28762) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_yttrium_checksum_method_signclient_approve() != 36526) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_yttrium_checksum_method_signclient_approve_json() != 21621) {
+    if (uniffi_yttrium_checksum_method_signclient_connect() != 9786) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_method_signclient_disconnect() != 50012) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_yttrium_checksum_method_signclient_generate_key() != 3304) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_yttrium_checksum_method_signclient_online() != 2068) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_yttrium_checksum_method_signclient_pair() != 59076) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_yttrium_checksum_method_signclient_pair_json() != 36041) {
+    if (uniffi_yttrium_checksum_method_signclient_register_sign_listener() != 37537) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_yttrium_checksum_method_signclient_set_key() != 34850) {
+    if (uniffi_yttrium_checksum_method_signclient_reject() != 57038) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_method_signclient_respond() != 17745) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_method_signclient_start() != 35500) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_method_signlistener_on_session_request() != 45061) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_method_signlistener_on_session_disconnect() != 39985) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_method_signlistener_on_session_event() != 17798) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_method_signlistener_on_session_extend() != 55166) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_method_signlistener_on_session_update() != 292) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_method_signlistener_on_session_connect() != 15582) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_yttrium_checksum_constructor_erc6492client_new() != 33633) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_yttrium_checksum_constructor_signclient_new() != 35991) {
+    if (uniffi_yttrium_checksum_constructor_signclient_new() != 59141) {
         return InitializationResult.apiChecksumMismatch
     }
 
     uniffiCallbackInitLogger()
+    uniffiCallbackInitSessionStoreFfi()
+    uniffiCallbackInitSignListener()
     return InitializationResult.ok
 }()
 

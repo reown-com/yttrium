@@ -76,6 +76,11 @@ impl SignClient {
         }
     }
 
+    pub async fn start(&self) {
+        let mut client = self.client.lock().await;
+        client.start();
+    }
+
     pub fn generate_key(&self) -> Vec<u8> {
         generate_client_id_key().to_vec()
     }
