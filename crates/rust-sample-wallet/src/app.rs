@@ -15,9 +15,7 @@ use {
         client::{generate_client_id_key, Client},
         client_types::{ConnectParams, Session, SessionProposal},
         protocol_types::{
-            Metadata, ProposalNamespace, SessionRequestJsonRpc,
-            SessionRequestJsonRpcResponse, SessionRequestJsonRpcResultResponse,
-            SettleNamespace,
+            Metadata, ProposalNamespace, SessionRequest, SessionRequestJsonRpc, SessionRequestJsonRpcResponse, SessionRequestJsonRpcResultResponse, SessionRequestRequest, SettleNamespace
         },
         storage::Storage,
         IncomingSessionMessage, SecretKey, Topic,
@@ -654,6 +652,7 @@ pub fn App() -> impl IntoView {
                         .iter()
                         .map(|session| {
                             let topic = session.topic.clone();
+                            let topic2 = session.topic.clone();
                             view! {
                                 <li>
                                     <Flex>
@@ -679,6 +678,34 @@ pub fn App() -> impl IntoView {
                                                 }
                                             });
                                         }>"Disconnect"</Button>
+                                        <Button on_click=move |_| {
+                                            let topic = topic2.clone();
+                                            leptos::task::spawn_local(async move {
+                                                let client = clients.read_value().as_ref().unwrap().clone();
+                                                let mut client = client.lock().await;
+                                                match client.app_client.request(topic, SessionRequest {
+                                                    chain_id: "eip155:11155111".to_string(),
+                                                    request: SessionRequestRequest {
+                                                        method: "personal_sign".to_string(),
+                                                        params: serde_json::Value::Null,
+                                                        expiry: None,
+                                                    },
+                                                }).await {
+                                                    Ok(_) => {
+                                                        show_success_toast(
+                                                            toaster,
+                                                            "Successfully requested (app)".to_owned(),
+                                                        );
+                                                    }
+                                                    Err(e) => {
+                                                        show_error_toast(
+                                                            toaster,
+                                                            format!("Request failed (app): {e}"),
+                                                        );
+                                                    }
+                                                }
+                                            });
+                                        }>"Request"</Button>
                                     </Flex>
                                 </li>
                             }

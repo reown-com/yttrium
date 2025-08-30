@@ -42,7 +42,7 @@ impl<'a, T> Future for PriorityRecvFuture<'a, T> {
         cx: &mut Context<'_>,
     ) -> Poll<Self::Output> {
         let mut priority_closed = false;
-        
+
         // Always try priority first
         match self.receiver.priority_rx.poll_recv(cx) {
             Poll::Ready(Some(msg)) => return Poll::Ready(Some(msg)),
@@ -72,9 +72,7 @@ impl<'a, T> Future for PriorityRecvFuture<'a, T> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use std::time::Duration;
-    use tokio::time::timeout;
+    use {super::*, std::time::Duration, tokio::time::timeout};
 
     #[tokio::test]
     async fn test_priority_messages_received_first() {
@@ -164,7 +162,7 @@ mod tests {
 
         // Close priority channel
         drop(priority_tx);
-        
+
         // Send normal message
         normal_tx.send("normal").unwrap();
 
@@ -181,7 +179,7 @@ mod tests {
 
         // Close normal channel
         drop(normal_tx);
-        
+
         // Send priority message
         priority_tx.send("priority").unwrap();
 
@@ -262,4 +260,3 @@ mod tests {
         }
     }
 }
-

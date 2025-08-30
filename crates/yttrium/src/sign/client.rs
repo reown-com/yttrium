@@ -12,8 +12,8 @@ use {
             Controller, JsonRpcRequest, JsonRpcRequestParams, Metadata,
             Proposal, ProposalJsonRpc, ProposalResponse,
             ProposalResponseJsonRpc, Proposer, Relay, SessionDelete,
-            SessionDeleteJsonRpc, SessionRequestJsonRpcResponse, SessionSettle,
-            SettleNamespace,
+            SessionDeleteJsonRpc, SessionRequest, SessionRequestJsonRpc,
+            SessionRequestJsonRpcResponse, SessionSettle, SettleNamespace,
         },
         relay::IncomingSessionMessage,
         storage::Storage,
@@ -179,7 +179,7 @@ impl Client {
         // TODO update relay method to not remove message & approveSession removes it
 
         let response = self
-            .request::<FetchResponse>(relay_rpc::rpc::Params::FetchMessages(
+            .do_request::<FetchResponse>(relay_rpc::rpc::Params::FetchMessages(
                 FetchMessages { topic: pairing_uri.topic.clone() },
             ))
             .await
@@ -306,7 +306,7 @@ impl Client {
         )
         .map_err(ConnectError::ShouldNeverHappen)?;
 
-        self.request::<bool>(relay_rpc::rpc::Params::ProposeSession(
+        self.do_request::<bool>(relay_rpc::rpc::Params::ProposeSession(
             ProposeSession {
                 pairing_topic: pairing_info.topic.clone(),
                 session_proposal: message,
@@ -478,7 +478,7 @@ impl Client {
         self.session_store.add_session(session.clone());
 
         match self
-            .request::<bool>(relay_rpc::rpc::Params::ApproveSession(
+            .do_request::<bool>(relay_rpc::rpc::Params::ApproveSession(
                 approve_session,
             ))
             .await
@@ -541,7 +541,7 @@ impl Client {
 
         // Publish error response to pairing topic
         match self
-            .request::<bool>(relay_rpc::rpc::Params::Publish(Publish {
+            .do_request::<bool>(relay_rpc::rpc::Params::Publish(Publish {
                 topic: proposal.pairing_topic.clone(),
                 message,
                 attestation: None, // TODO
@@ -584,13 +584,41 @@ impl Client {
         unimplemented!()
     }
 
-    pub async fn _request(&self) {
-        // TODO implement
-        // https://github.com/WalletConnect/walletconnect-monorepo/blob/5bef698dcf0ae910548481959a6a5d87eaf7aaa5/packages/sign-client/src/controllers/engine.ts#L601
-        unimplemented!()
+    pub async fn request(
+        &mut self,
+        topic: Topic,
+        session_request: SessionRequest,
+    ) -> Result<(), String> {
+        let shared_secret = self
+            .session_store
+            .get_session(topic.clone())
+            .map(|s| s.session_sym_key)
+            .unwrap();
+
+        let rpc = SessionRequestJsonRpc {
+            id: generate_rpc_id(),
+            method: "wc_sessionRequest".to_string(),
+            params: session_request,
+        };
+        let message =
+            serialize_and_encrypt_message_type0_envelope(shared_secret, &rpc)
+                .map_err(|e| e.to_string())?;
+        self.do_request::<bool>(relay_rpc::rpc::Params::Publish(Publish {
+            topic,
+            message,
+            attestation: None, // TODO
+            ttl_secs: 300,
+            tag: 1108,
+            prompt: false,
+            analytics: None, // TODO
+        }))
+        .await
+        .map_err(|e| e.to_string())?;
 
         // TODO WS handling:
         // - when a session request is pending, and we get the event that the page regained focus, should we immediately ping the WS connection to test its liveness (?)
+
+        Ok(())
     }
 
     pub async fn respond(
@@ -610,7 +638,7 @@ impl Client {
         )
         .map_err(RespondError::ShouldNeverHappen)?;
 
-        self.request::<bool>(relay_rpc::rpc::Params::Publish(Publish {
+        self.do_request::<bool>(relay_rpc::rpc::Params::Publish(Publish {
             topic,
             message,
             attestation: None, // TODO
@@ -679,7 +707,7 @@ impl Client {
                 .map_err(DisconnectError::ShouldNeverHappen)?
             };
 
-            self.request::<bool>(relay_rpc::rpc::Params::Publish(Publish {
+            self.do_request::<bool>(relay_rpc::rpc::Params::Publish(Publish {
                 topic: topic.clone(),
                 message,
                 attestation: None, // TODO
@@ -727,7 +755,7 @@ impl Client {
         unimplemented!()
     }
 
-    async fn request<T: DeserializeOwned>(
+    async fn do_request<T: DeserializeOwned>(
         &mut self,
         params: relay_rpc::rpc::Params,
     ) -> Result<T, RequestError> {
