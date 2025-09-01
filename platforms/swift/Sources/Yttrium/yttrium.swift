@@ -1240,7 +1240,7 @@ public protocol SignClientProtocol: AnyObject, Sendable {
     
     func registerSignListener(listener: SignListener) async 
     
-    func reject(proposal: SessionProposalFfi, reason: ErrorDataFfi) async throws 
+    func reject(proposal: SessionProposalFfi, reason: RejectionReason) async throws 
     
     func respond(topic: String, response: SessionRequestJsonRpcResponseFfi) async throws  -> String
     
@@ -1420,13 +1420,13 @@ open func registerSignListener(listener: SignListener)async   {
         )
 }
     
-open func reject(proposal: SessionProposalFfi, reason: ErrorDataFfi)async throws   {
+open func reject(proposal: SessionProposalFfi, reason: RejectionReason)async throws   {
     return
         try  await uniffiRustCallAsync(
             rustFutureFunc: {
                 uniffi_yttrium_fn_method_signclient_reject(
                     self.uniffiClonePointer(),
-                    FfiConverterTypeSessionProposalFfi_lower(proposal),FfiConverterTypeErrorDataFfi_lower(reason)
+                    FfiConverterTypeSessionProposalFfi_lower(proposal),FfiConverterTypeRejectionReason_lower(reason)
                 )
             },
             pollFunc: ffi_yttrium_rust_future_poll_void,
@@ -8392,6 +8392,97 @@ extension RejectError: Foundation.LocalizedError {
 
 
 
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+
+public enum RejectionReason {
+    
+    case userRejected
+    case unsupportedChains
+    case unsupportedMethods
+    case unsupportedAccounts
+    case unsupportedEvents
+}
+
+
+#if compiler(>=6)
+extension RejectionReason: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeRejectionReason: FfiConverterRustBuffer {
+    typealias SwiftType = RejectionReason
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> RejectionReason {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .userRejected
+        
+        case 2: return .unsupportedChains
+        
+        case 3: return .unsupportedMethods
+        
+        case 4: return .unsupportedAccounts
+        
+        case 5: return .unsupportedEvents
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: RejectionReason, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .userRejected:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .unsupportedChains:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .unsupportedMethods:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .unsupportedAccounts:
+            writeInt(&buf, Int32(4))
+        
+        
+        case .unsupportedEvents:
+            writeInt(&buf, Int32(5))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRejectionReason_lift(_ buf: RustBuffer) throws -> RejectionReason {
+    return try FfiConverterTypeRejectionReason.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRejectionReason_lower(_ value: RejectionReason) -> RustBuffer {
+    return FfiConverterTypeRejectionReason.lower(value)
+}
+
+
+extension RejectionReason: Equatable, Hashable {}
+
+
+
+
+
+
 
 public enum RequestError: Swift.Error {
 
@@ -12149,7 +12240,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_yttrium_checksum_method_signclient_register_sign_listener() != 37537) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_yttrium_checksum_method_signclient_reject() != 57038) {
+    if (uniffi_yttrium_checksum_method_signclient_reject() != 23118) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_yttrium_checksum_method_signclient_respond() != 17745) {

@@ -12,7 +12,7 @@ use {
         },
         uniffi_compat::sign::{
             ffi_types::{
-                ConnectParamsFfi, ConnectResultFfi, ErrorDataFfi, SessionFfi,
+                ConnectParamsFfi, ConnectResultFfi, SessionFfi,
                 SessionProposalFfi, SessionRequestJsonRpcFfi,
                 SessionRequestJsonRpcResponseFfi,
             },
@@ -21,7 +21,6 @@ use {
     },
     relay_rpc::{
         domain::{ProjectId, Topic},
-        rpc::ErrorData,
     },
     std::{collections::HashMap, sync::Arc},
 };
@@ -199,10 +198,9 @@ impl SignClient {
     pub async fn reject(
         &self,
         proposal: SessionProposalFfi,
-        reason: ErrorDataFfi,
+        reason: crate::sign::client_types::RejectionReason,
     ) -> Result<(), RejectError> {
         let proposal: SessionProposal = proposal.into();
-        let reason: ErrorData = reason.into();
         tracing::debug!("reject session propose: {:?}", reason);
 
         let mut client = self.client.lock().await;

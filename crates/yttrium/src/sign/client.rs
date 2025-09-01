@@ -6,7 +6,7 @@ use {
         },
         client_types::{
             ConnectParams, ConnectResult, PairingInfo, Session,
-            SessionProposal, Storage,
+            SessionProposal, Storage, RejectionReason,
         },
         envelope_type0, pairing_uri,
         protocol_types::{
@@ -524,7 +524,7 @@ impl Client {
     pub async fn reject(
         &mut self,
         proposal: SessionProposal,
-        reason: relay_rpc::rpc::ErrorData,
+        reason: RejectionReason,
     ) -> Result<(), RejectError> {
         // Check if proposal is expired
         // TODO remove this check: https://reown-inc.slack.com/archives/C098LHLHCNM/p1756148081338769
@@ -537,13 +537,16 @@ impl Client {
             }
         }
 
+        // Map enum to ErrorData using centralized conversion
+        let mapped_error: relay_rpc::rpc::ErrorData = reason.into();
+
         // Send error response to the pairing topic
         let error_response = relay_rpc::rpc::ErrorResponse {
             id: relay_rpc::domain::MessageId::new(
                 proposal.session_proposal_rpc_id,
             ),
             jsonrpc: relay_rpc::rpc::JSON_RPC_VERSION.clone(),
-            error: reason,
+            error: mapped_error,
         };
 
         let message = serialize_and_encrypt_message_type0_envelope(
