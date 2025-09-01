@@ -2,14 +2,14 @@ use {
     crate::{
         sign::{
             client_types::{
-                ConnectParams, ConnectResult, Session, SessionProposal, RejectionReason,
+                ConnectParams, ConnectResult, Session, SessionProposal,
             },
             protocol_types::{
                 SessionRequestJsonRpc, SessionRequestJsonRpcResultResponse,
             },
         },
         uniffi_compat::sign::ffi_types::{
-            ConnectParamsFfi, ConnectResultFfi, ErrorDataFfi, SessionFfi, RejectionReasonFfi,
+            ConnectParamsFfi, ConnectResultFfi, ErrorDataFfi, SessionFfi,
             SessionProposalFfi, SessionRequestFfi, SessionRequestJsonRpcFfi,
             SessionRequestJsonRpcResponseFfi,
             SessionRequestJsonRpcResultResponseFfi, SessionRequestRequestFfi,
@@ -222,18 +222,6 @@ impl From<ConnectParamsFfi> for ConnectParams {
 impl From<ConnectResult> for ConnectResultFfi {
     fn from(result: ConnectResult) -> Self {
         Self { topic: result.topic, uri: result.uri }
-    }
-}
-
-impl From<RejectionReasonFfi> for RejectionReason {
-    fn from(reason: RejectionReasonFfi) -> Self {
-        match reason {
-            RejectionReasonFfi::UserRejected => RejectionReason::UserRejected,
-            RejectionReasonFfi::UnsupportedChains => RejectionReason::UnsupportedChains,
-            RejectionReasonFfi::UnsupportedMethods => RejectionReason::UnsupportedMethods,
-            RejectionReasonFfi::UnsupportedAccounts => RejectionReason::UnsupportedAccounts,
-            RejectionReasonFfi::UnsupportedEvents => RejectionReason::UnsupportedEvents,
-        }
     }
 }
 

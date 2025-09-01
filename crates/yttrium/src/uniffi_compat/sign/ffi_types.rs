@@ -133,12 +133,3 @@ pub struct Pairing {
     pub topic: String,
     pub uri: String,
 }
-
-#[derive(uniffi_macros::Enum, Debug, Serialize, Deserialize)]
-pub enum RejectionReasonFfi {
-    UserRejected,
-    UnsupportedChains,
-    UnsupportedMethods,
-    UnsupportedAccounts,
-    UnsupportedEvents,
-}

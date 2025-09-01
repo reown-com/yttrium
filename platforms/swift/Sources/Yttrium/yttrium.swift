@@ -1240,7 +1240,7 @@ public protocol SignClientProtocol: AnyObject, Sendable {
     
     func registerSignListener(listener: SignListener) async 
     
-    func reject(proposal: SessionProposalFfi, reason: RejectionReasonFfi) async throws 
+    func reject(proposal: SessionProposalFfi, reason: RejectionReason) async throws 
     
     func respond(topic: String, response: SessionRequestJsonRpcResponseFfi) async throws  -> String
     
@@ -1420,13 +1420,13 @@ open func registerSignListener(listener: SignListener)async   {
         )
 }
     
-open func reject(proposal: SessionProposalFfi, reason: RejectionReasonFfi)async throws   {
+open func reject(proposal: SessionProposalFfi, reason: RejectionReason)async throws   {
     return
         try  await uniffiRustCallAsync(
             rustFutureFunc: {
                 uniffi_yttrium_fn_method_signclient_reject(
                     self.uniffiClonePointer(),
-                    FfiConverterTypeSessionProposalFfi_lower(proposal),FfiConverterTypeRejectionReasonFfi_lower(reason)
+                    FfiConverterTypeSessionProposalFfi_lower(proposal),FfiConverterTypeRejectionReason_lower(reason)
                 )
             },
             pollFunc: ffi_yttrium_rust_future_poll_void,
@@ -8483,97 +8483,6 @@ extension RejectionReason: Equatable, Hashable {}
 
 
 
-// Note that we don't yet support `indirect` for enums.
-// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
-
-public enum RejectionReasonFfi {
-    
-    case userRejected
-    case unsupportedChains
-    case unsupportedMethods
-    case unsupportedAccounts
-    case unsupportedEvents
-}
-
-
-#if compiler(>=6)
-extension RejectionReasonFfi: Sendable {}
-#endif
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeRejectionReasonFfi: FfiConverterRustBuffer {
-    typealias SwiftType = RejectionReasonFfi
-
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> RejectionReasonFfi {
-        let variant: Int32 = try readInt(&buf)
-        switch variant {
-        
-        case 1: return .userRejected
-        
-        case 2: return .unsupportedChains
-        
-        case 3: return .unsupportedMethods
-        
-        case 4: return .unsupportedAccounts
-        
-        case 5: return .unsupportedEvents
-        
-        default: throw UniffiInternalError.unexpectedEnumCase
-        }
-    }
-
-    public static func write(_ value: RejectionReasonFfi, into buf: inout [UInt8]) {
-        switch value {
-        
-        
-        case .userRejected:
-            writeInt(&buf, Int32(1))
-        
-        
-        case .unsupportedChains:
-            writeInt(&buf, Int32(2))
-        
-        
-        case .unsupportedMethods:
-            writeInt(&buf, Int32(3))
-        
-        
-        case .unsupportedAccounts:
-            writeInt(&buf, Int32(4))
-        
-        
-        case .unsupportedEvents:
-            writeInt(&buf, Int32(5))
-        
-        }
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeRejectionReasonFfi_lift(_ buf: RustBuffer) throws -> RejectionReasonFfi {
-    return try FfiConverterTypeRejectionReasonFfi.lift(buf)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeRejectionReasonFfi_lower(_ value: RejectionReasonFfi) -> RustBuffer {
-    return FfiConverterTypeRejectionReasonFfi.lower(value)
-}
-
-
-extension RejectionReasonFfi: Equatable, Hashable {}
-
-
-
-
-
-
 
 public enum RequestError: Swift.Error {
 
@@ -12331,7 +12240,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_yttrium_checksum_method_signclient_register_sign_listener() != 37537) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_yttrium_checksum_method_signclient_reject() != 26245) {
+    if (uniffi_yttrium_checksum_method_signclient_reject() != 23118) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_yttrium_checksum_method_signclient_respond() != 17745) {
