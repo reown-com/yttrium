@@ -631,7 +631,9 @@ pub fn App() -> impl IntoView {
                 </Button>
             </Flex>
             <Flex>
-                <Button on_click=move |_| {
+                <Button
+                    attr:data-testid="connect-button"
+                    on_click=move |_| {
                     connect_action.dispatch(());
                 }>"Connect"</Button>
             </Flex>
@@ -758,6 +760,7 @@ pub fn App() -> impl IntoView {
                                                     <DialogContent>{format!("{request:?}")}</DialogContent>
                                                     <DialogActions>
                                                         <Button
+                                                            attr:data-testid="approve-button"
                                                             loading=approve_pairing_action.pending()
                                                             on_click={
                                                                 let request = request.clone();
@@ -852,7 +855,9 @@ pub fn App() -> impl IntoView {
                                         .map(|uri| {
                                             view! {
                                                 <p>{uri.clone()}</p>
-                                                <Button on_click=move |_| {
+                                                <Button
+                                                    attr:data-testid="self-connect-button"
+                                                    on_click=move |_| {
                                                     pair_action.dispatch(uri.clone());
                                                 }>"Self connect"</Button>
                                             }

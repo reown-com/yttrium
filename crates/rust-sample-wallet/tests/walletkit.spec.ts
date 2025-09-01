@@ -1,7 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 
-async function connect(app: Page, page: Page) {
-    await app.goto("https://appkit-lab.reown.com/library/wagmi/");
+async function connectJsApp(app: Page, page: Page) {
+    await app.goto("https://appkit-lab.reown.com/appkit/?name=wagmi");
     await app.getByTestId("connect-button").click({ force: true });
     await app.getByTestId("wallet-selector-walletconnect").click();
     const qr = app.getByTestId("wui-qr-code");
@@ -15,33 +15,33 @@ async function connect(app: Page, page: Page) {
     await page.locator('button', { hasText: 'Approve' }).click();
     await expect(page.getByText("Pairing approved")).toBeVisible();
     await expect(page.locator('ul', { hasText: 'Session' })).toBeVisible();
-    expect(await app.getByTestId("w3m-caip-address").innerText()).toEqual("eip155:1:0x0000000000000000000000000000000000000000");
+    await expect(app.getByTestId("w3m-caip-address")).toHaveText("eip155:1:0x0000000000000000000000000000000000000000");
 }
 
-test('connect', async ({ browser, page, baseURL }) => {
+test('connect Rust wallet to JS app', async ({ browser, page, baseURL }) => {
     await page.goto(baseURL!);
     const context = await browser.newContext();
     const app = await context.newPage();
-    await connect(app, page);
+    await connectJsApp(app, page);
 });
 
-test('sign', async ({ browser, page, baseURL }) => {
+test('sign message Rust wallet to JS app', async ({ browser, page, baseURL }) => {
     await page.goto(baseURL!);
     const context = await browser.newContext();
     const app = await context.newPage();
-    await connect(app, page);
+    await connectJsApp(app, page);
     await app.getByTestId("sign-message-button").click();
     await page.locator('button', { hasText: 'Approve' }).click();
     await expect(page.getByText("Signature approved")).toBeVisible();
     await expect(app.getByText("Signing Succeeded")).toBeVisible();
 });
 
-test.skip("receives sign after refresh", async ({ browser, page, baseURL }) => {
+test.skip("receives sign after refresh Rust wallet to JS app", async ({ browser, page, baseURL }) => {
     // disabled because session queue not implemented yet
     await page.goto(baseURL!);
     const context = await browser.newContext();
     const app = await context.newPage();
-    await connect(app, page);
+    await connectJsApp(app, page);
     await app.getByTestId("sign-message-button").click();
     await page.locator('button', { hasText: 'Approve' }).click();
     await expect(page.getByText("Signature approved")).toBeVisible();
@@ -57,7 +57,7 @@ test.skip("receives sign after refresh", async ({ browser, page, baseURL }) => {
     await expect(app.getByText("Signing Succeeded")).toBeVisible();
 });
 
-test("high latency", async ({ browser, baseURL }) => {
+test("high latency Rust wallet to JS app", async ({ browser, baseURL }) => {
     const walletContext = await browser.newContext();
     const page = await walletContext.newPage();
     await page.goto(baseURL!);
@@ -72,14 +72,14 @@ test("high latency", async ({ browser, baseURL }) => {
 
     const context = await browser.newContext();
     const app = await context.newPage();
-    await connect(app, page);
+    await connectJsApp(app, page);
     await app.getByTestId("sign-message-button").click();
     await page.locator('button', { hasText: 'Approve' }).click();
     await expect(page.getByText("Signature approved")).toBeVisible();
     await expect(app.getByText("Signing Succeeded")).toBeVisible();
 });
 
-test("low bandwidth", async ({ browser, baseURL }) => {
+test("low bandwidth Rust wallet to JS app", async ({ browser, baseURL }) => {
     const walletContext = await browser.newContext();
     const page = await walletContext.newPage();
     await page.goto(baseURL!);
@@ -94,14 +94,14 @@ test("low bandwidth", async ({ browser, baseURL }) => {
 
     const context = await browser.newContext();
     const app = await context.newPage();
-    await connect(app, page);
+    await connectJsApp(app, page);
     await app.getByTestId("sign-message-button").click();
     await page.locator('button', { hasText: 'Approve' }).click();
     await expect(page.getByText("Signature approved")).toBeVisible();
     await expect(app.getByText("Signing Succeeded")).toBeVisible();
 });
 
-test("retry pairing after offline", async ({ browser, baseURL }) => {
+test("retry pairing after offline Rust wallet to JS app", async ({ browser, baseURL }) => {
     const walletContext = await browser.newContext();
     const page = await walletContext.newPage();
     await page.goto(baseURL!);
@@ -131,7 +131,7 @@ test("retry pairing after offline", async ({ browser, baseURL }) => {
 
     const context2 = await browser.newContext();
     const app2 = await context2.newPage();
-    await app2.goto("https://appkit-lab.reown.com/library/wagmi/");
+    await app2.goto("https://appkit-lab.reown.com/appkit/?name=wagmi");
     await app2.getByTestId("connect-button").click({ force: true });
     await app2.getByTestId("wallet-selector-walletconnect").click();
     const qr = app2.getByTestId("wui-qr-code");
@@ -168,26 +168,26 @@ test("retry pairing after offline", async ({ browser, baseURL }) => {
     await expect(app2.getByText("Signing Succeeded")).toBeVisible();
 });
 
-test('disconnect from wallet', async ({ browser, page, baseURL }) => {
+test('disconnect from wallet - Rust wallet to JS app', async ({ browser, page, baseURL }) => {
     await page.goto(baseURL!);
     const context = await browser.newContext();
     const app = await context.newPage();
-    await connect(app, page);
+    await connectJsApp(app, page);
     expect(await app.getByTestId("w3m-caip-address").innerText()).toEqual("eip155:1:0x0000000000000000000000000000000000000000");
     const disconnectButton = page.getByRole("button", { name: "Disconnect" });
     await expect(disconnectButton).toBeVisible();
     await expect(disconnectButton).toHaveCount(1);
     await disconnectButton.click();
     await expect(disconnectButton).toHaveCount(0);
-    await expect(app.getByTestId("w3m-caip-address")).toHaveCount(0);
+    await expect(app.getByTestId("w3m-caip-address")).toHaveText("-");
 });
 
-test('disconnect from app', async ({ browser, page, baseURL }) => {
+test('disconnect from app - Rust wallet to JS app', async ({ browser, page, baseURL }) => {
     await page.goto(baseURL!);
     const context = await browser.newContext();
     const app = await context.newPage();
-    await connect(app, page);
+    await connectJsApp(app, page);
     expect(await app.getByTestId("w3m-caip-address").innerText()).toEqual("eip155:1:0x0000000000000000000000000000000000000000");
     await app.getByTestId("disconnect-hook-button").click({ force: true });
-    await expect(app.getByTestId("w3m-caip-address")).toHaveCount(0);
+    await expect(app.getByTestId("w3m-caip-address")).toHaveText("-");
 });
