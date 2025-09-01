@@ -169,7 +169,7 @@ pub struct SessionRequestJsonRpcErrorResponse {
     pub error: serde_json::Value,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum SessionRequestJsonRpcResponse {
     Result(SessionRequestJsonRpcResultResponse),

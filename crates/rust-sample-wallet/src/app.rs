@@ -15,12 +15,16 @@ use {
         client::{generate_client_id_key, Client},
         client_types::{ConnectParams, Session, SessionProposal},
         protocol_types::{
-            Metadata, ProposalNamespace, SessionRequest, SessionRequestJsonRpc, SessionRequestJsonRpcResponse, SessionRequestJsonRpcResultResponse, SessionRequestRequest, SettleNamespace
+            Metadata, ProposalNamespace, SessionRequest, SessionRequestJsonRpc,
+            SessionRequestJsonRpcResponse, SessionRequestJsonRpcResultResponse,
+            SessionRequestRequest, SettleNamespace,
         },
         storage::Storage,
         IncomingSessionMessage, SecretKey, Topic,
     },
 };
+
+// TODO loading indicator for session request button while pending
 
 // TODO expiring for sessions
 // TODO expiring for pairing_keys
@@ -556,6 +560,11 @@ pub fn App() -> impl IntoView {
                                                     "session connect on topic: {id}",
                                                 );
                                             }
+                                            IncomingSessionMessage::SessionRequestResponse(id, topic, response) => {
+                                                tracing::info!(
+                                                    "session request response on topic: {topic}: {id}: {response:?}",
+                                                );
+                                            }
                                         }
                                     }
                                     None => break,
@@ -571,6 +580,25 @@ pub fn App() -> impl IntoView {
                                                     "(app) session connect on topic: {topic}: {id}",
                                                 );
                                                 connect_uri.set(None);
+                                            }
+                                            IncomingSessionMessage::SessionRequestResponse(id, topic, response) => {
+                                                tracing::info!(
+                                                    "(app) session request response on topic: {topic}: {id}: {response:?}",
+                                                );
+                                                match response {
+                                                    SessionRequestJsonRpcResponse::Result(result) => {
+                                                        show_success_toast(
+                                                            toaster,
+                                                            format!("Session request result: {}", serde_json::to_string(&result.result).unwrap()),
+                                                        );
+                                                    }
+                                                    SessionRequestJsonRpcResponse::Error(error) => {
+                                                        show_error_toast(
+                                                            toaster,
+                                                            format!("Session request error: {}", serde_json::to_string(&error.error).unwrap()),
+                                                        );
+                                                    }
+                                                }
                                             }
                                             e => {
                                                 tracing::error!(

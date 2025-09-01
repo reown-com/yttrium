@@ -7,7 +7,8 @@ use {
             priority_future::PriorityReceiver,
             protocol_types::{
                 ProposalResponseJsonRpc, SessionDeleteJsonRpc,
-                SessionRequestJsonRpc, SessionSettle,
+                SessionRequestJsonRpc, SessionRequestJsonRpcResponse,
+                SessionSettle,
             },
             relay_url::ConnectionOptions,
             storage::Storage,
@@ -607,6 +608,7 @@ pub enum IncomingSessionMessage {
     SessionUpdate(u64, Topic, bool),
     SessionExtend(u64, Topic),
     SessionConnect(u64),
+    SessionRequestResponse(u64, Topic, SessionRequestJsonRpcResponse),
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -941,7 +943,26 @@ pub async fn connect_loop_state_machine(
                                         "Failed to send priority request: {e}"
                                     );
                                 }
-                                // TODO handle session request responses
+                            } else if sub_msg.data.tag == 1109 {
+                                let value =
+                                    serde_json::from_value::<
+                                        SessionRequestJsonRpcResponse,
+                                    >(value)
+                                    .unwrap(); // TODO handle
+                                if let Err(e) = session_request_tx
+                                    .send((
+                                        sub_msg.data.topic.clone(),
+                                        IncomingSessionMessage::SessionRequestResponse(
+                                            rpc_id,
+                                            sub_msg.data.topic,
+                                            value,
+                                        ),
+                                    ))
+                                {
+                                    tracing::debug!(
+                                        "Failed to emit session request response event: {e}"
+                                    );
+                                }
                             } else {
                                 tracing::error!(
                                     "ignoring message with invalid ID: {:?}",

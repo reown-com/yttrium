@@ -39,6 +39,12 @@ pub trait SignListener: Send + Sync {
     fn on_session_extend(&self, id: u64, topic: String);
     fn on_session_update(&self, id: u64, topic: String, params: bool);
     fn on_session_connect(&self, id: u64);
+    fn on_session_request_response(
+        &self,
+        id: u64,
+        topic: String,
+        response: SessionRequestJsonRpcResponseFfi,
+    );
 }
 
 #[derive(uniffi::Object)]
@@ -132,6 +138,17 @@ impl SignClient {
                         }
                         IncomingSessionMessage::SessionConnect(id) => {
                             listener.on_session_connect(id);
+                        }
+                        IncomingSessionMessage::SessionRequestResponse(
+                            id,
+                            topic,
+                            response,
+                        ) => {
+                            listener.on_session_request_response(
+                                id,
+                                topic.to_string(),
+                                response.into(),
+                            );
                         }
                     }
                 }

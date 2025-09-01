@@ -10,7 +10,8 @@ use {
         },
         uniffi_compat::sign::ffi_types::{
             ConnectParamsFfi, ConnectResultFfi, ErrorDataFfi, SessionFfi,
-            SessionProposalFfi, SessionRequestFfi, SessionRequestJsonRpcFfi,
+            SessionProposalFfi, SessionRequestFfi,
+            SessionRequestJsonRpcErrorResponseFfi, SessionRequestJsonRpcFfi,
             SessionRequestJsonRpcResponseFfi,
             SessionRequestJsonRpcResultResponseFfi, SessionRequestRequestFfi,
         },
@@ -222,6 +223,51 @@ impl From<ConnectParamsFfi> for ConnectParams {
 impl From<ConnectResult> for ConnectResultFfi {
     fn from(result: ConnectResult) -> Self {
         Self { topic: result.topic, uri: result.uri }
+    }
+}
+
+impl From<crate::sign::protocol_types::SessionRequestJsonRpcResponse>
+    for SessionRequestJsonRpcResponseFfi
+{
+    fn from(
+        response: crate::sign::protocol_types::SessionRequestJsonRpcResponse,
+    ) -> Self {
+        match response {
+            crate::sign::protocol_types::SessionRequestJsonRpcResponse::Result(result) => {
+                SessionRequestJsonRpcResponseFfi::Result(result.into())
+            }
+            crate::sign::protocol_types::SessionRequestJsonRpcResponse::Error(error) => {
+                SessionRequestJsonRpcResponseFfi::Error(error.into())
+            }
+        }
+    }
+}
+
+impl From<crate::sign::protocol_types::SessionRequestJsonRpcResultResponse>
+    for SessionRequestJsonRpcResultResponseFfi
+{
+    fn from(
+        result: crate::sign::protocol_types::SessionRequestJsonRpcResultResponse,
+    ) -> Self {
+        SessionRequestJsonRpcResultResponseFfi {
+            id: result.id,
+            jsonrpc: result.jsonrpc,
+            result: serde_json::to_string(&result.result).unwrap_or_default(),
+        }
+    }
+}
+
+impl From<crate::sign::protocol_types::SessionRequestJsonRpcErrorResponse>
+    for SessionRequestJsonRpcErrorResponseFfi
+{
+    fn from(
+        error: crate::sign::protocol_types::SessionRequestJsonRpcErrorResponse,
+    ) -> Self {
+        SessionRequestJsonRpcErrorResponseFfi {
+            id: error.id,
+            jsonrpc: error.jsonrpc,
+            error: serde_json::to_string(&error.error).unwrap_or_default(),
+        }
     }
 }
 
