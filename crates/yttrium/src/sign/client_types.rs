@@ -80,3 +80,53 @@ pub struct PairingInfo {
     pub methods: Option<Vec<String>>,
     pub peer_metadata: Option<Metadata>,
 }
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Enum))]
+pub enum RejectionReason {
+    UserRejected,
+    UnsupportedChains,
+    UnsupportedMethods,
+    UnsupportedAccounts,
+    UnsupportedEvents,
+}
+
+impl RejectionReason {
+    pub fn code(&self) -> i32 {
+        match self {
+            RejectionReason::UserRejected => 5000,
+            RejectionReason::UnsupportedChains => 5001,
+            RejectionReason::UnsupportedMethods => 5002,
+            RejectionReason::UnsupportedEvents => 5003,
+            RejectionReason::UnsupportedAccounts => 5004,
+        }
+    }
+
+    pub fn message(&self) -> &'static str {
+        match self {
+            RejectionReason::UserRejected => "User rejected",
+            RejectionReason::UnsupportedChains => {
+                "User disapproved requested chains"
+            }
+            RejectionReason::UnsupportedMethods => {
+                "User disapproved requested json-rpc methods"
+            }
+            RejectionReason::UnsupportedEvents => {
+                "User disapproved requested event types"
+            }
+            RejectionReason::UnsupportedAccounts => {
+                "User disapproved requested accounts"
+            }
+        }
+    }
+}
+
+impl From<RejectionReason> for relay_rpc::rpc::ErrorData {
+    fn from(reason: RejectionReason) -> Self {
+        Self {
+            code: reason.code(),
+            message: reason.message().to_string(),
+            data: None,
+        }
+    }
+}

@@ -5,15 +5,16 @@ use {
             RejectError, RequestError, RespondError,
         },
         client_types::{
-            ConnectParams, ConnectResult, PairingInfo, Session, SessionProposal,
+            ConnectParams, ConnectResult, PairingInfo, RejectionReason,
+            Session, SessionProposal,
         },
         envelope_type0, pairing_uri,
         protocol_types::{
             Controller, JsonRpcRequest, JsonRpcRequestParams, Metadata,
-            Proposal, ProposalJsonRpc, ProposalResponse,
-            ProposalResponseJsonRpc, Proposer, Relay, SessionDelete,
-            SessionDeleteJsonRpc, SessionRequest, SessionRequestJsonRpc,
-            SessionRequestJsonRpcResponse, SessionSettle, SettleNamespace,
+            Proposal, ProposalResponse, ProposalResponseJsonRpc, Proposer,
+            Relay, SessionDelete, SessionDeleteJsonRpc, SessionRequest,
+            SessionRequestJsonRpc, SessionRequestJsonRpcResponse,
+            SessionSettle, SettleNamespace,
         },
         relay::IncomingSessionMessage,
         storage::Storage,
@@ -22,8 +23,6 @@ use {
             serialize_and_encrypt_message_type0_envelope, topic_from_sym_key,
         },
     },
-    chacha20poly1305::{aead::Aead, ChaCha20Poly1305, KeyInit, Nonce},
-    data_encoding::BASE64,
     relay_rpc::{
         auth::ed25519_dalek::{SecretKey, SigningKey},
         domain::{ProjectId, Topic},
@@ -49,6 +48,17 @@ pub struct Client {
     online_tx: Option<tokio::sync::mpsc::UnboundedSender<()>>,
     cleanup_tx: Option<tokio_util::sync::CancellationToken>,
     session_store: Arc<dyn Storage>,
+    // Lazy-start fields for spawning the relay loop
+    project_id: ProjectId,
+    signing_key_bytes: [u8; 32],
+    #[allow(clippy::type_complexity)]
+    pending_request_rx: Option<
+        tokio::sync::mpsc::UnboundedReceiver<(
+            Params,
+            tokio::sync::oneshot::Sender<Result<Response, RequestError>>,
+        )>,
+    >,
+    pending_online_rx: Option<tokio::sync::mpsc::UnboundedReceiver<()>>,
 }
 
 // TODO bindings integration
@@ -124,17 +134,6 @@ impl Client {
         let (online_tx, online_rx) = tokio::sync::mpsc::unbounded_channel();
         let cleanup_rx = tokio_util::sync::CancellationToken::new();
 
-        crate::spawn::spawn(crate::sign::relay::connect_loop_state_machine(
-            RELAY_URL.to_string(),
-            project_id,
-            SigningKey::from_bytes(&key),
-            session_store.clone(),
-            tx.clone(),
-            request_rx,
-            online_rx,
-            cleanup_rx.clone(),
-        ));
-
         (
             Self {
                 tx,
@@ -142,9 +141,42 @@ impl Client {
                 session_store,
                 online_tx: Some(online_tx),
                 cleanup_tx: Some(cleanup_rx),
+                project_id,
+                signing_key_bytes: SigningKey::from_bytes(&key).to_bytes(),
+                pending_request_rx: Some(request_rx),
+                pending_online_rx: Some(online_rx),
             },
             rx,
         )
+    }
+
+    pub fn start(&mut self) {
+        if let (Some(request_rx), Some(online_rx)) =
+            (self.pending_request_rx.take(), self.pending_online_rx.take())
+        {
+            let cleanup_rx = self
+                .cleanup_tx
+                .as_ref()
+                .expect("cleanup token must exist")
+                .clone();
+            let project_id = self.project_id.clone();
+            let signing_key = SigningKey::from_bytes(&self.signing_key_bytes);
+            let session_store = self.session_store.clone();
+            let tx = self.tx.clone();
+
+            crate::spawn::spawn(
+                crate::sign::relay::connect_loop_state_machine(
+                    RELAY_URL.to_string(),
+                    project_id,
+                    signing_key,
+                    session_store,
+                    tx,
+                    request_rx,
+                    online_rx,
+                    cleanup_rx,
+                ),
+            );
+        }
     }
 
     /// Call this when the app and user are ready to receive session requests.
@@ -189,30 +221,11 @@ impl Client {
 
         for message in response.messages {
             if message.topic == pairing_uri.topic {
-                let decoded =
-                    BASE64.decode(message.message.as_bytes()).map_err(|e| {
-                        PairError::Internal(format!(
-                            "Failed to decode message: {e}"
-                        ))
-                    })?;
-
-                tracing::debug!("Subscription Data: {:?}", message);
-
-                let envelope =
-                    envelope_type0::deserialize_envelope_type0(&decoded)
-                        .map_err(|e| PairError::Internal(e.to_string()))?;
-                let key = ChaCha20Poly1305::new(&pairing_uri.sym_key.into());
-                let decrypted = key
-                    .decrypt(&Nonce::from(envelope.iv), envelope.sb.as_slice())
-                    .map_err(|e| PairError::Internal(e.to_string()))?;
-
                 let request =
-                    serde_json::from_slice::<ProposalJsonRpc>(&decrypted)
-                        .map_err(|e| {
-                            PairError::Internal(format!(
-                                "Failed to parse decrypted message: {e}"
-                            ))
-                        })?;
+                    envelope_type0::decode_type0_encrypted_proposal_message(
+                        pairing_uri.sym_key,
+                        &message.message,
+                    )?;
                 if request.method != "wc_sessionPropose" {
                     return Err(PairError::Internal(format!(
                         "Expected wc_sessionPropose, got {}",
@@ -511,7 +524,7 @@ impl Client {
     pub async fn reject(
         &mut self,
         proposal: SessionProposal,
-        reason: relay_rpc::rpc::ErrorData,
+        reason: RejectionReason,
     ) -> Result<(), RejectError> {
         // Check if proposal is expired
         // TODO remove this check: https://reown-inc.slack.com/archives/C098LHLHCNM/p1756148081338769
@@ -524,13 +537,16 @@ impl Client {
             }
         }
 
+        // Map enum to ErrorData using centralized conversion
+        let mapped_error: relay_rpc::rpc::ErrorData = reason.into();
+
         // Send error response to the pairing topic
         let error_response = relay_rpc::rpc::ErrorResponse {
             id: relay_rpc::domain::MessageId::new(
                 proposal.session_proposal_rpc_id,
             ),
             jsonrpc: relay_rpc::rpc::JSON_RPC_VERSION.clone(),
-            error: reason,
+            error: mapped_error,
         };
 
         let message = serialize_and_encrypt_message_type0_envelope(

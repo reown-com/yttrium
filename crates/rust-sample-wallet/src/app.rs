@@ -319,11 +319,7 @@ pub fn App() -> impl IntoView {
                     .wallet_client
                     .reject(
                         pairing,
-                        yttrium::sign::ErrorData {
-                            code: 5000,
-                            message: "User rejected.".to_owned(),
-                            data: None,
-                        },
+                        yttrium::sign::client_types::RejectionReason::UserRejected,
                     )
                     .await
                 {
@@ -506,6 +502,8 @@ pub fn App() -> impl IntoView {
                 leptos::task::spawn_local(async move {
                     {
                         let mut clients = client_arc.lock().await;
+                        clients.wallet_client.start();
+                        clients.app_client.start();
                         clients.wallet_client.online();
                         clients.app_client.online();
                     }

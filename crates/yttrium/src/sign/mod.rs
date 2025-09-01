@@ -10,7 +10,7 @@ pub use {
 pub mod client;
 pub mod client_errors;
 pub mod client_types;
-mod envelope_type0;
+pub mod envelope_type0;
 mod envelope_type1;
 mod pairing_uri;
 mod priority_future;
