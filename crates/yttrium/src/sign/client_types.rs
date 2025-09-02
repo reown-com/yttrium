@@ -7,15 +7,6 @@ use {
     std::collections::HashMap,
 };
 
-pub trait Storage: Send + Sync {
-    fn add_session(&self, session: Session);
-    fn delete_session(&self, topic: Topic) -> Option<Session>;
-    fn get_session(&self, topic: Topic) -> Option<Session>;
-    fn get_all_sessions(&self) -> Vec<Session>;
-    fn get_decryption_key_for_topic(&self, topic: Topic) -> Option<[u8; 32]>;
-    fn save_pairing_key(&self, topic: Topic, sym_key: [u8; 32]);
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SessionProposal {
@@ -114,16 +105,28 @@ impl RejectionReason {
     pub fn message(&self) -> &'static str {
         match self {
             RejectionReason::UserRejected => "User rejected",
-            RejectionReason::UnsupportedChains => "User disapproved requested chains",
-            RejectionReason::UnsupportedMethods => "User disapproved requested json-rpc methods",
-            RejectionReason::UnsupportedEvents => "User disapproved requested event types",
-            RejectionReason::UnsupportedAccounts => "User disapproved requested accounts",
+            RejectionReason::UnsupportedChains => {
+                "User disapproved requested chains"
+            }
+            RejectionReason::UnsupportedMethods => {
+                "User disapproved requested json-rpc methods"
+            }
+            RejectionReason::UnsupportedEvents => {
+                "User disapproved requested event types"
+            }
+            RejectionReason::UnsupportedAccounts => {
+                "User disapproved requested accounts"
+            }
         }
     }
 }
 
 impl From<RejectionReason> for relay_rpc::rpc::ErrorData {
     fn from(reason: RejectionReason) -> Self {
-        Self { code: reason.code(), message: reason.message().to_string(), data: None }
+        Self {
+            code: reason.code(),
+            message: reason.message().to_string(),
+            data: None,
+        }
     }
 }

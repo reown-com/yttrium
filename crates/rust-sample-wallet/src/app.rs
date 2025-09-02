@@ -13,21 +13,27 @@ use {
     },
     yttrium::sign::{
         client::{generate_client_id_key, Client},
-        client_types::{ConnectParams, Session, SessionProposal, Storage},
+        client_types::{ConnectParams, Session, SessionProposal},
         protocol_types::{
-            Metadata, ProposalNamespace, SessionRequestJsonRpc,
+            Metadata, ProposalNamespace, SessionRequest, SessionRequestJsonRpc,
             SessionRequestJsonRpcResponse, SessionRequestJsonRpcResultResponse,
-            SettleNamespace,
+            SessionRequestRequest, SettleNamespace,
         },
+        storage::Storage,
         IncomingSessionMessage, SecretKey, Topic,
     },
 };
 
+// TODO loading indicator for session request button while pending
+
+// TODO expiring for sessions
+// TODO expiring for pairing_keys
 #[derive(Serialize, Deserialize, Clone)]
 struct MyState {
     key: SecretKey,
     sessions: Vec<Session>,
-    pairing_keys: HashMap<Topic, [u8; 32]>,
+    pairing_keys: HashMap<Topic, (u64, [u8; 32], [u8; 32])>,
+    partial_sessions: HashMap<Topic, [u8; 32]>,
 }
 
 struct MySessionStore {
@@ -61,6 +67,7 @@ fn read_local_storage(key: &str) -> MyState {
                 key: generate_client_id_key(),
                 sessions: Vec::new(),
                 pairing_keys: HashMap::new(),
+                partial_sessions: HashMap::new(),
             }
         }
     } else {
@@ -68,6 +75,7 @@ fn read_local_storage(key: &str) -> MyState {
             key: generate_client_id_key(),
             sessions: Vec::new(),
             pairing_keys: HashMap::new(),
+            partial_sessions: HashMap::new(),
         }
     }
 }
@@ -101,16 +109,10 @@ impl Storage for MySessionStore {
         write_local_storage(&self.key, state);
     }
 
-    fn delete_session(&self, topic: Topic) -> Option<Session> {
+    fn delete_session(&self, topic: Topic) {
         let mut state = read_local_storage(&self.key);
-        let session = state
-            .sessions
-            .iter()
-            .find(|session| session.topic == topic)
-            .cloned();
         state.sessions.retain(|session| session.topic != topic);
         write_local_storage(&self.key, state);
-        session
     }
 
     fn get_session(&self, topic: Topic) -> Option<Session> {
@@ -120,6 +122,18 @@ impl Storage for MySessionStore {
             .find(|session| session.topic == topic)
     }
 
+    fn get_all_topics(&self) -> Vec<Topic> {
+        read_local_storage(&self.key)
+            .sessions
+            .iter()
+            .map(|session| session.topic.clone())
+            .chain(read_local_storage(&self.key).pairing_keys.keys().cloned())
+            .chain(
+                read_local_storage(&self.key).partial_sessions.keys().cloned(),
+            )
+            .collect()
+    }
+
     fn get_decryption_key_for_topic(&self, topic: Topic) -> Option<[u8; 32]> {
         read_local_storage(&self.key)
             .sessions
@@ -127,13 +141,45 @@ impl Storage for MySessionStore {
             .find(|session| session.topic == topic)
             .map(|session| session.session_sym_key)
             .or_else(|| {
-                read_local_storage(&self.key).pairing_keys.get(&topic).cloned()
+                read_local_storage(&self.key)
+                    .pairing_keys
+                    .get(&topic)
+                    .map(|(_, sym_key, _)| *sym_key)
+            })
+            .or_else(|| {
+                read_local_storage(&self.key)
+                    .partial_sessions
+                    .get(&topic)
+                    .copied()
             })
     }
 
-    fn save_pairing_key(&self, topic: Topic, sym_key: [u8; 32]) {
+    fn save_pairing(
+        &self,
+        topic: Topic,
+        rpc_id: u64,
+        sym_key: [u8; 32],
+        self_key: [u8; 32],
+    ) {
         let mut state = read_local_storage(&self.key);
-        state.pairing_keys.insert(topic, sym_key);
+        state.pairing_keys.insert(topic, (rpc_id, sym_key, self_key));
+        write_local_storage(&self.key, state);
+    }
+
+    fn get_pairing(
+        &self,
+        topic: Topic,
+        _rpc_id: u64,
+    ) -> Option<([u8; 32], [u8; 32])> {
+        read_local_storage(&self.key)
+            .pairing_keys
+            .get(&topic)
+            .map(|(_, sym_key, self_key)| (*sym_key, *self_key))
+    }
+
+    fn save_partial_session(&self, topic: Topic, sym_key: [u8; 32]) {
+        let mut state = read_local_storage(&self.key);
+        state.partial_sessions.insert(topic, sym_key);
         write_local_storage(&self.key, state);
     }
 }
@@ -273,11 +319,7 @@ pub fn App() -> impl IntoView {
                     .wallet_client
                     .reject(
                         pairing,
-                        yttrium::sign::ErrorData {
-                            code: 5000,
-                            message: "User rejected.".to_owned(),
-                            data: None,
-                        },
+                        yttrium::sign::client_types::RejectionReason::UserRejected,
                     )
                     .await
                 {
@@ -360,7 +402,6 @@ pub fn App() -> impl IntoView {
     });
 
     let connect_uri = RwSignal::new(None::<Option<String>>);
-    // let connect_request_open = RwSignal::new(false);
     let connect_action = Action::new({
         move |_request: &()| {
             connect_uri.set(Some(None));
@@ -461,6 +502,8 @@ pub fn App() -> impl IntoView {
                 leptos::task::spawn_local(async move {
                     {
                         let mut clients = client_arc.lock().await;
+                        clients.wallet_client.start();
+                        clients.app_client.start();
                         clients.wallet_client.online();
                         clients.app_client.online();
                     }
@@ -515,6 +558,11 @@ pub fn App() -> impl IntoView {
                                                     "session connect on topic: {id}",
                                                 );
                                             }
+                                            IncomingSessionMessage::SessionRequestResponse(id, topic, response) => {
+                                                tracing::info!(
+                                                    "session request response on topic: {topic}: {id}: {response:?}",
+                                                );
+                                            }
                                         }
                                     }
                                     None => break,
@@ -530,6 +578,25 @@ pub fn App() -> impl IntoView {
                                                     "(app) session connect on topic: {topic}: {id}",
                                                 );
                                                 connect_uri.set(None);
+                                            }
+                                            IncomingSessionMessage::SessionRequestResponse(id, topic, response) => {
+                                                tracing::info!(
+                                                    "(app) session request response on topic: {topic}: {id}: {response:?}",
+                                                );
+                                                match response {
+                                                    SessionRequestJsonRpcResponse::Result(result) => {
+                                                        show_success_toast(
+                                                            toaster,
+                                                            format!("Session request result: {}", serde_json::to_string(&result.result).unwrap()),
+                                                        );
+                                                    }
+                                                    SessionRequestJsonRpcResponse::Error(error) => {
+                                                        show_error_toast(
+                                                            toaster,
+                                                            format!("Session request error: {}", serde_json::to_string(&error.error).unwrap()),
+                                                        );
+                                                    }
+                                                }
                                             }
                                             e => {
                                                 tracing::error!(
@@ -611,6 +678,7 @@ pub fn App() -> impl IntoView {
                         .iter()
                         .map(|session| {
                             let topic = session.topic.clone();
+                            let topic2 = session.topic.clone();
                             view! {
                                 <li>
                                     <Flex>
@@ -636,6 +704,34 @@ pub fn App() -> impl IntoView {
                                                 }
                                             });
                                         }>"Disconnect"</Button>
+                                        <Button on_click=move |_| {
+                                            let topic = topic2.clone();
+                                            leptos::task::spawn_local(async move {
+                                                let client = clients.read_value().as_ref().unwrap().clone();
+                                                let mut client = client.lock().await;
+                                                match client.app_client.request(topic, SessionRequest {
+                                                    chain_id: "eip155:11155111".to_string(),
+                                                    request: SessionRequestRequest {
+                                                        method: "personal_sign".to_string(),
+                                                        params: serde_json::Value::Null,
+                                                        expiry: None,
+                                                    },
+                                                }).await {
+                                                    Ok(_) => {
+                                                        show_success_toast(
+                                                            toaster,
+                                                            "Successfully requested (app)".to_owned(),
+                                                        );
+                                                    }
+                                                    Err(e) => {
+                                                        show_error_toast(
+                                                            toaster,
+                                                            format!("Request failed (app): {e}"),
+                                                        );
+                                                    }
+                                                }
+                                            });
+                                        }>"Request"</Button>
                                     </Flex>
                                 </li>
                             }

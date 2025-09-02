@@ -1,5 +1,4 @@
-use yttrium::sign::envelope_type0;
-use data_encoding::BASE64;
+use {data_encoding::BASE64, yttrium::sign::envelope_type0};
 // no-op
 
 #[test]
@@ -14,7 +13,8 @@ fn decrypt_type0_envelope_matches_swift_vectors() {
     .unwrap();
 
     // Vector from Swift tests for plaintext "WalletConnect"
-    let combined_b64 = "cXdlY2ZhYXNkYWRzVhkbjHqli8hN0rFbAtMPIsJho4zLvWskMTQKSGw=";
+    let combined_b64 =
+        "cXdlY2ZhYXNkYWRzVhkbjHqli8hN0rFbAtMPIsJho4zLvWskMTQKSGw=";
     let combined = BASE64.decode(combined_b64.as_bytes()).unwrap();
     assert!(combined.len() > 12);
     let (nonce, ct_tag) = combined.split_at(12);
@@ -26,9 +26,8 @@ fn decrypt_type0_envelope_matches_swift_vectors() {
     envelope.extend_from_slice(ct_tag);
     let envelope_b64 = BASE64.encode(&envelope);
 
-    let decrypted = envelope_type0::decrypt_type0_envelope(key_bytes, &envelope_b64)
-        .expect("decrypt envelope");
+    let decrypted =
+        envelope_type0::decrypt_type0_envelope(key_bytes, &envelope_b64)
+            .expect("decrypt envelope");
     assert_eq!(decrypted, b"WalletConnect");
 }
-
-
