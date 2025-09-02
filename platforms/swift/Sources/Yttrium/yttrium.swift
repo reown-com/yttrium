@@ -1246,6 +1246,8 @@ public protocol SignClientProtocol: AnyObject, Sendable {
     
     func start() async 
     
+    func update(topic: String, namespaces: [String: SettleNamespace]) async throws 
+    
 }
 open class SignClient: SignClientProtocol, @unchecked Sendable {
     fileprivate let pointer: UnsafeMutableRawPointer!
@@ -1472,6 +1474,23 @@ open func start()async   {
         )
 }
     
+open func update(topic: String, namespaces: [String: SettleNamespace])async throws   {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_yttrium_fn_method_signclient_update(
+                    self.uniffiClonePointer(),
+                    FfiConverterString.lower(topic),FfiConverterDictionaryStringTypeSettleNamespace.lower(namespaces)
+                )
+            },
+            pollFunc: ffi_yttrium_rust_future_poll_void,
+            completeFunc: ffi_yttrium_rust_future_complete_void,
+            freeFunc: ffi_yttrium_rust_future_free_void,
+            liftFunc: { $0 },
+            errorHandler: FfiConverterTypeUpdateError_lift
+        )
+}
+    
 
 }
 
@@ -1540,7 +1559,7 @@ public protocol SignListener: AnyObject, Sendable {
     
     func onSessionExtend(id: UInt64, topic: String) 
     
-    func onSessionUpdate(id: UInt64, topic: String, params: Bool) 
+    func onSessionUpdate(id: UInt64, topic: String, namespaces: [String: SettleNamespace]) 
     
     func onSessionConnect(id: UInt64) 
     
@@ -1630,11 +1649,11 @@ open func onSessionExtend(id: UInt64, topic: String)  {try! rustCall() {
 }
 }
     
-open func onSessionUpdate(id: UInt64, topic: String, params: Bool)  {try! rustCall() {
+open func onSessionUpdate(id: UInt64, topic: String, namespaces: [String: SettleNamespace])  {try! rustCall() {
     uniffi_yttrium_fn_method_signlistener_on_session_update(self.uniffiClonePointer(),
         FfiConverterUInt64.lower(id),
         FfiConverterString.lower(topic),
-        FfiConverterBool.lower(params),$0
+        FfiConverterDictionaryStringTypeSettleNamespace.lower(namespaces),$0
     )
 }
 }
@@ -1769,7 +1788,7 @@ fileprivate struct UniffiCallbackInterfaceSignListener {
             uniffiHandle: UInt64,
             id: UInt64,
             topic: RustBuffer,
-            params: Int8,
+            namespaces: RustBuffer,
             uniffiOutReturn: UnsafeMutableRawPointer,
             uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
         ) in
@@ -1781,7 +1800,7 @@ fileprivate struct UniffiCallbackInterfaceSignListener {
                 return uniffiObj.onSessionUpdate(
                      id: try FfiConverterUInt64.lift(id),
                      topic: try FfiConverterString.lift(topic),
-                     params: try FfiConverterBool.lift(params)
+                     namespaces: try FfiConverterDictionaryStringTypeSettleNamespace.lift(namespaces)
                 )
             }
 
@@ -9525,6 +9544,114 @@ extension TransportType: Equatable, Hashable {}
 
 
 
+public enum UpdateError: Swift.Error {
+
+    
+    
+    case SessionNotFound
+    case Unauthorized
+    case Request(RequestError
+    )
+    case Internal(String
+    )
+    case ShouldNeverHappen(String
+    )
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeUpdateError: FfiConverterRustBuffer {
+    typealias SwiftType = UpdateError
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> UpdateError {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+
+        
+
+        
+        case 1: return .SessionNotFound
+        case 2: return .Unauthorized
+        case 3: return .Request(
+            try FfiConverterTypeRequestError.read(from: &buf)
+            )
+        case 4: return .Internal(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 5: return .ShouldNeverHappen(
+            try FfiConverterString.read(from: &buf)
+            )
+
+         default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: UpdateError, into buf: inout [UInt8]) {
+        switch value {
+
+        
+
+        
+        
+        case .SessionNotFound:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .Unauthorized:
+            writeInt(&buf, Int32(2))
+        
+        
+        case let .Request(v1):
+            writeInt(&buf, Int32(3))
+            FfiConverterTypeRequestError.write(v1, into: &buf)
+            
+        
+        case let .Internal(v1):
+            writeInt(&buf, Int32(4))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .ShouldNeverHappen(v1):
+            writeInt(&buf, Int32(5))
+            FfiConverterString.write(v1, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeUpdateError_lift(_ buf: RustBuffer) throws -> UpdateError {
+    return try FfiConverterTypeUpdateError.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeUpdateError_lower(_ value: UpdateError) -> RustBuffer {
+    return FfiConverterTypeUpdateError.lower(value)
+}
+
+
+extension UpdateError: Equatable, Hashable {}
+
+
+
+
+extension UpdateError: Foundation.LocalizedError {
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+}
+
+
+
+
+
 public enum WaitForSuccessError: Swift.Error {
 
     
@@ -12249,6 +12376,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_yttrium_checksum_method_signclient_start() != 35500) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_yttrium_checksum_method_signclient_update() != 8371) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_yttrium_checksum_method_signlistener_on_session_request() != 45061) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -12261,7 +12391,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_yttrium_checksum_method_signlistener_on_session_extend() != 55166) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_yttrium_checksum_method_signlistener_on_session_update() != 292) {
+    if (uniffi_yttrium_checksum_method_signlistener_on_session_update() != 23427) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_yttrium_checksum_method_signlistener_on_session_connect() != 15582) {

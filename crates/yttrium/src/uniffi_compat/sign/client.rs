@@ -19,9 +19,7 @@ use {
             session_store::{SessionStoreFfi, SessionStoreFfiProxy},
         },
     },
-    relay_rpc::{
-        domain::{ProjectId, Topic},
-    },
+    relay_rpc::domain::{ProjectId, Topic},
     std::{collections::HashMap, sync::Arc},
 };
 

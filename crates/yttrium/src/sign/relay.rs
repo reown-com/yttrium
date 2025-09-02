@@ -727,7 +727,8 @@ pub async fn connect_loop_state_machine(
                         if let Some(mut session) = session_store
                             .get_session(sub_msg.data.topic.clone())
                         {
-                            session.session_namespaces = update.params.namespaces.clone();
+                            session.session_namespaces =
+                                update.params.namespaces.clone();
                             session_store.add_session(session);
                         } else {
                             tracing::warn!(

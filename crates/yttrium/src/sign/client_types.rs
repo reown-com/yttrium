@@ -114,16 +114,28 @@ impl RejectionReason {
     pub fn message(&self) -> &'static str {
         match self {
             RejectionReason::UserRejected => "User rejected",
-            RejectionReason::UnsupportedChains => "User disapproved requested chains",
-            RejectionReason::UnsupportedMethods => "User disapproved requested json-rpc methods",
-            RejectionReason::UnsupportedEvents => "User disapproved requested event types",
-            RejectionReason::UnsupportedAccounts => "User disapproved requested accounts",
+            RejectionReason::UnsupportedChains => {
+                "User disapproved requested chains"
+            }
+            RejectionReason::UnsupportedMethods => {
+                "User disapproved requested json-rpc methods"
+            }
+            RejectionReason::UnsupportedEvents => {
+                "User disapproved requested event types"
+            }
+            RejectionReason::UnsupportedAccounts => {
+                "User disapproved requested accounts"
+            }
         }
     }
 }
 
 impl From<RejectionReason> for relay_rpc::rpc::ErrorData {
     fn from(reason: RejectionReason) -> Self {
-        Self { code: reason.code(), message: reason.message().to_string(), data: None }
+        Self {
+            code: reason.code(),
+            message: reason.message().to_string(),
+            data: None,
+        }
     }
 }

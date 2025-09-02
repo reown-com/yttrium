@@ -13,7 +13,9 @@ use {
     },
     yttrium::sign::{
         client::{generate_client_id_key, Client},
-        client_types::{ConnectParams, Session, SessionProposal, Storage},
+        client_types::{
+            ConnectParams, RejectionReason, Session, SessionProposal, Storage,
+        },
         protocol_types::{
             Metadata, ProposalNamespace, SessionRequestJsonRpc,
             SessionRequestJsonRpcResponse, SessionRequestJsonRpcResultResponse,
@@ -271,14 +273,7 @@ pub fn App() -> impl IntoView {
                 let mut client = client.lock().await;
                 match client
                     .wallet_client
-                    .reject(
-                        pairing,
-                        yttrium::sign::ErrorData {
-                            code: 5000,
-                            message: "User rejected.".to_owned(),
-                            data: None,
-                        },
-                    )
+                    .reject(pairing, RejectionReason::UserRejected)
                     .await
                 {
                     Ok(_) => {

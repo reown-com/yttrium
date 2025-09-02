@@ -1,7 +1,8 @@
-use crate::sign::client_errors::PairError;
-use crate::sign::protocol_types::ProposalJsonRpc;
-use chacha20poly1305::{aead::Aead, ChaCha20Poly1305, KeyInit, Nonce};
-use data_encoding::BASE64;
+use {
+    crate::sign::{client_errors::PairError, protocol_types::ProposalJsonRpc},
+    chacha20poly1305::{aead::Aead, ChaCha20Poly1305, KeyInit, Nonce},
+    data_encoding::BASE64,
+};
 
 const IV_LENGTH: usize = 12;
 
@@ -57,11 +58,9 @@ pub fn decrypt_type0_envelope(
     sym_key: [u8; 32],
     message_b64: &str,
 ) -> Result<Vec<u8>, PairError> {
-    let decoded = BASE64
-        .decode(message_b64.as_bytes())
-        .map_err(|e| PairError::Internal(format!(
-            "Failed to decode message: {e}"
-        )))?;
+    let decoded = BASE64.decode(message_b64.as_bytes()).map_err(|e| {
+        PairError::Internal(format!("Failed to decode message: {e}"))
+    })?;
 
     let envelope = deserialize_envelope_type0(&decoded)
         .map_err(|e| PairError::Internal(e.to_string()))?;

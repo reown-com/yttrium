@@ -5,16 +5,16 @@ use {
             RejectError, RequestError, RespondError, UpdateError,
         },
         client_types::{
-            ConnectParams, ConnectResult, PairingInfo, Session,
-            SessionProposal, Storage, RejectionReason,
+            ConnectParams, ConnectResult, PairingInfo, RejectionReason,
+            Session, SessionProposal, Storage,
         },
         envelope_type0, pairing_uri,
         protocol_types::{
             Controller, JsonRpcRequest, JsonRpcRequestParams, Metadata,
-            Proposal, ProposalResponse,
-            ProposalResponseJsonRpc, Proposer, Relay, SessionDelete,
-            SessionDeleteJsonRpc, SessionRequestJsonRpcResponse, SessionSettle,
-            SessionUpdate, SettleNamespace,
+            Proposal, ProposalResponse, ProposalResponseJsonRpc, Proposer,
+            Relay, SessionDelete, SessionDeleteJsonRpc,
+            SessionRequestJsonRpcResponse, SessionSettle, SessionUpdate,
+            SettleNamespace,
         },
         relay::IncomingSessionMessage,
         utils::{
@@ -22,7 +22,6 @@ use {
             serialize_and_encrypt_message_type0_envelope, topic_from_sym_key,
         },
     },
-
     relay_rpc::{
         auth::ed25519_dalek::{SecretKey, SigningKey},
         domain::{ProjectId, Topic},
@@ -39,24 +38,23 @@ use {
 
 const RELAY_URL: &str = "wss://relay.walletconnect.org";
 
+// Type aliases to reduce clippy::type-complexity warnings for channel message types
+type RpcRequestMessage =
+    (Params, tokio::sync::oneshot::Sender<Result<Response, RequestError>>);
+type RpcRequestSender = tokio::sync::mpsc::UnboundedSender<RpcRequestMessage>;
+type RpcRequestReceiver =
+    tokio::sync::mpsc::UnboundedReceiver<RpcRequestMessage>;
+
 pub struct Client {
     tx: tokio::sync::mpsc::UnboundedSender<(Topic, IncomingSessionMessage)>,
-    request_tx: tokio::sync::mpsc::UnboundedSender<(
-        Params,
-        tokio::sync::oneshot::Sender<Result<Response, RequestError>>,
-    )>,
+    request_tx: RpcRequestSender,
     online_tx: Option<tokio::sync::mpsc::UnboundedSender<()>>,
     cleanup_tx: Option<tokio_util::sync::CancellationToken>,
     session_store: Arc<dyn Storage>,
     // Lazy-start fields for spawning the relay loop
     project_id: ProjectId,
     signing_key_bytes: [u8; 32],
-    pending_request_rx: Option<
-        tokio::sync::mpsc::UnboundedReceiver<(
-            Params,
-            tokio::sync::oneshot::Sender<Result<Response, RequestError>>,
-        )>,
-    >,
+    pending_request_rx: Option<RpcRequestReceiver>,
     pending_online_rx: Option<tokio::sync::mpsc::UnboundedReceiver<()>>,
 }
 
@@ -129,7 +127,8 @@ impl Client {
         // TODO validate format i.e. hex
 
         let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
-        let (request_tx, request_rx) = tokio::sync::mpsc::unbounded_channel();
+        let (request_tx, request_rx): (RpcRequestSender, RpcRequestReceiver) =
+            tokio::sync::mpsc::unbounded_channel();
         let (online_tx, online_rx) = tokio::sync::mpsc::unbounded_channel();
         let cleanup_rx = tokio_util::sync::CancellationToken::new();
 
@@ -163,16 +162,18 @@ impl Client {
             let session_store = self.session_store.clone();
             let tx = self.tx.clone();
 
-            crate::spawn::spawn(crate::sign::relay::connect_loop_state_machine(
-                RELAY_URL.to_string(),
-                project_id,
-                signing_key,
-                session_store,
-                tx,
-                request_rx,
-                online_rx,
-                cleanup_rx,
-            ));
+            crate::spawn::spawn(
+                crate::sign::relay::connect_loop_state_machine(
+                    RELAY_URL.to_string(),
+                    project_id,
+                    signing_key,
+                    session_store,
+                    tx,
+                    request_rx,
+                    online_rx,
+                    cleanup_rx,
+                ),
+            );
         }
     }
 
@@ -218,10 +219,11 @@ impl Client {
 
         for message in response.messages {
             if message.topic == pairing_uri.topic {
-                let request = envelope_type0::decode_type0_encrypted_proposal_message(
-                    pairing_uri.sym_key,
-                    &message.message,
-                )?;
+                let request =
+                    envelope_type0::decode_type0_encrypted_proposal_message(
+                        pairing_uri.sym_key,
+                        &message.message,
+                    )?;
                 if request.method != "wc_sessionPropose" {
                     return Err(PairError::Internal(format!(
                         "Expected wc_sessionPropose, got {}",
