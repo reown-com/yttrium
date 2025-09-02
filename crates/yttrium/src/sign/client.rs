@@ -658,14 +658,21 @@ impl Client {
         topic: Topic,
         namespaces: std::collections::HashMap<String, SettleNamespace>,
     ) -> Result<(), UpdateError> {
-        let shared_secret = self
-            .session_store
-            .get_session(topic.clone())
+        let session_opt = self.session_store.get_session(topic.clone());
+        let shared_secret = session_opt
+            .as_ref()
             .map(|s| s.session_sym_key)
             .ok_or(UpdateError::SessionNotFound)?;
 
+        // validateController: only the controller can send updates
+        if let Some(session) = &session_opt {
+            if session.controller_key != Some(session.self_public_key) {
+                return Err(UpdateError::Unauthorized);
+            }
+        }
+
         // Update local storage immediately
-        if let Some(mut session) = self.session_store.get_session(topic.clone()) {
+        if let Some(mut session) = session_opt {
             session.session_namespaces = namespaces.clone();
             self.session_store.add_session(session);
         }

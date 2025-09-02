@@ -747,6 +747,7 @@ pub async fn connect_loop_state_machine(
                                 ),
                             ))
                             .unwrap();
+                        // Respond success to the relay for the request (ACK channel already ensures success response to network layer)
                         if let Err(e) = irn_subscription_ack_tx.send(id) {
                             tracing::debug!(
                                 "Failed to send subscription ack: {e}"

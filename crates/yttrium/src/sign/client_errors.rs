@@ -119,6 +119,9 @@ pub enum UpdateError {
     #[error("Session not found")]
     SessionNotFound,
 
+    #[error("Unauthorized: not controller")]
+    Unauthorized,
+
     #[error("Request: {0}")]
     Request(RequestError),
 

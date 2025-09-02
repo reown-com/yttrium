@@ -109,6 +109,14 @@ pub struct SessionUpdateJsonRpc {
     pub params: SessionUpdate,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct SimpleJsonRpcBoolResponse {
+    pub id: u64,
+    pub jsonrpc: String,
+    pub result: bool,
+}
+
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct SettleNamespace {
