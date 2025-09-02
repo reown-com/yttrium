@@ -834,20 +834,54 @@ pub async fn connect_loop_state_machine(
                             );
                         }
                     } else if method.as_str() == Some("wc_sessionExtend") {
-                        // TODO update session locally (if not older than last update)
-                        // TODO write state to storage (blocking)
-                        session_request_tx
-                            .send((
-                                sub_msg.data.topic.clone(),
-                                IncomingSessionMessage::SessionExtend(
-                                    0, // TODO
-                                    sub_msg.data.topic,
-                                ),
-                            ))
-                            .unwrap();
+                        // Parse extend payload
+                        let extend = serde_json::from_value::<
+                            crate::sign::protocol_types::SessionExtendJsonRpc,
+                        >(value)
+                        .map_err(|e| PairError::Internal(e.to_string()))
+                        .unwrap();
+
+                        // Always ACK subscription
                         if let Err(e) = irn_subscription_ack_tx.send(id) {
                             tracing::debug!(
                                 "Failed to send subscription ack: {e}"
+                            );
+                        }
+
+                        // Update session expiry if session exists and expiry is valid (> current and <= now+7d)
+                        if let Some(mut session) = session_store
+                            .get_session(sub_msg.data.topic.clone())
+                        {
+                            let now = crate::time::SystemTime::now()
+                                .duration_since(crate::time::UNIX_EPOCH)
+                                .unwrap()
+                                .as_secs();
+                            let max_expiry = now + 60 * 60 * 24 * 7;
+                            if extend.params.expiry > session.expiry
+                                && extend.params.expiry <= max_expiry
+                            {
+                                session.expiry = extend.params.expiry;
+                                session_store.add_session(session);
+                                // Emit extend event
+                                session_request_tx
+                                    .send((
+                                        sub_msg.data.topic.clone(),
+                                        IncomingSessionMessage::SessionExtend(
+                                            extend.id,
+                                            sub_msg.data.topic,
+                                        ),
+                                    ))
+                                    .unwrap();
+                            } else {
+                                tracing::warn!(
+                                    "ignored wc_sessionExtend with invalid expiry: {}",
+                                    extend.params.expiry
+                                );
+                            }
+                        } else {
+                            tracing::warn!(
+                                "wc_sessionExtend received for unknown topic: {:?}",
+                                sub_msg.data.topic
                             );
                         }
                     } else if method.as_str() == Some("wc_sessionEmit") {

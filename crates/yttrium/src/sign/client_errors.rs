@@ -114,6 +114,23 @@ pub enum ConnectError {
 
 #[derive(Debug, thiserror::Error)]
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Error))]
+#[error("Sign extend error: {0}")]
+pub enum ExtendError {
+    #[error("Session not found")]
+    SessionNotFound,
+
+    #[error("Invalid expiry value")]
+    InvalidExpiry,
+
+    #[error("Request: {0}")]
+    Request(RequestError),
+
+    #[error("Should never happen: {0}")]
+    ShouldNeverHappen(String),
+}
+
+#[derive(Debug, thiserror::Error)]
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Error))]
 #[error("Sign update error: {0}")]
 pub enum UpdateError {
     #[error("Session not found")]
