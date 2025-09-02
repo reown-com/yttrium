@@ -848,10 +848,19 @@ pub async fn connect_loop_state_machine(
                             );
                         }
 
-                        // Update session expiry if session exists and expiry is valid (> current and <= now+7d)
+                        // Update session expiry if session exists, peer is controller, and expiry is valid (> current and <= now+7d)
                         if let Some(mut session) = session_store
                             .get_session(sub_msg.data.topic.clone())
                         {
+                            let peer_is_controller = session
+                                .peer_public_key
+                                .is_some_and(|pk| session.controller_key == Some(pk));
+                            if !peer_is_controller {
+                                tracing::warn!(
+                                    "ignored wc_sessionExtend from non-controller peer"
+                                );
+                                return;
+                            }
                             let now = crate::time::SystemTime::now()
                                 .duration_since(crate::time::UNIX_EPOCH)
                                 .unwrap()
