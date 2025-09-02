@@ -852,40 +852,35 @@ pub async fn connect_loop_state_machine(
                         if let Some(mut session) = session_store
                             .get_session(sub_msg.data.topic.clone())
                         {
-                            let peer_is_controller = session
-                                .peer_public_key
-                                .is_some_and(|pk| session.controller_key == Some(pk));
-                            if !peer_is_controller {
-                                tracing::warn!(
-                                    "ignored wc_sessionExtend from non-controller peer"
-                                );
-                                return;
-                            }
                             let now = crate::time::SystemTime::now()
                                 .duration_since(crate::time::UNIX_EPOCH)
                                 .unwrap()
                                 .as_secs();
-                            let max_expiry = now + 60 * 60 * 24 * 7;
-                            if extend.params.expiry > session.expiry
-                                && extend.params.expiry <= max_expiry
-                            {
-                                session.expiry = extend.params.expiry;
-                                session_store.add_session(session);
-                                // Emit extend event
-                                session_request_tx
-                                    .send((
-                                        sub_msg.data.topic.clone(),
-                                        IncomingSessionMessage::SessionExtend(
-                                            extend.id,
-                                            sub_msg.data.topic,
-                                        ),
-                                    ))
-                                    .unwrap();
-                            } else {
-                                tracing::warn!(
-                                    "ignored wc_sessionExtend with invalid expiry: {}",
-                                    extend.params.expiry
-                                );
+                            match crate::sign::utils::validate_extend_request(
+                                &session,
+                                extend.params.expiry,
+                                now,
+                            ) {
+                                Ok(accepted_expiry) => {
+                                    session.expiry = accepted_expiry;
+                                    session_store.add_session(session);
+                                    // Emit extend event
+                                    session_request_tx
+                                        .send((
+                                            sub_msg.data.topic.clone(),
+                                            IncomingSessionMessage::SessionExtend(
+                                                extend.id,
+                                                sub_msg.data.topic,
+                                            ),
+                                        ))
+                                        .unwrap();
+                                }
+                                Err(e) => {
+                                    tracing::warn!(
+                                        "ignored wc_sessionExtend: {:?}",
+                                        e
+                                    );
+                                }
                             }
                         } else {
                             tracing::warn!(
