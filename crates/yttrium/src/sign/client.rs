@@ -2,7 +2,7 @@ use {
     crate::sign::{
         client_errors::{
             ApproveError, ConnectError, DisconnectError, PairError,
-            RejectError, RequestError, RespondError,
+            RejectError, RequestError, RespondError, UpdateError,
         },
         client_types::{
             ConnectParams, ConnectResult, PairingInfo, Session,
@@ -14,7 +14,7 @@ use {
             Proposal, ProposalResponse,
             ProposalResponseJsonRpc, Proposer, Relay, SessionDelete,
             SessionDeleteJsonRpc, SessionRequestJsonRpcResponse, SessionSettle,
-            SettleNamespace,
+            SessionUpdate, SettleNamespace,
         },
         relay::IncomingSessionMessage,
         utils::{
@@ -589,8 +589,7 @@ impl Client {
     }
 
     pub async fn _update(&self) {
-        // TODO implement
-        // https://github.com/WalletConnect/walletconnect-monorepo/blob/5bef698dcf0ae910548481959a6a5d87eaf7aaa5/packages/sign-client/src/controllers/engine.ts#L528
+        // TODO implement legacy method placeholder
         unimplemented!()
     }
 
@@ -650,6 +649,56 @@ impl Client {
         }))
         .await
         .map_err(RespondError::Request)?;
+
+        Ok(())
+    }
+
+    pub async fn update(
+        &mut self,
+        topic: Topic,
+        namespaces: std::collections::HashMap<String, SettleNamespace>,
+    ) -> Result<(), UpdateError> {
+        let shared_secret = self
+            .session_store
+            .get_session(topic.clone())
+            .map(|s| s.session_sym_key)
+            .ok_or(UpdateError::SessionNotFound)?;
+
+        // Update local storage immediately
+        if let Some(mut session) = self.session_store.get_session(topic.clone()) {
+            session.session_namespaces = namespaces.clone();
+            self.session_store.add_session(session);
+        }
+
+        let id = generate_rpc_id();
+        let message = serialize_and_encrypt_message_type0_envelope(
+            shared_secret,
+            &crate::sign::protocol_types::SessionUpdateJsonRpc {
+                id,
+                jsonrpc: "2.0".to_string(),
+                method: "wc_sessionUpdate".to_string(),
+                params: SessionUpdate { namespaces: namespaces.clone() },
+            },
+        )
+        .map_err(UpdateError::ShouldNeverHappen)?;
+
+        self.request::<bool>(relay_rpc::rpc::Params::Publish(Publish {
+            topic: topic.clone(),
+            message,
+            attestation: None,
+            ttl_secs: 86400,
+            tag: 1104,
+            prompt: false,
+            analytics: Some(AnalyticsData {
+                correlation_id: Some(id.try_into().unwrap()),
+                chain_id: None,
+                rpc_methods: None,
+                tx_hashes: None,
+                contract_addresses: None,
+            }),
+        }))
+        .await
+        .map_err(UpdateError::Request)?;
 
         Ok(())
     }

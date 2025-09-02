@@ -77,6 +77,7 @@ pub struct JsonRpcRequest {
 pub enum JsonRpcRequestParams {
     SessionSettle(SessionSettle),
     SessionPropose(Proposal),
+    SessionUpdate(SessionUpdate),
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -92,6 +93,21 @@ pub struct SessionSettle {
 }
 
 pub type SettleNamespaces = HashMap<String, SettleNamespace>;
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct SessionUpdate {
+    pub namespaces: SettleNamespaces,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct SessionUpdateJsonRpc {
+    pub id: u64,
+    pub jsonrpc: String,
+    pub method: String,
+    pub params: SessionUpdate,
+}
 
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
 #[derive(Debug, Serialize, Deserialize, Clone)]

@@ -597,7 +597,7 @@ pub enum IncomingSessionMessage {
     SessionRequest(SessionRequestJsonRpc),
     Disconnect(u64, Topic),
     SessionEvent(u64, Topic, bool),
-    SessionUpdate(u64, Topic, bool),
+    SessionUpdate(u64, Topic, crate::sign::protocol_types::SettleNamespaces),
     SessionExtend(u64, Topic),
     SessionConnect(u64),
 }
@@ -716,15 +716,34 @@ pub async fn connect_loop_state_machine(
                             );
                         }
                     } else if method.as_str() == Some("wc_sessionUpdate") {
-                        // TODO update session locally (if not older than last update)
-                        // TODO write state to storage (blocking)
+                        // Parse update payload and update storage
+                        let update = serde_json::from_value::<
+                            crate::sign::protocol_types::SessionUpdateJsonRpc,
+                        >(value)
+                        .map_err(|e| PairError::Internal(e.to_string()))
+                        .unwrap();
+
+                        // Update local session namespaces
+                        if let Some(mut session) = session_store
+                            .get_session(sub_msg.data.topic.clone())
+                        {
+                            session.session_namespaces = update.params.namespaces.clone();
+                            session_store.add_session(session);
+                        } else {
+                            tracing::warn!(
+                                "wc_sessionUpdate received for unknown topic: {:?}",
+                                sub_msg.data.topic
+                            );
+                        }
+
+                        // Emit event with payload
                         session_request_tx
                             .send((
                                 sub_msg.data.topic.clone(),
                                 IncomingSessionMessage::SessionUpdate(
-                                    0, // TODO
+                                    update.id,
                                     sub_msg.data.topic,
-                                    false, // TODO
+                                    update.params.namespaces,
                                 ),
                             ))
                             .unwrap();
