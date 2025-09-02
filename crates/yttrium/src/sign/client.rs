@@ -590,11 +590,6 @@ impl Client {
         }
     }
 
-    pub async fn _update(&self) {
-        // TODO implement legacy method placeholder
-        unimplemented!()
-    }
-
     pub async fn _extend(&self) {
         // TODO implement
         // https://github.com/WalletConnect/walletconnect-monorepo/blob/5bef698dcf0ae910548481959a6a5d87eaf7aaa5/packages/sign-client/src/controllers/engine.ts#L569
@@ -660,6 +655,8 @@ impl Client {
         topic: Topic,
         namespaces: std::collections::HashMap<String, SettleNamespace>,
     ) -> Result<(), UpdateError> {
+        //TODO: add validate namespaces
+
         let session_opt = self.session_store.get_session(topic.clone());
         let shared_secret = session_opt
             .as_ref()
