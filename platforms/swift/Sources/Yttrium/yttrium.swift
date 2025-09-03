@@ -890,6 +890,8 @@ public protocol SignClientProtocol: AnyObject, Sendable {
     
     func disconnect(topic: String) async throws 
     
+    func extend(topic: String) async throws 
+    
     func generateKey()  -> Data
     
     func online() async 
@@ -1017,6 +1019,23 @@ open func disconnect(topic: String)async throws   {
             freeFunc: ffi_yttrium_rust_future_free_void,
             liftFunc: { $0 },
             errorHandler: FfiConverterTypeDisconnectError_lift
+        )
+}
+    
+open func extend(topic: String)async throws   {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_yttrium_fn_method_signclient_extend(
+                    self.uniffiClonePointer(),
+                    FfiConverterString.lower(topic)
+                )
+            },
+            pollFunc: ffi_yttrium_rust_future_poll_void,
+            completeFunc: ffi_yttrium_rust_future_complete_void,
+            freeFunc: ffi_yttrium_rust_future_free_void,
+            liftFunc: { $0 },
+            errorHandler: FfiConverterTypeExtendError_lift
         )
 }
     
@@ -8066,6 +8085,104 @@ extension ExecuteErrorReason: Foundation.LocalizedError {
 
 
 
+public enum ExtendError: Swift.Error {
+
+    
+    
+    case SessionNotFound
+    case InvalidExpiry
+    case Request(RequestError
+    )
+    case ShouldNeverHappen(String
+    )
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeExtendError: FfiConverterRustBuffer {
+    typealias SwiftType = ExtendError
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ExtendError {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+
+        
+
+        
+        case 1: return .SessionNotFound
+        case 2: return .InvalidExpiry
+        case 3: return .Request(
+            try FfiConverterTypeRequestError.read(from: &buf)
+            )
+        case 4: return .ShouldNeverHappen(
+            try FfiConverterString.read(from: &buf)
+            )
+
+         default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: ExtendError, into buf: inout [UInt8]) {
+        switch value {
+
+        
+
+        
+        
+        case .SessionNotFound:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .InvalidExpiry:
+            writeInt(&buf, Int32(2))
+        
+        
+        case let .Request(v1):
+            writeInt(&buf, Int32(3))
+            FfiConverterTypeRequestError.write(v1, into: &buf)
+            
+        
+        case let .ShouldNeverHappen(v1):
+            writeInt(&buf, Int32(4))
+            FfiConverterString.write(v1, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeExtendError_lift(_ buf: RustBuffer) throws -> ExtendError {
+    return try FfiConverterTypeExtendError.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeExtendError_lower(_ value: ExtendError) -> RustBuffer {
+    return FfiConverterTypeExtendError.lower(value)
+}
+
+
+extension ExtendError: Equatable, Hashable {}
+
+
+
+
+extension ExtendError: Foundation.LocalizedError {
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+}
+
+
+
+
+
 public enum NextError: Swift.Error {
 
     
@@ -12610,6 +12727,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_yttrium_checksum_method_signclient_disconnect() != 50012) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_method_signclient_extend() != 44693) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_yttrium_checksum_method_signclient_generate_key() != 3304) {

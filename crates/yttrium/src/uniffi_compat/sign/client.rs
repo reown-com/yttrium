@@ -3,8 +3,8 @@ use {
         sign::{
             client::{generate_client_id_key, Client},
             client_errors::{
-                ApproveError, ConnectError, DisconnectError, PairError,
-                RejectError, RespondError, UpdateError,
+                ApproveError, ConnectError, DisconnectError, ExtendError,
+                PairError, RejectError, RespondError, UpdateError,
             },
             client_types::{ConnectParams, SessionProposal},
             protocol_types::{Metadata, SettleNamespace},
@@ -260,5 +260,10 @@ impl SignClient {
     ) -> Result<(), UpdateError> {
         let mut client = self.client.lock().await;
         client.update(topic.into(), namespaces).await
+    }
+
+    pub async fn extend(&self, topic: String) -> Result<(), ExtendError> {
+        let mut client = self.client.lock().await;
+        client.extend(topic.into()).await
     }
 }
