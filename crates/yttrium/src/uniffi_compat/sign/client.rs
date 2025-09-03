@@ -16,7 +16,7 @@ use {
                 SessionProposalFfi, SessionRequestJsonRpcFfi,
                 SessionRequestJsonRpcResponseFfi,
             },
-            session_store::{SessionStoreFfi, SessionStoreFfiProxy},
+            storage::{StorageFfi, StorageFfiProxy},
         },
     },
     relay_rpc::domain::{ProjectId, Topic},
@@ -41,6 +41,12 @@ pub trait SignListener: Send + Sync {
         namespaces: std::collections::HashMap<String, SettleNamespace>,
     );
     fn on_session_connect(&self, id: u64);
+    fn on_session_request_response(
+        &self,
+        id: u64,
+        topic: String,
+        response: SessionRequestJsonRpcResponseFfi,
+    );
 }
 
 #[derive(uniffi::Object)]
@@ -62,7 +68,7 @@ impl SignClient {
     pub fn new(
         project_id: String,
         key: Vec<u8>,
-        session_store: Arc<dyn SessionStoreFfi>,
+        session_store: Arc<dyn StorageFfi>,
     ) -> Self {
         tracing::debug!(
             "Creating new SignClient with project_id: {project_id}"
@@ -70,7 +76,7 @@ impl SignClient {
         let (client, session_request_rx) = Client::new(
             ProjectId::from(project_id),
             key.try_into().expect("Invalid key format - must be 32 bytes"),
-            Arc::new(SessionStoreFfiProxy(session_store)),
+            Arc::new(StorageFfiProxy(session_store)),
         );
         Self {
             client: std::sync::Arc::new(tokio::sync::Mutex::new(client)),
@@ -139,6 +145,17 @@ impl SignClient {
                         }
                         IncomingSessionMessage::SessionConnect(id) => {
                             listener.on_session_connect(id);
+                        }
+                        IncomingSessionMessage::SessionRequestResponse(
+                            id,
+                            topic,
+                            response,
+                        ) => {
+                            listener.on_session_request_response(
+                                id,
+                                topic.to_string(),
+                                response.into(),
+                            );
                         }
                     }
                 }

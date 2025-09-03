@@ -13,9 +13,11 @@ pub mod client_types;
 pub mod envelope_type0;
 mod envelope_type1;
 mod pairing_uri;
+mod priority_future;
 pub mod protocol_types;
 mod relay;
 mod relay_url;
+pub mod storage;
 #[cfg(test)]
 mod tests;
 mod utils;

@@ -87,8 +87,8 @@ pub struct SessionSettle {
     pub namespaces: SettleNamespaces,
     pub controller: Controller,
     pub expiry: u64,
-    pub session_properties: serde_json::Value,
-    pub scoped_properties: serde_json::Value,
+    pub session_properties: Option<HashMap<String, String>>,
+    pub scoped_properties: Option<HashMap<String, String>>,
     // pub session_config: serde_json::Value,
 }
 
@@ -193,7 +193,7 @@ pub struct SessionRequestJsonRpcErrorResponse {
     pub error: serde_json::Value,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum SessionRequestJsonRpcResponse {
     Result(SessionRequestJsonRpcResultResponse),
