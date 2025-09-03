@@ -2,7 +2,7 @@ use {
     crate::sign::{
         client_errors::{
             ApproveError, ConnectError, DisconnectError, PairError,
-            RejectError, RequestError, RespondError,
+            RejectError, RequestError, RespondError, UpdateError,
         },
         client_types::{
             ConnectParams, ConnectResult, PairingInfo, RejectionReason,
@@ -14,7 +14,7 @@ use {
             Proposal, ProposalResponse, ProposalResponseJsonRpc, Proposer,
             Relay, SessionDelete, SessionDeleteJsonRpc, SessionRequest,
             SessionRequestJsonRpc, SessionRequestJsonRpcResponse,
-            SessionSettle, SettleNamespace,
+            SessionSettle, SessionUpdate, SettleNamespace,
         },
         relay::IncomingSessionMessage,
         storage::Storage,
@@ -39,25 +39,23 @@ use {
 
 const RELAY_URL: &str = "wss://relay.walletconnect.org";
 
+// Type aliases to reduce clippy::type-complexity warnings for channel message types
+type RpcRequestMessage =
+    (Params, tokio::sync::oneshot::Sender<Result<Response, RequestError>>);
+type RpcRequestSender = tokio::sync::mpsc::UnboundedSender<RpcRequestMessage>;
+type RpcRequestReceiver =
+    tokio::sync::mpsc::UnboundedReceiver<RpcRequestMessage>;
+
 pub struct Client {
     tx: tokio::sync::mpsc::UnboundedSender<(Topic, IncomingSessionMessage)>,
-    request_tx: tokio::sync::mpsc::UnboundedSender<(
-        Params,
-        tokio::sync::oneshot::Sender<Result<Response, RequestError>>,
-    )>,
+    request_tx: RpcRequestSender,
     online_tx: Option<tokio::sync::mpsc::UnboundedSender<()>>,
     cleanup_tx: Option<tokio_util::sync::CancellationToken>,
     session_store: Arc<dyn Storage>,
     // Lazy-start fields for spawning the relay loop
     project_id: ProjectId,
     signing_key_bytes: [u8; 32],
-    #[allow(clippy::type_complexity)]
-    pending_request_rx: Option<
-        tokio::sync::mpsc::UnboundedReceiver<(
-            Params,
-            tokio::sync::oneshot::Sender<Result<Response, RequestError>>,
-        )>,
-    >,
+    pending_request_rx: Option<RpcRequestReceiver>,
     pending_online_rx: Option<tokio::sync::mpsc::UnboundedReceiver<()>>,
 }
 
@@ -130,7 +128,8 @@ impl Client {
         // TODO validate format i.e. hex
 
         let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
-        let (request_tx, request_rx) = tokio::sync::mpsc::unbounded_channel();
+        let (request_tx, request_rx): (RpcRequestSender, RpcRequestReceiver) =
+            tokio::sync::mpsc::unbounded_channel();
         let (online_tx, online_rx) = tokio::sync::mpsc::unbounded_channel();
         let cleanup_rx = tokio_util::sync::CancellationToken::new();
 
@@ -588,12 +587,6 @@ impl Client {
         }
     }
 
-    pub async fn _update(&self) {
-        // TODO implement
-        // https://github.com/WalletConnect/walletconnect-monorepo/blob/5bef698dcf0ae910548481959a6a5d87eaf7aaa5/packages/sign-client/src/controllers/engine.ts#L528
-        unimplemented!()
-    }
-
     pub async fn _extend(&self) {
         // TODO implement
         // https://github.com/WalletConnect/walletconnect-monorepo/blob/5bef698dcf0ae910548481959a6a5d87eaf7aaa5/packages/sign-client/src/controllers/engine.ts#L569
@@ -678,6 +671,65 @@ impl Client {
         }))
         .await
         .map_err(RespondError::Request)?;
+
+        Ok(())
+    }
+
+    pub async fn update(
+        &mut self,
+        topic: Topic,
+        namespaces: std::collections::HashMap<String, SettleNamespace>,
+    ) -> Result<(), UpdateError> {
+        //TODO: add validate namespaces
+
+        let session_opt = self.session_store.get_session(topic.clone());
+        let shared_secret = session_opt
+            .as_ref()
+            .map(|s| s.session_sym_key)
+            .ok_or(UpdateError::SessionNotFound)?;
+
+        // validateController: only the controller can send updates
+        if let Some(session) = &session_opt {
+            if session.controller_key != Some(session.self_public_key) {
+                return Err(UpdateError::Unauthorized);
+            }
+        }
+
+        // Update local storage immediately
+        if let Some(mut session) = session_opt {
+            session.session_namespaces = namespaces.clone();
+            self.session_store.add_session(session);
+        }
+
+        let id = generate_rpc_id();
+        let message = serialize_and_encrypt_message_type0_envelope(
+            shared_secret,
+            &crate::sign::protocol_types::SessionUpdateJsonRpc {
+                id,
+                jsonrpc: "2.0".to_string(),
+                method: "wc_sessionUpdate".to_string(),
+                params: SessionUpdate { namespaces: namespaces.clone() },
+            },
+        )
+        .map_err(UpdateError::ShouldNeverHappen)?;
+
+        self.do_request::<bool>(relay_rpc::rpc::Params::Publish(Publish {
+            topic: topic.clone(),
+            message,
+            attestation: None,
+            ttl_secs: 86400,
+            tag: 1104,
+            prompt: false,
+            analytics: Some(AnalyticsData {
+                correlation_id: Some(id.try_into().unwrap()),
+                chain_id: None,
+                rpc_methods: None,
+                tx_hashes: None,
+                contract_addresses: None,
+            }),
+        }))
+        .await
+        .map_err(UpdateError::Request)?;
 
         Ok(())
     }

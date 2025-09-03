@@ -4,7 +4,7 @@ use {
             client::{generate_client_id_key, Client},
             client_errors::{
                 ApproveError, ConnectError, DisconnectError, PairError,
-                RejectError, RespondError,
+                RejectError, RespondError, UpdateError,
             },
             client_types::{ConnectParams, SessionProposal},
             protocol_types::{Metadata, SettleNamespace},
@@ -34,7 +34,12 @@ pub trait SignListener: Send + Sync {
     fn on_session_disconnect(&self, id: u64, topic: String);
     fn on_session_event(&self, id: u64, topic: String, params: bool);
     fn on_session_extend(&self, id: u64, topic: String);
-    fn on_session_update(&self, id: u64, topic: String, params: bool);
+    fn on_session_update(
+        &self,
+        id: u64,
+        topic: String,
+        namespaces: std::collections::HashMap<String, SettleNamespace>,
+    );
     fn on_session_connect(&self, id: u64);
     fn on_session_request_response(
         &self,
@@ -246,5 +251,14 @@ impl SignClient {
         let mut client = self.client.lock().await;
         client.disconnect(topic.into()).await?;
         Ok(())
+    }
+
+    pub async fn update(
+        &self,
+        topic: String,
+        namespaces: std::collections::HashMap<String, SettleNamespace>,
+    ) -> Result<(), UpdateError> {
+        let mut client = self.client.lock().await;
+        client.update(topic.into(), namespaces).await
     }
 }

@@ -882,348 +882,6 @@ public func FfiConverterTypeLogger_lower(_ value: Logger) -> UnsafeMutableRawPoi
 
 
 
-public protocol SessionStoreFfi: AnyObject, Sendable {
-    
-    func addSession(session: SessionFfi) 
-    
-    func deleteSession(topic: String)  -> SessionFfi?
-    
-    func getSession(topic: String)  -> SessionFfi?
-    
-    func getAllSessions()  -> [SessionFfi]
-    
-    func getDecryptionKeyForTopic(topic: String)  -> Data?
-    
-    func savePairingKey(topic: String, symKey: Data) 
-    
-}
-open class SessionStoreFfiImpl: SessionStoreFfi, @unchecked Sendable {
-    fileprivate let pointer: UnsafeMutableRawPointer!
-
-    /// Used to instantiate a [FFIObject] without an actual pointer, for fakes in tests, mostly.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
-    public struct NoPointer {
-        public init() {}
-    }
-
-    // TODO: We'd like this to be `private` but for Swifty reasons,
-    // we can't implement `FfiConverter` without making this `required` and we can't
-    // make it `required` without making it `public`.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
-    required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
-        self.pointer = pointer
-    }
-
-    // This constructor can be used to instantiate a fake object.
-    // - Parameter noPointer: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
-    //
-    // - Warning:
-    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing [Pointer] the FFI lower functions will crash.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
-    public init(noPointer: NoPointer) {
-        self.pointer = nil
-    }
-
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
-    public func uniffiClonePointer() -> UnsafeMutableRawPointer {
-        return try! rustCall { uniffi_yttrium_fn_clone_sessionstoreffi(self.pointer, $0) }
-    }
-    // No primary constructor declared for this class.
-
-    deinit {
-        guard let pointer = pointer else {
-            return
-        }
-
-        try! rustCall { uniffi_yttrium_fn_free_sessionstoreffi(pointer, $0) }
-    }
-
-    
-
-    
-open func addSession(session: SessionFfi)  {try! rustCall() {
-    uniffi_yttrium_fn_method_sessionstoreffi_add_session(self.uniffiClonePointer(),
-        FfiConverterTypeSessionFfi_lower(session),$0
-    )
-}
-}
-    
-open func deleteSession(topic: String) -> SessionFfi?  {
-    return try!  FfiConverterOptionTypeSessionFfi.lift(try! rustCall() {
-    uniffi_yttrium_fn_method_sessionstoreffi_delete_session(self.uniffiClonePointer(),
-        FfiConverterString.lower(topic),$0
-    )
-})
-}
-    
-open func getSession(topic: String) -> SessionFfi?  {
-    return try!  FfiConverterOptionTypeSessionFfi.lift(try! rustCall() {
-    uniffi_yttrium_fn_method_sessionstoreffi_get_session(self.uniffiClonePointer(),
-        FfiConverterString.lower(topic),$0
-    )
-})
-}
-    
-open func getAllSessions() -> [SessionFfi]  {
-    return try!  FfiConverterSequenceTypeSessionFfi.lift(try! rustCall() {
-    uniffi_yttrium_fn_method_sessionstoreffi_get_all_sessions(self.uniffiClonePointer(),$0
-    )
-})
-}
-    
-open func getDecryptionKeyForTopic(topic: String) -> Data?  {
-    return try!  FfiConverterOptionData.lift(try! rustCall() {
-    uniffi_yttrium_fn_method_sessionstoreffi_get_decryption_key_for_topic(self.uniffiClonePointer(),
-        FfiConverterString.lower(topic),$0
-    )
-})
-}
-    
-open func savePairingKey(topic: String, symKey: Data)  {try! rustCall() {
-    uniffi_yttrium_fn_method_sessionstoreffi_save_pairing_key(self.uniffiClonePointer(),
-        FfiConverterString.lower(topic),
-        FfiConverterData.lower(symKey),$0
-    )
-}
-}
-    
-
-}
-
-
-// Put the implementation in a struct so we don't pollute the top-level namespace
-fileprivate struct UniffiCallbackInterfaceSessionStoreFfi {
-
-    // Create the VTable using a series of closures.
-    // Swift automatically converts these into C callback functions.
-    //
-    // This creates 1-element array, since this seems to be the only way to construct a const
-    // pointer that we can pass to the Rust code.
-    static let vtable: [UniffiVTableCallbackInterfaceSessionStoreFfi] = [UniffiVTableCallbackInterfaceSessionStoreFfi(
-        addSession: { (
-            uniffiHandle: UInt64,
-            session: RustBuffer,
-            uniffiOutReturn: UnsafeMutableRawPointer,
-            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
-        ) in
-            let makeCall = {
-                () throws -> () in
-                guard let uniffiObj = try? FfiConverterTypeSessionStoreFfi.handleMap.get(handle: uniffiHandle) else {
-                    throw UniffiInternalError.unexpectedStaleHandle
-                }
-                return uniffiObj.addSession(
-                     session: try FfiConverterTypeSessionFfi_lift(session)
-                )
-            }
-
-            
-            let writeReturn = { () }
-            uniffiTraitInterfaceCall(
-                callStatus: uniffiCallStatus,
-                makeCall: makeCall,
-                writeReturn: writeReturn
-            )
-        },
-        deleteSession: { (
-            uniffiHandle: UInt64,
-            topic: RustBuffer,
-            uniffiOutReturn: UnsafeMutablePointer<RustBuffer>,
-            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
-        ) in
-            let makeCall = {
-                () throws -> SessionFfi? in
-                guard let uniffiObj = try? FfiConverterTypeSessionStoreFfi.handleMap.get(handle: uniffiHandle) else {
-                    throw UniffiInternalError.unexpectedStaleHandle
-                }
-                return uniffiObj.deleteSession(
-                     topic: try FfiConverterString.lift(topic)
-                )
-            }
-
-            
-            let writeReturn = { uniffiOutReturn.pointee = FfiConverterOptionTypeSessionFfi.lower($0) }
-            uniffiTraitInterfaceCall(
-                callStatus: uniffiCallStatus,
-                makeCall: makeCall,
-                writeReturn: writeReturn
-            )
-        },
-        getSession: { (
-            uniffiHandle: UInt64,
-            topic: RustBuffer,
-            uniffiOutReturn: UnsafeMutablePointer<RustBuffer>,
-            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
-        ) in
-            let makeCall = {
-                () throws -> SessionFfi? in
-                guard let uniffiObj = try? FfiConverterTypeSessionStoreFfi.handleMap.get(handle: uniffiHandle) else {
-                    throw UniffiInternalError.unexpectedStaleHandle
-                }
-                return uniffiObj.getSession(
-                     topic: try FfiConverterString.lift(topic)
-                )
-            }
-
-            
-            let writeReturn = { uniffiOutReturn.pointee = FfiConverterOptionTypeSessionFfi.lower($0) }
-            uniffiTraitInterfaceCall(
-                callStatus: uniffiCallStatus,
-                makeCall: makeCall,
-                writeReturn: writeReturn
-            )
-        },
-        getAllSessions: { (
-            uniffiHandle: UInt64,
-            uniffiOutReturn: UnsafeMutablePointer<RustBuffer>,
-            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
-        ) in
-            let makeCall = {
-                () throws -> [SessionFfi] in
-                guard let uniffiObj = try? FfiConverterTypeSessionStoreFfi.handleMap.get(handle: uniffiHandle) else {
-                    throw UniffiInternalError.unexpectedStaleHandle
-                }
-                return uniffiObj.getAllSessions(
-                )
-            }
-
-            
-            let writeReturn = { uniffiOutReturn.pointee = FfiConverterSequenceTypeSessionFfi.lower($0) }
-            uniffiTraitInterfaceCall(
-                callStatus: uniffiCallStatus,
-                makeCall: makeCall,
-                writeReturn: writeReturn
-            )
-        },
-        getDecryptionKeyForTopic: { (
-            uniffiHandle: UInt64,
-            topic: RustBuffer,
-            uniffiOutReturn: UnsafeMutablePointer<RustBuffer>,
-            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
-        ) in
-            let makeCall = {
-                () throws -> Data? in
-                guard let uniffiObj = try? FfiConverterTypeSessionStoreFfi.handleMap.get(handle: uniffiHandle) else {
-                    throw UniffiInternalError.unexpectedStaleHandle
-                }
-                return uniffiObj.getDecryptionKeyForTopic(
-                     topic: try FfiConverterString.lift(topic)
-                )
-            }
-
-            
-            let writeReturn = { uniffiOutReturn.pointee = FfiConverterOptionData.lower($0) }
-            uniffiTraitInterfaceCall(
-                callStatus: uniffiCallStatus,
-                makeCall: makeCall,
-                writeReturn: writeReturn
-            )
-        },
-        savePairingKey: { (
-            uniffiHandle: UInt64,
-            topic: RustBuffer,
-            symKey: RustBuffer,
-            uniffiOutReturn: UnsafeMutableRawPointer,
-            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
-        ) in
-            let makeCall = {
-                () throws -> () in
-                guard let uniffiObj = try? FfiConverterTypeSessionStoreFfi.handleMap.get(handle: uniffiHandle) else {
-                    throw UniffiInternalError.unexpectedStaleHandle
-                }
-                return uniffiObj.savePairingKey(
-                     topic: try FfiConverterString.lift(topic),
-                     symKey: try FfiConverterData.lift(symKey)
-                )
-            }
-
-            
-            let writeReturn = { () }
-            uniffiTraitInterfaceCall(
-                callStatus: uniffiCallStatus,
-                makeCall: makeCall,
-                writeReturn: writeReturn
-            )
-        },
-        uniffiFree: { (uniffiHandle: UInt64) -> () in
-            let result = try? FfiConverterTypeSessionStoreFfi.handleMap.remove(handle: uniffiHandle)
-            if result == nil {
-                print("Uniffi callback interface SessionStoreFfi: handle missing in uniffiFree")
-            }
-        }
-    )]
-}
-
-private func uniffiCallbackInitSessionStoreFfi() {
-    uniffi_yttrium_fn_init_callback_vtable_sessionstoreffi(UniffiCallbackInterfaceSessionStoreFfi.vtable)
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeSessionStoreFfi: FfiConverter {
-    fileprivate static let handleMap = UniffiHandleMap<SessionStoreFfi>()
-
-    typealias FfiType = UnsafeMutableRawPointer
-    typealias SwiftType = SessionStoreFfi
-
-    public static func lift(_ pointer: UnsafeMutableRawPointer) throws -> SessionStoreFfi {
-        return SessionStoreFfiImpl(unsafeFromRawPointer: pointer)
-    }
-
-    public static func lower(_ value: SessionStoreFfi) -> UnsafeMutableRawPointer {
-        guard let ptr = UnsafeMutableRawPointer(bitPattern: UInt(truncatingIfNeeded: handleMap.insert(obj: value))) else {
-            fatalError("Cast to UnsafeMutableRawPointer failed")
-        }
-        return ptr
-    }
-
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SessionStoreFfi {
-        let v: UInt64 = try readInt(&buf)
-        // The Rust code won't compile if a pointer won't fit in a UInt64.
-        // We have to go via `UInt` because that's the thing that's the size of a pointer.
-        let ptr = UnsafeMutableRawPointer(bitPattern: UInt(truncatingIfNeeded: v))
-        if (ptr == nil) {
-            throw UniffiInternalError.unexpectedNullPointer
-        }
-        return try lift(ptr!)
-    }
-
-    public static func write(_ value: SessionStoreFfi, into buf: inout [UInt8]) {
-        // This fiddling is because `Int` is the thing that's the same size as a pointer.
-        // The Rust code won't compile if a pointer won't fit in a `UInt64`.
-        writeInt(&buf, UInt64(bitPattern: Int64(Int(bitPattern: lower(value)))))
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeSessionStoreFfi_lift(_ pointer: UnsafeMutableRawPointer) throws -> SessionStoreFfi {
-    return try FfiConverterTypeSessionStoreFfi.lift(pointer)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeSessionStoreFfi_lower(_ value: SessionStoreFfi) -> UnsafeMutableRawPointer {
-    return FfiConverterTypeSessionStoreFfi.lower(value)
-}
-
-
-
-
-
-
 public protocol SignClientProtocol: AnyObject, Sendable {
     
     func approve(proposal: SessionProposalFfi, approvedNamespaces: [String: SettleNamespace], selfMetadata: Metadata) async throws  -> SessionFfi
@@ -1245,6 +903,8 @@ public protocol SignClientProtocol: AnyObject, Sendable {
     func respond(topic: String, response: SessionRequestJsonRpcResponseFfi) async throws  -> String
     
     func start() async 
+    
+    func update(topic: String, namespaces: [String: SettleNamespace]) async throws 
     
 }
 open class SignClient: SignClientProtocol, @unchecked Sendable {
@@ -1286,13 +946,13 @@ open class SignClient: SignClientProtocol, @unchecked Sendable {
     public func uniffiClonePointer() -> UnsafeMutableRawPointer {
         return try! rustCall { uniffi_yttrium_fn_clone_signclient(self.pointer, $0) }
     }
-public convenience init(projectId: String, key: Data, sessionStore: SessionStoreFfi) {
+public convenience init(projectId: String, key: Data, sessionStore: StorageFfi) {
     let pointer =
         try! rustCall() {
     uniffi_yttrium_fn_constructor_signclient_new(
         FfiConverterString.lower(projectId),
         FfiConverterData.lower(key),
-        FfiConverterTypeSessionStoreFfi_lower(sessionStore),$0
+        FfiConverterTypeStorageFfi_lower(sessionStore),$0
     )
 }
     self.init(unsafeFromRawPointer: pointer)
@@ -1472,6 +1132,23 @@ open func start()async   {
         )
 }
     
+open func update(topic: String, namespaces: [String: SettleNamespace])async throws   {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_yttrium_fn_method_signclient_update(
+                    self.uniffiClonePointer(),
+                    FfiConverterString.lower(topic),FfiConverterDictionaryStringTypeSettleNamespace.lower(namespaces)
+                )
+            },
+            pollFunc: ffi_yttrium_rust_future_poll_void,
+            completeFunc: ffi_yttrium_rust_future_complete_void,
+            freeFunc: ffi_yttrium_rust_future_free_void,
+            liftFunc: { $0 },
+            errorHandler: FfiConverterTypeUpdateError_lift
+        )
+}
+    
 
 }
 
@@ -1540,9 +1217,11 @@ public protocol SignListener: AnyObject, Sendable {
     
     func onSessionExtend(id: UInt64, topic: String) 
     
-    func onSessionUpdate(id: UInt64, topic: String, params: Bool) 
+    func onSessionUpdate(id: UInt64, topic: String, namespaces: [String: SettleNamespace]) 
     
     func onSessionConnect(id: UInt64) 
+    
+    func onSessionRequestResponse(id: UInt64, topic: String, response: SessionRequestJsonRpcResponseFfi) 
     
 }
 open class SignListenerImpl: SignListener, @unchecked Sendable {
@@ -1630,11 +1309,11 @@ open func onSessionExtend(id: UInt64, topic: String)  {try! rustCall() {
 }
 }
     
-open func onSessionUpdate(id: UInt64, topic: String, params: Bool)  {try! rustCall() {
+open func onSessionUpdate(id: UInt64, topic: String, namespaces: [String: SettleNamespace])  {try! rustCall() {
     uniffi_yttrium_fn_method_signlistener_on_session_update(self.uniffiClonePointer(),
         FfiConverterUInt64.lower(id),
         FfiConverterString.lower(topic),
-        FfiConverterBool.lower(params),$0
+        FfiConverterDictionaryStringTypeSettleNamespace.lower(namespaces),$0
     )
 }
 }
@@ -1642,6 +1321,15 @@ open func onSessionUpdate(id: UInt64, topic: String, params: Bool)  {try! rustCa
 open func onSessionConnect(id: UInt64)  {try! rustCall() {
     uniffi_yttrium_fn_method_signlistener_on_session_connect(self.uniffiClonePointer(),
         FfiConverterUInt64.lower(id),$0
+    )
+}
+}
+    
+open func onSessionRequestResponse(id: UInt64, topic: String, response: SessionRequestJsonRpcResponseFfi)  {try! rustCall() {
+    uniffi_yttrium_fn_method_signlistener_on_session_request_response(self.uniffiClonePointer(),
+        FfiConverterUInt64.lower(id),
+        FfiConverterString.lower(topic),
+        FfiConverterTypeSessionRequestJsonRpcResponseFfi_lower(response),$0
     )
 }
 }
@@ -1769,7 +1457,7 @@ fileprivate struct UniffiCallbackInterfaceSignListener {
             uniffiHandle: UInt64,
             id: UInt64,
             topic: RustBuffer,
-            params: Int8,
+            namespaces: RustBuffer,
             uniffiOutReturn: UnsafeMutableRawPointer,
             uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
         ) in
@@ -1781,7 +1469,7 @@ fileprivate struct UniffiCallbackInterfaceSignListener {
                 return uniffiObj.onSessionUpdate(
                      id: try FfiConverterUInt64.lift(id),
                      topic: try FfiConverterString.lift(topic),
-                     params: try FfiConverterBool.lift(params)
+                     namespaces: try FfiConverterDictionaryStringTypeSettleNamespace.lift(namespaces)
                 )
             }
 
@@ -1806,6 +1494,34 @@ fileprivate struct UniffiCallbackInterfaceSignListener {
                 }
                 return uniffiObj.onSessionConnect(
                      id: try FfiConverterUInt64.lift(id)
+                )
+            }
+
+            
+            let writeReturn = { () }
+            uniffiTraitInterfaceCall(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn
+            )
+        },
+        onSessionRequestResponse: { (
+            uniffiHandle: UInt64,
+            id: UInt64,
+            topic: RustBuffer,
+            response: RustBuffer,
+            uniffiOutReturn: UnsafeMutableRawPointer,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> () in
+                guard let uniffiObj = try? FfiConverterTypeSignListener.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return uniffiObj.onSessionRequestResponse(
+                     id: try FfiConverterUInt64.lift(id),
+                     topic: try FfiConverterString.lift(topic),
+                     response: try FfiConverterTypeSessionRequestJsonRpcResponseFfi_lift(response)
                 )
             }
 
@@ -1882,6 +1598,457 @@ public func FfiConverterTypeSignListener_lift(_ pointer: UnsafeMutableRawPointer
 #endif
 public func FfiConverterTypeSignListener_lower(_ value: SignListener) -> UnsafeMutableRawPointer {
     return FfiConverterTypeSignListener.lower(value)
+}
+
+
+
+
+
+
+public protocol StorageFfi: AnyObject, Sendable {
+    
+    func addSession(session: SessionFfi) 
+    
+    func deleteSession(topic: String) 
+    
+    func getSession(topic: String)  -> SessionFfi?
+    
+    func getAllSessions()  -> [SessionFfi]
+    
+    func getAllTopics()  -> [Topic]
+    
+    func getDecryptionKeyForTopic(topic: String)  -> Data?
+    
+    func savePairing(topic: String, rpcId: UInt64, symKey: Data, selfKey: Data) 
+    
+    func getPairing(topic: String, rpcId: UInt64)  -> PairingFfi?
+    
+    func savePartialSession(topic: String, symKey: Data) 
+    
+}
+open class StorageFfiImpl: StorageFfi, @unchecked Sendable {
+    fileprivate let pointer: UnsafeMutableRawPointer!
+
+    /// Used to instantiate a [FFIObject] without an actual pointer, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoPointer {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
+        self.pointer = pointer
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noPointer: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing [Pointer] the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noPointer: NoPointer) {
+        self.pointer = nil
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiClonePointer() -> UnsafeMutableRawPointer {
+        return try! rustCall { uniffi_yttrium_fn_clone_storageffi(self.pointer, $0) }
+    }
+    // No primary constructor declared for this class.
+
+    deinit {
+        guard let pointer = pointer else {
+            return
+        }
+
+        try! rustCall { uniffi_yttrium_fn_free_storageffi(pointer, $0) }
+    }
+
+    
+
+    
+open func addSession(session: SessionFfi)  {try! rustCall() {
+    uniffi_yttrium_fn_method_storageffi_add_session(self.uniffiClonePointer(),
+        FfiConverterTypeSessionFfi_lower(session),$0
+    )
+}
+}
+    
+open func deleteSession(topic: String)  {try! rustCall() {
+    uniffi_yttrium_fn_method_storageffi_delete_session(self.uniffiClonePointer(),
+        FfiConverterString.lower(topic),$0
+    )
+}
+}
+    
+open func getSession(topic: String) -> SessionFfi?  {
+    return try!  FfiConverterOptionTypeSessionFfi.lift(try! rustCall() {
+    uniffi_yttrium_fn_method_storageffi_get_session(self.uniffiClonePointer(),
+        FfiConverterString.lower(topic),$0
+    )
+})
+}
+    
+open func getAllSessions() -> [SessionFfi]  {
+    return try!  FfiConverterSequenceTypeSessionFfi.lift(try! rustCall() {
+    uniffi_yttrium_fn_method_storageffi_get_all_sessions(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+open func getAllTopics() -> [Topic]  {
+    return try!  FfiConverterSequenceTypeTopic.lift(try! rustCall() {
+    uniffi_yttrium_fn_method_storageffi_get_all_topics(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+open func getDecryptionKeyForTopic(topic: String) -> Data?  {
+    return try!  FfiConverterOptionData.lift(try! rustCall() {
+    uniffi_yttrium_fn_method_storageffi_get_decryption_key_for_topic(self.uniffiClonePointer(),
+        FfiConverterString.lower(topic),$0
+    )
+})
+}
+    
+open func savePairing(topic: String, rpcId: UInt64, symKey: Data, selfKey: Data)  {try! rustCall() {
+    uniffi_yttrium_fn_method_storageffi_save_pairing(self.uniffiClonePointer(),
+        FfiConverterString.lower(topic),
+        FfiConverterUInt64.lower(rpcId),
+        FfiConverterData.lower(symKey),
+        FfiConverterData.lower(selfKey),$0
+    )
+}
+}
+    
+open func getPairing(topic: String, rpcId: UInt64) -> PairingFfi?  {
+    return try!  FfiConverterOptionTypePairingFfi.lift(try! rustCall() {
+    uniffi_yttrium_fn_method_storageffi_get_pairing(self.uniffiClonePointer(),
+        FfiConverterString.lower(topic),
+        FfiConverterUInt64.lower(rpcId),$0
+    )
+})
+}
+    
+open func savePartialSession(topic: String, symKey: Data)  {try! rustCall() {
+    uniffi_yttrium_fn_method_storageffi_save_partial_session(self.uniffiClonePointer(),
+        FfiConverterString.lower(topic),
+        FfiConverterData.lower(symKey),$0
+    )
+}
+}
+    
+
+}
+
+
+// Put the implementation in a struct so we don't pollute the top-level namespace
+fileprivate struct UniffiCallbackInterfaceStorageFfi {
+
+    // Create the VTable using a series of closures.
+    // Swift automatically converts these into C callback functions.
+    //
+    // This creates 1-element array, since this seems to be the only way to construct a const
+    // pointer that we can pass to the Rust code.
+    static let vtable: [UniffiVTableCallbackInterfaceStorageFfi] = [UniffiVTableCallbackInterfaceStorageFfi(
+        addSession: { (
+            uniffiHandle: UInt64,
+            session: RustBuffer,
+            uniffiOutReturn: UnsafeMutableRawPointer,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> () in
+                guard let uniffiObj = try? FfiConverterTypeStorageFfi.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return uniffiObj.addSession(
+                     session: try FfiConverterTypeSessionFfi_lift(session)
+                )
+            }
+
+            
+            let writeReturn = { () }
+            uniffiTraitInterfaceCall(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn
+            )
+        },
+        deleteSession: { (
+            uniffiHandle: UInt64,
+            topic: RustBuffer,
+            uniffiOutReturn: UnsafeMutableRawPointer,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> () in
+                guard let uniffiObj = try? FfiConverterTypeStorageFfi.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return uniffiObj.deleteSession(
+                     topic: try FfiConverterString.lift(topic)
+                )
+            }
+
+            
+            let writeReturn = { () }
+            uniffiTraitInterfaceCall(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn
+            )
+        },
+        getSession: { (
+            uniffiHandle: UInt64,
+            topic: RustBuffer,
+            uniffiOutReturn: UnsafeMutablePointer<RustBuffer>,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> SessionFfi? in
+                guard let uniffiObj = try? FfiConverterTypeStorageFfi.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return uniffiObj.getSession(
+                     topic: try FfiConverterString.lift(topic)
+                )
+            }
+
+            
+            let writeReturn = { uniffiOutReturn.pointee = FfiConverterOptionTypeSessionFfi.lower($0) }
+            uniffiTraitInterfaceCall(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn
+            )
+        },
+        getAllSessions: { (
+            uniffiHandle: UInt64,
+            uniffiOutReturn: UnsafeMutablePointer<RustBuffer>,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> [SessionFfi] in
+                guard let uniffiObj = try? FfiConverterTypeStorageFfi.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return uniffiObj.getAllSessions(
+                )
+            }
+
+            
+            let writeReturn = { uniffiOutReturn.pointee = FfiConverterSequenceTypeSessionFfi.lower($0) }
+            uniffiTraitInterfaceCall(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn
+            )
+        },
+        getAllTopics: { (
+            uniffiHandle: UInt64,
+            uniffiOutReturn: UnsafeMutablePointer<RustBuffer>,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> [Topic] in
+                guard let uniffiObj = try? FfiConverterTypeStorageFfi.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return uniffiObj.getAllTopics(
+                )
+            }
+
+            
+            let writeReturn = { uniffiOutReturn.pointee = FfiConverterSequenceTypeTopic.lower($0) }
+            uniffiTraitInterfaceCall(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn
+            )
+        },
+        getDecryptionKeyForTopic: { (
+            uniffiHandle: UInt64,
+            topic: RustBuffer,
+            uniffiOutReturn: UnsafeMutablePointer<RustBuffer>,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> Data? in
+                guard let uniffiObj = try? FfiConverterTypeStorageFfi.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return uniffiObj.getDecryptionKeyForTopic(
+                     topic: try FfiConverterString.lift(topic)
+                )
+            }
+
+            
+            let writeReturn = { uniffiOutReturn.pointee = FfiConverterOptionData.lower($0) }
+            uniffiTraitInterfaceCall(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn
+            )
+        },
+        savePairing: { (
+            uniffiHandle: UInt64,
+            topic: RustBuffer,
+            rpcId: UInt64,
+            symKey: RustBuffer,
+            selfKey: RustBuffer,
+            uniffiOutReturn: UnsafeMutableRawPointer,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> () in
+                guard let uniffiObj = try? FfiConverterTypeStorageFfi.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return uniffiObj.savePairing(
+                     topic: try FfiConverterString.lift(topic),
+                     rpcId: try FfiConverterUInt64.lift(rpcId),
+                     symKey: try FfiConverterData.lift(symKey),
+                     selfKey: try FfiConverterData.lift(selfKey)
+                )
+            }
+
+            
+            let writeReturn = { () }
+            uniffiTraitInterfaceCall(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn
+            )
+        },
+        getPairing: { (
+            uniffiHandle: UInt64,
+            topic: RustBuffer,
+            rpcId: UInt64,
+            uniffiOutReturn: UnsafeMutablePointer<RustBuffer>,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> PairingFfi? in
+                guard let uniffiObj = try? FfiConverterTypeStorageFfi.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return uniffiObj.getPairing(
+                     topic: try FfiConverterString.lift(topic),
+                     rpcId: try FfiConverterUInt64.lift(rpcId)
+                )
+            }
+
+            
+            let writeReturn = { uniffiOutReturn.pointee = FfiConverterOptionTypePairingFfi.lower($0) }
+            uniffiTraitInterfaceCall(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn
+            )
+        },
+        savePartialSession: { (
+            uniffiHandle: UInt64,
+            topic: RustBuffer,
+            symKey: RustBuffer,
+            uniffiOutReturn: UnsafeMutableRawPointer,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> () in
+                guard let uniffiObj = try? FfiConverterTypeStorageFfi.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return uniffiObj.savePartialSession(
+                     topic: try FfiConverterString.lift(topic),
+                     symKey: try FfiConverterData.lift(symKey)
+                )
+            }
+
+            
+            let writeReturn = { () }
+            uniffiTraitInterfaceCall(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn
+            )
+        },
+        uniffiFree: { (uniffiHandle: UInt64) -> () in
+            let result = try? FfiConverterTypeStorageFfi.handleMap.remove(handle: uniffiHandle)
+            if result == nil {
+                print("Uniffi callback interface StorageFfi: handle missing in uniffiFree")
+            }
+        }
+    )]
+}
+
+private func uniffiCallbackInitStorageFfi() {
+    uniffi_yttrium_fn_init_callback_vtable_storageffi(UniffiCallbackInterfaceStorageFfi.vtable)
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeStorageFfi: FfiConverter {
+    fileprivate static let handleMap = UniffiHandleMap<StorageFfi>()
+
+    typealias FfiType = UnsafeMutableRawPointer
+    typealias SwiftType = StorageFfi
+
+    public static func lift(_ pointer: UnsafeMutableRawPointer) throws -> StorageFfi {
+        return StorageFfiImpl(unsafeFromRawPointer: pointer)
+    }
+
+    public static func lower(_ value: StorageFfi) -> UnsafeMutableRawPointer {
+        guard let ptr = UnsafeMutableRawPointer(bitPattern: UInt(truncatingIfNeeded: handleMap.insert(obj: value))) else {
+            fatalError("Cast to UnsafeMutableRawPointer failed")
+        }
+        return ptr
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> StorageFfi {
+        let v: UInt64 = try readInt(&buf)
+        // The Rust code won't compile if a pointer won't fit in a UInt64.
+        // We have to go via `UInt` because that's the thing that's the size of a pointer.
+        let ptr = UnsafeMutableRawPointer(bitPattern: UInt(truncatingIfNeeded: v))
+        if (ptr == nil) {
+            throw UniffiInternalError.unexpectedNullPointer
+        }
+        return try lift(ptr!)
+    }
+
+    public static func write(_ value: StorageFfi, into buf: inout [UInt8]) {
+        // This fiddling is because `Int` is the thing that's the same size as a pointer.
+        // The Rust code won't compile if a pointer won't fit in a `UInt64`.
+        writeInt(&buf, UInt64(bitPattern: Int64(Int(bitPattern: lower(value)))))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeStorageFfi_lift(_ pointer: UnsafeMutableRawPointer) throws -> StorageFfi {
+    return try FfiConverterTypeStorageFfi.lift(pointer)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeStorageFfi_lower(_ value: StorageFfi) -> UnsafeMutableRawPointer {
+    return FfiConverterTypeStorageFfi.lower(value)
 }
 
 
@@ -3902,6 +4069,84 @@ public func FfiConverterTypePairing_lift(_ buf: RustBuffer) throws -> Pairing {
 #endif
 public func FfiConverterTypePairing_lower(_ value: Pairing) -> RustBuffer {
     return FfiConverterTypePairing.lower(value)
+}
+
+
+public struct PairingFfi {
+    public var rpcId: UInt64
+    public var symKey: Data
+    public var selfKey: Data
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(rpcId: UInt64, symKey: Data, selfKey: Data) {
+        self.rpcId = rpcId
+        self.symKey = symKey
+        self.selfKey = selfKey
+    }
+}
+
+#if compiler(>=6)
+extension PairingFfi: Sendable {}
+#endif
+
+
+extension PairingFfi: Equatable, Hashable {
+    public static func ==(lhs: PairingFfi, rhs: PairingFfi) -> Bool {
+        if lhs.rpcId != rhs.rpcId {
+            return false
+        }
+        if lhs.symKey != rhs.symKey {
+            return false
+        }
+        if lhs.selfKey != rhs.selfKey {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(rpcId)
+        hasher.combine(symKey)
+        hasher.combine(selfKey)
+    }
+}
+
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypePairingFfi: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> PairingFfi {
+        return
+            try PairingFfi(
+                rpcId: FfiConverterUInt64.read(from: &buf), 
+                symKey: FfiConverterData.read(from: &buf), 
+                selfKey: FfiConverterData.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: PairingFfi, into buf: inout [UInt8]) {
+        FfiConverterUInt64.write(value.rpcId, into: &buf)
+        FfiConverterData.write(value.symKey, into: &buf)
+        FfiConverterData.write(value.selfKey, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePairingFfi_lift(_ buf: RustBuffer) throws -> PairingFfi {
+    return try FfiConverterTypePairingFfi.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePairingFfi_lower(_ value: PairingFfi) -> RustBuffer {
+    return FfiConverterTypePairingFfi.lower(value)
 }
 
 
@@ -9525,6 +9770,114 @@ extension TransportType: Equatable, Hashable {}
 
 
 
+public enum UpdateError: Swift.Error {
+
+    
+    
+    case SessionNotFound
+    case Unauthorized
+    case Request(RequestError
+    )
+    case Internal(String
+    )
+    case ShouldNeverHappen(String
+    )
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeUpdateError: FfiConverterRustBuffer {
+    typealias SwiftType = UpdateError
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> UpdateError {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+
+        
+
+        
+        case 1: return .SessionNotFound
+        case 2: return .Unauthorized
+        case 3: return .Request(
+            try FfiConverterTypeRequestError.read(from: &buf)
+            )
+        case 4: return .Internal(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 5: return .ShouldNeverHappen(
+            try FfiConverterString.read(from: &buf)
+            )
+
+         default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: UpdateError, into buf: inout [UInt8]) {
+        switch value {
+
+        
+
+        
+        
+        case .SessionNotFound:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .Unauthorized:
+            writeInt(&buf, Int32(2))
+        
+        
+        case let .Request(v1):
+            writeInt(&buf, Int32(3))
+            FfiConverterTypeRequestError.write(v1, into: &buf)
+            
+        
+        case let .Internal(v1):
+            writeInt(&buf, Int32(4))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .ShouldNeverHappen(v1):
+            writeInt(&buf, Int32(5))
+            FfiConverterString.write(v1, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeUpdateError_lift(_ buf: RustBuffer) throws -> UpdateError {
+    return try FfiConverterTypeUpdateError.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeUpdateError_lower(_ value: UpdateError) -> RustBuffer {
+    return FfiConverterTypeUpdateError.lower(value)
+}
+
+
+extension UpdateError: Equatable, Hashable {}
+
+
+
+
+extension UpdateError: Foundation.LocalizedError {
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+}
+
+
+
+
+
 public enum WaitForSuccessError: Swift.Error {
 
     
@@ -9735,6 +10088,30 @@ fileprivate struct FfiConverterOptionTypeMetadata: FfiConverterRustBuffer {
         switch try readInt(&buf) as Int8 {
         case 0: return nil
         case 1: return try FfiConverterTypeMetadata.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypePairingFfi: FfiConverterRustBuffer {
+    typealias SwiftType = PairingFfi?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypePairingFfi.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypePairingFfi.read(from: &buf)
         default: throw UniffiInternalError.unexpectedOptionalTag
         }
     }
@@ -10347,6 +10724,31 @@ fileprivate struct FfiConverterSequenceTypePrimitiveSignature: FfiConverterRustB
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypePrimitiveSignature.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeTopic: FfiConverterRustBuffer {
+    typealias SwiftType = [Topic]
+
+    public static func write(_ value: [Topic], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeTopic.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [Topic] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [Topic]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeTopic.read(from: &buf))
         }
         return seq
     }
@@ -12201,24 +12603,6 @@ private let initializationResult: InitializationResult = {
     if (uniffi_yttrium_checksum_method_logger_log() != 540) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_yttrium_checksum_method_sessionstoreffi_add_session() != 881) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_yttrium_checksum_method_sessionstoreffi_delete_session() != 60173) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_yttrium_checksum_method_sessionstoreffi_get_session() != 42025) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_yttrium_checksum_method_sessionstoreffi_get_all_sessions() != 28896) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_yttrium_checksum_method_sessionstoreffi_get_decryption_key_for_topic() != 56110) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_yttrium_checksum_method_sessionstoreffi_save_pairing_key() != 28762) {
-        return InitializationResult.apiChecksumMismatch
-    }
     if (uniffi_yttrium_checksum_method_signclient_approve() != 36526) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -12249,6 +12633,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_yttrium_checksum_method_signclient_start() != 35500) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_yttrium_checksum_method_signclient_update() != 8371) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_yttrium_checksum_method_signlistener_on_session_request() != 45061) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -12261,22 +12648,52 @@ private let initializationResult: InitializationResult = {
     if (uniffi_yttrium_checksum_method_signlistener_on_session_extend() != 55166) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_yttrium_checksum_method_signlistener_on_session_update() != 292) {
+    if (uniffi_yttrium_checksum_method_signlistener_on_session_update() != 23427) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_yttrium_checksum_method_signlistener_on_session_connect() != 15582) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_yttrium_checksum_method_signlistener_on_session_request_response() != 32789) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_method_storageffi_add_session() != 6835) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_method_storageffi_delete_session() != 59547) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_method_storageffi_get_session() != 17235) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_method_storageffi_get_all_sessions() != 64457) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_method_storageffi_get_all_topics() != 46741) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_method_storageffi_get_decryption_key_for_topic() != 11806) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_method_storageffi_save_pairing() != 54269) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_method_storageffi_get_pairing() != 14525) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_method_storageffi_save_partial_session() != 37310) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_yttrium_checksum_constructor_erc6492client_new() != 33633) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_yttrium_checksum_constructor_signclient_new() != 59141) {
+    if (uniffi_yttrium_checksum_constructor_signclient_new() != 10454) {
         return InitializationResult.apiChecksumMismatch
     }
 
     uniffiCallbackInitLogger()
-    uniffiCallbackInitSessionStoreFfi()
     uniffiCallbackInitSignListener()
+    uniffiCallbackInitStorageFfi()
     return InitializationResult.ok
 }()
 

@@ -111,3 +111,23 @@ pub enum ConnectError {
     #[error("Should never happen: {0}")]
     ShouldNeverHappen(String),
 }
+
+#[derive(Debug, thiserror::Error)]
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Error))]
+#[error("Sign update error: {0}")]
+pub enum UpdateError {
+    #[error("Session not found")]
+    SessionNotFound,
+
+    #[error("Unauthorized: not controller")]
+    Unauthorized,
+
+    #[error("Request: {0}")]
+    Request(RequestError),
+
+    #[error("Internal: {0}")]
+    Internal(String),
+
+    #[error("Should never happen: {0}")]
+    ShouldNeverHappen(String),
+}
