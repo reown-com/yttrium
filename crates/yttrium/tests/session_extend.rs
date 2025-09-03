@@ -67,7 +67,7 @@ fn test_extend_ttl_too_low_rejected() {
     let controller = [9u8; 32];
     let session =
         make_session(now + 2 * 24 * 3600, Some(controller), Some(controller));
-    let requested = now + 1 * 24 * 3600;
+    let requested = now + 24 * 3600;
     let res = validate_extend_request(&session, requested, now);
     assert_eq!(res, Err(ExtendValidationError::ExpiryTooLow));
 }
@@ -77,7 +77,7 @@ fn test_extend_valid_updates() {
     let now = 1_700_000_000u64;
     let controller = [9u8; 32];
     let session =
-        make_session(now + 1 * 24 * 3600, Some(controller), Some(controller));
+        make_session(now + 24 * 3600, Some(controller), Some(controller));
     let requested = now + 6 * 24 * 3600;
     let res = validate_extend_request(&session, requested, now).unwrap();
     assert_eq!(res, requested);

@@ -100,7 +100,7 @@ pub enum ExtendValidationError {
 /// - Ensures peer is controller
 /// - Ensures requested_expiry > current session expiry
 /// - Ensures requested_expiry <= now + 7 days
-/// Returns accepted expiry on success.
+///   Returns accepted expiry on success.
 pub fn validate_extend_request(
     session: &Session,
     requested_expiry: u64,

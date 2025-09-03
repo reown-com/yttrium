@@ -792,7 +792,6 @@ impl Client {
 
         Ok(())
     }
-
     pub async fn _ping(&self) {
         // TODO implement
         // https://github.com/WalletConnect/walletconnect-monorepo/blob/5bef698dcf0ae910548481959a6a5d87eaf7aaa5/packages/sign-client/src/controllers/engine.ts#L727
