@@ -20,4 +20,4 @@ mod relay_url;
 pub mod storage;
 #[cfg(test)]
 mod tests;
-mod utils;
+pub mod utils;

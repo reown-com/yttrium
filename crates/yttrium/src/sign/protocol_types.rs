@@ -78,6 +78,7 @@ pub enum JsonRpcRequestParams {
     SessionSettle(SessionSettle),
     SessionPropose(Proposal),
     SessionUpdate(SessionUpdate),
+    SessionExtend(SessionExtend),
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -215,4 +216,19 @@ pub struct SessionDeleteJsonRpc {
 pub struct SessionDelete {
     pub code: u64,
     pub message: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct SessionExtend {
+    pub expiry: u64,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct SessionExtendJsonRpc {
+    pub id: u64,
+    pub jsonrpc: String,
+    pub method: String,
+    pub params: SessionExtend,
 }

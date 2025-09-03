@@ -1,8 +1,8 @@
 use {
     crate::sign::{
         client_errors::{
-            ApproveError, ConnectError, DisconnectError, PairError,
-            RejectError, RequestError, RespondError, UpdateError,
+            ApproveError, ConnectError, DisconnectError, ExtendError,
+            PairError, RejectError, RequestError, RespondError, UpdateError,
         },
         client_types::{
             ConnectParams, ConnectResult, PairingInfo, RejectionReason,
@@ -12,9 +12,10 @@ use {
         protocol_types::{
             Controller, JsonRpcRequest, JsonRpcRequestParams, Metadata,
             Proposal, ProposalResponse, ProposalResponseJsonRpc, Proposer,
-            Relay, SessionDelete, SessionDeleteJsonRpc, SessionRequest,
-            SessionRequestJsonRpc, SessionRequestJsonRpcResponse,
-            SessionSettle, SessionUpdate, SettleNamespace,
+            Relay, SessionDelete, SessionDeleteJsonRpc, SessionExtend,
+            SessionRequest, SessionRequestJsonRpc,
+            SessionRequestJsonRpcResponse, SessionSettle, SessionUpdate,
+            SettleNamespace,
         },
         relay::IncomingSessionMessage,
         storage::Storage,
@@ -734,6 +735,63 @@ impl Client {
         Ok(())
     }
 
+    /// Extend session by 7 days from now
+    pub async fn extend(&mut self, topic: Topic) -> Result<(), ExtendError> {
+        let mut session = self
+            .session_store
+            .get_session(topic.clone())
+            .ok_or(ExtendError::SessionNotFound)?;
+
+        // Compute new expiry = now + 7 days
+        let now = crate::time::SystemTime::now()
+            .duration_since(crate::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+        let new_expiry = now + 60 * 60 * 24 * 7;
+
+        // Must be strictly increasing, and at most 7 days from now (already enforced)
+        if new_expiry <= session.expiry {
+            return Err(ExtendError::InvalidExpiry);
+        }
+
+        // Update local storage first
+        session.expiry = new_expiry;
+        let shared_secret = session.session_sym_key;
+        self.session_store.add_session(session);
+
+        // Build and publish wc_sessionExtend with tag 1106, ttl 86400
+        let id = generate_rpc_id();
+        let message = serialize_and_encrypt_message_type0_envelope(
+            shared_secret,
+            &crate::sign::protocol_types::SessionExtendJsonRpc {
+                id,
+                jsonrpc: "2.0".to_string(),
+                method: "wc_sessionExtend".to_string(),
+                params: SessionExtend { expiry: new_expiry },
+            },
+        )
+        .map_err(ExtendError::ShouldNeverHappen)?;
+
+        self.do_request::<bool>(relay_rpc::rpc::Params::Publish(Publish {
+            topic: topic.clone(),
+            message,
+            attestation: None,
+            ttl_secs: 86400,
+            tag: 1106,
+            prompt: false,
+            analytics: Some(AnalyticsData {
+                correlation_id: Some(id.try_into().unwrap()),
+                chain_id: None,
+                rpc_methods: None,
+                tx_hashes: None,
+                contract_addresses: None,
+            }),
+        }))
+        .await
+        .map_err(ExtendError::Request)?;
+
+        Ok(())
+    }
     pub async fn _ping(&self) {
         // TODO implement
         // https://github.com/WalletConnect/walletconnect-monorepo/blob/5bef698dcf0ae910548481959a6a5d87eaf7aaa5/packages/sign-client/src/controllers/engine.ts#L727
