@@ -50,9 +50,21 @@ impl Storage for StorageFfiProxy {
     }
 
     fn get_decryption_key_for_topic(&self, topic: Topic) -> Option<[u8; 32]> {
-        self.0
-            .get_decryption_key_for_topic(topic.to_string())
-            .map(|s| s.try_into().unwrap())
+        let key_bytes = self.0.get_decryption_key_for_topic(topic.to_string());
+        match key_bytes {
+            Some(bytes) => {
+                tracing::debug!("FFI: Received {} bytes for topic {:?}", bytes.len(), topic);
+                if bytes.len() != 32 {
+                    tracing::error!("FFI: Invalid key length {} for topic {:?}, expected 32 bytes", bytes.len(), topic);
+                    return None;
+                }
+                bytes.try_into().ok()
+            }
+            None => {
+                tracing::debug!("FFI: No key found for topic {:?}", topic);
+                None
+            }
+        }
     }
 
     fn save_pairing(
@@ -75,11 +87,10 @@ impl Storage for StorageFfiProxy {
         topic: Topic,
         rpc_id: u64,
     ) -> Option<([u8; 32], [u8; 32])> {
-        self.0.get_pairing(topic.to_string(), rpc_id).map(|pairing| {
-            (
-                pairing.sym_key.try_into().unwrap(),
-                pairing.self_key.try_into().unwrap(),
-            )
+        self.0.get_pairing(topic.to_string(), rpc_id).and_then(|pairing| {
+            let sym_key: [u8; 32] = pairing.sym_key.try_into().ok()?;
+            let self_key: [u8; 32] = pairing.self_key.try_into().ok()?;
+            Some((sym_key, self_key))
         })
     }
 

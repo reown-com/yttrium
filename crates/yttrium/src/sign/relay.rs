@@ -265,11 +265,14 @@ async fn connect(
 
         let mut message_id = MIN_RPC_ID;
 
-        if !topics.is_empty() {
+        let has_topics = !topics.is_empty();
+        
+        if has_topics {
             // TODO batch this extra request together with the initial connection
 
+            let batch_subscribe_message_id = message_id;
             let payload_request = Payload::Request(Request::new(
-                MessageId::new(message_id),
+                MessageId::new(batch_subscribe_message_id),
                 Params::BatchSubscribe(BatchSubscribe { topics }),
             ));
             message_id += 1;
@@ -307,11 +310,11 @@ async fn connect(
                                 tracing::warn!("unexpected message request in ConnectRequest state: {:?}", request);
                             }
                             Payload::Response(response) => {
-                                if id == MessageId::new(message_id) {
+                                if id == MessageId::new(batch_subscribe_message_id) {
                                     // success, no-op
                                     break;
                                 } else {
-                                    tracing::warn!("unexpected message response in ConnectRequest state: {:?}", response);
+                                    tracing::warn!("unexpected message response in ConnectRequest state: {:?} (expected ID: {:?})", response, MessageId::new(batch_subscribe_message_id));
                                 }
                             }
                         }
@@ -320,16 +323,19 @@ async fn connect(
             }
         }
 
-        // TODO this will soon be moved to initial WebSocket request
-        let request = Payload::Request(Request::new(
-            MessageId::new(message_id),
-            initial_req,
-        ));
-        let serialized = serde_json::to_string(&request)
-            .map_err(|e| ConnectError::ShouldNeverHappen(e.to_string()))?;
-        outgoing_tx
-            .send(serialized)
-            .map_err(|e| ConnectError::ConnectFail(e.to_string()))?;
+        // Only send initial_req if we didn't already handle it as batch subscribe
+        if !has_topics {
+            // TODO this will soon be moved to initial WebSocket request
+            let request = Payload::Request(Request::new(
+                MessageId::new(message_id),
+                initial_req,
+            ));
+            let serialized = serde_json::to_string(&request)
+                .map_err(|e| ConnectError::ShouldNeverHappen(e.to_string()))?;
+            outgoing_tx
+                .send(serialized)
+                .map_err(|e| ConnectError::ConnectFail(e.to_string()))?;
+        }
 
         Ok((message_id, on_incomingmessage_rx, (outgoing_tx, close_tx)))
     }
@@ -457,11 +463,14 @@ async fn connect(
 
         let mut message_id = MIN_RPC_ID;
 
-        if !topics.is_empty() {
+        let has_topics = !topics.is_empty();
+        
+        if has_topics {
             // TODO batch this extra request together with the initial connection
 
+            let batch_subscribe_message_id = message_id;
             let payload_request = Payload::Request(Request::new(
-                MessageId::new(message_id),
+                MessageId::new(batch_subscribe_message_id),
                 Params::BatchSubscribe(BatchSubscribe { topics }),
             ));
             message_id += 1;
@@ -506,11 +515,11 @@ async fn connect(
                                 tracing::debug!("ignoring unexpected message request in batch subscribe connection: {:?}", request);
                             }
                             Payload::Response(response) => {
-                                if id == MessageId::new(message_id) {
+                                if id == MessageId::new(batch_subscribe_message_id) {
                                     // success, no-op
                                     break;
                                 } else {
-                                    tracing::debug!("ignoring unexpected message response in batch subscribe connection: {:?}", response);
+                                    tracing::debug!("ignoring unexpected message response in batch subscribe connection: {:?} (expected ID: {:?})", response, MessageId::new(batch_subscribe_message_id));
                                 }
                             }
                         }
@@ -519,18 +528,21 @@ async fn connect(
             }
         }
 
-        // TODO this will soon be moved to initial WebSocket request
-        let request = Payload::Request(Request::new(
-            MessageId::new(message_id),
-            initial_req,
-        ));
-        let serialized = serde_json::to_string(&request)
-            .map_err(|e| ConnectError::ShouldNeverHappen(e.to_string()))?;
-        ws.send_with_str(&serialized).map_err(|e| {
-            ConnectError::ConnectFail(
-                e.as_string().unwrap_or("unknown error".to_string()),
-            )
-        })?;
+        // Only send initial_req if we didn't already handle it as batch subscribe
+        if !has_topics {
+            // TODO this will soon be moved to initial WebSocket request
+            let request = Payload::Request(Request::new(
+                MessageId::new(message_id),
+                initial_req,
+            ));
+            let serialized = serde_json::to_string(&request)
+                .map_err(|e| ConnectError::ShouldNeverHappen(e.to_string()))?;
+            ws.send_with_str(&serialized).map_err(|e| {
+                ConnectError::ConnectFail(
+                    e.as_string().unwrap_or("unknown error".to_string()),
+                )
+            })?;
+        }
 
         Ok((
             message_id,
@@ -666,60 +678,74 @@ pub async fn connect_loop_state_machine(
                     return;
                 };
 
-                tracing::debug!(
-                    "handle_irn_subscription: Session Sym Key: {:?}",
-                    session_sym_key
-                );
+                let decoded = match BASE64.decode(sub_msg.data.message.as_bytes()) {
+                    Ok(decoded) => decoded,
+                    Err(e) => {
+                        tracing::error!("handle_irn_subscription: Failed to decode message: {e}");
+                        if let Err(e) = irn_subscription_ack_tx.send(id) {
+                            tracing::debug!("Failed to send subscription ack: {e}");
+                        }
+                        return;
+                    }
+                };
 
-                let decoded = BASE64
-                    .decode(sub_msg.data.message.as_bytes())
-                    .map_err(|e| {
-                        PairError::Internal(format!(
-                            "Failed to decode message: {e}"
-                        ))
-                    })
-                    .unwrap();
-
-                tracing::debug!(
-                    "handle_irn_subscription: Decoded: {:?}",
-                    decoded
-                );
-
-                let envelope =
-                    envelope_type0::deserialize_envelope_type0(&decoded)
-                        .map_err(|e| PairError::Internal(e.to_string()))
-                        .unwrap();
+                let envelope = match envelope_type0::deserialize_envelope_type0(&decoded) {
+                    Ok(envelope) => envelope,
+                    Err(e) => {
+                        tracing::error!("handle_irn_subscription: Failed to deserialize envelope: {e}");
+                        if let Err(e) = irn_subscription_ack_tx.send(id) {
+                            tracing::debug!("Failed to send subscription ack: {e}");
+                        }
+                        return;
+                    }
+                };
+                
                 let key = ChaCha20Poly1305::new(&session_sym_key.into());
-                let decrypted = key
-                    .decrypt(&Nonce::from(envelope.iv), envelope.sb.as_slice())
-                    .map_err(|e| PairError::Internal(e.to_string()))
-                    .unwrap();
-                let value =
-                    serde_json::from_slice::<serde_json::Value>(&decrypted)
-                        .map_err(|e| PairError::Internal(e.to_string()))
-                        .unwrap();
-
-                tracing::debug!(
-                    "handle_irn_subscription: Decrypted: {:?}",
-                    value
-                );
+                let decrypted = match key.decrypt(&Nonce::from(envelope.iv), envelope.sb.as_slice()) {
+                    Ok(decrypted) => decrypted,
+                    Err(e) => {
+                        tracing::error!("handle_irn_subscription: Failed to decrypt message: {e}");
+                        if let Err(e) = irn_subscription_ack_tx.send(id) {
+                            tracing::debug!("Failed to send subscription ack: {e}");
+                        }
+                        return;
+                    }
+                };
+                
+                let value = match serde_json::from_slice::<serde_json::Value>(&decrypted) {
+                    Ok(value) => value,
+                    Err(e) => {
+                        tracing::error!("handle_irn_subscription: Failed to parse JSON: {e}");
+                        if let Err(e) = irn_subscription_ack_tx.send(id) {
+                            tracing::debug!("Failed to send subscription ack: {e}");
+                        }
+                        return;
+                    }
+                };
 
                 if let Some(method) = value.get("method") {
                     if method.as_str() == Some("wc_sessionSettle") {
-                        let request = serde_json::from_value::<SessionSettle>(
-                            value.get("params").unwrap().clone(),
-                        )
-                        .map_err(|e| {
-                            PairError::Internal(format!(
-                                "Failed to parse decrypted message: {e}"
-                            ))
-                        })
-                        .unwrap();
+                        let params = match value.get("params") {
+                            Some(params) => params,
+                            None => {
+                                tracing::error!("handle_irn_subscription: No params found in wc_sessionSettle");
+                                if let Err(e) = irn_subscription_ack_tx.send(id) {
+                                    tracing::debug!("Failed to send subscription ack: {e}");
+                                }
+                                return;
+                            }
+                        };
+                        let request = match serde_json::from_value::<SessionSettle>(params.clone()) {
+                            Ok(request) => request,
+                            Err(e) => {
+                                tracing::error!("handle_irn_subscription: Failed to parse wc_sessionSettle: {e}");
+                                if let Err(e) = irn_subscription_ack_tx.send(id) {
+                                    tracing::debug!("Failed to send subscription ack: {e}");
+                                }
+                                return;
+                            }
+                        };
 
-                        tracing::debug!(
-                            "handle_irn_subscription: Session Settle: {:?}",
-                            request
-                        );
 
                         session_store.add_session(Session {
                             request_id: 0,
@@ -729,12 +755,27 @@ pub async fn connect_loop_state_machine(
                             relay_data: None,
                             self_public_key: session_sym_key, // TODO this is wrong
                             controller_key: Some(
-                                hex::decode(
-                                    request.controller.public_key.clone(),
-                                )
-                                .unwrap()
-                                .try_into()
-                                .unwrap(),
+                                match hex::decode(request.controller.public_key.clone()) {
+                                    Ok(key_bytes) => {
+                                        match key_bytes.try_into() {
+                                            Ok(key) => key,
+                                            Err(_) => {
+                                                tracing::error!("handle_irn_subscription: Invalid controller key length");
+                                                if let Err(e) = irn_subscription_ack_tx.send(id) {
+                                                    tracing::debug!("Failed to send subscription ack: {e}");
+                                                }
+                                                return;
+                                            }
+                                        }
+                                    }
+                                    Err(e) => {
+                                        tracing::error!("handle_irn_subscription: Failed to decode controller key: {e}");
+                                        if let Err(e) = irn_subscription_ack_tx.send(id) {
+                                            tracing::debug!("Failed to send subscription ack: {e}");
+                                        }
+                                        return;
+                                    }
+                                }
                             ),
                             session_sym_key,
                             self_meta_data: request.controller.metadata.clone(),
@@ -754,12 +795,12 @@ pub async fn connect_loop_state_machine(
                             transport_type: None,
                         });
 
-                        session_request_tx
-                            .send((
-                                sub_msg.data.topic.clone(),
-                                IncomingSessionMessage::SessionConnect(0),
-                            ))
-                            .unwrap();
+                        if let Err(e) = session_request_tx.send((
+                            sub_msg.data.topic.clone(),
+                            IncomingSessionMessage::SessionConnect(0),
+                        )) {
+                            tracing::error!("handle_irn_subscription: Failed to send SessionConnect: {e}");
+                        }
 
                         if let Err(e) = irn_subscription_ack_tx.send(id) {
                             tracing::debug!(
@@ -768,27 +809,24 @@ pub async fn connect_loop_state_machine(
                         }
                     } else if method.as_str() == Some("wc_sessionRequest") {
                         // TODO implement relay-side request queue
-                        let request = serde_json::from_value::<
-                            SessionRequestJsonRpc,
-                        >(value)
-                        .map_err(|e| {
-                            PairError::Internal(format!(
-                                "Failed to parse decrypted message: {e}"
-                            ))
-                        })
-                        .unwrap();
+                        let request = match serde_json::from_value::<SessionRequestJsonRpc>(value) {
+                            Ok(request) => request,
+                            Err(e) => {
+                                tracing::error!("handle_irn_subscription: Failed to parse wc_sessionRequest: {e}");
+                                if let Err(e) = irn_subscription_ack_tx.send(id) {
+                                    tracing::debug!("Failed to send subscription ack: {e}");
+                                }
+                                return;
+                            }
+                        };
 
-                        tracing::debug!(
-                            "handle_irn_subscription: Session Request: {:?}",
-                            request
-                        );
 
-                        session_request_tx
-                            .send((
-                                sub_msg.data.topic,
-                                IncomingSessionMessage::SessionRequest(request),
-                            ))
-                            .unwrap();
+                        if let Err(e) = session_request_tx.send((
+                            sub_msg.data.topic,
+                            IncomingSessionMessage::SessionRequest(request),
+                        )) {
+                            tracing::error!("handle_irn_subscription: Failed to send SessionRequest: {e}");
+                        }
                         if let Err(e) = irn_subscription_ack_tx.send(id) {
                             tracing::debug!(
                                 "Failed to send subscription ack: {e}"
@@ -966,10 +1004,6 @@ pub async fn connect_loop_state_machine(
                                     .unwrap();
                                 let response = response.result;
 
-                                tracing::debug!(
-                                    "handle_irn_subscription: Proposal Response: {:?}",
-                                    response
-                                );
 
                                 let self_key =
                                     x25519_dalek::StaticSecret::from(self_key);
@@ -1103,20 +1137,15 @@ pub async fn connect_loop_state_machine(
                     relay_url.clone(),
                     project_id.clone(),
                     &key,
-                    vec![],
+                    topics.clone(),
                     Params::BatchSubscribe(BatchSubscribe { topics }),
                     cleanup_rx.clone(),
                 )
                 .await;
                 match connect_res {
                     Ok((message_id, on_incomingmessage_rx, ws)) => {
-                        ConnectionState::AwaitingSubscribeResponse(
-                            backoff_state,
-                            message_id,
-                            on_incomingmessage_rx,
-                            ws,
-                            crate::time::durable_sleep(REQUEST_TIMEOUT),
-                        )
+                        // Since we already handled the batch subscribe internally, go directly to Connected
+                        ConnectionState::Connected(message_id, on_incomingmessage_rx, ws)
                     }
                     Err(e) => match e {
                         ConnectError::ConnectFail(reason) => {
@@ -1399,12 +1428,27 @@ pub async fn connect_loop_state_machine(
                                                 Params::Subscription(
                                                     sub_msg
                                                 ) => {
-                                                    handle_irn_subscription(
-                                                        id,
-                                                        sub_msg,
-                                                        priority_request_tx.clone(),
-                                                    )
-                                                    .await;
+                                                    // Wrap handle_irn_subscription in a panic handler to keep connection alive
+                                                    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                                                        // We can't use await inside catch_unwind, so we need to spawn the task
+                                                        let handle = tokio::spawn(handle_irn_subscription(
+                                                            id,
+                                                            sub_msg,
+                                                            priority_request_tx.clone(),
+                                                        ));
+                                                        handle
+                                                    }));
+                                                    
+                                                    match result {
+                                                        Ok(handle) => {
+                                                            if let Err(e) = handle.await {
+                                                                tracing::error!("handle_irn_subscription task failed: {:?}", e);
+                                                            }
+                                                        }
+                                                        Err(panic) => {
+                                                            tracing::error!("handle_irn_subscription panicked: {:?}", panic);
+                                                        }
+                                                    }
                                                 }
                                                 _ => tracing::warn!("ignoring message request in Connected state: {:?}", request),
                                             }
