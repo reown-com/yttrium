@@ -742,14 +742,11 @@ impl Client {
             .get_session(topic.clone())
             .ok_or(ExtendError::SessionNotFound)?;
 
-        // Compute new expiry = now + 7 days
-        let now = crate::time::SystemTime::now()
-            .duration_since(crate::time::UNIX_EPOCH)
-            .unwrap()
-            .as_secs();
-        let new_expiry = now + 60 * 60 * 24 * 7;
+        // Compute new expiry = current session expiry + 7 days
+        let one_week_seconds = 60 * 60 * 24 * 7;
+        let new_expiry = session.expiry + one_week_seconds;
 
-        // Must be strictly increasing, and at most 7 days from now (already enforced)
+        // Must be strictly increasing (already enforced by adding positive value)
         if new_expiry <= session.expiry {
             return Err(ExtendError::InvalidExpiry);
         }
