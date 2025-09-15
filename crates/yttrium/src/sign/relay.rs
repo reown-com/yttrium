@@ -6,9 +6,7 @@ use {
             envelope_type0,
             priority_future::PriorityReceiver,
             protocol_types::{
-                ProposalResponseJsonRpc, SessionDeleteJsonRpc,
-                SessionRequestJsonRpc, SessionRequestJsonRpcResponse,
-                SessionSettle,
+                SessionDeleteJsonRpc, SessionProposalJsonRpcResponse, SessionRequestJsonRpc, SessionRequestJsonRpcResponse, SessionSettle
             },
             relay_url::ConnectionOptions,
             storage::Storage,
@@ -607,7 +605,8 @@ pub enum IncomingSessionMessage {
     SessionEvent(u64, Topic, bool),
     SessionUpdate(u64, Topic, crate::sign::protocol_types::SettleNamespaces),
     SessionExtend(u64, Topic),
-    SessionConnect(u64),
+    SessionConnect(u64, Topic),
+    SessionReject(u64, Topic),
     SessionRequestResponse(u64, Topic, SessionRequestJsonRpcResponse),
 }
 
@@ -757,7 +756,7 @@ pub async fn connect_loop_state_machine(
                         session_request_tx
                             .send((
                                 sub_msg.data.topic.clone(),
-                                IncomingSessionMessage::SessionConnect(0),
+                                IncomingSessionMessage::SessionConnect(0, sub_msg.data.topic),
                             ))
                             .unwrap();
 
@@ -961,10 +960,30 @@ pub async fn connect_loop_state_machine(
                                 // TODO handle parse errors by ignoring the message
                                 let response =
                                     serde_json::from_value::<
-                                        ProposalResponseJsonRpc,
+                                    SessionProposalJsonRpcResponse,
                                     >(value)
                                     .unwrap();
-                                let response = response.result;
+                                let response = match response {
+                                    SessionProposalJsonRpcResponse::Result(result) => result,
+                                    SessionProposalJsonRpcResponse::Error(error) => {
+                                        tracing::error!("Proposal error: {:?}", error);
+                                        
+                                        // Emit SessionRejected event
+                                        if let Err(e) = session_request_tx.send((
+                                            sub_msg.data.topic.clone(),
+                                            IncomingSessionMessage::SessionReject(
+                                                rpc_id,
+                                                sub_msg.data.topic,
+                                            ),
+                                        )) {
+                                            tracing::debug!(
+                                                "Failed to emit session rejected event: {e}"
+                                            );
+                                        }
+                                        
+                                        return;
+                                    }
+                                };
 
                                 tracing::debug!(
                                     "handle_irn_subscription: Proposal Response: {:?}",
@@ -974,7 +993,7 @@ pub async fn connect_loop_state_machine(
                                 let self_key =
                                     x25519_dalek::StaticSecret::from(self_key);
                                 let responder_public_key: [u8; 32] =
-                                    hex::decode(response.responder_public_key)
+                                    hex::decode(response.result.responder_public_key)
                                         .unwrap()
                                         .try_into()
                                         .unwrap();

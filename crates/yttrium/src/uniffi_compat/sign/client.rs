@@ -40,7 +40,8 @@ pub trait SignListener: Send + Sync {
         topic: String,
         namespaces: std::collections::HashMap<String, SettleNamespace>,
     );
-    fn on_session_connect(&self, id: u64);
+    fn on_session_connect(&self, id: u64, topic: String);
+    fn on_session_reject(&self, id: u64, topic: String);
     fn on_session_request_response(
         &self,
         id: u64,
@@ -143,8 +144,11 @@ impl SignClient {
                         IncomingSessionMessage::SessionExtend(id, topic) => {
                             listener.on_session_extend(id, topic.to_string());
                         }
-                        IncomingSessionMessage::SessionConnect(id) => {
-                            listener.on_session_connect(id);
+                        IncomingSessionMessage::SessionConnect(id, topic) => {
+                            listener.on_session_connect(id, topic.to_string());
+                        }
+                        IncomingSessionMessage::SessionReject(id, topic) => {
+                            listener.on_session_reject(id, topic.to_string());
                         }
                         IncomingSessionMessage::SessionRequestResponse(
                             id,
