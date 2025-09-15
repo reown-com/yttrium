@@ -1074,7 +1074,12 @@ pub async fn connect_loop_state_machine(
                                         "Failed to send priority request: {e}"
                                     );
                                 }
-                                // TODO ACK subscription?
+                                if let Err(e) = irn_subscription_ack_tx.send(id)
+                                {
+                                    tracing::debug!(
+                                        "Failed to send subscription ack: {e}"
+                                    );
+                                }
                             } else if sub_msg.data.tag == 1109 {
                                 let value =
                                     serde_json::from_value::<
@@ -1095,7 +1100,12 @@ pub async fn connect_loop_state_machine(
                                         "Failed to emit session request response event: {e}"
                                     );
                                 }
-                                // TODO ACK subscription?
+                                if let Err(e) = irn_subscription_ack_tx.send(id)
+                                {
+                                    tracing::debug!(
+                                        "Failed to send subscription ack: {e}"
+                                    );
+                                }
                             } else {
                                 tracing::error!(
                                     "ignoring message with invalid ID: {:?}",
