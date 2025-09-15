@@ -600,7 +600,8 @@ pub enum IncomingSessionMessage {
     SessionEvent(u64, Topic, bool),
     SessionUpdate(u64, Topic, crate::sign::protocol_types::SettleNamespaces),
     SessionExtend(u64, Topic),
-    SessionConnect(u64),
+    SessionConnect(u64, Topic),
+    SessionReject(u64, Topic),
     SessionRequestResponse(u64, Topic, SessionRequestJsonRpcResponse),
 }
 
