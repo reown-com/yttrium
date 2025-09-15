@@ -14,7 +14,7 @@ async function connectJsApp(app: Page, page: Page) {
     await page.locator('button', { hasText: 'Pair' }).click();
     await page.locator('button', { hasText: 'Approve' }).click();
     await expect(page.getByText("Pairing approved")).toBeVisible();
-    await expect(page.locator('ul', { hasText: 'Session' })).toBeVisible();
+    await expect(page.getByTestId("wallet-sessions").locator('li')).toHaveCount(1);
     await expect(app.getByTestId("w3m-caip-address")).toHaveText("eip155:1:0x0000000000000000000000000000000000000000");
 }
 
@@ -160,7 +160,7 @@ test("retry pairing after offline Rust wallet to JS app", async ({ browser, base
 
     await page.locator('button', { hasText: 'Approve' }).click();
     await expect(page.getByText("Pairing approved")).toBeVisible();
-    await expect(page.locator('ul', { hasText: 'Session' })).toBeVisible();
+    await expect(page.getByTestId("wallet-sessions").locator('li')).toHaveCount(1);
 
     await app2.getByTestId("sign-message-button").click();
     await page.locator('button', { hasText: 'Approve' }).click();

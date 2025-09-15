@@ -1,3 +1,5 @@
+use crate::sign::storage::StorageError;
+
 #[derive(Debug, thiserror::Error, Clone)]
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Error))]
 #[error("Sign request error: {0}")]
@@ -77,6 +79,9 @@ pub enum RejectError {
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Error))]
 #[error("Sign respond error: {0}")]
 pub enum RespondError {
+    #[error("Storage: {0}")]
+    Storage(StorageError),
+
     #[error("Session not found")]
     SessionNotFound,
 
@@ -91,6 +96,9 @@ pub enum RespondError {
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Error))]
 #[error("Sign disconnect error: {0}")]
 pub enum DisconnectError {
+    #[error("Storage: {0}")]
+    Storage(StorageError),
+
     #[error("Should never happen: {0}")]
     ShouldNeverHappen(String),
 

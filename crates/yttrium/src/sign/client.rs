@@ -60,10 +60,7 @@ pub struct Client {
     pending_online_rx: Option<tokio::sync::mpsc::UnboundedReceiver<()>>,
 }
 
-// TODO bindings integration
-// - State:
-//   - is app and wallet state coupled? should we build the DApp support right now to make it easier?
-//   - does deduplication happen at the irn_subscription layer (like current SDKs) or do we do it for each action e.g. update, event, etc. (remember layered state and stateless architecture)
+// Deduplication: does deduplication happen at the irn_subscription layer (like current SDKs) or do we do it for each action e.g. update, event, etc. (remember layered state and stateless architecture)
 
 // TODO
 //   - disconnect if no ping for 30s etc. (native only)
@@ -79,6 +76,7 @@ pub struct Client {
 //     - long-lived clients might suffer here. Maybe filter each reconnect?
 
 // TODO error improvement
+// - callback traits (storage) return Results
 // - bundle size optimization: error enums only for actionable errors higher-up
 // - use a single string variant for all errors (which would be shown to users!)
 // - other is internal errors we don't expect to EVER happen (so show error code instead w/ GitHub issue link)
@@ -86,6 +84,7 @@ pub struct Client {
 // - flutter JSON serialization, avoid back/forth in UniFFI?
 // - use native crypto utils
 // TODO relay changes
+// - initial connection request in query param
 // - subscribe to other sessions as part of `wc_approveSession` etc.
 // - (feasible?) wc_sessionRequestRespond which ACKs the `irn_subscription` message
 // - https://www.notion.so/walletconnect/Design-Doc-Sign-Client-Rust-port-2303a661771e80628bdbf07c96a97b21?source=copy_link#2303a661771e808f895acbcab46bd12a
@@ -110,6 +109,7 @@ pub struct Client {
 // TODO tests
 // - memory leak slow tests, run for days?. Kill WS many times over and over again to test. Create many sessions over and over again, update sessions, session requests, etc.
 // - test killing the WS, not returning request, failing to connect, etc. in various stages of the lifecycle
+// - flow works even when Verify API isblocked: https://github.com/reown-com/appkit/pull/5023
 
 #[allow(unused)]
 impl Client {
@@ -602,6 +602,7 @@ impl Client {
         let shared_secret = self
             .session_store
             .get_session(topic.clone())
+            .map_err(|e| e.to_string())?
             .map(|s| s.session_sym_key)
             .unwrap();
 
@@ -639,6 +640,7 @@ impl Client {
         let shared_secret = self
             .session_store
             .get_session(topic.clone())
+            .map_err(|e| RespondError::Storage(e))?
             .map(|s| s.session_sym_key)
             .ok_or(RespondError::SessionNotFound)?;
 
@@ -811,6 +813,7 @@ impl Client {
         let shared_secret = self
             .session_store
             .get_session(topic.clone())
+            .map_err(|e| DisconnectError::Storage(e))?
             .map(|s| s.session_sym_key);
 
         if let Some(shared_secret) = shared_secret {

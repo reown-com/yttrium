@@ -4,7 +4,7 @@ use {
         client::{generate_client_id_key, Client},
         client_types::{ConnectParams, Session},
         protocol_types::{Metadata, ProposalNamespace, SettleNamespace},
-        storage::Storage,
+        storage::{Storage, StorageError},
         IncomingSessionMessage,
     },
     relay_rpc::domain::Topic,
@@ -23,40 +23,51 @@ struct MySessionStoreInner {
 struct MySessionStore(Arc<Mutex<MySessionStoreInner>>);
 
 impl Storage for MySessionStore {
-    fn add_session(&self, session: Session) {
+    fn add_session(&self, session: Session) -> Result<(), StorageError> {
         let mut inner = self.0.lock().unwrap();
         inner.sessions.push(session);
+        Ok(())
     }
 
-    fn delete_session(&self, topic: Topic) {
+    fn delete_session(&self, topic: Topic) -> Result<(), StorageError> {
         let mut inner = self.0.lock().unwrap();
         inner.sessions.retain(|s| s.topic != topic);
+        Ok(())
     }
 
-    fn get_session(&self, topic: Topic) -> Option<Session> {
+    fn get_session(
+        &self,
+        topic: Topic,
+    ) -> Result<Option<Session>, StorageError> {
         let inner = self.0.lock().unwrap();
-        inner.sessions.iter().find(|s| s.topic == topic).cloned()
+        let session = inner.sessions.iter().find(|s| s.topic == topic).cloned();
+        Ok(session)
     }
 
-    fn get_all_sessions(&self) -> Vec<Session> {
+    fn get_all_sessions(&self) -> Result<Vec<Session>, StorageError> {
         let inner = self.0.lock().unwrap();
-        inner.sessions.clone()
+        let sessions = inner.sessions.clone();
+        Ok(sessions)
     }
 
-    fn get_all_topics(&self) -> Vec<Topic> {
+    fn get_all_topics(&self) -> Result<Vec<Topic>, StorageError> {
         let inner = self.0.lock().unwrap();
-        inner
+        let topics = inner
             .sessions
             .iter()
             .map(|s| s.topic.clone())
             .chain(inner.pairing_keys.keys().cloned())
             .chain(inner.partial_sessions.keys().cloned())
-            .collect()
+            .collect();
+        Ok(topics)
     }
 
-    fn get_decryption_key_for_topic(&self, topic: Topic) -> Option<[u8; 32]> {
+    fn get_decryption_key_for_topic(
+        &self,
+        topic: Topic,
+    ) -> Result<Option<[u8; 32]>, StorageError> {
         let inner = self.0.lock().unwrap();
-        inner
+        let decryption_key = inner
             .sessions
             .iter()
             .find(|session| session.topic == topic)
@@ -64,7 +75,8 @@ impl Storage for MySessionStore {
             .or_else(|| {
                 inner.pairing_keys.get(&topic).map(|(_, sym_key, _)| *sym_key)
             })
-            .or_else(|| inner.partial_sessions.get(&topic).copied())
+            .or_else(|| inner.partial_sessions.get(&topic).copied());
+        Ok(decryption_key)
     }
 
     fn save_pairing(
@@ -73,26 +85,33 @@ impl Storage for MySessionStore {
         rpc_id: u64,
         sym_key: [u8; 32],
         self_key: [u8; 32],
-    ) {
+    ) -> Result<(), StorageError> {
         let mut inner = self.0.lock().unwrap();
         inner.pairing_keys.insert(topic, (rpc_id, sym_key, self_key));
+        Ok(())
     }
 
     fn get_pairing(
         &self,
         topic: Topic,
         _rpc_id: u64,
-    ) -> Option<([u8; 32], [u8; 32])> {
+    ) -> Result<Option<([u8; 32], [u8; 32])>, StorageError> {
         let inner = self.0.lock().unwrap();
-        inner
+        let pairing = inner
             .pairing_keys
             .get(&topic)
-            .map(|(_, sym_key, self_key)| (*sym_key, *self_key))
+            .map(|(_, sym_key, self_key)| (*sym_key, *self_key));
+        Ok(pairing)
     }
 
-    fn save_partial_session(&self, topic: Topic, sym_key: [u8; 32]) {
+    fn save_partial_session(
+        &self,
+        topic: Topic,
+        sym_key: [u8; 32],
+    ) -> Result<(), StorageError> {
         let mut inner = self.0.lock().unwrap();
         inner.partial_sessions.insert(topic, sym_key);
+        Ok(())
     }
 }
 

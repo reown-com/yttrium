@@ -19,7 +19,7 @@ use {
             SessionRequestJsonRpcResponse, SessionRequestJsonRpcResultResponse,
             SessionRequestRequest, SettleNamespace,
         },
-        storage::Storage,
+        storage::{Storage, StorageError},
         IncomingSessionMessage, SecretKey, Topic,
     },
 };
@@ -28,7 +28,7 @@ use {
 
 // TODO expiring for sessions
 // TODO expiring for pairing_keys
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 struct MyState {
     key: SecretKey,
     sessions: Vec<Session>,
@@ -51,32 +51,37 @@ const APP_KEY: &str = "wc-app";
 //     read_local_storage("wc-app")
 // }
 
-fn read_local_storage(key: &str) -> MyState {
+fn read_local_storage(key: &str) -> Result<MyState, String> {
     let state = web_sys::window()
-        .unwrap()
+        .ok_or_else(|| "Window not found".to_string())?
         .local_storage()
-        .unwrap()
-        .unwrap()
+        .map_err(|e| {
+            format!("Failed to get local storage: {:?}", e.as_string())
+        })?
+        .ok_or_else(|| "Local storage not found".to_string())?
         .get_item(key)
-        .unwrap();
+        .map_err(|e| format!("Failed to get item: {:?}", e.as_string()))?;
     if let Some(state) = state {
-        if let Ok(state) = serde_json::from_str(&state) {
-            state
-        } else {
-            MyState {
-                key: generate_client_id_key(),
-                sessions: Vec::new(),
-                pairing_keys: HashMap::new(),
-                partial_sessions: HashMap::new(),
+        tracing::info!("state: {:?}", state);
+        match serde_json::from_str(&state) {
+            Ok(state) => Ok(state),
+            Err(e) => {
+                tracing::error!("Failed to deserialize state: {:?}", e);
+                Ok(MyState {
+                    key: generate_client_id_key(),
+                    sessions: Vec::new(),
+                    pairing_keys: HashMap::new(),
+                    partial_sessions: HashMap::new(),
+                })
             }
         }
     } else {
-        MyState {
+        Ok(MyState {
             key: generate_client_id_key(),
             sessions: Vec::new(),
             pairing_keys: HashMap::new(),
             partial_sessions: HashMap::new(),
-        }
+        })
     }
 }
 
@@ -88,70 +93,88 @@ fn read_local_storage(key: &str) -> MyState {
 //     write_local_storage("wc-app", state);
 // }
 
-fn write_local_storage(key: &str, state: MyState) {
+fn write_local_storage(key: &str, state: MyState) -> Result<(), String> {
+    let serialized = serde_json::to_string(&state).map_err(|e| {
+        format!("Failed to serialize state: {:?}", e.to_string())
+    })?;
     web_sys::window()
-        .unwrap()
+        .ok_or_else(|| "Window not found".to_string())?
         .local_storage()
-        .unwrap()
-        .unwrap()
-        .set_item(key, &serde_json::to_string(&state).unwrap())
-        .unwrap();
+        .map_err(|e| {
+            format!("Failed to get local storage: {:?}", e.as_string())
+        })?
+        .ok_or_else(|| "Local storage not found".to_string())?
+        .set_item(key, &serialized)
+        .map_err(|e| format!("Failed to set item: {:?}", e.as_string()))?;
+    Ok(())
 }
 
 impl Storage for MySessionStore {
-    fn get_all_sessions(&self) -> Vec<Session> {
-        read_local_storage(&self.key).sessions
+    fn get_all_sessions(&self) -> Result<Vec<Session>, StorageError> {
+        Ok(read_local_storage(&self.key)
+            .map_err(|e| StorageError::Runtime(e))?
+            .sessions)
     }
 
-    fn add_session(&self, session: Session) {
-        let mut state = read_local_storage(&self.key);
+    fn add_session(&self, session: Session) -> Result<(), StorageError> {
+        let mut state = read_local_storage(&self.key)
+            .map_err(|e| StorageError::Runtime(e))?;
         state.sessions.push(session);
-        write_local_storage(&self.key, state);
+        write_local_storage(&self.key, state)
+            .map_err(|e| StorageError::Runtime(e))?;
+        Ok(())
     }
 
-    fn delete_session(&self, topic: Topic) {
-        let mut state = read_local_storage(&self.key);
+    fn delete_session(&self, topic: Topic) -> Result<(), StorageError> {
+        let mut state = read_local_storage(&self.key)
+            .map_err(|e| StorageError::Runtime(e))?;
         state.sessions.retain(|session| session.topic != topic);
-        write_local_storage(&self.key, state);
+        write_local_storage(&self.key, state)
+            .map_err(|e| StorageError::Runtime(e))?;
+        Ok(())
     }
 
-    fn get_session(&self, topic: Topic) -> Option<Session> {
-        read_local_storage(&self.key)
+    fn get_session(
+        &self,
+        topic: Topic,
+    ) -> Result<Option<Session>, StorageError> {
+        Ok(read_local_storage(&self.key)
+            .map_err(|e| StorageError::Runtime(e))?
             .sessions
             .into_iter()
-            .find(|session| session.topic == topic)
+            .find(|session| session.topic == topic))
     }
 
-    fn get_all_topics(&self) -> Vec<Topic> {
-        read_local_storage(&self.key)
+    fn get_all_topics(&self) -> Result<Vec<Topic>, StorageError> {
+        let state = read_local_storage(&self.key)
+            .map_err(|e| StorageError::Runtime(e))?;
+        Ok(state
             .sessions
             .iter()
             .map(|session| session.topic.clone())
-            .chain(read_local_storage(&self.key).pairing_keys.keys().cloned())
-            .chain(
-                read_local_storage(&self.key).partial_sessions.keys().cloned(),
-            )
-            .collect()
+            .chain(state.pairing_keys.keys().cloned())
+            .chain(state.partial_sessions.keys().cloned())
+            .collect())
     }
 
-    fn get_decryption_key_for_topic(&self, topic: Topic) -> Option<[u8; 32]> {
-        read_local_storage(&self.key)
+    fn get_decryption_key_for_topic(
+        &self,
+        topic: Topic,
+    ) -> Result<Option<[u8; 32]>, StorageError> {
+        let state = read_local_storage(&self.key)
+            .map_err(|e| StorageError::Runtime(e))?;
+        tracing::info!("get_decryption_key_for_topic: state: {:?}", state);
+        let result = state
             .sessions
             .into_iter()
             .find(|session| session.topic == topic)
             .map(|session| session.session_sym_key)
             .or_else(|| {
-                read_local_storage(&self.key)
-                    .pairing_keys
-                    .get(&topic)
-                    .map(|(_, sym_key, _)| *sym_key)
+                state.pairing_keys.get(&topic).map(|(_, sym_key, _)| *sym_key)
             })
-            .or_else(|| {
-                read_local_storage(&self.key)
-                    .partial_sessions
-                    .get(&topic)
-                    .copied()
-            })
+            .or_else(|| state.partial_sessions.get(&topic).copied());
+        tracing::info!("get_decryption_key_for_topic: result: {:?}", result);
+        Ok(result)
     }
 
     fn save_pairing(
@@ -160,27 +183,38 @@ impl Storage for MySessionStore {
         rpc_id: u64,
         sym_key: [u8; 32],
         self_key: [u8; 32],
-    ) {
-        let mut state = read_local_storage(&self.key);
+    ) -> Result<(), StorageError> {
+        let mut state = read_local_storage(&self.key)
+            .map_err(|e| StorageError::Runtime(e))?;
         state.pairing_keys.insert(topic, (rpc_id, sym_key, self_key));
-        write_local_storage(&self.key, state);
+        write_local_storage(&self.key, state)
+            .map_err(|e| StorageError::Runtime(e))?;
+        Ok(())
     }
 
     fn get_pairing(
         &self,
         topic: Topic,
         _rpc_id: u64,
-    ) -> Option<([u8; 32], [u8; 32])> {
-        read_local_storage(&self.key)
+    ) -> Result<Option<([u8; 32], [u8; 32])>, StorageError> {
+        Ok(read_local_storage(&self.key)
+            .map_err(|e| StorageError::Runtime(e))?
             .pairing_keys
             .get(&topic)
-            .map(|(_, sym_key, self_key)| (*sym_key, *self_key))
+            .map(|(_, sym_key, self_key)| (*sym_key, *self_key)))
     }
 
-    fn save_partial_session(&self, topic: Topic, sym_key: [u8; 32]) {
-        let mut state = read_local_storage(&self.key);
+    fn save_partial_session(
+        &self,
+        topic: Topic,
+        sym_key: [u8; 32],
+    ) -> Result<(), StorageError> {
+        let mut state = read_local_storage(&self.key)
+            .map_err(|e| StorageError::Runtime(e))?;
         state.partial_sessions.insert(topic, sym_key);
-        write_local_storage(&self.key, state);
+        write_local_storage(&self.key, state)
+            .map_err(|e| StorageError::Runtime(e))?;
+        Ok(())
     }
 }
 
@@ -472,22 +506,23 @@ pub fn App() -> impl IntoView {
         move |_| {
             let unmounted = unmounted.clone();
 
-            wallet_sessions.set(read_local_storage(WALLET_KEY).sessions);
-            app_sessions.set(read_local_storage(APP_KEY).sessions);
+            wallet_sessions
+                .set(read_local_storage(WALLET_KEY).unwrap().sessions);
+            app_sessions.set(read_local_storage(APP_KEY).unwrap().sessions);
 
             clients.update_value(|client| {
                 assert!(client.is_none());
 
                 let (new_wallet_client, mut wallet_request_rx) = Client::new(
                     std::option_env!("REOWN_PROJECT_ID").unwrap_or("").into(),
-                    read_local_storage(WALLET_KEY).key,
+                    read_local_storage(WALLET_KEY).unwrap().key,
                     Arc::new(MySessionStore {
                         key: WALLET_KEY.to_string(),
                     }),
                 );
                 let (new_app_client, mut app_request_rx) = Client::new(
                     std::option_env!("REOWN_PROJECT_ID").unwrap_or("").into(),
-                    read_local_storage(APP_KEY).key,
+                    read_local_storage(APP_KEY).unwrap().key,
                     Arc::new(MySessionStore {
                         key: APP_KEY.to_string(),
                     }),
@@ -513,7 +548,7 @@ pub fn App() -> impl IntoView {
                             wallet_request = wallet_request_rx.recv() => {
                                 match wallet_request {
                                     Some((topic, message)) => {
-                                        wallet_sessions.set(read_local_storage(WALLET_KEY).sessions);
+                                        wallet_sessions.set(read_local_storage(WALLET_KEY).unwrap().sessions);
                                         match message {
                                             IncomingSessionMessage::SessionRequest(request) => {
                                                 tracing::info!(
@@ -571,7 +606,7 @@ pub fn App() -> impl IntoView {
                             app_request = app_request_rx.recv() => {
                                 match app_request {
                                     Some((topic, message)) => {
-                                        app_sessions.set(read_local_storage(APP_KEY).sessions);
+                                        app_sessions.set(read_local_storage(APP_KEY).unwrap().sessions);
                                         match message {
                                             IncomingSessionMessage::SessionConnect(id) => {
                                                 tracing::info!(
@@ -637,7 +672,7 @@ pub fn App() -> impl IntoView {
                     connect_action.dispatch(());
                 }>"Connect"</Button>
             </Flex>
-            <ul>
+            <ul data-testid="wallet-sessions">
                 {move || {
                     wallet_sessions
                         .get()
@@ -673,7 +708,7 @@ pub fn App() -> impl IntoView {
                         .collect::<Vec<_>>()
                 }}
             </ul>
-            <ul>
+            <ul data-testid="app-sessions">
                 {move || {
                     app_sessions
                         .get()

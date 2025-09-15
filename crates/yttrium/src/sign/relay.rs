@@ -648,10 +648,18 @@ pub async fn connect_loop_state_machine(
             let session_request_tx = session_request_tx.clone();
             let irn_subscription_ack_tx = irn_subscription_ack_tx.clone();
             async move {
-                let session_sym_key = if let Some(session_sym_key) =
-                    session_store.get_decryption_key_for_topic(
-                        sub_msg.data.topic.clone(),
-                    ) {
+                let key = match session_store
+                    .get_decryption_key_for_topic(sub_msg.data.topic.clone())
+                {
+                    Ok(key) => key,
+                    Err(e) => {
+                        tracing::error!(
+                            "Error getting decryption key for topic: {e}"
+                        );
+                        return;
+                    }
+                };
+                let session_sym_key = if let Some(session_sym_key) = key {
                     session_sym_key
                 } else {
                     tracing::error!(
@@ -721,7 +729,7 @@ pub async fn connect_loop_state_machine(
                             request
                         );
 
-                        session_store.add_session(Session {
+                        if let Err(e) = session_store.add_session(Session {
                             request_id: 0,
                             topic: sub_msg.data.topic.clone(),
                             expiry: request.expiry,
@@ -752,7 +760,10 @@ pub async fn connect_loop_state_machine(
                             is_acknowledged: false,
                             pairing_topic: "".to_string().into(),
                             transport_type: None,
-                        });
+                        }) {
+                            tracing::error!("Error adding session: {e}");
+                            return;
+                        }
 
                         session_request_tx
                             .send((
@@ -919,8 +930,12 @@ pub async fn connect_loop_state_machine(
                         >(value)
                         .map_err(|e| PairError::Internal(e.to_string()))
                         .unwrap();
-                        session_store
-                            .delete_session(sub_msg.data.topic.clone());
+                        if let Err(e) = session_store
+                            .delete_session(sub_msg.data.topic.clone())
+                        {
+                            tracing::error!("Error deleting session: {e}");
+                            return;
+                        }
                         session_request_tx
                             .send((
                                 sub_msg.data.topic.clone(),
@@ -952,18 +967,38 @@ pub async fn connect_loop_state_machine(
                             _ => None,
                         };
                         if let Some(rpc_id) = rpc_id {
-                            // TODO avoid second call... get the type from the first call (enum response)
-                            let pairing = session_store.get_pairing(
-                                sub_msg.data.topic.clone(),
-                                rpc_id,
-                            );
+                            let pairing = match session_store
+                                .get_pairing(sub_msg.data.topic.clone(), rpc_id)
+                            {
+                                Ok(pairing) => pairing,
+                                Err(e) => {
+                                    tracing::error!(
+                                        "Error getting pairing: {e}"
+                                    );
+                                    return;
+                                }
+                            };
                             if let Some((_sym_key, self_key)) = pairing {
-                                // TODO handle parse errors by ignoring the message
-                                let response =
-                                    serde_json::from_value::<
-                                        ProposalResponseJsonRpc,
-                                    >(value)
-                                    .unwrap();
+                                let response = match serde_json::from_value::<
+                                    ProposalResponseJsonRpc,
+                                >(
+                                    value
+                                ) {
+                                    Ok(response) => response,
+                                    Err(e) => {
+                                        tracing::error!(
+                                                "Error parsing proposal response: {e}"
+                                            );
+                                        if let Err(e) =
+                                            irn_subscription_ack_tx.send(id)
+                                        {
+                                            tracing::debug!(
+                                                "Failed to send subscription ack: {e}"
+                                            );
+                                        }
+                                        return;
+                                    }
+                                };
                                 let response = response.result;
 
                                 tracing::debug!(
@@ -973,11 +1008,41 @@ pub async fn connect_loop_state_machine(
 
                                 let self_key =
                                     x25519_dalek::StaticSecret::from(self_key);
+                                let responder_public_key = match hex::decode(
+                                    response.responder_public_key,
+                                ) {
+                                    Ok(key) => key,
+                                    Err(e) => {
+                                        tracing::error!(
+                                                "Error decoding responder public key: {e}"
+                                            );
+                                        if let Err(e) =
+                                            irn_subscription_ack_tx.send(id)
+                                        {
+                                            tracing::debug!(
+                                                "Failed to send subscription ack: {e}"
+                                            );
+                                        }
+                                        return;
+                                    }
+                                };
                                 let responder_public_key: [u8; 32] =
-                                    hex::decode(response.responder_public_key)
-                                        .unwrap()
-                                        .try_into()
-                                        .unwrap();
+                                    match responder_public_key.try_into() {
+                                        Ok(key) => key,
+                                        Err(e) => {
+                                            tracing::error!(
+                                                "Error converting responder public key to fixed-size array: {e:?}"
+                                            );
+                                            if let Err(e) =
+                                                irn_subscription_ack_tx.send(id)
+                                            {
+                                                tracing::debug!(
+                                                    "Failed to send subscription ack: {e}"
+                                                );
+                                            }
+                                            return;
+                                        }
+                                    };
                                 let responder_public_key =
                                     x25519_dalek::PublicKey::from(
                                         responder_public_key,
@@ -988,10 +1053,17 @@ pub async fn connect_loop_state_machine(
                                 );
                                 let session_topic =
                                     topic_from_sym_key(&shared_secret);
-                                session_store.save_partial_session(
-                                    session_topic.clone(),
-                                    shared_secret,
-                                );
+                                if let Err(e) = session_store
+                                    .save_partial_session(
+                                        session_topic.clone(),
+                                        shared_secret,
+                                    )
+                                {
+                                    tracing::error!(
+                                        "Error saving partial session: {e}"
+                                    );
+                                    return;
+                                }
                                 if let Err(e) = priority_request_tx.send((
                                     Params::BatchSubscribe(BatchSubscribe {
                                         topics: vec![session_topic],
@@ -1002,6 +1074,7 @@ pub async fn connect_loop_state_machine(
                                         "Failed to send priority request: {e}"
                                     );
                                 }
+                                // TODO ACK subscription?
                             } else if sub_msg.data.tag == 1109 {
                                 let value =
                                     serde_json::from_value::<
@@ -1022,6 +1095,7 @@ pub async fn connect_loop_state_machine(
                                         "Failed to emit session request response event: {e}"
                                     );
                                 }
+                                // TODO ACK subscription?
                             } else {
                                 tracing::error!(
                                     "ignoring message with invalid ID: {:?}",
@@ -1089,7 +1163,15 @@ pub async fn connect_loop_state_machine(
                 }
             }
             ConnectionState::MaybeReconnect(backoff_state) => {
-                if session_store.get_all_topics().is_empty() {
+                let all_topics = session_store.get_all_topics();
+                let all_topics = match all_topics {
+                    Ok(topics) => topics,
+                    Err(e) => {
+                        tracing::error!("Storage error, exiting loop: {e}");
+                        return;
+                    }
+                };
+                if all_topics.is_empty() {
                     ConnectionState::Idle
                 } else {
                     ConnectionState::ConnectSubscribe(
@@ -1099,6 +1181,13 @@ pub async fn connect_loop_state_machine(
             }
             ConnectionState::ConnectSubscribe(backoff_state) => {
                 let topics = session_store.get_all_topics();
+                let topics = match topics {
+                    Ok(topics) => topics,
+                    Err(e) => {
+                        tracing::error!("Storage error, exiting loop: {e}");
+                        return;
+                    }
+                };
                 let connect_res = connect(
                     relay_url.clone(),
                     project_id.clone(),
@@ -1227,6 +1316,13 @@ pub async fn connect_loop_state_machine(
             }
             ConnectionState::ConnectRequest((request, response_tx)) => {
                 let topics = session_store.get_all_topics();
+                let topics = match topics {
+                    Ok(topics) => topics,
+                    Err(e) => {
+                        tracing::error!("Storage error, exiting loop: {e}");
+                        return;
+                    }
+                };
                 let connect_res = connect(
                     relay_url.clone(),
                     project_id.clone(),
@@ -1620,6 +1716,13 @@ pub async fn connect_loop_state_machine(
             }
             ConnectionState::ConnectRetryRequest((request, response_tx)) => {
                 let topics = session_store.get_all_topics();
+                let topics = match topics {
+                    Ok(topics) => topics,
+                    Err(e) => {
+                        tracing::error!("Storage error, exiting loop: {e}");
+                        return;
+                    }
+                };
                 let connect_fut = connect(
                     relay_url.clone(),
                     project_id.clone(),
