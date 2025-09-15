@@ -3,7 +3,11 @@ use {
     crate::sign::{
         client::{generate_client_id_key, Client},
         client_types::{ConnectParams, Session},
-        protocol_types::{Metadata, ProposalNamespace, SettleNamespace},
+        protocol_types::{
+            Metadata, ProposalNamespace, SessionRequest,
+            SessionRequestJsonRpcResponse, SessionRequestJsonRpcResultResponse,
+            SessionRequestRequest, SettleNamespace,
+        },
         storage::{Storage, StorageError, StoragePairing},
         IncomingSessionMessage,
     },
@@ -122,6 +126,9 @@ impl Storage for MySessionStore {
 
 #[tokio::test]
 async fn test_sign() {
+    tracing_subscriber::fmt()
+        // .with_max_level(tracing::Level::DEBUG)
+        .init();
     let (mut app_client, mut app_session_request_rx) = Client::new(
         std::env::var("REOWN_PROJECT_ID").unwrap().into(),
         generate_client_id_key(),
@@ -131,6 +138,7 @@ async fn test_sign() {
             partial_sessions: HashMap::new(),
         })))),
     );
+    app_client.start();
     let connect_result = app_client
         .connect(
             ConnectParams {
@@ -166,6 +174,7 @@ async fn test_sign() {
             partial_sessions: HashMap::new(),
         })))),
     );
+    wallet_client.start();
     let pairing = wallet_client.pair(&connect_result.uri).await.unwrap();
 
     let mut namespaces = HashMap::new();
@@ -188,7 +197,6 @@ async fn test_sign() {
         };
         namespaces.insert(namespace, namespace_settle);
     }
-    tracing::debug!("namespaces: {:?}", namespaces);
 
     let metadata = Metadata {
         name: "Reown Rust Tests Wallet".to_string(),
@@ -207,6 +215,70 @@ async fn test_sign() {
     let message = app_session_request_rx.recv().await.unwrap();
     assert!(matches!(message.1, IncomingSessionMessage::SessionConnect(_)));
 
-    // TODO send session request (e.g. personal_sign)
-    // TODO assert session request is received on wallet-side
+    tracing::debug!("Requesting personal sign");
+    app_client
+        .request(
+            message.0,
+            SessionRequest {
+                chain_id: "eip155:11155111".to_string(),
+                request: SessionRequestRequest {
+                    method: "personal_sign".to_string(),
+                    params: serde_json::Value::String("0x0".to_string()),
+                    expiry: Some(0),
+                },
+            },
+        )
+        .await
+        .unwrap();
+    tracing::debug!("Receiving session request");
+    let message = wallet_session_request_rx.recv().await.unwrap();
+    tracing::debug!("Received session request");
+    assert!(matches!(message.1, IncomingSessionMessage::SessionRequest(_)));
+    let req = if let IncomingSessionMessage::SessionRequest(req) = message.1 {
+        req
+    } else {
+        panic!("Expected SessionRequest");
+    };
+    assert_eq!(req.params.chain_id, "eip155:11155111");
+    assert_eq!(req.params.request.method, "personal_sign");
+    assert_eq!(
+        req.params.request.params,
+        serde_json::Value::String("0x0".to_string())
+    );
+    assert_eq!(req.params.request.expiry, Some(0));
+    tracing::debug!("Responding to session request");
+    wallet_client
+        .respond(
+            message.0,
+            SessionRequestJsonRpcResponse::Result(
+                SessionRequestJsonRpcResultResponse {
+                    id: req.id,
+                    jsonrpc: "2.0".to_string(),
+                    result: serde_json::Value::String("0x0".to_string()),
+                },
+            ),
+        )
+        .await
+        .unwrap();
+    tracing::debug!("Receiving session request response");
+    let message = app_session_request_rx.recv().await.unwrap();
+    assert!(matches!(
+        message.1,
+        IncomingSessionMessage::SessionRequestResponse(_, _, _)
+    ));
+    let resp =
+        if let IncomingSessionMessage::SessionRequestResponse(_, _, resp) =
+            message.1
+        {
+            resp
+        } else {
+            panic!("Expected SessionRequestResponse");
+        };
+    assert!(matches!(resp, SessionRequestJsonRpcResponse::Result(_)));
+    let resp = if let SessionRequestJsonRpcResponse::Result(resp) = resp {
+        resp
+    } else {
+        panic!("Expected SessionRequestResponse");
+    };
+    assert_eq!(resp.result, serde_json::Value::String("0x0".to_string()));
 }

@@ -24,12 +24,15 @@ use {
 
 #[derive(Debug, thiserror::Error)]
 pub enum HandleError {
+    // Logic or runtime errors e.g. storage
     #[error("Internal: {0}")]
     Internal(String),
 
+    // Message ignored because of not being recognized and a JSON-RPC error response cannot be sent back
     #[error("Dropped: {0}")]
     Dropped(String),
 
+    // Client errors that, in theory, we could send a JSON-RPC error response back to the sender
     #[error("Client: {0}")]
     Client(String),
 }
@@ -62,45 +65,46 @@ pub fn handle(
 
     let decoded = BASE64
         .decode(sub_msg.data.message.as_bytes())
-        .map_err(|e| HandleError::Client(format!("decode message: {e}")))
-        .unwrap();
+        .map_err(|e| HandleError::Client(format!("decode message: {e}")))?;
 
     let envelope = envelope_type0::deserialize_envelope_type0(&decoded)
-        .map_err(|e| HandleError::Client(format!("deserialize envelope: {e}")))
-        .unwrap();
+        .map_err(|e| {
+            HandleError::Client(format!("deserialize envelope: {e}"))
+        })?;
     let key = ChaCha20Poly1305::new(&session_sym_key.into());
     let decrypted = key
         .decrypt(&Nonce::from(envelope.iv), envelope.sb.as_slice())
-        .map_err(|e| HandleError::Client(format!("decrypt message: {e}")))
-        .unwrap();
+        .map_err(|e| HandleError::Client(format!("decrypt message: {e}")))?;
     let value = serde_json::from_slice::<serde_json::Value>(&decrypted)
-        .map_err(|e| HandleError::Client(format!("parse message: {e}")))
-        .unwrap();
+        .map_err(|e| HandleError::Client(format!("parse message: {e}")))?;
 
     if let Some(method) = value.get("method") {
         if method.as_str() == Some("wc_sessionSettle") {
             let request = serde_json::from_value::<SessionSettle>(
-                value.get("params").unwrap().clone(),
+                value
+                    .get("params")
+                    .ok_or(HandleError::Client("params not found".to_string()))?
+                    .clone(),
             )
             .map_err(|e| {
                 HandleError::Client(format!("parse settle message: {e}"))
             })?;
 
-            session_store.add_session(Session {
+            let controller_key = Some(
+                hex::decode(request.controller.public_key.clone())
+                    .map_err(|e| HandleError::Client(format!("decode controller public key: {e}")))?
+                    .try_into()
+                    .map_err(|e| HandleError::Client(format!("convert controller public key to fixed-size array: {e:?}")))?,
+            );
+
+            let session = Session {
                 request_id: 0,
                 topic: sub_msg.data.topic.clone(),
                 expiry: request.expiry,
                 relay_protocol: "irn".to_string(),
                 relay_data: None,
                 self_public_key: session_sym_key, // TODO this is wrong
-                controller_key: Some(
-                    hex::decode(request.controller.public_key.clone())
-                        .map_err(|e| HandleError::Client(format!("decode controller public key: {e}")))
-                        ?
-                        .try_into()
-                        .map_err(|e| HandleError::Client(format!("convert controller public key to fixed-size array: {e:?}")))
-                        ?,
-                ),
+                controller_key,
                 session_sym_key,
                 self_meta_data: request.controller.metadata.clone(),
                 peer_public_key: None,
@@ -113,8 +117,11 @@ pub fn handle(
                 is_acknowledged: false,
                 pairing_topic: "".to_string().into(),
                 transport_type: None,
-            })
-            .map_err(|e| HandleError::Internal(format!("add session: {e}")))?;
+            };
+
+            session_store.add_session(session).map_err(|e| {
+                HandleError::Internal(format!("add session: {e}"))
+            })?;
 
             session_request_tx
                 .send((
@@ -334,13 +341,21 @@ pub fn handle(
                             ))
                         })?;
 
+                    let (tx, rx) = tokio::sync::oneshot::channel();
+                    crate::spawn::spawn(async move {
+                        let response = rx.await;
+                        tracing::debug!(
+                            "Received batch subscribe response: {:?}",
+                            response
+                        );
+                    });
                     if let Err(e) = priority_request_tx.send((
                         Params::BatchSubscribe(BatchSubscribe {
                             topics: vec![session_topic],
                         }),
-                        tokio::sync::oneshot::channel().0,
+                        tx,
                     )) {
-                        tracing::debug!("Failed to send priority request: {e}");
+                        tracing::warn!("Failed to send priority request: {e}");
                     }
                     Ok(())
                 } else if sub_msg.data.tag == 1109 {
@@ -360,7 +375,7 @@ pub fn handle(
                             value,
                         ),
                     )) {
-                        tracing::debug!(
+                        tracing::warn!(
                             "Failed to emit session request response event: {e}"
                         );
                     }
