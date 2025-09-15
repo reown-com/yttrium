@@ -1,23 +1,17 @@
 use {
     crate::{
         sign::{
-            client_errors::{PairError, RequestError},
-            client_types::Session,
-            envelope_type0,
+            client_errors::RequestError,
+            incoming::HandleError,
             priority_future::PriorityReceiver,
             protocol_types::{
-                ProposalResponseJsonRpc, SessionDeleteJsonRpc,
                 SessionRequestJsonRpc, SessionRequestJsonRpcResponse,
-                SessionSettle,
             },
             relay_url::ConnectionOptions,
             storage::Storage,
-            utils::{diffie_hellman, topic_from_sym_key},
         },
         time::DurableSleep,
     },
-    chacha20poly1305::{aead::Aead, ChaCha20Poly1305, KeyInit, Nonce},
-    data_encoding::BASE64,
     relay_rpc::{
         auth::ed25519_dalek::{Signer, SigningKey},
         domain::{DecodedClientId, MessageId, ProjectId, Topic},
@@ -27,8 +21,7 @@ use {
             SuccessfulResponse,
         },
     },
-    serde_json::Value,
-    std::{collections::HashMap, sync::Arc, time::Duration},
+    std::{sync::Arc, time::Duration},
 };
 #[cfg(not(target_arch = "wasm32"))]
 use {
@@ -648,498 +641,49 @@ pub async fn connect_loop_state_machine(
             let session_request_tx = session_request_tx.clone();
             let irn_subscription_ack_tx = irn_subscription_ack_tx.clone();
             async move {
-                let key = match session_store
-                    .get_decryption_key_for_topic(sub_msg.data.topic.clone())
-                {
-                    Ok(key) => key,
-                    Err(e) => {
-                        tracing::error!(
-                            "Error getting decryption key for topic: {e}"
-                        );
-                        return;
-                    }
-                };
-                let session_sym_key = if let Some(session_sym_key) = key {
-                    session_sym_key
-                } else {
-                    tracing::error!(
-                        "handle_irn_subscription: No decryption key found to decrypt message, ACKing and ignoring: {:?}",
-                        sub_msg.data.topic
-                    );
-
-                    // Send ACK to prevent blocking, but skip processing
-                    if let Err(e) = irn_subscription_ack_tx.send(id) {
-                        tracing::debug!("Failed to send subscription ack: {e}");
-                    }
-                    return;
-                };
-
-                tracing::debug!(
-                    "handle_irn_subscription: Session Sym Key: {:?}",
-                    session_sym_key
+                let result = crate::sign::incoming::handle(
+                    session_store,
+                    sub_msg,
+                    session_request_tx,
+                    priority_request_tx.clone(),
                 );
-
-                let decoded = BASE64
-                    .decode(sub_msg.data.message.as_bytes())
-                    .map_err(|e| {
-                        PairError::Internal(format!(
-                            "Failed to decode message: {e}"
-                        ))
-                    })
-                    .unwrap();
-
-                tracing::debug!(
-                    "handle_irn_subscription: Decoded: {:?}",
-                    decoded
-                );
-
-                let envelope =
-                    envelope_type0::deserialize_envelope_type0(&decoded)
-                        .map_err(|e| PairError::Internal(e.to_string()))
-                        .unwrap();
-                let key = ChaCha20Poly1305::new(&session_sym_key.into());
-                let decrypted = key
-                    .decrypt(&Nonce::from(envelope.iv), envelope.sb.as_slice())
-                    .map_err(|e| PairError::Internal(e.to_string()))
-                    .unwrap();
-                let value =
-                    serde_json::from_slice::<serde_json::Value>(&decrypted)
-                        .map_err(|e| PairError::Internal(e.to_string()))
-                        .unwrap();
-
-                tracing::debug!(
-                    "handle_irn_subscription: Decrypted: {:?}",
-                    value
-                );
-
-                if let Some(method) = value.get("method") {
-                    if method.as_str() == Some("wc_sessionSettle") {
-                        let request = serde_json::from_value::<SessionSettle>(
-                            value.get("params").unwrap().clone(),
-                        )
-                        .map_err(|e| {
-                            PairError::Internal(format!(
-                                "Failed to parse decrypted message: {e}"
-                            ))
-                        })
-                        .unwrap();
-
-                        tracing::debug!(
-                            "handle_irn_subscription: Session Settle: {:?}",
-                            request
-                        );
-
-                        if let Err(e) = session_store.add_session(Session {
-                            request_id: 0,
-                            topic: sub_msg.data.topic.clone(),
-                            expiry: request.expiry,
-                            relay_protocol: "irn".to_string(),
-                            relay_data: None,
-                            self_public_key: session_sym_key, // TODO this is wrong
-                            controller_key: Some(
-                                hex::decode(
-                                    request.controller.public_key.clone(),
-                                )
-                                .unwrap()
-                                .try_into()
-                                .unwrap(),
-                            ),
-                            session_sym_key,
-                            self_meta_data: request.controller.metadata.clone(),
-                            peer_public_key: None,
-                            peer_meta_data: None,
-                            session_namespaces: request.namespaces.clone(),
-                            required_namespaces: HashMap::new(),
-                            optional_namespaces: None,
-                            session_properties: request
-                                .session_properties
-                                .clone(),
-                            scoped_properties: request
-                                .scoped_properties
-                                .clone(),
-                            is_acknowledged: false,
-                            pairing_topic: "".to_string().into(),
-                            transport_type: None,
-                        }) {
-                            tracing::error!("Error adding session: {e}");
-                            return;
-                        }
-
-                        session_request_tx
-                            .send((
-                                sub_msg.data.topic.clone(),
-                                IncomingSessionMessage::SessionConnect(0),
-                            ))
-                            .unwrap();
-
-                        if let Err(e) = irn_subscription_ack_tx.send(id) {
-                            tracing::debug!(
-                                "Failed to send subscription ack: {e}"
-                            );
-                        }
-                    } else if method.as_str() == Some("wc_sessionRequest") {
-                        // TODO implement relay-side request queue
-                        let request = serde_json::from_value::<
-                            SessionRequestJsonRpc,
-                        >(value)
-                        .map_err(|e| {
-                            PairError::Internal(format!(
-                                "Failed to parse decrypted message: {e}"
-                            ))
-                        })
-                        .unwrap();
-
-                        tracing::debug!(
-                            "handle_irn_subscription: Session Request: {:?}",
-                            request
-                        );
-
-                        session_request_tx
-                            .send((
-                                sub_msg.data.topic,
-                                IncomingSessionMessage::SessionRequest(request),
-                            ))
-                            .unwrap();
-                        if let Err(e) = irn_subscription_ack_tx.send(id) {
-                            tracing::debug!(
-                                "Failed to send subscription ack: {e}"
-                            );
-                        }
-                    } else if method.as_str() == Some("wc_sessionUpdate") {
-                        // Parse update payload and update storage
-                        let update = serde_json::from_value::<
-                            crate::sign::protocol_types::SessionUpdateJsonRpc,
-                        >(value)
-                        .map_err(|e| PairError::Internal(e.to_string()))
-                        .unwrap();
-
-                        // Update local session namespaces
-                        if let Some(mut session) = session_store
-                            .get_session(sub_msg.data.topic.clone())
-                        {
-                            session.session_namespaces =
-                                update.params.namespaces.clone();
-                            session_store.add_session(session);
-                        } else {
-                            tracing::warn!(
-                                "wc_sessionUpdate received for unknown topic: {:?}",
-                                sub_msg.data.topic
-                            );
-                        }
-
-                        // Emit event with payload
-                        session_request_tx
-                            .send((
-                                sub_msg.data.topic.clone(),
-                                IncomingSessionMessage::SessionUpdate(
-                                    update.id,
-                                    sub_msg.data.topic,
-                                    update.params.namespaces,
-                                ),
-                            ))
-                            .unwrap();
-                        // Respond success to the relay for the request (ACK channel already ensures success response to network layer)
-                        if let Err(e) = irn_subscription_ack_tx.send(id) {
-                            tracing::debug!(
-                                "Failed to send subscription ack: {e}"
-                            );
-                        }
-                    } else if method.as_str() == Some("wc_sessionExtend") {
-                        // Parse extend payload
-                        let extend = serde_json::from_value::<
-                            crate::sign::protocol_types::SessionExtendJsonRpc,
-                        >(value)
-                        .map_err(|e| PairError::Internal(e.to_string()))
-                        .unwrap();
-
-                        // Always ACK subscription
-                        if let Err(e) = irn_subscription_ack_tx.send(id) {
-                            tracing::debug!(
-                                "Failed to send subscription ack: {e}"
-                            );
-                        }
-
-                        // Update session expiry if session exists, peer is controller, and expiry is valid (> current and <= now+7d)
-                        if let Some(mut session) = session_store
-                            .get_session(sub_msg.data.topic.clone())
-                        {
-                            let now = crate::time::SystemTime::now()
-                                .duration_since(crate::time::UNIX_EPOCH)
-                                .unwrap()
-                                .as_secs();
-                            match crate::sign::utils::validate_extend_request(
-                                &session,
-                                extend.params.expiry,
-                                now,
-                            ) {
-                                Ok(accepted_expiry) => {
-                                    session.expiry = accepted_expiry;
-                                    session_store.add_session(session);
-                                    // Emit extend event
-                                    session_request_tx
-                                        .send((
-                                            sub_msg.data.topic.clone(),
-                                            IncomingSessionMessage::SessionExtend(
-                                                extend.id,
-                                                sub_msg.data.topic,
-                                            ),
-                                        ))
-                                        .unwrap();
-                                }
-                                Err(e) => {
-                                    tracing::warn!(
-                                        "ignored wc_sessionExtend: {:?}",
-                                        e
-                                    );
-                                }
-                            }
-                        } else {
-                            tracing::warn!(
-                                "wc_sessionExtend received for unknown topic: {:?}",
-                                sub_msg.data.topic
-                            );
-                        }
-                    } else if method.as_str() == Some("wc_sessionEmit") {
-                        // TODO dedup events based on JSON RPC history
-                        // TODO emit event callback (blocking?)
-                        session_request_tx
-                            .send((
-                                sub_msg.data.topic.clone(),
-                                IncomingSessionMessage::SessionEvent(
-                                    0, // TODO
-                                    sub_msg.data.topic,
-                                    false, // TODO
-                                ),
-                            ))
-                            .unwrap();
-                        if let Err(e) = irn_subscription_ack_tx.send(id) {
-                            tracing::debug!(
-                                "Failed to send subscription ack: {e}"
-                            );
-                        }
-                    } else if method.as_str() == Some("wc_sessionPing") {
-                        // ignore pings
-                        if let Err(e) = irn_subscription_ack_tx.send(id) {
-                            tracing::debug!(
-                                "Failed to send subscription ack: {e}"
-                            );
-                        }
-                    } else if method.as_str() == Some("wc_sessionDelete") {
-                        let delete = serde_json::from_value::<
-                            SessionDeleteJsonRpc,
-                        >(value)
-                        .map_err(|e| PairError::Internal(e.to_string()))
-                        .unwrap();
-                        if let Err(e) = session_store
-                            .delete_session(sub_msg.data.topic.clone())
-                        {
-                            tracing::error!("Error deleting session: {e}");
-                            return;
-                        }
-                        session_request_tx
-                            .send((
-                                sub_msg.data.topic.clone(),
-                                IncomingSessionMessage::Disconnect(
-                                    delete.id,
-                                    sub_msg.data.topic,
-                                ),
-                            ))
-                            .unwrap();
-                        if let Err(e) = irn_subscription_ack_tx.send(id) {
-                            tracing::debug!(
-                                "Failed to send subscription ack: {e}"
-                            );
-                        }
-                    } else {
-                        tracing::error!("Unexpected method: {}", method);
+                match result {
+                    Ok(()) => {
                         if let Err(e) = irn_subscription_ack_tx.send(id) {
                             tracing::debug!(
                                 "Failed to send subscription ack: {e}"
                             );
                         }
                     }
-                } else {
-                    let rpc_id = value.get("id");
-                    if let Some(rpc_id) = rpc_id {
-                        let rpc_id = match rpc_id {
-                            Value::Number(n) => n.as_u64(),
-                            Value::String(s) => s.parse::<u64>().ok(),
-                            _ => None,
-                        };
-                        if let Some(rpc_id) = rpc_id {
-                            let pairing = match session_store
-                                .get_pairing(sub_msg.data.topic.clone(), rpc_id)
-                            {
-                                Ok(pairing) => pairing,
-                                Err(e) => {
-                                    tracing::error!(
-                                        "Error getting pairing: {e}"
-                                    );
-                                    return;
-                                }
-                            };
-                            if let Some((_sym_key, self_key)) = pairing {
-                                let response = match serde_json::from_value::<
-                                    ProposalResponseJsonRpc,
-                                >(
-                                    value
-                                ) {
-                                    Ok(response) => response,
-                                    Err(e) => {
-                                        tracing::error!(
-                                                "Error parsing proposal response: {e}"
-                                            );
-                                        if let Err(e) =
-                                            irn_subscription_ack_tx.send(id)
-                                        {
-                                            tracing::debug!(
-                                                "Failed to send subscription ack: {e}"
-                                            );
-                                        }
-                                        return;
-                                    }
-                                };
-                                let response = response.result;
-
-                                tracing::debug!(
-                                    "handle_irn_subscription: Proposal Response: {:?}",
-                                    response
-                                );
-
-                                let self_key =
-                                    x25519_dalek::StaticSecret::from(self_key);
-                                let responder_public_key = match hex::decode(
-                                    response.responder_public_key,
-                                ) {
-                                    Ok(key) => key,
-                                    Err(e) => {
-                                        tracing::error!(
-                                                "Error decoding responder public key: {e}"
-                                            );
-                                        if let Err(e) =
-                                            irn_subscription_ack_tx.send(id)
-                                        {
-                                            tracing::debug!(
-                                                "Failed to send subscription ack: {e}"
-                                            );
-                                        }
-                                        return;
-                                    }
-                                };
-                                let responder_public_key: [u8; 32] =
-                                    match responder_public_key.try_into() {
-                                        Ok(key) => key,
-                                        Err(e) => {
-                                            tracing::error!(
-                                                "Error converting responder public key to fixed-size array: {e:?}"
-                                            );
-                                            if let Err(e) =
-                                                irn_subscription_ack_tx.send(id)
-                                            {
-                                                tracing::debug!(
-                                                    "Failed to send subscription ack: {e}"
-                                                );
-                                            }
-                                            return;
-                                        }
-                                    };
-                                let responder_public_key =
-                                    x25519_dalek::PublicKey::from(
-                                        responder_public_key,
-                                    );
-                                let shared_secret = diffie_hellman(
-                                    &responder_public_key,
-                                    &self_key,
-                                );
-                                let session_topic =
-                                    topic_from_sym_key(&shared_secret);
-                                if let Err(e) = session_store
-                                    .save_partial_session(
-                                        session_topic.clone(),
-                                        shared_secret,
-                                    )
-                                {
-                                    tracing::error!(
-                                        "Error saving partial session: {e}"
-                                    );
-                                    return;
-                                }
-                                if let Err(e) = priority_request_tx.send((
-                                    Params::BatchSubscribe(BatchSubscribe {
-                                        topics: vec![session_topic],
-                                    }),
-                                    tokio::sync::oneshot::channel().0,
-                                )) {
-                                    tracing::debug!(
-                                        "Failed to send priority request: {e}"
-                                    );
-                                }
-                                if let Err(e) = irn_subscription_ack_tx.send(id)
-                                {
-                                    tracing::debug!(
-                                        "Failed to send subscription ack: {e}"
-                                    );
-                                }
-                            } else if sub_msg.data.tag == 1109 {
-                                let value =
-                                    serde_json::from_value::<
-                                        SessionRequestJsonRpcResponse,
-                                    >(value)
-                                    .unwrap(); // TODO handle
-                                if let Err(e) = session_request_tx
-                                    .send((
-                                        sub_msg.data.topic.clone(),
-                                        IncomingSessionMessage::SessionRequestResponse(
-                                            rpc_id,
-                                            sub_msg.data.topic,
-                                            value,
-                                        ),
-                                    ))
-                                {
-                                    tracing::debug!(
-                                        "Failed to emit session request response event: {e}"
-                                    );
-                                }
-                                if let Err(e) = irn_subscription_ack_tx.send(id)
-                                {
-                                    tracing::debug!(
-                                        "Failed to send subscription ack: {e}"
-                                    );
-                                }
-                            } else {
-                                tracing::error!(
-                                    "ignoring message with invalid ID: {:?}",
-                                    value
-                                );
-                                if let Err(e) = irn_subscription_ack_tx.send(id)
-                                {
-                                    tracing::debug!(
-                                        "Failed to send subscription ack: {e}"
-                                    );
-                                }
-                            }
-                        } else {
+                    Err(e) => match e {
+                        HandleError::Internal(e) => {
                             tracing::error!(
-                                "ignoring message with invalid ID: {:?}",
-                                value
+                                "Error handling IRN subscription: {e}"
+                            );
+                        }
+                        HandleError::Dropped(e) => {
+                            tracing::debug!(
+                                "Dropped message subscription: {e}"
                             );
                             if let Err(e) = irn_subscription_ack_tx.send(id) {
                                 tracing::debug!(
                                     "Failed to send subscription ack: {e}"
                                 );
                             }
+                            // TODO consider unsubscribing from topic
                         }
-                    } else {
-                        tracing::debug!(
-                            "ignoring message without method or ID: {:?}",
-                            value
-                        );
-                        if let Err(e) = irn_subscription_ack_tx.send(id) {
-                            tracing::debug!(
-                                "Failed to send subscription ack: {e}"
+                        HandleError::Client(e) => {
+                            tracing::error!(
+                                "Error handling IRN subscription: {e}"
                             );
+                            // TODO consider sending RPC error back to sender
+                            if let Err(e) = irn_subscription_ack_tx.send(id) {
+                                tracing::debug!(
+                                    "Failed to send subscription ack: {e}"
+                                );
+                            }
                         }
-                    }
+                    },
                 }
             }
         }

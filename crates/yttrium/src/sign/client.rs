@@ -76,7 +76,6 @@ pub struct Client {
 //     - long-lived clients might suffer here. Maybe filter each reconnect?
 
 // TODO error improvement
-// - callback traits (storage) return Results
 // - bundle size optimization: error enums only for actionable errors higher-up
 // - use a single string variant for all errors (which would be shown to users!)
 // - other is internal errors we don't expect to EVER happen (so show error code instead w/ GitHub issue link)
@@ -640,7 +639,7 @@ impl Client {
         let shared_secret = self
             .session_store
             .get_session(topic.clone())
-            .map_err(|e| RespondError::Storage(e))?
+            .map_err(RespondError::Storage)?
             .map(|s| s.session_sym_key)
             .ok_or(RespondError::SessionNotFound)?;
 
@@ -685,7 +684,10 @@ impl Client {
     ) -> Result<(), UpdateError> {
         //TODO: add validate namespaces
 
-        let session_opt = self.session_store.get_session(topic.clone());
+        let session_opt = self
+            .session_store
+            .get_session(topic.clone())
+            .map_err(UpdateError::Storage)?;
         let shared_secret = session_opt
             .as_ref()
             .map(|s| s.session_sym_key)
@@ -742,6 +744,7 @@ impl Client {
         let mut session = self
             .session_store
             .get_session(topic.clone())
+            .map_err(ExtendError::Storage)?
             .ok_or(ExtendError::SessionNotFound)?;
 
         // Compute new expiry = now + 7 days
@@ -813,7 +816,7 @@ impl Client {
         let shared_secret = self
             .session_store
             .get_session(topic.clone())
-            .map_err(|e| DisconnectError::Storage(e))?
+            .map_err(DisconnectError::Storage)?
             .map(|s| s.session_sym_key);
 
         if let Some(shared_secret) = shared_secret {

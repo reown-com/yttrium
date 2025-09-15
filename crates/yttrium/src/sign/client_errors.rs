@@ -124,6 +124,9 @@ pub enum ConnectError {
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Error))]
 #[error("Sign extend error: {0}")]
 pub enum ExtendError {
+    #[error("Storage: {0}")]
+    Storage(StorageError),
+
     #[error("Session not found")]
     SessionNotFound,
 
@@ -141,6 +144,9 @@ pub enum ExtendError {
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Error))]
 #[error("Sign update error: {0}")]
 pub enum UpdateError {
+    #[error("Storage: {0}")]
+    Storage(StorageError),
+
     #[error("Session not found")]
     SessionNotFound,
 

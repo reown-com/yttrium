@@ -2,7 +2,7 @@ use {
     crate::{
         sign::{
             client_types::Session,
-            storage::{Storage, StorageError},
+            storage::{Storage, StorageError, StoragePairing},
         },
         uniffi_compat::sign::ffi_types::SessionFfi,
     },
@@ -99,12 +99,12 @@ impl Storage for StorageFfiProxy {
         &self,
         topic: Topic,
         rpc_id: u64,
-    ) -> Result<Option<([u8; 32], [u8; 32])>, StorageError> {
+    ) -> Result<Option<StoragePairing>, StorageError> {
         Ok(self.0.get_pairing(topic.to_string(), rpc_id)?.map(|pairing| {
-            (
-                pairing.sym_key.try_into().unwrap(),
-                pairing.self_key.try_into().unwrap(),
-            )
+            StoragePairing {
+                sym_key: pairing.sym_key.try_into().unwrap(),
+                self_key: pairing.self_key.try_into().unwrap(),
+            }
         }))
     }
 

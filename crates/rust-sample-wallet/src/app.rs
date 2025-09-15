@@ -19,7 +19,7 @@ use {
             SessionRequestJsonRpcResponse, SessionRequestJsonRpcResultResponse,
             SessionRequestRequest, SettleNamespace,
         },
-        storage::{Storage, StorageError},
+        storage::{Storage, StorageError, StoragePairing},
         IncomingSessionMessage, SecretKey, Topic,
     },
 };
@@ -32,7 +32,7 @@ use {
 struct MyState {
     key: SecretKey,
     sessions: Vec<Session>,
-    pairing_keys: HashMap<Topic, (u64, [u8; 32], [u8; 32])>,
+    pairing_keys: HashMap<Topic, (u64, StoragePairing)>,
     partial_sessions: HashMap<Topic, [u8; 32]>,
 }
 
@@ -112,25 +112,23 @@ fn write_local_storage(key: &str, state: MyState) -> Result<(), String> {
 impl Storage for MySessionStore {
     fn get_all_sessions(&self) -> Result<Vec<Session>, StorageError> {
         Ok(read_local_storage(&self.key)
-            .map_err(|e| StorageError::Runtime(e))?
+            .map_err(StorageError::Runtime)?
             .sessions)
     }
 
     fn add_session(&self, session: Session) -> Result<(), StorageError> {
-        let mut state = read_local_storage(&self.key)
-            .map_err(|e| StorageError::Runtime(e))?;
+        let mut state =
+            read_local_storage(&self.key).map_err(StorageError::Runtime)?;
         state.sessions.push(session);
-        write_local_storage(&self.key, state)
-            .map_err(|e| StorageError::Runtime(e))?;
+        write_local_storage(&self.key, state).map_err(StorageError::Runtime)?;
         Ok(())
     }
 
     fn delete_session(&self, topic: Topic) -> Result<(), StorageError> {
-        let mut state = read_local_storage(&self.key)
-            .map_err(|e| StorageError::Runtime(e))?;
+        let mut state =
+            read_local_storage(&self.key).map_err(StorageError::Runtime)?;
         state.sessions.retain(|session| session.topic != topic);
-        write_local_storage(&self.key, state)
-            .map_err(|e| StorageError::Runtime(e))?;
+        write_local_storage(&self.key, state).map_err(StorageError::Runtime)?;
         Ok(())
     }
 
@@ -139,15 +137,15 @@ impl Storage for MySessionStore {
         topic: Topic,
     ) -> Result<Option<Session>, StorageError> {
         Ok(read_local_storage(&self.key)
-            .map_err(|e| StorageError::Runtime(e))?
+            .map_err(StorageError::Runtime)?
             .sessions
             .into_iter()
             .find(|session| session.topic == topic))
     }
 
     fn get_all_topics(&self) -> Result<Vec<Topic>, StorageError> {
-        let state = read_local_storage(&self.key)
-            .map_err(|e| StorageError::Runtime(e))?;
+        let state =
+            read_local_storage(&self.key).map_err(StorageError::Runtime)?;
         Ok(state
             .sessions
             .iter()
@@ -161,8 +159,8 @@ impl Storage for MySessionStore {
         &self,
         topic: Topic,
     ) -> Result<Option<[u8; 32]>, StorageError> {
-        let state = read_local_storage(&self.key)
-            .map_err(|e| StorageError::Runtime(e))?;
+        let state =
+            read_local_storage(&self.key).map_err(StorageError::Runtime)?;
         tracing::info!("get_decryption_key_for_topic: state: {:?}", state);
         let result = state
             .sessions
@@ -170,7 +168,9 @@ impl Storage for MySessionStore {
             .find(|session| session.topic == topic)
             .map(|session| session.session_sym_key)
             .or_else(|| {
-                state.pairing_keys.get(&topic).map(|(_, sym_key, _)| *sym_key)
+                state.pairing_keys.get(&topic).map(
+                    |(_, StoragePairing { sym_key, self_key: _ })| *sym_key,
+                )
             })
             .or_else(|| state.partial_sessions.get(&topic).copied());
         tracing::info!("get_decryption_key_for_topic: result: {:?}", result);
@@ -184,11 +184,12 @@ impl Storage for MySessionStore {
         sym_key: [u8; 32],
         self_key: [u8; 32],
     ) -> Result<(), StorageError> {
-        let mut state = read_local_storage(&self.key)
-            .map_err(|e| StorageError::Runtime(e))?;
-        state.pairing_keys.insert(topic, (rpc_id, sym_key, self_key));
-        write_local_storage(&self.key, state)
-            .map_err(|e| StorageError::Runtime(e))?;
+        let mut state =
+            read_local_storage(&self.key).map_err(StorageError::Runtime)?;
+        state
+            .pairing_keys
+            .insert(topic, (rpc_id, StoragePairing { sym_key, self_key }));
+        write_local_storage(&self.key, state).map_err(StorageError::Runtime)?;
         Ok(())
     }
 
@@ -196,12 +197,13 @@ impl Storage for MySessionStore {
         &self,
         topic: Topic,
         _rpc_id: u64,
-    ) -> Result<Option<([u8; 32], [u8; 32])>, StorageError> {
+    ) -> Result<Option<StoragePairing>, StorageError> {
         Ok(read_local_storage(&self.key)
-            .map_err(|e| StorageError::Runtime(e))?
+            .map_err(StorageError::Runtime)?
             .pairing_keys
             .get(&topic)
-            .map(|(_, sym_key, self_key)| (*sym_key, *self_key)))
+            .map(|(_, storage_pairing)| storage_pairing)
+            .cloned())
     }
 
     fn save_partial_session(
@@ -209,11 +211,10 @@ impl Storage for MySessionStore {
         topic: Topic,
         sym_key: [u8; 32],
     ) -> Result<(), StorageError> {
-        let mut state = read_local_storage(&self.key)
-            .map_err(|e| StorageError::Runtime(e))?;
+        let mut state =
+            read_local_storage(&self.key).map_err(StorageError::Runtime)?;
         state.partial_sessions.insert(topic, sym_key);
-        write_local_storage(&self.key, state)
-            .map_err(|e| StorageError::Runtime(e))?;
+        write_local_storage(&self.key, state).map_err(StorageError::Runtime)?;
         Ok(())
     }
 }

@@ -4,7 +4,7 @@ use {
         client::{generate_client_id_key, Client},
         client_types::{ConnectParams, Session},
         protocol_types::{Metadata, ProposalNamespace, SettleNamespace},
-        storage::{Storage, StorageError},
+        storage::{Storage, StorageError, StoragePairing},
         IncomingSessionMessage,
     },
     relay_rpc::domain::Topic,
@@ -16,7 +16,7 @@ use {
 
 struct MySessionStoreInner {
     sessions: Vec<Session>,
-    pairing_keys: HashMap<Topic, (u64, [u8; 32], [u8; 32])>,
+    pairing_keys: HashMap<Topic, (u64, StoragePairing)>,
     partial_sessions: HashMap<Topic, [u8; 32]>,
 }
 
@@ -73,7 +73,9 @@ impl Storage for MySessionStore {
             .find(|session| session.topic == topic)
             .map(|session| session.session_sym_key)
             .or_else(|| {
-                inner.pairing_keys.get(&topic).map(|(_, sym_key, _)| *sym_key)
+                inner.pairing_keys.get(&topic).map(
+                    |(_, StoragePairing { sym_key, self_key: _ })| *sym_key,
+                )
             })
             .or_else(|| inner.partial_sessions.get(&topic).copied());
         Ok(decryption_key)
@@ -87,7 +89,9 @@ impl Storage for MySessionStore {
         self_key: [u8; 32],
     ) -> Result<(), StorageError> {
         let mut inner = self.0.lock().unwrap();
-        inner.pairing_keys.insert(topic, (rpc_id, sym_key, self_key));
+        inner
+            .pairing_keys
+            .insert(topic, (rpc_id, StoragePairing { sym_key, self_key }));
         Ok(())
     }
 
@@ -95,12 +99,13 @@ impl Storage for MySessionStore {
         &self,
         topic: Topic,
         _rpc_id: u64,
-    ) -> Result<Option<([u8; 32], [u8; 32])>, StorageError> {
+    ) -> Result<Option<StoragePairing>, StorageError> {
         let inner = self.0.lock().unwrap();
         let pairing = inner
             .pairing_keys
             .get(&topic)
-            .map(|(_, sym_key, self_key)| (*sym_key, *self_key));
+            .map(|(_, storage_pairing)| storage_pairing)
+            .cloned();
         Ok(pairing)
     }
 

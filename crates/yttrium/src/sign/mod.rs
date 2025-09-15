@@ -12,6 +12,7 @@ pub mod client_errors;
 pub mod client_types;
 pub mod envelope_type0;
 mod envelope_type1;
+mod incoming;
 mod pairing_uri;
 mod priority_future;
 pub mod protocol_types;

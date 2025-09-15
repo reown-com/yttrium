@@ -1,4 +1,8 @@
-use {crate::sign::client_types::Session, relay_rpc::domain::Topic};
+use {
+    crate::sign::client_types::Session,
+    relay_rpc::domain::Topic,
+    serde::{Deserialize, Serialize},
+};
 
 // Implementation requirements:
 // - Storage writes must be synchronously flushed
@@ -30,7 +34,7 @@ pub trait Storage: Send + Sync {
         &self,
         topic: Topic,
         rpc_id: u64,
-    ) -> Result<Option<([u8; 32], [u8; 32])>, StorageError>;
+    ) -> Result<Option<StoragePairing>, StorageError>;
     fn save_partial_session(
         &self,
         topic: Topic,
@@ -43,4 +47,10 @@ pub trait Storage: Send + Sync {
 pub enum StorageError {
     #[error("Runtime: {0}")]
     Runtime(String),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StoragePairing {
+    pub sym_key: [u8; 32],
+    pub self_key: [u8; 32],
 }
