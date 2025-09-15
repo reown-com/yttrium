@@ -5,7 +5,7 @@ use {
             incoming::HandleError,
             priority_future::PriorityReceiver,
             protocol_types::{
-                SessionRequestJsonRpc, SessionRequestJsonRpcResponse,
+                SessionDeleteJsonRpc, SessionProposalJsonRpcResponse, SessionRequestJsonRpc, SessionRequestJsonRpcResponse, SessionSettle
             },
             relay_url::ConnectionOptions,
             storage::Storage,
@@ -600,7 +600,8 @@ pub enum IncomingSessionMessage {
     SessionEvent(u64, Topic, bool),
     SessionUpdate(u64, Topic, crate::sign::protocol_types::SettleNamespaces),
     SessionExtend(u64, Topic),
-    SessionConnect(u64),
+    SessionConnect(u64, Topic),
+    SessionReject(u64, Topic),
     SessionRequestResponse(u64, Topic, SessionRequestJsonRpcResponse),
 }
 
