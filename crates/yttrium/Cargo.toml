@@ -105,6 +105,10 @@ test_full = [
 test_pimlico_api = []
 test_blockchain_api = []
 test_depends_on_env_REOWN_PROJECT_ID = []
+test_sign = [
+    "sign_client",
+    "test_depends_on_env_REOWN_PROJECT_ID",
+]
 
 [dependencies]
 uniffi = { workspace = true, optional = true, features = ["cli"] }
@@ -245,6 +249,9 @@ alloy = { workspace = true, features = ["node-bindings", "reqwest"] }
 serial_test.workspace = true
 chacha20poly1305 = { workspace = true, features = ["alloc", "os_rng"] }
 data-encoding = { workspace = true }
+
+aws-config = { version = "1.1.7", features = ["behavior-version-latest"] }
+aws-sdk-cloudwatch = { version = "1.91.0" }
 
 [package.metadata.wasm-pack.profile.release]
 wasm-opt = ['-Oz']

@@ -11,10 +11,15 @@ use {
         storage::{Storage, StorageError, StoragePairing},
         IncomingSessionMessage,
     },
+    aws_sdk_cloudwatch::{
+        primitives::DateTime,
+        types::{Dimension, MetricDatum, StandardUnit},
+    },
     relay_rpc::domain::Topic,
     std::{
         collections::HashMap,
         sync::{Arc, Mutex},
+        time::SystemTime,
     },
 };
 
@@ -124,8 +129,7 @@ impl Storage for MySessionStore {
     }
 }
 
-#[tokio::test]
-async fn test_sign() {
+async fn test_sign_impl() -> Result<(), String> {
     tracing_subscriber::fmt()
         // .with_max_level(tracing::Level::DEBUG)
         .init();
@@ -163,7 +167,7 @@ async fn test_sign() {
             },
         )
         .await
-        .unwrap();
+        .map_err(|e| format!("Failed to connect: {e}"))?;
 
     let (mut wallet_client, mut wallet_session_request_rx) = Client::new(
         std::env::var("REOWN_PROJECT_ID").unwrap().into(),
@@ -175,7 +179,10 @@ async fn test_sign() {
         })))),
     );
     wallet_client.start();
-    let pairing = wallet_client.pair(&connect_result.uri).await.unwrap();
+    let pairing = wallet_client
+        .pair(&connect_result.uri)
+        .await
+        .map_err(|e| format!("Failed to pair: {e}"))?;
 
     let mut namespaces = HashMap::new();
     for (namespace, namespace_proposal) in pairing.required_namespaces.clone() {
@@ -207,12 +214,24 @@ async fn test_sign() {
         redirect: None,
     };
 
-    wallet_client.approve(pairing, namespaces, metadata).await.unwrap();
+    wallet_client
+        .approve(pairing, namespaces, metadata)
+        .await
+        .map_err(|e| format!("Failed to approve: {e}"))?;
 
-    let message = wallet_session_request_rx.recv().await.unwrap();
-    assert!(matches!(message.1, IncomingSessionMessage::SessionConnect(_)));
+    let message = wallet_session_request_rx
+        .recv()
+        .await
+        .ok_or_else(|| format!("Failed to receive session connect"))?;
 
-    let message = app_session_request_rx.recv().await.unwrap();
+    if !(matches!(message.1, IncomingSessionMessage::SessionConnect(_))) {
+        Err(format!("Expected SessionConnect, got {:?}", message.1))?;
+    }
+
+    let message = app_session_request_rx
+        .recv()
+        .await
+        .ok_or_else(|| format!("Failed to receive session connect"))?;
     assert!(matches!(message.1, IncomingSessionMessage::SessionConnect(_)));
 
     tracing::debug!("Requesting personal sign");
@@ -281,4 +300,48 @@ async fn test_sign() {
         panic!("Expected SessionRequestResponse");
     };
     assert_eq!(resp.result, serde_json::Value::String("0x0".to_string()));
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_sign() {
+    let result = test_sign_impl().await;
+
+    let config = aws_config::load_from_env().await;
+    let cloudwatch_client = aws_sdk_cloudwatch::Client::new(&config);
+    cloudwatch_client
+        .put_metric_data()
+        .namespace("dev_Canary_RustSignClient")
+        .set_metric_data(Some(vec![MetricDatum::builder()
+            .metric_name("HappyPath.connects.success".to_string())
+            .dimensions(
+                Dimension::builder()
+                    .name("Target".to_string())
+                    .value("test".to_string())
+                    .build(),
+            )
+            .dimensions(
+                Dimension::builder()
+                    .name("Region".to_string())
+                    .value("eu-central-1".to_string())
+                    .build(),
+            )
+            .dimensions(
+                Dimension::builder()
+                    .name("Tag".to_string())
+                    .value("test".to_string())
+                    .build(),
+            )
+            .value(if result.is_ok() { 1. } else { 0. })
+            .unit(StandardUnit::Count)
+            .timestamp(DateTime::from(SystemTime::now()))
+            .build()]))
+        .send()
+        .await
+        .unwrap();
+
+    if let Err(e) = result {
+        assert!(false, "Test failed: {e}");
+    }
 }
