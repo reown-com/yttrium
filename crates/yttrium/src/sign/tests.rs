@@ -19,7 +19,7 @@ use {
     std::{
         collections::HashMap,
         sync::{Arc, Mutex},
-        time::SystemTime,
+        time::{Instant, SystemTime},
     },
 };
 
@@ -130,9 +130,6 @@ impl Storage for MySessionStore {
 }
 
 async fn test_sign_impl() -> Result<(), String> {
-    tracing_subscriber::fmt()
-        // .with_max_level(tracing::Level::DEBUG)
-        .init();
     let (mut app_client, mut app_session_request_rx) = Client::new(
         std::env::var("REOWN_PROJECT_ID").unwrap().into(),
         generate_client_id_key(),
@@ -306,37 +303,43 @@ async fn test_sign_impl() -> Result<(), String> {
 
 #[tokio::test]
 async fn test_sign() {
+    tracing_subscriber::fmt()
+        //.with_max_level(tracing::Level::DEBUG)
+        .init();
+
+    let start = Instant::now();
     let result = test_sign_impl().await;
+    let e2e_latency = start.elapsed();
 
     let config = aws_config::load_from_env().await;
     let cloudwatch_client = aws_sdk_cloudwatch::Client::new(&config);
+    let region = config.region().unwrap().to_string();
+    let dimensions = Dimension::builder()
+        .name("Region".to_string())
+        .value(region.clone())
+        .build();
+
     cloudwatch_client
         .put_metric_data()
-        .namespace("dev_Canary_RustSignClient")
-        .set_metric_data(Some(vec![MetricDatum::builder()
-            .metric_name("HappyPath.connects.success".to_string())
-            .dimensions(
-                Dimension::builder()
-                    .name("Target".to_string())
-                    .value("test".to_string())
-                    .build(),
-            )
-            .dimensions(
-                Dimension::builder()
-                    .name("Region".to_string())
-                    .value("eu-central-1".to_string())
-                    .build(),
-            )
-            .dimensions(
-                Dimension::builder()
-                    .name("Tag".to_string())
-                    .value("test".to_string())
-                    .build(),
-            )
-            .value(if result.is_ok() { 1. } else { 0. })
-            .unit(StandardUnit::Count)
-            .timestamp(DateTime::from(SystemTime::now()))
-            .build()]))
+        .namespace("dev2_Canary_RustSignClient")
+        .metric_data(
+            MetricDatum::builder()
+                .metric_name("e2e_success".to_string())
+                .dimensions(dimensions.clone())
+                .value(if result.is_ok() { 1. } else { 0. })
+                .unit(StandardUnit::Count)
+                .timestamp(DateTime::from(SystemTime::now()))
+                .build(),
+        )
+        .metric_data(
+            MetricDatum::builder()
+                .metric_name("e2e_latency".to_string())
+                .dimensions(dimensions.clone())
+                .value(e2e_latency.as_millis() as f64)
+                .unit(StandardUnit::Milliseconds)
+                .timestamp(DateTime::from(SystemTime::now()))
+                .build(),
+        )
         .send()
         .await
         .unwrap();
