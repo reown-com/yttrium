@@ -1,0 +1,7 @@
+/gradle
+/.jj
+/.git
+/target
+/benchmark
+/crates/rust-sample-wallet/dist
+/crates/rust-sample-wallet/node_modules

@@ -58,6 +58,7 @@ pub struct Client {
     signing_key_bytes: [u8; 32],
     pending_request_rx: Option<RpcRequestReceiver>,
     pending_online_rx: Option<tokio::sync::mpsc::UnboundedReceiver<()>>,
+    probe_group: Option<String>,
 }
 
 // Deduplication: does deduplication happen at the irn_subscription layer (like current SDKs) or do we do it for each action e.g. update, event, etc. (remember layered state and stateless architecture)
@@ -144,9 +145,14 @@ impl Client {
                 signing_key_bytes: SigningKey::from_bytes(&key).to_bytes(),
                 pending_request_rx: Some(request_rx),
                 pending_online_rx: Some(online_rx),
+                probe_group: None,
             },
             rx,
         )
+    }
+
+    pub fn set_probe_group(&mut self, probe_group: String) {
+        self.probe_group = Some(probe_group);
     }
 
     pub fn start(&mut self) {
@@ -173,6 +179,7 @@ impl Client {
                     request_rx,
                     online_rx,
                     cleanup_rx,
+                    self.probe_group.clone(),
                 ),
             );
         }
@@ -318,6 +325,11 @@ impl Client {
         )
         .map_err(ConnectError::ShouldNeverHappen)?;
 
+        tracing::debug!(
+            group = self.probe_group.clone(),
+            probe = "sending_propose_session_request",
+            "sending propose session request"
+        );
         self.do_request::<bool>(relay_rpc::rpc::Params::ProposeSession(
             ProposeSession {
                 pairing_topic: pairing_info.topic.clone(),
@@ -334,12 +346,22 @@ impl Client {
         ))
         .await
         .map_err(ConnectError::Request)?;
+        tracing::debug!(
+            group = self.probe_group.clone(),
+            probe = "propose_session_request_success",
+            "propose session request success"
+        );
 
         self.session_store.save_pairing(
             pairing_info.topic.clone(),
             rpc_id,
             sym_key,
             self_key.to_bytes(),
+        );
+        tracing::debug!(
+            group = self.probe_group.clone(),
+            probe = "pairing_saved",
+            "pairing saved"
         );
 
         // TODO should return a promise/completer like JS/Flutter or should we just await the on_session_connect event?

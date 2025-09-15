@@ -13,6 +13,11 @@ name = "uniffi-bindgen"
 path = "uniffi-bindgen.rs"
 required-features = ["uniffi"]
 
+[[bin]]
+name = "sign-canary"
+path = "src/bin/sign_canary.rs"
+required-features = ["sign_canary"]
+
 [features]
 default = ["eip155", "erc6492_client", "chain_abstraction_client"]
 full = ["all_platforms", "all_clients", "all_namespaces"]
@@ -94,6 +99,12 @@ sign_client = [
     "dep:hkdf",
     "dep:sha2",
     "dep:tokio-util",
+]
+
+sign_canary = [
+    "sign_client",
+    "dep:aws-config",
+    "dep:aws-sdk-cloudwatch",
 ]
 
 # Features enabling test coverage
@@ -236,6 +247,9 @@ x25519-dalek = { version = "3.0.0-pre.0", features = [
 hkdf = { version = "0.13.0-rc.0", optional = true }
 sha2 = { version = "0.11.0-rc.0", optional = true }
 
+aws-config = { version = "1.1.7", features = ["behavior-version-latest"], optional = true }
+aws-sdk-cloudwatch = { version = "1.91.0", optional = true }
+
 [dev-dependencies]
 # mocking
 wiremock = { version = "0.6.0", default-features = false }
@@ -249,9 +263,6 @@ alloy = { workspace = true, features = ["node-bindings", "reqwest"] }
 serial_test.workspace = true
 chacha20poly1305 = { workspace = true, features = ["alloc", "os_rng"] }
 data-encoding = { workspace = true }
-
-aws-config = { version = "1.1.7", features = ["behavior-version-latest"] }
-aws-sdk-cloudwatch = { version = "1.91.0" }
 
 [package.metadata.wasm-pack.profile.release]
 wasm-opt = ['-Oz']

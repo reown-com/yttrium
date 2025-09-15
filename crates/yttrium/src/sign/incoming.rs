@@ -24,15 +24,15 @@ use {
 
 #[derive(Debug, thiserror::Error)]
 pub enum HandleError {
-    // Logic or runtime errors e.g. storage
+    // Unrecoverable logic or runtime errors e.g. storage
     #[error("Internal: {0}")]
     Internal(String),
 
-    // Message ignored because of not being recognized and a JSON-RPC error response cannot be sent back
+    // Unrecoverable errors resulting in the message being ignored because of not being recognized and a JSON-RPC error response cannot be sent back
     #[error("Dropped: {0}")]
     Dropped(String),
 
-    // Client errors that, in theory, we could send a JSON-RPC error response back to the sender
+    // Unrecoverable client errors that, in theory, we could send a JSON-RPC error response back to the sender
     #[error("Client: {0}")]
     Client(String),
 }

@@ -19,6 +19,7 @@ pub mod protocol_types;
 mod relay;
 mod relay_url;
 pub mod storage;
+pub mod test_helpers;
 #[cfg(test)]
 mod tests;
 pub mod utils;

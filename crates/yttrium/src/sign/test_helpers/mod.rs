@@ -1,4 +1,3 @@
-#![cfg(feature = "test_depends_on_env_REOWN_PROJECT_ID")]
 use {
     crate::sign::{
         client::{generate_client_id_key, Client},
@@ -11,15 +10,10 @@ use {
         storage::{Storage, StorageError, StoragePairing},
         IncomingSessionMessage,
     },
-    aws_sdk_cloudwatch::{
-        primitives::DateTime,
-        types::{Dimension, MetricDatum, StandardUnit},
-    },
     relay_rpc::domain::Topic,
     std::{
         collections::HashMap,
         sync::{Arc, Mutex},
-        time::{Instant, SystemTime},
     },
 };
 
@@ -129,17 +123,22 @@ impl Storage for MySessionStore {
     }
 }
 
-async fn test_sign_impl() -> Result<(), String> {
+pub async fn test_sign_impl() -> Result<(), String> {
+    let app_client_id = generate_client_id_key();
+    tracing::debug!(probe = "app_client_id", "app_client_id generated");
     let (mut app_client, mut app_session_request_rx) = Client::new(
         std::env::var("REOWN_PROJECT_ID").unwrap().into(),
-        generate_client_id_key(),
+        app_client_id,
         Arc::new(MySessionStore(Arc::new(Mutex::new(MySessionStoreInner {
             sessions: vec![],
             pairing_keys: HashMap::new(),
             partial_sessions: HashMap::new(),
         })))),
     );
+    app_client.set_probe_group("app".to_string());
+    tracing::debug!(probe = "app_client", "app_client created");
     app_client.start();
+    tracing::debug!(probe = "app_client_started", "app_client started");
     let connect_result = app_client
         .connect(
             ConnectParams {
@@ -165,21 +164,28 @@ async fn test_sign_impl() -> Result<(), String> {
         )
         .await
         .map_err(|e| format!("Failed to connect: {e}"))?;
+    tracing::debug!(probe = "connect_finished", "connect finished");
 
+    let wallet_client_id = generate_client_id_key();
+    tracing::debug!(probe = "wallet_client_id", "wallet_client_id generated");
     let (mut wallet_client, mut wallet_session_request_rx) = Client::new(
         std::env::var("REOWN_PROJECT_ID").unwrap().into(),
-        generate_client_id_key(),
+        wallet_client_id,
         Arc::new(MySessionStore(Arc::new(Mutex::new(MySessionStoreInner {
             sessions: vec![],
             pairing_keys: HashMap::new(),
             partial_sessions: HashMap::new(),
         })))),
     );
+    wallet_client.set_probe_group("wallet".to_string());
+    tracing::debug!(probe = "wallet_client", "wallet_client created");
     wallet_client.start();
+    tracing::debug!(probe = "wallet_client_started", "wallet_client started");
     let pairing = wallet_client
         .pair(&connect_result.uri)
         .await
         .map_err(|e| format!("Failed to pair: {e}"))?;
+    tracing::debug!(probe = "pair_finished", "pair finished");
 
     let mut namespaces = HashMap::new();
     for (namespace, namespace_proposal) in pairing.required_namespaces.clone() {
@@ -210,16 +216,22 @@ async fn test_sign_impl() -> Result<(), String> {
         verify_url: None,
         redirect: None,
     };
+    tracing::debug!(probe = "metadata", "metadata created");
 
     wallet_client
         .approve(pairing, namespaces, metadata)
         .await
         .map_err(|e| format!("Failed to approve: {e}"))?;
+    tracing::debug!(probe = "approve_finished", "approve finished");
 
     let message = wallet_session_request_rx
         .recv()
         .await
-        .ok_or_else(|| format!("Failed to receive session connect"))?;
+        .ok_or_else(|| "Failed to receive session connect".to_string())?;
+    tracing::debug!(
+        probe = "app_session_connect_received",
+        "session connect received"
+    );
 
     if !(matches!(message.1, IncomingSessionMessage::SessionConnect(_))) {
         Err(format!("Expected SessionConnect, got {:?}", message.1))?;
@@ -228,10 +240,17 @@ async fn test_sign_impl() -> Result<(), String> {
     let message = app_session_request_rx
         .recv()
         .await
-        .ok_or_else(|| format!("Failed to receive session connect"))?;
+        .ok_or_else(|| "Failed to receive session connect".to_string())?;
+    tracing::debug!(
+        probe = "app_session_connect_received",
+        "session connect received"
+    );
     assert!(matches!(message.1, IncomingSessionMessage::SessionConnect(_)));
 
-    tracing::debug!("Requesting personal sign");
+    tracing::debug!(
+        probe = "requesting_personal_sign",
+        "requesting personal sign"
+    );
     app_client
         .request(
             message.0,
@@ -246,9 +265,15 @@ async fn test_sign_impl() -> Result<(), String> {
         )
         .await
         .unwrap();
-    tracing::debug!("Receiving session request");
+    tracing::debug!(
+        probe = "receiving_session_request",
+        "receiving session request"
+    );
     let message = wallet_session_request_rx.recv().await.unwrap();
-    tracing::debug!("Received session request");
+    tracing::debug!(
+        probe = "received_session_request",
+        "receiving session request"
+    );
     assert!(matches!(message.1, IncomingSessionMessage::SessionRequest(_)));
     let req = if let IncomingSessionMessage::SessionRequest(req) = message.1 {
         req
@@ -262,7 +287,10 @@ async fn test_sign_impl() -> Result<(), String> {
         serde_json::Value::String("0x0".to_string())
     );
     assert_eq!(req.params.request.expiry, Some(0));
-    tracing::debug!("Responding to session request");
+    tracing::debug!(
+        probe = "responding_to_session_request",
+        "responding to session request"
+    );
     wallet_client
         .respond(
             message.0,
@@ -276,7 +304,10 @@ async fn test_sign_impl() -> Result<(), String> {
         )
         .await
         .unwrap();
-    tracing::debug!("Receiving session request response");
+    tracing::debug!(
+        probe = "receiving_session_request_response",
+        "Receiving session request response"
+    );
     let message = app_session_request_rx.recv().await.unwrap();
     assert!(matches!(
         message.1,
@@ -299,52 +330,4 @@ async fn test_sign_impl() -> Result<(), String> {
     assert_eq!(resp.result, serde_json::Value::String("0x0".to_string()));
 
     Ok(())
-}
-
-#[tokio::test]
-async fn test_sign() {
-    tracing_subscriber::fmt()
-        //.with_max_level(tracing::Level::DEBUG)
-        .init();
-
-    let start = Instant::now();
-    let result = test_sign_impl().await;
-    let e2e_latency = start.elapsed();
-
-    let config = aws_config::load_from_env().await;
-    let cloudwatch_client = aws_sdk_cloudwatch::Client::new(&config);
-    let region = config.region().unwrap().to_string();
-    let dimensions = Dimension::builder()
-        .name("Region".to_string())
-        .value(region.clone())
-        .build();
-
-    cloudwatch_client
-        .put_metric_data()
-        .namespace("dev2_Canary_RustSignClient")
-        .metric_data(
-            MetricDatum::builder()
-                .metric_name("e2e_success".to_string())
-                .dimensions(dimensions.clone())
-                .value(if result.is_ok() { 1. } else { 0. })
-                .unit(StandardUnit::Count)
-                .timestamp(DateTime::from(SystemTime::now()))
-                .build(),
-        )
-        .metric_data(
-            MetricDatum::builder()
-                .metric_name("e2e_latency".to_string())
-                .dimensions(dimensions.clone())
-                .value(e2e_latency.as_millis() as f64)
-                .unit(StandardUnit::Milliseconds)
-                .timestamp(DateTime::from(SystemTime::now()))
-                .build(),
-        )
-        .send()
-        .await
-        .unwrap();
-
-    if let Err(e) = result {
-        assert!(false, "Test failed: {e}");
-    }
 }

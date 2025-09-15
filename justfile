@@ -37,6 +37,8 @@ test:
 
 test-sign:
   RUST_BACKTRACE=1 cargo test --features=test_sign --lib --bins sign::tests -- --nocapture
+sign-canary:
+  cargo run --bin sign-canary --features=sign_canary
 
 # Runs tests that require environment variables to be set
 env-tests:
