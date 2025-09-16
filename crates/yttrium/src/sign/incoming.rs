@@ -382,20 +382,17 @@ pub fn handle(
                     Ok(())
                 } else {
                     Err(HandleError::Client(format!(
-                        "ignoring message with invalid ID: {:?}",
-                        value
+                        "ignoring message with invalid ID: {value:?}",
                     )))
                 }
             } else {
                 Err(HandleError::Dropped(format!(
-                    "ignoring message with invalid ID: {:?}",
-                    value
+                    "ignoring message with invalid ID: {value:?}",
                 )))
             }
         } else {
             Err(HandleError::Dropped(format!(
-                "ignoring message without method or ID: {:?}",
-                value
+                "ignoring message without method or ID: {value:?}",
             )))
         }
     }

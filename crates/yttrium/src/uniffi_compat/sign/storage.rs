@@ -126,9 +126,6 @@ pub struct PairingFfi {
 
 impl From<UnexpectedUniFFICallbackError> for StorageError {
     fn from(error: UnexpectedUniFFICallbackError) -> Self {
-        StorageError::Runtime(format!(
-            "UnexpectedUniFFICallbackError: {}",
-            error
-        ))
+        StorageError::Runtime(format!("UnexpectedUniFFICallbackError: {error}"))
     }
 }

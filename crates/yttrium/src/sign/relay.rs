@@ -297,14 +297,14 @@ async fn connect(
                         let id = payload.id();
                         match payload {
                             Payload::Request(request) => {
-                                tracing::warn!("unexpected message request in ConnectRequest state: {:?}", request);
+                                tracing::warn!("unexpected message request in connect() function: {:?}", request);
                             }
                             Payload::Response(response) => {
                                 if id == MessageId::new(message_id) {
                                     // success, no-op
                                     break;
                                 } else {
-                                    tracing::warn!("unexpected message response in ConnectRequest state: {:?}", response);
+                                    tracing::warn!("unexpected message response in connect() function: {:?}", response);
                                 }
                             }
                         }
