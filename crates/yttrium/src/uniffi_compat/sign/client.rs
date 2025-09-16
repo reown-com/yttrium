@@ -4,7 +4,7 @@ use {
             client::{generate_client_id_key, Client},
             client_errors::{
                 ApproveError, ConnectError, DisconnectError, ExtendError,
-                PairError, RejectError, RespondError, UpdateError,
+                PairError, RejectError, RequestError, RespondError, UpdateError,
             },
             client_types::{ConnectParams, SessionProposal},
             protocol_types::{Metadata, SettleNamespace},
@@ -12,9 +12,7 @@ use {
         },
         uniffi_compat::sign::{
             ffi_types::{
-                ConnectParamsFfi, ConnectResultFfi, SessionFfi,
-                SessionProposalFfi, SessionRequestJsonRpcFfi,
-                SessionRequestJsonRpcResponseFfi,
+                ConnectParamsFfi, ConnectResultFfi, SessionFfi, SessionProposalFfi, SessionRequestFfi, SessionRequestJsonRpcFfi, SessionRequestJsonRpcResponseFfi
             },
             storage::{StorageFfi, StorageFfiProxy},
         },
@@ -269,5 +267,24 @@ impl SignClient {
     pub async fn extend(&self, topic: String) -> Result<(), ExtendError> {
         let mut client = self.client.lock().await;
         client.extend(topic.into()).await
+    }
+
+    pub async fn request(
+        &self,
+        topic: String,
+        session_request: SessionRequestFfi,
+    ) -> Result<u64, RequestError> {
+        use crate::sign::protocol_types::{SessionRequest, SessionRequestRequest};
+        
+        let mut client = self.client.lock().await;
+        let session_request: SessionRequest = SessionRequest {
+            chain_id: session_request.chain_id,
+            request: SessionRequestRequest {
+                method: session_request.request.method,
+                params: serde_json::from_str(&session_request.request.params).unwrap(),
+                expiry: session_request.request.expiry,
+            },
+        };
+        client.request(topic.into(), session_request).await
     }
 }
