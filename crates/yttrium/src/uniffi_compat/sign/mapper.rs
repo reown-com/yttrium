@@ -5,7 +5,8 @@ use {
                 ConnectParams, ConnectResult, Session, SessionProposal,
             },
             protocol_types::{
-                SessionRequestJsonRpc, SessionRequestJsonRpcResultResponse,
+                SessionRequest, SessionRequestJsonRpc,
+                SessionRequestJsonRpcResultResponse, SessionRequestRequest,
             },
         },
         uniffi_compat::sign::ffi_types::{
@@ -112,7 +113,7 @@ impl From<SessionRequestJsonRpcResultResponseFfi>
         Self {
             id: response.id,
             jsonrpc: response.jsonrpc,
-            result: serde_json::from_str(&response.result).unwrap_or_default(),
+            result: serde_json::Value::String(response.result),
         }
     }
 }
@@ -127,7 +128,7 @@ impl From<SessionRequestJsonRpcResponseFfi>
                     crate::sign::protocol_types::SessionRequestJsonRpcResultResponse {
                         id: result.id,
                         jsonrpc: result.jsonrpc,
-                        result: serde_json::from_str(&result.result).unwrap_or_default(),
+                        result: serde_json::Value::String(result.result),
                     }
                 )
             }
@@ -136,7 +137,7 @@ impl From<SessionRequestJsonRpcResponseFfi>
                     crate::sign::protocol_types::SessionRequestJsonRpcErrorResponse {
                         id: error.id,
                         jsonrpc: error.jsonrpc,
-                        error: serde_json::from_str(&error.error).unwrap_or_default(),
+                        error: serde_json::Value::String(error.error),
                     }
                 )
             }
@@ -267,6 +268,20 @@ impl From<crate::sign::protocol_types::SessionRequestJsonRpcErrorResponse>
             id: error.id,
             jsonrpc: error.jsonrpc,
             error: serde_json::to_string(&error.error).unwrap_or_default(),
+        }
+    }
+}
+
+impl From<SessionRequestFfi> for SessionRequest {
+    fn from(session_request: SessionRequestFfi) -> Self {
+        SessionRequest {
+            chain_id: session_request.chain_id,
+            request: SessionRequestRequest {
+                method: session_request.request.method,
+                params: serde_json::from_str(&session_request.request.params)
+                    .unwrap(),
+                expiry: session_request.request.expiry,
+            },
         }
     }
 }
