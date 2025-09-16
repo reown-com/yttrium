@@ -5,7 +5,7 @@ use {
             incoming::HandleError,
             priority_future::PriorityReceiver,
             protocol_types::{
-                SessionDeleteJsonRpc, SessionProposalJsonRpcResponse, SessionRequestJsonRpc, SessionRequestJsonRpcResponse, SessionSettle
+                Metadata, SessionDeleteJsonRpc, SessionProposalJsonRpcResponse, SessionRequestJsonRpc, SessionRequestJsonRpcResponse, SessionSettle
             },
             relay_url::ConnectionOptions,
             storage::Storage,
