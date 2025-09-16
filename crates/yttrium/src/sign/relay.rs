@@ -6,7 +6,7 @@ use {
             envelope_type0,
             priority_future::PriorityReceiver,
             protocol_types::{
-                Metadata, SessionDeleteJsonRpc, SessionProposalJsonRpcResponse, SessionRequestJsonRpc, SessionRequestJsonRpcResponse, SessionSettle
+                Metadata, SessionDeleteJsonRpc, SessionProposalJsonRpcResponse, SessionRequestJsonRpc, SessionRequestJsonRpcErrorResponse, SessionRequestJsonRpcResponse, SessionRequestJsonRpcResultResponse, SessionSettle
             },
             relay_url::ConnectionOptions,
             storage::Storage,
@@ -1034,18 +1034,28 @@ pub async fn connect_loop_state_machine(
                                     );
                                 }
                             } else if sub_msg.data.tag == 1109 {
-                                let value =
-                                    serde_json::from_value::<
-                                        SessionRequestJsonRpcResponse,
+                                let response = if value.get("error").is_some() {
+                                    // Parse as error response
+                                    let error_response = serde_json::from_value::<
+                                        SessionRequestJsonRpcErrorResponse,
                                     >(value)
                                     .unwrap(); // TODO handle
+                                    SessionRequestJsonRpcResponse::Error(error_response)
+                                } else {
+                                    // Parse as result response
+                                    let result_response = serde_json::from_value::<
+                                        SessionRequestJsonRpcResultResponse,
+                                    >(value)
+                                    .unwrap(); // TODO handle
+                                    SessionRequestJsonRpcResponse::Result(result_response)
+                                };
                                 if let Err(e) = session_request_tx
                                     .send((
                                         sub_msg.data.topic.clone(),
                                         IncomingSessionMessage::SessionRequestResponse(
                                             rpc_id,
                                             sub_msg.data.topic,
-                                            value,
+                                            response,
                                         ),
                                     ))
                                 {
