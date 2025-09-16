@@ -908,7 +908,7 @@ pub async fn connect_loop_state_machine(
                                 tracing::debug!(
                                     "ConnectRequest failed: {reason}"
                                 );
-                                ConnectionState::Idle
+                                ConnectionState::MaybeReconnect(None)
                             }
                             ConnectError::Cleanup => {
                                 break;
