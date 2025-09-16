@@ -6,7 +6,7 @@ use {
             envelope_type0,
             priority_future::PriorityReceiver,
             protocol_types::{
-                SessionDeleteJsonRpc, SessionProposalJsonRpcResponse, SessionRequestJsonRpc, SessionRequestJsonRpcResponse, SessionSettle
+                Metadata, SessionDeleteJsonRpc, SessionProposalJsonRpcResponse, SessionRequestJsonRpc, SessionRequestJsonRpcResponse, SessionSettle
             },
             relay_url::ConnectionOptions,
             storage::Storage,
@@ -736,9 +736,21 @@ pub async fn connect_loop_state_machine(
                                 .unwrap(),
                             ),
                             session_sym_key,
-                            self_meta_data: request.controller.metadata.clone(),
-                            peer_public_key: None,
-                            peer_meta_data: None,
+                            self_meta_data: Metadata {
+                                name: "".to_string(),
+                                description: "".to_string(),
+                                url: "".to_string(),
+                                icons: vec![],
+                                verify_url: None,
+                                redirect: None,
+                            },
+                            peer_public_key: Some(
+                                hex::decode(request.controller.public_key.clone())
+                                    .unwrap()
+                                    .try_into()
+                                    .unwrap(),
+                            ),
+                            peer_meta_data: Some(request.controller.metadata.clone()),
                             session_namespaces: request.namespaces.clone(),
                             required_namespaces: HashMap::new(),
                             optional_namespaces: None,
