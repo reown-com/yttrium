@@ -1,5 +1,5 @@
 use {
-    crate::{
+        crate::{
         sign::{
             client::{generate_client_id_key, Client},
             client_errors::{
@@ -7,7 +7,7 @@ use {
                 PairError, RejectError, RequestError, RespondError, UpdateError,
             },
             client_types::{ConnectParams, SessionProposal},
-            protocol_types::{Metadata, SettleNamespace},
+            protocol_types::{Metadata, SessionRequest, SettleNamespace},
             IncomingSessionMessage,
         },
         uniffi_compat::sign::{
@@ -274,17 +274,8 @@ impl SignClient {
         topic: String,
         session_request: SessionRequestFfi,
     ) -> Result<u64, RequestError> {
-        use crate::sign::protocol_types::{SessionRequest, SessionRequestRequest};
-        
         let mut client = self.client.lock().await;
-        let session_request: SessionRequest = SessionRequest {
-            chain_id: session_request.chain_id,
-            request: SessionRequestRequest {
-                method: session_request.request.method,
-                params: serde_json::from_str(&session_request.request.params).unwrap(),
-                expiry: session_request.request.expiry,
-            },
-        };
+        let session_request: SessionRequest = session_request.into();
         client.request(topic.into(), session_request).await
     }
 }
