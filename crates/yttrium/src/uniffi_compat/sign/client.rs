@@ -9,6 +9,7 @@ use {
             },
             client_types::{ConnectParams, SessionProposal},
             protocol_types::{Metadata, SessionRequest, SettleNamespace},
+            protocol_types::{Metadata, SessionRequest, SettleNamespace},
             IncomingSessionMessage,
         },
         uniffi_compat::sign::{
