@@ -4,9 +4,7 @@ use {
         client_types::Session,
         envelope_type0,
         protocol_types::{
-            ProposalResponseJsonRpc, SessionDeleteJsonRpc,
-            SessionRequestJsonRpc, SessionRequestJsonRpcResponse,
-            SessionSettle,
+            Metadata, SessionDeleteJsonRpc, SessionProposalJsonRpcResponse, SessionRequestJsonRpc, SessionRequestJsonRpcResponse, SessionSettle
         },
         relay::IncomingSessionMessage,
         storage::{Storage, StoragePairing},
@@ -106,9 +104,21 @@ pub fn handle(
                 self_public_key: session_sym_key, // TODO this is wrong
                 controller_key,
                 session_sym_key,
-                self_meta_data: request.controller.metadata.clone(),
-                peer_public_key: None,
-                peer_meta_data: None,
+                self_meta_data: Metadata {
+                    name: "".to_string(),
+                    description: "".to_string(),
+                    url: "".to_string(),
+                    icons: vec![],
+                    verify_url: None,
+                    redirect: None,
+                },
+                peer_public_key: Some(
+                    hex::decode(request.controller.public_key.clone())
+                        .unwrap()
+                        .try_into()
+                        .unwrap(),
+                ),
+                peer_meta_data: Some(request.controller.metadata.clone()),
                 session_namespaces: request.namespaces.clone(),
                 required_namespaces: HashMap::new(),
                 optional_namespaces: None,
@@ -126,7 +136,7 @@ pub fn handle(
             session_request_tx
                 .send((
                     sub_msg.data.topic.clone(),
-                    IncomingSessionMessage::SessionConnect(0),
+                    IncomingSessionMessage::SessionConnect(0, sub_msg.data.topic.clone()),
                 ))
                 .map_err(|e| {
                     HandleError::Internal(format!("send session connect: {e}"))
@@ -301,18 +311,37 @@ pub fn handle(
                     })?;
                 if let Some(StoragePairing { sym_key: _, self_key }) = pairing {
                     let response = serde_json::from_value::<
-                        ProposalResponseJsonRpc,
+                    SessionProposalJsonRpcResponse,
                     >(value)
                     .map_err(|e| {
                         HandleError::Client(format!(
                             "parse proposal response: {e}"
                         ))
                     })?;
-                    let response = response.result;
+                    let response = match response {
+                        SessionProposalJsonRpcResponse::Result(result) => result,
+                        SessionProposalJsonRpcResponse::Error(error) => {
+                            tracing::error!("Proposal error: {:?}", error);
 
+                            // Emit SessionRejected event
+                            if let Err(e) = session_request_tx.send((
+                                sub_msg.data.topic.clone(),
+                                IncomingSessionMessage::SessionReject(
+                                    rpc_id,
+                                    sub_msg.data.topic,
+                                ),
+                            )) {
+                                tracing::debug!(
+                                    "Failed to emit session rejected event: {e}"
+                                );
+                            }
+
+                            return Ok(());
+                        }
+                    };
                     let self_key = x25519_dalek::StaticSecret::from(self_key);
                     let responder_public_key = hex::decode(
-                        response.responder_public_key,
+                        response.result.responder_public_key,
                     )
                     .map_err(|e| {
                         HandleError::Client(format!(
