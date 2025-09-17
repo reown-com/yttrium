@@ -629,7 +629,7 @@ impl Client {
         // TODO WS handling:
         // - when a session request is pending, and we get the event that the page regained focus, should we immediately ping the WS connection to test its liveness (?)
 
-        Ok((rpc.id))
+        Ok(rpc.id)
     }
 
     pub async fn respond(
