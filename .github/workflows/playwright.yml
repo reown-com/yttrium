@@ -20,14 +20,16 @@ jobs:
     - name: Install Playwright Browsers
       run: npx playwright install --with-deps
       working-directory: crates/rust-sample-wallet
-    - name: Write project ID
-      run: echo ${{ vars.REOWN_PROJECT_ID }} > crates/rust-sample-wallet/.project-id
     - name: Build app
       run: trunk build
+      env:
+        REOWN_PROJECT_ID: ${{ vars.REOWN_PROJECT_ID }}
       working-directory: crates/rust-sample-wallet
     - name: Run Playwright tests
       run: npx playwright test
       working-directory: crates/rust-sample-wallet
+      env:
+        REOWN_PROJECT_ID: ${{ vars.REOWN_PROJECT_ID }}
     - uses: actions/upload-artifact@v4
       if: ${{ !cancelled() }}
       with:
