@@ -37,6 +37,9 @@ pub enum NextError {
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Error))]
 #[error("Sign pair error: {0}")]
 pub enum PairError {
+    #[error("Get public key: {0}")]
+    GetPublicKey(String),
+
     #[error("Request error: {0}")]
     Request(RequestError),
 

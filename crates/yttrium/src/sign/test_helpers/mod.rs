@@ -7,7 +7,7 @@ use {
             SessionRequestJsonRpcResponse, SessionRequestJsonRpcResultResponse,
             SessionRequestRequest, SettleNamespace,
         },
-        storage::{Storage, StorageError, StoragePairing},
+        storage::{Jwk, Storage, StorageError, StoragePairing},
         IncomingSessionMessage,
     },
     relay_rpc::domain::Topic,
@@ -121,6 +121,17 @@ impl Storage for MySessionStore {
         inner.partial_sessions.insert(topic, sym_key);
         Ok(())
     }
+
+    fn get_verify_public_key(&self) -> Result<Option<Jwk>, StorageError> {
+        Ok(None)
+    }
+
+    fn set_verify_public_key(
+        &self,
+        _public_key: Jwk,
+    ) -> Result<(), StorageError> {
+        Ok(())
+    }
 }
 
 pub async fn test_sign_impl() -> Result<(), String> {
@@ -188,7 +199,8 @@ pub async fn test_sign_impl() -> Result<(), String> {
     tracing::debug!(probe = "pair_finished", "pair finished");
 
     let mut namespaces = HashMap::new();
-    for (namespace, namespace_proposal) in pairing.required_namespaces.clone() {
+    for (namespace, namespace_proposal) in pairing.0.required_namespaces.clone()
+    {
         let accounts = namespace_proposal
             .chains
             .iter()
@@ -219,7 +231,7 @@ pub async fn test_sign_impl() -> Result<(), String> {
     tracing::debug!(probe = "metadata", "metadata created");
 
     wallet_client
-        .approve(pairing, namespaces, metadata)
+        .approve(pairing.0, namespaces, metadata)
         .await
         .map_err(|e| format!("Failed to approve: {e}"))?;
     tracing::debug!(probe = "approve_finished", "approve finished");

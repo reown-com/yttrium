@@ -19,8 +19,8 @@ use {
             SessionRequestJsonRpcResponse, SessionRequestJsonRpcResultResponse,
             SessionRequestRequest, SettleNamespace,
         },
-        storage::{Storage, StorageError, StoragePairing},
-        IncomingSessionMessage, SecretKey, Topic,
+        storage::{Jwk, Storage, StorageError, StoragePairing},
+        IncomingSessionMessage, SecretKey, Topic, VerifyContext,
     },
 };
 
@@ -31,6 +31,7 @@ use {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 struct MyState {
     key: SecretKey,
+    verify_public_key: Option<Jwk>,
     sessions: Vec<Session>,
     pairing_keys: HashMap<Topic, (u64, StoragePairing)>,
     partial_sessions: HashMap<Topic, [u8; 32]>,
@@ -69,6 +70,7 @@ fn read_local_storage(key: &str) -> Result<MyState, String> {
                 tracing::error!("Failed to deserialize state: {:?}", e);
                 Ok(MyState {
                     key: generate_client_id_key(),
+                    verify_public_key: None,
                     sessions: Vec::new(),
                     pairing_keys: HashMap::new(),
                     partial_sessions: HashMap::new(),
@@ -78,6 +80,7 @@ fn read_local_storage(key: &str) -> Result<MyState, String> {
     } else {
         Ok(MyState {
             key: generate_client_id_key(),
+            verify_public_key: None,
             sessions: Vec::new(),
             pairing_keys: HashMap::new(),
             partial_sessions: HashMap::new(),
@@ -217,6 +220,23 @@ impl Storage for MySessionStore {
         write_local_storage(&self.key, state).map_err(StorageError::Runtime)?;
         Ok(())
     }
+
+    fn get_verify_public_key(&self) -> Result<Option<Jwk>, StorageError> {
+        Ok(read_local_storage(&self.key)
+            .map_err(StorageError::Runtime)?
+            .verify_public_key)
+    }
+
+    fn set_verify_public_key(
+        &self,
+        public_key: Jwk,
+    ) -> Result<(), StorageError> {
+        let mut state =
+            read_local_storage(&self.key).map_err(StorageError::Runtime)?;
+        state.verify_public_key = Some(public_key);
+        write_local_storage(&self.key, state).map_err(StorageError::Runtime)?;
+        Ok(())
+    }
 }
 
 // TODO reject session request
@@ -237,12 +257,14 @@ pub fn App() -> impl IntoView {
     let clients =
         StoredValue::new(None::<std::sync::Arc<tokio::sync::Mutex<Clients>>>);
 
-    let pairing_request =
-        RwSignal::new(None::<RwSignal<Option<SessionProposal>>>);
+    let pairing_request = RwSignal::new(
+        None::<RwSignal<Option<(SessionProposal, Option<VerifyContext>)>>>,
+    );
     let pairing_request_open = RwSignal::new(false);
     let pair_action = Action::new({
         move |pairing_uri: &String| {
-            let signal = RwSignal::new(None::<SessionProposal>);
+            let signal =
+                RwSignal::new(None::<(SessionProposal, Option<VerifyContext>)>);
             pairing_request_open.set(true);
             pairing_request.set(Some(signal));
             let client = clients.read_value().as_ref().unwrap().clone();
@@ -273,7 +295,7 @@ pub fn App() -> impl IntoView {
     });
 
     let approve_pairing_action = Action::new({
-        move |pairing: &SessionProposal| {
+        move |pairing: &(SessionProposal, Option<VerifyContext>)| {
             let pairing = pairing.clone();
             let client = clients.read_value().as_ref().unwrap().clone();
             async move {
@@ -281,7 +303,7 @@ pub fn App() -> impl IntoView {
 
                 let mut namespaces = HashMap::new();
                 for (namespace, namespace_proposal) in
-                    pairing.optional_namespaces.clone().unwrap()
+                    pairing.0.optional_namespaces.clone().unwrap()
                 {
                     let accounts = namespace_proposal
                         .chains
@@ -315,7 +337,7 @@ pub fn App() -> impl IntoView {
 
                 match client_guard
                     .wallet_client
-                    .approve(pairing, namespaces, metadata)
+                    .approve(pairing.0, namespaces, metadata)
                     .await
                 {
                     Ok(_approved_session) => {
@@ -345,7 +367,7 @@ pub fn App() -> impl IntoView {
     });
 
     let reject_pairing_action = Action::new({
-        move |pairing: &SessionProposal| {
+        move |pairing: &(SessionProposal, Option<VerifyContext>)| {
             let pairing = pairing.clone();
             let client = clients.read_value().as_ref().unwrap().clone();
             async move {
@@ -353,7 +375,7 @@ pub fn App() -> impl IntoView {
                 match client
                     .wallet_client
                     .reject(
-                        pairing,
+                        pairing.0,
                         yttrium::sign::client_types::RejectionReason::UserRejected,
                     )
                     .await

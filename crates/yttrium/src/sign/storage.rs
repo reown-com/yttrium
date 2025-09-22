@@ -1,3 +1,4 @@
+pub use jsonwebtoken::jwk::Jwk;
 use {
     crate::sign::client_types::Session,
     relay_rpc::domain::Topic,
@@ -40,6 +41,8 @@ pub trait Storage: Send + Sync {
         topic: Topic,
         sym_key: [u8; 32],
     ) -> Result<(), StorageError>;
+    fn get_verify_public_key(&self) -> Result<Option<Jwk>, StorageError>;
+    fn set_verify_public_key(&self, jwk: Jwk) -> Result<(), StorageError>;
 }
 
 #[cfg_attr(feature = "uniffi", derive(uniffi::Error))]

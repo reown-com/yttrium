@@ -16211,6 +16211,7 @@ dependencies = [
  "hex",
  "hkdf 0.13.0-rc.0",
  "jni",
+ "jsonwebtoken 9.3.1",
  "num-bigint 0.4.6",
  "quinn",
  "rand 0.8.5",
