@@ -17,7 +17,8 @@ COPY . .
 RUN cargo build --release --bin sign-canary --features=sign_canary
 
 # We do not need the Rust toolchain to run the binary!
-FROM debian:bookworm-slim AS runtime
+FROM debian:trixie-slim AS runtime
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates
 WORKDIR /app
 COPY --from=builder /app/target/release/sign-canary /usr/local/bin
 ENTRYPOINT ["/usr/local/bin/sign-canary"]
