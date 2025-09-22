@@ -589,7 +589,12 @@ pub fn App() -> impl IntoView {
                                                     "session extend on topic: {id}: {topic}",
                                                 );
                                             }
-                                            IncomingSessionMessage::SessionConnect(id) => {
+                                            IncomingSessionMessage::SessionReject(id, topic) => {
+                                                tracing::info!(
+                                                    "session reject on topic: {id}: {topic}",
+                                                );
+                                            }
+                                            IncomingSessionMessage::SessionConnect(id, topic) => {
                                                 tracing::info!(
                                                     "session connect on topic: {id}",
                                                 );
@@ -609,7 +614,7 @@ pub fn App() -> impl IntoView {
                                     Some((topic, message)) => {
                                         app_sessions.set(read_local_storage(APP_KEY).unwrap().sessions);
                                         match message {
-                                            IncomingSessionMessage::SessionConnect(id) => {
+                                            IncomingSessionMessage::SessionConnect(id, topic) => {
                                                 tracing::info!(
                                                     "(app) session connect on topic: {topic}: {id}",
                                                 );
