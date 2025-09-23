@@ -30,6 +30,9 @@ test-swift-apple-platforms:
 build-xcframework:
 	sh scripts/build-xcframework.sh
 
+build-utils-xcframework:
+	sh scripts/build-utils-xcframework.sh
+
 set-up-local-swift-package:
 	sh scripts/set-up-local-swift-package.sh
 
@@ -46,10 +49,32 @@ local-infra-forked:
 local-infra-7702:
 	cd test/scripts/7702 && sh local-infra.sh
 
-.PHONY: generate-package-swift
-generate-package-swift:
-	chmod +x scripts/generate-package-swift.sh
-	./scripts/generate-package-swift.sh
+.PHONY: generate-package-swift-utils
+generate-package-swift-utils:
+	chmod +x scripts/generate-package-swift-utils.sh
+	./scripts/generate-package-swift-utils.sh
+
+.PHONY: update-package-swift-core
+update-package-swift-core:
+	chmod +x scripts/update-package-swift-core.sh
+	@echo "Usage: make update-package-swift-core VERSION=0.9.46 CHECKSUM=abc123..."
+	@if [ -z "$(VERSION)" ] || [ -z "$(CHECKSUM)" ]; then \
+		echo "Error: VERSION and CHECKSUM are required"; \
+		echo "Example: make update-package-swift-core VERSION=0.9.46 CHECKSUM=abc123..."; \
+		exit 1; \
+	fi
+	./scripts/update-package-swift-core.sh $(VERSION) $(CHECKSUM)
+
+.PHONY: update-package-swift-utils
+update-package-swift-utils:
+	chmod +x scripts/update-package-swift-utils.sh
+	@echo "Usage: make update-package-swift-utils VERSION=0.0.2 CHECKSUM=xyz789..."
+	@if [ -z "$(VERSION)" ] || [ -z "$(CHECKSUM)" ]; then \
+		echo "Error: VERSION and CHECKSUM are required"; \
+		echo "Example: make update-package-swift-utils VERSION=0.0.2 CHECKSUM=xyz789..."; \
+		exit 1; \
+	fi
+	./scripts/update-package-swift-utils.sh $(VERSION) $(CHECKSUM)
 
 .PHONY: build build-ios-bindings build-swift-apple-platforms test-swift-apple-platforms fetch-thirdparty setup-thirdparty test format clean local-infra local-infra-forked local-infra-7702
 
