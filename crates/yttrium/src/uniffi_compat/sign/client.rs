@@ -260,8 +260,10 @@ impl SignClient {
         chain_id: String,
     ) -> Result<(), EmitError> {
         let mut client = self.client.lock().await;
-        let data_value = serde_json::from_str::<serde_json::Value>(&data)
-            .map_err(|e| EmitError::ShouldNeverHappen(e.to_string()))?;
+        let data_value = match serde_json::from_str::<serde_json::Value>(&data) {
+            Ok(v) => v,
+            Err(_) => serde_json::Value::String(data.clone()),
+        };
         client.emit(topic.into(), name, data_value, chain_id).await
     }
 

@@ -258,9 +258,9 @@ pub fn handle(
                 );
             }
             Ok(())
-        } else if method.as_str() == Some("wc_sessionEmit") {
+        } else if method.as_str() == Some("wc_sessionEvent") {
             // TODO dedup events based on JSON RPC history
-            // Parse wc_sessionEmit params
+            // Parse wc_sessionEvent params
             let params = serde_json::from_value::<
                 crate::sign::protocol_types::EventParams,
             >(value.get("params").cloned().ok_or_else(|| HandleError::Client("params not found".to_string()))?)

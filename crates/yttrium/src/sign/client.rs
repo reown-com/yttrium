@@ -825,7 +825,7 @@ impl Client {
             &crate::sign::protocol_types::SessionEventJsonRpc {
                 id,
                 jsonrpc: "2.0".to_string(),
-                method: "wc_sessionEmit".to_string(),
+                method: "wc_sessionEvent".to_string(),
                 params: crate::sign::protocol_types::EventParams {
                     event: crate::sign::protocol_types::SessionEventVO {
                         name,
