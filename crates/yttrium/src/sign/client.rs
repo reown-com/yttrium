@@ -11,9 +11,9 @@ use {
         envelope_type0, pairing_uri,
         protocol_types::{
             Controller, JsonRpcRequest, JsonRpcRequestParams, Metadata,
-            Proposal, ProposalResponse, ProposalResponseJsonRpc, Proposer,
-            Relay, SessionDelete, SessionDeleteJsonRpc, SessionExtend,
-            SessionRequest, SessionRequestJsonRpc,
+            Proposal, ProposalResponse, ProposalResultResponseJsonRpc,
+            Proposer, Relay, SessionDelete, SessionDeleteJsonRpc,
+            SessionExtend, SessionRequest, SessionRequestJsonRpc,
             SessionRequestJsonRpcResponse, SessionSettle, SessionUpdate,
             SettleNamespace,
         },
@@ -404,7 +404,7 @@ impl Client {
         debug!("session topic: {}", session_topic);
 
         let session_proposal_response = {
-            let proposal_response = ProposalResponseJsonRpc {
+            let proposal_response = ProposalResultResponseJsonRpc {
                 id: proposal.session_proposal_rpc_id,
                 jsonrpc: "2.0".to_string(),
                 result: ProposalResponse {
@@ -501,6 +501,7 @@ impl Client {
                         session.topic.clone(),
                         IncomingSessionMessage::SessionConnect(
                             proposal.session_proposal_rpc_id,
+                            session.topic.clone(),
                         ),
                     ))
                     .unwrap();
