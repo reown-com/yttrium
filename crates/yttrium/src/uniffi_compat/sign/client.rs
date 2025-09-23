@@ -4,17 +4,18 @@ use {
             client::{generate_client_id_key, Client},
             client_errors::{
                 ApproveError, ConnectError, DisconnectError, ExtendError,
-                PairError, RejectError, RespondError, UpdateError,
+                PairError, RejectError, RequestError, RespondError,
+                UpdateError,
             },
             client_types::{ConnectParams, SessionProposal},
-            protocol_types::{Metadata, SettleNamespace},
+            protocol_types::{Metadata, SessionRequest, SettleNamespace},
             IncomingSessionMessage,
         },
         uniffi_compat::sign::{
             ffi_types::{
                 ConnectParamsFfi, ConnectResultFfi, SessionFfi,
-                SessionProposalFfi, SessionRequestJsonRpcFfi,
-                SessionRequestJsonRpcResponseFfi,
+                SessionProposalFfi, SessionRequestFfi,
+                SessionRequestJsonRpcFfi, SessionRequestJsonRpcResponseFfi,
             },
             storage::{StorageFfi, StorageFfiProxy},
         },
@@ -269,5 +270,15 @@ impl SignClient {
     pub async fn extend(&self, topic: String) -> Result<(), ExtendError> {
         let mut client = self.client.lock().await;
         client.extend(topic.into()).await
+    }
+
+    pub async fn request(
+        &self,
+        topic: String,
+        session_request: SessionRequestFfi,
+    ) -> Result<u64, RequestError> {
+        let mut client = self.client.lock().await;
+        let session_request: SessionRequest = session_request.into();
+        client.request(topic.into(), session_request).await
     }
 }

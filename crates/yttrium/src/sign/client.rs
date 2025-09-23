@@ -598,11 +598,11 @@ impl Client {
         &mut self,
         topic: Topic,
         session_request: SessionRequest,
-    ) -> Result<(), String> {
+    ) -> Result<(u64), RequestError> {
         let shared_secret = self
             .session_store
             .get_session(topic.clone())
-            .map_err(|e| e.to_string())?
+            .map_err(|e| RequestError::Internal(e.to_string()))?
             .map(|s| s.session_sym_key)
             .unwrap();
 
@@ -613,7 +613,7 @@ impl Client {
         };
         let message =
             serialize_and_encrypt_message_type0_envelope(shared_secret, &rpc)
-                .map_err(|e| e.to_string())?;
+                .map_err(|e| RequestError::Internal(e.to_string()))?;
         self.do_request::<bool>(relay_rpc::rpc::Params::Publish(Publish {
             topic,
             message,
@@ -624,12 +624,12 @@ impl Client {
             analytics: None, // TODO
         }))
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| RequestError::Internal(e.to_string()))?;
 
         // TODO WS handling:
         // - when a session request is pending, and we get the event that the page regained focus, should we immediately ping the WS connection to test its liveness (?)
 
-        Ok(())
+        Ok(rpc.id)
     }
 
     pub async fn respond(

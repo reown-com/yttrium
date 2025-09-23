@@ -589,14 +589,14 @@ pub fn App() -> impl IntoView {
                                                     "session extend on topic: {id}: {topic}",
                                                 );
                                             }
-                                            IncomingSessionMessage::SessionConnect(id, topic) => {
-                                                tracing::info!(
-                                                    "session connect on topic: {id}: {topic}",
-                                                );
-                                            }
                                             IncomingSessionMessage::SessionReject(id, topic) => {
                                                 tracing::info!(
                                                     "session reject on topic: {id}: {topic}",
+                                                );
+                                            }
+                                            IncomingSessionMessage::SessionConnect(id, topic) => {
+                                                tracing::info!(
+                                                    "session connect on topic: {id}: {topic}",
                                                 );
                                             }
                                             IncomingSessionMessage::SessionRequestResponse(id, topic, response) => {
