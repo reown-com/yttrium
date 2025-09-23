@@ -261,14 +261,21 @@ pub fn handle(
         } else if method.as_str() == Some("wc_sessionEvent") {
             // TODO dedup events based on JSON RPC history
             // Parse wc_sessionEvent params
-            let params = serde_json::from_value::<
-                crate::sign::protocol_types::EventParams,
-            >(value.get("params").cloned().ok_or_else(|| HandleError::Client("params not found".to_string()))?)
-            .map_err(|e| HandleError::Client(format!("parse event params: {e}")))?;
+            let params =
+                serde_json::from_value::<
+                    crate::sign::protocol_types::EventParams,
+                >(value.get("params").cloned().ok_or_else(
+                    || HandleError::Client("params not found".to_string()),
+                )?)
+                .map_err(|e| {
+                    HandleError::Client(format!("parse event params: {e}"))
+                })?;
 
             let name = params.event.name;
-            let data_str = serde_json::to_string(&params.event.data)
-                .map_err(|e| HandleError::Client(format!("serialize event data: {e}")))?;
+            let data_str =
+                serde_json::to_string(&params.event.data).map_err(|e| {
+                    HandleError::Client(format!("serialize event data: {e}"))
+                })?;
             let chain_id = params.chain_id;
 
             session_request_tx

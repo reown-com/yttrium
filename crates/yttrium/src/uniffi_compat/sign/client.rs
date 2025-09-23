@@ -4,8 +4,8 @@ use {
             client::{generate_client_id_key, Client},
             client_errors::{
                 ApproveError, ConnectError, DisconnectError, EmitError,
-                ExtendError, PairError, RejectError, RequestError, RespondError,
-                UpdateError,
+                ExtendError, PairError, RejectError, RequestError,
+                RespondError, UpdateError,
             },
             client_types::{ConnectParams, SessionProposal},
             protocol_types::{Metadata, SessionRequest, SettleNamespace},
@@ -126,7 +126,12 @@ impl SignClient {
                             listener
                                 .on_session_disconnect(id, topic.to_string());
                         }
-                        IncomingSessionMessage::SessionEvent(topic, name, data, chain_id) => {
+                        IncomingSessionMessage::SessionEvent(
+                            topic,
+                            name,
+                            data,
+                            chain_id,
+                        ) => {
                             listener.on_session_event(
                                 topic.to_string(),
                                 name,
@@ -260,7 +265,8 @@ impl SignClient {
         chain_id: String,
     ) -> Result<(), EmitError> {
         let mut client = self.client.lock().await;
-        let data_value = match serde_json::from_str::<serde_json::Value>(&data) {
+        let data_value = match serde_json::from_str::<serde_json::Value>(&data)
+        {
             Ok(v) => v,
             Err(_) => serde_json::Value::String(data.clone()),
         };
