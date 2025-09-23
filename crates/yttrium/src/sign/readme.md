@@ -25,7 +25,7 @@ stateDiagram-v2
     Poisoned --> Poisoned: request_rx
     AwaitingSubscribeResponse --> Backoff: error/timeout
     AwaitingConnectRequestResponse --> [*]: cleanup_rx
-    ConnectRequest --> Idle: error/timeout
+    ConnectRequest --> MaybeReconnect: error/timeout
     Poisoned --> [*]: cleanup_rx
     AwaitingRequestResponse --> ConnectRetryRequest: error/timeout
     AwaitingRequestResponse --> Poisoned: auth error
