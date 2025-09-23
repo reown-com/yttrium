@@ -108,6 +108,23 @@ pub enum DisconnectError {
 
 #[derive(Debug, thiserror::Error)]
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Error))]
+#[error("Sign emit error: {0}")]
+pub enum EmitError {
+    #[error("Storage: {0}")]
+    Storage(StorageError),
+
+    #[error("Session not found")]
+    SessionNotFound,
+
+    #[error("Request: {0}")]
+    Request(RequestError),
+
+    #[error("Should never happen: {0}")]
+    ShouldNeverHappen(String),
+}
+
+#[derive(Debug, thiserror::Error)]
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Error))]
 #[error("Sign connect error: {0}")]
 pub enum ConnectError {
     #[error("Request error: {0}")]

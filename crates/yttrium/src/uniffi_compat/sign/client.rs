@@ -3,8 +3,8 @@ use {
         sign::{
             client::{generate_client_id_key, Client},
             client_errors::{
-                ApproveError, ConnectError, DisconnectError, ExtendError,
-                PairError, RejectError, RequestError, RespondError,
+                ApproveError, ConnectError, DisconnectError, EmitError,
+                ExtendError, PairError, RejectError, RequestError, RespondError,
                 UpdateError,
             },
             client_types::{ConnectParams, SessionProposal},
@@ -33,7 +33,13 @@ pub trait SignListener: Send + Sync {
     );
 
     fn on_session_disconnect(&self, id: u64, topic: String);
-    fn on_session_event(&self, id: u64, topic: String, params: bool);
+    fn on_session_event(
+        &self,
+        topic: String,
+        name: String,
+        data: String,
+        chain_id: String,
+    );
     fn on_session_extend(&self, id: u64, topic: String);
     fn on_session_update(
         &self,
@@ -120,15 +126,12 @@ impl SignClient {
                             listener
                                 .on_session_disconnect(id, topic.to_string());
                         }
-                        IncomingSessionMessage::SessionEvent(
-                            id,
-                            topic,
-                            params,
-                        ) => {
+                        IncomingSessionMessage::SessionEvent(topic, name, data, chain_id) => {
                             listener.on_session_event(
-                                id,
                                 topic.to_string(),
-                                params,
+                                name,
+                                data,
+                                chain_id,
                             );
                         }
                         IncomingSessionMessage::SessionUpdate(
@@ -247,6 +250,19 @@ impl SignClient {
         let topic_topic: Topic = topic.clone().into();
         client.respond(topic_topic, response_internal).await?;
         Ok(topic)
+    }
+
+    pub async fn emit(
+        &self,
+        topic: String,
+        name: String,
+        data: String,
+        chain_id: String,
+    ) -> Result<(), EmitError> {
+        let mut client = self.client.lock().await;
+        let data_value = serde_json::from_str::<serde_json::Value>(&data)
+            .map_err(|e| EmitError::ShouldNeverHappen(e.to_string()))?;
+        client.emit(topic.into(), name, data_value, chain_id).await
     }
 
     pub async fn disconnect(

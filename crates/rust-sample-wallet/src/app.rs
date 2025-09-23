@@ -574,9 +574,9 @@ pub fn App() -> impl IntoView {
                                                     "session delete on topic: {id}: {topic}",
                                                 );
                                             }
-                                            IncomingSessionMessage::SessionEvent(id, topic, params) => {
+                                            IncomingSessionMessage::SessionEvent(topic, name, data, chain_id) => {
                                                 tracing::info!(
-                                                    "session event on topic: {id}: {topic}: {params:?}",
+                                                    "session event on topic: {topic}: name={name}, chainId={chain_id}, data={data}",
                                                 );
                                             }
                                             IncomingSessionMessage::SessionUpdate(id, topic, params) => {

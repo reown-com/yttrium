@@ -1,8 +1,9 @@
 use {
     crate::sign::{
         client_errors::{
-            ApproveError, ConnectError, DisconnectError, ExtendError,
-            PairError, RejectError, RequestError, RespondError, UpdateError,
+            ApproveError, ConnectError, DisconnectError, EmitError,
+            ExtendError, PairError, RejectError, RequestError, RespondError,
+            UpdateError,
         },
         client_types::{
             ConnectParams, ConnectResult, PairingInfo, RejectionReason,
@@ -804,10 +805,57 @@ impl Client {
         unimplemented!()
     }
 
-    pub async fn _emit(&self) {
-        // TODO implement
-        // https://github.com/WalletConnect/walletconnect-monorepo/blob/5bef698dcf0ae910548481959a6a5d87eaf7aaa5/packages/sign-client/src/controllers/engine.ts#L764
-        unimplemented!()
+    pub async fn emit(
+        &mut self,
+        topic: Topic,
+        name: String,
+        data: serde_json::Value,
+        chain_id: String,
+    ) -> Result<(), EmitError> {
+        let shared_secret = self
+            .session_store
+            .get_session(topic.clone())
+            .map_err(EmitError::Storage)?
+            .map(|s| s.session_sym_key)
+            .ok_or(EmitError::SessionNotFound)?;
+
+        let id = generate_rpc_id();
+        let message = serialize_and_encrypt_message_type0_envelope(
+            shared_secret,
+            &crate::sign::protocol_types::SessionEventJsonRpc {
+                id,
+                jsonrpc: "2.0".to_string(),
+                method: "wc_sessionEmit".to_string(),
+                params: crate::sign::protocol_types::EventParams {
+                    event: crate::sign::protocol_types::SessionEventVO {
+                        name,
+                        data,
+                    },
+                    chain_id,
+                },
+            },
+        )
+        .map_err(EmitError::ShouldNeverHappen)?;
+
+        self.do_request::<bool>(relay_rpc::rpc::Params::Publish(Publish {
+            topic,
+            message,
+            attestation: None,
+            ttl_secs: 86400,
+            tag: 1110,
+            prompt: false,
+            analytics: Some(AnalyticsData {
+                correlation_id: Some(id.try_into().unwrap()),
+                chain_id: None,
+                rpc_methods: None,
+                tx_hashes: None,
+                contract_addresses: None,
+            }),
+        }))
+        .await
+        .map_err(EmitError::Request)?;
+
+        Ok(())
     }
 
     pub async fn disconnect(
