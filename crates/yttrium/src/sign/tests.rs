@@ -210,10 +210,10 @@ async fn test_sign() {
     wallet_client.approve(pairing, namespaces, metadata).await.unwrap();
 
     let message = wallet_session_request_rx.recv().await.unwrap();
-    assert!(matches!(message.1, IncomingSessionMessage::SessionConnect(_,_)));
+    assert!(matches!(message.1, IncomingSessionMessage::SessionConnect(_, _)));
 
     let message = app_session_request_rx.recv().await.unwrap();
-    assert!(matches!(message.1, IncomingSessionMessage::SessionConnect(_,_)));
+    assert!(matches!(message.1, IncomingSessionMessage::SessionConnect(_, _)));
 
     tracing::debug!("Requesting personal sign");
     app_client
