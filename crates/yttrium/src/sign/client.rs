@@ -10,7 +10,12 @@ use {
         },
         envelope_type0, pairing_uri,
         protocol_types::{
-            Controller, JsonRpcRequest, JsonRpcRequestParams, Metadata, Proposal, ProposalResponse, ProposalResultResponseJsonRpc, Proposer, Relay, SessionDelete, SessionDeleteJsonRpc, SessionExtend, SessionRequest, SessionRequestJsonRpc, SessionRequestJsonRpcResponse, SessionSettle, SessionUpdate, SettleNamespace
+            Controller, JsonRpcRequest, JsonRpcRequestParams, Metadata,
+            Proposal, ProposalResponse, ProposalResultResponseJsonRpc,
+            Proposer, Relay, SessionDelete, SessionDeleteJsonRpc,
+            SessionExtend, SessionRequest, SessionRequestJsonRpc,
+            SessionRequestJsonRpcResponse, SessionSettle, SessionUpdate,
+            SettleNamespace,
         },
         relay::IncomingSessionMessage,
         storage::Storage,

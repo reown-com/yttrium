@@ -4,7 +4,9 @@ use {
         client_types::Session,
         envelope_type0,
         protocol_types::{
-            Metadata, SessionDeleteJsonRpc, SessionProposalJsonRpcResponse, SessionRequestJsonRpc, SessionRequestJsonRpcResponse, SessionSettle
+            Metadata, SessionDeleteJsonRpc, SessionProposalJsonRpcResponse,
+            SessionRequestJsonRpc, SessionRequestJsonRpcResponse,
+            SessionSettle,
         },
         relay::IncomingSessionMessage,
         storage::{Storage, StoragePairing},
@@ -136,7 +138,10 @@ pub fn handle(
             session_request_tx
                 .send((
                     sub_msg.data.topic.clone(),
-                    IncomingSessionMessage::SessionConnect(0, sub_msg.data.topic.clone()),
+                    IncomingSessionMessage::SessionConnect(
+                        0,
+                        sub_msg.data.topic.clone(),
+                    ),
                 ))
                 .map_err(|e| {
                     HandleError::Internal(format!("send session connect: {e}"))
@@ -311,7 +316,7 @@ pub fn handle(
                     })?;
                 if let Some(StoragePairing { sym_key: _, self_key }) = pairing {
                     let response = serde_json::from_value::<
-                    SessionProposalJsonRpcResponse,
+                        SessionProposalJsonRpcResponse,
                     >(value)
                     .map_err(|e| {
                         HandleError::Client(format!(
@@ -319,7 +324,9 @@ pub fn handle(
                         ))
                     })?;
                     let response = match response {
-                        SessionProposalJsonRpcResponse::Result(result) => result,
+                        SessionProposalJsonRpcResponse::Result(result) => {
+                            result
+                        }
                         SessionProposalJsonRpcResponse::Error(error) => {
                             tracing::error!("Proposal error: {:?}", error);
 
@@ -340,14 +347,13 @@ pub fn handle(
                         }
                     };
                     let self_key = x25519_dalek::StaticSecret::from(self_key);
-                    let responder_public_key = hex::decode(
-                        response.result.responder_public_key,
-                    )
-                    .map_err(|e| {
-                        HandleError::Client(format!(
-                            "decode responder public key: {e}"
-                        ))
-                    })?;
+                    let responder_public_key =
+                        hex::decode(response.result.responder_public_key)
+                            .map_err(|e| {
+                                HandleError::Client(format!(
+                                    "decode responder public key: {e}"
+                                ))
+                            })?;
                     let responder_public_key: [u8; 32] =
                         responder_public_key.try_into().map_err(|e| {
                             HandleError::Client(format!(
