@@ -56,7 +56,7 @@ type RpcRequestReceiver =
     tokio::sync::mpsc::UnboundedReceiver<RpcRequestMessage>;
 
 pub struct Client {
-    // http_client: reqwest::Client,
+    http_client: reqwest::Client,
     tx: tokio::sync::mpsc::UnboundedSender<(Topic, IncomingSessionMessage)>,
     request_tx: RpcRequestSender,
     online_tx: Option<tokio::sync::mpsc::UnboundedSender<()>>,
@@ -145,7 +145,7 @@ impl Client {
 
         (
             Self {
-                // http_client: reqwest::Client::new(),
+                http_client: reqwest::Client::new(),
                 tx,
                 request_tx,
                 session_store,
@@ -227,8 +227,7 @@ impl Client {
         // TODO update relay method to not remove message & approveSession removes it
 
         let public_key = get_public_key(
-            // self.http_client.clone(),
-            reqwest::Client::new(),
+            self.http_client.clone(),
             self.session_store.clone(),
         )
         .map_err(|e| PairError::GetPublicKey(e.to_string()));
