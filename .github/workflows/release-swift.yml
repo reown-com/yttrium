@@ -57,9 +57,25 @@ jobs:
       - name: Build and Package XCFramework
         run: |
           make build-xcframework
-          make generate-package-swift
+          # Generate the XCFramework zip for release
+          mkdir -p Output
+          zip -r Output/libyttrium.xcframework.zip target/ios/libyttrium.xcframework
 
-      # 7. Update Podspec with Version and Download URL
+      # 7. Calculate Core XCFramework Checksum
+      - name: Calculate Core XCFramework Checksum
+        id: checksum
+        run: |
+          CHECKSUM=$(swift package compute-checksum Output/libyttrium.xcframework.zip)
+          echo "checksum=$CHECKSUM" >> $GITHUB_OUTPUT
+          echo "Core XCFramework checksum: $CHECKSUM"
+
+      # 8. Update Package.swift for Core Only
+      - name: Update Package.swift for Core Only
+        run: |
+          chmod +x scripts/update-package-swift-core.sh
+          ./scripts/update-package-swift-core.sh "$VERSION" "${{ steps.checksum.outputs.checksum }}"
+
+      # 9. Update Podspec with Version and Download URL
       - name: Update Podspec with Version and Download URL
         run: |
           # Replace the version line in Podspec
@@ -73,7 +89,7 @@ jobs:
           # Update the download URL to the correct version
           sed -i '' "s|https://github.com/reown-com/yttrium/releases/download/[^']*|${DOWNLOAD_URL}|g" YttriumWrapper.podspec
 
-      # 8. Commit and Push Package.swift and Podspec
+      # 10. Commit and Push Package.swift and Podspec
       - name: Commit and Push Package.swift and Podspec
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Use default token
@@ -88,7 +104,7 @@ jobs:
             git push origin HEAD:$TARGET_BRANCH
           fi
 
-      # 9. Create Git Tag
+      # 11. Create Git Tag
       - name: Create Git Tag
         env:
           VERSION: ${{ env.VERSION }}
@@ -107,7 +123,7 @@ jobs:
           # Push the tag to the repository
           git push origin "${VERSION}"
 
-      # 10. Create a GitHub Release
+      # 12. Create a GitHub Release
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1
@@ -123,7 +139,7 @@ jobs:
           draft: false
           prerelease: true
 
-      # 11. Upload XCFramework to the Release
+      # 13. Upload XCFramework to the Release
       - name: Upload XCFramework to Release
         uses: actions/upload-release-asset@v1
         env:
@@ -134,7 +150,7 @@ jobs:
           asset_name: libyttrium.xcframework.zip
           asset_content_type: application/zip
 
-      # 12. Publish to CocoaPods Trunk
+      # 14. Publish to CocoaPods Trunk
       - name: Publish to CocoaPods Trunk
         env:
           COCOAPODS_TRUNK_TOKEN: ${{ secrets.COCOAPODS_TRUNK_TOKEN }}

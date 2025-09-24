@@ -71,7 +71,7 @@ sui = [
     "dep:bcs",
     "dep:tiny-bip39",
 ]
-stacks = ["dep:stacks-rs", "dep:bip32", "dep:stacks_secp256k1"]
+stacks = ["dep:stacks-rs", "dep:bip32", "dep:stacks_secp256k1", "dep:rand"]
 
 # Features contributing to bundle size, that you might not need
 all_clients = [
@@ -165,7 +165,10 @@ async-trait = { version = "0.1.83", default-features = false }
 tracing = { version = "0.1.40", default-features = false, features = [
     "release_max_level_debug",
 ] }
-tracing-subscriber = { version = "0.3.19", default-features = false, optional = true, features = ["fmt", "std"] }
+tracing-subscriber = { version = "0.3.19", default-features = false, optional = true, features = [
+    "fmt",
+    "std",
+] }
 # fastlz-rs = { version = "0.0.3", features = ["std"], default-features = false }
 
 # Networking
