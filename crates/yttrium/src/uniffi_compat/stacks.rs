@@ -315,7 +315,7 @@ impl StacksClient {
         let client = match client {
             Ok(client) => client,
             Err(e) => {
-                panic!("Failed to create reqwest client: {} ... {:?}", e, e)
+                panic!("Failed to create reqwest client: {e} ... {e:?}")
             }
         };
         Self {
@@ -364,7 +364,7 @@ impl StacksClient {
             stacks_client.stacks_transactions(tx_hex.clone()).await.map_err(
                 |e| StacksTransferStxError::BroadcastTransaction(e.to_string()),
             )?;
-        println!("broadcast tx response: {:?}", broadcast_tx_response);
+        println!("broadcast tx response: {broadcast_tx_response:?}");
 
         Ok(sign_response)
     }
@@ -381,18 +381,16 @@ impl StacksClient {
             match stacks_client.stacks_accounts(principal.to_string()).await {
                 Ok(result) => result,
                 Err(e) => {
-                    let error_string =
-                        format!("Failed to fetch account: {}", e);
+                    let error_string = format!("Failed to fetch account: {e}");
                     return Err(StacksAccountError::FetchAccount(error_string));
                 }
             };
-        println!("account response: {:?}", response);
+        println!("account response: {response:?}");
 
         let account: StacksAccount =
             serde_json::from_value(response).map_err(|e| {
                 StacksAccountError::FetchAccount(format!(
-                    "Failed to parse response: {}",
-                    e
+                    "Failed to parse response: {e}",
                 ))
             })?;
 
@@ -409,7 +407,7 @@ impl StacksClient {
         let response = match stacks_client.stacks_transfer_fees().await {
             Ok(result) => result,
             Err(e) => {
-                let error_string = format!("Failed to fetch fee rate: {}", e);
+                let error_string = format!("Failed to fetch fee rate: {e}");
                 return Err(StacksFeesError::TransferFees(error_string));
             }
         };
@@ -479,14 +477,14 @@ mod tests {
     #[test]
     fn generate_wallet() {
         let wallet = stacks_generate_wallet();
-        println!("Wallet: {}", wallet);
+        println!("Wallet: {wallet}");
     }
 
     #[test]
     fn get_address() {
         let wallet = stacks_generate_wallet();
         let address = stacks_get_address(&wallet, "mainnet-p2pkh").unwrap();
-        println!("Address: {}", address);
+        println!("Address: {address}");
     }
 
     #[test]
@@ -494,7 +492,7 @@ mod tests {
         let wallet = stacks_generate_wallet();
         let message = "Hello, world!";
         let signature = stacks_sign_message(&wallet, message).unwrap();
-        println!("Signature: {}", signature);
+        println!("Signature: {signature}");
         // Note: We can't verify RSV signatures with the stacks_secp256k1 library directly
         // The JavaScript side will handle verification with publicKeyFromSignatureRsv
         assert!(!signature.is_empty());
@@ -505,7 +503,7 @@ mod tests {
         let wallet = stacks_generate_wallet();
         let message = "Hello, world!";
         let signature = stacks_sign_message(&wallet, message).unwrap();
-        println!("Signature: {}", signature);
+        println!("Signature: {signature}");
         // Note: We can't verify RSV signatures with the stacks_secp256k1 library directly
         // The JavaScript side will handle verification with publicKeyFromSignatureRsv
         assert!(!signature.is_empty());
@@ -539,8 +537,8 @@ mod tests {
         let recovery_bit = sig_bytes[64];
         assert!(recovery_bit == 0 || recovery_bit == 1);
 
-        println!("Signature: {}", signature);
-        println!("Recovery bit: {}", recovery_bit);
+        println!("Signature: {signature}");
+        println!("Recovery bit: {recovery_bit}");
     }
 
     #[test]
@@ -550,7 +548,7 @@ mod tests {
         let message = "test";
         let signature = stacks_sign_message(wallet, message).unwrap();
 
-        println!("Test signature: {}", signature);
+        println!("Test signature: {signature}");
         assert!(!signature.is_empty());
         assert_eq!(signature.len(), 130);
     }

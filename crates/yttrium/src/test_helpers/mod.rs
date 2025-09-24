@@ -181,7 +181,7 @@ async fn use_faucet_unlimited(
         panic!("not enough funds in faucet. Needed to send {amount} but only had {faucet_balance} available. Please add more funds to the faucet at {chain_id}:{faucet_address}");
     }
     let txn = TransactionRequest::default().with_to(to).with_value(amount);
-    println!("sending txn: {:?}", txn);
+    println!("sending txn: {txn:?}");
     let txn_sent = ProviderBuilder::new()
         .wallet(EthereumWallet::new(faucet.clone()))
         .on_provider(provider)
@@ -198,7 +198,7 @@ async fn use_faucet_unlimited(
     assert!(receipt.status());
 
     let balance = provider.get_balance(to).await.unwrap();
-    println!("Balance of {}: {}", to, balance);
-    println!("amount: {}", amount);
+    println!("Balance of {to}: {balance}");
+    println!("amount: {amount}");
     assert!(balance >= amount);
 }

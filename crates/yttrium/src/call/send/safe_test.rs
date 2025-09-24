@@ -234,7 +234,7 @@ pub async fn prepare_send_transactions_inner(
 
     let deployed =
         !provider.get_code_at(account_address.into()).await?.is_empty();
-    println!("Deployed: {}", deployed);
+    println!("Deployed: {deployed}");
     // permissionless: signerToSafeSmartAccount -> encodeCallData
     let call_data = if deployed
         && provider
@@ -430,7 +430,7 @@ pub async fn do_send_transactions(
         .send_user_operation(entry_point_address, user_op.clone())
         .await?;
 
-    println!("Received User Operation hash: {:?}", user_operation_hash);
+    println!("Received User Operation hash: {user_operation_hash:?}");
 
     Ok(user_operation_hash)
 }
@@ -1202,7 +1202,7 @@ mod tests {
         .await?;
         assert!(receipt.success);
 
-        println!("contract address: {}", contract_address);
+        println!("contract address: {contract_address}");
         println!(
             "contract code: {}",
             provider.get_code_at(contract_address.into()).await?
@@ -1354,7 +1354,7 @@ mod tests {
             .await?
             .await?;
 
-        println!("contract address: {}", contract_address);
+        println!("contract address: {contract_address}");
         println!(
             "contract code: {}",
             provider.get_code_at(contract_address.into()).await?

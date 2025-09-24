@@ -397,6 +397,6 @@ mod tests {
             "actualGasUsed": "0xbbe8f"
         });
         let receipt = map_user_operation_receipt(json).unwrap();
-        println!("{:?}", receipt);
+        println!("{receipt:?}");
     }
 }

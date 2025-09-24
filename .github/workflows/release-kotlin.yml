@@ -189,6 +189,10 @@ jobs:
         with:
           tag_name: ${{ env.VERSION }}
           release_name: "Yttrium Kotlin ${{ env.VERSION }}"
+          body: |
+            Release version ${{ env.VERSION }}
+            
+            **Branch:** ${{ env.TARGET_BRANCH }}
           draft: false
           prerelease: false
 

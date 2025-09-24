@@ -73,21 +73,21 @@ where
     > = call_builder.call().await;
 
     if let Err(error) = call {
-        println!("Error: {:?}", error);
+        println!("Error: {error:?}");
         match error {
             ContractError::TransportError(transport_error) => {
-                println!("transport_error: {:?}", transport_error);
+                println!("transport_error: {transport_error:?}");
 
                 let error_resp =
                     transport_error.as_error_resp().unwrap().clone();
 
-                println!("error_resp: {:?}", error_resp.clone());
+                println!("error_resp: {error_resp:?}");
 
                 let code = error_resp.code;
-                println!("error_resp_code: {:?}", code);
+                println!("error_resp_code: {code:?}");
 
                 let message = error_resp.message.clone();
-                println!("error_resp_message: {:?}", message);
+                println!("error_resp_message: {message:?}");
 
                 if let Some(error_resp_data) = error_resp.data.clone() {
                     println!("error_resp_data: {:?}", error_resp_data.clone());
@@ -114,7 +114,7 @@ where
 
                     let addr = decoded_data.sender;
 
-                    println!("addr: {:?}", addr.clone());
+                    println!("addr: {addr:?}");
 
                     return Ok(addr.into());
                 } else {
@@ -122,7 +122,7 @@ where
                 };
             }
             _ => {
-                println!("error: {:?}", error);
+                println!("error: {error:?}");
                 todo!()
             }
         }

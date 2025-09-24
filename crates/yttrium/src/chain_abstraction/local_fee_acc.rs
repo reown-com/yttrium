@@ -244,7 +244,7 @@ mod tests {
         );
         let (amount, decimals) = acc.compute();
         let amount = to_float(amount, decimals);
-        println!("amount1: {}", amount);
+        println!("amount1: {amount}");
 
         // Another amount of ETH
         let (fungible_amount, fungible_decimals) = from_float(0.02, 18);
@@ -257,7 +257,7 @@ mod tests {
         );
         let (amount, decimals) = acc.compute();
         let amount = to_float(amount, decimals);
-        println!("amount2: {}", amount);
+        println!("amount2: {amount}");
 
         // USDC
         let (fungible_amount, fungible_decimals) = from_float(2., 6);
@@ -270,7 +270,7 @@ mod tests {
         );
         let (amount, decimals) = acc.compute();
         let amount = to_float(amount, decimals);
-        println!("amount3: {}", amount);
+        println!("amount3: {amount}");
 
         // DOGE
         let (fungible_amount, fungible_decimals) = from_float(3., 6);
@@ -283,11 +283,11 @@ mod tests {
         );
         let (amount, decimals) = acc.compute();
         let amount = to_float(amount, decimals);
-        println!("amount4: {}", amount);
+        println!("amount4: {amount}");
 
         let (amount, decimals) = acc.compute();
         let amount = to_float(amount, decimals);
-        println!("amount: {}", amount);
+        println!("amount: {amount}");
         assert!(floats_close(amount, 122.00003, 0.000000001));
     }
 

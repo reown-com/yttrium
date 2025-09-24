@@ -1,9 +1,19 @@
+pub mod log;
+
+#[cfg(feature = "sign_client")]
+pub mod sign;
+
 #[cfg(feature = "sui")]
 pub mod sui;
 
 #[cfg(feature = "stacks")]
 pub mod stacks;
 
+#[cfg(feature = "chain_abstraction_client")]
+use crate::chain_abstraction::{
+    amount::Amount,
+    api::prepare::{Eip155OrSolanaAddress, FundingMetadata},
+};
 #[cfg(feature = "solana")]
 use {
     crate::chain_abstraction::solana::{
@@ -16,11 +26,6 @@ use {
         signer::{SeedDerivable, Signer},
         transaction::VersionedTransaction,
     },
-};
-#[cfg(feature = "chain_abstraction_client")]
-use crate::chain_abstraction::{
-    amount::Amount, 
-    api::prepare::{Eip155OrSolanaAddress, FundingMetadata}
 };
 use {
     crate::{
@@ -37,18 +42,20 @@ use {
             aliases::U48, Address, Bytes, PrimitiveSignature, Uint, B256, U128,
             U256, U64, U8,
         },
-        rpc::types::{Authorization, TransactionReceipt, UserOperationReceipt},
+        rpc::{
+            json_rpc::Id,
+            types::{Authorization, TransactionReceipt, UserOperationReceipt},
+        },
         signers::local::PrivateKeySigner,
         transports::{self, TransportErrorKind},
     },
     alloy_provider::PendingTransactionError,
     eyre::Report as EyreError,
-    relay_rpc::domain::ProjectId,
+    relay_rpc::domain::{ClientId, ProjectId, Topic},
     reqwest::{Error as ReqwestError, StatusCode, Url},
     serde_json::Error as SerdeJsonError,
     uniffi::deps::anyhow::Error as AnyhowError,
 };
-
 
 // TODO use https://mozilla.github.io/uniffi-rs/next/udl/remote_ext_types.html#remote-types when it's available
 
@@ -75,7 +82,7 @@ uniffi::custom_type!(SolanaKeypair, String, {
     try_lift: |val| {
         let mut buf = [0u8; relay_rpc::auth::ed25519_dalek::KEYPAIR_LENGTH];
         bs58::decode(val).onto(&mut buf)?;
-        SolanaKeypair::from_bytes(&buf).map_err(Into::into)
+        SolanaKeypair::try_from(buf.as_ref()).map_err(Into::into)
     },
     lower: |obj| obj.to_base58_string(),
 });
@@ -163,6 +170,34 @@ uniffi::custom_type!(B256, String, {
 uniffi::custom_type!(ProjectId, String, {
     remote,
     try_lift: |val| Ok(val.into()),
+    lower: |obj| obj.to_string(),
+});
+
+#[cfg(feature = "sign_client")]
+uniffi::custom_type!(ClientId, String, {
+    remote,
+    try_lift: |val| Ok(val.into()),
+    lower: |obj| obj.to_string(),
+});
+
+#[cfg(feature = "sign_client")]
+uniffi::custom_type!(Topic, String, {
+    remote,
+    try_lift: |val| Ok(val.into()),
+    lower: |obj| obj.to_string(),
+});
+
+#[cfg(feature = "sign_client")]
+uniffi::custom_type!(Id, String, {
+    remote,
+    try_lift: |val| {
+        use alloy::rpc::json_rpc::Id;
+        if let Ok(num) = val.parse::<u64>() {
+            Ok(Id::Number(num))
+        } else {
+            Ok(Id::String(val))
+        }
+    },
     lower: |obj| obj.to_string(),
 });
 

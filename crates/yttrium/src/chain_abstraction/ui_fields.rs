@@ -353,7 +353,7 @@ mod tests {
         super::*,
         crate::chain_abstraction::api::prepare::{
             Eip155OrSolanaAddress, FundingMetadata, InitialTransactionMetadata,
-            Metadata, Transactions,
+            PrepareResponseMetadata, Transactions,
         },
         alloy::primitives::{address, bytes, utils::Unit, Address, U64},
         std::iter,
@@ -408,7 +408,7 @@ mod tests {
         let fields = ui_fields(
             PrepareResponseAvailable {
                 orchestration_id: "".to_owned(),
-                metadata: Metadata {
+                metadata: PrepareResponseMetadata {
                     funding_from: vec![FundingMetadata {
                         chain_id: chain_id_1.clone(),
                         token_contract: Eip155OrSolanaAddress::Eip155(
@@ -454,7 +454,7 @@ mod tests {
             ),
             vec![
                 FungiblePriceItem {
-                    address: format!("{}:{}", chain_id_1, token_contract_1),
+                    address: format!("{chain_id_1}:{token_contract_1}"),
                     name: "".to_owned(),
                     symbol: "USDC".to_owned(),
                     icon_url: "".to_owned(),
@@ -462,7 +462,7 @@ mod tests {
                     decimals: Unit::new(18).unwrap(),
                 },
                 FungiblePriceItem {
-                    address: format!("{}:{}", chain_id_2, token_contract_2),
+                    address: format!("{chain_id_2}:{token_contract_2}"),
                     name: "".to_owned(),
                     symbol: "USDC".to_owned(),
                     icon_url: "".to_owned(),
@@ -470,7 +470,7 @@ mod tests {
                     decimals: Unit::new(18).unwrap(),
                 },
                 FungiblePriceItem {
-                    address: format!("{}:{}", chain_id_1, NATIVE_TOKEN_ADDRESS),
+                    address: format!("{chain_id_1}:{NATIVE_TOKEN_ADDRESS}"),
                     name: "".to_owned(),
                     symbol: "ETH".to_owned(),
                     icon_url: "".to_owned(),

@@ -48,7 +48,7 @@ jobs:
           git submodule update --init --recursive
           make setup-thirdparty
 
-      # 5. Select Specific Xcode Version
+      # 5. Select Newest Xcode Version Available
       - name: Select Xcode 15.4
         run: | 
           sudo xcode-select -s /Applications/Xcode.app
@@ -132,6 +132,10 @@ jobs:
         with:
           tag_name: ${{ env.VERSION }}
           release_name: Yttrium ${{ env.VERSION }}
+          body: |
+            Release version ${{ env.VERSION }}
+
+            **Branch:** ${{ env.TARGET_BRANCH }}
           draft: false
           prerelease: true
 

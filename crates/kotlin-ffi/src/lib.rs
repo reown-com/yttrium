@@ -111,7 +111,6 @@ uniffi::custom_type!(FFIBytes, String, {
     lower: |obj| obj.to_string(),
 });
 
-
 #[cfg(feature = "chain_abstraction_client")]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, uniffi::Record)]
 pub struct Eip1559Estimation {
