@@ -3,18 +3,19 @@ use {
         sign::{
             client::{generate_client_id_key, Client},
             client_errors::{
-                ApproveError, ConnectError, DisconnectError, ExtendError,
-                PairError, RejectError, RespondError, UpdateError,
+                ApproveError, ConnectError, DisconnectError, EmitError,
+                ExtendError, PairError, RejectError, RequestError,
+                RespondError, UpdateError,
             },
             client_types::{ConnectParams, SessionProposal},
-            protocol_types::{Metadata, SettleNamespace},
+            protocol_types::{Metadata, SessionRequest, SettleNamespace},
             IncomingSessionMessage,
         },
         uniffi_compat::sign::{
             ffi_types::{
                 ConnectParamsFfi, ConnectResultFfi, SessionFfi,
-                SessionProposalFfi, SessionRequestJsonRpcFfi,
-                SessionRequestJsonRpcResponseFfi,
+                SessionProposalFfi, SessionRequestFfi,
+                SessionRequestJsonRpcFfi, SessionRequestJsonRpcResponseFfi,
             },
             storage::{StorageFfi, StorageFfiProxy},
         },
@@ -32,7 +33,13 @@ pub trait SignListener: Send + Sync {
     );
 
     fn on_session_disconnect(&self, id: u64, topic: String);
-    fn on_session_event(&self, id: u64, topic: String, params: bool);
+    fn on_session_event(
+        &self,
+        topic: String,
+        name: String,
+        data: String,
+        chain_id: String,
+    );
     fn on_session_extend(&self, id: u64, topic: String);
     fn on_session_update(
         &self,
@@ -40,7 +47,8 @@ pub trait SignListener: Send + Sync {
         topic: String,
         namespaces: std::collections::HashMap<String, SettleNamespace>,
     );
-    fn on_session_connect(&self, id: u64);
+    fn on_session_connect(&self, id: u64, topic: String);
+    fn on_session_reject(&self, id: u64, topic: String);
     fn on_session_request_response(
         &self,
         id: u64,
@@ -119,14 +127,17 @@ impl SignClient {
                                 .on_session_disconnect(id, topic.to_string());
                         }
                         IncomingSessionMessage::SessionEvent(
-                            id,
                             topic,
-                            params,
+                            name,
+                            data,
+                            chain_id,
                         ) => {
                             listener.on_session_event(
-                                id,
                                 topic.to_string(),
-                                params,
+                                name,
+                                serde_json::to_string(&data)
+                                    .unwrap_or_default(),
+                                chain_id,
                             );
                         }
                         IncomingSessionMessage::SessionUpdate(
@@ -143,8 +154,11 @@ impl SignClient {
                         IncomingSessionMessage::SessionExtend(id, topic) => {
                             listener.on_session_extend(id, topic.to_string());
                         }
-                        IncomingSessionMessage::SessionConnect(id) => {
-                            listener.on_session_connect(id);
+                        IncomingSessionMessage::SessionConnect(id, topic) => {
+                            listener.on_session_connect(id, topic.to_string());
+                        }
+                        IncomingSessionMessage::SessionReject(id, topic) => {
+                            listener.on_session_reject(id, topic.to_string());
                         }
                         IncomingSessionMessage::SessionRequestResponse(
                             id,
@@ -180,7 +194,7 @@ impl SignClient {
             let mut client = self.client.lock().await;
             client.pair(&uri).await?
         };
-        Ok(proposal.into())
+        Ok(proposal.0.into())
     }
 
     pub async fn connect(
@@ -244,6 +258,22 @@ impl SignClient {
         Ok(topic)
     }
 
+    pub async fn emit(
+        &self,
+        topic: String,
+        name: String,
+        data: String,
+        chain_id: String,
+    ) -> Result<(), EmitError> {
+        let mut client = self.client.lock().await;
+        let data_value = match serde_json::from_str::<serde_json::Value>(&data)
+        {
+            Ok(v) => v,
+            Err(_) => serde_json::Value::String(data.clone()),
+        };
+        client.emit(topic.into(), name, data_value, chain_id).await
+    }
+
     pub async fn disconnect(
         &self,
         topic: String,
@@ -265,5 +295,15 @@ impl SignClient {
     pub async fn extend(&self, topic: String) -> Result<(), ExtendError> {
         let mut client = self.client.lock().await;
         client.extend(topic.into()).await
+    }
+
+    pub async fn request(
+        &self,
+        topic: String,
+        session_request: SessionRequestFfi,
+    ) -> Result<u64, RequestError> {
+        let mut client = self.client.lock().await;
+        let session_request: SessionRequest = session_request.into();
+        client.request(topic.into(), session_request).await
     }
 }

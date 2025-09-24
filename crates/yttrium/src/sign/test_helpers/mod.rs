@@ -245,7 +245,7 @@ pub async fn test_sign_impl() -> Result<(), String> {
         "session connect received"
     );
 
-    if !(matches!(message.1, IncomingSessionMessage::SessionConnect(_))) {
+    if !(matches!(message.1, IncomingSessionMessage::SessionConnect(_, _))) {
         Err(format!("Expected SessionConnect, got {:?}", message.1))?;
     }
 
@@ -257,7 +257,7 @@ pub async fn test_sign_impl() -> Result<(), String> {
         probe = "app_session_connect_received",
         "session connect received"
     );
-    assert!(matches!(message.1, IncomingSessionMessage::SessionConnect(_)));
+    assert!(matches!(message.1, IncomingSessionMessage::SessionConnect(_, _)));
 
     tracing::debug!(
         probe = "requesting_personal_sign",

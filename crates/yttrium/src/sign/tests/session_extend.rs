@@ -1,4 +1,4 @@
-use yttrium::sign::{
+use crate::sign::{
     client_types::Session,
     utils::{
         compute_max_expiry, validate_extend_request, ExtendValidationError,

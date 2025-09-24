@@ -6,6 +6,7 @@ use {
         },
         uniffi_compat::sign::ffi_types::SessionFfi,
     },
+    jsonwebtoken::jwk::Jwk,
     relay_rpc::domain::Topic,
     std::sync::Arc,
     uniffi::UnexpectedUniFFICallbackError,
@@ -42,6 +43,8 @@ pub trait StorageFfi: Send + Sync {
         topic: String,
         sym_key: Vec<u8>,
     ) -> Result<(), StorageError>;
+    fn get_verify_public_key(&self) -> Result<Option<String>, StorageError>;
+    fn set_verify_public_key(&self, jwk: String) -> Result<(), StorageError>;
 }
 
 pub struct StorageFfiProxy(pub Arc<dyn StorageFfi>);
@@ -114,6 +117,22 @@ impl Storage for StorageFfiProxy {
         sym_key: [u8; 32],
     ) -> Result<(), StorageError> {
         self.0.save_partial_session(topic.to_string(), sym_key.to_vec())
+    }
+
+    fn get_verify_public_key(&self) -> Result<Option<Jwk>, StorageError> {
+        let jwk = self.0.get_verify_public_key()?;
+        if let Some(jwk) = jwk {
+            serde_json::from_str(&jwk)
+                .map_err(|e| StorageError::Runtime(e.to_string()))
+        } else {
+            Ok(None)
+        }
+    }
+
+    fn set_verify_public_key(&self, jwk: Jwk) -> Result<(), StorageError> {
+        serde_json::to_string(&jwk)
+            .map_err(|e| StorageError::Runtime(e.to_string()))
+            .and_then(|jwk| self.0.set_verify_public_key(jwk))
     }
 }
 

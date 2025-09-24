@@ -11,8 +11,19 @@ let yttriumXcframeworkTarget: Target = useLocalRustXcframework ?
     ) :
     .binaryTarget(
         name: "YttriumXCFramework",
-        url: "https://github.com/reown-com/yttrium/releases/download/0.9.57/libyttrium.xcframework.zip",
-        checksum: "3a2a36a251aafabb8f64780bff826d2088ce6a0a92a8934d7ac2f2b18667e2fa"
+        url: "https://github.com/reown-com/yttrium/releases/download/0.9.68/libyttrium.xcframework.zip",
+        checksum: "3374bca5bb216ab5a782305ef806cd19d5ef64a9537a9aad68b10ea8a7dfcbf9"
+    )
+
+let yttriumUtilsXcframeworkTarget: Target = useLocalRustXcframework ?
+    .binaryTarget(
+        name: "YttriumUtilsXCFramework",
+        path: "target/ios-utils/libyttrium-utils.xcframework"
+    ) :
+    .binaryTarget(
+        name: "YttriumUtilsXCFramework",
+        url: "https://github.com/reown-com/yttrium/releases/download/0.9.64/libyttrium-utils.xcframework.zip",
+        checksum: "4c344ef8463f39dce1e5c7e0d58bd2b27be2cfb882e33ff48b8810858f045d37"
     )
 
 let package = Package(
@@ -25,13 +36,27 @@ let package = Package(
             name: "Yttrium",
             targets: ["Yttrium"]
         ),
+        .library(
+            name: "YttriumUtils",
+            targets: ["YttriumUtils"]
+        ),
     ],
     targets: [
         yttriumXcframeworkTarget,
+        yttriumUtilsXcframeworkTarget,
         .target(
             name: "Yttrium",
             dependencies: ["YttriumXCFramework"],
             path: "platforms/swift/Sources/Yttrium",
+            publicHeadersPath: ".",
+            cSettings: [
+                .headerSearchPath(".")
+            ]
+        ),
+        .target(
+            name: "YttriumUtils",
+            dependencies: ["YttriumUtilsXCFramework"],
+            path: "platforms/swift/Sources/YttriumUtils",
             publicHeadersPath: ".",
             cSettings: [
                 .headerSearchPath(".")

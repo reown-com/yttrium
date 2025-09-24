@@ -148,10 +148,11 @@ jobs:
       - run: rustup update ${{ env.RUST_MSRV }} && rustup default ${{ env.RUST_MSRV }}
       - uses: Swatinem/rust-cache@v2
       - name: Select Xcode 15.4
-        run: sudo xcode-select -s /Applications/Xcode_15.4.app
+        run: sudo xcode-select -s /Applications/Xcode.app
 
       # Build bindings
       - run: make build-xcframework
+      - run: make build-utils-xcframework
 
       # Don't think we actually need this check, since bindings will be updated during release
       # - run: git diff crates/ffi

@@ -50,10 +50,25 @@ pub struct Proposer {
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ProposalResponseJsonRpc {
+pub struct ProposalResultResponseJsonRpc {
     pub id: u64,
     pub jsonrpc: String,
     pub result: ProposalResponse,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProposalErrorResponseJsonRpc {
+    pub id: u64,
+    pub jsonrpc: String,
+    pub error: serde_json::Value,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum SessionProposalJsonRpcResponse {
+    Result(ProposalResultResponseJsonRpc),
+    Error(ProposalErrorResponseJsonRpc),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -231,4 +246,27 @@ pub struct SessionExtendJsonRpc {
     pub jsonrpc: String,
     pub method: String,
     pub params: SessionExtend,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct SessionEventVO {
+    pub name: String,
+    pub data: serde_json::Value,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct EventParams {
+    pub event: SessionEventVO,
+    pub chain_id: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct SessionEventJsonRpc {
+    pub id: u64,
+    pub jsonrpc: String,
+    pub method: String,
+    pub params: EventParams,
 }

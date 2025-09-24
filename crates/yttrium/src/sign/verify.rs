@@ -1,9 +1,10 @@
-use std::sync::Arc;
-
-use crate::sign::storage::{Storage, StorageError};
-use jsonwebtoken::{jwk::Jwk, Algorithm, DecodingKey, Validation};
-use serde::{Deserialize, Serialize};
-use url::Url;
+use {
+    crate::sign::storage::{Storage, StorageError},
+    jsonwebtoken::{jwk::Jwk, Algorithm, DecodingKey, Validation},
+    serde::{Deserialize, Serialize},
+    std::sync::Arc,
+    url::Url,
+};
 
 const PUBLIC_KEY_URL: &str = "https://verify.walletconnect.org/v3/public-key";
 

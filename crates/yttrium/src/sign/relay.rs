@@ -609,10 +609,11 @@ enum ConnectionState {
 pub enum IncomingSessionMessage {
     SessionRequest(SessionRequestJsonRpc),
     Disconnect(u64, Topic),
-    SessionEvent(u64, Topic, bool),
+    SessionEvent(Topic, String, serde_json::Value, String),
     SessionUpdate(u64, Topic, crate::sign::protocol_types::SettleNamespaces),
     SessionExtend(u64, Topic),
-    SessionConnect(u64),
+    SessionConnect(u64, Topic),
+    SessionReject(u64, Topic),
     SessionRequestResponse(u64, Topic, SessionRequestJsonRpcResponse),
 }
 

@@ -596,9 +596,10 @@ pub fn App() -> impl IntoView {
                                                     "session delete on topic: {id}: {topic}",
                                                 );
                                             }
-                                            IncomingSessionMessage::SessionEvent(id, topic, params) => {
+                                            IncomingSessionMessage::SessionEvent(topic, name, data, chain_id) => {
                                                 tracing::info!(
-                                                    "session event on topic: {id}: {topic}: {params:?}",
+                                                    "session event on topic: {topic}: name={name}, chainId={chain_id}, data={:?}",
+                                                    data
                                                 );
                                             }
                                             IncomingSessionMessage::SessionUpdate(id, topic, params) => {
@@ -611,9 +612,14 @@ pub fn App() -> impl IntoView {
                                                     "session extend on topic: {id}: {topic}",
                                                 );
                                             }
-                                            IncomingSessionMessage::SessionConnect(id) => {
+                                            IncomingSessionMessage::SessionReject(id, topic) => {
                                                 tracing::info!(
-                                                    "session connect on topic: {id}",
+                                                    "session reject on topic: {id}: {topic}",
+                                                );
+                                            }
+                                            IncomingSessionMessage::SessionConnect(id, topic) => {
+                                                tracing::info!(
+                                                    "session connect on topic: {id}: {topic}",
                                                 );
                                             }
                                             IncomingSessionMessage::SessionRequestResponse(id, topic, response) => {
@@ -628,10 +634,10 @@ pub fn App() -> impl IntoView {
                             }
                             app_request = app_request_rx.recv() => {
                                 match app_request {
-                                    Some((topic, message)) => {
+                                    Some((_topic, message)) => {
                                         app_sessions.set(read_local_storage(APP_KEY).unwrap().sessions);
                                         match message {
-                                            IncomingSessionMessage::SessionConnect(id) => {
+                                            IncomingSessionMessage::SessionConnect(id, topic) => {
                                                 tracing::info!(
                                                     "(app) session connect on topic: {topic}: {id}",
                                                 );
