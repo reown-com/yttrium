@@ -1,5 +1,5 @@
 use {
-    crate::sign::client_types::Session,
+    crate::sign::client_types::{Session, TransportType},
     relay_rpc::domain::Topic,
     serde::{Deserialize, Serialize},
 };
@@ -40,6 +40,31 @@ pub trait Storage: Send + Sync {
         topic: Topic,
         sym_key: [u8; 32],
     ) -> Result<(), StorageError>;
+
+    // JSON-RPC History
+    fn insert_or_abort_json_rpc_history(
+        &self,
+        request_id: u64,
+        topic: Topic,
+        method: String,
+        body: String,
+        transport_type: Option<TransportType>,
+    ) -> Result<(), StorageError>;
+
+    fn update_json_rpc_history_response(
+        &self,
+        request_id: u64,
+        response: String,
+    ) -> Result<(), StorageError>;
+
+    fn delete_json_rpc_history(&self, topic: Topic) -> Result<(), StorageError>;
+
+    fn delete_json_rpc_history_by_request_id(
+        &self,
+        request_id: u64,
+    ) -> Result<(), StorageError>;
+
+    fn does_json_rpc_not_exist(&self, request_id: u64) -> Result<bool, StorageError>;
 }
 
 #[cfg_attr(feature = "uniffi", derive(uniffi::Error))]
