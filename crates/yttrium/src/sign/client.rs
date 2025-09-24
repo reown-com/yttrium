@@ -298,12 +298,13 @@ impl Client {
         // TODO validate namespaces: https://specs.walletconnect.com/2.0/specs/clients/sign/namespaces#12-proposal-namespaces-must-not-have-chains-empty
 
         let encrypted_hash = sha2::Sha256::digest(message.message.as_bytes());
-        let decrypted_hash = sha2::Sha256::digest(&decrypted);
+        let _decrypted_hash = sha2::Sha256::digest(&decrypted);
         let attestation = if let Some(attestation) = &message.attestation {
             let attestation = decode_attestation_into_verify_context(
                 &proposal.proposer.metadata.url,
                 attestation,
                 &public_key,
+                &hex::encode(encrypted_hash),
             )
             .map_err(|e| PairError::Internal(e.to_string()))?;
             Some(attestation)

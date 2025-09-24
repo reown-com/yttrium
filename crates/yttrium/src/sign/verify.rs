@@ -80,6 +80,7 @@ pub fn decode_attestation_into_verify_context(
     app_metadata_url: &str,
     attestation: &str,
     public_key: &Jwk,
+    encrypted_id: &str,
 ) -> Result<VerifyContext, jsonwebtoken::errors::Error> {
     let attestation = match jsonwebtoken::decode::<Attestation>(
         attestation,
@@ -96,6 +97,7 @@ pub fn decode_attestation_into_verify_context(
             });
         }
     };
+
     let app_origin = match Url::parse(app_metadata_url) {
         Ok(url) => url.origin().ascii_serialization(),
         Err(e) => {
@@ -103,20 +105,32 @@ pub fn decode_attestation_into_verify_context(
             return Ok(VerifyContext {
                 origin: None,
                 validation: VerifyValidation::Unknown,
-                is_scam: false,
+                is_scam: attestation.is_scam,
             });
         }
     };
 
+    if attestation.id != encrypted_id {
+        return Ok(VerifyContext {
+            origin: None,
+            validation: VerifyValidation::Unknown,
+            is_scam: attestation.is_scam,
+        });
+    }
+
+    if !attestation.is_verified {
+        return Ok(VerifyContext {
+            origin: None,
+            validation: VerifyValidation::Unknown,
+            is_scam: attestation.is_scam,
+        });
+    }
+
     Ok(VerifyContext {
-        validation: if attestation.is_verified {
-            if attestation.origin == app_origin {
-                VerifyValidation::Valid
-            } else {
-                VerifyValidation::Invalid
-            }
+        validation: if attestation.origin == app_origin {
+            VerifyValidation::Valid
         } else {
-            VerifyValidation::Unknown
+            VerifyValidation::Invalid
         },
         origin: Some(attestation.origin),
         is_scam: attestation.is_scam,
