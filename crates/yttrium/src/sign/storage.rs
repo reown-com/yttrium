@@ -42,7 +42,7 @@ pub trait Storage: Send + Sync {
     ) -> Result<(), StorageError>;
 
     // JSON-RPC History
-    fn insert_or_abort_json_rpc_history(
+    fn insert_json_rpc_history(
         &self,
         request_id: u64,
         topic: Topic,
@@ -57,14 +57,14 @@ pub trait Storage: Send + Sync {
         response: String,
     ) -> Result<(), StorageError>;
 
-    fn delete_json_rpc_history(&self, topic: Topic) -> Result<(), StorageError>;
+    fn delete_json_rpc_history_by_topic(&self, topic: Topic) -> Result<(), StorageError>;
 
     fn delete_json_rpc_history_by_request_id(
         &self,
         request_id: u64,
     ) -> Result<(), StorageError>;
 
-    fn does_json_rpc_not_exist(&self, request_id: u64) -> Result<bool, StorageError>;
+    fn does_json_rpc_exist(&self, request_id: u64) -> Result<bool, StorageError>;
 }
 
 #[cfg_attr(feature = "uniffi", derive(uniffi::Error))]
