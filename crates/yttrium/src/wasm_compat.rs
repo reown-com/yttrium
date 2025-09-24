@@ -15,9 +15,9 @@ use {
                 PrepareDetailedResponse, StatusError, UiFieldsError,
                 WaitForSuccessError,
             },
-            pulse::PulseMetadata,
             ui_fields::{RouteSig, UiFields},
         },
+        pulse::PulseMetadata,
     },
     std::time::Duration,
 };

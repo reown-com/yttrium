@@ -44,6 +44,7 @@ pub mod user_operation;
 pub mod utils;
 pub mod wallet_provider;
 pub mod wallet_service_api;
+pub mod pulse;
 
 #[cfg(test)]
 pub mod examples;

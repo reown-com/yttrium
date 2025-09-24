@@ -16,6 +16,7 @@ mod incoming;
 mod pairing_uri;
 mod priority_future;
 pub mod protocol_types;
+pub mod pulse;
 mod relay;
 mod relay_url;
 pub mod storage;
@@ -24,5 +25,4 @@ pub mod test_helpers;
 mod tests;
 pub mod utils;
 mod verify;
-
 pub use verify::{VerifyContext, VerifyValidation};
