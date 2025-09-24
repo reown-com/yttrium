@@ -250,8 +250,7 @@ async fn send_sponsored_txn(
         let additional_balance_required = total_fee - balance;
         println!("additional_balance_required: {additional_balance_required}");
         println!(
-            "using faucet (2) for {}:{} at {}",
-            provider_chain_id, from_address, additional_balance_required
+            "using faucet (2) for {provider_chain_id}:{from_address} at {additional_balance_required}",
         );
         use_faucet_gas(
             provider,
@@ -264,7 +263,7 @@ async fn send_sponsored_txn(
         println!("funded");
     }
 
-    println!("sending txn: {:?}", txn);
+    println!("sending txn: {txn:?}");
     let txn_sent = ProviderBuilder::new()
         .wallet(wallet.clone())
         .on_provider(provider)
@@ -392,7 +391,7 @@ async fn bridging_routes_routes_available() {
         .abi_encode()
         .into(),
     };
-    println!("input transaction: {:?}", transaction);
+    println!("input transaction: {transaction:?}");
 
     let project_id = std::env::var("REOWN_PROJECT_ID").unwrap().into();
     let client = Client::new(project_id, get_pulse_metadata());
@@ -641,7 +640,7 @@ async fn happy_path() {
     // Vias should be 0 before rest of test is run
     let via1 = chain_1_address_2_token.token_balance().await;
     let via2 = chain_2_address_1_token.token_balance().await;
-    println!("via balances: {} {}", via1, via2);
+    println!("via balances: {via1} {via2}");
     if !via1.is_zero() {
         println!("via1 txn sending");
         send_sponsored_txn(
@@ -718,7 +717,7 @@ async fn happy_path() {
         }
         _ => (true, Source::Left),
     };
-    println!("source: {:?}", source);
+    println!("source: {source:?}");
 
     if faucet_required {
         assert!(required_amount < U256::from(4000000));
@@ -760,7 +759,7 @@ async fn happy_path() {
         .abi_encode()
         .into(),
     };
-    println!("input transaction: {:?}", initial_transaction);
+    println!("input transaction: {initial_transaction:?}");
 
     let project_id = std::env::var("REOWN_PROJECT_ID").unwrap().into();
     let client = Client::new(project_id, get_pulse_metadata());
@@ -784,7 +783,7 @@ async fn happy_path() {
         .unwrap()
         .into_option()
         .unwrap();
-    println!("route result: {:?}", result);
+    println!("route result: {result:?}");
 
     // TODO it's possible this is only 1 transaction due to already being
     // approved: https://reown-inc.slack.com/archives/C0816SK4877/p1732813465413249?thread_ts=1732787456.681429&cid=C0816SK4877
@@ -847,7 +846,7 @@ async fn happy_path() {
             txn.clone(),
         )
         .await;
-        println!("total fee: {} for txn {:?}", fee, txn);
+        println!("total fee: {fee} for txn {txn:?}");
         total_fees
             .entry((
                 format!("eip155:{}", txn.chain_id.unwrap()),
@@ -931,7 +930,7 @@ async fn happy_path() {
                 .caip2(),
             )
             .await;
-        println!("sending txn: {:?}", txn);
+        println!("sending txn: {txn:?}");
         let txn_sent = ProviderBuilder::new()
             .wallet(EthereumWallet::new(
                 wallet_lookup.get(&txn.from.unwrap()).unwrap().clone(),
@@ -956,7 +955,7 @@ async fn happy_path() {
         )
         .await
         .unwrap();
-    println!("status: {:?}", status);
+    println!("status: {status:?}");
     println!("bridge success in {:?}", approval_start.elapsed());
 
     for (provider, pending_txn_hash) in pending_bridge_txn_hashes {
@@ -981,7 +980,7 @@ async fn happy_path() {
         )
         .await;
 
-    println!("sending txn: {:?}", original);
+    println!("sending txn: {original:?}");
     let txn_sent = ProviderBuilder::new()
         .wallet(EthereumWallet::new(
             wallet_lookup.get(&original.from.unwrap()).unwrap().clone(),
@@ -1193,7 +1192,7 @@ async fn happy_path_full_dependency_on_ui_fields() {
     // Vias should be 0 before rest of test is run
     let via1 = chain_1_address_2_token.token_balance().await;
     let via2 = chain_2_address_1_token.token_balance().await;
-    println!("via balances: {} {}", via1, via2);
+    println!("via balances: {via1} {via2}");
     if !via1.is_zero() {
         println!("via1 txn sending");
         send_sponsored_txn(
@@ -1270,7 +1269,7 @@ async fn happy_path_full_dependency_on_ui_fields() {
         }
         _ => (true, Source::Left),
     };
-    println!("source: {:?}", source);
+    println!("source: {source:?}");
 
     if faucet_required {
         assert!(required_amount < U256::from(4000000));
@@ -1312,7 +1311,7 @@ async fn happy_path_full_dependency_on_ui_fields() {
         .abi_encode()
         .into(),
     };
-    println!("input transaction: {:?}", initial_transaction);
+    println!("input transaction: {initial_transaction:?}");
 
     let initial_transaction_chain_id =
         source.other().bridge_token(&sources).params.chain.caip2().to_owned();
@@ -1333,7 +1332,7 @@ async fn happy_path_full_dependency_on_ui_fields() {
         .unwrap()
         .into_option()
         .unwrap();
-    println!("route result: {:?}", result);
+    println!("route result: {result:?}");
 
     // TODO it's possible this is only 1 transaction due to already being
     // approved: https://reown-inc.slack.com/archives/C0816SK4877/p1732813465413249?thread_ts=1732787456.681429&cid=C0816SK4877
@@ -1466,7 +1465,7 @@ async fn happy_path_full_dependency_on_ui_fields() {
             )
             .await;
 
-        println!("sending txn: {:?}", txn);
+        println!("sending txn: {txn:?}");
         let txn_sent = ProviderBuilder::new()
             .wallet(EthereumWallet::new(
                 wallet_lookup.get(&txn.from.unwrap()).unwrap().clone(),
@@ -1490,7 +1489,7 @@ async fn happy_path_full_dependency_on_ui_fields() {
         )
         .await
         .unwrap();
-    println!("status: {:?}", status);
+    println!("status: {status:?}");
     println!("bridge success in {:?}", approval_start.elapsed());
 
     for (provider, pending_txn_hash) in pending_bridge_txn_hashes {
@@ -1513,7 +1512,7 @@ async fn happy_path_full_dependency_on_ui_fields() {
 
     let original = ui_fields.initial.transaction.into_transaction_request();
 
-    println!("sending txn: {:?}", original);
+    println!("sending txn: {original:?}");
     let txn_sent = ProviderBuilder::new()
         .wallet(EthereumWallet::new(
             wallet_lookup.get(&original.from.unwrap()).unwrap().clone(),
@@ -1741,7 +1740,7 @@ async fn happy_path_execute_method() {
         })
         .await
         .unwrap();
-    println!("assets: {:?}", assets);
+    println!("assets: {assets:?}");
     println!(
         "chain_1_address_1_token: {}",
         chain_1_address_1_token.token_balance().await
@@ -1788,7 +1787,7 @@ async fn happy_path_execute_method() {
         })
         .await
         .unwrap();
-    println!("assets: {:?}", assets);
+    println!("assets: {assets:?}");
     println!(
         "chain_1_address_2_token: {}",
         chain_1_address_2_token.token_balance().await
@@ -1802,12 +1801,10 @@ async fn happy_path_execute_method() {
     let chain_2_address_2_token_balance =
         chain_2_address_2_token.token_balance().await;
     println!(
-        "chain_1_address_2_token (second): {}",
-        chain_1_address_2_token_balance
+        "chain_1_address_2_token (second): {chain_1_address_2_token_balance}"
     );
     println!(
-        "chain_2_address_2_token (second): {}",
-        chain_2_address_2_token_balance
+        "chain_2_address_2_token (second): {chain_2_address_2_token_balance}"
     );
     assert_eq!(
         assets
@@ -1836,7 +1833,7 @@ async fn happy_path_execute_method() {
     // Vias should be 0 before rest of test is run
     let via1 = chain_1_address_2_token.token_balance().await;
     let via2 = chain_2_address_1_token.token_balance().await;
-    println!("via balances: {} {}", via1, via2);
+    println!("via balances: {via1} {via2}");
     if !via1.is_zero() {
         println!("via1 txn sending");
         send_sponsored_txn(
@@ -1913,9 +1910,9 @@ async fn happy_path_execute_method() {
         }
         _ => (true, Source::Left),
     };
-    println!("source: {:?}", source);
+    println!("source: {source:?}");
 
-    println!("required_amount: {}", required_amount);
+    println!("required_amount: {required_amount}");
     if faucet_required {
         assert!(required_amount < U256::from(5000000));
         println!(
@@ -1981,14 +1978,14 @@ async fn happy_path_execute_method() {
         .abi_encode()
         .into(),
     };
-    println!("input transaction: {:?}", initial_transaction);
+    println!("input transaction: {initial_transaction:?}");
 
     let initial_transaction_chain_id =
         source.other().bridge_token(&sources).params.chain.caip2().to_owned();
-    println!("initial_transaction_chain_id: {}", initial_transaction_chain_id);
+    println!("initial_transaction_chain_id: {initial_transaction_chain_id}");
 
     let initial_transaction_from = source.address(&sources);
-    println!("initial_transaction_from: {}", initial_transaction_from);
+    println!("initial_transaction_from: {initial_transaction_from}");
 
     // Wait for cache invalidation on balance call
     tokio::time::sleep(Duration::from_secs(30)).await;
@@ -2006,7 +2003,7 @@ async fn happy_path_execute_method() {
         })
         .await
         .unwrap();
-    println!("assets: {:?}", assets);
+    println!("assets: {assets:?}");
     assert_eq!(
         assets
             .get(&U64::from(
@@ -2042,7 +2039,7 @@ async fn happy_path_execute_method() {
         .unwrap()
         .into_option()
         .unwrap();
-    println!("route result: {:?}", result);
+    println!("route result: {result:?}");
 
     // TODO it's possible this is only 1 transaction due to already being
     // approved: https://reown-inc.slack.com/archives/C0816SK4877/p1732813465413249?thread_ts=1732787456.681429&cid=C0816SK4877
@@ -2333,7 +2330,7 @@ async fn bridging_routes_routes_insufficient_funds() {
         .abi_encode()
         .into(),
     };
-    println!("input transaction: {:?}", transaction);
+    println!("input transaction: {transaction:?}");
 
     let project_id = std::env::var("REOWN_PROJECT_ID").unwrap().into();
     let client = Client::new(project_id, get_pulse_metadata());
@@ -2521,7 +2518,7 @@ async fn happy_path_lifi() {
         })
         .await
         .unwrap();
-    println!("assets: {:?}", assets);
+    println!("assets: {assets:?}");
     assert_eq!(
         assets
             .get(&U64::from(
@@ -2562,7 +2559,7 @@ async fn happy_path_lifi() {
         })
         .await
         .unwrap();
-    println!("assets: {:?}", assets);
+    println!("assets: {assets:?}");
     assert_eq!(
         assets
             .get(&U64::from(
@@ -2591,7 +2588,7 @@ async fn happy_path_lifi() {
     // Vias should be 0 before rest of test is run
     let via1 = chain_1_address_2_token.token_balance().await;
     let via2 = chain_2_address_1_token.token_balance().await;
-    println!("via balances: {} {}", via1, via2);
+    println!("via balances: {via1} {via2}");
     if !via1.is_zero() {
         println!("via1 txn sending");
         send_sponsored_txn(
@@ -2668,9 +2665,9 @@ async fn happy_path_lifi() {
         }
         _ => (true, Source::Left),
     };
-    println!("source: {:?}", source);
+    println!("source: {source:?}");
 
-    println!("required_amount: {}", required_amount);
+    println!("required_amount: {required_amount}");
     if faucet_required {
         assert!(required_amount < U256::from(5000000));
         println!(
@@ -2711,14 +2708,14 @@ async fn happy_path_lifi() {
         .abi_encode()
         .into(),
     };
-    println!("input transaction: {:?}", initial_transaction);
+    println!("input transaction: {initial_transaction:?}");
 
     let initial_transaction_chain_id =
         source.other().bridge_token(&sources).params.chain.caip2().to_owned();
-    println!("initial_transaction_chain_id: {}", initial_transaction_chain_id);
+    println!("initial_transaction_chain_id: {initial_transaction_chain_id}");
 
     let initial_transaction_from = source.address(&sources);
-    println!("initial_transaction_from: {}", initial_transaction_from);
+    println!("initial_transaction_from: {initial_transaction_from}");
 
     // Wait for cache invalidation on balance call
     tokio::time::sleep(Duration::from_secs(30)).await;
@@ -2736,7 +2733,7 @@ async fn happy_path_lifi() {
         })
         .await
         .unwrap();
-    println!("assets: {:?}", assets);
+    println!("assets: {assets:?}");
     assert_eq!(
         assets
             .get(&U64::from(
@@ -2772,7 +2769,7 @@ async fn happy_path_lifi() {
         .unwrap()
         .into_option()
         .unwrap();
-    println!("route result: {:?}", result);
+    println!("route result: {result:?}");
 
     // TODO it's possible this is only 1 transaction due to already being
     // approved: https://reown-inc.slack.com/archives/C0816SK4877/p1732813465413249?thread_ts=1732787456.681429&cid=C0816SK4877

@@ -132,12 +132,11 @@ impl AccountClient {
             .wait_for_user_operation_receipt(user_operation_hash)
             .await?;
 
-        println!("Received User Operation receipt: {:?}", receipt);
+        println!("Received User Operation receipt: {receipt:?}");
 
         let tx_hash = receipt.clone().receipt.transaction_hash;
         println!(
-            "UserOperation included: https://sepolia.etherscan.io/tx/{}",
-            tx_hash
+            "UserOperation included: https://sepolia.etherscan.io/tx/{tx_hash}"
         );
         Ok(receipt)
     }

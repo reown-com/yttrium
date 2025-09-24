@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/kotlin-ffi", "crates/yttrium", "crates/yttrium_dart/rust"]
+members = ["crates/kotlin-ffi", "crates/rust-sample-wallet", "crates/yttrium"]
 resolver = "2"
 
 [workspace.package]
@@ -15,6 +15,7 @@ thiserror = { version = "1.0", default-features = false }
 
 # Async
 tokio = { version = "1.44", default-features = false }
+tokio-util = { version = "0.7.16", default-features = false }
 futures = { version = "0.3.31", default-features = false }
 
 wasmtimer = { version = "0.4.1", default-features = false, features = [
@@ -36,7 +37,12 @@ log = { version = "0.4.20", default-features = false }
 alloy = { version = "0.11.1", default-features = false }
 alloy-provider = { version = "0.11.1", default-features = false }
 erc6492 = { git = "https://github.com/reown-com/erc6492.git", branch = "chore/bump-alloy", default-features = false }
-relay_rpc = { git = "https://github.com/WalletConnect/WalletConnectRust.git", rev = "51e984e", default-features = false }
+relay_rpc = { git = "https://github.com/WalletConnect/WalletConnectRust.git", rev = "b2ebad0", default-features = false }
+
+# Sign Client
+tokio-tungstenite = { version = "0.27.0", default-features = false }
+web-sys = { version = "0.3.77", default-features = false }
+chacha20poly1305 = { version = "0.11.0-pre.2", default-features = false }
 
 serial_test = { version = "3.2.0", default-features = false }
 
@@ -66,7 +72,7 @@ sui_types = { git = "https://github.com/mystenlabs/sui", package = "sui-types", 
 sui_keys = { git = "https://github.com/mystenlabs/sui", package = "sui-keys", default-features = false }
 sui_shared_crypto = { git = "https://github.com/mystenlabs/sui", package = "shared-crypto", default-features = false }
 # https://github.com/MystenLabs/sui/blob/7214872434b3b0578fccc4d3e468371855a4ecf8/Cargo.toml#L624C1-L624C116
-fastcrypto = { git = "https://github.com/MystenLabs/fastcrypto", rev = "69d496c71fb37e3d22fe85e5bbfd4256d61422b9", default-features = false }
+fastcrypto = { git = "https://github.com/MystenLabs/fastcrypto", rev = "16fa86d0dd943024a9088d46850a72ecd55b7f46", default-features = false }
 rand = { version = "0.8.5", default-features = false }
 bcs = { version = "0.1.4", default-features = false }
 tiny-bip39 = { version = "1.0.0", default-features = false }

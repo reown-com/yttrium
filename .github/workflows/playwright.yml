@@ -1,0 +1,38 @@
+name: Playwright Tests
+on:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  test:
+    timeout-minutes: 60
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-node@v4
+      with:
+        node-version: lts/*
+    - run: rustup target add wasm32-unknown-unknown
+    - name: Install dependencies
+      run: npm ci
+      working-directory: crates/rust-sample-wallet
+    - run: cargo install trunk
+    - name: Install Playwright Browsers
+      run: npx playwright install --with-deps
+      working-directory: crates/rust-sample-wallet
+    - name: Build app
+      run: trunk build
+      env:
+        REOWN_PROJECT_ID: ${{ vars.REOWN_PROJECT_ID }}
+      working-directory: crates/rust-sample-wallet
+    - name: Run Playwright tests
+      run: npx playwright test
+      working-directory: crates/rust-sample-wallet
+      env:
+        REOWN_PROJECT_ID: ${{ vars.REOWN_PROJECT_ID }}
+    - uses: actions/upload-artifact@v4
+      if: ${{ !cancelled() }}
+      with:
+        name: playwright-report
+        path: crates/rust-sample-wallet/playwright-report/
+        retention-days: 30

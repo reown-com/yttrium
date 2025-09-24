@@ -87,7 +87,7 @@ impl Client {
         let client = match client {
             Ok(client) => client,
             Err(e) => {
-                panic!("Failed to create reqwest client: {} ... {:?}", e, e)
+                panic!("Failed to create reqwest client: {e} ... {e:?}")
             }
         };
         Self {
@@ -701,12 +701,11 @@ impl Client {
                             .await
                         {
                             Ok(signature) => println!(
-                                "Transfer successful! Signature: {}",
-                                signature
+                                "Transfer successful! Signature: {signature}"
                             ),
                             Err(e) => {
                                 // TODO handle error without panic
-                                panic!("Error sending transaction: {}", e)
+                                panic!("Error sending transaction: {e}")
                             }
                         }
                     }

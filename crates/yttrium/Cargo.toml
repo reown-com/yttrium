@@ -21,7 +21,19 @@ full = ["all_platforms", "all_clients", "all_namespaces"]
 all_platforms = ["android", "ios", "wasm"]
 ios = ["uniffi"]
 android = ["uniffi", "dep:rustls-platform-verifier", "dep:jni"]
-uniffi = ["dep:uniffi", "dep:uniffi_macros", "reqwest/default-tls"]
+uniffi = [
+    "dep:uniffi",
+    "dep:uniffi_macros",
+    "reqwest/default-tls",
+    "native",
+    "dep:tracing-subscriber",
+]
+native = [
+    "dep:tokio-tungstenite",
+    "tokio-tungstenite/connect",
+    "tokio-tungstenite/handshake",
+    "tokio-tungstenite/native-tls",
+]
 wasm = [
     "dep:wasm-bindgen",
     "dep:wasm-bindgen-futures",
@@ -32,6 +44,10 @@ wasm = [
     "getrandom2/js",
     "uuid/js",
     "dep:wasmtimer",
+    "dep:web-sys",
+    "web-sys/WebSocket",
+    "web-sys/CloseEvent",
+    "web-sys/MessageEvent",
 ]
 
 all_namespaces = ["eip155", "solana", "sui", "stacks"]
@@ -55,12 +71,7 @@ sui = [
     "dep:bcs",
     "dep:tiny-bip39",
 ]
-stacks = [
-    "dep:stacks-rs",
-    "dep:bip32",
-    "dep:stacks_secp256k1",
-    "dep:rand",
-]
+stacks = ["dep:stacks-rs", "dep:bip32", "dep:stacks_secp256k1", "dep:rand"]
 
 # Features contributing to bundle size, that you might not need
 all_clients = [
@@ -68,11 +79,22 @@ all_clients = [
     "erc6492_client",
     "chain_abstraction_client",
     "transaction_sponsorship_client",
+    "sign_client",
 ]
 account_client = []
 erc6492_client = []
 chain_abstraction_client = []
 transaction_sponsorship_client = []
+sign_client = [
+    "dep:futures-concurrency",
+    "dep:chacha20poly1305",
+    "dep:rand",
+    "dep:data-encoding",
+    "dep:x25519-dalek",
+    "dep:hkdf",
+    "dep:sha2",
+    "dep:tokio-util",
+]
 
 # Features enabling test coverage
 test_full = [
@@ -126,7 +148,8 @@ eyre.workspace = true
 thiserror.workspace = true
 
 # Async
-tokio = { workspace = true, features = ["rt"] }
+tokio = { workspace = true, default-features = false, features = ["rt"] }
+tokio-util = { workspace = true, optional = true, default-features = false }
 futures.workspace = true
 
 # Serialization
@@ -140,7 +163,11 @@ dotenvy = { version = "0.15.7", default-features = false }
 hex = { version = "0.4.3", features = ["std"], default-features = false }
 async-trait = { version = "0.1.83", default-features = false }
 tracing = { version = "0.1.40", default-features = false, features = [
-    "release_max_level_warn",
+    "release_max_level_debug",
+] }
+tracing-subscriber = { version = "0.3.19", default-features = false, optional = true, features = [
+    "fmt",
+    "std",
 ] }
 # fastlz-rs = { version = "0.0.3", features = ["std"], default-features = false }
 
@@ -178,12 +205,35 @@ bcs = { workspace = true, optional = true }
 tiny-bip39 = { workspace = true, optional = true }
 
 # Stacks
-stacks-rs = { workspace = true, optional = true, features = ["crypto", "wallet-sdk", "transaction", "clarity"] }
+stacks-rs = { workspace = true, optional = true, features = [
+    "crypto",
+    "wallet-sdk",
+    "transaction",
+    "clarity",
+] }
 bip32 = { workspace = true, optional = true }
-stacks_secp256k1 = { workspace = true, optional = true, features = ["hashes", "recovery"] }
+stacks_secp256k1 = { workspace = true, optional = true, features = [
+    "hashes",
+    "recovery",
+] }
 num-bigint = "0.4.6"
 
 rand = { workspace = true, optional = true }
+
+# Sign Client
+futures-concurrency = { version = "7.6.3", optional = true }
+tokio-tungstenite = { workspace = true, optional = true }
+web-sys = { workspace = true, optional = true }
+chacha20poly1305 = { workspace = true, optional = true, features = [
+    "alloc",
+    "os_rng",
+] }
+x25519-dalek = { version = "3.0.0-pre.0", features = [
+    "static_secrets",
+    "os_rng",
+], optional = true }
+hkdf = { version = "0.13.0-rc.0", optional = true }
+sha2 = { version = "0.11.0-rc.0", optional = true }
 
 [dev-dependencies]
 # mocking
@@ -196,6 +246,8 @@ test-log = { version = "0.2.17", default-features = false, features = [
 reqwest.workspace = true
 alloy = { workspace = true, features = ["node-bindings", "reqwest"] }
 serial_test.workspace = true
+chacha20poly1305 = { workspace = true, features = ["alloc", "os_rng"] }
+data-encoding = { workspace = true }
 
 [package.metadata.wasm-pack.profile.release]
 wasm-opt = ['-Oz']
