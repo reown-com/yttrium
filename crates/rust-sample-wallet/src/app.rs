@@ -576,7 +576,8 @@ pub fn App() -> impl IntoView {
                                             }
                                             IncomingSessionMessage::SessionEvent(topic, name, data, chain_id) => {
                                                 tracing::info!(
-                                                    "session event on topic: {topic}: name={name}, chainId={chain_id}, data={data}",
+                                                    "session event on topic: {topic}: name={name}, chainId={chain_id}, data={:?}",
+                                                    data
                                                 );
                                             }
                                             IncomingSessionMessage::SessionUpdate(id, topic, params) => {

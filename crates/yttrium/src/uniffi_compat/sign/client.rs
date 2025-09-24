@@ -126,16 +126,11 @@ impl SignClient {
                             listener
                                 .on_session_disconnect(id, topic.to_string());
                         }
-                        IncomingSessionMessage::SessionEvent(
-                            topic,
-                            name,
-                            data,
-                            chain_id,
-                        ) => {
+                        IncomingSessionMessage::SessionEvent(topic, name, data, chain_id) => {
                             listener.on_session_event(
                                 topic.to_string(),
                                 name,
-                                data,
+                                serde_json::to_string(&data).unwrap_or_default(),
                                 chain_id,
                             );
                         }

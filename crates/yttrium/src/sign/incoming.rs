@@ -272,10 +272,7 @@ pub fn handle(
                 })?;
 
             let name = params.event.name;
-            let data_str =
-                serde_json::to_string(&params.event.data).map_err(|e| {
-                    HandleError::Client(format!("serialize event data: {e}"))
-                })?;
+            let data_value = params.event.data;
             let chain_id = params.chain_id;
 
             session_request_tx
@@ -284,7 +281,7 @@ pub fn handle(
                     IncomingSessionMessage::SessionEvent(
                         sub_msg.data.topic,
                         name,
-                        data_str,
+                        data_value,
                         chain_id,
                     ),
                 ))
