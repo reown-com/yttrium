@@ -122,6 +122,31 @@ impl Storage for MySessionStore {
         inner.partial_sessions.insert(topic, sym_key);
         Ok(())
     }
+
+    fn insert_json_rpc_history(
+        &self,
+        request_id: u64,
+        topic: String,
+        method: String,
+        body: String,
+        transport_type: Option<TransportType>,
+    ) -> Result<(), StorageError>;
+
+    fn update_json_rpc_history_response(
+        &self,
+        request_id: u64,
+        response: String,
+    ) -> Result<(), StorageError>;
+
+    fn delete_json_rpc_history_by_topic(
+        &self,
+        topic: String,
+    ) -> Result<(), StorageError>;
+
+    fn does_json_rpc_exist(
+        &self,
+        request_id: u64,
+    ) -> Result<bool, StorageError>;
 }
 
 #[tokio::test]
