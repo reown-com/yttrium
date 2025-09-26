@@ -59,15 +59,20 @@ pub trait StorageFfi: Send + Sync {
         response: String,
     ) -> Result<(), StorageError>;
 
-    fn delete_json_rpc_history_by_topic(&self, topic: String) -> Result<(), StorageError>;
+    fn delete_json_rpc_history_by_topic(
+        &self,
+        topic: String,
+    ) -> Result<(), StorageError>;
 
     fn delete_json_rpc_history_by_request_id(
         &self,
         request_id: u64,
     ) -> Result<(), StorageError>;
 
-    fn does_json_rpc_exist(&self, request_id: u64) -> Result<bool, StorageError>;
-
+    fn does_json_rpc_exist(
+        &self,
+        request_id: u64,
+    ) -> Result<bool, StorageError>;
 }
 
 pub struct StorageFfiProxy(pub Arc<dyn StorageFfi>);
@@ -167,7 +172,10 @@ impl Storage for StorageFfiProxy {
         self.0.update_json_rpc_history_response(request_id, response)
     }
 
-    fn delete_json_rpc_history_by_topic(&self, topic: Topic) -> Result<(), StorageError> {
+    fn delete_json_rpc_history_by_topic(
+        &self,
+        topic: Topic,
+    ) -> Result<(), StorageError> {
         self.0.delete_json_rpc_history_by_topic(topic.to_string())
     }
 
@@ -178,7 +186,10 @@ impl Storage for StorageFfiProxy {
         self.0.delete_json_rpc_history_by_request_id(request_id)
     }
 
-    fn does_json_rpc_exist(&self, request_id: u64) -> Result<bool, StorageError> {
+    fn does_json_rpc_exist(
+        &self,
+        request_id: u64,
+    ) -> Result<bool, StorageError> {
         self.0.does_json_rpc_exist(request_id)
     }
 }

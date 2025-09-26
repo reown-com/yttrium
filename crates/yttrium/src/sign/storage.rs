@@ -57,14 +57,20 @@ pub trait Storage: Send + Sync {
         response: String,
     ) -> Result<(), StorageError>;
 
-    fn delete_json_rpc_history_by_topic(&self, topic: Topic) -> Result<(), StorageError>;
+    fn delete_json_rpc_history_by_topic(
+        &self,
+        topic: Topic,
+    ) -> Result<(), StorageError>;
 
     fn delete_json_rpc_history_by_request_id(
         &self,
         request_id: u64,
     ) -> Result<(), StorageError>;
 
-    fn does_json_rpc_exist(&self, request_id: u64) -> Result<bool, StorageError>;
+    fn does_json_rpc_exist(
+        &self,
+        request_id: u64,
+    ) -> Result<bool, StorageError>;
 }
 
 #[cfg_attr(feature = "uniffi", derive(uniffi::Error))]
