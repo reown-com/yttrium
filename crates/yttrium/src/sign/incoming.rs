@@ -95,18 +95,12 @@ pub fn handle(
                         ))
                     })?;
                 if !exists {
-                    let body =
-                        serde_json::to_string_pretty(&value).map_err(|e| {
-                            HandleError::Client(format!(
-                                "serialize wc_sessionSettle: {e}"
-                            ))
-                        })?;
                     session_store
                         .insert_json_rpc_history(
                             request_id,
                             sub_msg.data.topic.clone(),
                             "wc_sessionSettle".to_string(),
-                            body,
+                            value.to_string(),
                             Some(TransportType::Relay),
                         )
                         .map_err(|e| {
@@ -198,18 +192,12 @@ pub fn handle(
                         ))
                     })?;
                 if !exists {
-                    let body =
-                        serde_json::to_string_pretty(&value).map_err(|e| {
-                            HandleError::Client(format!(
-                                "serialize wc_sessionRequest: {e}"
-                            ))
-                        })?;
                     session_store
                         .insert_json_rpc_history(
                             request_id,
                             sub_msg.data.topic.clone(),
                             "wc_sessionRequest".to_string(),
-                            body,
+                            value.to_string(),
                             Some(TransportType::Relay),
                         )
                         .map_err(|e| {
@@ -252,18 +240,12 @@ pub fn handle(
                         ))
                     })?;
                 if !exists {
-                    let body =
-                        serde_json::to_string_pretty(&value).map_err(|e| {
-                            HandleError::Client(format!(
-                                "serialize wc_sessionUpdate: {e}"
-                            ))
-                        })?;
                     session_store
                         .insert_json_rpc_history(
                             request_id,
                             sub_msg.data.topic.clone(),
                             "wc_sessionUpdate".to_string(),
-                            body,
+                            value.to_string(),
                             Some(TransportType::Relay),
                         )
                         .map_err(|e| {
@@ -323,18 +305,12 @@ pub fn handle(
                         ))
                     })?;
                 if !exists {
-                    let body =
-                        serde_json::to_string_pretty(&value).map_err(|e| {
-                            HandleError::Client(format!(
-                                "serialize wc_sessionExtend: {e}"
-                            ))
-                        })?;
                     session_store
                         .insert_json_rpc_history(
                             request_id,
                             sub_msg.data.topic.clone(),
                             "wc_sessionExtend".to_string(),
-                            body,
+                            value.to_string(),
                             Some(TransportType::Relay),
                         )
                         .map_err(|e| {
@@ -413,18 +389,12 @@ pub fn handle(
                         ))
                     })?;
                 if !exists {
-                    let body =
-                        serde_json::to_string_pretty(&value).map_err(|e| {
-                            HandleError::Client(format!(
-                                "serialize wc_sessionEvent: {e}"
-                            ))
-                        })?;
                     session_store
                         .insert_json_rpc_history(
                             request_id,
                             sub_msg.data.topic.clone(),
                             "wc_sessionEvent".to_string(),
-                            body,
+                            value.to_string(),
                             Some(TransportType::Relay),
                         )
                         .map_err(|e| {
@@ -482,18 +452,12 @@ pub fn handle(
                         ))
                     })?;
                 if !exists {
-                    let body =
-                        serde_json::to_string_pretty(&value).map_err(|e| {
-                            HandleError::Client(format!(
-                                "serialize wc_sessionDelete: {e}"
-                            ))
-                        })?;
                     session_store
                         .insert_json_rpc_history(
                             request_id,
                             sub_msg.data.topic.clone(),
                             "wc_sessionDelete".to_string(),
-                            body,
+                            value.to_string(),
                             Some(TransportType::Relay),
                         )
                         .map_err(|e| {
@@ -541,17 +505,9 @@ pub fn handle(
                         HandleError::Internal(format!("get pairing: {e}"))
                     })?;
                 if let Some(StoragePairing { sym_key: _, self_key }) = pairing {
-                    // Serialize full JSON before moving `value` for parsing
-                    let proposal_response_json =
-                        serde_json::to_string_pretty(&value).map_err(|e| {
-                            HandleError::Client(format!(
-                                "serialize proposal response: {e}"
-                            ))
-                        })?;
-
                     let response = serde_json::from_value::<
                         SessionProposalJsonRpcResponse,
-                    >(value)
+                    >(value.clone())
                     .map_err(|e| {
                         HandleError::Client(format!(
                             "parse proposal response: {e}"
@@ -568,7 +524,7 @@ pub fn handle(
                             session_store
                                 .update_json_rpc_history_response(
                                     rpc_id,
-                                    proposal_response_json,
+                                    value.to_string(),
                                 )
                                 .map_err(|e| {
                                     HandleError::Internal(format!(
@@ -596,7 +552,7 @@ pub fn handle(
                     session_store
                         .update_json_rpc_history_response(
                             rpc_id,
-                            proposal_response_json,
+                            value.to_string(),
                         )
                         .map_err(|e| {
                             HandleError::Internal(format!(
@@ -652,19 +608,11 @@ pub fn handle(
                     }
                     Ok(())
                 } else if sub_msg.data.tag == 1109 {
-                    // Serialize full JSON before moving `value` for parsing
-                    let session_request_response_json =
-                        serde_json::to_string_pretty(&value).map_err(|e| {
-                            HandleError::Client(format!(
-                                "serialize session request response: {e}"
-                            ))
-                        })?;
-
                     let response = if value.get("error").is_some() {
                         // Parse as error response
                         let error_response = serde_json::from_value::<
                             SessionRequestJsonRpcErrorResponse,
-                        >(value)
+                        >(value.clone())
                         .map_err(|e| {
                             HandleError::Client(format!(
                                 "parse session request response: {e}"
@@ -675,7 +623,7 @@ pub fn handle(
                         // Parse as result response
                         let result_response = serde_json::from_value::<
                             SessionRequestJsonRpcResultResponse,
-                        >(value)
+                        >(value.clone())
                         .map_err(|e| {
                             HandleError::Client(format!(
                                 "parse session request response: {e}"
@@ -700,7 +648,7 @@ pub fn handle(
                     session_store
                         .update_json_rpc_history_response(
                             rpc_id,
-                            session_request_response_json,
+                            value.to_string(),
                         )
                         .map_err(|e| {
                             HandleError::Internal(format!(
