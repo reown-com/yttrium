@@ -161,6 +161,7 @@ dotenvy = { version = "0.15.7", default-features = false }
 
 # Other
 hex = { version = "0.4.3", features = ["std"], default-features = false }
+tiny-keccak = { version = "2.0", features = ["keccak"] }
 async-trait = { version = "0.1.83", default-features = false }
 tracing = { version = "0.1.40", default-features = false, features = [
     "release_max_level_debug",
@@ -216,6 +217,7 @@ stacks_secp256k1 = { workspace = true, optional = true, features = [
     "hashes",
     "recovery",
 ] }
+time = { version = "0.3.36", default-features = false, features = ["formatting", "macros", "std"] }
 num-bigint = "0.4.6"
 
 rand = { workspace = true, optional = true }
