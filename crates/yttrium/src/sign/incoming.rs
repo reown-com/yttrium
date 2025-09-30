@@ -98,7 +98,7 @@ pub fn handle(
                     session_store
                         .insert_json_rpc_history(
                             request_id,
-                            sub_msg.data.topic.clone(),
+                            sub_msg.data.topic.to_string(),
                             "wc_sessionSettle".to_string(),
                             value.to_string(),
                             Some(TransportType::Relay),
@@ -195,7 +195,7 @@ pub fn handle(
                     session_store
                         .insert_json_rpc_history(
                             request_id,
-                            sub_msg.data.topic.clone(),
+                            sub_msg.data.topic.to_string(),
                             "wc_sessionRequest".to_string(),
                             value.to_string(),
                             Some(TransportType::Relay),
@@ -243,7 +243,7 @@ pub fn handle(
                     session_store
                         .insert_json_rpc_history(
                             request_id,
-                            sub_msg.data.topic.clone(),
+                            sub_msg.data.topic.to_string(),
                             "wc_sessionUpdate".to_string(),
                             value.to_string(),
                             Some(TransportType::Relay),
@@ -308,7 +308,7 @@ pub fn handle(
                     session_store
                         .insert_json_rpc_history(
                             request_id,
-                            sub_msg.data.topic.clone(),
+                            sub_msg.data.topic.to_string(),
                             "wc_sessionExtend".to_string(),
                             value.to_string(),
                             Some(TransportType::Relay),
@@ -392,7 +392,7 @@ pub fn handle(
                     session_store
                         .insert_json_rpc_history(
                             request_id,
-                            sub_msg.data.topic.clone(),
+                            sub_msg.data.topic.to_string(),
                             "wc_sessionEvent".to_string(),
                             value.to_string(),
                             Some(TransportType::Relay),
@@ -455,7 +455,7 @@ pub fn handle(
                     session_store
                         .insert_json_rpc_history(
                             request_id,
-                            sub_msg.data.topic.clone(),
+                            sub_msg.data.topic.to_string(),
                             "wc_sessionDelete".to_string(),
                             value.to_string(),
                             Some(TransportType::Relay),
@@ -610,25 +610,27 @@ pub fn handle(
                 } else if sub_msg.data.tag == 1109 {
                     let response = if value.get("error").is_some() {
                         // Parse as error response
-                        let error_response = serde_json::from_value::<
-                            SessionRequestJsonRpcErrorResponse,
-                        >(value.clone())
-                        .map_err(|e| {
-                            HandleError::Client(format!(
-                                "parse session request response: {e}"
-                            ))
-                        })?;
+                        let error_response =
+                            serde_json::from_value::<
+                                SessionRequestJsonRpcErrorResponse,
+                            >(value.clone())
+                            .map_err(|e| {
+                                HandleError::Client(format!(
+                                    "parse session request response: {e}"
+                                ))
+                            })?;
                         SessionRequestJsonRpcResponse::Error(error_response)
                     } else {
                         // Parse as result response
-                        let result_response = serde_json::from_value::<
-                            SessionRequestJsonRpcResultResponse,
-                        >(value.clone())
-                        .map_err(|e| {
-                            HandleError::Client(format!(
-                                "parse session request response: {e}"
-                            ))
-                        })?;
+                        let result_response =
+                            serde_json::from_value::<
+                                SessionRequestJsonRpcResultResponse,
+                            >(value.clone())
+                            .map_err(|e| {
+                                HandleError::Client(format!(
+                                    "parse session request response: {e}"
+                                ))
+                            })?;
                         SessionRequestJsonRpcResponse::Result(result_response)
                     };
                     if let Err(e) = session_request_tx.send((

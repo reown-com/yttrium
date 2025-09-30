@@ -254,7 +254,7 @@ impl Client {
                 } else {
                     self.session_store.insert_json_rpc_history(
                         request.id,
-                        pairing_uri.topic.clone(),
+                        pairing_uri.topic.to_string(),
                         request.method.clone(),
                         request_json,
                         Some(TransportType::Relay),
@@ -370,7 +370,7 @@ impl Client {
 
         self.session_store.insert_json_rpc_history(
             rpc_id,
-            pairing_info.topic.clone(),
+            pairing_info.topic.to_string(),
             "wc_sessionPropose".to_string(),
             session_proposal_params_json,
             Some(TransportType::Relay),
@@ -550,7 +550,7 @@ impl Client {
                 //Store SessionSettle Request
                 self.session_store.insert_json_rpc_history(
                     session_settlement_request_id,
-                    session.topic.clone(),
+                    session.topic.to_string(),
                     "wc_sessionSettle".to_string(),
                     session_settlement_request_params_json,
                     Some(TransportType::Relay),
@@ -710,7 +710,7 @@ impl Client {
 
         self.session_store.insert_json_rpc_history(
             rpc.id,
-            topic.clone(),
+            topic.to_string(),
             rpc.method,
             session_request_params_json,
             Some(TransportType::Relay),
@@ -850,7 +850,7 @@ impl Client {
 
         self.session_store.insert_json_rpc_history(
             id,
-            topic.clone(),
+            topic.to_string(),
             "wc_sessionUpdate".to_string(),
             namespaces_params_json,
             Some(TransportType::Relay),
@@ -920,7 +920,7 @@ impl Client {
 
         self.session_store.insert_json_rpc_history(
             id,
-            topic.clone(),
+            topic.to_string(),
             "wc_sessionExtend".to_string(),
             expiry_rpc_json,
             Some(TransportType::Relay),
@@ -990,7 +990,7 @@ impl Client {
 
         self.session_store.insert_json_rpc_history(
             id,
-            topic.clone(),
+            topic.to_string(),
             "wc_sessionEvent".to_string(),
             event_json,
             Some(TransportType::Relay),
@@ -1045,7 +1045,7 @@ impl Client {
 
             self.session_store.insert_json_rpc_history(
                 id,
-                topic.clone(),
+                topic.to_string(),
                 "wc_sessionDelete".to_string(),
                 delete_json,
                 Some(TransportType::Relay),

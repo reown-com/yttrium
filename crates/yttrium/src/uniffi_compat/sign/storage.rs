@@ -145,14 +145,14 @@ impl Storage for StorageFfiProxy {
     fn insert_json_rpc_history(
         &self,
         request_id: u64,
-        topic: Topic,
+        topic: String,
         method: String,
         body: String,
         transport_type: Option<TransportType>,
     ) -> Result<(), StorageError> {
         self.0.insert_json_rpc_history(
             request_id,
-            topic.to_string(),
+            topic,
             method,
             body,
             transport_type,
@@ -169,9 +169,9 @@ impl Storage for StorageFfiProxy {
 
     fn delete_json_rpc_history_by_topic(
         &self,
-        topic: Topic,
+        topic: String,
     ) -> Result<(), StorageError> {
-        self.0.delete_json_rpc_history_by_topic(topic.to_string())
+        self.0.delete_json_rpc_history_by_topic(topic)
     }
 
     fn does_json_rpc_exist(

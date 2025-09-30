@@ -45,7 +45,7 @@ pub trait Storage: Send + Sync {
     fn insert_json_rpc_history(
         &self,
         request_id: u64,
-        topic: Topic,
+        topic: String,
         method: String,
         body: String,
         transport_type: Option<TransportType>,
@@ -59,7 +59,7 @@ pub trait Storage: Send + Sync {
 
     fn delete_json_rpc_history_by_topic(
         &self,
-        topic: Topic,
+        topic: String,
     ) -> Result<(), StorageError>;
 
     fn does_json_rpc_exist(
