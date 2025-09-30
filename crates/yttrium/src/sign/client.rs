@@ -27,7 +27,7 @@ use {
             serialize_and_encrypt_message_type0_envelope, topic_from_sym_key,
         },
         verify::{
-            decode_attestation_into_verify_context, get_public_key,
+            decode_attestation_into_verify_context, get_optimistic_public_key,
             VerifyContext,
         },
     },
@@ -227,9 +227,11 @@ impl Client {
         // TODO consider: immediately throw if expired? - maybe not necessary since FetchMessages returns empty array?
         // TODO update relay method to not remove message & approveSession removes it
 
-        let public_key =
-            get_public_key(self.http_client.clone(), self.storage.clone())
-                .map_err(|e| PairError::GetPublicKey(e.to_string()));
+        let public_key = get_optimistic_public_key(
+            self.http_client.clone(),
+            self.storage.clone(),
+        )
+        .map_err(|e| PairError::GetPublicKey(e.to_string()));
 
         let response = self
             .do_request::<FetchResponse>(relay_rpc::rpc::Params::FetchMessages(
