@@ -1,19 +1,18 @@
 use {
-    relay_rpc::domain::MessageId,
     serde::{Deserialize, Serialize},
     std::collections::HashMap,
 };
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ProposalJsonRpc {
     // deserialize number from string (Flutter support)
-    pub id: MessageId,
+    pub id: u64,
     pub method: String,
     pub params: Proposal,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Proposal {
     pub required_namespaces: ProposalNamespaces,
@@ -41,7 +40,7 @@ pub struct Relay {
     pub protocol: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Proposer {
     pub public_key: String,
@@ -71,7 +70,7 @@ pub enum SessionProposalJsonRpcResponse {
     Error(ProposalErrorResponseJsonRpc),
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ProposalResponse {
     pub relay: Relay,

@@ -1,7 +1,7 @@
 use {
     crate::sign::{
         client_errors::RequestError,
-        client_types::Session,
+        client_types::{Session, TransportType},
         envelope_type0,
         protocol_types::{
             Metadata, SessionDeleteJsonRpc, SessionProposalJsonRpcResponse,
@@ -81,6 +81,35 @@ pub fn handle(
 
     if let Some(method) = value.get("method") {
         if method.as_str() == Some("wc_sessionSettle") {
+            // Insert JSON-RPC history for incoming request (if not exists)
+            if let Some(request_id) = value.get("id").and_then(|id| match id {
+                Value::Number(n) => n.as_u64(),
+                Value::String(s) => s.parse::<u64>().ok(),
+                _ => None,
+            }) {
+                let exists = session_store
+                    .does_json_rpc_exist(request_id)
+                    .map_err(|e| {
+                        HandleError::Internal(format!(
+                            "history exists check: {e}"
+                        ))
+                    })?;
+                if !exists {
+                    session_store
+                        .insert_json_rpc_history(
+                            request_id,
+                            sub_msg.data.topic.to_string(),
+                            "wc_sessionSettle".to_string(),
+                            value.to_string(),
+                            Some(TransportType::Relay),
+                        )
+                        .map_err(|e| {
+                            HandleError::Internal(format!(
+                                "insert history: {e}"
+                            ))
+                        })?;
+                }
+            }
             let request = serde_json::from_value::<SessionSettle>(
                 value
                     .get("params")
@@ -149,6 +178,35 @@ pub fn handle(
                 })?;
             Ok(())
         } else if method.as_str() == Some("wc_sessionRequest") {
+            // Insert JSON-RPC history for incoming request (if not exists)
+            if let Some(request_id) = value.get("id").and_then(|id| match id {
+                Value::Number(n) => n.as_u64(),
+                Value::String(s) => s.parse::<u64>().ok(),
+                _ => None,
+            }) {
+                let exists = session_store
+                    .does_json_rpc_exist(request_id)
+                    .map_err(|e| {
+                        HandleError::Internal(format!(
+                            "history exists check: {e}"
+                        ))
+                    })?;
+                if !exists {
+                    session_store
+                        .insert_json_rpc_history(
+                            request_id,
+                            sub_msg.data.topic.to_string(),
+                            "wc_sessionRequest".to_string(),
+                            value.to_string(),
+                            Some(TransportType::Relay),
+                        )
+                        .map_err(|e| {
+                            HandleError::Internal(format!(
+                                "insert history: {e}"
+                            ))
+                        })?;
+                }
+            }
             // TODO implement relay-side request queue
             let request =
                 serde_json::from_value::<SessionRequestJsonRpc>(value)
@@ -168,6 +226,35 @@ pub fn handle(
                 })?;
             Ok(())
         } else if method.as_str() == Some("wc_sessionUpdate") {
+            // Insert JSON-RPC history for incoming request (if not exists)
+            if let Some(request_id) = value.get("id").and_then(|id| match id {
+                Value::Number(n) => n.as_u64(),
+                Value::String(s) => s.parse::<u64>().ok(),
+                _ => None,
+            }) {
+                let exists = session_store
+                    .does_json_rpc_exist(request_id)
+                    .map_err(|e| {
+                        HandleError::Internal(format!(
+                            "history exists check: {e}"
+                        ))
+                    })?;
+                if !exists {
+                    session_store
+                        .insert_json_rpc_history(
+                            request_id,
+                            sub_msg.data.topic.to_string(),
+                            "wc_sessionUpdate".to_string(),
+                            value.to_string(),
+                            Some(TransportType::Relay),
+                        )
+                        .map_err(|e| {
+                            HandleError::Internal(format!(
+                                "insert history: {e}"
+                            ))
+                        })?;
+                }
+            }
             // Parse update payload and update storage
             let update = serde_json::from_value::<
                 crate::sign::protocol_types::SessionUpdateJsonRpc,
@@ -204,6 +291,35 @@ pub fn handle(
                 })?;
             Ok(())
         } else if method.as_str() == Some("wc_sessionExtend") {
+            // Insert JSON-RPC history for incoming request (if not exists)
+            if let Some(request_id) = value.get("id").and_then(|id| match id {
+                Value::Number(n) => n.as_u64(),
+                Value::String(s) => s.parse::<u64>().ok(),
+                _ => None,
+            }) {
+                let exists = session_store
+                    .does_json_rpc_exist(request_id)
+                    .map_err(|e| {
+                        HandleError::Internal(format!(
+                            "history exists check: {e}"
+                        ))
+                    })?;
+                if !exists {
+                    session_store
+                        .insert_json_rpc_history(
+                            request_id,
+                            sub_msg.data.topic.to_string(),
+                            "wc_sessionExtend".to_string(),
+                            value.to_string(),
+                            Some(TransportType::Relay),
+                        )
+                        .map_err(|e| {
+                            HandleError::Internal(format!(
+                                "insert history: {e}"
+                            ))
+                        })?;
+                }
+            }
             // Parse extend payload
             let extend = serde_json::from_value::<
                 crate::sign::protocol_types::SessionExtendJsonRpc,
@@ -259,6 +375,35 @@ pub fn handle(
             }
             Ok(())
         } else if method.as_str() == Some("wc_sessionEvent") {
+            // Insert JSON-RPC history for incoming request (if not exists)
+            if let Some(request_id) = value.get("id").and_then(|id| match id {
+                Value::Number(n) => n.as_u64(),
+                Value::String(s) => s.parse::<u64>().ok(),
+                _ => None,
+            }) {
+                let exists = session_store
+                    .does_json_rpc_exist(request_id)
+                    .map_err(|e| {
+                        HandleError::Internal(format!(
+                            "history exists check: {e}"
+                        ))
+                    })?;
+                if !exists {
+                    session_store
+                        .insert_json_rpc_history(
+                            request_id,
+                            sub_msg.data.topic.to_string(),
+                            "wc_sessionEvent".to_string(),
+                            value.to_string(),
+                            Some(TransportType::Relay),
+                        )
+                        .map_err(|e| {
+                            HandleError::Internal(format!(
+                                "insert history: {e}"
+                            ))
+                        })?;
+                }
+            }
             // TODO dedup events based on JSON RPC history
             // Parse wc_sessionEvent params
             let params =
@@ -293,6 +438,35 @@ pub fn handle(
             // no-op for pings
             Ok(())
         } else if method.as_str() == Some("wc_sessionDelete") {
+            // Insert JSON-RPC history for incoming request (if not exists)
+            if let Some(request_id) = value.get("id").and_then(|id| match id {
+                Value::Number(n) => n.as_u64(),
+                Value::String(s) => s.parse::<u64>().ok(),
+                _ => None,
+            }) {
+                let exists = session_store
+                    .does_json_rpc_exist(request_id)
+                    .map_err(|e| {
+                        HandleError::Internal(format!(
+                            "history exists check: {e}"
+                        ))
+                    })?;
+                if !exists {
+                    session_store
+                        .insert_json_rpc_history(
+                            request_id,
+                            sub_msg.data.topic.to_string(),
+                            "wc_sessionDelete".to_string(),
+                            value.to_string(),
+                            Some(TransportType::Relay),
+                        )
+                        .map_err(|e| {
+                            HandleError::Internal(format!(
+                                "insert history: {e}"
+                            ))
+                        })?;
+                }
+            }
             let delete = serde_json::from_value::<SessionDeleteJsonRpc>(value)
                 .map_err(|e| {
                     HandleError::Client(format!("parse delete message: {e}"))
@@ -333,7 +507,7 @@ pub fn handle(
                 if let Some(StoragePairing { sym_key: _, self_key }) = pairing {
                     let response = serde_json::from_value::<
                         SessionProposalJsonRpcResponse,
-                    >(value)
+                    >(value.clone())
                     .map_err(|e| {
                         HandleError::Client(format!(
                             "parse proposal response: {e}"
@@ -345,6 +519,18 @@ pub fn handle(
                         }
                         SessionProposalJsonRpcResponse::Error(error) => {
                             tracing::error!("Proposal error: {:?}", error);
+
+                            // Update JSON-RPC history with proposal response
+                            session_store
+                                .update_json_rpc_history_response(
+                                    rpc_id,
+                                    value.to_string(),
+                                )
+                                .map_err(|e| {
+                                    HandleError::Internal(format!(
+                                        "update history response: {e}"
+                                    ))
+                                })?;
 
                             // Emit SessionRejected event
                             if let Err(e) = session_request_tx.send((
@@ -362,6 +548,17 @@ pub fn handle(
                             return Ok(());
                         }
                     };
+                    // Update JSON-RPC history with proposal response
+                    session_store
+                        .update_json_rpc_history_response(
+                            rpc_id,
+                            value.to_string(),
+                        )
+                        .map_err(|e| {
+                            HandleError::Internal(format!(
+                                "update history response: {e}"
+                            ))
+                        })?;
 
                     let self_key = x25519_dalek::StaticSecret::from(self_key);
                     let responder_public_key =
@@ -413,25 +610,27 @@ pub fn handle(
                 } else if sub_msg.data.tag == 1109 {
                     let response = if value.get("error").is_some() {
                         // Parse as error response
-                        let error_response = serde_json::from_value::<
-                            SessionRequestJsonRpcErrorResponse,
-                        >(value)
-                        .map_err(|e| {
-                            HandleError::Client(format!(
-                                "parse session request response: {e}"
-                            ))
-                        })?;
+                        let error_response =
+                            serde_json::from_value::<
+                                SessionRequestJsonRpcErrorResponse,
+                            >(value.clone())
+                            .map_err(|e| {
+                                HandleError::Client(format!(
+                                    "parse session request response: {e}"
+                                ))
+                            })?;
                         SessionRequestJsonRpcResponse::Error(error_response)
                     } else {
                         // Parse as result response
-                        let result_response = serde_json::from_value::<
-                            SessionRequestJsonRpcResultResponse,
-                        >(value)
-                        .map_err(|e| {
-                            HandleError::Client(format!(
-                                "parse session request response: {e}"
-                            ))
-                        })?;
+                        let result_response =
+                            serde_json::from_value::<
+                                SessionRequestJsonRpcResultResponse,
+                            >(value.clone())
+                            .map_err(|e| {
+                                HandleError::Client(format!(
+                                    "parse session request response: {e}"
+                                ))
+                            })?;
                         SessionRequestJsonRpcResponse::Result(result_response)
                     };
                     if let Err(e) = session_request_tx.send((
@@ -446,6 +645,18 @@ pub fn handle(
                             "Failed to emit session request response event: {e}"
                         );
                     }
+
+                    // Update JSON-RPC history with session request response
+                    session_store
+                        .update_json_rpc_history_response(
+                            rpc_id,
+                            value.to_string(),
+                        )
+                        .map_err(|e| {
+                            HandleError::Internal(format!(
+                                "update history response: {e}"
+                            ))
+                        })?;
                     Ok(())
                 } else {
                     Err(HandleError::Client(format!(
