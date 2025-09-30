@@ -17,7 +17,7 @@ jobs:
 
   rust_RUST_MSRV:
     name: Rust MSRV - build & lint
-    runs-on: [self-hosted, aws-ecs-16cpu-64mem-35disk-40m]
+    runs-on: [self-hosted, aws-ecs-16cpu-64mem-35disk-60m]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -76,7 +76,7 @@ jobs:
 
   rust_stable:
     name: Rust stable - build & lint
-    runs-on: [self-hosted, aws-ecs-16cpu-64mem-35disk-40m]
+    runs-on: [self-hosted, aws-ecs-16cpu-64mem-35disk-60m]
     steps:
       - uses: actions/checkout@v4
         with:
