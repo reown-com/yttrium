@@ -1,7 +1,19 @@
 use {
+    relay_rpc::domain::MessageId,
     serde::{Deserialize, Serialize},
     std::collections::HashMap,
 };
+
+pub mod methods {
+    pub const SESSION_PROPOSE: &str = "wc_sessionPropose";
+    pub const SESSION_REQUEST: &str = "wc_sessionRequest";
+    pub const SESSION_UPDATE: &str = "wc_sessionUpdate";
+    pub const SESSION_EXTEND: &str = "wc_sessionExtend";
+    pub const SESSION_EVENT: &str = "wc_sessionEvent";
+    pub const SESSION_DELETE: &str = "wc_sessionDelete";
+    pub const SESSION_PING: &str = "wc_sessionPing";
+    pub const SESSION_SETTLE: &str = "wc_sessionSettle";
+}
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -268,4 +280,43 @@ pub struct SessionEventJsonRpc {
     pub jsonrpc: String,
     pub method: String,
     pub params: EventParams,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub enum GenericJsonRpcMessage {
+    Request(GenericJsonRpcRequest),
+    Response(GenericJsonRpcResponse),
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct GenericJsonRpcRequest {
+    pub id: MessageId,
+    pub jsonrpc: String,
+    pub method: String,
+    pub params: serde_json::Value,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub enum GenericJsonRpcResponse {
+    Success(GenericJsonRpcResponseSuccess),
+    Error(GenericJsonRpcResponseError),
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct GenericJsonRpcResponseSuccess {
+    pub id: MessageId,
+    pub jsonrpc: String,
+    pub result: serde_json::Value,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct GenericJsonRpcResponseError {
+    pub id: MessageId,
+    pub jsonrpc: String,
+    pub error: serde_json::Value,
 }
