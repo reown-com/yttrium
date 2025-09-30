@@ -95,6 +95,7 @@ sign_client = [
     "dep:sha2",
     "dep:tokio-util",
 ]
+clear_signing = []
 
 # Features enabling test coverage
 test_full = [
