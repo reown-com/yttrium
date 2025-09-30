@@ -29,6 +29,7 @@ pub mod jsonrpc;
     feature = "transaction_sponsorship_client"
 ))]
 pub mod provider_pool;
+pub mod pulse;
 pub mod serde;
 #[cfg(feature = "sign_client")]
 pub mod sign;
@@ -44,7 +45,6 @@ pub mod user_operation;
 pub mod utils;
 pub mod wallet_provider;
 pub mod wallet_service_api;
-pub mod pulse;
 
 #[cfg(test)]
 pub mod examples;

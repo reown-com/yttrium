@@ -13,7 +13,9 @@ use {
     },
     yttrium::sign::{
         client::{generate_client_id_key, Client},
-        client_types::{ConnectParams, Session, SessionProposal},
+        client_types::{
+            ConnectParams, Session, SessionProposal, TransportType,
+        },
         protocol_types::{
             Metadata, ProposalNamespace, SessionRequest, SessionRequestJsonRpc,
             SessionRequestJsonRpcResponse, SessionRequestJsonRpcResultResponse,
@@ -236,6 +238,43 @@ impl Storage for MySessionStore {
         state.verify_public_key = Some(public_key);
         write_local_storage(&self.key, state).map_err(StorageError::Runtime)?;
         Ok(())
+    }
+
+    fn insert_json_rpc_history(
+        &self,
+        _request_id: u64,
+        _topic: String,
+        _method: String,
+        _body: String,
+        _transport_type: Option<TransportType>,
+    ) -> Result<(), StorageError> {
+        // Sample wallet doesn't need to store JSON-RPC history
+        Ok(())
+    }
+
+    fn update_json_rpc_history_response(
+        &self,
+        _request_id: u64,
+        _response: String,
+    ) -> Result<(), StorageError> {
+        // Sample wallet doesn't need to store JSON-RPC history
+        Ok(())
+    }
+
+    fn delete_json_rpc_history_by_topic(
+        &self,
+        _topic: String,
+    ) -> Result<(), StorageError> {
+        // Sample wallet doesn't need to store JSON-RPC history
+        Ok(())
+    }
+
+    fn does_json_rpc_exist(
+        &self,
+        _request_id: u64,
+    ) -> Result<bool, StorageError> {
+        // Sample wallet doesn't need to store JSON-RPC history
+        Ok(false)
     }
 }
 

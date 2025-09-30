@@ -1,7 +1,7 @@
 use {
     crate::sign::{
         client::{generate_client_id_key, Client},
-        client_types::{ConnectParams, Session},
+        client_types::{ConnectParams, Session, TransportType},
         protocol_types::{
             Metadata, ProposalNamespace, SessionRequest,
             SessionRequestJsonRpcResponse, SessionRequestJsonRpcResultResponse,
@@ -131,6 +131,43 @@ impl Storage for MySessionStore {
         _public_key: Jwk,
     ) -> Result<(), StorageError> {
         Ok(())
+    }
+
+    fn insert_json_rpc_history(
+        &self,
+        _request_id: u64,
+        _topic: String,
+        _method: String,
+        _body: String,
+        _transport_type: Option<TransportType>,
+    ) -> Result<(), StorageError> {
+        // Test implementation - just return Ok for now
+        Ok(())
+    }
+
+    fn update_json_rpc_history_response(
+        &self,
+        _request_id: u64,
+        _response: String,
+    ) -> Result<(), StorageError> {
+        // Test implementation - just return Ok for now
+        Ok(())
+    }
+
+    fn delete_json_rpc_history_by_topic(
+        &self,
+        _topic: String,
+    ) -> Result<(), StorageError> {
+        // Test implementation - just return Ok for now
+        Ok(())
+    }
+
+    fn does_json_rpc_exist(
+        &self,
+        _request_id: u64,
+    ) -> Result<bool, StorageError> {
+        // Test implementation - return false for now
+        Ok(false)
     }
 }
 

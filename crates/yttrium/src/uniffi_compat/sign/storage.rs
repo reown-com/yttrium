@@ -1,7 +1,7 @@
 use {
     crate::{
         sign::{
-            client_types::Session,
+            client_types::{Session, TransportType},
             storage::{Storage, StorageError, StoragePairing},
         },
         uniffi_compat::sign::ffi_types::SessionFfi,
@@ -45,6 +45,32 @@ pub trait StorageFfi: Send + Sync {
     ) -> Result<(), StorageError>;
     fn get_verify_public_key(&self) -> Result<Option<String>, StorageError>;
     fn set_verify_public_key(&self, jwk: String) -> Result<(), StorageError>;
+
+    // JSON-RPC History
+    fn insert_json_rpc_history(
+        &self,
+        request_id: u64,
+        topic: String,
+        method: String,
+        body: String,
+        transport_type: Option<TransportType>,
+    ) -> Result<(), StorageError>;
+
+    fn update_json_rpc_history_response(
+        &self,
+        request_id: u64,
+        response: String,
+    ) -> Result<(), StorageError>;
+
+    fn delete_json_rpc_history_by_topic(
+        &self,
+        topic: String,
+    ) -> Result<(), StorageError>;
+
+    fn does_json_rpc_exist(
+        &self,
+        request_id: u64,
+    ) -> Result<bool, StorageError>;
 }
 
 pub struct StorageFfiProxy(pub Arc<dyn StorageFfi>);
@@ -133,6 +159,45 @@ impl Storage for StorageFfiProxy {
         serde_json::to_string(&jwk)
             .map_err(|e| StorageError::Runtime(e.to_string()))
             .and_then(|jwk| self.0.set_verify_public_key(jwk))
+    }
+
+    fn insert_json_rpc_history(
+        &self,
+        request_id: u64,
+        topic: String,
+        method: String,
+        body: String,
+        transport_type: Option<TransportType>,
+    ) -> Result<(), StorageError> {
+        self.0.insert_json_rpc_history(
+            request_id,
+            topic,
+            method,
+            body,
+            transport_type,
+        )
+    }
+
+    fn update_json_rpc_history_response(
+        &self,
+        request_id: u64,
+        response: String,
+    ) -> Result<(), StorageError> {
+        self.0.update_json_rpc_history_response(request_id, response)
+    }
+
+    fn delete_json_rpc_history_by_topic(
+        &self,
+        topic: String,
+    ) -> Result<(), StorageError> {
+        self.0.delete_json_rpc_history_by_topic(topic)
+    }
+
+    fn does_json_rpc_exist(
+        &self,
+        request_id: u64,
+    ) -> Result<bool, StorageError> {
+        self.0.does_json_rpc_exist(request_id)
     }
 }
 
