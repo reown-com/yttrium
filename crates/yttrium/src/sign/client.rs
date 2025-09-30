@@ -374,7 +374,7 @@ impl Client {
             "wc_sessionPropose".to_string(),
             session_proposal_params_json,
             Some(TransportType::Relay),
-        ).map_err(ConnectError::ShouldNeverHappen)?;
+        );
 
         self.session_store.save_pairing(
             pairing_info.topic.clone(),
