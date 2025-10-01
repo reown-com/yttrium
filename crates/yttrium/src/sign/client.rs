@@ -26,10 +26,7 @@ use {
             diffie_hellman, generate_rpc_id, is_expired,
             serialize_and_encrypt_message_type0_envelope, topic_from_sym_key,
         },
-        verify::{
-            decode_attestation_into_verify_context, get_optimistic_public_key,
-            VerifyContext,
-        },
+        verify::{get_optimistic_public_key, handle_verify, VerifyContext},
     },
     futures::TryFutureExt,
     relay_rpc::{
@@ -186,6 +183,7 @@ impl Client {
                     project_id,
                     signing_key,
                     session_store,
+                    self.http_client.clone(),
                     tx,
                     request_rx,
                     online_rx,
@@ -212,7 +210,7 @@ impl Client {
     pub async fn pair(
         &mut self,
         uri: &str,
-    ) -> Result<(SessionProposal, Option<VerifyContext>), PairError> {
+    ) -> Result<(SessionProposal, VerifyContext), PairError> {
         // TODO implement
         // https://github.com/WalletConnect/walletconnect-monorepo/blob/5bef698dcf0ae910548481959a6a5d87eaf7aaa5/packages/sign-client/src/controllers/engine.ts#L330
 
@@ -316,20 +314,16 @@ impl Client {
 
         // TODO: validate namespaces: https://specs.walletconnect.com/2.0/specs/clients/sign/namespaces#12-proposal-namespaces-must-not-have-chains-empty
 
-        let encrypted_hash = sha2::Sha256::digest(message.message.as_bytes());
-        let _decrypted_hash = sha2::Sha256::digest(&decrypted);
-        let attestation = if let Some(attestation) = &message.attestation {
-            let attestation = decode_attestation_into_verify_context(
-                &proposal.proposer.metadata.url,
-                attestation,
-                &public_key,
-                &hex::encode(encrypted_hash),
-            )
-            .map_err(|e| PairError::Internal(e.to_string()))?;
-            Some(attestation)
-        } else {
-            None
-        };
+        let decrypted_hash = sha2::Sha256::digest(&decrypted);
+        let attestation = handle_verify(
+            decrypted_hash.to_vec().try_into().unwrap(),
+            self.http_client.clone(),
+            self.storage.clone(),
+            message.clone(),
+            proposal.proposer.metadata.url.clone(),
+        )
+        .await
+        .map_err(|e| PairError::Internal(format!("handle verify: {e}")))?;
 
         Ok((
             SessionProposal {
@@ -401,7 +395,6 @@ impl Client {
         tracing::debug!(
             group = self.probe_group.clone(),
             probe = "sending_propose_session_request",
-            "sending propose session request"
         );
         self.do_request::<bool>(relay_rpc::rpc::Params::ProposeSession(
             ProposeSession {
@@ -422,7 +415,6 @@ impl Client {
         tracing::debug!(
             group = self.probe_group.clone(),
             probe = "propose_session_request_success",
-            "propose session request success"
         );
 
         self.storage.insert_json_rpc_history(

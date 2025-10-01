@@ -1,12 +1,15 @@
 use {
     crate::sign::storage::{Storage, StorageError},
     jsonwebtoken::{jwk::Jwk, Algorithm, DecodingKey, Validation},
+    relay_rpc::rpc::SubscriptionData,
     serde::{Deserialize, Serialize},
+    sha2::Digest,
     std::sync::Arc,
     url::Url,
 };
 
 const PUBLIC_KEY_URL: &str = "https://verify.walletconnect.org/v3/public-key";
+const ATTESTATION_URL: &str = "https://verify.walletconnect.org/attestation/";
 const PUBLIC_KEY: &str = include_str!("verify-public.jwk");
 
 #[derive(Debug, thiserror::Error)]
@@ -111,7 +114,11 @@ pub fn decode_attestation_into_verify_context(
     ) {
         Ok(token_data) => token_data.claims,
         Err(e) => {
-            tracing::error!("verify decode attestation: {e}");
+            if e.kind() == &jsonwebtoken::errors::ErrorKind::InvalidSignature {
+                // TODO fetch latest key and try again
+                // TODO also have tests
+            }
+            tracing::error!("decode_attestation_into_verify_context: decode attestation: {e}");
             return Ok(VerifyContext {
                 origin: None,
                 validation: VerifyValidation::Unknown,
@@ -123,7 +130,7 @@ pub fn decode_attestation_into_verify_context(
     let app_origin = match Url::parse(app_metadata_url) {
         Ok(url) => url.origin().ascii_serialization(),
         Err(e) => {
-            tracing::error!("verify parse app metadata url: {e}");
+            tracing::error!("decode_attestation_into_verify_context: parse app metadata url: {e}");
             return Ok(VerifyContext {
                 origin: None,
                 validation: VerifyValidation::Unknown,
@@ -133,6 +140,9 @@ pub fn decode_attestation_into_verify_context(
     };
 
     if attestation.id != encrypted_id {
+        tracing::debug!(
+            "decode_attestation_into_verify_context: attestation id mismatch"
+        );
         return Ok(VerifyContext {
             origin: None,
             validation: VerifyValidation::Unknown,
@@ -141,6 +151,7 @@ pub fn decode_attestation_into_verify_context(
     }
 
     if !attestation.is_verified {
+        tracing::debug!("decode_attestation_into_verify_context: attestation is not verified");
         return Ok(VerifyContext {
             origin: None,
             validation: VerifyValidation::Unknown,
@@ -150,8 +161,10 @@ pub fn decode_attestation_into_verify_context(
 
     Ok(VerifyContext {
         validation: if attestation.origin == app_origin {
+            tracing::debug!("decode_attestation_into_verify_context: attestation origin is valid");
             VerifyValidation::Valid
         } else {
+            tracing::debug!("decode_attestation_into_verify_context: attestation origin is invalid");
             VerifyValidation::Invalid
         },
         origin: Some(attestation.origin),
@@ -167,6 +180,114 @@ pub struct Attestation {
     pub origin: String,
     pub is_scam: bool,
     pub is_verified: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct VerifyAttestation {
+    attestation_id: String,
+    origin: String,
+    is_scam: Option<bool>,
+}
+
+pub async fn handle_verify(
+    decrypted_hash: [u8; 32],
+    http_client: reqwest::Client,
+    storage: Arc<dyn Storage>,
+    sub_msg_data: SubscriptionData,
+    app_metadata_url: String,
+) -> Result<VerifyContext, String> {
+    let encrypted_hash = sha2::Sha256::digest(sub_msg_data.message.as_bytes());
+    if let Some(attestation) = &sub_msg_data.attestation {
+        if attestation.is_empty() {
+            // Handling deprecated path just-in-case. Mostly should be null or JWT w/ isVerified=false
+            tracing::debug!("handle_verify: attestation is empty");
+            return Ok(VerifyContext {
+                origin: None,
+                validation: VerifyValidation::Unknown,
+                is_scam: false,
+            });
+        }
+
+        let verify_public_key =
+            get_optimistic_public_key(http_client.clone(), storage.clone())
+                .await
+                .map_err(|e| format!("get verify public key: {e}"))?;
+        let attestation = decode_attestation_into_verify_context(
+            &app_metadata_url,
+            attestation,
+            &verify_public_key,
+            &hex::encode(encrypted_hash),
+        )
+        .map_err(|e| e.to_string())?;
+        Ok(attestation)
+    } else {
+        // spawn() to support WASM environments where the `reqwest::send()` future is not Send
+        // TODO consider removing when compiling for native platforms
+        let (tx, rx) = tokio::sync::oneshot::channel();
+        crate::spawn::spawn(async move {
+            let result = async {
+                let response = http_client
+                    .get(format!(
+                        "{ATTESTATION_URL}{decrypted_hash}?v2Supported=true",
+                        decrypted_hash = hex::encode(decrypted_hash)
+                    ))
+                    .send()
+                    .await
+                    .map_err(GetPublicKeyError::Network)?;
+                if !response.status().is_success() {
+                    return Err(GetPublicKeyError::NotSuccess(
+                        response.status(),
+                    ));
+                }
+                let attestation = response
+                    .json::<VerifyAttestation>()
+                    .await
+                    .map_err(GetPublicKeyError::Json)?;
+                Ok(attestation)
+            }
+            .await;
+            let _ = tx.send(result);
+        });
+        let attestation = rx
+            .await
+            .map_err(GetPublicKeyError::Recv)
+            .map_err(|e| format!("get attestation1: {e}"))?
+            .map_err(|e| format!("get attestation2: {e}"))?;
+
+        let app_origin = match Url::parse(&app_metadata_url) {
+            Ok(url) => url.origin().ascii_serialization(),
+            Err(e) => {
+                tracing::error!("verify parse app metadata url: {e}");
+                return Ok(VerifyContext {
+                    origin: None,
+                    validation: VerifyValidation::Unknown,
+                    is_scam: attestation.is_scam.unwrap_or(false),
+                });
+            }
+        };
+
+        if attestation.attestation_id != hex::encode(decrypted_hash) {
+            tracing::debug!("handle_verify: attestation id mismatch");
+            return Ok(VerifyContext {
+                origin: None,
+                validation: VerifyValidation::Unknown,
+                is_scam: attestation.is_scam.unwrap_or(false),
+            });
+        }
+
+        Ok(VerifyContext {
+            validation: if attestation.origin == app_origin {
+                tracing::debug!("handle_verify: attestation origin is valid");
+                VerifyValidation::Valid
+            } else {
+                tracing::debug!("handle_verify: attestation origin is invalid");
+                VerifyValidation::Invalid
+            },
+            origin: Some(attestation.origin),
+            is_scam: attestation.is_scam.unwrap_or(false),
+        })
+    }
 }
 
 #[derive(Clone, Debug)]

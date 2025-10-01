@@ -14,15 +14,17 @@ use {
     yttrium::sign::{
         client::{generate_client_id_key, Client},
         client_types::{
-            ConnectParams, Session, SessionProposal, TransportType,
+            ConnectParams, RejectionReason, Session, SessionProposal,
+            TransportType,
         },
         protocol_types::{
             Metadata, ProposalNamespace, SessionRequest, SessionRequestJsonRpc,
-            SessionRequestJsonRpcResponse, SessionRequestJsonRpcResultResponse,
-            SessionRequestRequest, SettleNamespace,
+            SessionRequestJsonRpcErrorResponse, SessionRequestJsonRpcResponse,
+            SessionRequestJsonRpcResultResponse, SessionRequestRequest,
+            SettleNamespace,
         },
         storage::{Jwk, Storage, StorageError, StoragePairing},
-        IncomingSessionMessage, SecretKey, Topic, VerifyContext,
+        ErrorData, IncomingSessionMessage, SecretKey, Topic, VerifyContext,
     },
 };
 
@@ -166,7 +168,6 @@ impl Storage for MySessionStore {
     ) -> Result<Option<[u8; 32]>, StorageError> {
         let state =
             read_local_storage(&self.key).map_err(StorageError::Runtime)?;
-        tracing::info!("get_decryption_key_for_topic: state: {:?}", state);
         let result = state
             .sessions
             .into_iter()
@@ -178,7 +179,6 @@ impl Storage for MySessionStore {
                 )
             })
             .or_else(|| state.partial_sessions.get(&topic).copied());
-        tracing::info!("get_decryption_key_for_topic: result: {:?}", result);
         Ok(result)
     }
 
@@ -297,13 +297,13 @@ pub fn App() -> impl IntoView {
         StoredValue::new(None::<std::sync::Arc<tokio::sync::Mutex<Clients>>>);
 
     let pairing_request = RwSignal::new(
-        None::<RwSignal<Option<(SessionProposal, Option<VerifyContext>)>>>,
+        None::<RwSignal<Option<(SessionProposal, VerifyContext)>>>,
     );
     let pairing_request_open = RwSignal::new(false);
     let pair_action = Action::new({
         move |pairing_uri: &String| {
             let signal =
-                RwSignal::new(None::<(SessionProposal, Option<VerifyContext>)>);
+                RwSignal::new(None::<(SessionProposal, VerifyContext)>);
             pairing_request_open.set(true);
             pairing_request.set(Some(signal));
             let client = clients.read_value().as_ref().unwrap().clone();
@@ -334,7 +334,7 @@ pub fn App() -> impl IntoView {
     });
 
     let approve_pairing_action = Action::new({
-        move |pairing: &(SessionProposal, Option<VerifyContext>)| {
+        move |pairing: &(SessionProposal, VerifyContext)| {
             let pairing = pairing.clone();
             let client = clients.read_value().as_ref().unwrap().clone();
             async move {
@@ -406,7 +406,7 @@ pub fn App() -> impl IntoView {
     });
 
     let reject_pairing_action = Action::new({
-        move |pairing: &(SessionProposal, Option<VerifyContext>)| {
+        move |pairing: &(SessionProposal, VerifyContext)| {
             let pairing = pairing.clone();
             let client = clients.read_value().as_ref().unwrap().clone();
             async move {
@@ -442,10 +442,10 @@ pub fn App() -> impl IntoView {
     });
 
     let signature_request =
-        RwSignal::new(None::<(Topic, SessionRequestJsonRpc)>);
+        RwSignal::new(None::<(Topic, SessionRequestJsonRpc, VerifyContext)>);
     let signature_request_open = RwSignal::new(false);
-    let session_request_action = Action::new({
-        move |request: &(Topic, SessionRequestJsonRpc)| {
+    let session_request_approve_action = Action::new({
+        move |request: &(Topic, SessionRequestJsonRpc, VerifyContext)| {
             let request = request.clone();
             let client = clients.read_value().as_ref().unwrap().clone();
             async move {
@@ -489,11 +489,50 @@ pub fn App() -> impl IntoView {
         }
     });
     let session_request_reject_action = Action::new({
-        move |_request: &(Topic, SessionRequestJsonRpc)| async move {
-            show_error_toast(
-                toaster,
-                "Signature rejection not yet supported".to_owned(),
-            );
+        move |request: &(Topic, SessionRequestJsonRpc, VerifyContext)| {
+            let request = request.clone();
+            let client = clients.read_value().as_ref().unwrap().clone();
+            async move {
+                let mut client = client.lock().await;
+                match client
+                    .wallet_client
+                    .respond(
+                        request.0,
+                        SessionRequestJsonRpcResponse::Error(
+                            SessionRequestJsonRpcErrorResponse {
+                                id: request.1.id,
+                                jsonrpc: "2.0".to_string(),
+                                error: serde_json::to_value(ErrorData::from(
+                                    RejectionReason::UserRejected,
+                                ))
+                                .unwrap(),
+                            },
+                        ),
+                    )
+                    .await
+                {
+                    Ok(_) => {
+                        signature_request_open.set(false);
+                        leptos::task::spawn_local(async move {
+                            yttrium::time::sleep(
+                                std::time::Duration::from_secs(1),
+                            )
+                            .await;
+                            signature_request.set(None);
+                        });
+                        show_success_toast(
+                            toaster,
+                            "Signature approved".to_owned(),
+                        );
+                    }
+                    Err(e) => {
+                        show_error_toast(
+                            toaster,
+                            format!("Signature approval failed: {e}"),
+                        );
+                    }
+                }
+            }
         }
     });
 
@@ -612,16 +651,17 @@ pub fn App() -> impl IntoView {
                                     Some((topic, message)) => {
                                         wallet_sessions.set(read_local_storage(WALLET_KEY).unwrap().sessions);
                                         match message {
-                                            IncomingSessionMessage::SessionRequest(request) => {
+                                            IncomingSessionMessage::SessionRequest(request, attestation) => {
                                                 tracing::info!(
-                                                    "signature request on topic: {:?}: {:?}",
+                                                    "signature request on topic: {:?}: {:?}: {:?}",
                                                     topic,
-                                                    request
+                                                    request,
+                                                    attestation
                                                 );
                                                 match request.params.request.method.as_str() {
                                                     "personal_sign" => {
                                                         signature_request_open.set(true);
-                                                        signature_request.set(Some((topic, request)));
+                                                        signature_request.set(Some((topic, request, attestation)));
                                                     }
                                                     method => {
                                                         tracing::error!(
@@ -916,11 +956,11 @@ pub fn App() -> impl IntoView {
                                     <DialogContent>{format!("{request:?}")}</DialogContent>
                                     <DialogActions>
                                         <Button
-                                            loading=session_request_action.pending()
+                                            loading=session_request_approve_action.pending()
                                             on_click={
                                                 let request = request.clone();
                                                 move |_| {
-                                                    session_request_action.dispatch(request.clone());
+                                                    session_request_approve_action.dispatch(request.clone());
                                                 }
                                             }
                                         >

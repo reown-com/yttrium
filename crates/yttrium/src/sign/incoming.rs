@@ -13,6 +13,7 @@ use {
         relay::IncomingSessionMessage,
         storage::{Storage, StoragePairing},
         utils::{diffie_hellman, topic_from_sym_key},
+        verify::handle_verify,
     },
     chacha20poly1305::{aead::Aead, ChaCha20Poly1305, KeyInit, Nonce},
     data_encoding::BASE64,
@@ -20,6 +21,7 @@ use {
         domain::Topic,
         rpc::{BatchSubscribe, Params, Response, Subscription},
     },
+    sha2::Digest,
     std::{collections::HashMap, sync::Arc},
 };
 
@@ -41,8 +43,9 @@ pub enum HandleError {
     AlreadyHandled,
 }
 
-pub fn handle(
+pub async fn handle(
     storage: Arc<dyn Storage>,
+    http_client: reqwest::Client,
     sub_msg: Subscription,
     session_request_tx: tokio::sync::mpsc::UnboundedSender<(
         Topic,
@@ -207,6 +210,29 @@ pub fn handle(
                             ))
                         })?;
 
+                    let session = storage
+                        .get_session(sub_msg.data.topic.clone())
+                        .map_err(|e| {
+                            HandleError::Temporary(format!("get session: {e}"))
+                        })?
+                        .ok_or(HandleError::Peer(
+                            "should never happen:session not found".to_string(),
+                        ))?;
+
+                    // Warning: this is a network call!!!!
+                    let decrypted_hash = sha2::Sha256::digest(&decrypted);
+                    let attestation = handle_verify(
+                        decrypted_hash.to_vec().try_into().unwrap(),
+                        http_client,
+                        storage.clone(),
+                        sub_msg.data.clone(),
+                        session.peer_meta_data.as_ref().unwrap().url.clone(),
+                    )
+                    .await
+                    .map_err(|e| {
+                        HandleError::Temporary(format!("handle verify: {e}"))
+                    })?;
+
                     storage
                         .insert_json_rpc_history(
                             request_id,
@@ -226,7 +252,10 @@ pub fn handle(
                     if let Err(e) = session_request_tx
                         .send((
                             sub_msg.data.topic.clone(),
-                            IncomingSessionMessage::SessionRequest(request),
+                            IncomingSessionMessage::SessionRequest(
+                                request,
+                                attestation,
+                            ),
                         ))
                         .map_err(|e| {
                             HandleError::Temporary(format!(
@@ -679,9 +708,8 @@ pub fn handle(
 
                 Ok(())
             } else {
-                Err(HandleError::Peer(format!(
-                    "ignoring message with invalid ID: {value:?}",
-                )))
+                tracing::debug!("ignoring message: {value:?}");
+                Ok(())
             }
         }
     }
