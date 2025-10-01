@@ -25,9 +25,9 @@ use {
 
 #[derive(Debug, thiserror::Error)]
 pub enum HandleError {
-    // Unrecoverable logic or runtime errors e.g. storage
+    // Unrecoverable logic or runtime errors e.g. storage but where retry is allowed
     #[error("Internal: {0}")]
-    Internal(String),
+    Temporary(String),
 
     // Unrecoverable errors resulting in the message being ignored because of not being recognized and a JSON-RPC error response cannot be sent back
     #[error("Dropped: {0}")]
@@ -35,11 +35,14 @@ pub enum HandleError {
 
     // Unrecoverable client errors that, in theory, we could send a JSON-RPC error response back to the sender
     #[error("Client: {0}")]
-    Client(String),
+    Peer(String),
+
+    #[error("Already handled")]
+    AlreadyHandled,
 }
 
 pub fn handle(
-    session_store: Arc<dyn Storage>,
+    storage: Arc<dyn Storage>,
     sub_msg: Subscription,
     session_request_tx: tokio::sync::mpsc::UnboundedSender<(
         Topic,
@@ -50,10 +53,12 @@ pub fn handle(
         tokio::sync::oneshot::Sender<Result<Response, RequestError>>,
     )>,
 ) -> Result<(), HandleError> {
-    let key = session_store
+    // WARNING: This function must complete in <4s not including network latency, so don't do blocking operations such as network requests
+
+    let key = storage
         .get_decryption_key_for_topic(sub_msg.data.topic.clone())
         .map_err(|e| {
-            HandleError::Internal(format!("get decryption key for topic: {e}"))
+            HandleError::Temporary(format!("get decryption key for topic: {e}"))
         })?;
     let session_sym_key = if let Some(session_sym_key) = key {
         session_sym_key
@@ -66,66 +71,47 @@ pub fn handle(
 
     let decoded = BASE64
         .decode(sub_msg.data.message.as_bytes())
-        .map_err(|e| HandleError::Client(format!("decode message: {e}")))?;
+        .map_err(|e| HandleError::Peer(format!("decode message: {e}")))?;
 
     let envelope = envelope_type0::deserialize_envelope_type0(&decoded)
-        .map_err(|e| {
-            HandleError::Client(format!("deserialize envelope: {e}"))
-        })?;
+        .map_err(|e| HandleError::Peer(format!("deserialize envelope: {e}")))?;
     let key = ChaCha20Poly1305::new(&session_sym_key.into());
     let decrypted = key
         .decrypt(&Nonce::from(envelope.iv), envelope.sb.as_slice())
-        .map_err(|e| HandleError::Client(format!("decrypt message: {e}")))?;
+        .map_err(|e| HandleError::Peer(format!("decrypt message: {e}")))?;
     let value = serde_json::from_slice::<serde_json::Value>(&decrypted)
-        .map_err(|e| HandleError::Client(format!("parse JSON: {e}")))?;
+        .map_err(|e| HandleError::Peer(format!("parse JSON: {e}")))?;
     let message =
         serde_json::from_slice::<GenericJsonRpcMessage>(&decrypted)
-            .map_err(|e| HandleError::Client(format!("parse message: {e}")))?;
+            .map_err(|e| HandleError::Peer(format!("parse message: {e}")))?;
 
     match message {
         GenericJsonRpcMessage::Request(request) => {
             let request_id = request.id.into_value();
             let method = request.method;
+
+            let exists =
+                storage.does_json_rpc_exist(request_id).map_err(|e| {
+                    HandleError::Temporary(format!("history exists check: {e}"))
+                })?;
+            if exists {
+                return Err(HandleError::AlreadyHandled);
+            }
+
             match method.as_str() {
                 methods::SESSION_SETTLE => {
-                    // Insert JSON-RPC history for incoming request (if not exists)
-                    let exists = session_store
-                        .does_json_rpc_exist(request_id)
-                        .map_err(|e| {
-                            HandleError::Internal(format!(
-                                "history exists check: {e}"
-                            ))
-                        })?;
-                    if !exists {
-                        session_store
-                            .insert_json_rpc_history(
-                                request_id,
-                                sub_msg.data.topic.to_string(),
-                                method,
-                                value.to_string(),
-                                Some(TransportType::Relay),
-                            )
-                            .map_err(|e| {
-                                HandleError::Internal(format!(
-                                    "insert history: {e}"
-                                ))
-                            })?;
-                    }
-
                     let request = serde_json::from_value::<SessionSettle>(
                         request.params.clone(),
                     )
                     .map_err(|e| {
-                        HandleError::Client(format!(
-                            "parse settle message: {e}"
-                        ))
+                        HandleError::Peer(format!("parse settle message: {e}"))
                     })?;
 
                     let controller_key = Some(
                         hex::decode(request.controller.public_key.clone())
-                            .map_err(|e| HandleError::Client(format!("decode controller public key: {e}")))?
+                            .map_err(|e| HandleError::Peer(format!("decode controller public key: {e}")))?
                             .try_into()
-                            .map_err(|e| HandleError::Client(format!("convert controller public key to fixed-size array: {e:?}")))?,
+                            .map_err(|e| HandleError::Peer(format!("convert controller public key to fixed-size array: {e:?}")))?,
                     );
 
                     let session = Session {
@@ -164,11 +150,29 @@ pub fn handle(
                         transport_type: None,
                     };
 
-                    session_store.add_session(session).map_err(|e| {
-                        HandleError::Internal(format!("add session: {e}"))
+                    storage.add_session(session).map_err(|e| {
+                        HandleError::Temporary(format!("add session: {e}"))
                     })?;
 
-                    session_request_tx
+                    // FIXME program could stop here and we wouldn't insert the JSON-RPC history. No worse than having it above (insert history but not sessions), but still an issue
+                    // TODO combine storage operation with add_session, atomically
+                    // TODO later, remove separate JSON-RPC history and just use sessions table for idempotency
+                    storage
+                        .insert_json_rpc_history(
+                            request_id,
+                            sub_msg.data.topic.to_string(),
+                            method,
+                            value.to_string(),
+                            Some(TransportType::Relay),
+                        )
+                        .map_err(|e| {
+                            HandleError::Temporary(format!(
+                                "insert history: {e}"
+                            ))
+                        })?;
+
+                    // At-most-once delivery guarantee, app can call getConnections()
+                    if let Err(e) = session_request_tx
                         .send((
                             sub_msg.data.topic.clone(),
                             IncomingSessionMessage::SessionConnect(
@@ -177,102 +181,86 @@ pub fn handle(
                             ),
                         ))
                         .map_err(|e| {
-                            HandleError::Internal(format!(
+                            HandleError::Temporary(format!(
                                 "send session connect: {e}"
                             ))
-                        })?;
+                        })
+                    {
+                        // Don't need to trigger a delivery retry. App can call getConnections()
+                        tracing::debug!(
+                            "Failed to emit session connect event: {e}"
+                        );
+                    }
+
                     Ok(())
                 }
                 methods::SESSION_REQUEST => {
-                    // Insert JSON-RPC history for incoming request (if not exists)
-                    let exists = session_store
-                        .does_json_rpc_exist(request_id)
-                        .map_err(|e| {
-                            HandleError::Internal(format!(
-                                "history exists check: {e}"
-                            ))
-                        })?;
-                    if !exists {
-                        session_store
-                            .insert_json_rpc_history(
-                                request_id,
-                                sub_msg.data.topic.to_string(),
-                                method,
-                                value.to_string(),
-                                Some(TransportType::Relay),
-                            )
-                            .map_err(|e| {
-                                HandleError::Internal(format!(
-                                    "insert history: {e}"
-                                ))
-                            })?;
-                    }
-
                     // TODO implement relay-side request queue
                     let request =
-                        serde_json::from_value::<SessionRequestJsonRpc>(value)
-                            .map_err(|e| {
-                                HandleError::Client(format!(
-                                    "Failed to parse decrypted message: {e}"
-                                ))
-                            })?;
+                        serde_json::from_value::<SessionRequestJsonRpc>(
+                            value.clone(),
+                        )
+                        .map_err(|e| {
+                            HandleError::Peer(format!(
+                                "Failed to parse decrypted message: {e}"
+                            ))
+                        })?;
 
-                    session_request_tx
+                    storage
+                        .insert_json_rpc_history(
+                            request_id,
+                            sub_msg.data.topic.to_string(),
+                            method,
+                            value.to_string(),
+                            Some(TransportType::Relay),
+                        )
+                        .map_err(|e| {
+                            HandleError::Temporary(format!(
+                                "insert history: {e}"
+                            ))
+                        })?;
+
+                    // TODO implement request queue
+                    // No delivery guarantee, session request queue exists
+                    if let Err(e) = session_request_tx
                         .send((
-                            sub_msg.data.topic,
+                            sub_msg.data.topic.clone(),
                             IncomingSessionMessage::SessionRequest(request),
                         ))
                         .map_err(|e| {
-                            HandleError::Internal(format!(
+                            HandleError::Temporary(format!(
                                 "send session request: {e}"
                             ))
-                        })?;
+                        })
+                    {
+                        // Don't need to trigger a delivery retry. Session request queue exists
+                        tracing::debug!(
+                            "Failed to emit session request event: {e}"
+                        );
+                    }
+
                     Ok(())
                 }
                 methods::SESSION_UPDATE => {
-                    // Insert JSON-RPC history for incoming request (if not exists)
-                    let exists = session_store
-                        .does_json_rpc_exist(request_id)
-                        .map_err(|e| {
-                            HandleError::Internal(format!(
-                                "history exists check: {e}"
-                            ))
-                        })?;
-                    if !exists {
-                        session_store
-                            .insert_json_rpc_history(
-                                request_id,
-                                sub_msg.data.topic.to_string(),
-                                method,
-                                value.to_string(),
-                                Some(TransportType::Relay),
-                            )
-                            .map_err(|e| {
-                                HandleError::Internal(format!(
-                                    "insert history: {e}"
-                                ))
-                            })?;
-                    }
-
                     // Parse update payload and update storage
                     let update = serde_json::from_value::<
                         crate::sign::protocol_types::SessionUpdateJsonRpc,
-                    >(value)
+                    >(value.clone())
                     .map_err(|e| {
-                        HandleError::Internal(format!("parse update: {e}"))
+                        HandleError::Temporary(format!("parse update: {e}"))
                     })?;
 
                     // Update local session namespaces
-                    if let Some(mut session) = session_store
+                    if let Some(mut session) = storage
                         .get_session(sub_msg.data.topic.clone())
                         .map_err(|e| {
-                            HandleError::Internal(format!("get session: {e}"))
+                            HandleError::Temporary(format!("get session: {e}"))
                         })?
                     {
                         session.session_namespaces =
                             update.params.namespaces.clone();
-                        session_store.add_session(session).map_err(|e| {
-                            HandleError::Internal(format!("add session: {e}"))
+                        storage.add_session(session).map_err(|e| {
+                            HandleError::Temporary(format!("add session: {e}"))
                         })?;
                     } else {
                         tracing::warn!(
@@ -280,66 +268,58 @@ pub fn handle(
                             sub_msg.data.topic
                         );
                     }
-                    session_request_tx
-                        .send((
-                            sub_msg.data.topic.clone(),
-                            IncomingSessionMessage::SessionUpdate(
-                                update.id,
-                                sub_msg.data.topic,
-                                update.params.namespaces,
-                            ),
-                        ))
+
+                    storage
+                        .insert_json_rpc_history(
+                            request_id,
+                            sub_msg.data.topic.to_string(),
+                            method,
+                            value.to_string(),
+                            Some(TransportType::Relay),
+                        )
                         .map_err(|e| {
-                            HandleError::Internal(format!(
-                                "send session update: {e}"
+                            HandleError::Temporary(format!(
+                                "insert history: {e}"
                             ))
                         })?;
+
+                    // At-most-once delivery guarantee, app can call getConnections()
+                    if let Err(e) = session_request_tx.send((
+                        sub_msg.data.topic.clone(),
+                        IncomingSessionMessage::SessionUpdate(
+                            update.id,
+                            sub_msg.data.topic,
+                            update.params.namespaces,
+                        ),
+                    )) {
+                        // Don't need to trigger a delivery retry. App can call getConnections()
+                        tracing::debug!(
+                            "Failed to emit session update event: {e}"
+                        );
+                    }
+
                     Ok(())
                 }
                 methods::SESSION_EXTEND => {
-                    // Insert JSON-RPC history for incoming request (if not exists)
-                    let exists = session_store
-                        .does_json_rpc_exist(request_id)
-                        .map_err(|e| {
-                            HandleError::Internal(format!(
-                                "history exists check: {e}"
-                            ))
-                        })?;
-                    if !exists {
-                        session_store
-                            .insert_json_rpc_history(
-                                request_id,
-                                sub_msg.data.topic.to_string(),
-                                method,
-                                value.to_string(),
-                                Some(TransportType::Relay),
-                            )
-                            .map_err(|e| {
-                                HandleError::Internal(format!(
-                                    "insert history: {e}"
-                                ))
-                            })?;
-                    }
-
                     // Parse extend payload
                     let extend = serde_json::from_value::<
                         crate::sign::protocol_types::SessionExtendJsonRpc,
-                    >(value)
+                    >(value.clone())
                     .map_err(|e| {
-                        HandleError::Internal(format!("parse extend: {e}"))
+                        HandleError::Peer(format!("parse extend: {e}"))
                     })?;
 
                     // Update session expiry if session exists, peer is controller, and expiry is valid (> current and <= now+7d)
-                    if let Some(mut session) = session_store
+                    if let Some(mut session) = storage
                         .get_session(sub_msg.data.topic.clone())
                         .map_err(|e| {
-                            HandleError::Internal(format!("get session: {e}"))
+                            HandleError::Temporary(format!("get session: {e}"))
                         })?
                     {
                         let now = crate::time::SystemTime::now()
                             .duration_since(crate::time::UNIX_EPOCH)
                             .map_err(|e| {
-                                HandleError::Internal(format!("get now: {e}"))
+                                HandleError::Temporary(format!("get now: {e}"))
                             })?
                             .as_secs();
                         match crate::sign::utils::validate_extend_request(
@@ -349,33 +329,60 @@ pub fn handle(
                         ) {
                             Ok(accepted_expiry) => {
                                 session.expiry = accepted_expiry;
-                                session_store.add_session(session).map_err(
-                                    |e| {
-                                        HandleError::Internal(format!(
-                                            "add session: {e}"
-                                        ))
-                                    },
-                                )?;
-                                // Emit extend event
-                                session_request_tx
-                                    .send((
-                                        sub_msg.data.topic.clone(),
-                                        IncomingSessionMessage::SessionExtend(
-                                            extend.id,
-                                            sub_msg.data.topic,
-                                        ),
+                                storage.add_session(session).map_err(|e| {
+                                    HandleError::Temporary(format!(
+                                        "add session: {e}"
                                     ))
+                                })?;
+
+                                storage
+                                    .insert_json_rpc_history(
+                                        request_id,
+                                        sub_msg.data.topic.to_string(),
+                                        method,
+                                        value.to_string(),
+                                        Some(TransportType::Relay),
+                                    )
                                     .map_err(|e| {
-                                        HandleError::Internal(format!(
-                                            "send session extend: {e}"
+                                        HandleError::Temporary(format!(
+                                            "insert history: {e}"
                                         ))
                                     })?;
+
+                                // Emit extend event
+                                // At-most-once delivery guarantee, app can call getConnections()
+                                if let Err(e) = session_request_tx.send((
+                                    sub_msg.data.topic.clone(),
+                                    IncomingSessionMessage::SessionExtend(
+                                        extend.id,
+                                        sub_msg.data.topic.clone(),
+                                    ),
+                                )) {
+                                    // Don't need to trigger a delivery retry. App can call getConnections()
+                                    tracing::debug!(
+                                        "Failed to emit session extend event: {e}"
+                                    );
+                                }
                             }
                             Err(e) => {
                                 tracing::warn!(
                                     "ignored wc_sessionExtend: {:?}",
                                     e
                                 );
+
+                                storage
+                                    .insert_json_rpc_history(
+                                        request_id,
+                                        sub_msg.data.topic.to_string(),
+                                        method,
+                                        value.to_string(),
+                                        Some(TransportType::Relay),
+                                    )
+                                    .map_err(|e| {
+                                        HandleError::Temporary(format!(
+                                            "insert history: {e}"
+                                        ))
+                                    })?;
                             }
                         }
                     } else {
@@ -383,20 +390,8 @@ pub fn handle(
                             "wc_sessionExtend received for unknown topic: {:?}",
                             sub_msg.data.topic
                         );
-                    }
-                    Ok(())
-                }
-                methods::SESSION_EVENT => {
-                    // Insert JSON-RPC history for incoming request (if not exists)
-                    let exists = session_store
-                        .does_json_rpc_exist(request_id)
-                        .map_err(|e| {
-                            HandleError::Internal(format!(
-                                "history exists check: {e}"
-                            ))
-                        })?;
-                    if !exists {
-                        session_store
+
+                        storage
                             .insert_json_rpc_history(
                                 request_id,
                                 sub_msg.data.topic.to_string(),
@@ -405,39 +400,54 @@ pub fn handle(
                                 Some(TransportType::Relay),
                             )
                             .map_err(|e| {
-                                HandleError::Internal(format!(
+                                HandleError::Temporary(format!(
                                     "insert history: {e}"
                                 ))
                             })?;
                     }
 
+                    Ok(())
+                }
+                methods::SESSION_EVENT => {
                     // Parse wc_sessionEvent params
                     let params = serde_json::from_value::<
                         crate::sign::protocol_types::EventParams,
                     >(request.params)
                     .map_err(|e| {
-                        HandleError::Client(format!("parse event params: {e}"))
+                        HandleError::Peer(format!("parse event params: {e}"))
                     })?;
 
                     let name = params.event.name;
                     let data_value = params.event.data;
                     let chain_id = params.chain_id;
 
-                    session_request_tx
-                        .send((
-                            sub_msg.data.topic.clone(),
-                            IncomingSessionMessage::SessionEvent(
-                                sub_msg.data.topic,
-                                name,
-                                data_value,
-                                chain_id,
-                            ),
-                        ))
+                    storage
+                        .insert_json_rpc_history(
+                            request_id,
+                            sub_msg.data.topic.to_string(),
+                            method,
+                            value.to_string(),
+                            Some(TransportType::Relay),
+                        )
                         .map_err(|e| {
-                            HandleError::Internal(format!(
-                                "send session event: {e}"
+                            HandleError::Temporary(format!(
+                                "insert history: {e}"
                             ))
                         })?;
+
+                    if let Err(e) = session_request_tx.send((
+                        sub_msg.data.topic.clone(),
+                        IncomingSessionMessage::SessionEvent(
+                            sub_msg.data.topic.clone(),
+                            name,
+                            data_value,
+                            chain_id,
+                        ),
+                    )) {
+                        // At-most-once delivery guarantee, unfortunately. Session events can be lost.
+                        tracing::debug!("Failed to emit session event: {e}");
+                    }
+
                     Ok(())
                 }
                 methods::SESSION_PING => {
@@ -445,61 +455,55 @@ pub fn handle(
                     Ok(())
                 }
                 methods::SESSION_DELETE => {
-                    // Insert JSON-RPC history for incoming request (if not exists)
-                    let exists = session_store
-                        .does_json_rpc_exist(request_id)
-                        .map_err(|e| {
-                            HandleError::Internal(format!(
-                                "history exists check: {e}"
-                            ))
-                        })?;
-                    if !exists {
-                        session_store
-                            .insert_json_rpc_history(
-                                request_id,
-                                sub_msg.data.topic.to_string(),
-                                method,
-                                value.to_string(),
-                                Some(TransportType::Relay),
-                            )
-                            .map_err(|e| {
-                                HandleError::Internal(format!(
-                                    "insert history: {e}"
-                                ))
-                            })?;
-                    }
-
                     let delete =
-                        serde_json::from_value::<SessionDeleteJsonRpc>(value)
-                            .map_err(|e| {
-                            HandleError::Client(format!(
+                        serde_json::from_value::<SessionDeleteJsonRpc>(
+                            value.clone(),
+                        )
+                        .map_err(|e| {
+                            HandleError::Peer(format!(
                                 "parse delete message: {e}"
                             ))
                         })?;
 
-                    session_store
+                    storage
                         .delete_session(sub_msg.data.topic.clone())
                         .map_err(|e| {
-                            HandleError::Internal(format!(
+                            HandleError::Temporary(format!(
                                 "delete session: {e}"
                             ))
                         })?;
-                    session_request_tx
-                        .send((
-                            sub_msg.data.topic.clone(),
-                            IncomingSessionMessage::Disconnect(
-                                delete.id,
-                                sub_msg.data.topic,
-                            ),
-                        ))
+
+                    // IMO delete_session and emitting disconnect events should be idempotent. But this is unfortunately not currently the API spec
+                    // If they were, we would not need to record the JSON-RPC history here and could always just do both operations: delete and emit. No conditionals
+                    storage
+                        .insert_json_rpc_history(
+                            request_id,
+                            sub_msg.data.topic.to_string(),
+                            method,
+                            value.to_string(),
+                            Some(TransportType::Relay),
+                        )
                         .map_err(|e| {
-                            HandleError::Internal(format!(
-                                "send disconnect: {e}"
+                            HandleError::Temporary(format!(
+                                "insert history: {e}"
                             ))
                         })?;
+
+                    // At-most-once delivery guarantee, app can call getConnections()
+                    if let Err(e) = session_request_tx.send((
+                        sub_msg.data.topic.clone(),
+                        IncomingSessionMessage::Disconnect(
+                            delete.id,
+                            sub_msg.data.topic,
+                        ),
+                    )) {
+                        // Don't need to trigger a delivery retry. App can call getConnections()
+                        tracing::debug!("Failed to emit disconnect event: {e}");
+                    }
+
                     Ok(())
                 }
-                _ => Err(HandleError::Client(format!(
+                _ => Err(HandleError::Peer(format!(
                     "unexpected method: {method}"
                 ))),
             }
@@ -512,17 +516,17 @@ pub fn handle(
                 GenericJsonRpcResponse::Error(error) => error.id.into_value(),
             };
 
-            let pairing = session_store
+            let pairing = storage
                 .get_pairing(sub_msg.data.topic.clone(), rpc_id)
                 .map_err(|e| {
-                    HandleError::Internal(format!("get pairing: {e}"))
+                    HandleError::Temporary(format!("get pairing: {e}"))
                 })?;
             if let Some(StoragePairing { sym_key: _, self_key }) = pairing {
                 let response = serde_json::from_value::<
                     SessionProposalJsonRpcResponse,
                 >(value.clone())
                 .map_err(|e| {
-                    HandleError::Client(format!("parse proposal response: {e}"))
+                    HandleError::Peer(format!("parse proposal response: {e}"))
                 })?;
                 let response = match response {
                     SessionProposalJsonRpcResponse::Result(result) => result,
@@ -530,18 +534,19 @@ pub fn handle(
                         tracing::error!("Proposal error: {:?}", error);
 
                         // Update JSON-RPC history with proposal response
-                        session_store
+                        storage
                             .update_json_rpc_history_response(
                                 rpc_id,
                                 value.to_string(),
                             )
                             .map_err(|e| {
-                                HandleError::Internal(format!(
+                                HandleError::Temporary(format!(
                                     "update history response: {e}"
                                 ))
                             })?;
 
                         // Emit SessionRejected event
+                        // At-most-once delivery guarantee
                         if let Err(e) = session_request_tx.send((
                             sub_msg.data.topic.clone(),
                             IncomingSessionMessage::SessionReject(
@@ -549,6 +554,7 @@ pub fn handle(
                                 sub_msg.data.topic,
                             ),
                         )) {
+                            // If app dies, it must establish a new connection anyway rather than resuming the pending one
                             tracing::debug!(
                                 "Failed to emit session rejected event: {e}"
                             );
@@ -557,59 +563,69 @@ pub fn handle(
                         return Ok(());
                     }
                 };
+
+                let session_topic = {
+                    let self_key = x25519_dalek::StaticSecret::from(self_key);
+                    let responder_public_key =
+                        hex::decode(response.result.responder_public_key)
+                            .map_err(|e| {
+                                HandleError::Peer(format!(
+                                    "decode responder public key: {e}"
+                                ))
+                            })?;
+                    let responder_public_key: [u8; 32] =
+                        responder_public_key.try_into().map_err(|e| {
+                            HandleError::Peer(format!(
+                                "convert responder public key to fixed-size array: {e:?}"
+                            ))
+                        })?;
+                    let responder_public_key =
+                        x25519_dalek::PublicKey::from(responder_public_key);
+                    let shared_secret =
+                        diffie_hellman(&responder_public_key, &self_key);
+                    let session_topic = topic_from_sym_key(&shared_secret);
+                    storage
+                        .save_partial_session(
+                            session_topic.clone(),
+                            shared_secret,
+                        )
+                        .map_err(|e| {
+                            HandleError::Temporary(format!(
+                                "save partial session: {e}"
+                            ))
+                        })?;
+                    session_topic
+                };
+
                 // Update JSON-RPC history with proposal response
-                session_store
+                storage
                     .update_json_rpc_history_response(rpc_id, value.to_string())
                     .map_err(|e| {
-                        HandleError::Internal(format!(
+                        HandleError::Temporary(format!(
                             "update history response: {e}"
                         ))
                     })?;
 
-                let self_key = x25519_dalek::StaticSecret::from(self_key);
-                let responder_public_key = hex::decode(
-                    response.result.responder_public_key,
-                )
-                .map_err(|e| {
-                    HandleError::Client(format!(
-                        "decode responder public key: {e}"
-                    ))
-                })?;
-                let responder_public_key: [u8; 32] =
-                        responder_public_key.try_into().map_err(|e| {
-                            HandleError::Client(format!(
-                                "convert responder public key to fixed-size array: {e:?}"
-                            ))
-                        })?;
-                let responder_public_key =
-                    x25519_dalek::PublicKey::from(responder_public_key);
-                let shared_secret =
-                    diffie_hellman(&responder_public_key, &self_key);
-                let session_topic = topic_from_sym_key(&shared_secret);
-                session_store
-                    .save_partial_session(session_topic.clone(), shared_secret)
-                    .map_err(|e| {
-                        HandleError::Internal(format!(
-                            "save partial session: {e}"
-                        ))
-                    })?;
+                // No SessionConnect emit... that's actually emitted when the sessionSettle request comes in
 
-                let (tx, rx) = tokio::sync::oneshot::channel();
-                crate::spawn::spawn(async move {
-                    let response = rx.await;
-                    tracing::debug!(
-                        "Received batch subscribe response: {:?}",
-                        response
-                    );
-                });
-                if let Err(e) = priority_request_tx.send((
-                    Params::BatchSubscribe(BatchSubscribe {
+                {
+                    let params = Params::BatchSubscribe(BatchSubscribe {
                         topics: vec![session_topic],
-                    }),
-                    tx,
-                )) {
-                    tracing::warn!("Failed to send priority request: {e}");
+                    });
+                    let (tx, rx) = tokio::sync::oneshot::channel();
+                    crate::spawn::spawn(async move {
+                        // Consume the response to avoid a publish error
+                        let response = rx.await;
+                        tracing::debug!(
+                            "Received batch subscribe response: {:?}",
+                            response
+                        );
+                    });
+                    if let Err(e) = priority_request_tx.send((params, tx)) {
+                        tracing::warn!("Failed to send priority request: {e}");
+                    }
                 }
+
                 Ok(())
             } else if sub_msg.data.tag == 1109 {
                 let response = if value.get("error").is_some() {
@@ -618,7 +634,7 @@ pub fn handle(
                         SessionRequestJsonRpcErrorResponse,
                     >(value.clone())
                     .map_err(|e| {
-                        HandleError::Client(format!(
+                        HandleError::Peer(format!(
                             "parse session request response: {e}"
                         ))
                     })?;
@@ -629,12 +645,23 @@ pub fn handle(
                         SessionRequestJsonRpcResultResponse,
                     >(value.clone())
                     .map_err(|e| {
-                        HandleError::Client(format!(
+                        HandleError::Peer(format!(
                             "parse session request response: {e}"
                         ))
                     })?;
                     SessionRequestJsonRpcResponse::Result(result_response)
                 };
+
+                // Update JSON-RPC history with session request response
+                storage
+                    .update_json_rpc_history_response(rpc_id, value.to_string())
+                    .map_err(|e| {
+                        HandleError::Temporary(format!(
+                            "update history response: {e}"
+                        ))
+                    })?;
+
+                // At-most-once delivery guarantee
                 if let Err(e) = session_request_tx.send((
                     sub_msg.data.topic.clone(),
                     IncomingSessionMessage::SessionRequestResponse(
@@ -643,22 +670,15 @@ pub fn handle(
                         response,
                     ),
                 )) {
+                    // If app dies, will have to send new session request
                     tracing::warn!(
                         "Failed to emit session request response event: {e}"
                     );
                 }
 
-                // Update JSON-RPC history with session request response
-                session_store
-                    .update_json_rpc_history_response(rpc_id, value.to_string())
-                    .map_err(|e| {
-                        HandleError::Internal(format!(
-                            "update history response: {e}"
-                        ))
-                    })?;
                 Ok(())
             } else {
-                Err(HandleError::Client(format!(
+                Err(HandleError::Peer(format!(
                     "ignoring message with invalid ID: {value:?}",
                 )))
             }

@@ -661,6 +661,7 @@ pub async fn connect_loop_state_machine(
                     session_request_tx,
                     priority_request_tx.clone(),
                 );
+                // TODO relay only listens for these types of ACKs for 4s. We should handle longer processing times e.g. via batchFetch in-case of long network latency or other factors
                 match result {
                     Ok(()) => {
                         if let Err(e) = irn_subscription_ack_tx.send(id) {
@@ -670,7 +671,7 @@ pub async fn connect_loop_state_machine(
                         }
                     }
                     Err(e) => match e {
-                        HandleError::Internal(e) => {
+                        HandleError::Temporary(e) => {
                             tracing::error!(
                                 "Error handling IRN subscription: {e}"
                             );
@@ -686,11 +687,19 @@ pub async fn connect_loop_state_machine(
                             }
                             // TODO consider unsubscribing from topic
                         }
-                        HandleError::Client(e) => {
+                        HandleError::Peer(e) => {
                             tracing::error!(
                                 "Error handling IRN subscription: {e}"
                             );
                             // TODO consider sending RPC error back to sender
+                            if let Err(e) = irn_subscription_ack_tx.send(id) {
+                                tracing::debug!(
+                                    "Failed to send subscription ack: {e}"
+                                );
+                            }
+                        }
+                        HandleError::AlreadyHandled => {
+                            tracing::debug!("Already handled, ignoring");
                             if let Err(e) = irn_subscription_ack_tx.send(id) {
                                 tracing::debug!(
                                     "Failed to send subscription ack: {e}"

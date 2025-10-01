@@ -283,7 +283,7 @@ pub struct SessionEventJsonRpc {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-#[serde(rename_all = "camelCase")]
+#[serde(untagged)]
 pub enum GenericJsonRpcMessage {
     Request(GenericJsonRpcRequest),
     Response(GenericJsonRpcResponse),
@@ -299,7 +299,7 @@ pub struct GenericJsonRpcRequest {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-#[serde(rename_all = "camelCase")]
+#[serde(untagged)]
 pub enum GenericJsonRpcResponse {
     Success(GenericJsonRpcResponseSuccess),
     Error(GenericJsonRpcResponseError),
