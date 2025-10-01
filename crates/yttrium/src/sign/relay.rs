@@ -9,6 +9,7 @@ use {
             },
             relay_url::ConnectionOptions,
             storage::Storage,
+            VerifyContext,
         },
         time::DurableSleep,
     },
@@ -607,7 +608,7 @@ enum ConnectionState {
 // TODO refactor this architecutre (Topic is also passed outside this enum, why duplicate it here? Also what exact values are needed and why (JSON RPC ID, etc.))
 #[derive(Debug)]
 pub enum IncomingSessionMessage {
-    SessionRequest(SessionRequestJsonRpc),
+    SessionRequest(SessionRequestJsonRpc, VerifyContext),
     Disconnect(u64, Topic),
     SessionEvent(Topic, String, serde_json::Value, String),
     SessionUpdate(u64, Topic, crate::sign::protocol_types::SettleNamespaces),
@@ -623,6 +624,7 @@ pub async fn connect_loop_state_machine(
     project_id: ProjectId,
     key: SigningKey,
     session_store: Arc<dyn Storage>,
+    http_client: reqwest::Client,
     session_request_tx: tokio::sync::mpsc::UnboundedSender<(
         Topic,
         IncomingSessionMessage,
@@ -643,6 +645,7 @@ pub async fn connect_loop_state_machine(
 
     let handle_irn_subscription = {
         let session_store = session_store.clone();
+        let http_client = http_client.clone();
         let session_request_tx = session_request_tx.clone();
         let irn_subscription_ack_tx = irn_subscription_ack_tx.clone();
         move |id: MessageId,
@@ -652,15 +655,18 @@ pub async fn connect_loop_state_machine(
             tokio::sync::oneshot::Sender<Result<Response, RequestError>>,
         )>| {
             let session_store = session_store.clone();
+            let http_client = http_client.clone();
             let session_request_tx = session_request_tx.clone();
             let irn_subscription_ack_tx = irn_subscription_ack_tx.clone();
             async move {
                 let result = crate::sign::incoming::handle(
                     session_store,
+                    http_client.clone(),
                     sub_msg,
                     session_request_tx,
                     priority_request_tx.clone(),
-                );
+                )
+                .await;
                 // TODO relay only listens for these types of ACKs for 4s. We should handle longer processing times e.g. via batchFetch in-case of long network latency or other factors
                 match result {
                     Ok(()) => {

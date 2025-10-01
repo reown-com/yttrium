@@ -323,8 +323,9 @@ pub async fn test_sign_impl() -> Result<(), String> {
         probe = "received_session_request",
         "receiving session request"
     );
-    assert!(matches!(message.1, IncomingSessionMessage::SessionRequest(_)));
-    let req = if let IncomingSessionMessage::SessionRequest(req) = message.1 {
+    assert!(matches!(message.1, IncomingSessionMessage::SessionRequest(_, _)));
+    let req = if let IncomingSessionMessage::SessionRequest(req, _) = message.1
+    {
         req
     } else {
         panic!("Expected SessionRequest");
