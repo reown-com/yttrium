@@ -55,6 +55,43 @@ fn increase_unlock_time_ok() {
 }
 
 #[test]
+fn hardcoded_swift_payload_matches() {
+    let sig_selector = selector("increaseUnlockTime(uint256)");
+    let mut calldata = Vec::new();
+    calldata.extend_from_slice(&sig_selector);
+    calldata.extend_from_slice(&hex::decode(
+        "0000000000000000000000000000000000000000000000000000000067741500",
+    )
+    .unwrap());
+
+    let expected = build_calldata(sig_selector, &[uint_word(1_735_660_800u64)]);
+    assert_eq!(calldata, expected, "calldata mismatch with builder");
+
+    let model = format(
+        DESCRIPTOR,
+        10,
+        "0x521B4C065Bbdbe3E20B3727340730936912DfA46",
+        &calldata,
+    )
+    .expect("format should succeed");
+
+    assert_eq!(model.intent, "Increase Unlock Time");
+    assert!(
+        model.warnings.is_empty(),
+        "no warnings expected: {:?}",
+        model.warnings
+    );
+    assert_eq!(
+        model.items,
+        vec![DisplayItem {
+            label: "New Unlock Time".to_string(),
+            value: "2024-12-31 16:00:00 UTC".to_string(),
+        }]
+    );
+    assert!(model.raw.is_none());
+}
+
+#[test]
 fn unknown_selector_fallback() {
     let selector = [0xde, 0xad, 0xbe, 0xef];
     let calldata = build_calldata(selector, &[uint_word(42)]);
