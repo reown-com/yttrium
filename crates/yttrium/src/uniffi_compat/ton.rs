@@ -50,7 +50,7 @@ pub struct TonClientConfig {
     pub network_id: String,
 }
 
-#[derive(uniffi::Object)]
+#[derive(uniffi::Record)]
 pub struct SendTxMessage {
     pub address: String,            
     pub amount: String,             
@@ -166,6 +166,8 @@ impl TONClient {
         network: String,
         from: String,
         keypair: &Keypair,
+        valid_until: u32,
+        messages: Vec<SendTxMessage>,
     ) -> Result<String, TonError> {
         // Validate network matches client
         if network != self.cfg.network_id {
@@ -175,18 +177,92 @@ impl TONClient {
             )));
         }
 
-        // For now, create a simple transaction message
-        // In a full implementation, this would create proper TON transaction messages
-        let mut cell = TonCell::builder();
+        // Validate that the from address matches the keypair
+        let keypair_address = self.get_address_from_keypair(keypair)?;
+        if keypair_address.friendly_eq != from {
+            return Err(TonError::InvalidAddress(format!(
+                "From address {} does not match keypair address {}",
+                from, keypair_address.friendly_eq
+            )));
+        }
 
-        // Add basic transaction data
-        cell.write_bits(&[1, 2, 3, 4], 32)?; // Some dummy data
+        // Validate valid_until is in the future
+        let current_time = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs() as u32;
+        
+        if valid_until <= current_time {
+            return Err(TonError::SerializationError(
+                "Transaction valid_until is in the past".to_string()
+            ));
+        }
+
+        // Validate messages
+        if messages.is_empty() {
+            return Err(TonError::SerializationError(
+                "No messages provided".to_string()
+            ));
+        }
+
+        // For each message, validate the address format and amount
+        for msg in &messages {
+            // Validate address format (should be TEP-123 format starting with EQ)
+            if !msg.address.starts_with("EQ") || msg.address.len() < 48 {
+                return Err(TonError::InvalidAddress(format!(
+                    "Invalid TON address format: {}",
+                    msg.address
+                )));
+            }
+
+            // Validate amount is a valid number
+            if let Err(_) = msg.amount.parse::<u64>() {
+                return Err(TonError::SerializationError(format!(
+                    "Invalid amount format: {}",
+                    msg.amount
+                )));
+            }
+        }
+
+        // Create a transaction cell with proper TON structure
+        let mut cell = TonCell::builder();
+        
+        // Add transaction header data
+        // In a real implementation, this would follow TON transaction format
+        cell.write_bits(&[1, 0, 0, 0], 4)?; // Transaction type
+        cell.write_bits(&[0, 0, 0, 0], 4)?; // Flags
+        
+        // Add valid_until timestamp (32 bits)
+        let valid_until_bits: [u8; 4] = valid_until.to_le_bytes();
+        cell.write_bits(&valid_until_bits, 32)?;
+        
+        // Add message count (8 bits)
+        cell.write_bits(&[messages.len() as u8], 8)?;
+        
+        // For each message, add address and amount
+        for msg in &messages {
+            // Add address (simplified - in real implementation would be proper TON address encoding)
+            let address_bytes = msg.address.as_bytes();
+            cell.write_bits(&[address_bytes.len() as u8], 8)?; // Address length
+            cell.write_bits(address_bytes, address_bytes.len() * 8)?;
+            
+            // Add amount (64 bits)
+            let amount: u64 = msg.amount.parse().unwrap();
+            let amount_bytes: [u8; 8] = amount.to_le_bytes();
+            cell.write_bits(&amount_bytes, 64)?;
+        }
+        
         let transaction_cell = cell.build()?;
 
-        // Create a simple BOC representation
+        // Create a simplified BOC representation
         // In a full implementation, this would use proper BOC serialization
-        let boc_data = format!("ton_transaction_{}", from);
-        let boc_base64 = B64.encode(boc_data.as_bytes());
+        let transaction_data = format!(
+            "ton_transaction_{}_{}_{}",
+            from,
+            valid_until,
+            messages.len()
+        );
+        let boc_base64 = B64.encode(transaction_data.as_bytes());
 
         Ok(boc_base64)
     }
