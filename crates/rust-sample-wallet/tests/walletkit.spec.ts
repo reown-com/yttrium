@@ -11,8 +11,9 @@ async function connectJsApp(app: Page, page: Page) {
     const pairingUri = page.locator('#pairing-uri');
     await expect(pairingUri).toBeVisible();
     await pairingUri.fill(uri!);
-    await page.locator('button', { hasText: 'Pair' }).click();
-    await page.locator('button', { hasText: 'Approve' }).click();
+    await page.getByTestId('pair-approve-button').click();
+    await expect(page.getByText('VerifyContext { origin: Some("https://appkit-lab.reown.com"), validation: Valid, is_scam: false }')).toBeVisible();
+    await page.getByTestId('pairing-approve-button').click();
     await expect(page.getByText("Pairing approved")).toBeVisible();
     await expect(page.getByTestId("wallet-sessions").locator('li')).toHaveCount(1);
     await expect(app.getByTestId("w3m-caip-address")).toHaveText("eip155:1:0x0000000000000000000000000000000000000000");
@@ -31,7 +32,7 @@ test('sign message Rust wallet to JS app', async ({ browser, page, baseURL }) =>
     const app = await context.newPage();
     await connectJsApp(app, page);
     await app.getByTestId("sign-message-button").click();
-    await page.locator('button', { hasText: 'Approve' }).click();
+    await page.getByTestId('request-approve-button').click();
     await expect(page.getByText("Signature approved")).toBeVisible();
     await expect(app.getByText("Signing Succeeded")).toBeVisible();
 });
@@ -43,7 +44,7 @@ test.skip("receives sign after refresh Rust wallet to JS app", async ({ browser,
     const app = await context.newPage();
     await connectJsApp(app, page);
     await app.getByTestId("sign-message-button").click();
-    await page.locator('button', { hasText: 'Approve' }).click();
+    await page.getByTestId('request-approve-button').click();
     await expect(page.getByText("Signature approved")).toBeVisible();
     await expect(app.getByText("Signing Succeeded")).toBeVisible();
     await app.locator("#toast-close-button").click();
@@ -52,7 +53,7 @@ test.skip("receives sign after refresh Rust wallet to JS app", async ({ browser,
     await page.reload();
 
     await app.getByTestId("sign-message-button").click();
-    await page.locator('button', { hasText: 'Approve' }).click();
+    await page.getByTestId('request-approve-button').click();
     await expect(page.getByText("Signature approved")).toBeVisible();
     await expect(app.getByText("Signing Succeeded")).toBeVisible();
 });
@@ -74,7 +75,7 @@ test("high latency Rust wallet to JS app", async ({ browser, baseURL }) => {
     const app = await context.newPage();
     await connectJsApp(app, page);
     await app.getByTestId("sign-message-button").click();
-    await page.locator('button', { hasText: 'Approve' }).click();
+    await page.getByTestId('request-approve-button').click();
     await expect(page.getByText("Signature approved")).toBeVisible();
     await expect(app.getByText("Signing Succeeded")).toBeVisible();
 });
@@ -96,7 +97,7 @@ test("low bandwidth Rust wallet to JS app", async ({ browser, baseURL }) => {
     const app = await context.newPage();
     await connectJsApp(app, page);
     await app.getByTestId("sign-message-button").click();
-    await page.locator('button', { hasText: 'Approve' }).click();
+    await page.getByTestId('request-approve-button').click();
     await expect(page.getByText("Signature approved")).toBeVisible();
     await expect(app.getByText("Signing Succeeded")).toBeVisible();
 });
@@ -118,7 +119,7 @@ test("retry pairing after offline Rust wallet to JS app", async ({ browser, base
     // const app = await context.newPage();
     // await connect(app, page);
     // await app.getByTestId("sign-message-button").click();
-    // await page.locator('button', { hasText: 'Approve' }).click();
+    // await page.getByTestId('request-approve-button').click();
     // await expect(page.getByText("Signature approved")).toBeVisible();
     // await expect(app.getByText("Signing Succeeded")).toBeVisible();
 
@@ -141,11 +142,11 @@ test("retry pairing after offline Rust wallet to JS app", async ({ browser, base
     const pairingUri = page.locator('#pairing-uri');
     await expect(pairingUri).toBeVisible();
     await pairingUri.fill(uri!);
-    await page.locator('button', { hasText: 'Pair' }).click();
+    await page.getByTestId('pair-approve-button').click();
 
-    await expect(page.getByText('Approve pairing')).toHaveCount(1);
+    await expect(page.getByText('Approve pairing')).toBeVisible();
     await expect(page.getByText("Pairing failed:")).toBeVisible({ timeout: 11000 });
-    await expect(page.getByText('Approve pairing')).toHaveCount(0);
+    await expect(page.getByText('Approve pairing')).not.toBeVisible();
 
     walletCDPSession.send("Network.emulateNetworkConditions", {
         offline: false,
@@ -156,14 +157,14 @@ test("retry pairing after offline Rust wallet to JS app", async ({ browser, base
 
     await expect(pairingUri).toBeVisible();
     await pairingUri.fill(uri!);
-    await page.locator('button', { hasText: 'Pair' }).click();
+    await page.getByTestId('pair-approve-button').click();
 
-    await page.locator('button', { hasText: 'Approve' }).click();
+    await page.getByTestId('pairing-approve-button').click();
     await expect(page.getByText("Pairing approved")).toBeVisible();
     await expect(page.getByTestId("wallet-sessions").locator('li')).toHaveCount(1);
 
     await app2.getByTestId("sign-message-button").click();
-    await page.locator('button', { hasText: 'Approve' }).click();
+    await page.getByTestId('request-approve-button').click();
     await expect(page.getByText("Signature approved")).toBeVisible();
     await expect(app2.getByText("Signing Succeeded")).toBeVisible();
 });

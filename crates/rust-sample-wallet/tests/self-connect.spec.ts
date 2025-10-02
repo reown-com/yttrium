@@ -6,7 +6,8 @@ test('self-connect Rust wallet to JS app', async ({ browser, page, baseURL }) =>
     await expect(page.getByTestId("wallet-sessions").locator('li')).toHaveCount(0);
     await page.getByTestId("connect-button").click();
     await page.getByTestId("self-connect-button").click();
-    await page.getByTestId("approve-button").click();
+    // TODO test verify is valid
+    await page.getByTestId("pairing-approve-button").click();
     await expect(page.getByTestId("app-sessions").locator('li')).toHaveCount(1);
     await expect(page.getByTestId("wallet-sessions").locator('li')).toHaveCount(1);
 });

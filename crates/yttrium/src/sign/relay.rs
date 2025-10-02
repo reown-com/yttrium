@@ -195,6 +195,7 @@ async fn connect(
 
                 tokio::select! {
                     Some(message) = outgoing_rx.recv() => {
+                        tracing::debug!("sending websocket message: {message}");
                         if let Err(e) = ws_stream.send(Message::Text(message.into())).await {
                             tracing::debug!("Failed to send outgoing message: {e}");
                             break;
@@ -477,6 +478,7 @@ async fn connect(
                         "Failed to serialize request: {e}"
                     ))
                 })?;
+            tracing::debug!("sending websocket message: {serialized}");
             ws.send_with_str(&serialized).map_err(|e| {
                 ConnectError::ConnectFail(format!(
                     "Failed to send batch subscribe request: {}",
@@ -532,6 +534,7 @@ async fn connect(
         ));
         let serialized = serde_json::to_string(&request)
             .map_err(|e| ConnectError::ShouldNeverHappen(e.to_string()))?;
+        tracing::debug!("sending websocket message: {serialized}");
         ws.send_with_str(&serialized).map_err(|e| {
             ConnectError::ConnectFail(
                 e.as_string().unwrap_or("unknown error".to_string()),
@@ -602,6 +605,38 @@ enum ConnectionState {
         tokio::sync::oneshot::Sender<Result<Response, RequestError>>,
         DurableSleep,
     ),
+}
+
+impl std::fmt::Debug for ConnectionState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let name = match self {
+            ConnectionState::Idle => "Idle",
+            ConnectionState::Poisoned => "Poisoned",
+            ConnectionState::MaybeReconnect(_) => "MaybeReconnect(_)",
+            ConnectionState::ConnectSubscribe(_) => "ConnectSubscribe(_)",
+            ConnectionState::AwaitingSubscribeResponse(_, _, _, _, _) => {
+                "AwaitingSubscribeResponse(_, _, _, _, _)"
+            }
+            ConnectionState::Backoff(_) => "Backoff(_)",
+            ConnectionState::ConnectRequest(_) => "ConnectRequest(_)",
+            ConnectionState::AwaitingConnectRequestResponse(_, _, _, _, _) => {
+                "AwaitingConnectRequestResponse(_, _, _, _, _)"
+            }
+            ConnectionState::Connected(_, _, _) => "Connected(_, _, _)",
+            ConnectionState::AwaitingRequestResponse(_, _, _, _, _) => {
+                "AwaitingRequestResponse(_, _, _, _, _)"
+            }
+            ConnectionState::ConnectRetryRequest(_) => "ConnectRetryRequest(_)",
+            ConnectionState::AwaitingConnectRetryRequestResponse(
+                _,
+                _,
+                _,
+                _,
+                _,
+            ) => "AwaitingConnectRetryRequestResponse(_, _, _, _, _)",
+        };
+        write!(f, "{name}")
+    }
 }
 
 // TODO rename to something more generic, e.g. IncomingEvent
@@ -720,6 +755,7 @@ pub async fn connect_loop_state_machine(
 
     let mut state = ConnectionState::Idle;
     loop {
+        tracing::debug!("connect state: {state:?}");
         state = match state {
             ConnectionState::Idle => {
                 // TODO avoid select! as it doesn't guarantee that `else` branch exists (it will panic otherwise)
@@ -1124,6 +1160,7 @@ pub async fn connect_loop_state_machine(
                                     ))
                                 })
                                 .expect("TODO");
+                            tracing::debug!("sending websocket message: {serialized}");
                             #[cfg(target_arch = "wasm32")]
                             ws.0.send_with_str(&serialized).expect("TODO");
                             #[cfg(not(target_arch = "wasm32"))]
@@ -1165,6 +1202,7 @@ pub async fn connect_loop_state_machine(
                                     ))
                                 })
                                 .expect("TODO");
+                            tracing::debug!("sending websocket message: {serialized}");
                             #[cfg(target_arch = "wasm32")]
                             ws.0.send_with_str(&serialized).expect("TODO");
                             #[cfg(not(target_arch = "wasm32"))]
