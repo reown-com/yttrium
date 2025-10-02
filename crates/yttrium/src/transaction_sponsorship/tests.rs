@@ -1,8 +1,8 @@
 use {
     crate::{
         call::Call,
-        chain_abstraction::pulse::PulseMetadata,
         config::{LOCAL_BUNDLER_URL, LOCAL_PAYMASTER_URL, LOCAL_RPC_URL},
+        pulse::PulseMetadata,
         transaction_sponsorship::{
             Client as GasAbstractionClient, PreparedGasAbstraction,
             SignedAuthorization,

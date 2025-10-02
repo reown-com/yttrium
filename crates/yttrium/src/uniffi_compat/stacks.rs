@@ -1,8 +1,8 @@
 use {
     crate::{
         blockchain_api::BLOCKCHAIN_API_URL_PROD,
-        chain_abstraction::pulse::PulseMetadata,
         provider_pool::{network, ProviderPool},
+        pulse::PulseMetadata,
     },
     clarity::Error as ClarityError,
     rand::{

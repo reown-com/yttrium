@@ -9,14 +9,16 @@ use {
             ConnectParams, ConnectResult, PairingInfo, RejectionReason,
             Session, SessionProposal, TransportType,
         },
-        envelope_type0, pairing_uri,
+        envelope_type0::decrypt_type0_envelope,
+        pairing_uri,
         protocol_types::{
             Controller, JsonRpcRequest, JsonRpcRequestParams, Metadata,
-            Proposal, ProposalResponse, ProposalResultResponseJsonRpc,
-            Proposer, Relay, SessionDelete, SessionDeleteJsonRpc,
-            SessionExtend, SessionExtendJsonRpc, SessionRequest,
-            SessionRequestJsonRpc, SessionRequestJsonRpcResponse,
-            SessionSettle, SessionUpdate, SettleNamespace,
+            Proposal, ProposalJsonRpc, ProposalResponse,
+            ProposalResultResponseJsonRpc, Proposer, Relay, SessionDelete,
+            SessionDeleteJsonRpc, SessionExtend, SessionExtendJsonRpc,
+            SessionRequest, SessionRequestJsonRpc,
+            SessionRequestJsonRpcResponse, SessionSettle, SessionUpdate,
+            SettleNamespace,
         },
         relay::IncomingSessionMessage,
         storage::Storage,
@@ -24,7 +26,12 @@ use {
             diffie_hellman, generate_rpc_id, is_expired,
             serialize_and_encrypt_message_type0_envelope, topic_from_sym_key,
         },
+        verify::{
+            decode_attestation_into_verify_context, get_public_key,
+            VerifyContext,
+        },
     },
+    futures::TryFutureExt,
     relay_rpc::{
         auth::ed25519_dalek::{SecretKey, SigningKey},
         domain::{ProjectId, Topic},
@@ -34,6 +41,7 @@ use {
         },
     },
     serde::de::DeserializeOwned,
+    sha2::Digest,
     std::{collections::HashMap, sync::Arc},
     tracing::debug,
     x25519_dalek::PublicKey,
@@ -49,6 +57,7 @@ type RpcRequestReceiver =
     tokio::sync::mpsc::UnboundedReceiver<RpcRequestMessage>;
 
 pub struct Client {
+    http_client: reqwest::Client,
     tx: tokio::sync::mpsc::UnboundedSender<(Topic, IncomingSessionMessage)>,
     request_tx: RpcRequestSender,
     online_tx: Option<tokio::sync::mpsc::UnboundedSender<()>>,
@@ -59,6 +68,7 @@ pub struct Client {
     signing_key_bytes: [u8; 32],
     pending_request_rx: Option<RpcRequestReceiver>,
     pending_online_rx: Option<tokio::sync::mpsc::UnboundedReceiver<()>>,
+    probe_group: Option<String>,
 }
 
 // Deduplication: does deduplication happen at the irn_subscription layer (like current SDKs) or do we do it for each action e.g. update, event, etc. (remember layered state and stateless architecture)
@@ -136,6 +146,7 @@ impl Client {
 
         (
             Self {
+                http_client: reqwest::Client::new(),
                 tx,
                 request_tx,
                 session_store,
@@ -145,9 +156,14 @@ impl Client {
                 signing_key_bytes: SigningKey::from_bytes(&key).to_bytes(),
                 pending_request_rx: Some(request_rx),
                 pending_online_rx: Some(online_rx),
+                probe_group: None,
             },
             rx,
         )
+    }
+
+    pub fn set_probe_group(&mut self, probe_group: String) {
+        self.probe_group = Some(probe_group);
     }
 
     pub fn start(&mut self) {
@@ -174,6 +190,7 @@ impl Client {
                     request_rx,
                     online_rx,
                     cleanup_rx,
+                    self.probe_group.clone(),
                 ),
             );
         }
@@ -195,7 +212,7 @@ impl Client {
     pub async fn pair(
         &mut self,
         uri: &str,
-    ) -> Result<SessionProposal, PairError> {
+    ) -> Result<(SessionProposal, Option<VerifyContext>), PairError> {
         // TODO implement
         // https://github.com/WalletConnect/walletconnect-monorepo/blob/5bef698dcf0ae910548481959a6a5d87eaf7aaa5/packages/sign-client/src/controllers/engine.ts#L330
 
@@ -210,96 +227,126 @@ impl Client {
         // TODO consider: immediately throw if expired? - maybe not necessary since FetchMessages returns empty array?
         // TODO update relay method to not remove message & approveSession removes it
 
-        let response: FetchResponse = self
+        let public_key = get_public_key(
+            self.http_client.clone(),
+            self.session_store.clone(),
+        )
+        .map_err(|e| PairError::GetPublicKey(e.to_string()));
+
+        let response = self
             .do_request::<FetchResponse>(relay_rpc::rpc::Params::FetchMessages(
                 FetchMessages { topic: pairing_uri.topic.clone() },
             ))
-            .await
-            .map_err(|e| PairError::Internal(e.to_string()))?;
+            .map_err(|e| PairError::Internal(e.to_string()));
+
+        let (public_key, response) = tokio::try_join!(public_key, response)?;
 
         tracing::debug!("Pairing Response: {:?}", response);
 
-        for message in response.messages {
-            if message.topic == pairing_uri.topic {
-                let request =
-                    envelope_type0::decode_type0_encrypted_proposal_message(
-                        pairing_uri.sym_key,
-                        &message.message,
-                    )?;
-                if request.method != "wc_sessionPropose" {
-                    return Err(PairError::Internal(format!(
-                        "Expected wc_sessionPropose, got {}",
-                        request.method
-                    )));
-                }
-                tracing::debug!("Decrypted Proposal: {:?}", request);
-                tracing::debug!("rpc request: {}", request.id);
-                tracing::debug!(
-                    "{}",
-                    serde_json::to_string_pretty(&request.params).unwrap()
-                );
+        let message = response
+            .messages
+            .iter()
+            .find(|message| message.tag == 1100)
+            .ok_or(PairError::Internal(
+                "No message found with tag 1100".to_owned(),
+            ))?;
 
-                let request_json =
-                    serde_json::to_string_pretty(&request).unwrap();
-
-                if self
-                    .session_store
-                    .does_json_rpc_exist(request.id)
-                    .unwrap_or(false)
-                {
-                    return Err(PairError::Internal(format!(
-                        "Duplicated JsonRpc RequestId for SessionPropose {}",
-                        request.id
-                    )));
-                } else {
-                    self.session_store.insert_json_rpc_history(
-                        request.id,
-                        pairing_uri.topic.to_string(),
-                        request.method.clone(),
-                        request_json,
-                        Some(TransportType::Relay),
-                    );
-                }
-
-                let proposal = request.params;
-                tracing::debug!("{proposal:?}");
-
-                let proposer_public_key = hex::decode(proposal.proposer.public_key)
-                    .map_err(|e| {
-                        PairError::Internal(format!(
-                            "Failed to decode proposer public key: {e}"
-                        ))
-                    })?
-                    .try_into()
-                    .map_err(|_| {
-                        PairError::Internal(
-                            "Failed to convert proposer public key to fixed-size array".to_owned()
-                        )
-                    })?;
-                tracing::debug!(
-                    "pairing topic: {:?}",
-                    pairing_uri.topic.clone()
-                );
-
-                // TODO: validate namespaces: https://specs.walletconnect.com/2.0/specs/clients/sign/namespaces#12-proposal-namespaces-must-not-have-chains-empty
-
-                return Ok(SessionProposal {
-                    session_proposal_rpc_id: request.id,
-                    pairing_topic: pairing_uri.topic,
-                    pairing_sym_key: pairing_uri.sym_key,
-                    proposer_public_key,
-                    relays: proposal.relays,
-                    required_namespaces: proposal.required_namespaces,
-                    optional_namespaces: proposal.optional_namespaces,
-                    metadata: proposal.proposer.metadata,
-                    session_properties: proposal.session_properties,
-                    scoped_properties: proposal.scoped_properties,
-                    expiry_timestamp: proposal.expiry_timestamp,
-                });
-            }
+        if message.topic != pairing_uri.topic {
+            return Err(PairError::Internal(format!(
+                "Expected topic {}, got {}",
+                pairing_uri.topic, message.topic
+            )));
         }
 
-        Err(PairError::Internal("No message found".to_string()))
+        let decrypted =
+            decrypt_type0_envelope(pairing_uri.sym_key, &message.message)?;
+        let request = serde_json::from_slice::<ProposalJsonRpc>(&decrypted)
+            .map_err(|e| {
+                PairError::Internal(format!(
+                    "Failed to parse decrypted message: {e}"
+                ))
+            })?;
+        if request.method != "wc_sessionPropose" {
+            return Err(PairError::Internal(format!(
+                "Expected wc_sessionPropose, got {}",
+                request.method
+            )));
+        }
+        tracing::debug!("Decrypted Proposal: {:?}", request);
+        tracing::debug!("rpc request: {}", request.id);
+        tracing::debug!(
+            "{}",
+            serde_json::to_string_pretty(&request.params).unwrap()
+        );
+
+        let request_json = serde_json::to_string_pretty(&request).unwrap();
+
+        if self.session_store.does_json_rpc_exist(request.id).unwrap_or(false) {
+            return Err(PairError::Internal(format!(
+                "Duplicated JsonRpc RequestId for SessionPropose {}",
+                request.id
+            )));
+        } else {
+            self.session_store.insert_json_rpc_history(
+                request.id,
+                pairing_uri.topic.to_string(),
+                request.method.clone(),
+                request_json,
+                Some(TransportType::Relay),
+            );
+        }
+
+        let proposal = request.params;
+        tracing::debug!("{proposal:?}");
+
+        let proposer_public_key = hex::decode(proposal.proposer.public_key)
+            .map_err(|e| {
+                PairError::Internal(format!(
+                    "Failed to decode proposer public key: {e}"
+                ))
+            })?
+            .try_into()
+            .map_err(|_| {
+                PairError::Internal(
+                    "Failed to convert proposer public key to fixed-size array"
+                        .to_owned(),
+                )
+            })?;
+        tracing::debug!("pairing topic: {:?}", pairing_uri.topic.clone());
+
+        // TODO: validate namespaces: https://specs.walletconnect.com/2.0/specs/clients/sign/namespaces#12-proposal-namespaces-must-not-have-chains-empty
+
+        let encrypted_hash = sha2::Sha256::digest(message.message.as_bytes());
+        let _decrypted_hash = sha2::Sha256::digest(&decrypted);
+        let attestation = if let Some(attestation) = &message.attestation {
+            let attestation = decode_attestation_into_verify_context(
+                &proposal.proposer.metadata.url,
+                attestation,
+                &public_key,
+                &hex::encode(encrypted_hash),
+            )
+            .map_err(|e| PairError::Internal(e.to_string()))?;
+            Some(attestation)
+        } else {
+            None
+        };
+
+        Ok((
+            SessionProposal {
+                session_proposal_rpc_id: request.id,
+                pairing_topic: pairing_uri.topic,
+                pairing_sym_key: pairing_uri.sym_key,
+                proposer_public_key,
+                relays: proposal.relays,
+                required_namespaces: proposal.required_namespaces,
+                optional_namespaces: proposal.optional_namespaces,
+                metadata: proposal.proposer.metadata,
+                session_properties: proposal.session_properties,
+                scoped_properties: proposal.scoped_properties,
+                expiry_timestamp: proposal.expiry_timestamp,
+            },
+            attestation,
+        ))
     }
 
     pub async fn connect(
@@ -351,6 +398,11 @@ impl Client {
         )
         .map_err(ConnectError::ShouldNeverHappen)?;
 
+        tracing::debug!(
+            group = self.probe_group.clone(),
+            probe = "sending_propose_session_request",
+            "sending propose session request"
+        );
         self.do_request::<bool>(relay_rpc::rpc::Params::ProposeSession(
             ProposeSession {
                 pairing_topic: pairing_info.topic.clone(),
@@ -367,6 +419,11 @@ impl Client {
         ))
         .await
         .map_err(ConnectError::Request)?;
+        tracing::debug!(
+            group = self.probe_group.clone(),
+            probe = "propose_session_request_success",
+            "propose session request success"
+        );
 
         self.session_store.insert_json_rpc_history(
             rpc_id,
@@ -381,6 +438,11 @@ impl Client {
             rpc_id,
             sym_key,
             self_key.to_bytes(),
+        );
+        tracing::debug!(
+            group = self.probe_group.clone(),
+            probe = "pairing_saved",
+            "pairing saved"
         );
 
         // TODO should return a promise/completer like JS/Flutter or should we just await the on_session_connect event?

@@ -194,7 +194,7 @@ impl SignClient {
             let mut client = self.client.lock().await;
             client.pair(&uri).await?
         };
-        Ok(proposal.into())
+        Ok(proposal.0.into())
     }
 
     pub async fn connect(
