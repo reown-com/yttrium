@@ -228,10 +228,7 @@ pub async fn handle(
                         sub_msg.data.clone(),
                         session.peer_meta_data.as_ref().unwrap().url.clone(),
                     )
-                    .await
-                    .map_err(|e| {
-                        HandleError::Temporary(format!("handle verify: {e}"))
-                    })?;
+                    .await;
 
                     storage
                         .insert_json_rpc_history(
