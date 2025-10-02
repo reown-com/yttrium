@@ -744,6 +744,7 @@ impl Client {
 
         let rpc = SessionRequestJsonRpc {
             id: generate_rpc_id(),
+            jsonrpc: "2.0".to_string(),
             method: "wc_sessionRequest".to_string(),
             params: session_request,
         };

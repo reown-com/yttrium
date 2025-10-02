@@ -20,6 +20,7 @@ pub mod methods {
 pub struct ProposalJsonRpc {
     // deserialize number from string (Flutter support)
     pub id: u64,
+    pub jsonrpc: String,
     pub method: String,
     pub params: Proposal,
 }
@@ -185,6 +186,7 @@ pub struct Redirect {
 #[serde(rename_all = "camelCase")]
 pub struct SessionRequestJsonRpc {
     pub id: u64,
+    pub jsonrpc: String,
     pub method: String,
     pub params: SessionRequest,
 }

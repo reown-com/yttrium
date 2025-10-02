@@ -81,9 +81,10 @@ pub fn handle(
         .map_err(|e| HandleError::Peer(format!("decrypt message: {e}")))?;
     let value = serde_json::from_slice::<serde_json::Value>(&decrypted)
         .map_err(|e| HandleError::Peer(format!("parse JSON: {e}")))?;
-    let message =
-        serde_json::from_slice::<GenericJsonRpcMessage>(&decrypted)
-            .map_err(|e| HandleError::Peer(format!("parse message: {e}")))?;
+    let message = serde_json::from_slice::<GenericJsonRpcMessage>(&decrypted)
+        .map_err(|e| {
+        HandleError::Peer(format!("parse message: {e}: {value}"))
+    })?;
 
     match message {
         GenericJsonRpcMessage::Request(request) => {

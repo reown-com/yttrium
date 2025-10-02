@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-      - push-unpprlmqyyvu
+      - push-uqyplrystyoz
 
 concurrency: ${{ github.workflow }}
 
