@@ -52,17 +52,17 @@ pub struct TonClientConfig {
 
 #[derive(uniffi::Object)]
 pub struct SendTxMessage {
-    pub address: String,            // TEP-123 format address
-    pub amount: String,             // nanotons as string
-    pub state_init: Option<String>, // base64 encoded BoC
-    pub payload: Option<String>,    // base64 encoded BoC
+    pub address: String,            
+    pub amount: String,             
+    pub state_init: Option<String>, 
+    pub payload: Option<String>,    
 }
 
 #[derive(uniffi::Object)]
 pub struct SendTxParams {
-    pub valid_until: u32, // unix seconds
-    pub network: String,  // "-239" / "-3"
-    pub from: String,     // TEP-123 format address
+    pub valid_until: u32, 
+    pub network: String,  
+    pub from: String, 
     pub messages: Vec<SendTxMessage>,
 }
 
@@ -91,7 +91,7 @@ impl TONClient {
         &self,
         keypair: &Keypair,
     ) -> Result<WalletIdentity, TonError> {
-        // Decode public key from hex string
+
         let pk_bytes = hex::decode(&keypair.pk).map_err(|e| {
             TonError::SerializationError(format!(
                 "Invalid public key hex: {}",
@@ -108,7 +108,6 @@ impl TONClient {
         let mut pk_array = [0u8; 32];
         pk_array.copy_from_slice(&pk_bytes);
 
-        // Create TON address from public key (workchain 0, wallet_id 0)
         let address = TonAddress::new(
             0,
             ton_lib::ton_lib_core::cell::TonHash::from(pk_array),
@@ -130,22 +129,15 @@ impl TONClient {
 
     pub fn sign_data(
         &self,
-        from: String,
         text: String,
         keypair: &Keypair,
     ) -> Result<String, TonError> {
-        let timestamp =
-            SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
-
-        // Build message to sign based on text payload
-        let domain = "ton.app".to_string(); // Default domain
         let mut message_bytes = Vec::new();
 
         // TON Connect text signing format
         message_bytes.extend_from_slice(b"ton-connect:");
         message_bytes.extend_from_slice(text.as_bytes());
 
-        // Decode private key from base64 string
         let sk_bytes = B64.decode(&keypair.sk).map_err(|e| {
             TonError::SerializationError(format!(
                 "Invalid private key base64: {}",
@@ -163,37 +155,8 @@ impl TONClient {
         sk_array.copy_from_slice(&sk_bytes);
         let sk = SigningKey::from_bytes(&sk_array);
 
-        // Sign the message using the provided keypair
         let signature = sk.sign(&message_bytes);
         let signature_base64 = B64.encode(signature.to_bytes());
-
-        // Decode public key from hex string
-        let pk_bytes = hex::decode(&keypair.pk).map_err(|e| {
-            TonError::SerializationError(format!(
-                "Invalid public key hex: {}",
-                e
-            ))
-        })?;
-
-        if pk_bytes.len() != 32 {
-            return Err(TonError::SerializationError(
-                "Invalid public key length".to_string(),
-            ));
-        }
-
-        let mut pk_array = [0u8; 32];
-        pk_array.copy_from_slice(&pk_bytes);
-
-        // Get wallet address in raw format from the keypair
-        let address = TonAddress::new(
-            0,
-            ton_lib::ton_lib_core::cell::TonHash::from(pk_array),
-        );
-        let wallet_address = format!(
-            "{}:{}",
-            address.workchain,
-            hex::encode(address.hash.as_slice())
-        );
 
         Ok(signature_base64)
     }
