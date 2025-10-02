@@ -26,7 +26,7 @@ use {
             diffie_hellman, generate_rpc_id, is_expired,
             serialize_and_encrypt_message_type0_envelope, topic_from_sym_key,
         },
-        verify::{handle_verify, VerifyContext},
+        verify::{handle_verify, VerifyContext, VERIFY_SERVER_URL},
     },
     relay_rpc::{
         auth::ed25519_dalek::{SecretKey, SigningKey},
@@ -308,6 +308,7 @@ impl Client {
 
         let decrypted_hash = sha2::Sha256::digest(&decrypted);
         let attestation = handle_verify(
+            VERIFY_SERVER_URL.to_string(),
             decrypted_hash.to_vec().try_into().unwrap(),
             self.http_client.clone(),
             self.storage.clone(),
