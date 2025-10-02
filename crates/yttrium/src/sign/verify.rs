@@ -407,10 +407,6 @@ pub enum VerifyValidation {
 
 #[cfg(test)]
 mod tests {
-    use wiremock::{
-        matchers::{method, path},
-        Mock, MockServer, ResponseTemplate,
-    };
     use {
         super::*,
         crate::sign::{
@@ -418,6 +414,10 @@ mod tests {
             storage::StoragePairing,
         },
         relay_rpc::domain::Topic,
+        wiremock::{
+            matchers::{method, path},
+            Mock, MockServer, ResponseTemplate,
+        },
     };
 
     #[tokio::test]
@@ -767,7 +767,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_handle_verify() {
+    async fn test_handle_verify_empty_attestation() {
         let mock_server = MockServer::start().await;
         let verify_url = mock_server.uri();
         let http_client = reqwest::Client::new();
@@ -883,12 +883,349 @@ mod tests {
             "https://app.walletconnect.org".to_string(),
         )
         .await;
+
+        // Test that empty attestation returns Unknown validation
+        assert!(verify_context.origin.is_none());
+        assert!(matches!(verify_context.validation, VerifyValidation::Unknown));
+        assert!(!verify_context.is_scam);
+    }
+
+    // Helper function to create a simple mock storage that returns the embedded public key
+    fn create_mock_storage_with_public_key() -> Arc<impl Storage> {
+        const MOCK_JWK: &str = r#"{"crv":"P-256","ext":true,"key_ops":["verify"],"kty":"EC","x":"CbL4DOYOb1ntd-8OmExO-oS0DWCMC00DntrymJoB8tk","y":"KTFwjHtQxGTDR91VsOypcdBfvbo6sAMj5p4Wb-9hRA1"}"#;
+
+        struct MockStorageWithKey;
+        impl Storage for MockStorageWithKey {
+            fn get_verify_public_key(
+                &self,
+            ) -> Result<Option<Jwk>, StorageError> {
+                Ok(Some(serde_json::from_str(MOCK_JWK).unwrap()))
+            }
+            fn set_verify_public_key(
+                &self,
+                _jwk: Jwk,
+            ) -> Result<(), StorageError> {
+                Ok(())
+            }
+            fn add_session(
+                &self,
+                _session: Session,
+            ) -> Result<(), StorageError> {
+                Err(StorageError::Runtime("unimplemented".to_string()))
+            }
+            fn delete_session(
+                &self,
+                _topic: Topic,
+            ) -> Result<(), StorageError> {
+                Err(StorageError::Runtime("unimplemented".to_string()))
+            }
+            fn get_session(
+                &self,
+                _topic: Topic,
+            ) -> Result<Option<Session>, StorageError> {
+                Err(StorageError::Runtime("unimplemented".to_string()))
+            }
+            fn get_all_sessions(&self) -> Result<Vec<Session>, StorageError> {
+                Err(StorageError::Runtime("unimplemented".to_string()))
+            }
+            fn get_all_topics(&self) -> Result<Vec<Topic>, StorageError> {
+                Err(StorageError::Runtime("unimplemented".to_string()))
+            }
+            fn get_decryption_key_for_topic(
+                &self,
+                _topic: Topic,
+            ) -> Result<Option<[u8; 32]>, StorageError> {
+                Err(StorageError::Runtime("unimplemented".to_string()))
+            }
+            fn save_pairing(
+                &self,
+                _topic: Topic,
+                _rpc_id: u64,
+                _sym_key: [u8; 32],
+                _self_key: [u8; 32],
+            ) -> Result<(), StorageError> {
+                Err(StorageError::Runtime("unimplemented".to_string()))
+            }
+            fn get_pairing(
+                &self,
+                _topic: Topic,
+                _rpc_id: u64,
+            ) -> Result<Option<StoragePairing>, StorageError> {
+                Err(StorageError::Runtime("unimplemented".to_string()))
+            }
+            fn save_partial_session(
+                &self,
+                _topic: Topic,
+                _sym_key: [u8; 32],
+            ) -> Result<(), StorageError> {
+                Err(StorageError::Runtime("unimplemented".to_string()))
+            }
+            fn insert_json_rpc_history(
+                &self,
+                _request_id: u64,
+                _topic: String,
+                _method: String,
+                _body: String,
+                _transport_type: Option<TransportType>,
+            ) -> Result<(), StorageError> {
+                Err(StorageError::Runtime("unimplemented".to_string()))
+            }
+            fn update_json_rpc_history_response(
+                &self,
+                _request_id: u64,
+                _response: String,
+            ) -> Result<(), StorageError> {
+                Err(StorageError::Runtime("unimplemented".to_string()))
+            }
+            fn delete_json_rpc_history_by_topic(
+                &self,
+                _topic: String,
+            ) -> Result<(), StorageError> {
+                Err(StorageError::Runtime("unimplemented".to_string()))
+            }
+            fn does_json_rpc_exist(
+                &self,
+                _request_id: u64,
+            ) -> Result<bool, StorageError> {
+                Err(StorageError::Runtime("unimplemented".to_string()))
+            }
+        }
+        Arc::new(MockStorageWithKey)
+    }
+
+    #[tokio::test]
+    async fn test_handle_verify_no_attestation_valid_v2_response() {
+        let mock_server = MockServer::start().await;
+        let verify_url = mock_server.uri();
+        let http_client = reqwest::Client::new();
+        let storage = create_mock_storage_with_public_key();
+
+        let decrypted_hash = [1u8; 32];
+        let app_origin = "https://app.walletconnect.org";
+        let attestation_origin = app_origin;
+
+        // Mock the v2 attestation endpoint
+        Mock::given(method("GET"))
+            .and(path(format!(
+                "{}/{}",
+                ATTESTATION_ENDPOINT.trim_end_matches('/'),
+                hex::encode(decrypted_hash)
+            )))
+            .respond_with(ResponseTemplate::new(200).set_body_json(
+                VerifyAttestation {
+                    attestation_id: hex::encode(decrypted_hash),
+                    origin: attestation_origin.to_string(),
+                    is_scam: Some(false),
+                },
+            ))
+            .mount(&mock_server)
+            .await;
+
+        let verify_context = handle_verify(
+            verify_url,
+            decrypted_hash,
+            http_client,
+            storage,
+            SubscriptionData {
+                topic: "test".to_string().into(),
+                message: "test_message".to_string().into(),
+                attestation: None, // No attestation triggers v2 path
+                published_at: 0,
+                tag: 0,
+            },
+            app_origin.to_string(),
+        )
+        .await;
+
+        assert_eq!(verify_context.origin.as_deref(), Some(attestation_origin));
+        assert!(matches!(verify_context.validation, VerifyValidation::Valid));
+        assert!(!verify_context.is_scam);
+    }
+
+    #[tokio::test]
+    async fn test_handle_verify_no_attestation_network_error() {
+        let mock_server = MockServer::start().await;
+        let verify_url = mock_server.uri();
+        let http_client = reqwest::Client::new();
+        let storage = create_mock_storage_with_public_key();
+
+        let decrypted_hash = [1u8; 32];
+        let app_origin = "https://app.walletconnect.org";
+
+        // Mock the v2 attestation endpoint to return 500 error
+        Mock::given(method("GET"))
+            .and(path(format!(
+                "{}/{}",
+                ATTESTATION_ENDPOINT.trim_end_matches('/'),
+                hex::encode(decrypted_hash)
+            )))
+            .respond_with(ResponseTemplate::new(500))
+            .mount(&mock_server)
+            .await;
+
+        let verify_context = handle_verify(
+            verify_url,
+            decrypted_hash,
+            http_client,
+            storage,
+            SubscriptionData {
+                topic: "test".to_string().into(),
+                message: "test_message".to_string().into(),
+                attestation: None, // No attestation triggers v2 path
+                published_at: 0,
+                tag: 0,
+            },
+            app_origin.to_string(),
+        )
+        .await;
+
+        assert!(verify_context.origin.is_none());
+        assert!(matches!(verify_context.validation, VerifyValidation::Unknown));
+        assert!(!verify_context.is_scam);
+    }
+
+    #[tokio::test]
+    async fn test_handle_verify_no_attestation_mismatched_origin() {
+        let mock_server = MockServer::start().await;
+        let verify_url = mock_server.uri();
+        let http_client = reqwest::Client::new();
+        let storage = create_mock_storage_with_public_key();
+
+        let decrypted_hash = [1u8; 32];
+        let app_origin = "https://app.walletconnect.org";
+        let malicious_origin = "https://malicious.example.com";
+
+        // Mock the v2 attestation endpoint with different origin
+        Mock::given(method("GET"))
+            .and(path(format!(
+                "{}/{}",
+                ATTESTATION_ENDPOINT.trim_end_matches('/'),
+                hex::encode(decrypted_hash)
+            )))
+            .respond_with(ResponseTemplate::new(200).set_body_json(
+                VerifyAttestation {
+                    attestation_id: hex::encode(decrypted_hash),
+                    origin: malicious_origin.to_string(),
+                    is_scam: Some(false),
+                },
+            ))
+            .mount(&mock_server)
+            .await;
+
+        let verify_context = handle_verify(
+            verify_url,
+            decrypted_hash,
+            http_client,
+            storage,
+            SubscriptionData {
+                topic: "test".to_string().into(),
+                message: "test_message".to_string().into(),
+                attestation: None, // No attestation triggers v2 path
+                published_at: 0,
+                tag: 0,
+            },
+            app_origin.to_string(),
+        )
+        .await;
+
+        assert_eq!(verify_context.origin.as_deref(), Some(malicious_origin));
+        assert!(matches!(verify_context.validation, VerifyValidation::Invalid));
+        assert!(!verify_context.is_scam);
+    }
+
+    #[tokio::test]
+    async fn test_handle_verify_no_attestation_id_mismatch() {
+        let mock_server = MockServer::start().await;
+        let verify_url = mock_server.uri();
+        let http_client = reqwest::Client::new();
+        let storage = create_mock_storage_with_public_key();
+
+        let decrypted_hash = [1u8; 32];
+        let app_origin = "https://app.walletconnect.org";
+
+        // Mock the v2 attestation endpoint with wrong ID
+        Mock::given(method("GET"))
+            .and(path(format!(
+                "{}/{}",
+                ATTESTATION_ENDPOINT.trim_end_matches('/'),
+                hex::encode(decrypted_hash)
+            )))
+            .respond_with(ResponseTemplate::new(200).set_body_json(
+                VerifyAttestation {
+                    attestation_id: "wrong_id".to_string(), // Mismatched ID
+                    origin: app_origin.to_string(),
+                    is_scam: Some(false),
+                },
+            ))
+            .mount(&mock_server)
+            .await;
+
+        let verify_context = handle_verify(
+            verify_url,
+            decrypted_hash,
+            http_client,
+            storage,
+            SubscriptionData {
+                topic: "test".to_string().into(),
+                message: "test_message".to_string().into(),
+                attestation: None, // No attestation triggers v2 path
+                published_at: 0,
+                tag: 0,
+            },
+            app_origin.to_string(),
+        )
+        .await;
+
+        assert!(verify_context.origin.is_none());
+        assert!(matches!(verify_context.validation, VerifyValidation::Unknown));
+        assert!(!verify_context.is_scam);
+    }
+
+    #[tokio::test]
+    async fn test_handle_verify_no_attestation_scam_detected() {
+        let mock_server = MockServer::start().await;
+        let verify_url = mock_server.uri();
+        let http_client = reqwest::Client::new();
+        let storage = create_mock_storage_with_public_key();
+
+        let decrypted_hash = [1u8; 32];
+        let app_origin = "https://app.walletconnect.org";
+
+        // Mock the v2 attestation endpoint with scam flag
+        Mock::given(method("GET"))
+            .and(path(format!(
+                "{}/{}",
+                ATTESTATION_ENDPOINT.trim_end_matches('/'),
+                hex::encode(decrypted_hash)
+            )))
+            .respond_with(ResponseTemplate::new(200).set_body_json(
+                VerifyAttestation {
+                    attestation_id: hex::encode(decrypted_hash),
+                    origin: app_origin.to_string(),
+                    is_scam: Some(true), // Scam detected
+                },
+            ))
+            .mount(&mock_server)
+            .await;
+
+        let verify_context = handle_verify(
+            verify_url,
+            decrypted_hash,
+            http_client,
+            storage,
+            SubscriptionData {
+                topic: "test".to_string().into(),
+                message: "test_message".to_string().into(),
+                attestation: None, // No attestation triggers v2 path
+                published_at: 0,
+                tag: 0,
+            },
+            app_origin.to_string(),
+        )
+        .await;
+
+        assert_eq!(verify_context.origin.as_deref(), Some(app_origin));
+        assert!(matches!(verify_context.validation, VerifyValidation::Valid));
+        assert!(verify_context.is_scam); // Scam flag should be true
     }
 }
-
-// Mock::given(method("POST"))
-//             .and(path("/"))
-//             .and(body_partial_json(&expected_request_body))
-//             .respond_with(response)
-//             .mount(&mock_server)
-//             .await;
