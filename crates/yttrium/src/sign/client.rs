@@ -26,9 +26,8 @@ use {
             diffie_hellman, generate_rpc_id, is_expired,
             serialize_and_encrypt_message_type0_envelope, topic_from_sym_key,
         },
-        verify::{get_optimistic_public_key, handle_verify, VerifyContext},
+        verify::{handle_verify, VerifyContext},
     },
-    futures::TryFutureExt,
     relay_rpc::{
         auth::ed25519_dalek::{SecretKey, SigningKey},
         domain::{ProjectId, Topic},
@@ -225,19 +224,12 @@ impl Client {
         // TODO consider: immediately throw if expired? - maybe not necessary since FetchMessages returns empty array?
         // TODO update relay method to not remove message & approveSession removes it
 
-        let public_key = get_optimistic_public_key(
-            self.http_client.clone(),
-            self.storage.clone(),
-        )
-        .map_err(|e| PairError::GetPublicKey(e.to_string()));
-
         let response = self
             .do_request::<FetchResponse>(relay_rpc::rpc::Params::FetchMessages(
                 FetchMessages { topic: pairing_uri.topic.clone() },
             ))
-            .map_err(|e| PairError::Internal(e.to_string()));
-
-        let (public_key, response) = tokio::try_join!(public_key, response)?;
+            .await
+            .map_err(|e| PairError::Internal(e.to_string()))?;
 
         tracing::debug!("Pairing Response: {:?}", response);
 
@@ -322,8 +314,7 @@ impl Client {
             message.clone(),
             proposal.proposer.metadata.url.clone(),
         )
-        .await
-        .map_err(|e| PairError::Internal(format!("handle verify: {e}")))?;
+        .await;
 
         Ok((
             SessionProposal {

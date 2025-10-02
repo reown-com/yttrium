@@ -321,11 +321,11 @@ pub fn App() -> impl IntoView {
                         );
                         pairing_request_open.set(false);
                         leptos::task::spawn_local(async move {
-                            yttrium::time::sleep(
-                                std::time::Duration::from_secs(1),
-                            )
-                            .await;
-                            pairing_request.set(None);
+                            // yttrium::time::sleep(
+                            //     std::time::Duration::from_secs(1),
+                            // )
+                            // .await;
+                            // pairing_request.set(None);
                         });
                     }
                 }
@@ -380,19 +380,19 @@ pub fn App() -> impl IntoView {
                     .await
                 {
                     Ok(_approved_session) => {
-                        leptos::task::spawn_local(async move {
-                            show_success_toast(
-                                toaster,
-                                "Pairing approved".to_owned(),
-                            );
-                            pairing_request_open.set(false);
+                        show_success_toast(
+                            toaster,
+                            "Pairing approved".to_owned(),
+                        );
+                        pairing_request_open.set(false);
 
-                            yttrium::time::sleep(
-                                std::time::Duration::from_secs(1),
-                            )
-                            .await;
-                            pairing_request.set(None);
-                        });
+                        // leptos::task::spawn_local(async move {
+                        // yttrium::time::sleep(
+                        //     std::time::Duration::from_secs(1),
+                        // )
+                        // .await;
+                        // pairing_request.set(None);
+                        // });
                     }
                     Err(e) => {
                         show_error_toast(
@@ -426,9 +426,9 @@ pub fn App() -> impl IntoView {
                         );
                         pairing_request_open.set(false);
 
-                        yttrium::time::sleep(std::time::Duration::from_secs(1))
-                            .await;
-                        pairing_request.set(None);
+                        // yttrium::time::sleep(std::time::Duration::from_secs(1))
+                        //     .await;
+                        // pairing_request.set(None);
                     }
                     Err(e) => {
                         show_error_toast(
@@ -466,13 +466,13 @@ pub fn App() -> impl IntoView {
                 {
                     Ok(_) => {
                         signature_request_open.set(false);
-                        leptos::task::spawn_local(async move {
-                            yttrium::time::sleep(
-                                std::time::Duration::from_secs(1),
-                            )
-                            .await;
-                            signature_request.set(None);
-                        });
+                        // leptos::task::spawn_local(async move {
+                        //     yttrium::time::sleep(
+                        //         std::time::Duration::from_secs(1),
+                        //     )
+                        //     .await;
+                        //     signature_request.set(None);
+                        // });
                         show_success_toast(
                             toaster,
                             "Signature approved".to_owned(),
@@ -513,13 +513,13 @@ pub fn App() -> impl IntoView {
                 {
                     Ok(_) => {
                         signature_request_open.set(false);
-                        leptos::task::spawn_local(async move {
-                            yttrium::time::sleep(
-                                std::time::Duration::from_secs(1),
-                            )
-                            .await;
-                            signature_request.set(None);
-                        });
+                        // leptos::task::spawn_local(async move {
+                        //     yttrium::time::sleep(
+                        //         std::time::Duration::from_secs(1),
+                        //     )
+                        //     .await;
+                        //     signature_request.set(None);
+                        // });
                         show_success_toast(
                             toaster,
                             "Signature approved".to_owned(),
@@ -764,6 +764,7 @@ pub fn App() -> impl IntoView {
                 <Label prop:for="pairing-uri">"Pairing URI"</Label>
                 <Input id="pairing-uri" value=pairing_uri />
                 <Button
+                    attr:data-testid="pair-approve-button"
                     loading=pair_action.pending()
                     on_click=move |_| {
                         pair_action.dispatch(pairing_uri.get());
@@ -903,7 +904,7 @@ pub fn App() -> impl IntoView {
                                                     <DialogContent>{format!("{request:?}")}</DialogContent>
                                                     <DialogActions>
                                                         <Button
-                                                            attr:data-testid="approve-button"
+                                                            attr:data-testid="pairing-approve-button"
                                                             loading=approve_pairing_action.pending()
                                                             on_click={
                                                                 let request = request.clone();
@@ -956,6 +957,7 @@ pub fn App() -> impl IntoView {
                                     <DialogContent>{format!("{request:?}")}</DialogContent>
                                     <DialogActions>
                                         <Button
+                                            attr:data-testid="request-approve-button"
                                             loading=session_request_approve_action.pending()
                                             on_click={
                                                 let request = request.clone();
