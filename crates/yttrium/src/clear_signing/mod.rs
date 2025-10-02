@@ -48,24 +48,34 @@ pub fn format(
     to: &str,
     calldata: &[u8],
 ) -> Result<DisplayModel, EngineError> {
+    tracing::debug!("clear_signing::format start");
     let descriptor: Descriptor = serde_json::from_str(descriptor_json)
         .map_err(|err| EngineError::DescriptorParse(err.to_string()))?;
+    tracing::debug!("clear_signing::format descriptor parsed");
 
     let mut warnings = Vec::new();
 
     if !descriptor.context.contract.is_bound_to(chain_id, to) {
         warnings.push(format!(
             "Descriptor deployment mismatch for chain {chain_id} and address {to}"));
+        tracing::warn!(chain_id, %to, "clear_signing::format deployment mismatch");
     }
 
     let selector = extract_selector(calldata)?;
     let selector_hex = format_selector_hex(&selector);
+    tracing::debug!(selector = %selector_hex, "clear_signing::format selector extracted");
 
     let functions = descriptor.context.contract.function_descriptors();
+    tracing::debug!(function_count = functions.len(), "clear_signing::format functions available");
     let display_formats = descriptor.display.format_map();
+    tracing::debug!(format_count = display_formats.len(), "clear_signing::format display formats available");
 
     let maybe_function =
         functions.iter().find(|func| func.selector == selector);
+
+    if maybe_function.is_none() {
+        tracing::warn!(selector = %selector_hex, "clear_signing::format no ABI match");
+    }
 
     let Some(function) = maybe_function else {
         warnings.push(format!("No ABI match for selector {selector_hex}"));
@@ -77,7 +87,10 @@ pub fn format(
         });
     };
 
+    tracing::debug!(signature = %function.typed_signature, "clear_signing::format matched function");
+
     let decoded = decode_arguments(function, calldata)?;
+    tracing::debug!(arg_count = decoded.ordered().len(), "clear_signing::format decoded arguments");
 
     if let Some(format_def) = display_formats.get(&function.typed_signature) {
         let (items, mut format_warnings) =
