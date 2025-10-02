@@ -13,7 +13,7 @@ use {
         relay::IncomingSessionMessage,
         storage::{Storage, StoragePairing},
         utils::{diffie_hellman, topic_from_sym_key},
-        verify::handle_verify,
+        verify::{handle_verify, VERIFY_SERVER_URL},
     },
     chacha20poly1305::{aead::Aead, ChaCha20Poly1305, KeyInit, Nonce},
     data_encoding::BASE64,
@@ -222,6 +222,7 @@ pub async fn handle(
                     // Warning: this is a network call!!!!
                     let decrypted_hash = sha2::Sha256::digest(&decrypted);
                     let attestation = handle_verify(
+                        VERIFY_SERVER_URL.to_string(),
                         decrypted_hash.to_vec().try_into().unwrap(),
                         http_client,
                         storage.clone(),
