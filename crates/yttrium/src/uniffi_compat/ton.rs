@@ -3,7 +3,6 @@ use {
     ed25519_dalek::{Signer, SigningKey},
     rand::rngs::OsRng,
     std::{
-        collections::HashMap,
         time::{SystemTime, UNIX_EPOCH},
     },
     ton_lib::ton_lib_core::{boc::BOC, cell::TonCell, types::TonAddress},
@@ -57,7 +56,6 @@ pub struct SendTxMessage {
     pub amount: String,             // nanotons as string
     pub state_init: Option<String>, // base64 encoded BoC
     pub payload: Option<String>,    // base64 encoded BoC
-    pub extra_currency: Option<HashMap<String, String>>, // cc->amount
 }
 
 #[derive(uniffi::Object)]
@@ -69,43 +67,8 @@ pub struct SendTxParams {
 }
 
 #[derive(uniffi::Object)]
-pub struct SendTxResult {
-    pub result: String, // base64 encoded BoC
-    pub id: String,
-}
-
-#[derive(uniffi::Object)]
-pub enum SignDataPayload {
-    Text { text: String },
-    // TODO: Add Bytes, Cells variants as needed
-}
-
-#[derive(uniffi::Object)]
-pub struct SignDataParams {
-    pub from: String, // TEP-123 format address
-    pub payload: SignDataPayload,
-}
-
-#[derive(uniffi::Object)]
-pub struct SignDataResult {
-    pub result: SignDataResultInner,
-    pub id: String,
-}
-
-#[derive(uniffi::Object)]
-pub struct SignDataResultInner {
-    pub signature: String,        // base64 encoded signature
-    pub address: String,          // wallet address in raw format
-    pub timestamp: u64,           // UNIX timestamp in seconds
-    pub domain: String,           // app domain name
-    pub payload: SignDataPayload, // payload received from request
-}
-
-#[derive(uniffi::Object)]
 pub struct TONClient {
-    cfg: TonClientConfig,
-    // kp: Keypair,
-    // address: String, // friendly address as string
+    cfg: TonClientConfig
 }
 
 #[uniffi::export]
@@ -167,11 +130,10 @@ impl TONClient {
 
     pub fn sign_data(
         &self,
-        id: String,
         from: String,
         text: String,
         keypair: &Keypair,
-    ) -> Result<SignDataResult, TonError> {
+    ) -> Result<String, TonError> {
         let timestamp =
             SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
 
@@ -233,25 +195,15 @@ impl TONClient {
             hex::encode(address.hash.as_slice())
         );
 
-        Ok(SignDataResult {
-            result: SignDataResultInner {
-                signature: signature_base64,
-                address: wallet_address,
-                timestamp,
-                domain,
-                payload: SignDataPayload::Text { text },
-            },
-            id,
-        })
+        Ok(signature_base64)
     }
 
-    pub fn send_transaction(
+    pub fn send_message(
         &self,
-        id: String,
         network: String,
         from: String,
         keypair: &Keypair,
-    ) -> Result<SendTxResult, TonError> {
+    ) -> Result<String, TonError> {
         // Validate network matches client
         if network != self.cfg.network_id {
             return Err(TonError::NetworkMismatch(format!(
@@ -270,10 +222,10 @@ impl TONClient {
 
         // Create a simple BOC representation
         // In a full implementation, this would use proper BOC serialization
-        let boc_data = format!("ton_transaction_{}_{}", from, id);
+        let boc_data = format!("ton_transaction_{}", from);
         let boc_base64 = B64.encode(boc_data.as_bytes());
 
-        Ok(SendTxResult { result: boc_base64, id })
+        Ok(boc_base64)
     }
 }
 
