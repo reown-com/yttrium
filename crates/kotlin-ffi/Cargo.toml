@@ -8,13 +8,14 @@ name = "uniffi_yttrium"
 crate-type = ["staticlib", "cdylib"]
 
 [features]
-default = ["chain_abstraction_client", "solana", "sui", "stacks", "sign_client"]
+default = ["chain_abstraction_client", "solana", "sui", "stacks", "sign_client", "ton"]
 account_client = ["yttrium/account_client"]
 chain_abstraction_client = ["yttrium/chain_abstraction_client"]
 sign_client = ["yttrium/sign_client"]
 solana = ["yttrium/solana"]
 sui = ["yttrium/sui"]
 stacks = ["yttrium/stacks"]
+ton = ["yttrium/ton"]
 
 android = ["yttrium/android"]
 ios = ["yttrium/ios"]
