@@ -8,8 +8,9 @@ use {
     url::Url,
 };
 
-const PUBLIC_KEY_URL: &str = "https://verify.walletconnect.org/v3/public-key";
-const ATTESTATION_URL: &str = "https://verify.walletconnect.org/attestation/";
+pub const VERIFY_SERVER_URL: &str = "https://verify.walletconnect.org";
+const PUBLIC_KEY_ENDPOINT: &str = "/v3/public-key";
+const ATTESTATION_ENDPOINT: &str = "/attestation/";
 const PUBLIC_KEY: &str = include_str!("verify-public.jwk");
 
 #[derive(Debug, thiserror::Error)]
@@ -34,13 +35,21 @@ pub enum GetPublicKeyError {
 }
 
 pub async fn get_optimistic_public_key(
+    verify_server_url: String,
     http_client: reqwest::Client,
     storage: Arc<dyn Storage>,
 ) -> Result<Jwk, GetPublicKeyError> {
-    get_optimistic_public_key_impl(http_client, storage, PUBLIC_KEY).await
+    get_optimistic_public_key_impl(
+        verify_server_url,
+        http_client,
+        storage,
+        PUBLIC_KEY,
+    )
+    .await
 }
 
 pub async fn get_optimistic_public_key_impl(
+    verify_server_url: String,
     http_client: reqwest::Client,
     storage: Arc<dyn Storage>,
     hardcoded_public_key: &str,
@@ -55,13 +64,15 @@ pub async fn get_optimistic_public_key_impl(
             Ok(public_key) => Ok(public_key),
             Err(e) => {
                 tracing::error!("verify parse hardcoded public key: {e}");
-                get_latest_public_key(http_client, storage).await
+                get_latest_public_key(verify_server_url, http_client, storage)
+                    .await
             }
         }
     }
 }
 
 pub async fn get_latest_public_key(
+    verify_server_url: String,
     http_client: reqwest::Client,
     storage: Arc<dyn Storage>,
 ) -> Result<Jwk, GetPublicKeyError> {
@@ -71,7 +82,7 @@ pub async fn get_latest_public_key(
     crate::spawn::spawn(async move {
         let result = async {
             let response = http_client
-                .get(PUBLIC_KEY_URL)
+                .get(format!("{verify_server_url}{PUBLIC_KEY_ENDPOINT}"))
                 .send()
                 .await
                 .map_err(GetPublicKeyError::Network)?;
@@ -101,7 +112,8 @@ struct VerifyPublicKey {
     pub expires_at: u64,
 }
 
-pub async fn decode_attestation_into_verify_context(
+async fn decode_attestation_into_verify_context(
+    verify_server_url: String,
     app_metadata_url: &str,
     attestation: &str,
     public_key: &Jwk,
@@ -130,6 +142,7 @@ pub async fn decode_attestation_into_verify_context(
             if e.kind() == &jsonwebtoken::errors::ErrorKind::InvalidSignature {
                 tracing::debug!("decode_attestation_into_verify_context: invalid signature, fetching latest key");
                 let public_key = match get_latest_public_key(
+                    verify_server_url,
                     http_client,
                     storage,
                 )
@@ -246,6 +259,7 @@ struct VerifyAttestation {
 }
 
 pub async fn handle_verify(
+    verify_server_url: String,
     decrypted_hash: [u8; 32],
     http_client: reqwest::Client,
     storage: Arc<dyn Storage>,
@@ -265,6 +279,7 @@ pub async fn handle_verify(
         }
 
         let verify_public_key = match get_optimistic_public_key(
+            verify_server_url.clone(),
             http_client.clone(),
             storage.clone(),
         )
@@ -281,6 +296,7 @@ pub async fn handle_verify(
             }
         };
         decode_attestation_into_verify_context(
+            verify_server_url,
             &app_metadata_url,
             attestation,
             &verify_public_key,
@@ -298,7 +314,7 @@ pub async fn handle_verify(
                 let result = async {
                     let response = http_client
                         .get(format!(
-                        "{ATTESTATION_URL}{decrypted_hash}?v2Supported=true",
+                        "{verify_server_url}{ATTESTATION_ENDPOINT}{decrypted_hash}?v2Supported=true",
                         decrypted_hash = hex::encode(decrypted_hash)
                     ))
                         .send()
@@ -391,6 +407,10 @@ pub enum VerifyValidation {
 
 #[cfg(test)]
 mod tests {
+    use wiremock::{
+        matchers::{method, path},
+        Mock, MockServer, ResponseTemplate,
+    };
     use {
         super::*,
         crate::sign::{
@@ -402,6 +422,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_optimistic_cached_public_key() {
+        let mock_server = MockServer::start().await;
+        let verify_url = mock_server.uri();
         const MOCK_JWK: &str = r#"{"crv":"P-256","ext":true,"key_ops":["verify"],"kty":"EC","x":"CbL4DOYOb1ntd-8OmExO-oS0DWCMC00DntrymJoB8tk","y":"KTFwjHtQxGTDR91VsOypcdBfvbo6sAMj5p4Wb-9hRA1"}"#;
         struct MockStorage;
         impl Storage for MockStorage {
@@ -501,9 +523,13 @@ mod tests {
         }
         let http_client = reqwest::Client::new();
         let storage = Arc::new(MockStorage);
-        let public_key =
-            get_optimistic_public_key_impl(http_client, storage, MOCK_JWK)
-                .await;
+        let public_key = get_optimistic_public_key_impl(
+            verify_url,
+            http_client,
+            storage,
+            MOCK_JWK,
+        )
+        .await;
         let public_key = public_key.unwrap();
         assert_eq!(public_key, serde_json::from_str(MOCK_JWK).unwrap());
         assert_ne!(public_key, serde_json::from_str(PUBLIC_KEY).unwrap());
@@ -511,6 +537,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_optimistic_hardcoded_public_key() {
+        let mock_server = MockServer::start().await;
+        let verify_url = mock_server.uri();
         struct MockStorage;
         impl Storage for MockStorage {
             fn get_verify_public_key(
@@ -610,9 +638,13 @@ mod tests {
         let mock_jwk = r#"{"crv":"P-256","ext":true,"key_ops":["verify"],"kty":"EC","x":"CbL4DOYOb1ntd-8OmExO-oS0DWCMC00DntrymJoB8tk","y":"KTFwjHtQxGTDR91VsOypcdBfvbo6sAMj5p4Wb-9hRA1"}"#;
         let http_client = reqwest::Client::new();
         let storage = Arc::new(MockStorage);
-        let public_key =
-            get_optimistic_public_key_impl(http_client, storage, mock_jwk)
-                .await;
+        let public_key = get_optimistic_public_key_impl(
+            verify_url,
+            http_client,
+            storage,
+            mock_jwk,
+        )
+        .await;
         let public_key = public_key.unwrap();
         assert_eq!(public_key, serde_json::from_str(mock_jwk).unwrap());
         assert_ne!(public_key, serde_json::from_str(PUBLIC_KEY).unwrap());
@@ -620,6 +652,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_optimistic_invalid_hardcoded_public_key() {
+        let mock_server = MockServer::start().await;
+        let verify_url = mock_server.uri();
         const MOCK_JWK: &str = r#"{"crv":"P-256","ext":true,"key_ops":["verify"],"kty":"EC","x":"CbL4DOYOb1ntd-8OmExO-oS0DWCMC00DntrymJoB8tk","y":"KTFwjHtQxGTDR91VsOypcdBfvbo6sAMj5p4Wb-9hRA1"}"#;
         const INVALID_JWK: &str = r#"{"crv":"P-256","ext":true,"key_ops":["verify"],"kty":"EC","x ":"CbL4DOYOb1ntd-8OmExO-oS0DWCMC00DntrymJoB8tk","y":"KTFwjHtQxGTDR91VsOypcdBfvbo6sAMj5p4Wb-9hRA1"}"#;
         struct MockStorage;
@@ -720,11 +754,141 @@ mod tests {
         }
         let http_client = reqwest::Client::new();
         let storage = Arc::new(MockStorage);
-        let public_key =
-            get_optimistic_public_key_impl(http_client, storage, INVALID_JWK)
-                .await;
+        let public_key = get_optimistic_public_key_impl(
+            verify_url,
+            http_client,
+            storage,
+            INVALID_JWK,
+        )
+        .await;
         let public_key = serde_json::to_string(&public_key.unwrap()).unwrap();
         assert_ne!(public_key, INVALID_JWK);
         assert_ne!(public_key, PUBLIC_KEY);
     }
+
+    #[tokio::test]
+    async fn test_handle_verify() {
+        let mock_server = MockServer::start().await;
+        let verify_url = mock_server.uri();
+        let http_client = reqwest::Client::new();
+        struct MockStorage;
+        impl Storage for MockStorage {
+            fn get_verify_public_key(
+                &self,
+            ) -> Result<Option<Jwk>, StorageError> {
+                Ok(None)
+            }
+            fn set_verify_public_key(
+                &self,
+                _jwk: Jwk,
+            ) -> Result<(), StorageError> {
+                Err(StorageError::Runtime("unimplemented".to_string()))
+            }
+            fn add_session(
+                &self,
+                _session: Session,
+            ) -> Result<(), StorageError> {
+                Err(StorageError::Runtime("unimplemented".to_string()))
+            }
+            fn delete_session(
+                &self,
+                _topic: Topic,
+            ) -> Result<(), StorageError> {
+                Err(StorageError::Runtime("unimplemented".to_string()))
+            }
+            fn get_session(
+                &self,
+                _topic: Topic,
+            ) -> Result<Option<Session>, StorageError> {
+                Err(StorageError::Runtime("unimplemented".to_string()))
+            }
+            fn get_all_sessions(&self) -> Result<Vec<Session>, StorageError> {
+                Err(StorageError::Runtime("unimplemented".to_string()))
+            }
+            fn get_all_topics(&self) -> Result<Vec<Topic>, StorageError> {
+                Err(StorageError::Runtime("unimplemented".to_string()))
+            }
+            fn get_decryption_key_for_topic(
+                &self,
+                _topic: Topic,
+            ) -> Result<Option<[u8; 32]>, StorageError> {
+                Err(StorageError::Runtime("unimplemented".to_string()))
+            }
+            fn save_pairing(
+                &self,
+                _topic: Topic,
+                _rpc_id: u64,
+                _sym_key: [u8; 32],
+                _self_key: [u8; 32],
+            ) -> Result<(), StorageError> {
+                Err(StorageError::Runtime("unimplemented".to_string()))
+            }
+            fn get_pairing(
+                &self,
+                _topic: Topic,
+                _rpc_id: u64,
+            ) -> Result<Option<StoragePairing>, StorageError> {
+                Err(StorageError::Runtime("unimplemented".to_string()))
+            }
+            fn save_partial_session(
+                &self,
+                _topic: Topic,
+                _sym_key: [u8; 32],
+            ) -> Result<(), StorageError> {
+                Err(StorageError::Runtime("unimplemented".to_string()))
+            }
+            fn insert_json_rpc_history(
+                &self,
+                _request_id: u64,
+                _topic: String,
+                _method: String,
+                _body: String,
+                _transport_type: Option<TransportType>,
+            ) -> Result<(), StorageError> {
+                Err(StorageError::Runtime("unimplemented".to_string()))
+            }
+            fn update_json_rpc_history_response(
+                &self,
+                _request_id: u64,
+                _response: String,
+            ) -> Result<(), StorageError> {
+                Err(StorageError::Runtime("unimplemented".to_string()))
+            }
+            fn delete_json_rpc_history_by_topic(
+                &self,
+                _topic: String,
+            ) -> Result<(), StorageError> {
+                Err(StorageError::Runtime("unimplemented".to_string()))
+            }
+            fn does_json_rpc_exist(
+                &self,
+                _request_id: u64,
+            ) -> Result<bool, StorageError> {
+                Err(StorageError::Runtime("unimplemented".to_string()))
+            }
+        }
+        let storage = Arc::new(MockStorage);
+        let verify_context = handle_verify(
+            verify_url,
+            [0; 32],
+            http_client,
+            storage,
+            SubscriptionData {
+                topic: "".to_string().into(),
+                message: "".to_string().into(),
+                attestation: Some("".to_string().into()),
+                published_at: 0,
+                tag: 0,
+            },
+            "https://app.walletconnect.org".to_string(),
+        )
+        .await;
+    }
 }
+
+// Mock::given(method("POST"))
+//             .and(path("/"))
+//             .and(body_partial_json(&expected_request_body))
+//             .respond_with(response)
+//             .mount(&mock_server)
+//             .await;
