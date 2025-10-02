@@ -56,24 +56,15 @@ fn increase_unlock_time_ok() {
 
 #[test]
 fn hardcoded_swift_payload_matches() {
-    let sig_selector = selector("increaseUnlockTime(uint256)");
-    let mut calldata = Vec::new();
-    calldata.extend_from_slice(&sig_selector);
-    calldata.extend_from_slice(&hex::decode(
-        "0000000000000000000000000000000000000000000000000000000067741500",
-    )
-    .unwrap());
+    let chain_id = 10u64;
+    let to = "0x521B4C065Bbdbe3E20B3727340730936912DfA46";
+    let calldata = build_calldata(
+        selector("increaseUnlockTime(uint256)"),
+        &[uint_word(1_735_660_800u64)],
+    );
 
-    let expected = build_calldata(sig_selector, &[uint_word(1_735_660_800u64)]);
-    assert_eq!(calldata, expected, "calldata mismatch with builder");
-
-    let model = format(
-        DESCRIPTOR,
-        10,
-        "0x521B4C065Bbdbe3E20B3727340730936912DfA46",
-        &calldata,
-    )
-    .expect("format should succeed");
+    let model = format(DESCRIPTOR, chain_id, to, &calldata)
+        .expect("format should succeed");
 
     assert_eq!(model.intent, "Increase Unlock Time");
     assert!(

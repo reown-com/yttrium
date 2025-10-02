@@ -48,7 +48,18 @@ pub fn format(
     to: &str,
     calldata: &[u8],
 ) -> Result<DisplayModel, EngineError> {
-    println!("[clear_signing] start");
+    println!(
+        "[clear_signing] start chain_id={} to={} calldata_len={} calldata=0x{}",
+        chain_id,
+        to,
+        calldata.len(),
+        hex::encode(calldata)
+    );
+    println!(
+        "[clear_signing] descriptor json length={} preview={}",
+        descriptor_json.len(),
+        &descriptor_json.chars().take(120).collect::<String>()
+    );
     let descriptor: Descriptor = serde_json::from_str(descriptor_json)
         .map_err(|err| EngineError::DescriptorParse(err.to_string()))?;
     println!("[clear_signing] descriptor parsed");
@@ -69,10 +80,14 @@ pub fn format(
     println!("[clear_signing] selector extracted {}", selector_hex);
 
     let functions = descriptor.context.contract.function_descriptors();
-    println!(
-        "[clear_signing] functions available {}",
-        functions.len()
-    );
+    println!("[clear_signing] functions available {}", functions.len());
+    for func in &functions {
+        println!(
+            "[clear_signing] function {} selector=0x{}",
+            func.typed_signature,
+            hex::encode(func.selector)
+        );
+    }
     let display_formats = descriptor.display.format_map();
     println!(
         "[clear_signing] display formats available {}",

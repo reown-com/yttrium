@@ -72,9 +72,30 @@ impl From<EngineError> for EngineErrorFfi {
 pub fn clear_signing_format(
     chain_id: u64,
     to: String,
-    calldata: Vec<u8>,
+    calldata_hex: String,
 ) -> Result<DisplayModelFfi, EngineErrorFfi> {
+    println!(
+        "[clear_signing_ffi] chain_id={} to={} calldata_hex_len={}",
+        chain_id,
+        to,
+        calldata_hex.len()
+    );
+    println!(
+        "[clear_signing_ffi] descriptor json length={} preview={}",
+        STAKE_WEIGHT_DESCRIPTOR.len(),
+        &STAKE_WEIGHT_DESCRIPTOR.chars().take(120).collect::<String>()
+    );
+    let calldata = decode_calldata(&calldata_hex)?;
     format(STAKE_WEIGHT_DESCRIPTOR, chain_id, &to, &calldata)
         .map(Into::into)
         .map_err(Into::into)
+}
+
+fn decode_calldata(calldata_hex: &str) -> Result<Vec<u8>, EngineErrorFfi> {
+    let trimmed = calldata_hex.trim();
+    let without_prefix = trimmed.strip_prefix("0x").unwrap_or(trimmed);
+    let bytes = hex::decode(without_prefix).map_err(|err| {
+        EngineErrorFfi::Calldata(format!("invalid hex calldata: {}", err))
+    })?;
+    Ok(bytes)
 }
