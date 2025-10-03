@@ -9,6 +9,7 @@ use {
             },
             relay_url::ConnectionOptions,
             storage::Storage,
+            VerifyContext,
         },
         time::DurableSleep,
     },
@@ -194,6 +195,7 @@ async fn connect(
 
                 tokio::select! {
                     Some(message) = outgoing_rx.recv() => {
+                        tracing::debug!("sending websocket message: {message}");
                         if let Err(e) = ws_stream.send(Message::Text(message.into())).await {
                             tracing::debug!("Failed to send outgoing message: {e}");
                             break;
@@ -476,6 +478,7 @@ async fn connect(
                         "Failed to serialize request: {e}"
                     ))
                 })?;
+            tracing::debug!("sending websocket message: {serialized}");
             ws.send_with_str(&serialized).map_err(|e| {
                 ConnectError::ConnectFail(format!(
                     "Failed to send batch subscribe request: {}",
@@ -531,6 +534,7 @@ async fn connect(
         ));
         let serialized = serde_json::to_string(&request)
             .map_err(|e| ConnectError::ShouldNeverHappen(e.to_string()))?;
+        tracing::debug!("sending websocket message: {serialized}");
         ws.send_with_str(&serialized).map_err(|e| {
             ConnectError::ConnectFail(
                 e.as_string().unwrap_or("unknown error".to_string()),
@@ -603,11 +607,43 @@ enum ConnectionState {
     ),
 }
 
+impl std::fmt::Debug for ConnectionState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let name = match self {
+            ConnectionState::Idle => "Idle",
+            ConnectionState::Poisoned => "Poisoned",
+            ConnectionState::MaybeReconnect(_) => "MaybeReconnect(_)",
+            ConnectionState::ConnectSubscribe(_) => "ConnectSubscribe(_)",
+            ConnectionState::AwaitingSubscribeResponse(_, _, _, _, _) => {
+                "AwaitingSubscribeResponse(_, _, _, _, _)"
+            }
+            ConnectionState::Backoff(_) => "Backoff(_)",
+            ConnectionState::ConnectRequest(_) => "ConnectRequest(_)",
+            ConnectionState::AwaitingConnectRequestResponse(_, _, _, _, _) => {
+                "AwaitingConnectRequestResponse(_, _, _, _, _)"
+            }
+            ConnectionState::Connected(_, _, _) => "Connected(_, _, _)",
+            ConnectionState::AwaitingRequestResponse(_, _, _, _, _) => {
+                "AwaitingRequestResponse(_, _, _, _, _)"
+            }
+            ConnectionState::ConnectRetryRequest(_) => "ConnectRetryRequest(_)",
+            ConnectionState::AwaitingConnectRetryRequestResponse(
+                _,
+                _,
+                _,
+                _,
+                _,
+            ) => "AwaitingConnectRetryRequestResponse(_, _, _, _, _)",
+        };
+        write!(f, "{name}")
+    }
+}
+
 // TODO rename to something more generic, e.g. IncomingEvent
 // TODO refactor this architecutre (Topic is also passed outside this enum, why duplicate it here? Also what exact values are needed and why (JSON RPC ID, etc.))
 #[derive(Debug)]
 pub enum IncomingSessionMessage {
-    SessionRequest(SessionRequestJsonRpc),
+    SessionRequest(SessionRequestJsonRpc, VerifyContext),
     Disconnect(u64, Topic),
     SessionEvent(Topic, String, serde_json::Value, String),
     SessionUpdate(u64, Topic, crate::sign::protocol_types::SettleNamespaces),
@@ -623,6 +659,7 @@ pub async fn connect_loop_state_machine(
     project_id: ProjectId,
     key: SigningKey,
     session_store: Arc<dyn Storage>,
+    http_client: reqwest::Client,
     session_request_tx: tokio::sync::mpsc::UnboundedSender<(
         Topic,
         IncomingSessionMessage,
@@ -643,6 +680,7 @@ pub async fn connect_loop_state_machine(
 
     let handle_irn_subscription = {
         let session_store = session_store.clone();
+        let http_client = http_client.clone();
         let session_request_tx = session_request_tx.clone();
         let irn_subscription_ack_tx = irn_subscription_ack_tx.clone();
         move |id: MessageId,
@@ -652,15 +690,18 @@ pub async fn connect_loop_state_machine(
             tokio::sync::oneshot::Sender<Result<Response, RequestError>>,
         )>| {
             let session_store = session_store.clone();
+            let http_client = http_client.clone();
             let session_request_tx = session_request_tx.clone();
             let irn_subscription_ack_tx = irn_subscription_ack_tx.clone();
             async move {
                 let result = crate::sign::incoming::handle(
                     session_store,
+                    http_client.clone(),
                     sub_msg,
                     session_request_tx,
                     priority_request_tx.clone(),
-                );
+                )
+                .await;
                 // TODO relay only listens for these types of ACKs for 4s. We should handle longer processing times e.g. via batchFetch in-case of long network latency or other factors
                 match result {
                     Ok(()) => {
@@ -714,6 +755,7 @@ pub async fn connect_loop_state_machine(
 
     let mut state = ConnectionState::Idle;
     loop {
+        tracing::debug!("connect state: {state:?}");
         state = match state {
             ConnectionState::Idle => {
                 // TODO avoid select! as it doesn't guarantee that `else` branch exists (it will panic otherwise)
@@ -1118,6 +1160,7 @@ pub async fn connect_loop_state_machine(
                                     ))
                                 })
                                 .expect("TODO");
+                            tracing::debug!("sending websocket message: {serialized}");
                             #[cfg(target_arch = "wasm32")]
                             ws.0.send_with_str(&serialized).expect("TODO");
                             #[cfg(not(target_arch = "wasm32"))]
@@ -1159,6 +1202,7 @@ pub async fn connect_loop_state_machine(
                                     ))
                                 })
                                 .expect("TODO");
+                            tracing::debug!("sending websocket message: {serialized}");
                             #[cfg(target_arch = "wasm32")]
                             ws.0.send_with_str(&serialized).expect("TODO");
                             #[cfg(not(target_arch = "wasm32"))]

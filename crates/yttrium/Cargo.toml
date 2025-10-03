@@ -269,5 +269,10 @@ serial_test.workspace = true
 chacha20poly1305 = { workspace = true, features = ["alloc", "os_rng"] }
 data-encoding = { workspace = true }
 
+# JWT and crypto testing dependencies
+p256 = "0.13"
+base64 = "0.22"
+rand = "0.8"
+
 [package.metadata.wasm-pack.profile.release]
 wasm-opt = ['-Oz']
