@@ -28,10 +28,10 @@ test-swift-apple-platforms:
 	done;
 
 build-xcframework:
-	sh scripts/build-xcframework.sh
+	zsh scripts/build-xcframework.sh
 
 build-utils-xcframework:
-	sh scripts/build-utils-xcframework.sh
+	zsh scripts/build-utils-xcframework.sh
 
 set-up-local-swift-package:
 	sh scripts/set-up-local-swift-package.sh
