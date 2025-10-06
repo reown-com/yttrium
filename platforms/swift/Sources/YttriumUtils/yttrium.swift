@@ -10205,12 +10205,12 @@ fileprivate func uniffiFutureContinuationCallback(handle: UInt64, pollResult: In
         print("uniffiFutureContinuationCallback invalid handle")
     }
 }
-public func clearSigningFormat(chainId: UInt64, to: String, calldata: Data)throws  -> DisplayModelFfi  {
+public func clearSigningFormat(chainId: UInt64, to: String, calldataHex: String)throws  -> DisplayModelFfi  {
     return try  FfiConverterTypeDisplayModelFfi_lift(try rustCallWithError(FfiConverterTypeEngineErrorFfi_lift) {
     uniffi_yttrium_fn_func_clear_signing_format(
         FfiConverterUInt64.lower(chainId),
         FfiConverterString.lower(to),
-        FfiConverterData.lower(calldata),$0
+        FfiConverterString.lower(calldataHex),$0
     )
 })
 }
@@ -10307,7 +10307,7 @@ private let initializationResult: InitializationResult = {
     if bindings_contract_version != scaffolding_contract_version {
         return InitializationResult.contractVersionMismatch
     }
-    if (uniffi_yttrium_checksum_func_clear_signing_format() != 36735) {
+    if (uniffi_yttrium_checksum_func_clear_signing_format() != 47054) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_yttrium_checksum_func_funding_metadata_to_amount() != 52092) {
