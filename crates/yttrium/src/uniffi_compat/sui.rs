@@ -1,7 +1,7 @@
 use {
     crate::{
-        blockchain_api::BLOCKCHAIN_API_URL_PROD,
-        chain_abstraction::pulse::PulseMetadata, provider_pool::ProviderPool,
+        blockchain_api::BLOCKCHAIN_API_URL_PROD, provider_pool::ProviderPool,
+        pulse::PulseMetadata,
     },
     bip39::{Language, Mnemonic, Seed},
     fastcrypto::{
@@ -412,8 +412,8 @@ mod tests {
         use {
             super::*,
             crate::{
-                chain_abstraction::pulse::get_pulse_metadata,
                 provider_pool::network::sui::{DEVNET, MAINNET, TESTNET},
+                pulse::get_pulse_metadata,
             },
         };
 

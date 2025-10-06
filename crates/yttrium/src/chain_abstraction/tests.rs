@@ -19,12 +19,12 @@ use {
             client::Client,
             currency::Currency,
             l1_data_fee::get_l1_data_fee,
-            pulse::get_pulse_metadata,
             test_helpers::floats_close,
             ui_fields::{RouteSig, TransactionFee, TxnDetails},
         },
         erc20::{Token, ERC20},
         provider_pool::ProviderPool,
+        pulse::get_pulse_metadata,
         test_helpers::{
             private_faucet, use_account, use_faucet_gas, BRIDGE_ACCOUNT_1,
             BRIDGE_ACCOUNT_2, BRIDGE_ACCOUNT_USDC_1557_1,

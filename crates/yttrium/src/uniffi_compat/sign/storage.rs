@@ -1,11 +1,12 @@
 use {
     crate::{
         sign::{
-            client_types::Session,
+            client_types::{Session, TransportType},
             storage::{Storage, StorageError, StoragePairing},
         },
         uniffi_compat::sign::ffi_types::SessionFfi,
     },
+    jsonwebtoken::jwk::Jwk,
     relay_rpc::domain::Topic,
     std::sync::Arc,
     uniffi::UnexpectedUniFFICallbackError,
@@ -42,6 +43,34 @@ pub trait StorageFfi: Send + Sync {
         topic: String,
         sym_key: Vec<u8>,
     ) -> Result<(), StorageError>;
+    fn get_verify_public_key(&self) -> Result<Option<String>, StorageError>;
+    fn set_verify_public_key(&self, jwk: String) -> Result<(), StorageError>;
+
+    // JSON-RPC History
+    fn insert_json_rpc_history(
+        &self,
+        request_id: u64,
+        topic: String,
+        method: String,
+        body: String,
+        transport_type: Option<TransportType>,
+    ) -> Result<(), StorageError>;
+
+    fn update_json_rpc_history_response(
+        &self,
+        request_id: u64,
+        response: String,
+    ) -> Result<(), StorageError>;
+
+    fn delete_json_rpc_history_by_topic(
+        &self,
+        topic: String,
+    ) -> Result<(), StorageError>;
+
+    fn does_json_rpc_exist(
+        &self,
+        request_id: u64,
+    ) -> Result<bool, StorageError>;
 }
 
 pub struct StorageFfiProxy(pub Arc<dyn StorageFfi>);
@@ -114,6 +143,61 @@ impl Storage for StorageFfiProxy {
         sym_key: [u8; 32],
     ) -> Result<(), StorageError> {
         self.0.save_partial_session(topic.to_string(), sym_key.to_vec())
+    }
+
+    fn get_verify_public_key(&self) -> Result<Option<Jwk>, StorageError> {
+        let jwk = self.0.get_verify_public_key()?;
+        if let Some(jwk) = jwk {
+            serde_json::from_str(&jwk)
+                .map_err(|e| StorageError::Runtime(e.to_string()))
+        } else {
+            Ok(None)
+        }
+    }
+
+    fn set_verify_public_key(&self, jwk: Jwk) -> Result<(), StorageError> {
+        serde_json::to_string(&jwk)
+            .map_err(|e| StorageError::Runtime(e.to_string()))
+            .and_then(|jwk| self.0.set_verify_public_key(jwk))
+    }
+
+    fn insert_json_rpc_history(
+        &self,
+        request_id: u64,
+        topic: String,
+        method: String,
+        body: String,
+        transport_type: Option<TransportType>,
+    ) -> Result<(), StorageError> {
+        self.0.insert_json_rpc_history(
+            request_id,
+            topic,
+            method,
+            body,
+            transport_type,
+        )
+    }
+
+    fn update_json_rpc_history_response(
+        &self,
+        request_id: u64,
+        response: String,
+    ) -> Result<(), StorageError> {
+        self.0.update_json_rpc_history_response(request_id, response)
+    }
+
+    fn delete_json_rpc_history_by_topic(
+        &self,
+        topic: String,
+    ) -> Result<(), StorageError> {
+        self.0.delete_json_rpc_history_by_topic(topic)
+    }
+
+    fn does_json_rpc_exist(
+        &self,
+        request_id: u64,
+    ) -> Result<bool, StorageError> {
+        self.0.does_json_rpc_exist(request_id)
     }
 }
 

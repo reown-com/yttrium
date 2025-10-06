@@ -4,16 +4,28 @@ use {
     std::collections::HashMap,
 };
 
-#[derive(Debug, Serialize, Deserialize)]
+pub mod methods {
+    pub const SESSION_PROPOSE: &str = "wc_sessionPropose";
+    pub const SESSION_REQUEST: &str = "wc_sessionRequest";
+    pub const SESSION_UPDATE: &str = "wc_sessionUpdate";
+    pub const SESSION_EXTEND: &str = "wc_sessionExtend";
+    pub const SESSION_EVENT: &str = "wc_sessionEvent";
+    pub const SESSION_DELETE: &str = "wc_sessionDelete";
+    pub const SESSION_PING: &str = "wc_sessionPing";
+    pub const SESSION_SETTLE: &str = "wc_sessionSettle";
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ProposalJsonRpc {
     // deserialize number from string (Flutter support)
-    pub id: MessageId,
+    pub id: u64,
+    pub jsonrpc: String,
     pub method: String,
     pub params: Proposal,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Proposal {
     pub required_namespaces: ProposalNamespaces,
@@ -41,7 +53,7 @@ pub struct Relay {
     pub protocol: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Proposer {
     pub public_key: String,
@@ -71,7 +83,7 @@ pub enum SessionProposalJsonRpcResponse {
     Error(ProposalErrorResponseJsonRpc),
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ProposalResponse {
     pub relay: Relay,
@@ -174,6 +186,7 @@ pub struct Redirect {
 #[serde(rename_all = "camelCase")]
 pub struct SessionRequestJsonRpc {
     pub id: u64,
+    pub jsonrpc: String,
     pub method: String,
     pub params: SessionRequest,
 }
@@ -269,4 +282,43 @@ pub struct SessionEventJsonRpc {
     pub jsonrpc: String,
     pub method: String,
     pub params: EventParams,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(untagged)]
+pub enum GenericJsonRpcMessage {
+    Request(GenericJsonRpcRequest),
+    Response(GenericJsonRpcResponse),
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct GenericJsonRpcRequest {
+    pub id: MessageId,
+    pub jsonrpc: String,
+    pub method: String,
+    pub params: serde_json::Value,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(untagged)]
+pub enum GenericJsonRpcResponse {
+    Success(GenericJsonRpcResponseSuccess),
+    Error(GenericJsonRpcResponseError),
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct GenericJsonRpcResponseSuccess {
+    pub id: MessageId,
+    pub jsonrpc: String,
+    pub result: serde_json::Value,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct GenericJsonRpcResponseError {
+    pub id: MessageId,
+    pub jsonrpc: String,
+    pub error: serde_json::Value,
 }

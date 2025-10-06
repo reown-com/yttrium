@@ -144,7 +144,7 @@ test("retry pairing after offline Rust wallet to JS app", async ({ browser, base
     await page.locator('button', { hasText: 'Pair' }).click();
 
     await expect(page.getByText('Approve pairing')).toHaveCount(1);
-    await expect(page.getByText("Pairing failed: Internal:")).toBeVisible({ timeout: 11000 });
+    await expect(page.getByText("Pairing failed:")).toBeVisible({ timeout: 11000 });
     await expect(page.getByText('Approve pairing')).toHaveCount(0);
 
     walletCDPSession.send("Network.emulateNetworkConditions", {

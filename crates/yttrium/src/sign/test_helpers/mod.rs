@@ -1,14 +1,13 @@
-#![cfg(feature = "test_depends_on_env_REOWN_PROJECT_ID")]
 use {
     crate::sign::{
         client::{generate_client_id_key, Client},
-        client_types::{ConnectParams, Session},
+        client_types::{ConnectParams, Session, TransportType},
         protocol_types::{
             Metadata, ProposalNamespace, SessionRequest,
             SessionRequestJsonRpcResponse, SessionRequestJsonRpcResultResponse,
             SessionRequestRequest, SettleNamespace,
         },
-        storage::{Storage, StorageError, StoragePairing},
+        storage::{Jwk, Storage, StorageError, StoragePairing},
         IncomingSessionMessage,
     },
     relay_rpc::domain::Topic,
@@ -122,23 +121,72 @@ impl Storage for MySessionStore {
         inner.partial_sessions.insert(topic, sym_key);
         Ok(())
     }
+
+    fn get_verify_public_key(&self) -> Result<Option<Jwk>, StorageError> {
+        Ok(None)
+    }
+
+    fn set_verify_public_key(
+        &self,
+        _public_key: Jwk,
+    ) -> Result<(), StorageError> {
+        Ok(())
+    }
+
+    fn insert_json_rpc_history(
+        &self,
+        _request_id: u64,
+        _topic: String,
+        _method: String,
+        _body: String,
+        _transport_type: Option<TransportType>,
+    ) -> Result<(), StorageError> {
+        // Test implementation - just return Ok for now
+        Ok(())
+    }
+
+    fn update_json_rpc_history_response(
+        &self,
+        _request_id: u64,
+        _response: String,
+    ) -> Result<(), StorageError> {
+        // Test implementation - just return Ok for now
+        Ok(())
+    }
+
+    fn delete_json_rpc_history_by_topic(
+        &self,
+        _topic: String,
+    ) -> Result<(), StorageError> {
+        // Test implementation - just return Ok for now
+        Ok(())
+    }
+
+    fn does_json_rpc_exist(
+        &self,
+        _request_id: u64,
+    ) -> Result<bool, StorageError> {
+        // Test implementation - return false for now
+        Ok(false)
+    }
 }
 
-#[tokio::test]
-async fn test_sign() {
-    tracing_subscriber::fmt()
-        // .with_max_level(tracing::Level::DEBUG)
-        .init();
+pub async fn test_sign_impl() -> Result<(), String> {
+    let app_client_id = generate_client_id_key();
+    tracing::debug!(probe = "app_client_id", "app_client_id generated");
     let (mut app_client, mut app_session_request_rx) = Client::new(
         std::env::var("REOWN_PROJECT_ID").unwrap().into(),
-        generate_client_id_key(),
+        app_client_id,
         Arc::new(MySessionStore(Arc::new(Mutex::new(MySessionStoreInner {
             sessions: vec![],
             pairing_keys: HashMap::new(),
             partial_sessions: HashMap::new(),
         })))),
     );
+    app_client.set_probe_group("app".to_string());
+    tracing::debug!(probe = "app_client", "app_client created");
     app_client.start();
+    tracing::debug!(probe = "app_client_started", "app_client started");
     let connect_result = app_client
         .connect(
             ConnectParams {
@@ -163,22 +211,33 @@ async fn test_sign() {
             },
         )
         .await
-        .unwrap();
+        .map_err(|e| format!("Failed to connect: {e}"))?;
+    tracing::debug!(probe = "connect_finished", "connect finished");
 
+    let wallet_client_id = generate_client_id_key();
+    tracing::debug!(probe = "wallet_client_id", "wallet_client_id generated");
     let (mut wallet_client, mut wallet_session_request_rx) = Client::new(
         std::env::var("REOWN_PROJECT_ID").unwrap().into(),
-        generate_client_id_key(),
+        wallet_client_id,
         Arc::new(MySessionStore(Arc::new(Mutex::new(MySessionStoreInner {
             sessions: vec![],
             pairing_keys: HashMap::new(),
             partial_sessions: HashMap::new(),
         })))),
     );
+    wallet_client.set_probe_group("wallet".to_string());
+    tracing::debug!(probe = "wallet_client", "wallet_client created");
     wallet_client.start();
-    let pairing = wallet_client.pair(&connect_result.uri).await.unwrap();
+    tracing::debug!(probe = "wallet_client_started", "wallet_client started");
+    let pairing = wallet_client
+        .pair(&connect_result.uri)
+        .await
+        .map_err(|e| format!("Failed to pair: {e}"))?;
+    tracing::debug!(probe = "pair_finished", "pair finished");
 
     let mut namespaces = HashMap::new();
-    for (namespace, namespace_proposal) in pairing.required_namespaces.clone() {
+    for (namespace, namespace_proposal) in pairing.0.required_namespaces.clone()
+    {
         let accounts = namespace_proposal
             .chains
             .iter()
@@ -206,16 +265,41 @@ async fn test_sign() {
         verify_url: None,
         redirect: None,
     };
+    tracing::debug!(probe = "metadata", "metadata created");
 
-    wallet_client.approve(pairing, namespaces, metadata).await.unwrap();
+    wallet_client
+        .approve(pairing.0, namespaces, metadata)
+        .await
+        .map_err(|e| format!("Failed to approve: {e}"))?;
+    tracing::debug!(probe = "approve_finished", "approve finished");
 
-    let message = wallet_session_request_rx.recv().await.unwrap();
+    let message = wallet_session_request_rx
+        .recv()
+        .await
+        .ok_or_else(|| "Failed to receive session connect".to_string())?;
+    tracing::debug!(
+        probe = "app_session_connect_received",
+        "session connect received"
+    );
+
+    if !(matches!(message.1, IncomingSessionMessage::SessionConnect(_, _))) {
+        Err(format!("Expected SessionConnect, got {:?}", message.1))?;
+    }
+
+    let message = app_session_request_rx
+        .recv()
+        .await
+        .ok_or_else(|| "Failed to receive session connect".to_string())?;
+    tracing::debug!(
+        probe = "app_session_connect_received",
+        "session connect received"
+    );
     assert!(matches!(message.1, IncomingSessionMessage::SessionConnect(_, _)));
 
-    let message = app_session_request_rx.recv().await.unwrap();
-    assert!(matches!(message.1, IncomingSessionMessage::SessionConnect(_, _)));
-
-    tracing::debug!("Requesting personal sign");
+    tracing::debug!(
+        probe = "requesting_personal_sign",
+        "requesting personal sign"
+    );
     app_client
         .request(
             message.0,
@@ -230,9 +314,15 @@ async fn test_sign() {
         )
         .await
         .unwrap();
-    tracing::debug!("Receiving session request");
+    tracing::debug!(
+        probe = "receiving_session_request",
+        "receiving session request"
+    );
     let message = wallet_session_request_rx.recv().await.unwrap();
-    tracing::debug!("Received session request");
+    tracing::debug!(
+        probe = "received_session_request",
+        "receiving session request"
+    );
     assert!(matches!(message.1, IncomingSessionMessage::SessionRequest(_)));
     let req = if let IncomingSessionMessage::SessionRequest(req) = message.1 {
         req
@@ -246,7 +336,10 @@ async fn test_sign() {
         serde_json::Value::String("0x0".to_string())
     );
     assert_eq!(req.params.request.expiry, Some(0));
-    tracing::debug!("Responding to session request");
+    tracing::debug!(
+        probe = "responding_to_session_request",
+        "responding to session request"
+    );
     wallet_client
         .respond(
             message.0,
@@ -260,7 +353,10 @@ async fn test_sign() {
         )
         .await
         .unwrap();
-    tracing::debug!("Receiving session request response");
+    tracing::debug!(
+        probe = "receiving_session_request_response",
+        "Receiving session request response"
+    );
     let message = app_session_request_rx.recv().await.unwrap();
     assert!(matches!(
         message.1,
@@ -281,4 +377,6 @@ async fn test_sign() {
         panic!("Expected SessionRequestResponse");
     };
     assert_eq!(resp.result, serde_json::Value::String("0x0".to_string()));
+
+    Ok(())
 }

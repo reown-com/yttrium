@@ -103,6 +103,7 @@ async fn connect(
     topics: Vec<Topic>,
     initial_req: Params,
     cleanup_rx: tokio_util::sync::CancellationToken,
+    probe_group: Option<String>,
 ) -> Result<
     (
         u64,
@@ -163,6 +164,8 @@ async fn connect(
             .to_string()
     };
 
+    tracing::debug!(group = probe_group.clone(), probe = "relay_connect_begin");
+
     #[cfg(not(target_arch = "wasm32"))]
     {
         let connect_fut = connect_async(url);
@@ -173,6 +176,10 @@ async fn connect(
                 return Err(ConnectError::ConnectFail("Timeout connecting to relay".to_string()));
             }
         };
+        tracing::debug!(
+            group = probe_group.clone(),
+            probe = "relay_connect_success"
+        );
 
         let (outgoing_tx, mut outgoing_rx) =
             tokio::sync::mpsc::unbounded_channel::<String>();
@@ -323,6 +330,11 @@ async fn connect(
         outgoing_tx
             .send(serialized)
             .map_err(|e| ConnectError::ConnectFail(e.to_string()))?;
+
+        tracing::debug!(
+            group = probe_group.clone(),
+            probe = "relay_connect_initial_request_sent"
+        );
 
         Ok((message_id, on_incomingmessage_rx, (outgoing_tx, close_tx)))
     }
@@ -621,6 +633,7 @@ pub async fn connect_loop_state_machine(
     )>,
     mut online_rx: tokio::sync::mpsc::UnboundedReceiver<()>,
     cleanup_rx: tokio_util::sync::CancellationToken,
+    probe_group: Option<String>,
 ) {
     let (irn_subscription_ack_tx, mut irn_subscription_ack_rx) =
         tokio::sync::mpsc::unbounded_channel();
@@ -648,6 +661,7 @@ pub async fn connect_loop_state_machine(
                     session_request_tx,
                     priority_request_tx.clone(),
                 );
+                // TODO relay only listens for these types of ACKs for 4s. We should handle longer processing times e.g. via batchFetch in-case of long network latency or other factors
                 match result {
                     Ok(()) => {
                         if let Err(e) = irn_subscription_ack_tx.send(id) {
@@ -657,7 +671,7 @@ pub async fn connect_loop_state_machine(
                         }
                     }
                     Err(e) => match e {
-                        HandleError::Internal(e) => {
+                        HandleError::Temporary(e) => {
                             tracing::error!(
                                 "Error handling IRN subscription: {e}"
                             );
@@ -673,11 +687,19 @@ pub async fn connect_loop_state_machine(
                             }
                             // TODO consider unsubscribing from topic
                         }
-                        HandleError::Client(e) => {
+                        HandleError::Peer(e) => {
                             tracing::error!(
                                 "Error handling IRN subscription: {e}"
                             );
                             // TODO consider sending RPC error back to sender
+                            if let Err(e) = irn_subscription_ack_tx.send(id) {
+                                tracing::debug!(
+                                    "Failed to send subscription ack: {e}"
+                                );
+                            }
+                        }
+                        HandleError::AlreadyHandled => {
+                            tracing::debug!("Already handled, ignoring");
                             if let Err(e) = irn_subscription_ack_tx.send(id) {
                                 tracing::debug!(
                                     "Failed to send subscription ack: {e}"
@@ -750,6 +772,7 @@ pub async fn connect_loop_state_machine(
                     vec![],
                     Params::BatchSubscribe(BatchSubscribe { topics }),
                     cleanup_rx.clone(),
+                    probe_group.clone(),
                 )
                 .await;
                 match connect_res {
@@ -885,6 +908,7 @@ pub async fn connect_loop_state_machine(
                     topics,
                     request.clone(),
                     cleanup_rx.clone(),
+                    probe_group.clone(),
                 )
                 .await;
                 match connect_res {
@@ -1285,6 +1309,7 @@ pub async fn connect_loop_state_machine(
                     topics,
                     request,
                     cleanup_rx.clone(),
+                    probe_group.clone(),
                 );
                 tokio::select! {
                     connect_res = connect_fut => {
