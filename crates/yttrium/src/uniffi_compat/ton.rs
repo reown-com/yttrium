@@ -1,11 +1,16 @@
+#[cfg(feature = "chain_abstraction_client")]
+use crate::chain_abstraction::pulse::PulseMetadata;
 use {
+    crate::{
+        blockchain_api::BLOCKCHAIN_API_URL_PROD, provider_pool::ProviderPool,
+    },
     base64::{engine::general_purpose::STANDARD as B64, Engine as _},
     ed25519_dalek::{Signer, SigningKey},
     rand::rngs::OsRng,
-    std::{
-        time::{SystemTime, UNIX_EPOCH},
-    },
-    ton_lib::ton_lib_core::{boc::BOC, cell::TonCell, types::TonAddress},
+    relay_rpc::domain::ProjectId,
+    reqwest::Client as ReqwestClient,
+    std::time::{SystemTime, UNIX_EPOCH},
+    ton_lib::ton_lib_core::types::TonAddress,
 };
 
 #[derive(Debug, thiserror::Error, uniffi::Error)]
@@ -52,30 +57,46 @@ pub struct TonClientConfig {
 
 #[derive(uniffi::Record)]
 pub struct SendTxMessage {
-    pub address: String,            
-    pub amount: String,             
-    pub state_init: Option<String>, 
-    pub payload: Option<String>,    
+    pub address: String,
+    pub amount: String,
+    pub state_init: Option<String>,
+    pub payload: Option<String>,
 }
 
 #[derive(uniffi::Object)]
 pub struct SendTxParams {
-    pub valid_until: u32, 
-    pub network: String,  
-    pub from: String, 
+    pub valid_until: u32,
+    pub network: String,
+    pub from: String,
     pub messages: Vec<SendTxMessage>,
 }
 
 #[derive(uniffi::Object)]
 pub struct TONClient {
-    cfg: TonClientConfig
+    cfg: TonClientConfig,
+    provider_pool: ProviderPool,
 }
 
-#[uniffi::export]
+#[uniffi::export(async_runtime = "tokio")]
 impl TONClient {
     #[uniffi::constructor]
-    pub fn new(cfg: TonClientConfig) -> Result<Self, TonError> {
-        Ok(Self { cfg })
+    pub fn new(
+        cfg: TonClientConfig,
+        project_id: ProjectId,
+        #[cfg(feature = "chain_abstraction_client")]
+        pulse_metadata: PulseMetadata,
+    ) -> Self {
+        let client = ReqwestClient::new();
+
+        let provider_pool = ProviderPool::new(
+            project_id,
+            client,
+            #[cfg(feature = "chain_abstraction_client")]
+            pulse_metadata,
+            BLOCKCHAIN_API_URL_PROD.parse().unwrap(),
+        );
+
+        Self { cfg, provider_pool }
     }
 
     pub fn generate_keypair(&self) -> Keypair {
@@ -91,7 +112,6 @@ impl TONClient {
         &self,
         keypair: &Keypair,
     ) -> Result<WalletIdentity, TonError> {
-
         let pk_bytes = hex::decode(&keypair.pk).map_err(|e| {
             TonError::SerializationError(format!(
                 "Invalid public key hex: {}",
@@ -161,7 +181,7 @@ impl TONClient {
         Ok(signature_base64)
     }
 
-    pub fn send_message(
+    pub async fn send_message(
         &self,
         network: String,
         from: String,
@@ -187,21 +207,20 @@ impl TONClient {
         }
 
         // Validate valid_until is in the future
-        let current_time = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_secs() as u32;
-        
+        let current_time =
+            SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs()
+                as u32;
+
         if valid_until <= current_time {
             return Err(TonError::SerializationError(
-                "Transaction valid_until is in the past".to_string()
+                "Transaction valid_until is in the past".to_string(),
             ));
         }
 
         // Validate messages
         if messages.is_empty() {
             return Err(TonError::SerializationError(
-                "No messages provided".to_string()
+                "No messages provided".to_string(),
             ));
         }
 
@@ -224,60 +243,183 @@ impl TONClient {
             }
         }
 
-        // Create a transaction cell with proper TON structure
-        let mut cell = TonCell::builder();
-        
-        // Add transaction header data
-        // In a real implementation, this would follow TON transaction format
-        cell.write_bits(&[1, 0, 0, 0], 4)?; // Transaction type
-        cell.write_bits(&[0, 0, 0, 0], 4)?; // Flags
-        
-        // Add valid_until timestamp (32 bits)
-        let valid_until_bits: [u8; 4] = valid_until.to_le_bytes();
-        cell.write_bits(&valid_until_bits, 32)?;
-        
-        // Add message count (8 bits)
-        cell.write_bits(&[messages.len() as u8], 8)?;
-        
-        // For each message, add address and amount
-        for msg in &messages {
-            // Add address (simplified - in real implementation would be proper TON address encoding)
-            let address_bytes = msg.address.as_bytes();
-            cell.write_bits(&[address_bytes.len() as u8], 8)?; // Address length
-            cell.write_bits(address_bytes, address_bytes.len() * 8)?;
-            
-            // Add amount (64 bits)
-            let amount: u64 = msg.amount.parse().unwrap();
-            let amount_bytes: [u8; 8] = amount.to_le_bytes();
-            cell.write_bits(&amount_bytes, 64)?;
-        }
-        
-        let transaction_cell = cell.build()?;
-
-        // Create a simplified BOC representation
-        // In a full implementation, this would use proper BOC serialization
-        let transaction_data = format!(
-            "ton_transaction_{}_{}_{}",
-            from,
-            valid_until,
-            messages.len()
-        );
-        let boc_base64 = B64.encode(transaction_data.as_bytes());
-
-        Ok(boc_base64)
+        // Use ton-rs library to create and send the message
+        self.broadcast_message(from, keypair, valid_until, messages).await
     }
-}
 
-fn boc_from_base64(b64: &str) -> Result<TonCell, TonError> {
-    let bytes = B64
-        .decode(b64)
-        .map_err(|e| TonError::SerializationError(e.to_string()))?;
-    let _boc = BOC::from_bytes(&bytes)
-        .map_err(|e| TonError::SerializationError(e.to_string()))?;
-    // For now, return a dummy cell since we don't have access to the root method
-    // In a full implementation, this would properly extract the root cell
-    let mut cell = TonCell::builder();
-    cell.write_bits(&[0], 1)
-        .map_err(|e| TonError::SerializationError(e.to_string()))?;
-    Ok(cell.build().map_err(|e| TonError::SerializationError(e.to_string()))?)
+    async fn broadcast_message(
+        &self,
+        from: String,
+        keypair: &Keypair,
+        valid_until: u32,
+        messages: Vec<SendTxMessage>,
+    ) -> Result<String, TonError> {
+        use ton_lib::{
+            block_tlb::{
+                CommonMsgInfo, CommonMsgInfoInt, CurrencyCollection, Msg,
+            },
+            ton_lib_core::traits::tlb::TLB,
+            wallet::{KeyPair as TonKeyPair, TonWallet, WalletVersion},
+        };
+
+        if messages.len() != 1 {
+            return Err(TonError::SerializationError(
+                "Only single message transfers supported".to_string(),
+            ));
+        }
+
+        let msg = &messages[0];
+        let to_addr = msg
+            .address
+            .parse::<ton_lib::ton_lib_core::types::TonAddress>()
+            .map_err(|e| {
+                TonError::InvalidAddress(format!("Invalid to address: {}", e))
+            })?;
+        let amount = msg.amount.parse::<u128>().map_err(|e| {
+            TonError::SerializationError(format!("Invalid amount: {}", e))
+        })?;
+
+        // Build ton-lib wallet from provided keys (secret_key must be 64 bytes: sk||pk)
+        let sk = B64.decode(&keypair.sk).map_err(|e| {
+            TonError::SerializationError(format!(
+                "Invalid private key base64: {}",
+                e
+            ))
+        })?;
+        if sk.len() != 32 {
+            return Err(TonError::SerializationError(
+                "Invalid private key length".to_string(),
+            ));
+        }
+        let pk = hex::decode(&keypair.pk).map_err(|e| {
+            TonError::SerializationError(format!(
+                "Invalid public key hex: {}",
+                e
+            ))
+        })?;
+        if pk.len() != 32 {
+            return Err(TonError::SerializationError(
+                "Invalid public key length".to_string(),
+            ));
+        }
+        let mut secret_key = Vec::with_capacity(64);
+        secret_key.extend_from_slice(&sk);
+        secret_key.extend_from_slice(&pk);
+        let ton_keypair = TonKeyPair { public_key: pk, secret_key };
+        let wallet =
+            TonWallet::new(WalletVersion::V4R2, ton_keypair).map_err(|e| {
+                TonError::TonCoreError(format!(
+                    "Failed to create wallet: {}",
+                    e
+                ))
+            })?;
+
+        // Fetch seqno via blockchain API (getWalletInformation with fallback)
+        let ton_provider = self
+            .provider_pool
+            .get_ton_client(&self.cfg.network_id, None, None)
+            .await;
+
+        // Fetch seqno using only getAddressInformation (per TONX Accounts API)
+        let addr_info = ton_provider
+            .get_address_information(&from)
+            .await
+            .map_err(|e| TonError::TonCoreError(format!(
+                "Failed getAddressInformation: {}",
+                e
+            )))?;
+        
+        tracing::info!("addr_info: {addr_info:?}");
+
+        // Some backends return a top-level object, others nest under result
+        let root = addr_info.get("result").unwrap_or(&addr_info);
+
+        // If account state is explicitly uninitialized, use seqno=0
+        let is_uninitialized = root
+            .get("state")
+            .and_then(|v| v.as_str())
+            .map(|s| s.eq_ignore_ascii_case("uninitialized"))
+            .unwrap_or(false);
+
+        let mut seqno_u64 = root
+            .get("block_id").and_then(|b| b.get("seqno")).and_then(|v| v.as_u64())
+            .or_else(|| root.get("block_id").and_then(|b| b.get("seqno")).and_then(|v| v.as_str()).and_then(|s| s.parse::<u64>().ok()))
+            .or_else(|| root.get("last_block_id").and_then(|b| b.get("seqno")).and_then(|v| v.as_u64()))
+            .or_else(|| root.get("last_block_id").and_then(|b| b.get("seqno")).and_then(|v| v.as_str()).and_then(|s| s.parse::<u64>().ok()))
+            .or_else(|| root.get("blockId").and_then(|b| b.get("seqno")).and_then(|v| v.as_u64()))
+            .or_else(|| root.get("blockId").and_then(|b| b.get("seqno")).and_then(|v| v.as_str()).and_then(|s| s.parse::<u64>().ok()))
+            .or_else(|| root.get("lastBlockId").and_then(|b| b.get("seqno")).and_then(|v| v.as_u64()))
+            .or_else(|| root.get("lastBlockId").and_then(|b| b.get("seqno")).and_then(|v| v.as_str()).and_then(|s| s.parse::<u64>().ok()))
+            .or_else(|| root.get("seqno").and_then(|v| v.as_u64()))
+            .or_else(|| root.get("seqno").and_then(|v| v.as_str()).and_then(|s| s.parse::<u64>().ok()));
+
+        let seqno = if is_uninitialized { 0 } else {
+            seqno_u64
+                .ok_or_else(|| TonError::TonCoreError(
+                    "Missing seqno in getAddressInformation (expected block_id.seqno)".into(),
+                ))? as u32
+        };
+
+        // Build internal transfer message
+        let int_msg = Msg {
+            info: CommonMsgInfo::Int(CommonMsgInfoInt {
+                ihr_disabled: false,
+                bounce: false,
+                bounced: false,
+                src: ton_lib::ton_lib_core::types::tlb_core::MsgAddress::NONE,
+                dst: ton_lib::ton_lib_core::types::tlb_core::MsgAddress::Int(
+                    to_addr.to_msg_address_int(),
+                ),
+                value: CurrencyCollection::new(amount),
+                ihr_fee: ton_lib::block_tlb::Coins::ZERO,
+                fwd_fee: ton_lib::block_tlb::Coins::ZERO,
+                created_lt: 0,
+                created_at: 0,
+            }),
+            init: None,
+            body: ton_lib::ton_lib_core::types::tlb_core::TLBEitherRef::new(
+                ton_lib::ton_lib_core::cell::TonCell::EMPTY,
+            ),
+        };
+
+        let ext_in_msg = wallet
+            .create_ext_in_msg(
+                vec![int_msg.to_cell_ref()?],
+                seqno,
+                valid_until,
+                false,
+            )
+            .map_err(|e| {
+                TonError::TonCoreError(format!(
+                    "Failed to create external message: {}",
+                    e
+                ))
+            })?;
+
+        // Serialize to BOC
+        let boc = ext_in_msg.to_boc().map_err(|e| {
+            TonError::TonCoreError(format!("Failed to serialize BOC: {}", e))
+        })?;
+        let boc_base64 = B64.encode(&boc);
+
+        let response =
+            ton_provider.send_boc(boc_base64).await.map_err(|e| {
+                TonError::TonCoreError(format!("Failed to send BOC: {}", e))
+            })?;
+
+        // Extract result from response
+        if let Some(error) = response.get("error") {
+            return Err(TonError::TonCoreError(format!(
+                "Blockchain API error: {}",
+                error
+            )));
+        }
+
+        let result = response
+            .get("result")
+            .and_then(|v| v.as_str())
+            .unwrap_or("Message sent successfully");
+
+        Ok(result.to_string())
+    }
 }
