@@ -125,21 +125,34 @@ impl TONClient {
             ));
         }
 
-        let mut pk_array = [0u8; 32];
-        pk_array.copy_from_slice(&pk_bytes);
+        let sk_bytes = B64.decode(&keypair.sk).map_err(|e| {
+            TonError::SerializationError(format!(
+                "Invalid private key base64: {}",
+                e
+            ))
+        })?;
+        if sk_bytes.len() != 32 {
+            return Err(TonError::SerializationError(
+                "Invalid private key length".to_string(),
+            ));
+        }
 
-        let address = TonAddress::new(
-            0,
-            ton_lib::ton_lib_core::cell::TonHash::from(pk_array),
-        );
+        // Build ton-lib wallet keypair (secret_key must be 64 bytes: sk||pk)
+        let mut secret_key = Vec::with_capacity(64);
+        secret_key.extend_from_slice(&sk_bytes);
+        secret_key.extend_from_slice(&pk_bytes);
+        let ton_keypair = ton_lib::wallet::KeyPair { public_key: pk_bytes, secret_key };
 
+        // Derive wallet (V4R2) address from StateInit
+        let wallet = ton_lib::wallet::TonWallet::new(
+            ton_lib::wallet::WalletVersion::V4R2,
+            ton_keypair,
+        ).map_err(|e| TonError::TonCoreError(e.to_string()))?;
+
+        let address = wallet.address;
         // Use unbounceable, URL-safe mainnet friendly address (prefix "UQ...")
         let friendly = address.to_base64(true, false, true);
-        let raw = format!(
-            "{}:{}",
-            address.workchain,
-            hex::encode(address.hash.as_slice())
-        );
+        let raw = address.to_hex();
 
         Ok(WalletIdentity {
             workchain: address.workchain as i8,
@@ -258,7 +271,7 @@ impl TONClient {
 
     async fn broadcast_message(
         &self,
-        from: String,
+        _from: String,
         keypair: &Keypair,
         valid_until: u32,
         messages: Vec<SendTxMessage>,
@@ -329,15 +342,25 @@ impl TONClient {
             .get_ton_client(&self.cfg.network_id, None, None)
             .await;
 
-        // Fetch seqno using only getAddressInformation (per TONX Accounts API)
-        let addr_info = ton_provider
-            .get_address_information(&from)
+        // Prefer getWalletInformation for seqno; fallback to getAddressInformation
+        let wallet_addr_friendly = wallet.address.to_base64(true, false, true);
+        let wallet_info = ton_provider
+            .get_wallet_information(&wallet_addr_friendly)
             .await
-            .map_err(|e| TonError::TonCoreError(format!(
-                "Failed getAddressInformation: {}",
-                e
-            )))?;
-        
+            .unwrap_or_else(|_| serde_json::json!({}));
+
+        let addr_info = if wallet_info.is_object() && !wallet_info.as_object().unwrap().is_empty() {
+            wallet_info
+        } else {
+            ton_provider
+                .get_address_information(&wallet_addr_friendly)
+                .await
+                .map_err(|e| TonError::TonCoreError(format!(
+                    "Failed getAddressInformation: {}",
+                    e
+                )))?
+        };
+
         tracing::info!("addr_info: {addr_info:?}");
 
         // Some backends return a top-level object, others nest under result
@@ -350,7 +373,12 @@ impl TONClient {
             .map(|s| s.eq_ignore_ascii_case("uninitialized"))
             .unwrap_or(false);
 
-        let seqno_u64 = root
+        // Prefer seqno directly if provided by wallet_information
+        let seqno_direct = root
+            .get("seqno").and_then(|v| v.as_u64())
+            .or_else(|| root.get("seqno").and_then(|v| v.as_str()).and_then(|s| s.parse::<u64>().ok()));
+
+        let seqno_u64 = seqno_direct.or_else(|| root
             .get("block_id").and_then(|b| b.get("seqno")).and_then(|v| v.as_u64())
             .or_else(|| root.get("block_id").and_then(|b| b.get("seqno")).and_then(|v| v.as_str()).and_then(|s| s.parse::<u64>().ok()))
             .or_else(|| root.get("last_block_id").and_then(|b| b.get("seqno")).and_then(|v| v.as_u64()))
@@ -360,12 +388,28 @@ impl TONClient {
             .or_else(|| root.get("lastBlockId").and_then(|b| b.get("seqno")).and_then(|v| v.as_u64()))
             .or_else(|| root.get("lastBlockId").and_then(|b| b.get("seqno")).and_then(|v| v.as_str()).and_then(|s| s.parse::<u64>().ok()))
             .or_else(|| root.get("seqno").and_then(|v| v.as_u64()))
-            .or_else(|| root.get("seqno").and_then(|v| v.as_str()).and_then(|s| s.parse::<u64>().ok()));
+            .or_else(|| root.get("seqno").and_then(|v| v.as_str()).and_then(|s| s.parse::<u64>().ok())));
+
+        // Extract balance (can be number or string)
+        let balance_u128 = root
+            .get("balance")
+            .and_then(|v| v.as_str().and_then(|s| s.parse::<u128>().ok()))
+            .or_else(|| root.get("balance").and_then(|v| v.as_u64()).map(|x| x as u128))
+            .unwrap_or(0);
+
+        // If uninitialized and zero balance, deployment cannot proceed (external msg can't carry value)
+        if is_uninitialized && balance_u128 == 0 {
+            let addr = wallet.address.to_base64(true, false, true);
+            return Err(TonError::TonCoreError(format!(
+                "Wallet is uninitialized with zero balance. Pre-fund {} then retry.",
+                addr
+            )));
+        }
 
         let seqno = if is_uninitialized { 0 } else {
             seqno_u64
                 .ok_or_else(|| TonError::TonCoreError(
-                    "Missing seqno in getAddressInformation (expected block_id.seqno)".into(),
+                    "Missing seqno (getWalletInformation/getAddressInformation)".into(),
                 ))? as u32
         };
 
@@ -391,12 +435,14 @@ impl TONClient {
             ),
         };
 
+        // If account is uninitialized, we must add state init so the wallet can be deployed
+        let add_state_init = is_uninitialized;
         let ext_in_msg = wallet
             .create_ext_in_msg(
                 vec![int_msg.to_cell_ref()?],
                 seqno,
                 valid_until,
-                false,
+                add_state_init,
             )
             .map_err(|e| {
                 TonError::TonCoreError(format!(
@@ -412,7 +458,7 @@ impl TONClient {
         let boc_base64 = B64.encode(&boc);
 
         let response =
-            ton_provider.send_boc(boc_base64).await.map_err(|e| {
+            ton_provider.send_boc(boc_base64.clone()).await.map_err(|e| {
                 TonError::TonCoreError(format!("Failed to send BOC: {}", e))
             })?;
 
@@ -424,12 +470,8 @@ impl TONClient {
             )));
         }
 
-        let result = response
-            .get("result")
-            .and_then(|v| v.as_str())
-            .unwrap_or("Message sent successfully");
-
-        Ok(result.to_string())
+        // Return the BOC base64 used for sending (requested by client)
+        Ok(boc_base64)
     }
 }
 

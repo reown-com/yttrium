@@ -425,6 +425,7 @@ impl CustomClient {
         let resp = self
             .client
             .post(self.url)
+            .header("X-Ton-Client-Version", "15.3.1")
             .json(&req)
             .send()
             .await
