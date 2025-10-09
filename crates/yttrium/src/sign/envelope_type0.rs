@@ -1,5 +1,5 @@
 use {
-    crate::sign::{client_errors::PairError, protocol_types::ProposalJsonRpc},
+    crate::sign::client_errors::PairError,
     chacha20poly1305::{aead::Aead, ChaCha20Poly1305, KeyInit, Nonce},
     data_encoding::BASE64,
 };
@@ -70,21 +70,4 @@ pub fn decrypt_type0_envelope(
         .decrypt(&Nonce::from(envelope.iv), envelope.sb.as_slice())
         .map_err(|e| PairError::Internal(e.to_string()))?;
     Ok(decrypted)
-}
-
-/// Decode a type-0 envelope proposal message coming from IRN and return the parsed JSON-RPC request
-/// (method: wc_sessionPropose).
-pub fn decode_type0_encrypted_proposal_message(
-    sym_key: [u8; 32],
-    message_b64: &str,
-) -> Result<ProposalJsonRpc, PairError> {
-    let decrypted = decrypt_type0_envelope(sym_key, message_b64)?;
-
-    let request = serde_json::from_slice::<ProposalJsonRpc>(&decrypted)
-        .map_err(|e| {
-            PairError::Internal(format!(
-                "Failed to parse decrypted message: {e}"
-            ))
-        })?;
-    Ok(request)
 }

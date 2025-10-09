@@ -13,6 +13,11 @@ name = "uniffi-bindgen"
 path = "uniffi-bindgen.rs"
 required-features = ["uniffi"]
 
+[[bin]]
+name = "sign-canary"
+path = "src/bin/sign_canary.rs"
+required-features = ["sign_canary"]
+
 [features]
 default = ["eip155", "erc6492_client", "chain_abstraction_client"]
 full = ["all_platforms", "all_clients", "all_namespaces"]
@@ -95,6 +100,13 @@ sign_client = [
     "dep:hkdf",
     "dep:sha2",
     "dep:tokio-util",
+    "dep:jsonwebtoken",
+]
+
+sign_canary = [
+    "sign_client",
+    "dep:aws-config",
+    "dep:aws-sdk-cloudwatch",
 ]
 
 # Features enabling test coverage
@@ -106,6 +118,10 @@ test_full = [
 test_pimlico_api = []
 test_blockchain_api = []
 test_depends_on_env_REOWN_PROJECT_ID = []
+test_sign = [
+    "sign_client",
+    "test_depends_on_env_REOWN_PROJECT_ID",
+]
 
 [dependencies]
 uniffi = { workspace = true, optional = true, features = ["cli"] }
@@ -240,6 +256,10 @@ x25519-dalek = { version = "3.0.0-pre.0", features = [
 ], optional = true }
 hkdf = { version = "0.13.0-rc.0", optional = true }
 sha2 = { version = "0.11.0-rc.0", optional = true }
+jsonwebtoken = { version = "9.3.1", optional = true }
+
+aws-config = { version = "1.1.7", features = ["behavior-version-latest"], optional = true }
+aws-sdk-cloudwatch = { version = "1.91.0", optional = true }
 
 [dev-dependencies]
 # mocking
