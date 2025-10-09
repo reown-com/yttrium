@@ -141,13 +141,15 @@ impl TONClient {
         let mut secret_key = Vec::with_capacity(64);
         secret_key.extend_from_slice(&sk_bytes);
         secret_key.extend_from_slice(&pk_bytes);
-        let ton_keypair = ton_lib::wallet::KeyPair { public_key: pk_bytes, secret_key };
+        let ton_keypair =
+            ton_lib::wallet::KeyPair { public_key: pk_bytes, secret_key };
 
         // Derive wallet (V4R2) address from StateInit
         let wallet = ton_lib::wallet::TonWallet::new(
             ton_lib::wallet::WalletVersion::V4R2,
             ton_keypair,
-        ).map_err(|e| TonError::TonCoreError(e.to_string()))?;
+        )
+        .map_err(|e| TonError::TonCoreError(e.to_string()))?;
 
         let address = wallet.address;
         // Use unbounceable, URL-safe mainnet friendly address (prefix "UQ...")
@@ -157,7 +159,7 @@ impl TONClient {
         Ok(WalletIdentity {
             workchain: address.workchain as i8,
             raw_hex: raw,
-            friendly: friendly,
+            friendly,
         })
     }
 
@@ -185,10 +187,11 @@ impl TONClient {
             ));
         }
 
-        let sk: [u8; 32] = sk_bytes
-            .as_slice()
-            .try_into()
-            .map_err(|_| TonError::SerializationError("Invalid private key length".to_string()))?;
+        let sk: [u8; 32] = sk_bytes.as_slice().try_into().map_err(|_| {
+            TonError::SerializationError(
+                "Invalid private key length".to_string(),
+            )
+        })?;
         let sk = SigningKey::from_bytes(&sk);
 
         let signature = sk.sign(&message_bytes);
@@ -215,16 +218,16 @@ impl TONClient {
 
         // Validate that the from address matches the keypair (normalize formats)
         let keypair_address = self.get_address_from_keypair(keypair)?;
-        let from_addr = from
-            .parse::<TonAddress>()
-            .map_err(|e| TonError::InvalidAddress(format!("Invalid from address: {}", e)))?;
-        let keypair_addr = keypair_address
-            .raw_hex
-            .parse::<TonAddress>()
-            .map_err(|e| TonError::InvalidAddress(format!(
-                "Invalid keypair-derived address: {}",
-                e
-            )))?;
+        let from_addr = from.parse::<TonAddress>().map_err(|e| {
+            TonError::InvalidAddress(format!("Invalid from address: {}", e))
+        })?;
+        let keypair_addr =
+            keypair_address.raw_hex.parse::<TonAddress>().map_err(|e| {
+                TonError::InvalidAddress(format!(
+                    "Invalid keypair-derived address: {}",
+                    e
+                ))
+            })?;
         if from_addr != keypair_addr {
             return Err(TonError::InvalidAddress(format!(
                 "From address {} does not match keypair address {}",
@@ -351,16 +354,20 @@ impl TONClient {
             .await
             .unwrap_or_else(|_| serde_json::json!({}));
 
-        let addr_info = if wallet_info.is_object() && !wallet_info.as_object().unwrap().is_empty() {
+        let addr_info = if wallet_info.is_object()
+            && !wallet_info.as_object().unwrap().is_empty()
+        {
             wallet_info
         } else {
             ton_provider
                 .get_address_information(&wallet_addr_friendly)
                 .await
-                .map_err(|e| TonError::TonCoreError(format!(
-                    "Failed getAddressInformation: {}",
-                    e
-                )))?
+                .map_err(|e| {
+                    TonError::TonCoreError(format!(
+                        "Failed getAddressInformation: {}",
+                        e
+                    ))
+                })?
         };
 
         tracing::info!("addr_info: {addr_info:?}");
@@ -376,27 +383,71 @@ impl TONClient {
             .unwrap_or(false);
 
         // Prefer seqno directly if provided by wallet_information
-        let seqno_direct = root
-            .get("seqno").and_then(|v| v.as_u64())
-            .or_else(|| root.get("seqno").and_then(|v| v.as_str()).and_then(|s| s.parse::<u64>().ok()));
+        let seqno_direct =
+            root.get("seqno").and_then(|v| v.as_u64()).or_else(|| {
+                root.get("seqno")
+                    .and_then(|v| v.as_str())
+                    .and_then(|s| s.parse::<u64>().ok())
+            });
 
-        let seqno_u64 = seqno_direct.or_else(|| root
-            .get("block_id").and_then(|b| b.get("seqno")).and_then(|v| v.as_u64())
-            .or_else(|| root.get("block_id").and_then(|b| b.get("seqno")).and_then(|v| v.as_str()).and_then(|s| s.parse::<u64>().ok()))
-            .or_else(|| root.get("last_block_id").and_then(|b| b.get("seqno")).and_then(|v| v.as_u64()))
-            .or_else(|| root.get("last_block_id").and_then(|b| b.get("seqno")).and_then(|v| v.as_str()).and_then(|s| s.parse::<u64>().ok()))
-            .or_else(|| root.get("blockId").and_then(|b| b.get("seqno")).and_then(|v| v.as_u64()))
-            .or_else(|| root.get("blockId").and_then(|b| b.get("seqno")).and_then(|v| v.as_str()).and_then(|s| s.parse::<u64>().ok()))
-            .or_else(|| root.get("lastBlockId").and_then(|b| b.get("seqno")).and_then(|v| v.as_u64()))
-            .or_else(|| root.get("lastBlockId").and_then(|b| b.get("seqno")).and_then(|v| v.as_str()).and_then(|s| s.parse::<u64>().ok()))
-            .or_else(|| root.get("seqno").and_then(|v| v.as_u64()))
-            .or_else(|| root.get("seqno").and_then(|v| v.as_str()).and_then(|s| s.parse::<u64>().ok())));
+        let seqno_u64 = seqno_direct.or_else(|| {
+            root.get("block_id")
+                .and_then(|b| b.get("seqno"))
+                .and_then(|v| v.as_u64())
+                .or_else(|| {
+                    root.get("block_id")
+                        .and_then(|b| b.get("seqno"))
+                        .and_then(|v| v.as_str())
+                        .and_then(|s| s.parse::<u64>().ok())
+                })
+                .or_else(|| {
+                    root.get("last_block_id")
+                        .and_then(|b| b.get("seqno"))
+                        .and_then(|v| v.as_u64())
+                })
+                .or_else(|| {
+                    root.get("last_block_id")
+                        .and_then(|b| b.get("seqno"))
+                        .and_then(|v| v.as_str())
+                        .and_then(|s| s.parse::<u64>().ok())
+                })
+                .or_else(|| {
+                    root.get("blockId")
+                        .and_then(|b| b.get("seqno"))
+                        .and_then(|v| v.as_u64())
+                })
+                .or_else(|| {
+                    root.get("blockId")
+                        .and_then(|b| b.get("seqno"))
+                        .and_then(|v| v.as_str())
+                        .and_then(|s| s.parse::<u64>().ok())
+                })
+                .or_else(|| {
+                    root.get("lastBlockId")
+                        .and_then(|b| b.get("seqno"))
+                        .and_then(|v| v.as_u64())
+                })
+                .or_else(|| {
+                    root.get("lastBlockId")
+                        .and_then(|b| b.get("seqno"))
+                        .and_then(|v| v.as_str())
+                        .and_then(|s| s.parse::<u64>().ok())
+                })
+                .or_else(|| root.get("seqno").and_then(|v| v.as_u64()))
+                .or_else(|| {
+                    root.get("seqno")
+                        .and_then(|v| v.as_str())
+                        .and_then(|s| s.parse::<u64>().ok())
+                })
+        });
 
         // Extract balance (can be number or string)
         let balance_u128 = root
             .get("balance")
             .and_then(|v| v.as_str().and_then(|s| s.parse::<u128>().ok()))
-            .or_else(|| root.get("balance").and_then(|v| v.as_u64()).map(|x| x as u128))
+            .or_else(|| {
+                root.get("balance").and_then(|v| v.as_u64()).map(|x| x as u128)
+            })
             .unwrap_or(0);
 
         // If uninitialized and zero balance, deployment cannot proceed (external msg can't carry value)
@@ -408,7 +459,9 @@ impl TONClient {
             )));
         }
 
-        let seqno = if is_uninitialized { 0 } else {
+        let seqno = if is_uninitialized {
+            0
+        } else {
             seqno_u64
                 .ok_or_else(|| TonError::TonCoreError(
                     "Missing seqno (getWalletInformation/getAddressInformation)".into(),
@@ -484,7 +537,8 @@ mod tests {
     #[test]
     fn test_unbounceable_address_format_for_known_pubkey() {
         // Public key from repro example
-        let pk_hex = "a323642d9cd5e4631368be4f3b15017427e4d1d15d97723a103f1c29609b7c14";
+        let pk_hex =
+            "a323642d9cd5e4631368be4f3b15017427e4d1d15d97723a103f1c29609b7c14";
         let pk_bytes = hex::decode(pk_hex).expect("valid hex");
         let mut pk_array = [0u8; 32];
         pk_array.copy_from_slice(&pk_bytes);

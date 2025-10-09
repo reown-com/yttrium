@@ -3,7 +3,8 @@ use ton_lib::ton_lib_core::{cell::TonHash, types::TonAddress};
 #[test]
 fn unbounceable_address_format_for_known_pubkey() {
     // Public key from user example
-    let pk_hex = "a323642d9cd5e4631368be4f3b15017427e4d1d15d97723a103f1c29609b7c14";
+    let pk_hex =
+        "a323642d9cd5e4631368be4f3b15017427e4d1d15d97723a103f1c29609b7c14";
     let pk_bytes = hex::decode(pk_hex).expect("valid hex");
     let mut pk_array = [0u8; 32];
     pk_array.copy_from_slice(&pk_bytes);
@@ -26,5 +27,3 @@ fn unbounceable_address_format_for_known_pubkey() {
         "EQCjI2QtnNXkYxNovk87FQF0J-TR0V2XcjoQPxwpYJt8FLjA"
     );
 }
-
-

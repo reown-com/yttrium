@@ -408,8 +408,12 @@ impl CustomClient {
         req: RequestPacket,
         #[cfg(feature = "chain_abstraction_client")] tracing: TracingType,
     ) -> TransportResult<ResponsePacket> {
-        tracing::debug!("rpc POST url={} body={}", self.url, serde_json::to_string(&req).unwrap());
-        
+        tracing::debug!(
+            "rpc POST url={} body={}",
+            self.url,
+            serde_json::to_string(&req).unwrap()
+        );
+
         let resp = self
             .client
             .post(self.url)
