@@ -19,9 +19,9 @@ impl TonProvider {
         // Try primary method name first
         match self.client.request("sendMessage", params.clone()).await {
             Ok(v) => Ok(v),
-            Err(_) => {
-                // Fallback to namespaced method some proxies expose
-                self.client.request("ton_sendMessage", params).await
+            Err(m) => {
+                tracing::error!("Error sending message: {}", m);
+                Err(m)
             }
         }
     }

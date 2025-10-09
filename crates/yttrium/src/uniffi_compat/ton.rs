@@ -47,7 +47,7 @@ pub struct Keypair {
 pub struct WalletIdentity {
     pub workchain: i8,
     pub raw_hex: String,
-    pub friendly_eq: String,
+    pub friendly: String,
 }
 
 #[derive(uniffi::Record)]
@@ -133,7 +133,8 @@ impl TONClient {
             ton_lib::ton_lib_core::cell::TonHash::from(pk_array),
         );
 
-        let friendly = address.to_string();
+        // Use unbounceable, URL-safe mainnet friendly address (prefix "UQ...")
+        let friendly = address.to_base64(true, false, true);
         let raw = format!(
             "{}:{}",
             address.workchain,
@@ -143,7 +144,7 @@ impl TONClient {
         Ok(WalletIdentity {
             workchain: address.workchain as i8,
             raw_hex: raw,
-            friendly_eq: friendly,
+            friendly: friendly,
         })
     }
 
@@ -197,12 +198,22 @@ impl TONClient {
             )));
         }
 
-        // Validate that the from address matches the keypair
+        // Validate that the from address matches the keypair (normalize formats)
         let keypair_address = self.get_address_from_keypair(keypair)?;
-        if keypair_address.friendly_eq != from {
+        let from_addr = from
+            .parse::<TonAddress>()
+            .map_err(|e| TonError::InvalidAddress(format!("Invalid from address: {}", e)))?;
+        let keypair_addr = keypair_address
+            .raw_hex
+            .parse::<TonAddress>()
+            .map_err(|e| TonError::InvalidAddress(format!(
+                "Invalid keypair-derived address: {}",
+                e
+            )))?;
+        if from_addr != keypair_addr {
             return Err(TonError::InvalidAddress(format!(
                 "From address {} does not match keypair address {}",
-                from, keypair_address.friendly_eq
+                from, keypair_address.friendly
             )));
         }
 
@@ -224,18 +235,16 @@ impl TONClient {
             ));
         }
 
-        // For each message, validate the address format and amount
+        // For each message, validate the address is parseable and amount is numeric
         for msg in &messages {
-            // Validate address format (should be TEP-123 format starting with EQ)
-            if !msg.address.starts_with("EQ") || msg.address.len() < 48 {
+            if let Err(e) = msg.address.parse::<TonAddress>() {
                 return Err(TonError::InvalidAddress(format!(
-                    "Invalid TON address format: {}",
-                    msg.address
+                    "Invalid TON address: {}",
+                    e
                 )));
             }
 
-            // Validate amount is a valid number
-            if let Err(_) = msg.amount.parse::<u64>() {
+            if msg.amount.parse::<u128>().is_err() {
                 return Err(TonError::SerializationError(format!(
                     "Invalid amount format: {}",
                     msg.amount
@@ -341,7 +350,7 @@ impl TONClient {
             .map(|s| s.eq_ignore_ascii_case("uninitialized"))
             .unwrap_or(false);
 
-        let mut seqno_u64 = root
+        let seqno_u64 = root
             .get("block_id").and_then(|b| b.get("seqno")).and_then(|v| v.as_u64())
             .or_else(|| root.get("block_id").and_then(|b| b.get("seqno")).and_then(|v| v.as_str()).and_then(|s| s.parse::<u64>().ok()))
             .or_else(|| root.get("last_block_id").and_then(|b| b.get("seqno")).and_then(|v| v.as_u64()))
@@ -421,5 +430,38 @@ impl TONClient {
             .unwrap_or("Message sent successfully");
 
         Ok(result.to_string())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_unbounceable_address_format_for_known_pubkey() {
+        // Public key from repro example
+        let pk_hex = "a323642d9cd5e4631368be4f3b15017427e4d1d15d97723a103f1c29609b7c14";
+        let pk_bytes = hex::decode(pk_hex).expect("valid hex");
+        let mut pk_array = [0u8; 32];
+        pk_array.copy_from_slice(&pk_bytes);
+
+        let address = TonAddress::new(
+            0,
+            ton_lib::ton_lib_core::cell::TonHash::from(pk_array),
+        );
+
+        // Unbounceable, URL-safe, mainnet
+        let friendly_unbounceable = address.to_base64(true, false, true);
+        assert_eq!(
+            friendly_unbounceable,
+            "UQCjI2QtnNXkYxNovk87FQF0J-TR0V2XcjoQPxwpYJt8FOUF"
+        );
+
+        // Bounceable (for contrast), URL-safe, mainnet
+        let friendly_bounceable = address.to_base64(true, true, true);
+        assert_eq!(
+            friendly_bounceable,
+            "EQCjI2QtnNXkYxNovk87FQF0J-TR0V2XcjoQPxwpYJt8FLjA"
+        );
     }
 }

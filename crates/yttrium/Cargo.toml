@@ -254,6 +254,8 @@ alloy = { workspace = true, features = ["node-bindings", "reqwest"] }
 serial_test.workspace = true
 chacha20poly1305 = { workspace = true, features = ["alloc", "os_rng"] }
 data-encoding = { workspace = true }
+ton_lib = "0.0.39"
+hex = "0.4.3"
 
 [package.metadata.wasm-pack.profile.release]
 wasm-opt = ['-Oz']

@@ -420,7 +420,8 @@ impl CustomClient {
         req: RequestPacket,
         _tracing: TracingType,
     ) -> TransportResult<ResponsePacket> {
-        trace!("req: {}", serde_json::to_string(&req).unwrap());
+        tracing::debug!("rpc POST url={} body={}", self.url, serde_json::to_string(&req).unwrap());
+        
         let resp = self
             .client
             .post(self.url)
@@ -429,7 +430,7 @@ impl CustomClient {
             .await
             .map_err(TransportErrorKind::custom)?;
         let status = resp.status();
-        trace!("res_status: {}", status);
+        tracing::debug!("res_status: {}", status);
 
         let req_id = resp
             .headers()
@@ -465,7 +466,7 @@ impl CustomClient {
         // the status code, as we want to return the error in the body
         // if there is one.
         let body = resp.bytes().await.map_err(TransportErrorKind::custom)?;
-        trace!("res_body: {}", String::from_utf8_lossy(&body));
+        tracing::debug!("res_body: {}", String::from_utf8_lossy(&body));
 
         if !status.is_success() {
             return Err(TransportErrorKind::http_error(
