@@ -16752,7 +16752,6 @@ dependencies = [
  "async-trait",
  "aws-config",
  "aws-sdk-cloudwatch",
- "base64 0.22.1",
  "bcs",
  "bincode",
  "bip32 0.5.3",

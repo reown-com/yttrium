@@ -1,10 +1,10 @@
 #[cfg(feature = "chain_abstraction_client")]
-use crate::chain_abstraction::pulse::PulseMetadata;
+use crate::pulse::PulseMetadata;
 use {
     crate::{
         blockchain_api::BLOCKCHAIN_API_URL_PROD, provider_pool::ProviderPool,
     },
-    base64::{engine::general_purpose::STANDARD as B64, Engine as _},
+    data_encoding::BASE64,
     ed25519_dalek::{Signer, SigningKey},
     rand::rngs::OsRng,
     relay_rpc::domain::ProjectId,
@@ -103,7 +103,7 @@ impl TONClient {
         let sk = SigningKey::generate(&mut OsRng);
         let pk = sk.verifying_key();
         Keypair {
-            sk: B64.encode(sk.to_bytes()),
+            sk: BASE64.encode(sk.to_bytes().as_ref()),
             pk: hex::encode(pk.to_bytes()),
         }
     }
@@ -125,7 +125,7 @@ impl TONClient {
             ));
         }
 
-        let sk_bytes = B64.decode(&keypair.sk).map_err(|e| {
+        let sk_bytes = BASE64.decode(keypair.sk.as_bytes()).map_err(|e| {
             TonError::SerializationError(format!(
                 "Invalid private key base64: {}",
                 e
@@ -172,7 +172,7 @@ impl TONClient {
         message_bytes.extend_from_slice(b"ton-connect:");
         message_bytes.extend_from_slice(text.as_bytes());
 
-        let sk_bytes = B64.decode(&keypair.sk).map_err(|e| {
+        let sk_bytes = BASE64.decode(keypair.sk.as_bytes()).map_err(|e| {
             TonError::SerializationError(format!(
                 "Invalid private key base64: {}",
                 e
@@ -185,12 +185,14 @@ impl TONClient {
             ));
         }
 
-        let mut sk_array = [0u8; 32];
-        sk_array.copy_from_slice(&sk_bytes);
-        let sk = SigningKey::from_bytes(&sk_array);
+        let sk: [u8; 32] = sk_bytes
+            .as_slice()
+            .try_into()
+            .map_err(|_| TonError::SerializationError("Invalid private key length".to_string()))?;
+        let sk = SigningKey::from_bytes(&sk);
 
         let signature = sk.sign(&message_bytes);
-        let signature_base64 = B64.encode(signature.to_bytes());
+        let signature_base64 = BASE64.encode(signature.to_bytes().as_ref());
 
         Ok(signature_base64)
     }
@@ -302,7 +304,7 @@ impl TONClient {
         })?;
 
         // Build ton-lib wallet from provided keys (secret_key must be 64 bytes: sk||pk)
-        let sk = B64.decode(&keypair.sk).map_err(|e| {
+        let sk = BASE64.decode(keypair.sk.as_bytes()).map_err(|e| {
             TonError::SerializationError(format!(
                 "Invalid private key base64: {}",
                 e
@@ -455,7 +457,7 @@ impl TONClient {
         let boc = ext_in_msg.to_boc().map_err(|e| {
             TonError::TonCoreError(format!("Failed to serialize BOC: {}", e))
         })?;
-        let boc_base64 = B64.encode(&boc);
+        let boc_base64 = BASE64.encode(&boc);
 
         let response =
             ton_provider.send_boc(boc_base64.clone()).await.map_err(|e| {
