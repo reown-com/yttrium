@@ -9,6 +9,9 @@ pub mod sui;
 #[cfg(feature = "stacks")]
 pub mod stacks;
 
+#[cfg(feature = "ton")]
+pub mod ton;
+
 #[cfg(feature = "chain_abstraction_client")]
 use crate::chain_abstraction::{
     amount::Amount,

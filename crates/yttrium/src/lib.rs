@@ -39,6 +39,8 @@ pub mod spawn;
 pub mod stacks_provider;
 pub mod test_helpers;
 pub mod time;
+#[cfg(feature = "ton")]
+pub mod ton_provider;
 #[cfg(feature = "transaction_sponsorship_client")]
 pub mod transaction_sponsorship;
 pub mod user_operation;

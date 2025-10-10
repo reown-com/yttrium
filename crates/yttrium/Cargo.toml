@@ -55,7 +55,7 @@ wasm = [
     "web-sys/MessageEvent",
 ]
 
-all_namespaces = ["eip155", "solana", "sui", "stacks"]
+all_namespaces = ["eip155", "solana", "sui", "stacks", "ton"]
 eip155 = []
 solana = [
     "dep:solana-sdk",
@@ -77,6 +77,7 @@ sui = [
     "dep:tiny-bip39",
 ]
 stacks = ["dep:stacks-rs", "dep:bip32", "dep:stacks_secp256k1", "dep:rand"]
+ton = ["dep:ton_lib", "dep:ed25519-dalek", "dep:rand"]
 
 # Features contributing to bundle size, that you might not need
 all_clients = [
@@ -233,8 +234,12 @@ stacks_secp256k1 = { workspace = true, optional = true, features = [
     "recovery",
 ] }
 num-bigint = "0.4.6"
-
 rand = { workspace = true, optional = true }
+
+#TON
+ton_lib = { version = "0.0.39", optional = true }
+anyhow = "1"
+ed25519-dalek = { version = "2", features = ["rand_core"], optional = true }
 
 # Sign Client
 futures-concurrency = { version = "7.6.3", optional = true }
@@ -268,6 +273,8 @@ alloy = { workspace = true, features = ["node-bindings", "reqwest"] }
 serial_test.workspace = true
 chacha20poly1305 = { workspace = true, features = ["alloc", "os_rng"] }
 data-encoding = { workspace = true }
+ton_lib = "0.0.39"
+hex = "0.4.3"
 
 [package.metadata.wasm-pack.profile.release]
 wasm-opt = ['-Oz']
