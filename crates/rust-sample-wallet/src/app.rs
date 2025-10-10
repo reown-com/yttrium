@@ -522,7 +522,7 @@ pub fn App() -> impl IntoView {
                         // });
                         show_success_toast(
                             toaster,
-                            "Signature approved".to_owned(),
+                            "Signature rejected".to_owned(),
                         );
                     }
                     Err(e) => {
