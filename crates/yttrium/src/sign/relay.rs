@@ -102,7 +102,7 @@ async fn connect(
     project_id: ProjectId,
     key: &SigningKey,
     topics: Vec<Topic>,
-    initial_req: Params,
+    initial_req: MaybeVerifiedRequest,
     cleanup_rx: tokio_util::sync::CancellationToken,
     probe_group: Option<String>,
 ) -> Result<
@@ -323,6 +323,7 @@ async fn connect(
         }
 
         // TODO this will soon be moved to initial WebSocket request
+        let initial_req = initial_req.into_resolved().await;
         let request = Payload::Request(Request::new(
             MessageId::new(message_id),
             initial_req,
@@ -574,13 +575,16 @@ enum ConnectionState {
     ),
     Backoff(BackoffState),
     ConnectRequest(
-        (Params, tokio::sync::oneshot::Sender<Result<Response, RequestError>>),
+        (
+            MaybeVerifiedRequest,
+            tokio::sync::oneshot::Sender<Result<Response, RequestError>>,
+        ),
     ),
     AwaitingConnectRequestResponse(
         u64,
         tokio::sync::mpsc::UnboundedReceiver<IncomingMessage>,
         ConnectWebSocket,
-        (Params, tokio::sync::oneshot::Sender<Result<Response, RequestError>>),
+        (tokio::sync::oneshot::Sender<Result<Response, RequestError>>,),
         DurableSleep,
     ),
     Connected(
@@ -653,6 +657,28 @@ pub enum IncomingSessionMessage {
     SessionRequestResponse(u64, Topic, SessionRequestJsonRpcResponse),
 }
 
+enum MaybeVerifiedRequest {
+    Unverified(Params),
+    Verified(
+        Box<dyn Fn(String) -> Params>,
+        tokio::sync::oneshot::Receiver<String>,
+    ),
+}
+
+impl MaybeVerifiedRequest {
+    async fn into_resolved(self) -> Params {
+        match self {
+            MaybeVerifiedRequest::Unverified(request) => request,
+            MaybeVerifiedRequest::Verified(request, receiver) => {
+                request(receiver.await.unwrap_or_else(|e| {
+                    tracing::error!("Failed to get attestation: {e}");
+                    "".to_string()
+                }))
+            }
+        }
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 pub async fn connect_loop_state_machine(
     relay_url: String,
@@ -665,7 +691,7 @@ pub async fn connect_loop_state_machine(
         IncomingSessionMessage,
     )>,
     request_rx: tokio::sync::mpsc::UnboundedReceiver<(
-        Params,
+        MaybeVerifiedRequest,
         tokio::sync::oneshot::Sender<Result<Response, RequestError>>,
     )>,
     mut online_rx: tokio::sync::mpsc::UnboundedReceiver<()>,
@@ -686,7 +712,7 @@ pub async fn connect_loop_state_machine(
         move |id: MessageId,
               sub_msg: Subscription,
               priority_request_tx: tokio::sync::mpsc::UnboundedSender<(
-            Params,
+            MaybeVerifiedRequest,
             tokio::sync::oneshot::Sender<Result<Response, RequestError>>,
         )>| {
             let session_store = session_store.clone();
@@ -812,7 +838,9 @@ pub async fn connect_loop_state_machine(
                     project_id.clone(),
                     &key,
                     vec![],
-                    Params::BatchSubscribe(BatchSubscribe { topics }),
+                    MaybeVerifiedRequest::Unverified(Params::BatchSubscribe(
+                        BatchSubscribe { topics },
+                    )),
                     cleanup_rx.clone(),
                     probe_group.clone(),
                 )
@@ -943,12 +971,14 @@ pub async fn connect_loop_state_machine(
                         return;
                     }
                 };
+                let _attestation_fut =
+                    crate::sign::verify::create_attestation();
                 let connect_res = connect(
                     relay_url.clone(),
                     project_id.clone(),
                     &key,
                     topics,
-                    request.clone(),
+                    request,
                     cleanup_rx.clone(),
                     probe_group.clone(),
                 )
@@ -959,7 +989,7 @@ pub async fn connect_loop_state_machine(
                             message_id,
                             on_incomingmessage_rx,
                             ws,
-                            (request, response_tx),
+                            (response_tx,),
                             crate::time::durable_sleep(REQUEST_TIMEOUT),
                         )
                     }
@@ -995,7 +1025,7 @@ pub async fn connect_loop_state_machine(
                 message_id,
                 mut on_incomingmessage_rx,
                 ws,
-                (request, response_tx),
+                (response_tx,),
                 mut sleep,
             ) => {
                 // TODO avoid select! as it doesn't guarantee that all branches are covered (it will panic otherwise)
@@ -1033,7 +1063,7 @@ pub async fn connect_loop_state_machine(
                                                 message_id,
                                                 on_incomingmessage_rx,
                                                 ws,
-                                                (request, response_tx),
+                                                (response_tx,),
                                                 sleep,
                                             )
                                         }
@@ -1051,7 +1081,7 @@ pub async fn connect_loop_state_machine(
                                                     message_id,
                                                     on_incomingmessage_rx,
                                                     ws,
-                                                    (request, response_tx),
+                                                    (response_tx,),
                                                     sleep,
                                                 )
                                             }
@@ -1148,6 +1178,10 @@ pub async fn connect_loop_state_machine(
                     }
                     request = request_rx.recv() => {
                         if let Some((request, response_tx)) = request {
+                            let request = match request {
+                                MaybeVerifiedRequest::Unverified(request) => request,
+                                MaybeVerifiedRequest::Verified(request, _) => request,
+                            };
                             let message_id = message_id + 1;
                             let payload_request = Payload::Request(Request::new(
                                 MessageId::new(message_id),

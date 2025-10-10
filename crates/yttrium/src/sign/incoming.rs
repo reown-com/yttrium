@@ -52,7 +52,7 @@ pub async fn handle(
         IncomingSessionMessage,
     )>,
     priority_request_tx: tokio::sync::mpsc::UnboundedSender<(
-        Params,
+        MaybeVerifiedRequest,
         tokio::sync::oneshot::Sender<Result<Response, RequestError>>,
     )>,
 ) -> Result<(), HandleError> {
