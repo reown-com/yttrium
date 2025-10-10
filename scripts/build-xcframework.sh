@@ -4,7 +4,7 @@ set -e
 set -u
 
 PACKAGE_NAME="yttrium"
-FEATURES="ios,erc6492_client,sign_client"
+FEATURES="ios,erc6492_client"
 fat_simulator_lib_dir="target/ios-simulator-fat/uniffi-release-swift"
 swift_package_dir="platforms/swift/Sources/Yttrium"
 

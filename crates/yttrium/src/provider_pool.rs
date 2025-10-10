@@ -39,6 +39,10 @@ pub struct ProviderPool {
     pub sui_clients: std::sync::Arc<
         tokio::sync::RwLock<HashMap<String, sui_sdk::SuiClient>>,
     >,
+    #[cfg(feature = "ton")]
+    pub ton_clients: std::sync::Arc<
+        tokio::sync::RwLock<HashMap<String, crate::ton_provider::TonProvider>>,
+    >,
 }
 
 impl ProviderPool {
@@ -63,6 +67,10 @@ impl ProviderPool {
             pulse_metadata,
             #[cfg(feature = "sui")]
             sui_clients: std::sync::Arc::new(tokio::sync::RwLock::new(
+                HashMap::new(),
+            )),
+            #[cfg(feature = "ton")]
+            ton_clients: std::sync::Arc::new(tokio::sync::RwLock::new(
                 HashMap::new(),
             )),
         }
@@ -270,6 +278,41 @@ impl ProviderPool {
                 .await,
         }
     }
+
+    #[cfg(feature = "ton")]
+    pub async fn get_ton_client(
+        &self,
+        network: &str,
+        tracing: Option<std::sync::mpsc::Sender<RpcRequestAnalytics>>,
+        url_override: Option<Url>,
+    ) -> crate::ton_provider::TonProvider {
+        let ton_client = self.ton_clients.read().await.get(network).cloned();
+        if let Some(ton_client) = ton_client {
+            ton_client
+        } else {
+            // Create RpcClient using the same pattern as Stacks
+            let rpc_client = self
+                .get_rpc_client(
+                    #[cfg(feature = "chain_abstraction_client")]
+                    tracing,
+                    #[cfg(not(feature = "chain_abstraction_client"))]
+                    None,
+                    crate::blockchain_api::PROXY_ENDPOINT_PATH,
+                    vec![("chainId", network)],
+                    url_override,
+                    None,
+                )
+                .await;
+
+            let ton_client = crate::ton_provider::TonProvider::new(rpc_client);
+
+            self.ton_clients
+                .write()
+                .await
+                .insert(network.to_owned(), ton_client.clone());
+            ton_client
+        }
+    }
 }
 
 fn polling_interval_for_chain_id(chain_id: &str) -> Duration {
@@ -298,6 +341,11 @@ pub mod network {
     pub mod stacks {
         pub const MAINNET: &str = "stacks:1";
         pub const TESTNET: &str = "stacks:2147483648";
+    }
+
+    pub mod ton {
+        pub const MAINNET: &str = "ton:-239";
+        pub const TESTNET: &str = "ton:-3";
     }
 }
 
@@ -360,16 +408,22 @@ impl CustomClient {
         req: RequestPacket,
         #[cfg(feature = "chain_abstraction_client")] tracing: TracingType,
     ) -> TransportResult<ResponsePacket> {
-        trace!("req: {}", serde_json::to_string(&req).unwrap());
+        tracing::debug!(
+            "rpc POST url={} body={}",
+            self.url,
+            serde_json::to_string(&req).unwrap()
+        );
+
         let resp = self
             .client
             .post(self.url)
+            .header("X-Ton-Client-Version", "15.3.1")
             .json(&req)
             .send()
             .await
             .map_err(TransportErrorKind::custom)?;
         let status = resp.status();
-        trace!("res_status: {}", status);
+        tracing::debug!("res_status: {}", status);
 
         let req_id = resp
             .headers()
@@ -405,7 +459,7 @@ impl CustomClient {
         // the status code, as we want to return the error in the body
         // if there is one.
         let body = resp.bytes().await.map_err(TransportErrorKind::custom)?;
-        trace!("res_body: {}", String::from_utf8_lossy(&body));
+        tracing::debug!("res_body: {}", String::from_utf8_lossy(&body));
 
         if !status.is_success() {
             return Err(TransportErrorKind::http_error(
