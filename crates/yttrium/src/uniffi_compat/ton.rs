@@ -72,13 +72,13 @@ pub struct SendTxParams {
 }
 
 #[derive(uniffi::Object)]
-pub struct TONClient {
+pub struct TonClient {
     cfg: TonClientConfig,
     provider_pool: ProviderPool,
 }
 
 #[uniffi::export(async_runtime = "tokio")]
-impl TONClient {
+impl TonClient {
     #[uniffi::constructor]
     pub fn new(
         cfg: TonClientConfig,
