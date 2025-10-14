@@ -84,8 +84,8 @@ jobs:
         uses: peter-evans/create-pull-request@v6
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: chore: update Package.swift, utils sources, and podspec for version ${{ env.VERSION }}
-          title: chore: release Swift Utils ${{ env.VERSION }}
+          commit-message: "chore: update Package.swift, utils sources, and podspec for version ${{ env.VERSION }}"
+          title: "chore: release Swift Utils ${{ env.VERSION }}"
           body: |
             ## Summary
             - Release YttriumUtils version `${{ env.VERSION }}`
