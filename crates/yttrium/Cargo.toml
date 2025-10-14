@@ -77,7 +77,7 @@ sui = [
     "dep:tiny-bip39",
 ]
 stacks = ["dep:stacks-rs", "dep:bip32", "dep:stacks_secp256k1", "dep:rand"]
-ton = ["dep:ton_lib", "dep:ed25519-dalek", "dep:rand"]
+ton = ["dep:ton_lib", "dep:ed25519-dalek", "dep:rand", "dep:data-encoding"]
 
 # Features contributing to bundle size, that you might not need
 all_clients = [
