@@ -4,6 +4,7 @@ use {
     crate::{
         blockchain_api::BLOCKCHAIN_API_URL_PROD, provider_pool::ProviderPool,
     },
+    bip39::{Language, Mnemonic, Seed},
     data_encoding::BASE64,
     ed25519_dalek::{Signer, SigningKey},
     rand::rngs::OsRng,
@@ -11,6 +12,7 @@ use {
     reqwest::Client as ReqwestClient,
     std::time::{SystemTime, UNIX_EPOCH},
     ton_lib::ton_lib_core::types::TonAddress,
+    ton_lib::wallet::Mnemonic as TonMnemonic,
 };
 
 #[derive(Debug, thiserror::Error, uniffi::Error)]
@@ -106,6 +108,53 @@ impl TonClient {
             sk: BASE64.encode(sk.to_bytes().as_ref()),
             pk: hex::encode(pk.to_bytes()),
         }
+    }
+
+    pub fn generate_keypair_from_ton_mnemonic(
+        &self,
+        mnemonic: String,
+    ) -> Result<Keypair, TonError> {
+        let mnemonic = TonMnemonic::from_str(&mnemonic, None).map_err(|e| {
+            TonError::TonCoreError(format!("Invalid mnemonic: {}", e))
+        })?;
+
+        let key_pair = mnemonic.to_key_pair().map_err(|e| {
+            TonError::TonCoreError(format!("Invalid keypair: {}", e))
+        })?;
+
+        let sk_bytes: [u8; 64] =
+            key_pair.secret_key.try_into().map_err(|_| {
+                TonError::TonCoreError("Invalid secret key length".to_string())
+            })?;
+        let sk = SigningKey::from_keypair_bytes(&sk_bytes).map_err(|e| {
+            TonError::TonCoreError(format!("Invalid keypair bytes: {}", e))
+        })?;
+        let pk = sk.verifying_key();
+
+        Ok(Keypair {
+            sk: BASE64.encode(sk.to_bytes().as_ref()),
+            pk: hex::encode(pk.to_bytes()),
+        })
+    }
+
+    pub fn generate_keypair_from_bip39_mnemonic(
+        &self,
+        phrase: &str,
+    ) -> Result<Keypair, TonError> {
+        let mnemonic = Mnemonic::from_phrase(phrase, Language::English)
+            .map_err(|e| TonError::TonCoreError(e.to_string()))?;
+        let seed = Seed::new(&mnemonic, "");
+        let sk_bytes: [u8; 32] =
+            seed.as_bytes()[0..32].try_into().map_err(|_| {
+                TonError::TonCoreError("Invalid seed length".to_string())
+            })?;
+        let sk = SigningKey::from_bytes(&sk_bytes);
+        let pk = sk.verifying_key();
+
+        Ok(Keypair {
+            sk: BASE64.encode(sk.to_bytes().as_ref()),
+            pk: hex::encode(pk.to_bytes()),
+        })
     }
 
     pub fn get_address_from_keypair(
