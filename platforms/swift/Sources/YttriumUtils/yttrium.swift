@@ -1227,11 +1227,13 @@ public func FfiConverterTypeSuiClient_lower(_ value: SuiClient) -> UnsafeMutable
 
 public protocol TonClientProtocol: AnyObject, Sendable {
     
+    func broadcastMessage(from: String, keypair: Keypair, validUntil: UInt32, messages: [SendTxMessage]) async throws  -> String
+    
     func generateKeypair()  -> Keypair
     
     func getAddressFromKeypair(keypair: Keypair) throws  -> WalletIdentity
     
-    func sendMessage(network: String, from: String, keypair: Keypair, validUntil: UInt32, messages: [SendTxMessage]) throws  -> String
+    func sendMessage(network: String, from: String, keypair: Keypair, validUntil: UInt32, messages: [SendTxMessage]) async throws  -> String
     
     func signData(text: String, keypair: Keypair) throws  -> String
     
@@ -1275,11 +1277,13 @@ open class TonClient: TonClientProtocol, @unchecked Sendable {
     public func uniffiClonePointer() -> UnsafeMutableRawPointer {
         return try! rustCall { uniffi_yttrium_fn_clone_tonclient(self.pointer, $0) }
     }
-public convenience init(cfg: TonClientConfig)throws  {
+public convenience init(cfg: TonClientConfig, projectId: ProjectId, pulseMetadata: PulseMetadata) {
     let pointer =
-        try rustCallWithError(FfiConverterTypeTonError_lift) {
+        try! rustCall() {
     uniffi_yttrium_fn_constructor_tonclient_new(
-        FfiConverterTypeTonClientConfig_lower(cfg),$0
+        FfiConverterTypeTonClientConfig_lower(cfg),
+        FfiConverterTypeProjectId_lower(projectId),
+        FfiConverterTypePulseMetadata_lower(pulseMetadata),$0
     )
 }
     self.init(unsafeFromRawPointer: pointer)
@@ -1296,6 +1300,23 @@ public convenience init(cfg: TonClientConfig)throws  {
     
 
     
+open func broadcastMessage(from: String, keypair: Keypair, validUntil: UInt32, messages: [SendTxMessage])async throws  -> String  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_yttrium_fn_method_tonclient_broadcast_message(
+                    self.uniffiClonePointer(),
+                    FfiConverterString.lower(from),FfiConverterTypeKeypair_lower(keypair),FfiConverterUInt32.lower(validUntil),FfiConverterSequenceTypeSendTxMessage.lower(messages)
+                )
+            },
+            pollFunc: ffi_yttrium_rust_future_poll_rust_buffer,
+            completeFunc: ffi_yttrium_rust_future_complete_rust_buffer,
+            freeFunc: ffi_yttrium_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterString.lift,
+            errorHandler: FfiConverterTypeTonError_lift
+        )
+}
+    
 open func generateKeypair() -> Keypair  {
     return try!  FfiConverterTypeKeypair_lift(try! rustCall() {
     uniffi_yttrium_fn_method_tonclient_generate_keypair(self.uniffiClonePointer(),$0
@@ -1311,16 +1332,21 @@ open func getAddressFromKeypair(keypair: Keypair)throws  -> WalletIdentity  {
 })
 }
     
-open func sendMessage(network: String, from: String, keypair: Keypair, validUntil: UInt32, messages: [SendTxMessage])throws  -> String  {
-    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeTonError_lift) {
-    uniffi_yttrium_fn_method_tonclient_send_message(self.uniffiClonePointer(),
-        FfiConverterString.lower(network),
-        FfiConverterString.lower(from),
-        FfiConverterTypeKeypair_lower(keypair),
-        FfiConverterUInt32.lower(validUntil),
-        FfiConverterSequenceTypeSendTxMessage.lower(messages),$0
-    )
-})
+open func sendMessage(network: String, from: String, keypair: Keypair, validUntil: UInt32, messages: [SendTxMessage])async throws  -> String  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_yttrium_fn_method_tonclient_send_message(
+                    self.uniffiClonePointer(),
+                    FfiConverterString.lower(network),FfiConverterString.lower(from),FfiConverterTypeKeypair_lower(keypair),FfiConverterUInt32.lower(validUntil),FfiConverterSequenceTypeSendTxMessage.lower(messages)
+                )
+            },
+            pollFunc: ffi_yttrium_rust_future_poll_rust_buffer,
+            completeFunc: ffi_yttrium_rust_future_complete_rust_buffer,
+            freeFunc: ffi_yttrium_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterString.lift,
+            errorHandler: FfiConverterTypeTonError_lift
+        )
 }
     
 open func signData(text: String, keypair: Keypair)throws  -> String  {
@@ -1339,7 +1365,7 @@ open func signData(text: String, keypair: Keypair)throws  -> String  {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
-public struct FfiConverterTypeTONClient: FfiConverter {
+public struct FfiConverterTypeTonClient: FfiConverter {
 
     typealias FfiType = UnsafeMutableRawPointer
     typealias SwiftType = TonClient
@@ -1374,15 +1400,15 @@ public struct FfiConverterTypeTONClient: FfiConverter {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
-public func FfiConverterTypeTONClient_lift(_ pointer: UnsafeMutableRawPointer) throws -> TonClient {
-    return try FfiConverterTypeTONClient.lift(pointer)
+public func FfiConverterTypeTonClient_lift(_ pointer: UnsafeMutableRawPointer) throws -> TonClient {
+    return try FfiConverterTypeTonClient.lift(pointer)
 }
 
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
-public func FfiConverterTypeTONClient_lower(_ value: TonClient) -> UnsafeMutableRawPointer {
-    return FfiConverterTypeTONClient.lower(value)
+public func FfiConverterTypeTonClient_lower(_ value: TonClient) -> UnsafeMutableRawPointer {
+    return FfiConverterTypeTonClient.lower(value)
 }
 
 
@@ -5324,14 +5350,14 @@ public func FfiConverterTypeUserOperationV07_lower(_ value: UserOperationV07) ->
 public struct WalletIdentity {
     public var workchain: Int8
     public var rawHex: String
-    public var friendlyEq: String
+    public var friendly: String
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(workchain: Int8, rawHex: String, friendlyEq: String) {
+    public init(workchain: Int8, rawHex: String, friendly: String) {
         self.workchain = workchain
         self.rawHex = rawHex
-        self.friendlyEq = friendlyEq
+        self.friendly = friendly
     }
 }
 
@@ -5348,7 +5374,7 @@ extension WalletIdentity: Equatable, Hashable {
         if lhs.rawHex != rhs.rawHex {
             return false
         }
-        if lhs.friendlyEq != rhs.friendlyEq {
+        if lhs.friendly != rhs.friendly {
             return false
         }
         return true
@@ -5357,7 +5383,7 @@ extension WalletIdentity: Equatable, Hashable {
     public func hash(into hasher: inout Hasher) {
         hasher.combine(workchain)
         hasher.combine(rawHex)
-        hasher.combine(friendlyEq)
+        hasher.combine(friendly)
     }
 }
 
@@ -5372,14 +5398,14 @@ public struct FfiConverterTypeWalletIdentity: FfiConverterRustBuffer {
             try WalletIdentity(
                 workchain: FfiConverterInt8.read(from: &buf), 
                 rawHex: FfiConverterString.read(from: &buf), 
-                friendlyEq: FfiConverterString.read(from: &buf)
+                friendly: FfiConverterString.read(from: &buf)
         )
     }
 
     public static func write(_ value: WalletIdentity, into buf: inout [UInt8]) {
         FfiConverterInt8.write(value.workchain, into: &buf)
         FfiConverterString.write(value.rawHex, into: &buf)
-        FfiConverterString.write(value.friendlyEq, into: &buf)
+        FfiConverterString.write(value.friendly, into: &buf)
     }
 }
 
@@ -10687,16 +10713,19 @@ private let initializationResult: InitializationResult = {
     if (uniffi_yttrium_checksum_method_suiclient_sign_transaction() != 14754) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_yttrium_checksum_method_tonclient_generate_keypair() != 30873) {
+    if (uniffi_yttrium_checksum_method_tonclient_broadcast_message() != 1154) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_yttrium_checksum_method_tonclient_get_address_from_keypair() != 14755) {
+    if (uniffi_yttrium_checksum_method_tonclient_generate_keypair() != 3598) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_yttrium_checksum_method_tonclient_send_message() != 62894) {
+    if (uniffi_yttrium_checksum_method_tonclient_get_address_from_keypair() != 27441) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_yttrium_checksum_method_tonclient_sign_data() != 18851) {
+    if (uniffi_yttrium_checksum_method_tonclient_send_message() != 55560) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_method_tonclient_sign_data() != 60300) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_yttrium_checksum_constructor_stacksclient_new() != 14610) {
@@ -10711,7 +10740,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_yttrium_checksum_constructor_suiclient_with_blockchain_api_url() != 31125) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_yttrium_checksum_constructor_tonclient_new() != 47898) {
+    if (uniffi_yttrium_checksum_constructor_tonclient_new() != 4033) {
         return InitializationResult.apiChecksumMismatch
     }
 
