@@ -429,6 +429,11 @@ impl TonClient {
             .get("state")
             .and_then(|v| v.as_str())
             .map(|s| s.eq_ignore_ascii_case("uninitialized"))
+            .or_else(|| {
+                root.get("account_state")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.eq_ignore_ascii_case("uninitialized"))
+            })
             .unwrap_or(false);
 
         // Prefer seqno directly if provided by wallet_information
@@ -490,31 +495,12 @@ impl TonClient {
                 })
         });
 
-        // Extract balance (can be number or string)
-        let balance_u128 = root
-            .get("balance")
-            .and_then(|v| v.as_str().and_then(|s| s.parse::<u128>().ok()))
-            .or_else(|| {
-                root.get("balance").and_then(|v| v.as_u64()).map(|x| x as u128)
-            })
-            .unwrap_or(0);
-
-        // If uninitialized and zero balance, deployment cannot proceed (external msg can't carry value)
-        if is_uninitialized && balance_u128 == 0 {
-            let addr = wallet.address.to_base64(true, false, true);
-            return Err(TonError::TonCoreError(format!(
-                "Wallet is uninitialized with zero balance. Pre-fund {} then retry.",
-                addr
-            )));
-        }
-
-        let seqno = if is_uninitialized {
-            0
-        } else {
-            seqno_u64
-                .ok_or_else(|| TonError::TonCoreError(
-                    "Missing seqno (getWalletInformation/getAddressInformation)".into(),
-                ))? as u32
+        // Seqno: if uninitialized default to 0 (deploy path adds state_init),
+        // otherwise require seqno from API
+        let seqno = if is_uninitialized { 0 } else {
+            seqno_u64.ok_or_else(|| TonError::TonCoreError(
+                "Missing seqno (getWalletInformation/getAddressInformation)".into(),
+            ))? as u32
         };
 
         // Build internal transfer message
