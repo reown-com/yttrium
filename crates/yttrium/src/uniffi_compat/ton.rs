@@ -4,7 +4,6 @@ use {
     crate::{
         blockchain_api::BLOCKCHAIN_API_URL_PROD, provider_pool::ProviderPool,
     },
-    bip39::{Language, Mnemonic, Seed},
     data_encoding::BASE64,
     ed25519_dalek::{Signer, SigningKey},
     rand::rngs::OsRng,
@@ -12,7 +11,6 @@ use {
     reqwest::Client as ReqwestClient,
     std::time::{SystemTime, UNIX_EPOCH},
     ton_lib::ton_lib_core::types::TonAddress,
-    ton_lib::wallet::Mnemonic as TonMnemonic,
 };
 
 #[derive(Debug, thiserror::Error, uniffi::Error)]
@@ -114,9 +112,10 @@ impl TonClient {
         &self,
         mnemonic: String,
     ) -> Result<Keypair, TonError> {
-        let mnemonic = TonMnemonic::from_str(&mnemonic, None).map_err(|e| {
-            TonError::TonCoreError(format!("Invalid mnemonic: {}", e))
-        })?;
+        let mnemonic = ton_lib::wallet::Mnemonic::from_str(&mnemonic, None)
+            .map_err(|e| {
+                TonError::TonCoreError(format!("Invalid mnemonic: {}", e))
+            })?;
 
         let key_pair = mnemonic.to_key_pair().map_err(|e| {
             TonError::TonCoreError(format!("Invalid keypair: {}", e))
@@ -141,9 +140,10 @@ impl TonClient {
         &self,
         phrase: &str,
     ) -> Result<Keypair, TonError> {
-        let mnemonic = Mnemonic::from_phrase(phrase, Language::English)
-            .map_err(|e| TonError::TonCoreError(e.to_string()))?;
-        let seed = Seed::new(&mnemonic, "");
+        let mnemonic =
+            bip39::Mnemonic::from_phrase(phrase, bip39::Language::English)
+                .map_err(|e| TonError::TonCoreError(e.to_string()))?;
+        let seed = bip39::Seed::new(&mnemonic, "");
         let sk_bytes: [u8; 32] =
             seed.as_bytes()[0..32].try_into().map_err(|_| {
                 TonError::TonCoreError("Invalid seed length".to_string())
