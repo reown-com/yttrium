@@ -11,9 +11,11 @@ env:
   CARGO_TERM_COLOR: always
   VERSION: ${{ github.event.inputs.version || '0.0.1' }}
   TARGET_BRANCH: ${{ github.ref_name }}
+  PR_LABEL: swift-utils-release
 
 permissions:
   contents: write
+  pull-requests: write
 
 jobs:
   release-swift-utils-package:
@@ -76,70 +78,49 @@ jobs:
           DOWNLOAD_URL="https://github.com/reown-com/yttrium/releases/download/$VERSION/libyttrium-utils-pod.zip"
           sed -i '' "s|https://github.com/reown-com/yttrium/releases/download/[^/]*/libyttrium-utils-pod.zip|${DOWNLOAD_URL}|g" YttriumUtilsWrapper.podspec
 
-      # 10. Commit and Push Package.swift, Utils Sources, and Podspec
-      - name: Commit and Push Package.swift, Utils Sources, and Podspec
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add Package.swift platforms/swift/Sources/YttriumUtils/* YttriumUtilsWrapper.podspec
-          if git diff --cached --quiet; then
-            echo "No changes to commit."
-          else
-            git commit -m "chore: update Package.swift, utils sources, and podspec for version $VERSION"
-            git push origin HEAD:$TARGET_BRANCH
-          fi
-
-      # 11. Create Git Tag for Utils
-      - name: Create Git Tag for Utils
-        env:
-          VERSION: ${{ env.VERSION }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          git fetch origin $TARGET_BRANCH
-          COMMIT_HASH=$(git rev-parse HEAD)
-          echo "Tagging commit ${COMMIT_HASH} with version ${VERSION}"
-          git tag -a "${VERSION}" -m "Release YttriumUtils version ${VERSION}" "${COMMIT_HASH}"
-          git push origin "${VERSION}"
-
-      # 12. Create a GitHub Release for Utils
-      - name: Create Release for Utils
-        id: create_release_utils
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # 10. Create a Pull Request with Utils updates
+      - name: Create Pull Request for Utils Release
+        id: create_pr
+        uses: peter-evans/create-pull-request@v6
         with:
-          tag_name: ${{ env.VERSION }}
-          release_name: YttriumUtils ${{ env.VERSION }}
-          draft: false
-          prerelease: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: chore: update Package.swift, utils sources, and podspec for version ${{ env.VERSION }}
+          title: chore: release Swift Utils ${{ env.VERSION }}
+          body: |
+            ## Summary
+            - Release YttriumUtils version `${{ env.VERSION }}`
+            - Generated XCFramework artifacts and updated Swift Package & Podspec metadata
 
-      # 13. Upload Utils SPM XCFramework zip to the Release
-      - name: Upload Utils SPM zip to Release
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release_utils.outputs.upload_url }}
-          asset_path: ./Output/libyttrium-utils.xcframework.zip
-          asset_name: libyttrium-utils.xcframework.zip
-          asset_content_type: application/zip
+            ## Automation
+            - This pull request was created by the `release-swift-utils` workflow
+          branch: release/swift-utils/${{ env.VERSION }}
+          base: ${{ env.TARGET_BRANCH }}
+          labels: |
+            ${{ env.PR_LABEL }}
+            ${{ env.PR_LABEL }}=${{ env.VERSION }}
+          add-paths: |
+            Package.swift
+            platforms/swift/Sources/YttriumUtils
+            YttriumUtilsWrapper.podspec
+          delete-branch: true
 
-      # 14. Upload Utils CocoaPods pod zip to the Release
-      - name: Upload Utils pod zip to Release
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release_utils.outputs.upload_url }}
-          asset_path: ./Output/libyttrium-utils-pod.zip
-          asset_name: libyttrium-utils-pod.zip
-          asset_content_type: application/zip
-
-      # 15. Publish Utils CocoaPods
-      - name: Publish Utils CocoaPods
-        env:
-          COCOAPODS_TRUNK_TOKEN: ${{ secrets.COCOAPODS_TRUNK_TOKEN }}
+      - name: Summarize Pull Request
+        if: steps.create_pr.outputs.pull-request-url != ''
         run: |
-          pod trunk push YttriumUtilsWrapper.podspec --allow-warnings 
+          echo "Created release pull request: ${{ steps.create_pr.outputs.pull-request-url }}" >> $GITHUB_STEP_SUMMARY
+
+      - name: No Changes Summary
+        if: steps.create_pr.outputs.pull-request-url == ''
+        run: |
+          echo "No updates detected for Swift Utils release." >> $GITHUB_STEP_SUMMARY
+
+      # 11. Upload artifacts for the publish workflow
+      - name: Upload Release Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: swift-utils-release-${{ env.VERSION }}
+          path: |
+            Output/libyttrium-utils.xcframework.zip
+            Output/libyttrium-utils-pod.zip
+          retention-days: 30
+          if-no-files-found: error
