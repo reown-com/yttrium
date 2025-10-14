@@ -25,6 +25,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
           fetch-depth: 0
 
       - name: Configure Git
@@ -36,12 +37,21 @@ jobs:
         id: version
         run: |
           LABEL_PREFIX="${{ env.PR_LABEL }}="
-          VERSION_LABEL=$(jq -r --arg prefix "$LABEL_PREFIX" 'first(.event.pull_request.labels[]?.name | select(startswith($prefix)))' "$GITHUB_EVENT_PATH")
+          VERSION_LABEL=$(jq -r --arg prefix "$LABEL_PREFIX" 'first(.pull_request.labels[]?.name | select(startswith($prefix)))' "$GITHUB_EVENT_PATH")
           if [ -z "$VERSION_LABEL" ]; then
             echo "::error::Unable to determine version label starting with ${LABEL_PREFIX}" >&2
             exit 1
           fi
           VERSION=${VERSION_LABEL#${LABEL_PREFIX}}
+          if [ -z "$VERSION" ]; then
+            echo "::error::Version extracted from label '${VERSION_LABEL}' is empty" >&2
+            exit 1
+          fi
+          # Validate version format (basic semver check)
+          if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+'; then
+            echo "::error::Invalid version format: ${VERSION}. Expected semver (e.g., 0.1.0)" >&2
+            exit 1
+          fi
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "Swift Utils release version: ${VERSION}" >> "$GITHUB_STEP_SUMMARY"
 
@@ -51,7 +61,7 @@ jobs:
           name: swift-utils-release-${{ steps.version.outputs.version }}
           path: Output/
           workflow: release-swift-utils.yml
-          branch: release/swift-utils/${{ steps.version.outputs.version }}
+          pr: ${{ github.event.pull_request.number }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Verify Downloaded Artifacts

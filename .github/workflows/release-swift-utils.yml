@@ -122,5 +122,5 @@ jobs:
           path: |
             Output/libyttrium-utils.xcframework.zip
             Output/libyttrium-utils-pod.zip
-          retention-days: 5
+          retention-days: 30
           if-no-files-found: error
