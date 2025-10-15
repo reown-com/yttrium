@@ -48,10 +48,7 @@ const RELAY_URL: &str = "wss://relay.walletconnect.org";
 // Abstraction for requests that may need Verify API attestation
 pub enum MaybeVerifiedRequest {
     Unverified(Params),
-    Verified(
-        Box<dyn Fn(String) -> Params + Send>, // + Send for cross-thread safety
-        tokio::sync::oneshot::Receiver<String>,
-    ),
+    Verified(Box<dyn Fn(String) -> Params + Send>), // callback to create params with attestation
 }
 
 // Type aliases to reduce clippy::type-complexity warnings for channel message types
@@ -423,12 +420,8 @@ impl Client {
             })
         });
 
-        // Create placeholder channel (will be replaced by state machine)
-        let (_attestation_tx, attestation_rx) = tokio::sync::oneshot::channel();
-
-        // Create verified request
-        let verified_request =
-            MaybeVerifiedRequest::Verified(callback, attestation_rx);
+        // Create verified request (state machine will handle attestation fetching)
+        let verified_request = MaybeVerifiedRequest::Verified(callback);
 
         self.do_request::<bool>(verified_request)
             .await
@@ -789,12 +782,8 @@ impl Client {
             })
         });
 
-        // Create placeholder channel (will be replaced by state machine)
-        let (_attestation_tx, attestation_rx) = tokio::sync::oneshot::channel();
-
-        // Create verified request
-        let verified_request =
-            MaybeVerifiedRequest::Verified(callback, attestation_rx);
+        // Create verified request (state machine will handle attestation fetching)
+        let verified_request = MaybeVerifiedRequest::Verified(callback);
 
         self.do_request::<bool>(verified_request)
             .await
