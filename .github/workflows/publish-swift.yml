@@ -1,0 +1,103 @@
+name: Publish Swift Core Release
+
+on:
+  pull_request:
+    types:
+      - closed
+
+env:
+  PR_LABEL: swift-core-release
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  publish-swift-core:
+    if: >-
+      github.event.pull_request.merged == true &&
+      github.event.pull_request.user.login == 'github-actions[bot]' &&
+      contains(github.event.pull_request.labels.*.name, 'swift-core-release')
+    runs-on: macos-latest-xlarge
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+          fetch-depth: 0
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Determine Release Version
+        id: version
+        run: |
+          LABEL_PREFIX="${{ env.PR_LABEL }}="
+          VERSION_LABEL=$(jq -r --arg prefix "$LABEL_PREFIX" 'first(.pull_request.labels[]?.name | select(startswith($prefix)))' "$GITHUB_EVENT_PATH")
+          if [ -z "$VERSION_LABEL" ]; then
+            echo "::error::Unable to determine version label starting with ${LABEL_PREFIX}" >&2
+            exit 1
+          fi
+          VERSION=${VERSION_LABEL#${LABEL_PREFIX}}
+          if [ -z "$VERSION" ]; then
+            echo "::error::Version extracted from label '${VERSION_LABEL}' is empty" >&2
+            exit 1
+          fi
+          if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+'; then
+            echo "::error::Invalid version format: ${VERSION}. Expected semver (e.g., 0.1.0)" >&2
+            exit 1
+          fi
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Swift Core release version: ${VERSION}" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Download Release Artifacts
+        uses: dawidd6/action-download-artifact@v3
+        with:
+          name: swift-core-release-${{ steps.version.outputs.version }}
+          path: Output/
+          workflow: release-swift.yml
+          workflow_conclusion: success
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify Downloaded Artifacts
+        run: |
+          ls -lh Output/
+          if [ ! -f "Output/libyttrium.xcframework.zip" ]; then
+            echo "::error::Missing libyttrium.xcframework.zip"
+            exit 1
+          fi
+          echo "✅ Release artifacts downloaded successfully" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Create Release and Upload Assets
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.version }}
+          name: Yttrium ${{ steps.version.outputs.version }}
+          draft: false
+          prerelease: true
+          files: |
+            Output/libyttrium.xcframework.zip
+          body: |
+            ## Yttrium ${{ steps.version.outputs.version }}
+            
+            Swift Package Manager and CocoaPods release for Yttrium Core.
+            
+            ### Installation
+            
+            **Swift Package Manager:**
+            ```swift
+            dependencies: [
+                .package(url: "https://github.com/reown-com/yttrium", from: "${{ steps.version.outputs.version }}")
+            ]
+            ```
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish CocoaPods
+        env:
+          COCOAPODS_TRUNK_TOKEN: ${{ secrets.COCOAPODS_TRUNK_TOKEN }}
+        run: |
+          pod trunk push YttriumWrapper.podspec --allow-warnings
+
