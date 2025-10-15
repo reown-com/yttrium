@@ -1165,59 +1165,26 @@ impl Client {
         &mut self,
         params: Params,
     ) -> Result<T, RequestError> {
-        tracing::debug!("Connect: Call");
-
-        let (response_tx, response_rx) = tokio::sync::oneshot::channel();
-        self.request_tx
-            .send((MaybeVerifiedRequest::Unverified(params), response_tx))
-            .map_err(|e| {
-                RequestError::Internal(format!(
-                    "Failed to send request, request_tx closed: {e}"
-                ))
-            })?;
-        let response = match response_rx.await {
-            Ok(Ok(response)) => response,
-            Ok(Err(e)) => {
-                return Err(RequestError::Internal(format!(
-                    "Failed to receive response: {e}"
-                )));
-            }
-            Err(e) => {
-                return Err(RequestError::Internal(format!(
-                    "Failed to receive response (2): {e}"
-                )));
-            }
-        };
-
-        match response {
-            Response::Success(response) => {
-                Ok(serde_json::from_value(response.result).map_err(|e| {
-                    RequestError::Internal(format!(
-                        "Failed to parse response result: {e}"
-                    ))
-                })?)
-            }
-            Response::Error(response) => Err(RequestError::Internal(format!(
-                "RPC error: {:?}",
-                response.error
-            ))),
-        }
+        self.do_request_internal(MaybeVerifiedRequest::Unverified(params)).await
     }
 
     async fn do_verified_request<T: DeserializeOwned>(
         &mut self,
         callback: AttestationCallback,
     ) -> Result<T, RequestError> {
-        tracing::debug!("Connect: Call (verified)");
+        self.do_request_internal(MaybeVerifiedRequest::Verified(callback)).await
+    }
 
+    async fn do_request_internal<T: DeserializeOwned>(
+        &mut self,
+        request: MaybeVerifiedRequest,
+    ) -> Result<T, RequestError> {
         let (response_tx, response_rx) = tokio::sync::oneshot::channel();
-        self.request_tx
-            .send((MaybeVerifiedRequest::Verified(callback), response_tx))
-            .map_err(|e| {
-                RequestError::Internal(format!(
-                    "Failed to send request, request_tx closed: {e}"
-                ))
-            })?;
+        self.request_tx.send((request, response_tx)).map_err(|e| {
+            RequestError::Internal(format!(
+                "Failed to send request, request_tx closed: {e}"
+            ))
+        })?;
         let response = match response_rx.await {
             Ok(Ok(response)) => response,
             Ok(Err(e)) => {
