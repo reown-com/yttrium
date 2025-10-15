@@ -656,7 +656,6 @@ enum ConnectionState {
         ConnectWebSocket,
         Box<dyn Fn(String) -> Params + Send>,
         tokio::sync::oneshot::Receiver<String>,
-        Params, // for the AwaitingRequestResponse state
         tokio::sync::oneshot::Sender<Result<Response, RequestError>>,
     ),
     AwaitingRequestResponse(
@@ -702,15 +701,9 @@ impl std::fmt::Debug for ConnectionState {
                 _,
             ) => "ConnectRequestAwaitingAttestation(_, _, _, _, _, _)",
             ConnectionState::Connected(_, _, _) => "Connected(_, _, _)",
-            ConnectionState::ConnectedAwaitingAttestation(
-                _,
-                _,
-                _,
-                _,
-                _,
-                _,
-                _,
-            ) => "ConnectedAwaitingAttestation(_, _, _, _, _, _, _)",
+            ConnectionState::ConnectedAwaitingAttestation(_, _, _, _, _, _) => {
+                "ConnectedAwaitingAttestation(_, _, _, _, _, _)"
+            }
             ConnectionState::AwaitingRequestResponse(_, _, _, _, _) => {
                 "AwaitingRequestResponse(_, _, _, _, _)"
             }
@@ -1448,18 +1441,13 @@ pub async fn connect_loop_state_machine(
                                         }
                                     });
 
-                                    // Create placeholder params for AwaitingRequestResponse state
-                                    // (will be replaced with real params once attestation arrives)
-                                    let placeholder_params = callback(String::new());
-
-                                    // Transition to awaiting attestation
+                                    // Transition to awaiting attestation (will create params once it arrives)
                                     ConnectionState::ConnectedAwaitingAttestation(
                                         message_id,
                                         on_incomingmessage_rx,
                                         ws,
                                         callback,
                                         attestation_rx,
-                                        placeholder_params,
                                         response_tx,
                                     )
                                 }
@@ -1535,7 +1523,6 @@ pub async fn connect_loop_state_machine(
                 ws,
                 callback,
                 mut attestation_receiver,
-                _placeholder_params,
                 response_tx,
             ) => {
                 // Already connected, waiting for attestation before sending request
@@ -1587,7 +1574,7 @@ pub async fn connect_loop_state_machine(
                                     // Unexpected message, stay in same state
                                     tracing::warn!("Unexpected message while awaiting attestation in Connected state");
                                     ConnectionState::ConnectedAwaitingAttestation(
-                                        message_id, on_incomingmessage_rx, ws, callback, attestation_receiver, _placeholder_params, response_tx
+                                        message_id, on_incomingmessage_rx, ws, callback, attestation_receiver, response_tx
                                     )
                                 }
                             }
