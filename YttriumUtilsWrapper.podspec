@@ -1,6 +1,6 @@
 Pod::Spec.new do |spec|
   spec.name         = "YttriumUtilsWrapper"
-  spec.version      = "0.9.76"
+  spec.version      = "0.9.78"
   spec.summary      = "Yttrium Utils - Multi-blockchain utilities for EIP155, Stacks, and Chain Abstraction"
   spec.description  = <<-DESC
                    Yttrium Utils provides multi-blockchain utilities including EIP155 support, Stacks integration, 
@@ -16,7 +16,7 @@ Pod::Spec.new do |spec|
 
   # Binary pod via :http to avoid running heavy prepare_command on trunk
   # Binary asset hosted on GitHub Releases; CI updates the version
-  spec.source       = { :http => "https://github.com/reown-com/yttrium/releases/download/0.9.76/libyttrium-utils-pod.zip" }
+  spec.source       = { :http => "https://github.com/reown-com/yttrium/releases/download/0.9.78/libyttrium-utils-pod.zip" }
 
   # The zip contains libyttrium-utils.xcframework at root and Sources/YttriumUtils/*.swift
   spec.vendored_frameworks = "libyttrium-utils.xcframework"
