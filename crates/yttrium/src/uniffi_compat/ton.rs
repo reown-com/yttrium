@@ -108,6 +108,63 @@ impl TonClient {
         }
     }
 
+    pub fn generate_keypair_from_ton_mnemonic(
+        &self,
+        mnemonic: String,
+    ) -> Result<Keypair, TonError> {
+        let mnemonic = ton_lib::wallet::Mnemonic::from_str(&mnemonic, None)
+            .map_err(|e| {
+                TonError::TonCoreError(format!("Invalid mnemonic: {}", e))
+            })?;
+
+        let key_pair = mnemonic.to_key_pair().map_err(|e| {
+            TonError::TonCoreError(format!("Invalid keypair: {}", e))
+        })?;
+
+        let sk_bytes: [u8; 64] =
+            key_pair.secret_key.try_into().map_err(|_| {
+                TonError::TonCoreError("Invalid secret key length".to_string())
+            })?;
+        let sk = SigningKey::from_keypair_bytes(&sk_bytes).map_err(|e| {
+            TonError::TonCoreError(format!("Invalid keypair bytes: {}", e))
+        })?;
+        let pk = sk.verifying_key();
+
+        Ok(Keypair {
+            sk: BASE64.encode(sk.to_bytes().as_ref()),
+            pk: hex::encode(pk.to_bytes()),
+        })
+    }
+
+    pub fn generate_keypair_from_bip39_mnemonic(
+        &self,
+        mnemonic: &str,
+    ) -> Result<Keypair, TonError> {
+        let mnemonic =
+            bip39::Mnemonic::from_phrase(mnemonic, bip39::Language::English)
+                .map_err(|e| TonError::TonCoreError(e.to_string()))?;
+
+        // Seed::new() derives a 512-bit (64-byte) seed using PBKDF2-HMAC-SHA512 from the mnemonic + optional passphrase, as defined in the BIP-39 spec.
+        let seed = bip39::Seed::new(&mnemonic, "");
+        // But Ed25519’s private (signing) key is 32 bytes (256-bit scalar), so can’t feed a 64-byte BIP-39 seed directly into ed25519_dalek::SigningKey::from_bytes()
+        let sk_bytes: [u8; 32] =
+            seed.as_bytes()[0..32].try_into().map_err(|_| {
+                TonError::TonCoreError("Invalid seed length".to_string())
+            })?;
+        // The 64-byte BIP-39 seed is deterministic from the mnemonic.
+        // Every byte of it is pseudorandom and cryptographically strong (512 bits of entropy from your original entropy + PBKDF2 mixing).
+        // To derive an Ed25519 key, we simply need one 256-bit scalar.
+        // Taking the first 32 bytes of that seed gives us a reproducible, full-entropy 256-bit value,
+        // the same approach used by several chains (e.g., Solana, Cardano, NEAR) when converting a BIP-39 mnemonic to an Ed25519 keypair.
+        let sk = SigningKey::from_bytes(&sk_bytes);
+        let pk = sk.verifying_key();
+
+        Ok(Keypair {
+            sk: BASE64.encode(sk.to_bytes().as_ref()),
+            pk: hex::encode(pk.to_bytes()),
+        })
+    }
+
     pub fn get_address_from_keypair(
         &self,
         keypair: &Keypair,
@@ -448,7 +505,9 @@ impl TonClient {
 
         // Seqno: if uninitialized default to 0 (deploy path adds state_init),
         // otherwise require seqno from API
-        let seqno = if is_uninitialized { 0 } else {
+        let seqno = if is_uninitialized {
+            0
+        } else {
             seqno_u64.ok_or_else(|| TonError::TonCoreError(
                 "Missing seqno (getWalletInformation/getAddressInformation)".into(),
             ))? as u32
@@ -519,6 +578,95 @@ impl TonClient {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn create_test_client() -> TonClient {
+        TonClient::new(
+            TonClientConfig { network_id: "ton:mainnet".to_string() },
+            "test-project".into(),
+            crate::pulse::get_pulse_metadata(),
+        )
+    }
+
+    #[test]
+    fn test_generate_keypair_from_ton_mnemonic_valid() {
+        // Test with known TON mnemonic
+        let client = create_test_client();
+        let mnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about".to_string();
+
+        let result = client.generate_keypair_from_ton_mnemonic(mnemonic);
+        assert!(result.is_ok());
+
+        let keypair = result.unwrap();
+        assert!(!keypair.sk.is_empty());
+        assert!(!keypair.pk.is_empty());
+
+        // Verify the keypair can be used to generate an address
+        let address_result = client.get_address_from_keypair(&keypair);
+        assert!(address_result.is_ok());
+    }
+
+    #[test]
+    fn test_generate_keypair_from_ton_mnemonic_invalid() {
+        // Test error handling
+        let client = create_test_client();
+
+        // Test with invalid mnemonic (too short)
+        let invalid_mnemonic = "abandon abandon abandon".to_string();
+        let result =
+            client.generate_keypair_from_ton_mnemonic(invalid_mnemonic);
+        assert!(result.is_err());
+
+        // Test with empty mnemonic
+        let empty_mnemonic = "".to_string();
+        let result = client.generate_keypair_from_ton_mnemonic(empty_mnemonic);
+        assert!(result.is_err());
+
+        // Test with invalid words
+        let invalid_words = "invalid invalid invalid invalid invalid invalid invalid invalid invalid invalid invalid invalid".to_string();
+        let result = client.generate_keypair_from_ton_mnemonic(invalid_words);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_generate_keypair_from_bip39_mnemonic_valid() {
+        // Test with known BIP39 mnemonic
+        let client = create_test_client();
+        let mnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+
+        let result = client.generate_keypair_from_bip39_mnemonic(mnemonic);
+        assert!(result.is_ok());
+
+        let keypair = result.unwrap();
+        assert!(!keypair.sk.is_empty());
+        assert!(!keypair.pk.is_empty());
+
+        // Verify the keypair can be used to generate an address
+        let address_result = client.get_address_from_keypair(&keypair);
+        assert!(address_result.is_ok());
+    }
+
+    #[test]
+    fn test_generate_keypair_from_bip39_mnemonic_invalid() {
+        // Test error handling
+        let client = create_test_client();
+
+        // Test with invalid mnemonic (too short)
+        let invalid_mnemonic = "abandon abandon abandon";
+        let result =
+            client.generate_keypair_from_bip39_mnemonic(invalid_mnemonic);
+        assert!(result.is_err());
+
+        // Test with empty mnemonic
+        let empty_mnemonic = "";
+        let result =
+            client.generate_keypair_from_bip39_mnemonic(empty_mnemonic);
+        assert!(result.is_err());
+
+        // Test with invalid words
+        let invalid_words = "invalid invalid invalid invalid invalid invalid invalid invalid invalid invalid invalid invalid";
+        let result = client.generate_keypair_from_bip39_mnemonic(invalid_words);
+        assert!(result.is_err());
+    }
 
     #[test]
     fn test_unbounceable_address_format_for_known_pubkey() {
