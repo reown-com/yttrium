@@ -641,7 +641,7 @@ enum ConnectionState {
         u64, // message_id to use when sending the request
         tokio::sync::mpsc::UnboundedReceiver<IncomingMessage>,
         ConnectWebSocket,
-        Box<dyn Fn(String) -> Params>,
+        Box<dyn Fn(String) -> Params + Send>,
         tokio::sync::oneshot::Receiver<String>,
         tokio::sync::oneshot::Sender<Result<Response, RequestError>>,
     ),
@@ -1416,8 +1416,7 @@ pub async fn connect_loop_state_machine(
                                 }
                                 MaybeVerifiedRequest::Verified(callback, _receiver) => {
                                     // For verified requests, spawn attestation and transition
-                                    let (tx, rx) = tokio::sync::oneshot::channel();
-                                    let http_client = http_client.clone();
+                                    let (tx, _rx) = tokio::sync::oneshot::channel();
                                     crate::spawn::spawn(async move {
                                         match crate::sign::verify::create_attestation().await {
                                             Ok(attestation) => {

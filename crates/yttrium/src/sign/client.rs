@@ -49,7 +49,7 @@ const RELAY_URL: &str = "wss://relay.walletconnect.org";
 pub enum MaybeVerifiedRequest {
     Unverified(Params),
     Verified(
-        Box<dyn Fn(String) -> Params>,
+        Box<dyn Fn(String) -> Params + Send>, // + Send for cross-thread safety
         tokio::sync::oneshot::Receiver<String>,
     ),
 }
