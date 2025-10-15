@@ -1,5 +1,6 @@
 use {
     crate::sign::{
+        client::MaybeVerifiedRequest,
         client_errors::RequestError,
         client_types::{Session, TransportType},
         envelope_type0,
@@ -649,7 +650,9 @@ pub async fn handle(
                             response
                         );
                     });
-                    if let Err(e) = priority_request_tx.send((params, tx)) {
+                    if let Err(e) = priority_request_tx
+                        .send((MaybeVerifiedRequest::Unverified(params), tx))
+                    {
                         tracing::warn!("Failed to send priority request: {e}");
                     }
                 }
