@@ -45,9 +45,18 @@ use {
 
 const RELAY_URL: &str = "wss://relay.walletconnect.org";
 
+// Abstraction for requests that may need Verify API attestation
+pub enum MaybeVerifiedRequest {
+    Unverified(Params),
+    Verified(
+        Box<dyn Fn(String) -> Params>,
+        tokio::sync::oneshot::Receiver<String>,
+    ),
+}
+
 // Type aliases to reduce clippy::type-complexity warnings for channel message types
 type RpcRequestMessage =
-    (Params, tokio::sync::oneshot::Sender<Result<Response, RequestError>>);
+    (MaybeVerifiedRequest, tokio::sync::oneshot::Sender<Result<Response, RequestError>>);
 type RpcRequestSender = tokio::sync::mpsc::UnboundedSender<RpcRequestMessage>;
 type RpcRequestReceiver =
     tokio::sync::mpsc::UnboundedReceiver<RpcRequestMessage>;
@@ -225,8 +234,10 @@ impl Client {
         // TODO update relay method to not remove message & approveSession removes it
 
         let response = self
-            .do_request::<FetchResponse>(relay_rpc::rpc::Params::FetchMessages(
-                FetchMessages { topic: pairing_uri.topic.clone() },
+            .do_request::<FetchResponse>(MaybeVerifiedRequest::Unverified(
+                relay_rpc::rpc::Params::FetchMessages(
+                    FetchMessages { topic: pairing_uri.topic.clone() },
+                )
             ))
             .await
             .map_err(|e| PairError::Internal(e.to_string()))?;
@@ -388,22 +399,37 @@ impl Client {
             group = self.probe_group.clone(),
             probe = "sending_propose_session_request",
         );
-        self.do_request::<bool>(relay_rpc::rpc::Params::ProposeSession(
-            ProposeSession {
-                pairing_topic: pairing_info.topic.clone(),
-                session_proposal: message,
-                attestation: None, // TODO
+        
+        // Create the ProposeSession params
+        let pairing_topic = pairing_info.topic.clone();
+        let session_proposal_message = message.clone();
+        let correlation_id = rpc_id;
+        
+        // Create callback that inserts attestation
+        let callback = Box::new(move |attestation: String| -> Params {
+            Params::ProposeSession(ProposeSession {
+                pairing_topic: pairing_topic.clone(),
+                session_proposal: session_proposal_message.clone(),
+                attestation: Some(attestation.into()),
                 analytics: Some(AnalyticsData {
-                    correlation_id: Some(rpc_id.try_into().unwrap()),
+                    correlation_id: Some(correlation_id.try_into().unwrap()),
                     chain_id: None,
                     rpc_methods: None,
                     tx_hashes: None,
                     contract_addresses: None,
                 }),
-            },
-        ))
-        .await
-        .map_err(ConnectError::Request)?;
+            })
+        });
+        
+        // Create placeholder channel (will be replaced by state machine)
+        let (_attestation_tx, attestation_rx) = tokio::sync::oneshot::channel();
+        
+        // Create verified request
+        let verified_request = MaybeVerifiedRequest::Verified(callback, attestation_rx);
+        
+        self.do_request::<bool>(verified_request)
+            .await
+            .map_err(ConnectError::Request)?;
         tracing::debug!(
             group = self.probe_group.clone(),
             probe = "propose_session_request_success",
@@ -587,8 +613,8 @@ impl Client {
         self.storage.add_session(session.clone());
 
         match self
-            .do_request::<bool>(relay_rpc::rpc::Params::ApproveSession(
-                approve_session,
+            .do_request::<bool>(MaybeVerifiedRequest::Unverified(
+                relay_rpc::rpc::Params::ApproveSession(approve_session)
             ))
             .await
         {
@@ -673,12 +699,13 @@ impl Client {
 
         // Publish error response to pairing topic
         match self
-            .do_request::<bool>(relay_rpc::rpc::Params::Publish(Publish {
-                topic: proposal.pairing_topic.clone(),
-                message,
-                attestation: None, // TODO
-                ttl_secs: 300,
-                tag: 1120,
+            .do_request::<bool>(MaybeVerifiedRequest::Unverified(
+                relay_rpc::rpc::Params::Publish(Publish {
+                    topic: proposal.pairing_topic.clone(),
+                    message,
+                    attestation: None, // TODO
+                    ttl_secs: 300,
+                    tag: 1120,
                 prompt: false,
                 analytics: Some(AnalyticsData {
                     correlation_id: Some(
@@ -689,7 +716,7 @@ impl Client {
                     tx_hashes: None,
                     contract_addresses: None,
                 }),
-            }))
+            })))
             .await
         {
             Ok(true) => {
@@ -737,17 +764,33 @@ impl Client {
         let message =
             serialize_and_encrypt_message_type0_envelope(shared_secret, &rpc)
                 .map_err(|e| RequestError::Internal(e.to_string()))?;
-        self.do_request::<bool>(relay_rpc::rpc::Params::Publish(Publish {
-            topic: topic.clone(),
-            message,
-            attestation: None, // TODO
-            ttl_secs: 300,
-            tag: 1108,
-            prompt: false,
-            analytics: None, // TODO
-        }))
-        .await
-        .map_err(|e| RequestError::Internal(e.to_string()))?;
+        
+        // Create the Publish params
+        let publish_topic = topic.clone();
+        let publish_message = message.clone();
+        
+        // Create callback that inserts attestation
+        let callback = Box::new(move |attestation: String| -> Params {
+            Params::Publish(Publish {
+                topic: publish_topic.clone(),
+                message: publish_message.clone(),
+                attestation: Some(attestation.into()),
+                ttl_secs: 300,
+                tag: 1108,
+                prompt: false,
+                analytics: None,
+            })
+        });
+        
+        // Create placeholder channel (will be replaced by state machine)
+        let (_attestation_tx, attestation_rx) = tokio::sync::oneshot::channel();
+        
+        // Create verified request
+        let verified_request = MaybeVerifiedRequest::Verified(callback, attestation_rx);
+        
+        self.do_request::<bool>(verified_request)
+            .await
+            .map_err(|e| RequestError::Internal(e.to_string()))?;
 
         // TODO WS handling:
         // - when a session request is pending, and we get the event that the page regained focus, should we immediately ping the WS connection to test its liveness (?)
@@ -784,28 +827,30 @@ impl Client {
         )
         .map_err(RespondError::ShouldNeverHappen)?;
 
-        self.do_request::<bool>(relay_rpc::rpc::Params::Publish(Publish {
-            topic,
-            message,
-            attestation: None, // TODO
-            ttl_secs: 300,
-            tag: 1109,
-            prompt: false,
-            analytics: Some(AnalyticsData {
-                correlation_id: Some(
-                    match &response {
-                        SessionRequestJsonRpcResponse::Result(r) => r.id,
-                        SessionRequestJsonRpcResponse::Error(e) => e.id,
-                    }
-                    .try_into()
-                    .unwrap(),
-                ),
-                chain_id: None,           // TODO
-                rpc_methods: None,        // TODO
-                tx_hashes: None,          // TODO
-                contract_addresses: None, // TODO
-            }),
-        }))
+        self.do_request::<bool>(MaybeVerifiedRequest::Unverified(
+            relay_rpc::rpc::Params::Publish(Publish {
+                topic,
+                message,
+                attestation: None, // TODO
+                ttl_secs: 300,
+                tag: 1109,
+                prompt: false,
+                analytics: Some(AnalyticsData {
+                    correlation_id: Some(
+                        match &response {
+                            SessionRequestJsonRpcResponse::Result(r) => r.id,
+                            SessionRequestJsonRpcResponse::Error(e) => e.id,
+                        }
+                        .try_into()
+                        .unwrap(),
+                    ),
+                    chain_id: None,           // TODO
+                    rpc_methods: None,        // TODO
+                    tx_hashes: None,          // TODO
+                    contract_addresses: None, // TODO
+                }),
+            })
+        ))
         .await
         .map_err(RespondError::Request)?;
 
@@ -877,12 +922,13 @@ impl Client {
         )
         .map_err(UpdateError::ShouldNeverHappen)?;
 
-        self.do_request::<bool>(relay_rpc::rpc::Params::Publish(Publish {
-            topic: topic.clone(),
-            message,
-            attestation: None,
-            ttl_secs: 86400,
-            tag: 1104,
+        self.do_request::<bool>(MaybeVerifiedRequest::Unverified(
+            relay_rpc::rpc::Params::Publish(Publish {
+                topic: topic.clone(),
+                message,
+                attestation: None,
+                ttl_secs: 86400,
+                tag: 1104,
             prompt: false,
             analytics: Some(AnalyticsData {
                 correlation_id: Some(id.try_into().unwrap()),
@@ -891,7 +937,7 @@ impl Client {
                 tx_hashes: None,
                 contract_addresses: None,
             }),
-        }))
+        })))
         .await
         .map_err(UpdateError::Request)?;
 
@@ -947,12 +993,13 @@ impl Client {
         )
         .map_err(ExtendError::ShouldNeverHappen)?;
 
-        self.do_request::<bool>(relay_rpc::rpc::Params::Publish(Publish {
-            topic: topic.clone(),
-            message,
-            attestation: None,
-            ttl_secs: 86400,
-            tag: 1106,
+        self.do_request::<bool>(MaybeVerifiedRequest::Unverified(
+            relay_rpc::rpc::Params::Publish(Publish {
+                topic: topic.clone(),
+                message,
+                attestation: None,
+                ttl_secs: 86400,
+                tag: 1106,
             prompt: false,
             analytics: Some(AnalyticsData {
                 correlation_id: Some(id.try_into().unwrap()),
@@ -961,7 +1008,7 @@ impl Client {
                 tx_hashes: None,
                 contract_addresses: None,
             }),
-        }))
+        })))
         .await
         .map_err(ExtendError::Request)?;
 
@@ -1017,12 +1064,13 @@ impl Client {
         )
         .map_err(EmitError::ShouldNeverHappen)?;
 
-        self.do_request::<bool>(relay_rpc::rpc::Params::Publish(Publish {
-            topic: topic.clone(),
-            message,
-            attestation: None,
-            ttl_secs: 86400,
-            tag: 1110,
+        self.do_request::<bool>(MaybeVerifiedRequest::Unverified(
+            relay_rpc::rpc::Params::Publish(Publish {
+                topic: topic.clone(),
+                message,
+                attestation: None,
+                ttl_secs: 86400,
+                tag: 1110,
             prompt: false,
             analytics: Some(AnalyticsData {
                 correlation_id: Some(id.try_into().unwrap()),
@@ -1031,7 +1079,7 @@ impl Client {
                 tx_hashes: None,
                 contract_addresses: None,
             }),
-        }))
+        })))
         .await
         .map_err(EmitError::Request)?;
 
@@ -1078,15 +1126,17 @@ impl Client {
             )
             .map_err(DisconnectError::ShouldNeverHappen)?;
 
-            self.do_request::<bool>(relay_rpc::rpc::Params::Publish(Publish {
-                topic: topic.clone(),
-                message,
-                attestation: None, // TODO
-                ttl_secs: 86400,
-                tag: 1112,
-                prompt: false,
-                analytics: None, // TODO
-            }))
+            self.do_request::<bool>(MaybeVerifiedRequest::Unverified(
+                relay_rpc::rpc::Params::Publish(Publish {
+                    topic: topic.clone(),
+                    message,
+                    attestation: None, // TODO
+                    ttl_secs: 86400,
+                    tag: 1112,
+                    prompt: false,
+                    analytics: None, // TODO
+                })
+            ))
             .await
             .map_err(DisconnectError::Request)?;
 
@@ -1136,12 +1186,12 @@ impl Client {
 
     async fn do_request<T: DeserializeOwned>(
         &mut self,
-        params: relay_rpc::rpc::Params,
+        request: MaybeVerifiedRequest,
     ) -> Result<T, RequestError> {
         tracing::debug!("Connect: Call");
 
         let (response_tx, response_rx) = tokio::sync::oneshot::channel();
-        self.request_tx.send((params, response_tx)).map_err(|e| {
+        self.request_tx.send((request, response_tx)).map_err(|e| {
             RequestError::Internal(format!(
                 "Failed to send request, request_tx closed: {e}"
             ))

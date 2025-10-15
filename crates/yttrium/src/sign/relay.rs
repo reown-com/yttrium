@@ -1,6 +1,7 @@
 use {
     crate::{
         sign::{
+            client::MaybeVerifiedRequest,
             client_errors::RequestError,
             incoming::HandleError,
             priority_future::PriorityReceiver,
@@ -102,7 +103,7 @@ async fn connect(
     project_id: ProjectId,
     key: &SigningKey,
     topics: Vec<Topic>,
-    initial_req: MaybeVerifiedRequest,
+    initial_req: Params,
     cleanup_rx: tokio_util::sync::CancellationToken,
     probe_group: Option<String>,
 ) -> Result<
@@ -323,7 +324,6 @@ async fn connect(
         }
 
         // TODO this will soon be moved to initial WebSocket request
-        let initial_req = initial_req.into_resolved().await;
         let request = Payload::Request(Request::new(
             MessageId::new(message_id),
             initial_req,
@@ -587,6 +587,19 @@ enum ConnectionState {
         (tokio::sync::oneshot::Sender<Result<Response, RequestError>>,),
         DurableSleep,
     ),
+    AwaitingAttestationBeforeConnect(
+        Vec<Topic>,  // topics for connect
+        Box<dyn Fn(String) -> Params>,  // callback to create params
+        tokio::sync::oneshot::Receiver<String>,  // attestation receiver
+        tokio::sync::oneshot::Sender<Result<Response, RequestError>>,  // response sender
+    ),
+    ConnectRequestAwaitingAttestation(
+        tokio::sync::mpsc::UnboundedReceiver<IncomingMessage>,
+        ConnectWebSocket,
+        Box<dyn Fn(String) -> Params>,
+        tokio::sync::oneshot::Receiver<String>,
+        tokio::sync::oneshot::Sender<Result<Response, RequestError>>,
+    ),
     Connected(
         u64,
         tokio::sync::mpsc::UnboundedReceiver<IncomingMessage>,
@@ -626,6 +639,12 @@ impl std::fmt::Debug for ConnectionState {
             ConnectionState::AwaitingConnectRequestResponse(_, _, _, _, _) => {
                 "AwaitingConnectRequestResponse(_, _, _, _, _)"
             }
+            ConnectionState::AwaitingAttestationBeforeConnect(_, _, _, _) => {
+                "AwaitingAttestationBeforeConnect(_, _, _, _)"
+            }
+            ConnectionState::ConnectRequestAwaitingAttestation(_, _, _, _, _) => {
+                "ConnectRequestAwaitingAttestation(_, _, _, _, _)"
+            }
             ConnectionState::Connected(_, _, _) => "Connected(_, _, _)",
             ConnectionState::AwaitingRequestResponse(_, _, _, _, _) => {
                 "AwaitingRequestResponse(_, _, _, _, _)"
@@ -657,27 +676,7 @@ pub enum IncomingSessionMessage {
     SessionRequestResponse(u64, Topic, SessionRequestJsonRpcResponse),
 }
 
-enum MaybeVerifiedRequest {
-    Unverified(Params),
-    Verified(
-        Box<dyn Fn(String) -> Params>,
-        tokio::sync::oneshot::Receiver<String>,
-    ),
-}
-
-impl MaybeVerifiedRequest {
-    async fn into_resolved(self) -> Params {
-        match self {
-            MaybeVerifiedRequest::Unverified(request) => request,
-            MaybeVerifiedRequest::Verified(request, receiver) => {
-                request(receiver.await.unwrap_or_else(|e| {
-                    tracing::error!("Failed to get attestation: {e}");
-                    "".to_string()
-                }))
-            }
-        }
-    }
-}
+// MaybeVerifiedRequest is now defined in client.rs and imported via the parent module
 
 #[allow(clippy::too_many_arguments)]
 pub async fn connect_loop_state_machine(
@@ -838,9 +837,7 @@ pub async fn connect_loop_state_machine(
                     project_id.clone(),
                     &key,
                     vec![],
-                    MaybeVerifiedRequest::Unverified(Params::BatchSubscribe(
-                        BatchSubscribe { topics },
-                    )),
+                    Params::BatchSubscribe(BatchSubscribe { topics }),
                     cleanup_rx.clone(),
                     probe_group.clone(),
                 )
@@ -971,54 +968,129 @@ pub async fn connect_loop_state_machine(
                         return;
                     }
                 };
-                let _attestation_fut =
-                    crate::sign::verify::create_attestation();
-                let connect_res = connect(
-                    relay_url.clone(),
-                    project_id.clone(),
-                    &key,
-                    topics,
-                    request,
-                    cleanup_rx.clone(),
-                    probe_group.clone(),
-                )
-                .await;
-                match connect_res {
-                    Ok((message_id, on_incomingmessage_rx, ws)) => {
-                        ConnectionState::AwaitingConnectRequestResponse(
-                            message_id,
-                            on_incomingmessage_rx,
-                            ws,
-                            (response_tx,),
-                            crate::time::durable_sleep(REQUEST_TIMEOUT),
+                
+                // Handle MaybeVerifiedRequest - wait for attestation first if needed
+                match request {
+                    MaybeVerifiedRequest::Unverified(params) => {
+                        // Simple case: just connect immediately
+                        let connect_res = connect(
+                            relay_url.clone(),
+                            project_id.clone(),
+                            &key,
+                            topics,
+                            params,
+                            cleanup_rx.clone(),
+                            probe_group.clone(),
+                        )
+                        .await;
+                        
+                        match connect_res {
+                            Ok((message_id, on_incomingmessage_rx, ws)) => {
+                                ConnectionState::AwaitingConnectRequestResponse(
+                                    message_id,
+                                    on_incomingmessage_rx,
+                                    ws,
+                                    (response_tx,),
+                                    crate::time::durable_sleep(REQUEST_TIMEOUT),
+                                )
+                            }
+                            Err(e) => {
+                                if let Err(e) = response_tx.send(Err(e.clone().into())) {
+                                    tracing::warn!("Failed to send error response: {e:?}");
+                                }
+                                match e {
+                                    ConnectError::ConnectFail(reason) => {
+                                        tracing::debug!("ConnectRequest failed: {reason}");
+                                        ConnectionState::MaybeReconnect(None)
+                                    }
+                                    ConnectError::Cleanup => break,
+                                    ConnectError::InvalidAuth => ConnectionState::Poisoned,
+                                    ConnectError::ShouldNeverHappen(reason) => {
+                                        tracing::error!("ConnectRequest should never happen: {reason}");
+                                        ConnectionState::Idle
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    MaybeVerifiedRequest::Verified(callback, _receiver) => {
+                        // Spawn attestation fetch and transition to awaiting state
+                        let (tx, rx) = tokio::sync::oneshot::channel();
+                        crate::spawn::spawn(async move {
+                            match crate::sign::verify::create_attestation().await {
+                                Ok(attestation) => {
+                                    let _ = tx.send(attestation);
+                                }
+                                Err(e) => {
+                                    tracing::error!("Failed to create attestation: {e:?}");
+                                    let _ = tx.send(String::new());
+                                }
+                            }
+                        });
+                        
+                        // Transition to new state that waits for attestation, THEN connects
+                        ConnectionState::AwaitingAttestationBeforeConnect(
+                            topics,
+                            callback,
+                            rx,
+                            response_tx,
                         )
                     }
-                    Err(e) => {
-                        if let Err(e) = response_tx.send(Err(e.clone().into()))
-                        {
-                            tracing::warn!(
-                                "Failed to send error response: {e:?}"
-                            );
-                        }
-                        match e {
-                            ConnectError::ConnectFail(reason) => {
-                                tracing::debug!(
-                                    "ConnectRequest failed: {reason}"
-                                );
-                                ConnectionState::MaybeReconnect(None)
+                }
+            }
+            ConnectionState::AwaitingAttestationBeforeConnect(
+                topics,
+                callback,
+                mut receiver,
+                response_tx,
+            ) => {
+                // Wait for attestation, then connect
+                tokio::select! {
+                    Ok(attestation) = &mut receiver => {
+                        let params = callback(attestation);
+                        
+                        // Now connect with the resolved params
+                        let connect_res = connect(
+                            relay_url.clone(),
+                            project_id.clone(),
+                            &key,
+                            topics,
+                            params,
+                            cleanup_rx.clone(),
+                            probe_group.clone(),
+                        )
+                        .await;
+                        
+                        match connect_res {
+                            Ok((message_id, on_incomingmessage_rx, ws)) => {
+                                ConnectionState::AwaitingConnectRequestResponse(
+                                    message_id,
+                                    on_incomingmessage_rx,
+                                    ws,
+                                    (response_tx,),
+                                    crate::time::durable_sleep(REQUEST_TIMEOUT),
+                                )
                             }
-                            ConnectError::Cleanup => {
-                                break;
-                            }
-                            ConnectError::InvalidAuth => {
-                                ConnectionState::Poisoned
-                            }
-                            ConnectError::ShouldNeverHappen(reason) => {
-                                tracing::error!("ConnectRequest should never happen: {reason}");
-                                ConnectionState::Idle
+                            Err(e) => {
+                                if let Err(e) = response_tx.send(Err(e.clone().into())) {
+                                    tracing::warn!("Failed to send error response: {e:?}");
+                                }
+                                match e {
+                                    ConnectError::ConnectFail(reason) => {
+                                        tracing::debug!("AwaitingAttestationBeforeConnect failed: {reason}");
+                                        ConnectionState::MaybeReconnect(None)
+                                    }
+                                    ConnectError::Cleanup => break,
+                                    ConnectError::InvalidAuth => ConnectionState::Poisoned,
+                                    ConnectError::ShouldNeverHappen(reason) => {
+                                        tracing::error!("AwaitingAttestationBeforeConnect should never happen: {reason}");
+                                        ConnectionState::Idle
+                                    }
+                                }
                             }
                         }
                     }
+                    _ = cleanup_rx.cancelled() => break,
                 }
             }
             ConnectionState::AwaitingConnectRequestResponse(
@@ -1119,6 +1191,113 @@ pub async fn connect_loop_state_machine(
                     },
                 }
             }
+            ConnectionState::ConnectRequestAwaitingAttestation(
+                mut on_incomingmessage_rx,
+                ws,
+                callback,
+                mut receiver,
+                response_tx,
+            ) => {
+                tokio::select! {
+                    Ok(attestation) = &mut receiver => {
+                        let params = callback(attestation);
+                        let message_id = 1; // First message after connection
+                        
+                        // Send the request via websocket
+                        let payload_request = Payload::Request(Request::new(
+                            MessageId::new(message_id),
+                            params.clone(),
+                        ));
+                        let serialized = serde_json::to_string(&payload_request)
+                            .map_err(|e| {
+                                RequestError::ShouldNeverHappen(format!(
+                                    "Failed to serialize request: {e}"
+                                ))
+                            })
+                            .expect("Failed to serialize request");
+                        
+                        tracing::debug!("sending websocket message with attestation: {serialized}");
+                        
+                        #[cfg(target_arch = "wasm32")]
+                        {
+                            if let Err(e) = ws.0.send_with_str(&serialized) {
+                                tracing::error!("Failed to send websocket message: {e:?}");
+                                if let Err(e) = response_tx.send(Err(RequestError::Offline)) {
+                                    tracing::warn!("Failed to send error response: {e:?}");
+                                }
+                                ConnectionState::MaybeReconnect(None)
+                            } else {
+                                ConnectionState::AwaitingConnectRequestResponse(
+                                    message_id,
+                                    on_incomingmessage_rx,
+                                    ws,
+                                    (response_tx,),
+                                    crate::time::durable_sleep(REQUEST_TIMEOUT),
+                                )
+                            }
+                        }
+                        #[cfg(not(target_arch = "wasm32"))]
+                        {
+                            if let Err(e) = ws.0.send(serialized) {
+                                tracing::error!("Failed to send websocket message: {e:?}");
+                                if let Err(e) = response_tx.send(Err(RequestError::Offline)) {
+                                    tracing::warn!("Failed to send error response: {e:?}");
+                                }
+                                ConnectionState::MaybeReconnect(None)
+                            } else {
+                                ConnectionState::AwaitingConnectRequestResponse(
+                                    message_id,
+                                    on_incomingmessage_rx,
+                                    ws,
+                                    (response_tx,),
+                                    crate::time::durable_sleep(REQUEST_TIMEOUT),
+                                )
+                            }
+                        }
+                    }
+                    message = on_incomingmessage_rx.recv() => {
+                        if let Some(message) = message {
+                            match message {
+                                IncomingMessage::Close(reason) => {
+                                    // Handle disconnect before attestation arrives
+                                    match reason {
+                                        CloseReason::InvalidAuth => {
+                                            let _ = response_tx.send(Err(RequestError::InvalidAuth));
+                                            ConnectionState::Poisoned
+                                        }
+                                        CloseReason::Error(e) => {
+                                            tracing::debug!("Websocket closed while awaiting attestation: {e}");
+                                            let _ = response_tx.send(Err(RequestError::Offline));
+                                            ConnectionState::MaybeReconnect(None)
+                                        }
+                                    }
+                                }
+                                IncomingMessage::Message(_) => {
+                                    // Unexpected message, stay in same state
+                                    tracing::warn!("Unexpected message while awaiting attestation");
+                                    ConnectionState::ConnectRequestAwaitingAttestation(
+                                        on_incomingmessage_rx, ws, callback, receiver, response_tx
+                                    )
+                                }
+                            }
+                        } else {
+                            let _ = response_tx.send(Err(RequestError::Offline));
+                            ConnectionState::MaybeReconnect(None)
+                        }
+                    }
+                    _ = cleanup_rx.cancelled() => {
+                        #[cfg(target_arch = "wasm32")]
+                        if let Err(e) = ws.0.close() {
+                            tracing::debug!("Failed to close websocket: {e:?}");
+                        }
+                        #[cfg(not(target_arch = "wasm32"))]
+                        if let Err(e) = ws.1.send(()) {
+                            tracing::debug!("Failed to send close event: {e}");
+                        }
+                        break;
+                    }
+                }
+            }
             ConnectionState::Connected(
                 message_id,
                 mut on_incomingmessage_rx,
@@ -1178,35 +1357,81 @@ pub async fn connect_loop_state_machine(
                     }
                     request = request_rx.recv() => {
                         if let Some((request, response_tx)) = request {
-                            let request = match request {
-                                MaybeVerifiedRequest::Unverified(request) => request,
-                                MaybeVerifiedRequest::Verified(request, _) => request,
-                            };
-                            let message_id = message_id + 1;
-                            let payload_request = Payload::Request(Request::new(
-                                MessageId::new(message_id),
-                                request.clone(),
-                            ));
-                            let serialized = serde_json::to_string(&payload_request)
-                                .map_err(|e| {
-                                    RequestError::ShouldNeverHappen(format!(
-                                        "Failed to serialize request: {e}"
-                                    ))
-                                })
-                                .expect("TODO");
-                            tracing::debug!("sending websocket message: {serialized}");
-                            #[cfg(target_arch = "wasm32")]
-                            ws.0.send_with_str(&serialized).expect("TODO");
-                            #[cfg(not(target_arch = "wasm32"))]
-                            ws.0.send(serialized).expect("TODO");
+                            match request {
+                                MaybeVerifiedRequest::Unverified(params) => {
+                                    // Send immediately for unverified requests
+                                    let message_id = message_id + 1;
+                                    let payload_request = Payload::Request(Request::new(
+                                        MessageId::new(message_id),
+                                        params.clone(),
+                                    ));
+                                    let serialized = serde_json::to_string(&payload_request)
+                                        .map_err(|e| {
+                                            RequestError::ShouldNeverHappen(format!(
+                                                "Failed to serialize request: {e}"
+                                            ))
+                                        })
+                                        .expect("TODO");
+                                    tracing::debug!("sending websocket message: {serialized}");
+                                    #[cfg(target_arch = "wasm32")]
+                                    ws.0.send_with_str(&serialized).expect("TODO");
+                                    #[cfg(not(target_arch = "wasm32"))]
+                                    ws.0.send(serialized).expect("TODO");
 
-                            ConnectionState::AwaitingRequestResponse(
-                                message_id,
-                                on_incomingmessage_rx,
-                                ws,
-                                (request, response_tx),
-                                crate::time::durable_sleep(REQUEST_TIMEOUT),
-                            )
+                                    ConnectionState::AwaitingRequestResponse(
+                                        message_id,
+                                        on_incomingmessage_rx,
+                                        ws,
+                                        (params, response_tx),
+                                        crate::time::durable_sleep(REQUEST_TIMEOUT),
+                                    )
+                                }
+                                MaybeVerifiedRequest::Verified(callback, _receiver) => {
+                                    // For verified requests, spawn attestation and transition
+                                    let (tx, rx) = tokio::sync::oneshot::channel();
+                                    let http_client = http_client.clone();
+                                    crate::spawn::spawn(async move {
+                                        match crate::sign::verify::create_attestation().await {
+                                            Ok(attestation) => {
+                                                let _ = tx.send(attestation);
+                                            }
+                                            Err(e) => {
+                                                tracing::error!("Failed to create attestation: {e:?}");
+                                                let _ = tx.send(String::new());
+                                            }
+                                        }
+                                    });
+                                    // For now, just send without attestation
+                                    // TODO: Add ConnectedAwaitingAttestation state for proper handling
+                                    tracing::warn!("Verified request in Connected state - sending without waiting for attestation");
+                                    let params = callback(String::new());
+                                    let message_id = message_id + 1;
+                                    let payload_request = Payload::Request(Request::new(
+                                        MessageId::new(message_id),
+                                        params.clone(),
+                                    ));
+                                    let serialized = serde_json::to_string(&payload_request)
+                                        .map_err(|e| {
+                                            RequestError::ShouldNeverHappen(format!(
+                                                "Failed to serialize request: {e}"
+                                            ))
+                                        })
+                                        .expect("TODO");
+                                    tracing::debug!("sending websocket message: {serialized}");
+                                    #[cfg(target_arch = "wasm32")]
+                                    ws.0.send_with_str(&serialized).expect("TODO");
+                                    #[cfg(not(target_arch = "wasm32"))]
+                                    ws.0.send(serialized).expect("TODO");
+
+                                    ConnectionState::AwaitingRequestResponse(
+                                        message_id,
+                                        on_incomingmessage_rx,
+                                        ws,
+                                        (params, response_tx),
+                                        crate::time::durable_sleep(REQUEST_TIMEOUT),
+                                    )
+                                }
+                            }
                         } else {
                             #[cfg(target_arch = "wasm32")]
                             if let Err(e) = ws.0.close() {
@@ -1385,7 +1610,7 @@ pub async fn connect_loop_state_machine(
                     project_id.clone(),
                     &key,
                     topics,
-                    request,
+                    request.clone(),
                     cleanup_rx.clone(),
                     probe_group.clone(),
                 );
