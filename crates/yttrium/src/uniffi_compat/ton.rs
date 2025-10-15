@@ -572,10 +572,9 @@ mod tests {
     fn create_test_client() -> TonClient {
         TonClient::new(
             TonClientConfig {
-                network_id: "mainnet".to_string(),
+                network_id: "ton:mainnet".to_string(),
             },
             "test-project".into(),
-            #[cfg(feature = "chain_abstraction_client")]
             crate::pulse::get_pulse_metadata(),
         )
     }
