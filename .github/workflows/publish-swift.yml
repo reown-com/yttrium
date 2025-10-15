@@ -52,23 +52,13 @@ jobs:
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "Swift Core release version: ${VERSION}" >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Extract run_id from labels
-        id: runmeta
-        run: |
-          RUN_ID_LABEL=$(jq -r 'first(.pull_request.labels[]?.name | select(startswith("swift-core-release-run-id=")))' "$GITHUB_EVENT_PATH")
-          if [ -z "$RUN_ID_LABEL" ]; then
-            echo "::error::Missing swift-core-release-run-id label" >&2
-            exit 1
-          fi
-          RUN_ID=${RUN_ID_LABEL#swift-core-release-run-id=}
-          echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
-
       - name: Download Release Artifacts
         uses: dawidd6/action-download-artifact@v3
         with:
-          name: swift-core-release-${{ steps.version.outputs.version }}-run-${{ steps.runmeta.outputs.run_id }}
+          name: swift-core-release-${{ steps.version.outputs.version }}
           path: Output/
-          run_id: ${{ steps.runmeta.outputs.run_id }}
+          workflow: release-swift.yml
+          workflow_conclusion: success
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Verify Downloaded Artifacts
