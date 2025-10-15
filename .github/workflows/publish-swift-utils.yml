@@ -61,7 +61,7 @@ jobs:
           name: swift-utils-release-${{ steps.version.outputs.version }}
           path: Output/
           workflow: release-swift-utils.yml
-          pr: ${{ github.event.pull_request.number }}
+          workflow_conclusion: success
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Verify Downloaded Artifacts
