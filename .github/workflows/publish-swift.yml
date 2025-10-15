@@ -53,7 +53,7 @@ jobs:
           echo "Swift Core release version: ${VERSION}" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Download Release Artifacts
-        uses: dawidd6/action-download-artifact@v3
+        uses: dawidd6/action-download-artifact@v6
         with:
           name: swift-core-release-${{ steps.version.outputs.version }}
           path: Output/
