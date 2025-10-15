@@ -1886,6 +1886,92 @@ public func FfiConverterTypePreparedSendTransaction_lower(_ value: PreparedSendT
 }
 
 
+public struct PulseMetadata {
+    public var url: Url?
+    public var bundleId: String?
+    public var sdkVersion: String
+    public var sdkPlatform: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(url: Url?, bundleId: String?, sdkVersion: String, sdkPlatform: String) {
+        self.url = url
+        self.bundleId = bundleId
+        self.sdkVersion = sdkVersion
+        self.sdkPlatform = sdkPlatform
+    }
+}
+
+#if compiler(>=6)
+extension PulseMetadata: Sendable {}
+#endif
+
+
+extension PulseMetadata: Equatable, Hashable {
+    public static func ==(lhs: PulseMetadata, rhs: PulseMetadata) -> Bool {
+        if lhs.url != rhs.url {
+            return false
+        }
+        if lhs.bundleId != rhs.bundleId {
+            return false
+        }
+        if lhs.sdkVersion != rhs.sdkVersion {
+            return false
+        }
+        if lhs.sdkPlatform != rhs.sdkPlatform {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(url)
+        hasher.combine(bundleId)
+        hasher.combine(sdkVersion)
+        hasher.combine(sdkPlatform)
+    }
+}
+
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypePulseMetadata: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> PulseMetadata {
+        return
+            try PulseMetadata(
+                url: FfiConverterOptionTypeUrl.read(from: &buf), 
+                bundleId: FfiConverterOptionString.read(from: &buf), 
+                sdkVersion: FfiConverterString.read(from: &buf), 
+                sdkPlatform: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: PulseMetadata, into buf: inout [UInt8]) {
+        FfiConverterOptionTypeUrl.write(value.url, into: &buf)
+        FfiConverterOptionString.write(value.bundleId, into: &buf)
+        FfiConverterString.write(value.sdkVersion, into: &buf)
+        FfiConverterString.write(value.sdkPlatform, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePulseMetadata_lift(_ buf: RustBuffer) throws -> PulseMetadata {
+    return try FfiConverterTypePulseMetadata.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePulseMetadata_lower(_ value: PulseMetadata) -> RustBuffer {
+    return FfiConverterTypePulseMetadata.lower(value)
+}
+
+
 /**
  * ```solidity
  * struct SafeOp { address safe; uint256 nonce; bytes initCode; bytes callData; uint128 verificationGasLimit; uint128 callGasLimit; uint256 preVerificationGas; uint128 maxPriorityFeePerGas; uint128 maxFeePerGas; bytes paymasterAndData; uint48 validAfter; uint48 validUntil; address entryPoint; }
@@ -2947,6 +3033,30 @@ fileprivate struct FfiConverterOptionDouble: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionString: FfiConverterRustBuffer {
+    typealias SwiftType = String?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterString.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterString.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionSequenceTypeAssetType: FfiConverterRustBuffer {
     typealias SwiftType = [AssetType]?
 
@@ -3083,6 +3193,30 @@ fileprivate struct FfiConverterOptionTypeU256: FfiConverterRustBuffer {
         switch try readInt(&buf) as Int8 {
         case 0: return nil
         case 1: return try FfiConverterTypeU256.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeUrl: FfiConverterRustBuffer {
+    typealias SwiftType = Url?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeUrl.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeUrl.read(from: &buf)
         default: throw UniffiInternalError.unexpectedOptionalTag
         }
     }
