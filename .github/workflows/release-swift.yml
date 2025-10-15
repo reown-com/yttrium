@@ -111,6 +111,7 @@ jobs:
           labels: |
             ${{ env.PR_LABEL }}
             ${{ env.PR_LABEL }}=${{ env.VERSION }}
+            swift-core-release-run-id=${{ github.run_id }}
           add-paths: |
             Package.swift
             platforms/swift/Sources/Yttrium
@@ -120,7 +121,7 @@ jobs:
       - name: Upload Release Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: swift-core-release-${{ env.VERSION }}
+          name: swift-core-release-${{ env.VERSION }}-run-${{ github.run_id }}
           path: |
             Output/libyttrium.xcframework.zip
           retention-days: 30
