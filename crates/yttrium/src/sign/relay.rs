@@ -103,12 +103,12 @@ async fn connect(
     project_id: ProjectId,
     key: &SigningKey,
     topics: Vec<Topic>,
-    initial_req: Params,
+    initial_req: Option<Params>,  // Now optional for parallel attestation
     cleanup_rx: tokio_util::sync::CancellationToken,
     probe_group: Option<String>,
 ) -> Result<
     (
-        u64,
+        Option<u64>,  // message_id only present if request was sent
         tokio::sync::mpsc::UnboundedReceiver<IncomingMessage>,
         ConnectWebSocket,
     ),
@@ -323,23 +323,33 @@ async fn connect(
             }
         }
 
-        // TODO this will soon be moved to initial WebSocket request
-        let request = Payload::Request(Request::new(
-            MessageId::new(message_id),
-            initial_req,
-        ));
-        let serialized = serde_json::to_string(&request)
-            .map_err(|e| ConnectError::ShouldNeverHappen(e.to_string()))?;
-        outgoing_tx
-            .send(serialized)
-            .map_err(|e| ConnectError::ConnectFail(e.to_string()))?;
+        // Send initial request if provided
+        let message_id_result = if let Some(params) = initial_req {
+            // TODO this will soon be moved to initial WebSocket request
+            let request = Payload::Request(Request::new(
+                MessageId::new(message_id),
+                params,
+            ));
+            let serialized = serde_json::to_string(&request)
+                .map_err(|e| ConnectError::ShouldNeverHappen(e.to_string()))?;
+            outgoing_tx
+                .send(serialized)
+                .map_err(|e| ConnectError::ConnectFail(e.to_string()))?;
 
-        tracing::debug!(
-            group = probe_group.clone(),
-            probe = "relay_connect_initial_request_sent"
-        );
+            tracing::debug!(
+                group = probe_group.clone(),
+                probe = "relay_connect_initial_request_sent"
+            );
+            Some(message_id)
+        } else {
+            tracing::debug!(
+                group = probe_group.clone(),
+                probe = "relay_connect_no_initial_request"
+            );
+            None
+        };
 
-        Ok((message_id, on_incomingmessage_rx, (outgoing_tx, close_tx)))
+        Ok((message_id_result, on_incomingmessage_rx, (outgoing_tx, close_tx)))
     }
 
     #[cfg(target_arch = "wasm32")]
@@ -528,22 +538,32 @@ async fn connect(
             }
         }
 
-        // TODO this will soon be moved to initial WebSocket request
-        let request = Payload::Request(Request::new(
-            MessageId::new(message_id),
-            initial_req,
-        ));
-        let serialized = serde_json::to_string(&request)
-            .map_err(|e| ConnectError::ShouldNeverHappen(e.to_string()))?;
-        tracing::debug!("sending websocket message: {serialized}");
-        ws.send_with_str(&serialized).map_err(|e| {
-            ConnectError::ConnectFail(
-                e.as_string().unwrap_or("unknown error".to_string()),
-            )
-        })?;
+        // Send initial request if provided
+        let message_id_result = if let Some(params) = initial_req {
+            // TODO this will soon be moved to initial WebSocket request
+            let request = Payload::Request(Request::new(
+                MessageId::new(message_id),
+                params,
+            ));
+            let serialized = serde_json::to_string(&request)
+                .map_err(|e| ConnectError::ShouldNeverHappen(e.to_string()))?;
+            tracing::debug!("sending websocket message: {serialized}");
+            ws.send_with_str(&serialized).map_err(|e| {
+                ConnectError::ConnectFail(
+                    e.as_string().unwrap_or("unknown error".to_string()),
+                )
+            })?;
+            Some(message_id)
+        } else {
+            tracing::debug!(
+                group = probe_group.clone(),
+                probe = "relay_connect_no_initial_request"
+            );
+            None
+        };
 
         Ok((
-            message_id,
+            message_id_result,
             on_incomingmessage_rx,
             (
                 ws,
@@ -586,12 +606,6 @@ enum ConnectionState {
         ConnectWebSocket,
         (tokio::sync::oneshot::Sender<Result<Response, RequestError>>,),
         DurableSleep,
-    ),
-    AwaitingAttestationBeforeConnect(
-        Vec<Topic>,  // topics for connect
-        Box<dyn Fn(String) -> Params>,  // callback to create params
-        tokio::sync::oneshot::Receiver<String>,  // attestation receiver
-        tokio::sync::oneshot::Sender<Result<Response, RequestError>>,  // response sender
     ),
     ConnectRequestAwaitingAttestation(
         tokio::sync::mpsc::UnboundedReceiver<IncomingMessage>,
@@ -638,9 +652,6 @@ impl std::fmt::Debug for ConnectionState {
             ConnectionState::ConnectRequest(_) => "ConnectRequest(_)",
             ConnectionState::AwaitingConnectRequestResponse(_, _, _, _, _) => {
                 "AwaitingConnectRequestResponse(_, _, _, _, _)"
-            }
-            ConnectionState::AwaitingAttestationBeforeConnect(_, _, _, _) => {
-                "AwaitingAttestationBeforeConnect(_, _, _, _)"
             }
             ConnectionState::ConnectRequestAwaitingAttestation(_, _, _, _, _) => {
                 "ConnectRequestAwaitingAttestation(_, _, _, _, _)"
@@ -837,13 +848,13 @@ pub async fn connect_loop_state_machine(
                     project_id.clone(),
                     &key,
                     vec![],
-                    Params::BatchSubscribe(BatchSubscribe { topics }),
+                    Some(Params::BatchSubscribe(BatchSubscribe { topics })),
                     cleanup_rx.clone(),
                     probe_group.clone(),
                 )
                 .await;
                 match connect_res {
-                    Ok((message_id, on_incomingmessage_rx, ws)) => {
+                    Ok((Some(message_id), on_incomingmessage_rx, ws)) => {
                         ConnectionState::AwaitingSubscribeResponse(
                             backoff_state,
                             message_id,
@@ -851,6 +862,11 @@ pub async fn connect_loop_state_machine(
                             ws,
                             crate::time::durable_sleep(REQUEST_TIMEOUT),
                         )
+                    }
+                    Ok((None, _, _)) => {
+                        // Should never happen for BatchSubscribe
+                        tracing::error!("connect() returned None message_id for BatchSubscribe");
+                        ConnectionState::Backoff(backoff_state)
                     }
                     Err(e) => match e {
                         ConnectError::ConnectFail(reason) => {
@@ -969,23 +985,23 @@ pub async fn connect_loop_state_machine(
                     }
                 };
                 
-                // Handle MaybeVerifiedRequest - wait for attestation first if needed
+                // Handle MaybeVerifiedRequest
                 match request {
                     MaybeVerifiedRequest::Unverified(params) => {
-                        // Simple case: just connect immediately
+                        // Simple case: connect with request immediately
                         let connect_res = connect(
                             relay_url.clone(),
                             project_id.clone(),
                             &key,
                             topics,
-                            params,
+                            Some(params),
                             cleanup_rx.clone(),
                             probe_group.clone(),
                         )
                         .await;
                         
                         match connect_res {
-                            Ok((message_id, on_incomingmessage_rx, ws)) => {
+                            Ok((Some(message_id), on_incomingmessage_rx, ws)) => {
                                 ConnectionState::AwaitingConnectRequestResponse(
                                     message_id,
                                     on_incomingmessage_rx,
@@ -993,6 +1009,11 @@ pub async fn connect_loop_state_machine(
                                     (response_tx,),
                                     crate::time::durable_sleep(REQUEST_TIMEOUT),
                                 )
+                            }
+                            Ok((None, _, _)) => {
+                                tracing::error!("connect() returned None message_id for unverified request");
+                                let _ = response_tx.send(Err(RequestError::Internal("No message ID".to_string())));
+                                ConnectionState::MaybeReconnect(None)
                             }
                             Err(e) => {
                                 if let Err(e) = response_tx.send(Err(e.clone().into())) {
@@ -1014,62 +1035,50 @@ pub async fn connect_loop_state_machine(
                         }
                     }
                     MaybeVerifiedRequest::Verified(callback, _receiver) => {
-                        // Spawn attestation fetch and transition to awaiting state
-                        let (tx, rx) = tokio::sync::oneshot::channel();
+                        // PARALLEL EXECUTION: Spawn attestation AND connect websocket at same time
+                        let (attestation_tx, attestation_rx) = tokio::sync::oneshot::channel();
+                        
+                        // Spawn attestation fetch (runs in parallel)
                         crate::spawn::spawn(async move {
                             match crate::sign::verify::create_attestation().await {
                                 Ok(attestation) => {
-                                    let _ = tx.send(attestation);
+                                    tracing::debug!("Attestation received: {} bytes", attestation.len());
+                                    let _ = attestation_tx.send(attestation);
                                 }
                                 Err(e) => {
                                     tracing::error!("Failed to create attestation: {e:?}");
-                                    let _ = tx.send(String::new());
+                                    let _ = attestation_tx.send(String::new());
                                 }
                             }
                         });
                         
-                        // Transition to new state that waits for attestation, THEN connects
-                        ConnectionState::AwaitingAttestationBeforeConnect(
-                            topics,
-                            callback,
-                            rx,
-                            response_tx,
-                        )
-                    }
-                }
-            }
-            ConnectionState::AwaitingAttestationBeforeConnect(
-                topics,
-                callback,
-                mut receiver,
-                response_tx,
-            ) => {
-                // Wait for attestation, then connect
-                tokio::select! {
-                    Ok(attestation) = &mut receiver => {
-                        let params = callback(attestation);
-                        
-                        // Now connect with the resolved params
+                        // Start websocket connection immediately (parallel with attestation)
                         let connect_res = connect(
                             relay_url.clone(),
                             project_id.clone(),
                             &key,
                             topics,
-                            params,
+                            None,  // No initial request - we'll send it after attestation arrives
                             cleanup_rx.clone(),
                             probe_group.clone(),
                         )
                         .await;
                         
                         match connect_res {
-                            Ok((message_id, on_incomingmessage_rx, ws)) => {
-                                ConnectionState::AwaitingConnectRequestResponse(
-                                    message_id,
+                            Ok((None, on_incomingmessage_rx, ws)) => {
+                                // Websocket connected! Now wait for attestation
+                                ConnectionState::ConnectRequestAwaitingAttestation(
                                     on_incomingmessage_rx,
                                     ws,
-                                    (response_tx,),
-                                    crate::time::durable_sleep(REQUEST_TIMEOUT),
+                                    callback,
+                                    attestation_rx,
+                                    response_tx,
                                 )
+                            }
+                            Ok((Some(_), _, _)) => {
+                                tracing::error!("connect() returned Some message_id when None was expected");
+                                let _ = response_tx.send(Err(RequestError::Internal("Unexpected message ID".to_string())));
+                                ConnectionState::MaybeReconnect(None)
                             }
                             Err(e) => {
                                 if let Err(e) = response_tx.send(Err(e.clone().into())) {
@@ -1077,20 +1086,19 @@ pub async fn connect_loop_state_machine(
                                 }
                                 match e {
                                     ConnectError::ConnectFail(reason) => {
-                                        tracing::debug!("AwaitingAttestationBeforeConnect failed: {reason}");
+                                        tracing::debug!("ConnectRequest failed: {reason}");
                                         ConnectionState::MaybeReconnect(None)
                                     }
                                     ConnectError::Cleanup => break,
                                     ConnectError::InvalidAuth => ConnectionState::Poisoned,
                                     ConnectError::ShouldNeverHappen(reason) => {
-                                        tracing::error!("AwaitingAttestationBeforeConnect should never happen: {reason}");
+                                        tracing::error!("ConnectRequest should never happen: {reason}");
                                         ConnectionState::Idle
                                     }
                                 }
                             }
                         }
                     }
-                    _ = cleanup_rx.cancelled() => break,
                 }
             }
             ConnectionState::AwaitingConnectRequestResponse(
@@ -1610,14 +1618,14 @@ pub async fn connect_loop_state_machine(
                     project_id.clone(),
                     &key,
                     topics,
-                    request.clone(),
+                    Some(request.clone()),
                     cleanup_rx.clone(),
                     probe_group.clone(),
                 );
                 tokio::select! {
                     connect_res = connect_fut => {
                         match connect_res {
-                            Ok((message_id, on_incomingmessage_rx, ws)) => {
+                            Ok((Some(message_id), on_incomingmessage_rx, ws)) => {
                                 ConnectionState::AwaitingConnectRetryRequestResponse(
                                     message_id,
                                     on_incomingmessage_rx,
@@ -1625,6 +1633,11 @@ pub async fn connect_loop_state_machine(
                                     response_tx,
                                     crate::time::durable_sleep(REQUEST_TIMEOUT),
                                 )
+                            }
+                            Ok((None, _, _)) => {
+                                tracing::error!("connect() returned None message_id for retry request");
+                                let _ = response_tx.send(Err(RequestError::Internal("No message ID".to_string())));
+                                ConnectionState::MaybeReconnect(None)
                             }
                             Err(e) => {
                                 if let Err(e) = response_tx.send(Err(e.clone().into())) {
