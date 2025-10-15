@@ -1,7 +1,7 @@
 use {
     crate::{
         sign::{
-            client::MaybeVerifiedRequest,
+            client::{AttestationCallback, MaybeVerifiedRequest},
             client_errors::RequestError,
             incoming::HandleError,
             priority_future::PriorityReceiver,
@@ -641,7 +641,7 @@ enum ConnectionState {
         u64, // message_id to use when sending the request
         tokio::sync::mpsc::UnboundedReceiver<IncomingMessage>,
         ConnectWebSocket,
-        Box<dyn Fn(String) -> Params + Send>,
+        AttestationCallback,
         tokio::sync::oneshot::Receiver<String>, // attestation receiver (created by state machine)
         tokio::sync::oneshot::Sender<Result<Response, RequestError>>,
     ),
@@ -654,7 +654,7 @@ enum ConnectionState {
         u64, // current message_id (next will be +1)
         tokio::sync::mpsc::UnboundedReceiver<IncomingMessage>,
         ConnectWebSocket,
-        Box<dyn Fn(String) -> Params + Send>,
+        AttestationCallback,
         tokio::sync::oneshot::Receiver<String>,
         tokio::sync::oneshot::Sender<Result<Response, RequestError>>,
     ),

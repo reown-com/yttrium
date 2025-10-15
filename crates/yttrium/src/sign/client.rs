@@ -45,10 +45,13 @@ use {
 
 const RELAY_URL: &str = "wss://relay.walletconnect.org";
 
+// Type alias for the callback that creates params with attestation
+pub(crate) type AttestationCallback = Box<dyn Fn(String) -> Params + Send>;
+
 // Abstraction for requests that may need Verify API attestation (internal)
 pub(crate) enum MaybeVerifiedRequest {
     Unverified(Params),
-    Verified(Box<dyn Fn(String) -> Params + Send>),
+    Verified(AttestationCallback),
 }
 
 // Type aliases to reduce clippy::type-complexity warnings for channel message types
@@ -1203,7 +1206,7 @@ impl Client {
 
     async fn do_verified_request<T: DeserializeOwned>(
         &mut self,
-        callback: Box<dyn Fn(String) -> Params + Send>,
+        callback: AttestationCallback,
     ) -> Result<T, RequestError> {
         tracing::debug!("Connect: Call (verified)");
 
