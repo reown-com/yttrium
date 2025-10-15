@@ -569,6 +569,95 @@ impl TonClient {
 mod tests {
     use super::*;
 
+    fn create_test_client() -> TonClient {
+        TonClient::new(
+            TonClientConfig {
+                network_id: "mainnet".to_string(),
+            },
+            "test-project".into(),
+            #[cfg(feature = "chain_abstraction_client")]
+            crate::pulse::get_pulse_metadata(),
+        )
+    }
+
+    #[test]
+    fn test_generate_keypair_from_ton_mnemonic_valid() {
+        // Test with known TON mnemonic
+        let client = create_test_client();
+        let mnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about".to_string();
+        
+        let result = client.generate_keypair_from_ton_mnemonic(mnemonic);
+        assert!(result.is_ok());
+        
+        let keypair = result.unwrap();
+        assert!(!keypair.sk.is_empty());
+        assert!(!keypair.pk.is_empty());
+        
+        // Verify the keypair can be used to generate an address
+        let address_result = client.get_address_from_keypair(&keypair);
+        assert!(address_result.is_ok());
+    }
+
+    #[test]
+    fn test_generate_keypair_from_ton_mnemonic_invalid() {
+        // Test error handling
+        let client = create_test_client();
+        
+        // Test with invalid mnemonic (too short)
+        let invalid_mnemonic = "abandon abandon abandon".to_string();
+        let result = client.generate_keypair_from_ton_mnemonic(invalid_mnemonic);
+        assert!(result.is_err());
+        
+        // Test with empty mnemonic
+        let empty_mnemonic = "".to_string();
+        let result = client.generate_keypair_from_ton_mnemonic(empty_mnemonic);
+        assert!(result.is_err());
+        
+        // Test with invalid words
+        let invalid_words = "invalid invalid invalid invalid invalid invalid invalid invalid invalid invalid invalid invalid".to_string();
+        let result = client.generate_keypair_from_ton_mnemonic(invalid_words);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_generate_keypair_from_bip39_mnemonic_valid() {
+        // Test with known BIP39 phrase
+        let client = create_test_client();
+        let phrase = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+        
+        let result = client.generate_keypair_from_bip39_mnemonic(phrase);
+        assert!(result.is_ok());
+        
+        let keypair = result.unwrap();
+        assert!(!keypair.sk.is_empty());
+        assert!(!keypair.pk.is_empty());
+        
+        // Verify the keypair can be used to generate an address
+        let address_result = client.get_address_from_keypair(&keypair);
+        assert!(address_result.is_ok());
+    }
+
+    #[test]
+    fn test_generate_keypair_from_bip39_mnemonic_invalid() {
+        // Test error handling
+        let client = create_test_client();
+        
+        // Test with invalid mnemonic (too short)
+        let invalid_phrase = "abandon abandon abandon";
+        let result = client.generate_keypair_from_bip39_mnemonic(invalid_phrase);
+        assert!(result.is_err());
+        
+        // Test with empty phrase
+        let empty_phrase = "";
+        let result = client.generate_keypair_from_bip39_mnemonic(empty_phrase);
+        assert!(result.is_err());
+        
+        // Test with invalid words
+        let invalid_words = "invalid invalid invalid invalid invalid invalid invalid invalid invalid invalid invalid invalid";
+        let result = client.generate_keypair_from_bip39_mnemonic(invalid_words);
+        assert!(result.is_err());
+    }
+
     #[test]
     fn test_unbounceable_address_format_for_known_pubkey() {
         // Public key from repro example
