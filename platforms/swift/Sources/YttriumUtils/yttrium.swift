@@ -1231,6 +1231,10 @@ public protocol TonClientProtocol: AnyObject, Sendable {
     
     func generateKeypair()  -> Keypair
     
+    func generateKeypairFromBip39Mnemonic(mnemonic: String) throws  -> Keypair
+    
+    func generateKeypairFromTonMnemonic(mnemonic: String) throws  -> Keypair
+    
     func getAddressFromKeypair(keypair: Keypair) throws  -> WalletIdentity
     
     func sendMessage(network: String, from: String, keypair: Keypair, validUntil: UInt32, messages: [SendTxMessage]) async throws  -> String
@@ -1320,6 +1324,22 @@ open func broadcastMessage(from: String, keypair: Keypair, validUntil: UInt32, m
 open func generateKeypair() -> Keypair  {
     return try!  FfiConverterTypeKeypair_lift(try! rustCall() {
     uniffi_yttrium_fn_method_tonclient_generate_keypair(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+open func generateKeypairFromBip39Mnemonic(mnemonic: String)throws  -> Keypair  {
+    return try  FfiConverterTypeKeypair_lift(try rustCallWithError(FfiConverterTypeTonError_lift) {
+    uniffi_yttrium_fn_method_tonclient_generate_keypair_from_bip39_mnemonic(self.uniffiClonePointer(),
+        FfiConverterString.lower(mnemonic),$0
+    )
+})
+}
+    
+open func generateKeypairFromTonMnemonic(mnemonic: String)throws  -> Keypair  {
+    return try  FfiConverterTypeKeypair_lift(try rustCallWithError(FfiConverterTypeTonError_lift) {
+    uniffi_yttrium_fn_method_tonclient_generate_keypair_from_ton_mnemonic(self.uniffiClonePointer(),
+        FfiConverterString.lower(mnemonic),$0
     )
 })
 }
@@ -10717,6 +10737,12 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_yttrium_checksum_method_tonclient_generate_keypair() != 3598) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_method_tonclient_generate_keypair_from_bip39_mnemonic() != 59997) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_method_tonclient_generate_keypair_from_ton_mnemonic() != 12150) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_yttrium_checksum_method_tonclient_get_address_from_keypair() != 27441) {
