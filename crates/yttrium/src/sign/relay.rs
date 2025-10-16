@@ -100,21 +100,21 @@ impl From<CloseReason> for ConnectError {
 
 // Common return type for both connection functions
 type ConnectOutput = (
-    u64, // message_id: either the sent request ID or next available ID
+    u64, // next_message_id (next available ID for sending)
     tokio::sync::mpsc::UnboundedReceiver<IncomingMessage>,
     ConnectWebSocket,
 );
 
-// Connect to relay, optionally sending an initial request
-// If initial_req is Some, sends it immediately and returns the ID used
-// If initial_req is None, returns the next available ID for later use
+// Connect to relay, optionally sending a prepared initial request
+// Returns (next_message_id, rx, ws)
+// - next_message_id is the next available ID for future messages
 // TODO: When relay supports it, initial_req will be sent as a query param in the URL
 async fn connect(
     relay_url: String,
     project_id: ProjectId,
     key: &SigningKey,
     topics: Vec<Topic>,
-    initial_req: Option<Params>,
+    initial_req: Option<PreparedMessage>,
     cleanup_rx: tokio_util::sync::CancellationToken,
     probe_group: Option<String>,
 ) -> Result<ConnectOutput, ConnectError> {
@@ -328,12 +328,12 @@ async fn connect(
         }
 
         // Send the initial request if provided
-        if let Some(params) = initial_req {
-            send_websocket_message(
+        if let Some(prepared) = initial_req {
+            send_prepared_message(
                 &(outgoing_tx.clone(), close_tx.clone()),
-                message_id,
-                params,
+                &prepared,
             )?;
+            message_id = prepared.next_message_id;
         }
 
         Ok((message_id, on_incomingmessage_rx, (outgoing_tx, close_tx)))
@@ -535,28 +535,49 @@ async fn connect(
             },
         );
 
-        if let Some(params) = initial_req {
-            send_websocket_message(&ws_handle, message_id, params)?;
+        if let Some(prepared) = initial_req {
+            send_prepared_message(&ws_handle, &prepared)?;
+            message_id = prepared.next_message_id;
         }
 
         Ok((message_id, on_incomingmessage_rx, ws_handle))
     }
 }
 
-// Helper to send a websocket message
-fn send_websocket_message(
-    ws: &ConnectWebSocket,
-    message_id: u64,
+// Represents a prepared websocket message ready to be sent
+#[derive(Clone)]
+struct PreparedMessage {
+    sent_message_id: u64,
+    next_message_id: u64,
+    serialized: String,
+}
+
+// Prepare a websocket message (allocates ID and serializes)
+fn prepare_websocket_message(
+    next_message_id: u64,
     params: Params,
-) -> Result<(), ConnectError> {
+) -> Result<PreparedMessage, ConnectError> {
+    let sent_message_id = next_message_id;
     let request =
-        Payload::Request(Request::new(MessageId::new(message_id), params));
+        Payload::Request(Request::new(MessageId::new(sent_message_id), params));
     let serialized = serde_json::to_string(&request)
         .map_err(|e| ConnectError::ShouldNeverHappen(e.to_string()))?;
 
+    Ok(PreparedMessage {
+        sent_message_id,
+        next_message_id: sent_message_id + 1,
+        serialized,
+    })
+}
+
+// Send a prepared message over the websocket
+fn send_prepared_message(
+    ws: &ConnectWebSocket,
+    prepared: &PreparedMessage,
+) -> Result<(), ConnectError> {
     #[cfg(target_arch = "wasm32")]
     {
-        ws.0.send_with_str(&serialized).map_err(|e| {
+        ws.0.send_with_str(&prepared.serialized).map_err(|e| {
             ConnectError::ConnectFail(
                 e.as_string().unwrap_or("unknown error".to_string()),
             )
@@ -565,11 +586,14 @@ fn send_websocket_message(
 
     #[cfg(not(target_arch = "wasm32"))]
     {
-        ws.0.send(serialized)
+        ws.0.send(prepared.serialized.clone())
             .map_err(|e| ConnectError::ConnectFail(e.to_string()))?;
     }
 
-    tracing::debug!("sent websocket message with message_id={}", message_id);
+    tracing::debug!(
+        "sent websocket message with message_id={}",
+        prepared.sent_message_id
+    );
     Ok(())
 }
 
@@ -596,6 +620,7 @@ fn spawn_attestation_fetch() -> tokio::sync::oneshot::Receiver<String> {
     attestation_rx
 }
 
+#[derive(Clone, Copy)]
 struct BackoffState {
     attempt: usize,
 }
@@ -607,7 +632,8 @@ enum ConnectionState {
     ConnectSubscribe(BackoffState),
     AwaitingSubscribeResponse(
         BackoffState,
-        u64,
+        u64, // sent_message_id (waiting for response with this ID)
+        u64, // next_message_id (for sending future messages)
         tokio::sync::mpsc::UnboundedReceiver<IncomingMessage>,
         ConnectWebSocket,
         DurableSleep,
@@ -620,14 +646,15 @@ enum ConnectionState {
         ),
     ),
     AwaitingConnectRequestResponse(
-        u64,
+        u64, // sent_message_id (waiting for response with this ID)
+        u64, // next_message_id (for sending future messages)
         tokio::sync::mpsc::UnboundedReceiver<IncomingMessage>,
         ConnectWebSocket,
         (tokio::sync::oneshot::Sender<Result<Response, RequestError>>,),
         DurableSleep,
     ),
     ConnectRequestAwaitingAttestation(
-        u64, // message_id to use when sending the request
+        u64, // next available message_id (will use this and increment)
         tokio::sync::mpsc::UnboundedReceiver<IncomingMessage>,
         ConnectWebSocket,
         AttestationCallback,
@@ -640,7 +667,7 @@ enum ConnectionState {
         ConnectWebSocket,
     ),
     ConnectedAwaitingAttestation(
-        u64, // current message_id (next will be +1)
+        u64, // next available message_id (will use this and increment)
         tokio::sync::mpsc::UnboundedReceiver<IncomingMessage>,
         ConnectWebSocket,
         AttestationCallback,
@@ -648,7 +675,8 @@ enum ConnectionState {
         tokio::sync::oneshot::Sender<Result<Response, RequestError>>,
     ),
     AwaitingRequestResponse(
-        u64,
+        u64, // sent_message_id (waiting for response with this ID)
+        u64, // next_message_id (for sending future messages)
         tokio::sync::mpsc::UnboundedReceiver<IncomingMessage>,
         ConnectWebSocket,
         (Params, tokio::sync::oneshot::Sender<Result<Response, RequestError>>),
@@ -658,7 +686,8 @@ enum ConnectionState {
         (Params, tokio::sync::oneshot::Sender<Result<Response, RequestError>>),
     ),
     AwaitingConnectRetryRequestResponse(
-        u64,
+        u64, // sent_message_id (waiting for response with this ID)
+        u64, // next_message_id (for sending future messages)
         tokio::sync::mpsc::UnboundedReceiver<IncomingMessage>,
         ConnectWebSocket,
         tokio::sync::oneshot::Sender<Result<Response, RequestError>>,
@@ -673,14 +702,19 @@ impl std::fmt::Debug for ConnectionState {
             ConnectionState::Poisoned => "Poisoned",
             ConnectionState::MaybeReconnect(_) => "MaybeReconnect(_)",
             ConnectionState::ConnectSubscribe(_) => "ConnectSubscribe(_)",
-            ConnectionState::AwaitingSubscribeResponse(_, _, _, _, _) => {
-                "AwaitingSubscribeResponse(_, _, _, _, _)"
+            ConnectionState::AwaitingSubscribeResponse(_, _, _, _, _, _) => {
+                "AwaitingSubscribeResponse(_, _, _, _, _, _)"
             }
             ConnectionState::Backoff(_) => "Backoff(_)",
             ConnectionState::ConnectRequest(_) => "ConnectRequest(_)",
-            ConnectionState::AwaitingConnectRequestResponse(_, _, _, _, _) => {
-                "AwaitingConnectRequestResponse(_, _, _, _, _)"
-            }
+            ConnectionState::AwaitingConnectRequestResponse(
+                _,
+                _,
+                _,
+                _,
+                _,
+                _,
+            ) => "AwaitingConnectRequestResponse(_, _, _, _, _, _)",
             ConnectionState::ConnectRequestAwaitingAttestation(
                 _,
                 _,
@@ -693,8 +727,8 @@ impl std::fmt::Debug for ConnectionState {
             ConnectionState::ConnectedAwaitingAttestation(_, _, _, _, _, _) => {
                 "ConnectedAwaitingAttestation(_, _, _, _, _, _)"
             }
-            ConnectionState::AwaitingRequestResponse(_, _, _, _, _) => {
-                "AwaitingRequestResponse(_, _, _, _, _)"
+            ConnectionState::AwaitingRequestResponse(_, _, _, _, _, _) => {
+                "AwaitingRequestResponse(_, _, _, _, _, _)"
             }
             ConnectionState::ConnectRetryRequest(_) => "ConnectRetryRequest(_)",
             ConnectionState::AwaitingConnectRetryRequestResponse(
@@ -703,7 +737,8 @@ impl std::fmt::Debug for ConnectionState {
                 _,
                 _,
                 _,
-            ) => "AwaitingConnectRetryRequestResponse(_, _, _, _, _)",
+                _,
+            ) => "AwaitingConnectRetryRequestResponse(_, _, _, _, _, _)",
         };
         write!(f, "{name}")
     }
@@ -879,21 +914,37 @@ pub async fn connect_loop_state_machine(
                         return;
                     }
                 };
+                let prepared = prepare_websocket_message(
+                    MIN_RPC_ID,
+                    Params::BatchSubscribe(BatchSubscribe { topics }),
+                );
+                let prepared = match prepared {
+                    Ok(p) => p,
+                    Err(e) => {
+                        tracing::error!(
+                            "Failed to prepare batch subscribe: {e:?}"
+                        );
+                        state = ConnectionState::Backoff(backoff_state);
+                        continue;
+                    }
+                };
+
                 let connect_res = connect(
                     relay_url.clone(),
                     project_id.clone(),
                     &key,
                     vec![],
-                    Some(Params::BatchSubscribe(BatchSubscribe { topics })),
+                    Some(prepared.clone()),
                     cleanup_rx.clone(),
                     probe_group.clone(),
                 )
                 .await;
                 match connect_res {
-                    Ok((message_id, on_incomingmessage_rx, ws)) => {
+                    Ok((next_message_id, on_incomingmessage_rx, ws)) => {
                         ConnectionState::AwaitingSubscribeResponse(
                             backoff_state,
-                            message_id,
+                            prepared.sent_message_id,
+                            next_message_id,
                             on_incomingmessage_rx,
                             ws,
                             crate::time::durable_sleep(REQUEST_TIMEOUT),
@@ -919,7 +970,8 @@ pub async fn connect_loop_state_machine(
             }
             ConnectionState::AwaitingSubscribeResponse(
                 backoff_state,
-                message_id,
+                sent_message_id,
+                next_message_id,
                 mut on_incomingmessage_rx,
                 ws,
                 mut sleep,
@@ -947,20 +999,22 @@ pub async fn connect_loop_state_machine(
                                             tracing::warn!("ignoring message request in AwaitingSubscribeResponse state: {:?}", request);
                                             ConnectionState::AwaitingSubscribeResponse(
                                                 backoff_state,
-                                                message_id,
+                                                sent_message_id,
+                                                next_message_id,
                                                 on_incomingmessage_rx,
                                                 ws,
                                                 sleep,
                                             )
                                         }
                                         Payload::Response(response) => {
-                                            if id == MessageId::new(message_id) {
-                                                ConnectionState::Connected(message_id, on_incomingmessage_rx, ws)
+                                            if id == MessageId::new(sent_message_id) {
+                                                ConnectionState::Connected(next_message_id, on_incomingmessage_rx, ws)
                                             } else {
                                                 tracing::warn!("ignoring message response in AwaitingSubscribeResponse state: {:?}", response);
                                                 ConnectionState::AwaitingSubscribeResponse(
                                                     backoff_state,
-                                                    message_id,
+                                                    sent_message_id,
+                                                    next_message_id,
                                                     on_incomingmessage_rx,
                                                     ws,
                                                     sleep,
@@ -1017,117 +1071,134 @@ pub async fn connect_loop_state_machine(
                 };
 
                 // Handle MaybeVerifiedRequest
-                match request {
-                    MaybeVerifiedRequest::Unverified(params) => {
-                        // Simple case: connect with request immediately
-                        let connect_res = connect(
-                            relay_url.clone(),
-                            project_id.clone(),
-                            &key,
-                            topics,
-                            Some(params),
-                            cleanup_rx.clone(),
-                            probe_group.clone(),
-                        )
-                        .await;
+                let next_state = if let MaybeVerifiedRequest::Unverified(
+                    params,
+                ) = request
+                {
+                    // Prepare the message first (allocates ID)
+                    let prepared = prepare_websocket_message(
+                        MIN_RPC_ID, params,
+                    )
+                    .expect(
+                        "Failed to serialize Params - this should never happen",
+                    );
 
-                        match connect_res {
-                            Ok((message_id, on_incomingmessage_rx, ws)) => {
-                                ConnectionState::AwaitingConnectRequestResponse(
-                                    message_id,
-                                    on_incomingmessage_rx,
-                                    ws,
-                                    (response_tx,),
-                                    crate::time::durable_sleep(REQUEST_TIMEOUT),
-                                )
+                    // Connect with the prepared request
+                    let connect_res = connect(
+                        relay_url.clone(),
+                        project_id.clone(),
+                        &key,
+                        topics,
+                        Some(prepared.clone()),
+                        cleanup_rx.clone(),
+                        probe_group.clone(),
+                    )
+                    .await;
+
+                    match connect_res {
+                        Ok((next_message_id, on_incomingmessage_rx, ws)) => {
+                            ConnectionState::AwaitingConnectRequestResponse(
+                                prepared.sent_message_id,
+                                next_message_id,
+                                on_incomingmessage_rx,
+                                ws,
+                                (response_tx,),
+                                crate::time::durable_sleep(REQUEST_TIMEOUT),
+                            )
+                        }
+                        Err(e) => {
+                            if let Err(e) =
+                                response_tx.send(Err(e.clone().into()))
+                            {
+                                tracing::warn!(
+                                    "Failed to send error response: {e:?}"
+                                );
                             }
-                            Err(e) => {
-                                if let Err(e) =
-                                    response_tx.send(Err(e.clone().into()))
-                                {
-                                    tracing::warn!(
-                                        "Failed to send error response: {e:?}"
+                            match e {
+                                ConnectError::ConnectFail(reason) => {
+                                    tracing::debug!(
+                                        "ConnectRequest failed: {reason}"
                                     );
+                                    ConnectionState::MaybeReconnect(None)
                                 }
-                                match e {
-                                    ConnectError::ConnectFail(reason) => {
-                                        tracing::debug!(
-                                            "ConnectRequest failed: {reason}"
-                                        );
-                                        ConnectionState::MaybeReconnect(None)
-                                    }
-                                    ConnectError::Cleanup => break,
-                                    ConnectError::InvalidAuth => {
-                                        ConnectionState::Poisoned
-                                    }
-                                    ConnectError::ShouldNeverHappen(reason) => {
-                                        tracing::error!("ConnectRequest should never happen: {reason}");
-                                        ConnectionState::Idle
-                                    }
+                                ConnectError::Cleanup => break,
+                                ConnectError::InvalidAuth => {
+                                    ConnectionState::Poisoned
+                                }
+                                ConnectError::ShouldNeverHappen(reason) => {
+                                    tracing::error!("ConnectRequest should never happen: {reason}");
+                                    ConnectionState::Idle
                                 }
                             }
                         }
                     }
-                    MaybeVerifiedRequest::Verified(callback) => {
-                        // PARALLEL EXECUTION: Spawn attestation AND connect websocket at same time
-                        let attestation_rx = spawn_attestation_fetch();
+                } else if let MaybeVerifiedRequest::Verified(callback) = request
+                {
+                    // PARALLEL EXECUTION: Spawn attestation AND connect websocket at same time
+                    let attestation_rx = spawn_attestation_fetch();
 
-                        // Start websocket connection immediately (parallel with attestation)
-                        let connect_res = connect(
-                            relay_url.clone(),
-                            project_id.clone(),
-                            &key,
-                            topics,
-                            None,
-                            cleanup_rx.clone(),
-                            probe_group.clone(),
-                        )
-                        .await;
+                    // Start websocket connection immediately (parallel with attestation)
+                    let connect_res = connect(
+                        relay_url.clone(),
+                        project_id.clone(),
+                        &key,
+                        topics,
+                        None,
+                        cleanup_rx.clone(),
+                        probe_group.clone(),
+                    )
+                    .await;
 
-                        match connect_res {
-                            Ok((message_id, on_incomingmessage_rx, ws)) => {
-                                // Websocket connected! Now wait for attestation
-                                // message_id is the next available ID for when attestation arrives
-                                ConnectionState::ConnectRequestAwaitingAttestation(
-                                    message_id,
-                                    on_incomingmessage_rx,
-                                    ws,
-                                    callback,
-                                    attestation_rx,
-                                    response_tx,
-                                )
+                    match connect_res {
+                        Ok((next_message_id, on_incomingmessage_rx, ws)) => {
+                            // Websocket connected! Now wait for attestation
+                            ConnectionState::ConnectRequestAwaitingAttestation(
+                                next_message_id,
+                                on_incomingmessage_rx,
+                                ws,
+                                callback,
+                                attestation_rx,
+                                response_tx,
+                            )
+                        }
+                        Err(e) => {
+                            if let Err(e) =
+                                response_tx.send(Err(e.clone().into()))
+                            {
+                                tracing::warn!(
+                                    "Failed to send error response: {e:?}"
+                                );
                             }
-                            Err(e) => {
-                                if let Err(e) =
-                                    response_tx.send(Err(e.clone().into()))
-                                {
-                                    tracing::warn!(
-                                        "Failed to send error response: {e:?}"
+                            match e {
+                                ConnectError::ConnectFail(reason) => {
+                                    tracing::debug!(
+                                        "ConnectRequest failed: {reason}"
                                     );
+                                    ConnectionState::MaybeReconnect(None)
                                 }
-                                match e {
-                                    ConnectError::ConnectFail(reason) => {
-                                        tracing::debug!(
-                                            "ConnectRequest failed: {reason}"
-                                        );
-                                        ConnectionState::MaybeReconnect(None)
-                                    }
-                                    ConnectError::Cleanup => break,
-                                    ConnectError::InvalidAuth => {
-                                        ConnectionState::Poisoned
-                                    }
-                                    ConnectError::ShouldNeverHappen(reason) => {
-                                        tracing::error!("ConnectRequest should never happen: {reason}");
-                                        ConnectionState::Idle
-                                    }
+                                ConnectError::Cleanup => break,
+                                ConnectError::InvalidAuth => {
+                                    ConnectionState::Poisoned
+                                }
+                                ConnectError::ShouldNeverHappen(reason) => {
+                                    tracing::error!("ConnectRequest should never happen: {reason}");
+                                    ConnectionState::Idle
                                 }
                             }
                         }
                     }
-                }
+                } else {
+                    // This should never happen - request should be either Unverified or Verified
+                    tracing::error!(
+                        "Unexpected request type in ConnectRequest handler"
+                    );
+                    ConnectionState::Idle
+                };
+                next_state
             }
             ConnectionState::AwaitingConnectRequestResponse(
-                message_id,
+                sent_message_id,
+                next_message_id,
                 mut on_incomingmessage_rx,
                 ws,
                 (response_tx,),
@@ -1165,7 +1236,8 @@ pub async fn connect_loop_state_machine(
                                         Payload::Request(payload_request) => {
                                             tracing::warn!("ignoring message request in AwaitingSubscribeResponse state: {:?}", payload_request);
                                             ConnectionState::AwaitingConnectRequestResponse(
-                                                message_id,
+                                                sent_message_id,
+                                                next_message_id,
                                                 on_incomingmessage_rx,
                                                 ws,
                                                 (response_tx,),
@@ -1173,17 +1245,18 @@ pub async fn connect_loop_state_machine(
                                             )
                                         }
                                         Payload::Response(response) => {
-                                            if id == MessageId::new(message_id) {
+                                            if id == MessageId::new(sent_message_id) {
                                                 if let Err(e) =
                                                     response_tx.send(Ok(response))
                                                 {
                                                     tracing::warn!("Failed to send response: {e:?}");
                                                 }
-                                                ConnectionState::Connected(message_id, on_incomingmessage_rx, ws)
+                                                ConnectionState::Connected(next_message_id, on_incomingmessage_rx, ws)
                                             } else {
                                                 tracing::warn!("ignoring message response in AwaitingSubscribeResponse state: {:?}", response);
                                                 ConnectionState::AwaitingConnectRequestResponse(
-                                                    message_id,
+                                                    sent_message_id,
+                                                    next_message_id,
                                                     on_incomingmessage_rx,
                                                     ws,
                                                     (response_tx,),
@@ -1243,12 +1316,16 @@ pub async fn connect_loop_state_machine(
                         tracing::debug!("Attestation received in ConnectRequestAwaitingAttestation state");
                         let params = callback(attestation);
 
-                        // Send the request via websocket using the pre-allocated message_id
-                        match send_websocket_message(&ws, message_id, params) {
+                        // Prepare and send the request
+                        let prepared = prepare_websocket_message(message_id, params)
+                            .expect("Failed to serialize Params - this should never happen");
+
+                        match send_prepared_message(&ws, &prepared) {
                             Ok(()) => {
-                                tracing::debug!("Sent verified request with attestation, message_id={}", message_id);
+                                tracing::debug!("Sent verified request with attestation, message_id={}", prepared.sent_message_id);
                                 ConnectionState::AwaitingConnectRequestResponse(
-                                    message_id,
+                                    prepared.sent_message_id,
+                                    prepared.next_message_id,
                                     on_incomingmessage_rx,
                                     ws,
                                     (response_tx,),
@@ -1367,31 +1444,26 @@ pub async fn connect_loop_state_machine(
                             match request {
                                 MaybeVerifiedRequest::Unverified(params) => {
                                     // Send immediately for unverified requests
-                                    let message_id = message_id + 1;
-                                    let payload_request = Payload::Request(Request::new(
-                                        MessageId::new(message_id),
-                                        params.clone(),
-                                    ));
-                                    let serialized = serde_json::to_string(&payload_request)
-                                        .map_err(|e| {
-                                            RequestError::ShouldNeverHappen(format!(
-                                                "Failed to serialize request: {e}"
-                                            ))
-                                        })
-                                        .expect("TODO");
-                                    tracing::debug!("sending websocket message: {serialized}");
-                                    #[cfg(target_arch = "wasm32")]
-                                    ws.0.send_with_str(&serialized).expect("TODO");
-                                    #[cfg(not(target_arch = "wasm32"))]
-                                    ws.0.send(serialized).expect("TODO");
+                                    let prepared = prepare_websocket_message(message_id, params.clone())
+                                        .expect("Failed to serialize Params - this should never happen");
 
-                                    ConnectionState::AwaitingRequestResponse(
-                                        message_id,
-                                        on_incomingmessage_rx,
-                                        ws,
-                                        (params, response_tx),
-                                        crate::time::durable_sleep(REQUEST_TIMEOUT),
-                                    )
+                                    match send_prepared_message(&ws, &prepared) {
+                                        Ok(()) => {
+                                            ConnectionState::AwaitingRequestResponse(
+                                                prepared.sent_message_id,
+                                                prepared.next_message_id,
+                                                on_incomingmessage_rx,
+                                                ws,
+                                                (params, response_tx),
+                                                crate::time::durable_sleep(REQUEST_TIMEOUT),
+                                            )
+                                        }
+                                        Err(e) => {
+                                            tracing::error!("Failed to send websocket message: {e:?}");
+                                            let _ = response_tx.send(Err(RequestError::Offline));
+                                            ConnectionState::MaybeReconnect(None)
+                                        }
+                                    }
                                 }
                                 MaybeVerifiedRequest::Verified(callback) => {
                                     // Spawn attestation fetch and transition to awaiting state
@@ -1488,14 +1560,17 @@ pub async fn connect_loop_state_machine(
                     Ok(attestation) = &mut attestation_receiver => {
                         tracing::debug!("Attestation received in ConnectedAwaitingAttestation state");
                         let params = callback(attestation);
-                        let new_message_id = message_id + 1;
 
-                        // Send the request with attestation
-                        match send_websocket_message(&ws, new_message_id, params.clone()) {
+                        // Prepare and send the request with attestation
+                        let prepared = prepare_websocket_message(message_id, params.clone())
+                            .expect("Failed to serialize Params - this should never happen");
+
+                        match send_prepared_message(&ws, &prepared) {
                             Ok(()) => {
-                                tracing::debug!("Sent verified request with attestation, message_id={}", new_message_id);
+                                tracing::debug!("Sent verified request with attestation, message_id={}", prepared.sent_message_id);
                                 ConnectionState::AwaitingRequestResponse(
-                                    new_message_id,
+                                    prepared.sent_message_id,
+                                    prepared.next_message_id,
                                     on_incomingmessage_rx,
                                     ws,
                                     (params, response_tx),
@@ -1553,7 +1628,8 @@ pub async fn connect_loop_state_machine(
                 }
             }
             ConnectionState::AwaitingRequestResponse(
-                message_id,
+                sent_message_id,
+                next_message_id,
                 mut on_incomingmessage_rx,
                 ws,
                 (request, response_tx),
@@ -1596,7 +1672,8 @@ pub async fn connect_loop_state_machine(
                                                 _ => tracing::warn!("ignoring message request in AwaitingRequestResponse state: {:?}", payload_request),
                                             }
                                             ConnectionState::AwaitingRequestResponse(
-                                                message_id,
+                                                sent_message_id,
+                                                next_message_id,
                                                 on_incomingmessage_rx,
                                                 ws,
                                                 (request, response_tx),
@@ -1604,17 +1681,18 @@ pub async fn connect_loop_state_machine(
                                             )
                                         }
                                         Payload::Response(response) => {
-                                            if id == MessageId::new(message_id) {
+                                            if id == MessageId::new(sent_message_id) {
                                                 if let Err(e) =
                                                     response_tx.send(Ok(response))
                                                 {
                                                     tracing::warn!("Failed to send response in AwaitingRequestResponse state: {e:?}");
                                                 }
-                                                ConnectionState::Connected(message_id, on_incomingmessage_rx, ws)
+                                                ConnectionState::Connected(next_message_id, on_incomingmessage_rx, ws)
                                             } else {
                                                 tracing::warn!("ignoring message response in AwaitingSubscribeResponse state: {:?}", response);
                                                 ConnectionState::AwaitingRequestResponse(
-                                                    message_id,
+                                                    sent_message_id,
+                                                    next_message_id,
                                                     on_incomingmessage_rx,
                                                     ws,
                                                     (request, response_tx),
@@ -1660,21 +1738,30 @@ pub async fn connect_loop_state_machine(
                         return;
                     }
                 };
+
+                // Prepare the message first (allocates ID)
+                let prepared =
+                    prepare_websocket_message(MIN_RPC_ID, request.clone())
+                        .expect(
+                        "Failed to serialize Params - this should never happen",
+                    );
+
                 let connect_fut = connect(
                     relay_url.clone(),
                     project_id.clone(),
                     &key,
                     topics,
-                    Some(request.clone()),
+                    Some(prepared.clone()),
                     cleanup_rx.clone(),
                     probe_group.clone(),
                 );
                 tokio::select! {
                     connect_res = connect_fut => {
                         match connect_res {
-                            Ok((message_id, on_incomingmessage_rx, ws)) => {
+                            Ok((next_message_id, on_incomingmessage_rx, ws)) => {
                                 ConnectionState::AwaitingConnectRetryRequestResponse(
-                                    message_id,
+                                    prepared.sent_message_id,
+                                    next_message_id,
                                     on_incomingmessage_rx,
                                     ws,
                                     response_tx,
@@ -1710,7 +1797,8 @@ pub async fn connect_loop_state_machine(
                 }
             }
             ConnectionState::AwaitingConnectRetryRequestResponse(
-                message_id,
+                sent_message_id,
+                next_message_id,
                 mut on_incomingmessage_rx,
                 ws,
                 response_tx,
@@ -1746,7 +1834,8 @@ pub async fn connect_loop_state_machine(
                                             // TODO consider handling anyway, if possible
                                             tracing::warn!("ignoring message request in AwaitingConnectRetryRequestResponse state: {:?}", request);
                                             ConnectionState::AwaitingConnectRetryRequestResponse(
-                                                message_id,
+                                                sent_message_id,
+                                                next_message_id,
                                                 on_incomingmessage_rx,
                                                 ws,
                                                 response_tx,
@@ -1754,17 +1843,18 @@ pub async fn connect_loop_state_machine(
                                             )
                                         }
                                         Payload::Response(response) => {
-                                            if id == MessageId::new(message_id) {
+                                            if id == MessageId::new(sent_message_id) {
                                                 if let Err(e) =
                                                     response_tx.send(Ok(response))
                                                 {
                                                     tracing::warn!("Failed to send response: {e:?}");
                                                 }
-                                                ConnectionState::Connected(message_id, on_incomingmessage_rx, ws)
+                                                ConnectionState::Connected(next_message_id, on_incomingmessage_rx, ws)
                                             } else {
                                                 tracing::warn!("ignoring message response in AwaitingConnectRetryRequestResponse state: {:?}", response);
                                                 ConnectionState::AwaitingConnectRetryRequestResponse(
-                                                    message_id,
+                                                    sent_message_id,
+                                                    next_message_id,
                                                     on_incomingmessage_rx,
                                                     ws,
                                                     response_tx,
