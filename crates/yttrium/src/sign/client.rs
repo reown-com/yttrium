@@ -45,9 +45,20 @@ use {
 
 const RELAY_URL: &str = "wss://relay.walletconnect.org";
 
+// Type alias for the callback that creates params with attestation
+pub(crate) type AttestationCallback = Box<dyn Fn(String) -> Params + Send>;
+
+// Abstraction for requests that may need Verify API attestation (internal)
+pub(crate) enum MaybeVerifiedRequest {
+    Unverified(Params),
+    Verified(AttestationCallback),
+}
+
 // Type aliases to reduce clippy::type-complexity warnings for channel message types
-type RpcRequestMessage =
-    (Params, tokio::sync::oneshot::Sender<Result<Response, RequestError>>);
+type RpcRequestMessage = (
+    MaybeVerifiedRequest,
+    tokio::sync::oneshot::Sender<Result<Response, RequestError>>,
+);
 type RpcRequestSender = tokio::sync::mpsc::UnboundedSender<RpcRequestMessage>;
 type RpcRequestReceiver =
     tokio::sync::mpsc::UnboundedReceiver<RpcRequestMessage>;
@@ -388,22 +399,31 @@ impl Client {
             group = self.probe_group.clone(),
             probe = "sending_propose_session_request",
         );
-        self.do_request::<bool>(relay_rpc::rpc::Params::ProposeSession(
-            ProposeSession {
-                pairing_topic: pairing_info.topic.clone(),
-                session_proposal: message,
-                attestation: None, // TODO
-                analytics: Some(AnalyticsData {
-                    correlation_id: Some(rpc_id.try_into().unwrap()),
-                    chain_id: None,
-                    rpc_methods: None,
-                    tx_hashes: None,
-                    contract_addresses: None,
-                }),
-            },
-        ))
+
+        self.do_verified_request::<bool>(Box::new({
+            let pairing_topic = pairing_info.topic.clone();
+            let session_proposal_message = message.clone();
+            let correlation_id = rpc_id;
+            move |attestation: String| {
+                Params::ProposeSession(ProposeSession {
+                    pairing_topic: pairing_topic.clone(),
+                    session_proposal: session_proposal_message.clone(),
+                    attestation: Some(attestation.into()),
+                    analytics: Some(AnalyticsData {
+                        correlation_id: Some(
+                            correlation_id.try_into().unwrap(),
+                        ),
+                        chain_id: None,
+                        rpc_methods: None,
+                        tx_hashes: None,
+                        contract_addresses: None,
+                    }),
+                })
+            }
+        }))
         .await
         .map_err(ConnectError::Request)?;
+
         tracing::debug!(
             group = self.probe_group.clone(),
             probe = "propose_session_request_success",
@@ -676,7 +696,7 @@ impl Client {
             .do_request::<bool>(relay_rpc::rpc::Params::Publish(Publish {
                 topic: proposal.pairing_topic.clone(),
                 message,
-                attestation: None, // TODO
+                attestation: None,
                 ttl_secs: 300,
                 tag: 1120,
                 prompt: false,
@@ -737,14 +757,21 @@ impl Client {
         let message =
             serialize_and_encrypt_message_type0_envelope(shared_secret, &rpc)
                 .map_err(|e| RequestError::Internal(e.to_string()))?;
-        self.do_request::<bool>(relay_rpc::rpc::Params::Publish(Publish {
-            topic: topic.clone(),
-            message,
-            attestation: None, // TODO
-            ttl_secs: 300,
-            tag: 1108,
-            prompt: false,
-            analytics: None, // TODO
+
+        self.do_verified_request::<bool>(Box::new({
+            let publish_topic = topic.clone();
+            let publish_message = message.clone();
+            move |attestation: String| {
+                Params::Publish(Publish {
+                    topic: publish_topic.clone(),
+                    message: publish_message.clone(),
+                    attestation: Some(attestation.into()),
+                    ttl_secs: 300,
+                    tag: 1108,
+                    prompt: false,
+                    analytics: None,
+                })
+            }
         }))
         .await
         .map_err(|e| RequestError::Internal(e.to_string()))?;
@@ -787,7 +814,7 @@ impl Client {
         self.do_request::<bool>(relay_rpc::rpc::Params::Publish(Publish {
             topic,
             message,
-            attestation: None, // TODO
+            attestation: None,
             ttl_secs: 300,
             tag: 1109,
             prompt: false,
@@ -800,10 +827,10 @@ impl Client {
                     .try_into()
                     .unwrap(),
                 ),
-                chain_id: None,           // TODO
-                rpc_methods: None,        // TODO
-                tx_hashes: None,          // TODO
-                contract_addresses: None, // TODO
+                chain_id: None,
+                rpc_methods: None,
+                tx_hashes: None,
+                contract_addresses: None,
             }),
         }))
         .await
@@ -1081,11 +1108,11 @@ impl Client {
             self.do_request::<bool>(relay_rpc::rpc::Params::Publish(Publish {
                 topic: topic.clone(),
                 message,
-                attestation: None, // TODO
+                attestation: None,
                 ttl_secs: 86400,
                 tag: 1112,
                 prompt: false,
-                analytics: None, // TODO
+                analytics: None,
             }))
             .await
             .map_err(DisconnectError::Request)?;
@@ -1136,12 +1163,24 @@ impl Client {
 
     async fn do_request<T: DeserializeOwned>(
         &mut self,
-        params: relay_rpc::rpc::Params,
+        params: Params,
     ) -> Result<T, RequestError> {
-        tracing::debug!("Connect: Call");
+        self.do_request_internal(MaybeVerifiedRequest::Unverified(params)).await
+    }
 
+    async fn do_verified_request<T: DeserializeOwned>(
+        &mut self,
+        callback: AttestationCallback,
+    ) -> Result<T, RequestError> {
+        self.do_request_internal(MaybeVerifiedRequest::Verified(callback)).await
+    }
+
+    async fn do_request_internal<T: DeserializeOwned>(
+        &mut self,
+        request: MaybeVerifiedRequest,
+    ) -> Result<T, RequestError> {
         let (response_tx, response_rx) = tokio::sync::oneshot::channel();
-        self.request_tx.send((params, response_tx)).map_err(|e| {
+        self.request_tx.send((request, response_tx)).map_err(|e| {
             RequestError::Internal(format!(
                 "Failed to send request, request_tx closed: {e}"
             ))

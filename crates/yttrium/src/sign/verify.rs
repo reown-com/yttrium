@@ -405,6 +405,11 @@ pub enum VerifyValidation {
     Invalid,
 }
 
+pub async fn create_attestation() -> Result<String, ()> {
+    // TODO
+    Ok(String::new())
+}
+
 #[cfg(test)]
 mod tests {
     use {

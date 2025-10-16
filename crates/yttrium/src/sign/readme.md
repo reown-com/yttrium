@@ -13,19 +13,29 @@ stateDiagram-v2
     Backoff --> ConnectRequest: request_rx
     Backoff --> [*]: cleanup_rx
     Connected --> MaybeReconnect: disconnected
-    Connected --> AwaitingRequestResponse: request_rx
+    Connected --> AwaitingRequestResponse: unverified request
+    Connected --> ConnectedAwaitingAttestation: verified request
     Connected --> [*]: cleanup_rx
+    ConnectedAwaitingAttestation --> AwaitingRequestResponse: attestation received
+    ConnectedAwaitingAttestation --> MaybeReconnect: disconnected
+    ConnectedAwaitingAttestation --> Poisoned: auth error
+    ConnectedAwaitingAttestation --> [*]: cleanup_rx
     AwaitingSubscribeResponse --> Connected: response received
     AwaitingSubscribeResponse --> Poisoned: auth error
     AwaitingSubscribeResponse --> [*]: cleanup_rx
     AwaitingConnectRequestResponse --> Poisoned: auth error
-    ConnectRequest --> AwaitingConnectRequestResponse: connected
+    ConnectRequest --> AwaitingConnectRequestResponse: unverified connected
+    ConnectRequest --> ConnectRequestAwaitingAttestation: verified connected
+    ConnectRequest --> MaybeReconnect: error/timeout
+    ConnectRequestAwaitingAttestation --> AwaitingConnectRequestResponse: attestation received
+    ConnectRequestAwaitingAttestation --> MaybeReconnect: disconnected
+    ConnectRequestAwaitingAttestation --> Poisoned: auth error
+    ConnectRequestAwaitingAttestation --> [*]: cleanup_rx
     AwaitingConnectRequestResponse --> Connected: response received
     AwaitingConnectRequestResponse --> MaybeReconnect: error/timeout
     Poisoned --> Poisoned: request_rx
     AwaitingSubscribeResponse --> Backoff: error/timeout
     AwaitingConnectRequestResponse --> [*]: cleanup_rx
-    ConnectRequest --> MaybeReconnect: error/timeout
     Poisoned --> [*]: cleanup_rx
     AwaitingRequestResponse --> ConnectRetryRequest: error/timeout
     AwaitingRequestResponse --> Poisoned: auth error
