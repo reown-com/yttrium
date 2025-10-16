@@ -105,60 +105,16 @@ type ConnectOutput = (
     ConnectWebSocket,
 );
 
-// Connect with an initial request - message_id is the ID of the sent request
-async fn connect_with_request(
+// Connect to relay, optionally sending an initial request
+// If initial_req is Some, sends it immediately and returns the ID used
+// If initial_req is None, returns the next available ID for later use
+// TODO: When relay supports it, initial_req will be sent as a query param in the URL
+async fn connect(
     relay_url: String,
     project_id: ProjectId,
     key: &SigningKey,
     topics: Vec<Topic>,
-    initial_req: Params,
-    cleanup_rx: tokio_util::sync::CancellationToken,
-    probe_group: Option<String>,
-) -> Result<ConnectOutput, ConnectError> {
-    let (message_id, rx, ws) = establish_connection(
-        relay_url,
-        project_id,
-        key,
-        topics,
-        cleanup_rx,
-        probe_group,
-    )
-    .await?;
-
-    // Send the initial request with this message_id
-    send_websocket_message(&ws, message_id, initial_req)?;
-
-    Ok((message_id, rx, ws))
-}
-
-// Connect without an initial request - message_id is the next available ID for later use
-async fn connect_without_request(
-    relay_url: String,
-    project_id: ProjectId,
-    key: &SigningKey,
-    topics: Vec<Topic>,
-    cleanup_rx: tokio_util::sync::CancellationToken,
-    probe_group: Option<String>,
-) -> Result<ConnectOutput, ConnectError> {
-    // Just establish connection, don't send anything yet
-    // Caller will use the returned message_id when ready to send
-    establish_connection(
-        relay_url,
-        project_id,
-        key,
-        topics,
-        cleanup_rx,
-        probe_group,
-    )
-    .await
-}
-
-// Establish websocket connection and return the next available message_id
-async fn establish_connection(
-    relay_url: String,
-    project_id: ProjectId,
-    key: &SigningKey,
-    topics: Vec<Topic>,
+    initial_req: Option<Params>,
     cleanup_rx: tokio_util::sync::CancellationToken,
     probe_group: Option<String>,
 ) -> Result<ConnectOutput, ConnectError> {
@@ -371,7 +327,15 @@ async fn establish_connection(
             }
         }
 
-        // Return without sending - caller decides whether to send initial request
+        // Send the initial request if provided
+        if let Some(params) = initial_req {
+            send_websocket_message(
+                &(outgoing_tx.clone(), close_tx.clone()),
+                message_id,
+                params,
+            )?;
+        }
+
         Ok((message_id, on_incomingmessage_rx, (outgoing_tx, close_tx)))
     }
 
@@ -561,19 +525,21 @@ async fn establish_connection(
             }
         }
 
-        // Return without sending - caller decides whether to send initial request
-        Ok((
-            message_id,
-            on_incomingmessage_rx,
-            (
-                ws,
-                Closures {
-                    on_close: on_close_closure,
-                    on_error: on_error_closure,
-                    on_message: onmessage_closure,
-                },
-            ),
-        ))
+        // Send the initial request if provided
+        let ws_handle = (
+            ws.clone(),
+            Closures {
+                on_close: on_close_closure,
+                on_error: on_error_closure,
+                on_message: onmessage_closure,
+            },
+        );
+
+        if let Some(params) = initial_req {
+            send_websocket_message(&ws_handle, message_id, params)?;
+        }
+
+        Ok((message_id, on_incomingmessage_rx, ws_handle))
     }
 }
 
@@ -605,6 +571,29 @@ fn send_websocket_message(
 
     tracing::debug!("sent websocket message with message_id={}", message_id);
     Ok(())
+}
+
+// Helper to spawn attestation fetch task and return the receiver
+fn spawn_attestation_fetch() -> tokio::sync::oneshot::Receiver<String> {
+    let (attestation_tx, attestation_rx) = tokio::sync::oneshot::channel();
+
+    crate::spawn::spawn(async move {
+        match crate::sign::verify::create_attestation().await {
+            Ok(attestation) => {
+                tracing::debug!(
+                    "Attestation received: {} bytes",
+                    attestation.len()
+                );
+                let _ = attestation_tx.send(attestation);
+            }
+            Err(e) => {
+                tracing::error!("Failed to create attestation: {e:?}");
+                let _ = attestation_tx.send(String::new());
+            }
+        }
+    });
+
+    attestation_rx
 }
 
 struct BackoffState {
@@ -890,12 +879,12 @@ pub async fn connect_loop_state_machine(
                         return;
                     }
                 };
-                let connect_res = connect_with_request(
+                let connect_res = connect(
                     relay_url.clone(),
                     project_id.clone(),
                     &key,
                     vec![],
-                    Params::BatchSubscribe(BatchSubscribe { topics }),
+                    Some(Params::BatchSubscribe(BatchSubscribe { topics })),
                     cleanup_rx.clone(),
                     probe_group.clone(),
                 )
@@ -1031,12 +1020,12 @@ pub async fn connect_loop_state_machine(
                 match request {
                     MaybeVerifiedRequest::Unverified(params) => {
                         // Simple case: connect with request immediately
-                        let connect_res = connect_with_request(
+                        let connect_res = connect(
                             relay_url.clone(),
                             project_id.clone(),
                             &key,
                             topics,
-                            params,
+                            Some(params),
                             cleanup_rx.clone(),
                             probe_group.clone(),
                         )
@@ -1081,36 +1070,15 @@ pub async fn connect_loop_state_machine(
                     }
                     MaybeVerifiedRequest::Verified(callback) => {
                         // PARALLEL EXECUTION: Spawn attestation AND connect websocket at same time
-                        let (attestation_tx, attestation_rx) =
-                            tokio::sync::oneshot::channel();
-
-                        // Spawn attestation fetch (runs in parallel)
-                        crate::spawn::spawn(async move {
-                            match crate::sign::verify::create_attestation()
-                                .await
-                            {
-                                Ok(attestation) => {
-                                    tracing::debug!(
-                                        "Attestation received: {} bytes",
-                                        attestation.len()
-                                    );
-                                    let _ = attestation_tx.send(attestation);
-                                }
-                                Err(e) => {
-                                    tracing::error!(
-                                        "Failed to create attestation: {e:?}"
-                                    );
-                                    let _ = attestation_tx.send(String::new());
-                                }
-                            }
-                        });
+                        let attestation_rx = spawn_attestation_fetch();
 
                         // Start websocket connection immediately (parallel with attestation)
-                        let connect_res = connect_without_request(
+                        let connect_res = connect(
                             relay_url.clone(),
                             project_id.clone(),
                             &key,
                             topics,
+                            None,
                             cleanup_rx.clone(),
                             probe_group.clone(),
                         )
@@ -1427,19 +1395,7 @@ pub async fn connect_loop_state_machine(
                                 }
                                 MaybeVerifiedRequest::Verified(callback) => {
                                     // Spawn attestation fetch and transition to awaiting state
-                                    let (attestation_tx, attestation_rx) = tokio::sync::oneshot::channel();
-                                    crate::spawn::spawn(async move {
-                                        match crate::sign::verify::create_attestation().await {
-                                            Ok(attestation) => {
-                                                tracing::debug!("Attestation received: {} bytes", attestation.len());
-                                                let _ = attestation_tx.send(attestation);
-                                            }
-                                            Err(e) => {
-                                                tracing::error!("Failed to create attestation: {e:?}");
-                                                let _ = attestation_tx.send(String::new());
-                                            }
-                                        }
-                                    });
+                                    let attestation_rx = spawn_attestation_fetch();
 
                                     // Transition to awaiting attestation (will create params once it arrives)
                                     ConnectionState::ConnectedAwaitingAttestation(
@@ -1704,12 +1660,12 @@ pub async fn connect_loop_state_machine(
                         return;
                     }
                 };
-                let connect_fut = connect_with_request(
+                let connect_fut = connect(
                     relay_url.clone(),
                     project_id.clone(),
                     &key,
                     topics,
-                    request.clone(),
+                    Some(request.clone()),
                     cleanup_rx.clone(),
                     probe_group.clone(),
                 );
