@@ -25,6 +25,47 @@ use {
     },
     std::{sync::Arc, time::Duration},
 };
+
+// Wrapper types to prevent mixing up sent vs next message IDs
+/// A message ID that has been sent over the websocket
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct SentMessageId(u64);
+
+impl SentMessageId {
+    fn new(id: u64) -> Self {
+        Self(id)
+    }
+
+    fn get(&self) -> u64 {
+        self.0
+    }
+}
+
+impl std::fmt::Display for SentMessageId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+/// The next available message ID for sending
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct NextMessageId(u64);
+
+impl NextMessageId {
+    fn new(id: u64) -> Self {
+        Self(id)
+    }
+
+    fn get(&self) -> u64 {
+        self.0
+    }
+}
+
+impl std::fmt::Display for NextMessageId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
 #[cfg(not(target_arch = "wasm32"))]
 use {
     futures::{SinkExt, StreamExt},
@@ -100,7 +141,7 @@ impl From<CloseReason> for ConnectError {
 
 // Common return type for both connection functions
 type ConnectOutput = (
-    u64, // next_message_id (next available ID for sending)
+    NextMessageId, // next_message_id (next available ID for sending)
     tokio::sync::mpsc::UnboundedReceiver<IncomingMessage>,
     ConnectWebSocket,
 );
@@ -270,16 +311,16 @@ async fn connect(
             tracing::debug!("tungstenite connection loop ending");
         });
 
-        let mut message_id = MIN_RPC_ID;
+        let mut message_id = NextMessageId::new(MIN_RPC_ID);
 
         if !topics.is_empty() {
             // TODO batch this extra request together with the initial connection
 
             let payload_request = Payload::Request(Request::new(
-                MessageId::new(message_id),
+                MessageId::new(message_id.get()),
                 Params::BatchSubscribe(BatchSubscribe { topics }),
             ));
-            message_id += 1;
+            message_id = NextMessageId::new(message_id.get() + 1);
             let serialized = serde_json::to_string(&payload_request)
                 .map_err(|e| ConnectError::ShouldNeverHappen(e.to_string()))?;
             outgoing_tx
@@ -314,7 +355,7 @@ async fn connect(
                                 tracing::warn!("unexpected message request in connect() function: {:?}", request);
                             }
                             Payload::Response(response) => {
-                                if id == MessageId::new(message_id) {
+                                if id == MessageId::new(message_id.get()) {
                                     // success, no-op
                                     break;
                                 } else {
@@ -460,16 +501,16 @@ async fn connect(
         ws.set_onopen(None);
         tracing::debug!("onopen received");
 
-        let mut message_id = MIN_RPC_ID;
+        let mut message_id = NextMessageId::new(MIN_RPC_ID);
 
         if !topics.is_empty() {
             // TODO batch this extra request together with the initial connection
 
             let payload_request = Payload::Request(Request::new(
-                MessageId::new(message_id),
+                MessageId::new(message_id.get()),
                 Params::BatchSubscribe(BatchSubscribe { topics }),
             ));
-            message_id += 1;
+            message_id = NextMessageId::new(message_id.get() + 1);
             let serialized =
                 serde_json::to_string(&payload_request).map_err(|e| {
                     ConnectError::ShouldNeverHappen(format!(
@@ -512,7 +553,7 @@ async fn connect(
                                 tracing::debug!("ignoring unexpected message request in batch subscribe connection: {:?}", request);
                             }
                             Payload::Response(response) => {
-                                if id == MessageId::new(message_id) {
+                                if id == MessageId::new(message_id.get()) {
                                     // success, no-op
                                     break;
                                 } else {
@@ -547,25 +588,25 @@ async fn connect(
 // Represents a prepared websocket message ready to be sent
 #[derive(Clone)]
 struct PreparedMessage {
-    sent_message_id: u64,
-    next_message_id: u64,
+    sent_message_id: SentMessageId,
+    next_message_id: NextMessageId,
     serialized: String,
 }
 
 // Prepare a websocket message (allocates ID and serializes)
 fn prepare_websocket_message(
-    next_message_id: u64,
+    next_message_id: NextMessageId,
     params: Params,
 ) -> Result<PreparedMessage, ConnectError> {
-    let sent_message_id = next_message_id;
+    let sent_id = next_message_id.get();
     let request =
-        Payload::Request(Request::new(MessageId::new(sent_message_id), params));
+        Payload::Request(Request::new(MessageId::new(sent_id), params));
     let serialized = serde_json::to_string(&request)
         .map_err(|e| ConnectError::ShouldNeverHappen(e.to_string()))?;
 
     Ok(PreparedMessage {
-        sent_message_id,
-        next_message_id: sent_message_id + 1,
+        sent_message_id: SentMessageId::new(sent_id),
+        next_message_id: NextMessageId::new(sent_id + 1),
         serialized,
     })
 }
@@ -632,8 +673,8 @@ enum ConnectionState {
     ConnectSubscribe(BackoffState),
     AwaitingSubscribeResponse(
         BackoffState,
-        u64, // sent_message_id (waiting for response with this ID)
-        u64, // next_message_id (for sending future messages)
+        SentMessageId, // sent_message_id (waiting for response with this ID)
+        NextMessageId, // next_message_id (for sending future messages)
         tokio::sync::mpsc::UnboundedReceiver<IncomingMessage>,
         ConnectWebSocket,
         DurableSleep,
@@ -646,15 +687,15 @@ enum ConnectionState {
         ),
     ),
     AwaitingConnectRequestResponse(
-        u64, // sent_message_id (waiting for response with this ID)
-        u64, // next_message_id (for sending future messages)
+        SentMessageId, // sent_message_id (waiting for response with this ID)
+        NextMessageId, // next_message_id (for sending future messages)
         tokio::sync::mpsc::UnboundedReceiver<IncomingMessage>,
         ConnectWebSocket,
         (tokio::sync::oneshot::Sender<Result<Response, RequestError>>,),
         DurableSleep,
     ),
     ConnectRequestAwaitingAttestation(
-        u64, // next available message_id (will use this and increment)
+        NextMessageId, // next available message_id (will use this and increment)
         tokio::sync::mpsc::UnboundedReceiver<IncomingMessage>,
         ConnectWebSocket,
         AttestationCallback,
@@ -662,12 +703,12 @@ enum ConnectionState {
         tokio::sync::oneshot::Sender<Result<Response, RequestError>>,
     ),
     Connected(
-        u64,
+        NextMessageId,
         tokio::sync::mpsc::UnboundedReceiver<IncomingMessage>,
         ConnectWebSocket,
     ),
     ConnectedAwaitingAttestation(
-        u64, // next available message_id (will use this and increment)
+        NextMessageId, // next available message_id (will use this and increment)
         tokio::sync::mpsc::UnboundedReceiver<IncomingMessage>,
         ConnectWebSocket,
         AttestationCallback,
@@ -675,8 +716,8 @@ enum ConnectionState {
         tokio::sync::oneshot::Sender<Result<Response, RequestError>>,
     ),
     AwaitingRequestResponse(
-        u64, // sent_message_id (waiting for response with this ID)
-        u64, // next_message_id (for sending future messages)
+        SentMessageId, // sent_message_id (waiting for response with this ID)
+        NextMessageId, // next_message_id (for sending future messages)
         tokio::sync::mpsc::UnboundedReceiver<IncomingMessage>,
         ConnectWebSocket,
         (Params, tokio::sync::oneshot::Sender<Result<Response, RequestError>>),
@@ -686,8 +727,8 @@ enum ConnectionState {
         (Params, tokio::sync::oneshot::Sender<Result<Response, RequestError>>),
     ),
     AwaitingConnectRetryRequestResponse(
-        u64, // sent_message_id (waiting for response with this ID)
-        u64, // next_message_id (for sending future messages)
+        SentMessageId, // sent_message_id (waiting for response with this ID)
+        NextMessageId, // next_message_id (for sending future messages)
         tokio::sync::mpsc::UnboundedReceiver<IncomingMessage>,
         ConnectWebSocket,
         tokio::sync::oneshot::Sender<Result<Response, RequestError>>,
@@ -915,7 +956,7 @@ pub async fn connect_loop_state_machine(
                     }
                 };
                 let prepared = prepare_websocket_message(
-                    MIN_RPC_ID,
+                    NextMessageId::new(MIN_RPC_ID),
                     Params::BatchSubscribe(BatchSubscribe { topics }),
                 );
                 let prepared = match prepared {
@@ -1007,7 +1048,7 @@ pub async fn connect_loop_state_machine(
                                             )
                                         }
                                         Payload::Response(response) => {
-                                            if id == MessageId::new(sent_message_id) {
+                                            if id == MessageId::new(sent_message_id.get()) {
                                                 ConnectionState::Connected(next_message_id, on_incomingmessage_rx, ws)
                                             } else {
                                                 tracing::warn!("ignoring message response in AwaitingSubscribeResponse state: {:?}", response);
@@ -1077,7 +1118,8 @@ pub async fn connect_loop_state_machine(
                 {
                     // Prepare the message first (allocates ID)
                     let prepared = prepare_websocket_message(
-                        MIN_RPC_ID, params,
+                        NextMessageId::new(MIN_RPC_ID),
+                        params,
                     )
                     .expect(
                         "Failed to serialize Params - this should never happen",
@@ -1245,7 +1287,7 @@ pub async fn connect_loop_state_machine(
                                             )
                                         }
                                         Payload::Response(response) => {
-                                            if id == MessageId::new(sent_message_id) {
+                                            if id == MessageId::new(sent_message_id.get()) {
                                                 if let Err(e) =
                                                     response_tx.send(Ok(response))
                                                 {
@@ -1681,7 +1723,7 @@ pub async fn connect_loop_state_machine(
                                             )
                                         }
                                         Payload::Response(response) => {
-                                            if id == MessageId::new(sent_message_id) {
+                                            if id == MessageId::new(sent_message_id.get()) {
                                                 if let Err(e) =
                                                     response_tx.send(Ok(response))
                                                 {
@@ -1740,11 +1782,13 @@ pub async fn connect_loop_state_machine(
                 };
 
                 // Prepare the message first (allocates ID)
-                let prepared =
-                    prepare_websocket_message(MIN_RPC_ID, request.clone())
-                        .expect(
-                        "Failed to serialize Params - this should never happen",
-                    );
+                let prepared = prepare_websocket_message(
+                    NextMessageId::new(MIN_RPC_ID),
+                    request.clone(),
+                )
+                .expect(
+                    "Failed to serialize Params - this should never happen",
+                );
 
                 let connect_fut = connect(
                     relay_url.clone(),
@@ -1843,7 +1887,7 @@ pub async fn connect_loop_state_machine(
                                             )
                                         }
                                         Payload::Response(response) => {
-                                            if id == MessageId::new(sent_message_id) {
+                                            if id == MessageId::new(sent_message_id.get()) {
                                                 if let Err(e) =
                                                     response_tx.send(Ok(response))
                                                 {
