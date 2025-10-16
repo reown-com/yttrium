@@ -10,6 +10,7 @@ use {
             },
             relay_url::ConnectionOptions,
             storage::Storage,
+            utils::{DecryptedHash, EncryptedHash},
             VerifyContext,
         },
         time::DurableSleep,
@@ -639,11 +640,21 @@ fn send_prepared_message(
 }
 
 // Helper to spawn attestation fetch task and return the receiver
-fn spawn_attestation_fetch() -> tokio::sync::oneshot::Receiver<String> {
+fn spawn_attestation_fetch(
+    encrypted_id: EncryptedHash,
+    decrypted_id: DecryptedHash,
+    project_id: ProjectId,
+) -> tokio::sync::oneshot::Receiver<String> {
     let (attestation_tx, attestation_rx) = tokio::sync::oneshot::channel();
 
     crate::spawn::spawn(async move {
-        match crate::sign::verify::create_attestation().await {
+        match crate::sign::verify::create_attestation(
+            encrypted_id,
+            decrypted_id,
+            project_id,
+        )
+        .await
+        {
             Ok(attestation) => {
                 tracing::debug!(
                     "Attestation received: {} bytes",
@@ -1174,10 +1185,18 @@ pub async fn connect_loop_state_machine(
                             }
                         }
                     }
-                } else if let MaybeVerifiedRequest::Verified(callback) = request
+                } else if let MaybeVerifiedRequest::Verified(
+                    encrypted_id,
+                    decrypted_id,
+                    callback,
+                ) = request
                 {
                     // PARALLEL EXECUTION: Spawn attestation AND connect websocket at same time
-                    let attestation_rx = spawn_attestation_fetch();
+                    let attestation_rx = spawn_attestation_fetch(
+                        encrypted_id,
+                        decrypted_id,
+                        project_id.clone(),
+                    );
 
                     // Start websocket connection immediately (parallel with attestation)
                     let connect_res = connect(
@@ -1507,9 +1526,9 @@ pub async fn connect_loop_state_machine(
                                         }
                                     }
                                 }
-                                MaybeVerifiedRequest::Verified(callback) => {
+                                MaybeVerifiedRequest::Verified(encrypted_id, decrypted_id, callback) => {
                                     // Spawn attestation fetch and transition to awaiting state
-                                    let attestation_rx = spawn_attestation_fetch();
+                                    let attestation_rx = spawn_attestation_fetch(encrypted_id, decrypted_id, project_id.clone());
 
                                     // Transition to awaiting attestation (will create params once it arrives)
                                     ConnectionState::ConnectedAwaitingAttestation(

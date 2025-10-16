@@ -25,4 +25,6 @@ pub mod test_helpers;
 mod tests;
 pub mod utils;
 mod verify;
+#[cfg(target_arch = "wasm32")]
+mod verify_attestation;
 pub use verify::{VerifyContext, VerifyValidation};

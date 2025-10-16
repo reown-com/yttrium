@@ -1,5 +1,8 @@
 use {
-    crate::sign::storage::{Storage, StorageError},
+    crate::sign::{
+        storage::{Storage, StorageError},
+        utils::{DecryptedHash, EncryptedHash},
+    },
     jsonwebtoken::{jwk::Jwk, Algorithm, DecodingKey, Validation},
     relay_rpc::rpc::SubscriptionData,
     serde::{Deserialize, Serialize},
@@ -405,8 +408,40 @@ pub enum VerifyValidation {
     Invalid,
 }
 
-pub async fn create_attestation() -> Result<String, ()> {
-    // TODO
+#[cfg(target_arch = "wasm32")]
+pub async fn create_attestation(
+    encrypted_id: EncryptedHash,
+    decrypted_id: DecryptedHash,
+    project_id: relay_rpc::domain::ProjectId,
+) -> Result<String, ()> {
+    match crate::sign::verify_attestation::create_attestation(
+        encrypted_id,
+        decrypted_id,
+        project_id,
+    )
+    .await
+    {
+        Ok(Some(attestation)) => Ok(attestation),
+        Ok(None) => {
+            tracing::warn!(
+                "Verify V3 attestation returned None (timeout or no response)"
+            );
+            Ok(String::new())
+        }
+        Err(e) => {
+            tracing::error!("Verify V3 attestation error: {e}");
+            Ok(String::new())
+        }
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn create_attestation(
+    _encrypted_id: EncryptedHash,
+    _decrypted_id: DecryptedHash,
+    _project_id: relay_rpc::domain::ProjectId,
+) -> Result<String, ()> {
+    tracing::debug!("Verify V3 not supported on non-WASM platforms, returning empty attestation");
     Ok(String::new())
 }
 

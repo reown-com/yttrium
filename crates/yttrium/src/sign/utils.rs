@@ -119,23 +119,94 @@ pub fn validate_extend_request(
     Ok(requested_expiry)
 }
 
-/// Should never fail, but will return a string error if it does
+// base64_encode(type0_envelope(encrypt(json_serialize(rpc))))
+
+// Hash of the envelope
+#[derive(Clone)]
+pub struct EncryptedHash(String);
+
+impl EncryptedHash {
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+// Hash of the message after JSON serialization and before it's encrypted
+#[derive(Clone)]
+pub struct DecryptedHash(String);
+
+impl DecryptedHash {
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
 pub fn serialize_and_encrypt_message_type0_envelope<T: Serialize>(
     shared_secret: [u8; 32],
     message: &T,
 ) -> Result<Arc<str>, String> {
-    let serialized = serde_json::to_vec(&message)
-        .map_err(|e| format!("Failed to serialize message: {e}"))?;
+    let serialized = serialize(message)?;
+    serialize_and_encrypt_message_type0_envelope_impl(
+        shared_secret,
+        &serialized,
+    )
+}
 
+fn serialize_and_encrypt_message_type0_envelope_impl(
+    shared_secret: [u8; 32],
+    message: &[u8],
+) -> Result<Arc<str>, String> {
+    let encrypted = encrypt(shared_secret, message)?;
+    let encoded = encode(&encrypted);
+    Ok(encoded)
+}
+
+fn serialize<T: Serialize>(message: &T) -> Result<Vec<u8>, String> {
+    serde_json::to_vec(&message)
+        .map_err(|e| format!("Failed to serialize message: {e}"))
+}
+
+fn encrypt(
+    shared_secret: [u8; 32],
+    serialized: &[u8],
+) -> Result<Vec<u8>, String> {
     let key = ChaCha20Poly1305::new(&shared_secret.into());
     let nonce = ChaCha20Poly1305::generate_nonce()
         .map_err(|e| format!("Failed to generate nonce: {e}"))?;
     let encrypted = key
-        .encrypt(&nonce, serialized.as_slice())
+        .encrypt(&nonce, serialized)
         .map_err(|e| format!("Failed to encrypt message: {e}"))?;
     let encoded = encode_envelope_type0(&EnvelopeType0 {
         iv: nonce.into(),
         sb: encrypted,
     });
-    Ok(BASE64.encode(encoded.as_slice()).into())
+    Ok(encoded)
+}
+
+fn encode(encrypted: &[u8]) -> Arc<str> {
+    BASE64.encode(encrypted).into()
+}
+
+pub fn serialize_and_encrypt_message_type0_envelope_with_ids<T: Serialize>(
+    shared_secret: [u8; 32],
+    message: &T,
+) -> Result<(EncryptedHash, DecryptedHash, Arc<str>), String> {
+    let serialized = serialize(message)?;
+    serialize_and_encrypt_message_type0_envelope_with_ids_impl(
+        shared_secret,
+        &serialized,
+    )
+}
+
+fn serialize_and_encrypt_message_type0_envelope_with_ids_impl(
+    shared_secret: [u8; 32],
+    message: &[u8],
+) -> Result<(EncryptedHash, DecryptedHash, Arc<str>), String> {
+    let decrypted_id =
+        DecryptedHash(hex::encode(sha2::Sha256::digest(message)));
+    let encrypted = encrypt(shared_secret, message)?;
+    let encrypted_id =
+        EncryptedHash(hex::encode(sha2::Sha256::digest(&encrypted)));
+    let encoded = encode(&encrypted);
+    Ok((encrypted_id, decrypted_id, encoded))
 }

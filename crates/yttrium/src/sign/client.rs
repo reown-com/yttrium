@@ -24,7 +24,9 @@ use {
         storage::Storage,
         utils::{
             diffie_hellman, generate_rpc_id, is_expired,
-            serialize_and_encrypt_message_type0_envelope, topic_from_sym_key,
+            serialize_and_encrypt_message_type0_envelope,
+            serialize_and_encrypt_message_type0_envelope_with_ids,
+            topic_from_sym_key, DecryptedHash, EncryptedHash,
         },
         verify::{handle_verify, VerifyContext, VERIFY_SERVER_URL},
     },
@@ -51,7 +53,7 @@ pub(crate) type AttestationCallback = Box<dyn Fn(String) -> Params + Send>;
 // Abstraction for requests that may need Verify API attestation (internal)
 pub(crate) enum MaybeVerifiedRequest {
     Unverified(Params),
-    Verified(AttestationCallback),
+    Verified(EncryptedHash, DecryptedHash, AttestationCallback),
 }
 
 // Type aliases to reduce clippy::type-complexity warnings for channel message types
@@ -389,38 +391,43 @@ impl Client {
             serde_json::to_string_pretty(&session_proposal_json_rpc)
                 .map_err(|e| ConnectError::ShouldNeverHappen(e.to_string()))?;
 
-        let message = serialize_and_encrypt_message_type0_envelope(
-            sym_key,
-            &session_proposal_json_rpc,
-        )
-        .map_err(ConnectError::ShouldNeverHappen)?;
+        let (encrypted_id, decrypted_id, message) =
+            serialize_and_encrypt_message_type0_envelope_with_ids(
+                sym_key,
+                &session_proposal_json_rpc,
+            )
+            .map_err(ConnectError::ShouldNeverHappen)?;
 
         tracing::debug!(
             group = self.probe_group.clone(),
             probe = "sending_propose_session_request",
         );
 
-        self.do_verified_request::<bool>(Box::new({
-            let pairing_topic = pairing_info.topic.clone();
-            let session_proposal_message = message.clone();
-            let correlation_id = rpc_id;
-            move |attestation: String| {
-                Params::ProposeSession(ProposeSession {
-                    pairing_topic: pairing_topic.clone(),
-                    session_proposal: session_proposal_message.clone(),
-                    attestation: Some(attestation.into()),
-                    analytics: Some(AnalyticsData {
-                        correlation_id: Some(
-                            correlation_id.try_into().unwrap(),
-                        ),
-                        chain_id: None,
-                        rpc_methods: None,
-                        tx_hashes: None,
-                        contract_addresses: None,
-                    }),
-                })
-            }
-        }))
+        self.do_verified_request::<bool>(
+            encrypted_id,
+            decrypted_id,
+            Box::new({
+                let pairing_topic = pairing_info.topic.clone();
+                let session_proposal_message = message.clone();
+                let correlation_id = rpc_id;
+                move |attestation: String| {
+                    Params::ProposeSession(ProposeSession {
+                        pairing_topic: pairing_topic.clone(),
+                        session_proposal: session_proposal_message.clone(),
+                        attestation: Some(attestation.into()),
+                        analytics: Some(AnalyticsData {
+                            correlation_id: Some(
+                                correlation_id.try_into().unwrap(),
+                            ),
+                            chain_id: None,
+                            rpc_methods: None,
+                            tx_hashes: None,
+                            contract_addresses: None,
+                        }),
+                    })
+                }
+            }),
+        )
         .await
         .map_err(ConnectError::Request)?;
 
@@ -754,25 +761,32 @@ impl Client {
             method: "wc_sessionRequest".to_string(),
             params: session_request,
         };
-        let message =
-            serialize_and_encrypt_message_type0_envelope(shared_secret, &rpc)
-                .map_err(|e| RequestError::Internal(e.to_string()))?;
+        let (encrypted_id, decrypted_id, message) =
+            serialize_and_encrypt_message_type0_envelope_with_ids(
+                shared_secret,
+                &rpc,
+            )
+            .map_err(|e| RequestError::Internal(e.to_string()))?;
 
-        self.do_verified_request::<bool>(Box::new({
-            let publish_topic = topic.clone();
-            let publish_message = message.clone();
-            move |attestation: String| {
-                Params::Publish(Publish {
-                    topic: publish_topic.clone(),
-                    message: publish_message.clone(),
-                    attestation: Some(attestation.into()),
-                    ttl_secs: 300,
-                    tag: 1108,
-                    prompt: false,
-                    analytics: None,
-                })
-            }
-        }))
+        self.do_verified_request::<bool>(
+            encrypted_id,
+            decrypted_id,
+            Box::new({
+                let publish_topic = topic.clone();
+                let publish_message = message.clone();
+                move |attestation: String| {
+                    Params::Publish(Publish {
+                        topic: publish_topic.clone(),
+                        message: publish_message.clone(),
+                        attestation: Some(attestation.into()),
+                        ttl_secs: 300,
+                        tag: 1108,
+                        prompt: false,
+                        analytics: None,
+                    })
+                }
+            }),
+        )
         .await
         .map_err(|e| RequestError::Internal(e.to_string()))?;
 
@@ -1170,9 +1184,16 @@ impl Client {
 
     async fn do_verified_request<T: DeserializeOwned>(
         &mut self,
+        encrypted_id: EncryptedHash,
+        decrypted_id: DecryptedHash,
         callback: AttestationCallback,
     ) -> Result<T, RequestError> {
-        self.do_request_internal(MaybeVerifiedRequest::Verified(callback)).await
+        self.do_request_internal(MaybeVerifiedRequest::Verified(
+            encrypted_id,
+            decrypted_id,
+            callback,
+        ))
+        .await
     }
 
     async fn do_request_internal<T: DeserializeOwned>(
