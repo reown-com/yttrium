@@ -1,0 +1,88 @@
+[
+  {
+    "type": "function",
+    "name": "repay",
+    "inputs": [
+      { "name": "asset", "type": "address" },
+      { "name": "amount", "type": "uint256" },
+      { "name": "interestRateMode", "type": "uint256" },
+      { "name": "onBehalfOf", "type": "address" }
+    ]
+  },
+  {
+    "type": "function",
+    "name": "repayWithPermit",
+    "inputs": [
+      { "name": "asset", "type": "address" },
+      { "name": "amount", "type": "uint256" },
+      { "name": "interestRateMode", "type": "uint256" },
+      { "name": "onBehalfOf", "type": "address" },
+      { "name": "deadline", "type": "uint256" },
+      { "name": "permitV", "type": "uint8" },
+      { "name": "permitR", "type": "bytes32" },
+      { "name": "permitS", "type": "bytes32" }
+    ]
+  },
+  {
+    "type": "function",
+    "name": "setUserUseReserveAsCollateral",
+    "inputs": [
+      { "name": "asset", "type": "address" },
+      { "name": "useAsCollateral", "type": "bool" }
+    ]
+  },
+  {
+    "type": "function",
+    "name": "withdraw",
+    "inputs": [
+      { "name": "asset", "type": "address" },
+      { "name": "amount", "type": "uint256" },
+      { "name": "to", "type": "address" }
+    ]
+  },
+  {
+    "type": "function",
+    "name": "borrow",
+    "inputs": [
+      { "name": "asset", "type": "address" },
+      { "name": "amount", "type": "uint256" },
+      { "name": "interestRateMode", "type": "uint256" },
+      { "name": "referralCode", "type": "uint16" },
+      { "name": "onBehalfOf", "type": "address" }
+    ]
+  },
+  {
+    "type": "function",
+    "name": "deposit",
+    "inputs": [
+      { "name": "asset", "type": "address" },
+      { "name": "amount", "type": "uint256" },
+      { "name": "onBehalfOf", "type": "address" },
+      { "name": "referralCode", "type": "uint16" }
+    ]
+  },
+  {
+    "type": "function",
+    "name": "supply",
+    "inputs": [
+      { "name": "asset", "type": "address" },
+      { "name": "amount", "type": "uint256" },
+      { "name": "onBehalfOf", "type": "address" },
+      { "name": "referralCode", "type": "uint16" }
+    ]
+  },
+  {
+    "type": "function",
+    "name": "supplyWithPermit",
+    "inputs": [
+      { "name": "asset", "type": "address" },
+      { "name": "amount", "type": "uint256" },
+      { "name": "onBehalfOf", "type": "address" },
+      { "name": "referralCode", "type": "uint16" },
+      { "name": "deadline", "type": "uint256" },
+      { "name": "permitV", "type": "uint8" },
+      { "name": "permitR", "type": "bytes32" },
+      { "name": "permitS", "type": "bytes32" }
+    ]
+  }
+]

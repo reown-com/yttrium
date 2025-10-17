@@ -1,0 +1,51 @@
+[
+  {
+    "type": "function",
+    "name": "depositETH",
+    "inputs": [
+      { "name": "lendingPool", "type": "address" },
+      { "name": "onBehalfOf", "type": "address" },
+      { "name": "referralCode", "type": "uint16" }
+    ]
+  },
+  {
+    "type": "function",
+    "name": "repayETH",
+    "inputs": [
+      { "name": "lendingPool", "type": "address" },
+      { "name": "amount", "type": "uint256" },
+      { "name": "onBehalfOf", "type": "address" }
+    ]
+  },
+  {
+    "type": "function",
+    "name": "withdrawETH",
+    "inputs": [
+      { "name": "lendingPool", "type": "address" },
+      { "name": "amount", "type": "uint256" },
+      { "name": "to", "type": "address" }
+    ]
+  },
+  {
+    "type": "function",
+    "name": "withdrawETHWithPermit",
+    "inputs": [
+      { "name": "lendingPool", "type": "address" },
+      { "name": "amount", "type": "uint256" },
+      { "name": "to", "type": "address" },
+      { "name": "deadline", "type": "uint256" },
+      { "name": "permitV", "type": "uint8" },
+      { "name": "permitR", "type": "bytes32" },
+      { "name": "permitS", "type": "bytes32" }
+    ]
+  },
+  {
+    "type": "function",
+    "name": "borrowETH",
+    "inputs": [
+      { "name": "lendingPool", "type": "address" },
+      { "name": "amount", "type": "uint256" },
+      { "name": "referralCode", "type": "uint16" }
+    ]
+  }
+]

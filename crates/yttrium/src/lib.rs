@@ -16,6 +16,7 @@ pub mod chain;
 pub mod chain_abstraction;
 pub mod clear_signing;
 pub mod config;
+pub mod descriptors;
 pub mod eip7702;
 pub mod entry_point;
 pub mod erc20;
@@ -30,6 +31,7 @@ pub mod jsonrpc;
     feature = "transaction_sponsorship_client"
 ))]
 pub mod provider_pool;
+pub mod resolver;
 pub mod serde;
 #[cfg(feature = "sign_client")]
 pub mod sign;
