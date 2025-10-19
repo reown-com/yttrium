@@ -96,6 +96,7 @@ sign_client = [
     "dep:tokio-util",
 ]
 clear_signing = []
+evm_signing = ["chain_abstraction_client"]
 
 # Features enabling test coverage
 test_full = [

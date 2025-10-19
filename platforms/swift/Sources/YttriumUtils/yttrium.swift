@@ -545,6 +545,157 @@ fileprivate struct FfiConverterData: FfiConverterRustBuffer {
 
 
 
+public protocol EvmSigningClientProtocol: AnyObject, Sendable {
+    
+    func signAndSend(params: SignAndSendParams, signer: PrivateKeySigner) async throws  -> SignAndSendResult
+    
+}
+open class EvmSigningClient: EvmSigningClientProtocol, @unchecked Sendable {
+    fileprivate let pointer: UnsafeMutableRawPointer!
+
+    /// Used to instantiate a [FFIObject] without an actual pointer, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoPointer {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
+        self.pointer = pointer
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noPointer: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing [Pointer] the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noPointer: NoPointer) {
+        self.pointer = nil
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiClonePointer() -> UnsafeMutableRawPointer {
+        return try! rustCall { uniffi_yttrium_fn_clone_evmsigningclient(self.pointer, $0) }
+    }
+public convenience init(projectId: ProjectId, pulseMetadata: PulseMetadata) {
+    let pointer =
+        try! rustCall() {
+    uniffi_yttrium_fn_constructor_evmsigningclient_new(
+        FfiConverterTypeProjectId_lower(projectId),
+        FfiConverterTypePulseMetadata_lower(pulseMetadata),$0
+    )
+}
+    self.init(unsafeFromRawPointer: pointer)
+}
+
+    deinit {
+        guard let pointer = pointer else {
+            return
+        }
+
+        try! rustCall { uniffi_yttrium_fn_free_evmsigningclient(pointer, $0) }
+    }
+
+    
+public static func withBlockchainApiUrl(projectId: ProjectId, pulseMetadata: PulseMetadata, blockchainApiBaseUrl: Url) -> EvmSigningClient  {
+    return try!  FfiConverterTypeEvmSigningClient_lift(try! rustCall() {
+    uniffi_yttrium_fn_constructor_evmsigningclient_with_blockchain_api_url(
+        FfiConverterTypeProjectId_lower(projectId),
+        FfiConverterTypePulseMetadata_lower(pulseMetadata),
+        FfiConverterTypeUrl_lower(blockchainApiBaseUrl),$0
+    )
+})
+}
+    
+
+    
+open func signAndSend(params: SignAndSendParams, signer: PrivateKeySigner)async throws  -> SignAndSendResult  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_yttrium_fn_method_evmsigningclient_sign_and_send(
+                    self.uniffiClonePointer(),
+                    FfiConverterTypeSignAndSendParams_lower(params),FfiConverterTypePrivateKeySigner_lower(signer)
+                )
+            },
+            pollFunc: ffi_yttrium_rust_future_poll_rust_buffer,
+            completeFunc: ffi_yttrium_rust_future_complete_rust_buffer,
+            freeFunc: ffi_yttrium_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeSignAndSendResult_lift,
+            errorHandler: FfiConverterTypeEvmSigningError_lift
+        )
+}
+    
+
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeEvmSigningClient: FfiConverter {
+
+    typealias FfiType = UnsafeMutableRawPointer
+    typealias SwiftType = EvmSigningClient
+
+    public static func lift(_ pointer: UnsafeMutableRawPointer) throws -> EvmSigningClient {
+        return EvmSigningClient(unsafeFromRawPointer: pointer)
+    }
+
+    public static func lower(_ value: EvmSigningClient) -> UnsafeMutableRawPointer {
+        return value.uniffiClonePointer()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> EvmSigningClient {
+        let v: UInt64 = try readInt(&buf)
+        // The Rust code won't compile if a pointer won't fit in a UInt64.
+        // We have to go via `UInt` because that's the thing that's the size of a pointer.
+        let ptr = UnsafeMutableRawPointer(bitPattern: UInt(truncatingIfNeeded: v))
+        if (ptr == nil) {
+            throw UniffiInternalError.unexpectedNullPointer
+        }
+        return try lift(ptr!)
+    }
+
+    public static func write(_ value: EvmSigningClient, into buf: inout [UInt8]) {
+        // This fiddling is because `Int` is the thing that's the same size as a pointer.
+        // The Rust code won't compile if a pointer won't fit in a `UInt64`.
+        writeInt(&buf, UInt64(bitPattern: Int64(Int(bitPattern: lower(value)))))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEvmSigningClient_lift(_ pointer: UnsafeMutableRawPointer) throws -> EvmSigningClient {
+    return try FfiConverterTypeEvmSigningClient.lift(pointer)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEvmSigningClient_lower(_ value: EvmSigningClient) -> UnsafeMutableRawPointer {
+    return FfiConverterTypeEvmSigningClient.lower(value)
+}
+
+
+
+
+
+
 public protocol Logger: AnyObject, Sendable {
     
     func log(message: String) 
@@ -3739,6 +3890,294 @@ public func FfiConverterTypeSafeOp_lower(_ value: SafeOp) -> RustBuffer {
 }
 
 
+/**
+ * Parameters required to sign and broadcast an EVM transaction.
+ */
+public struct SignAndSendParams {
+    /**
+     * CAIP-2 chain identifier (e.g. `eip155:10`).
+     */
+    public var chainId: String
+    /**
+     * Sender address.
+     */
+    public var from: Address
+    /**
+     * Optional target of the transaction. None indicates contract creation.
+     */
+    public var to: Address?
+    /**
+     * Value in wei to transfer with the transaction.
+     */
+    public var value: U256?
+    /**
+     * Transaction calldata.
+     */
+    public var data: Bytes?
+    /**
+     * Pre-specified gas limit.
+     */
+    public var gasLimit: U64?
+    /**
+     * Pre-specified max fee per gas (EIP-1559).
+     */
+    public var maxFeePerGas: U128?
+    /**
+     * Pre-specified max priority fee per gas (EIP-1559).
+     */
+    public var maxPriorityFeePerGas: U128?
+    /**
+     * Pre-specified nonce.
+     */
+    public var nonce: U64?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * CAIP-2 chain identifier (e.g. `eip155:10`).
+         */chainId: String, 
+        /**
+         * Sender address.
+         */from: Address, 
+        /**
+         * Optional target of the transaction. None indicates contract creation.
+         */to: Address?, 
+        /**
+         * Value in wei to transfer with the transaction.
+         */value: U256?, 
+        /**
+         * Transaction calldata.
+         */data: Bytes?, 
+        /**
+         * Pre-specified gas limit.
+         */gasLimit: U64?, 
+        /**
+         * Pre-specified max fee per gas (EIP-1559).
+         */maxFeePerGas: U128?, 
+        /**
+         * Pre-specified max priority fee per gas (EIP-1559).
+         */maxPriorityFeePerGas: U128?, 
+        /**
+         * Pre-specified nonce.
+         */nonce: U64?) {
+        self.chainId = chainId
+        self.from = from
+        self.to = to
+        self.value = value
+        self.data = data
+        self.gasLimit = gasLimit
+        self.maxFeePerGas = maxFeePerGas
+        self.maxPriorityFeePerGas = maxPriorityFeePerGas
+        self.nonce = nonce
+    }
+}
+
+#if compiler(>=6)
+extension SignAndSendParams: Sendable {}
+#endif
+
+
+extension SignAndSendParams: Equatable, Hashable {
+    public static func ==(lhs: SignAndSendParams, rhs: SignAndSendParams) -> Bool {
+        if lhs.chainId != rhs.chainId {
+            return false
+        }
+        if lhs.from != rhs.from {
+            return false
+        }
+        if lhs.to != rhs.to {
+            return false
+        }
+        if lhs.value != rhs.value {
+            return false
+        }
+        if lhs.data != rhs.data {
+            return false
+        }
+        if lhs.gasLimit != rhs.gasLimit {
+            return false
+        }
+        if lhs.maxFeePerGas != rhs.maxFeePerGas {
+            return false
+        }
+        if lhs.maxPriorityFeePerGas != rhs.maxPriorityFeePerGas {
+            return false
+        }
+        if lhs.nonce != rhs.nonce {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(chainId)
+        hasher.combine(from)
+        hasher.combine(to)
+        hasher.combine(value)
+        hasher.combine(data)
+        hasher.combine(gasLimit)
+        hasher.combine(maxFeePerGas)
+        hasher.combine(maxPriorityFeePerGas)
+        hasher.combine(nonce)
+    }
+}
+
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSignAndSendParams: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SignAndSendParams {
+        return
+            try SignAndSendParams(
+                chainId: FfiConverterString.read(from: &buf), 
+                from: FfiConverterTypeAddress.read(from: &buf), 
+                to: FfiConverterOptionTypeAddress.read(from: &buf), 
+                value: FfiConverterOptionTypeU256.read(from: &buf), 
+                data: FfiConverterOptionTypeBytes.read(from: &buf), 
+                gasLimit: FfiConverterOptionTypeU64.read(from: &buf), 
+                maxFeePerGas: FfiConverterOptionTypeU128.read(from: &buf), 
+                maxPriorityFeePerGas: FfiConverterOptionTypeU128.read(from: &buf), 
+                nonce: FfiConverterOptionTypeU64.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: SignAndSendParams, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.chainId, into: &buf)
+        FfiConverterTypeAddress.write(value.from, into: &buf)
+        FfiConverterOptionTypeAddress.write(value.to, into: &buf)
+        FfiConverterOptionTypeU256.write(value.value, into: &buf)
+        FfiConverterOptionTypeBytes.write(value.data, into: &buf)
+        FfiConverterOptionTypeU64.write(value.gasLimit, into: &buf)
+        FfiConverterOptionTypeU128.write(value.maxFeePerGas, into: &buf)
+        FfiConverterOptionTypeU128.write(value.maxPriorityFeePerGas, into: &buf)
+        FfiConverterOptionTypeU64.write(value.nonce, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSignAndSendParams_lift(_ buf: RustBuffer) throws -> SignAndSendParams {
+    return try FfiConverterTypeSignAndSendParams.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSignAndSendParams_lower(_ value: SignAndSendParams) -> RustBuffer {
+    return FfiConverterTypeSignAndSendParams.lower(value)
+}
+
+
+/**
+ * Result of signing and broadcasting a transaction.
+ */
+public struct SignAndSendResult {
+    public var transactionHash: B256
+    public var rawTransaction: Bytes
+    public var gasLimit: U64
+    public var maxFeePerGas: U128
+    public var maxPriorityFeePerGas: U128
+    public var nonce: U64
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(transactionHash: B256, rawTransaction: Bytes, gasLimit: U64, maxFeePerGas: U128, maxPriorityFeePerGas: U128, nonce: U64) {
+        self.transactionHash = transactionHash
+        self.rawTransaction = rawTransaction
+        self.gasLimit = gasLimit
+        self.maxFeePerGas = maxFeePerGas
+        self.maxPriorityFeePerGas = maxPriorityFeePerGas
+        self.nonce = nonce
+    }
+}
+
+#if compiler(>=6)
+extension SignAndSendResult: Sendable {}
+#endif
+
+
+extension SignAndSendResult: Equatable, Hashable {
+    public static func ==(lhs: SignAndSendResult, rhs: SignAndSendResult) -> Bool {
+        if lhs.transactionHash != rhs.transactionHash {
+            return false
+        }
+        if lhs.rawTransaction != rhs.rawTransaction {
+            return false
+        }
+        if lhs.gasLimit != rhs.gasLimit {
+            return false
+        }
+        if lhs.maxFeePerGas != rhs.maxFeePerGas {
+            return false
+        }
+        if lhs.maxPriorityFeePerGas != rhs.maxPriorityFeePerGas {
+            return false
+        }
+        if lhs.nonce != rhs.nonce {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(transactionHash)
+        hasher.combine(rawTransaction)
+        hasher.combine(gasLimit)
+        hasher.combine(maxFeePerGas)
+        hasher.combine(maxPriorityFeePerGas)
+        hasher.combine(nonce)
+    }
+}
+
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSignAndSendResult: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SignAndSendResult {
+        return
+            try SignAndSendResult(
+                transactionHash: FfiConverterTypeB256.read(from: &buf), 
+                rawTransaction: FfiConverterTypeBytes.read(from: &buf), 
+                gasLimit: FfiConverterTypeU64.read(from: &buf), 
+                maxFeePerGas: FfiConverterTypeU128.read(from: &buf), 
+                maxPriorityFeePerGas: FfiConverterTypeU128.read(from: &buf), 
+                nonce: FfiConverterTypeU64.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: SignAndSendResult, into buf: inout [UInt8]) {
+        FfiConverterTypeB256.write(value.transactionHash, into: &buf)
+        FfiConverterTypeBytes.write(value.rawTransaction, into: &buf)
+        FfiConverterTypeU64.write(value.gasLimit, into: &buf)
+        FfiConverterTypeU128.write(value.maxFeePerGas, into: &buf)
+        FfiConverterTypeU128.write(value.maxPriorityFeePerGas, into: &buf)
+        FfiConverterTypeU64.write(value.nonce, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSignAndSendResult_lift(_ buf: RustBuffer) throws -> SignAndSendResult {
+    return try FfiConverterTypeSignAndSendResult.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSignAndSendResult_lower(_ value: SignAndSendResult) -> RustBuffer {
+    return FfiConverterTypeSignAndSendResult.lower(value)
+}
+
+
 public struct SignOutputObject {
     public var toSign: SignOutputToSign
     public var signStep3Params: SignStep3Params
@@ -5590,6 +6029,8 @@ public enum EngineErrorFfi: Swift.Error {
     )
     case Internal(String
     )
+    case TokenRegistry(String
+    )
 }
 
 
@@ -5613,6 +6054,9 @@ public struct FfiConverterTypeEngineErrorFfi: FfiConverterRustBuffer {
             try FfiConverterString.read(from: &buf)
             )
         case 3: return .Internal(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 4: return .TokenRegistry(
             try FfiConverterString.read(from: &buf)
             )
 
@@ -5641,6 +6085,11 @@ public struct FfiConverterTypeEngineErrorFfi: FfiConverterRustBuffer {
             writeInt(&buf, Int32(3))
             FfiConverterString.write(v1, into: &buf)
             
+        
+        case let .TokenRegistry(v1):
+            writeInt(&buf, Int32(4))
+            FfiConverterString.write(v1, into: &buf)
+            
         }
     }
 }
@@ -5667,6 +6116,160 @@ extension EngineErrorFfi: Equatable, Hashable {}
 
 
 extension EngineErrorFfi: Foundation.LocalizedError {
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+}
+
+
+
+
+
+public enum EvmSigningError: Swift.Error {
+
+    
+    
+    case UnsupportedChainId(String
+    )
+    case InvalidChainId(chainId: String, message: String
+    )
+    case GasEstimation(String
+    )
+    case FeeEstimation(String
+    )
+    case Nonce(String
+    )
+    case BuildTransaction(String
+    )
+    case UnsupportedTransactionType
+    case Signing(String
+    )
+    case Broadcast(String
+    )
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeEvmSigningError: FfiConverterRustBuffer {
+    typealias SwiftType = EvmSigningError
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> EvmSigningError {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+
+        
+
+        
+        case 1: return .UnsupportedChainId(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 2: return .InvalidChainId(
+            chainId: try FfiConverterString.read(from: &buf), 
+            message: try FfiConverterString.read(from: &buf)
+            )
+        case 3: return .GasEstimation(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 4: return .FeeEstimation(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 5: return .Nonce(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 6: return .BuildTransaction(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 7: return .UnsupportedTransactionType
+        case 8: return .Signing(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 9: return .Broadcast(
+            try FfiConverterString.read(from: &buf)
+            )
+
+         default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: EvmSigningError, into buf: inout [UInt8]) {
+        switch value {
+
+        
+
+        
+        
+        case let .UnsupportedChainId(v1):
+            writeInt(&buf, Int32(1))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .InvalidChainId(chainId,message):
+            writeInt(&buf, Int32(2))
+            FfiConverterString.write(chainId, into: &buf)
+            FfiConverterString.write(message, into: &buf)
+            
+        
+        case let .GasEstimation(v1):
+            writeInt(&buf, Int32(3))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .FeeEstimation(v1):
+            writeInt(&buf, Int32(4))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .Nonce(v1):
+            writeInt(&buf, Int32(5))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .BuildTransaction(v1):
+            writeInt(&buf, Int32(6))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case .UnsupportedTransactionType:
+            writeInt(&buf, Int32(7))
+        
+        
+        case let .Signing(v1):
+            writeInt(&buf, Int32(8))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .Broadcast(v1):
+            writeInt(&buf, Int32(9))
+            FfiConverterString.write(v1, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEvmSigningError_lift(_ buf: RustBuffer) throws -> EvmSigningError {
+    return try FfiConverterTypeEvmSigningError.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEvmSigningError_lower(_ value: EvmSigningError) -> RustBuffer {
+    return FfiConverterTypeEvmSigningError.lower(value)
+}
+
+
+extension EvmSigningError: Equatable, Hashable {}
+
+
+
+
+extension EvmSigningError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
@@ -8023,6 +8626,30 @@ fileprivate struct FfiConverterOptionTypeBytes: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeU128: FfiConverterRustBuffer {
+    typealias SwiftType = U128?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeU128.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeU128.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeU256: FfiConverterRustBuffer {
     typealias SwiftType = U256?
 
@@ -8039,6 +8666,30 @@ fileprivate struct FfiConverterOptionTypeU256: FfiConverterRustBuffer {
         switch try readInt(&buf) as Int8 {
         case 0: return nil
         case 1: return try FfiConverterTypeU256.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeU64: FfiConverterRustBuffer {
+    typealias SwiftType = U64?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeU64.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeU64.read(from: &buf)
         default: throw UniffiInternalError.unexpectedOptionalTag
         }
     }
@@ -10343,6 +10994,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_yttrium_checksum_func_sui_personal_sign() != 21640) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_yttrium_checksum_method_evmsigningclient_sign_and_send() != 30425) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_yttrium_checksum_method_logger_log() != 540) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -10362,6 +11016,12 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_yttrium_checksum_method_suiclient_sign_transaction() != 14754) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_constructor_evmsigningclient_new() != 21912) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_constructor_evmsigningclient_with_blockchain_api_url() != 22632) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_yttrium_checksum_constructor_stacksclient_new() != 14610) {

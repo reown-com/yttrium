@@ -9,6 +9,16 @@
     "decimals": 6,
     "name": "Tether USD"
   },
+  "eip155:10/erc20:0x94b008aa00579c1307b0ef2c499ad98a8ce58e58": {
+    "symbol": "USDT",
+    "decimals": 6,
+    "name": "Tether USD"
+  },
+  "eip155:137/erc20:0xc2132d05d31c914a87c6611c10748aeb04b58e8f": {
+    "symbol": "USDT",
+    "decimals": 6,
+    "name": "Tether USD"
+  },
   "eip155:1/erc20:0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2": {
     "symbol": "WETH",
     "decimals": 18,

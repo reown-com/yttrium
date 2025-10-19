@@ -4,6 +4,8 @@ use crate::clear_signing::{
 
 const STAKE_WEIGHT_DESCRIPTOR: &str =
     include_str!("../../../tests/fixtures/stake_weight_descriptor.json");
+const TETHER_USDT_DESCRIPTOR: &str =
+    include_str!("../../../../../vendor/registry/tether/calldata-usdt.json");
 
 #[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
 pub struct DisplayItemFfi {
@@ -56,6 +58,8 @@ pub enum EngineErrorFfi {
     Calldata(String),
     #[error("internal error: {0}")]
     Internal(String),
+    #[error("token registry error: {0}")]
+    TokenRegistry(String),
 }
 
 impl From<EngineError> for EngineErrorFfi {
@@ -64,6 +68,7 @@ impl From<EngineError> for EngineErrorFfi {
             EngineError::DescriptorParse(err) => Self::DescriptorParse(err),
             EngineError::Calldata(err) => Self::Calldata(err),
             EngineError::Internal(err) => Self::Internal(err),
+            EngineError::TokenRegistry(err) => Self::TokenRegistry(err),
         }
     }
 }
@@ -80,15 +85,29 @@ pub fn clear_signing_format(
         to,
         calldata_hex.len()
     );
+    let calldata = decode_calldata(&calldata_hex)?;
+    let descriptor_json = select_descriptor(chain_id, &to);
     println!(
         "[clear_signing_ffi] descriptor json length={} preview={}",
-        STAKE_WEIGHT_DESCRIPTOR.len(),
-        &STAKE_WEIGHT_DESCRIPTOR.chars().take(120).collect::<String>()
+        descriptor_json.len(),
+        descriptor_json.chars().take(120).collect::<String>()
     );
-    let calldata = decode_calldata(&calldata_hex)?;
-    format(STAKE_WEIGHT_DESCRIPTOR, chain_id, &to, &calldata)
+    format(descriptor_json, chain_id, &to, &calldata)
         .map(Into::into)
         .map_err(Into::into)
+}
+
+fn select_descriptor(chain_id: u64, to: &str) -> &'static str {
+    let normalized_to = to.trim().to_ascii_lowercase();
+    let descriptor = match (chain_id, normalized_to.as_str()) {
+        (1, "0xdac17f958d2ee523a2206206994597c13d831ec7")
+        | (10, "0x94b008aa00579c1307b0ef2c499ad98a8ce58e58")
+        | (137, "0xc2132d05d31c914a87c6611c10748aeb04b58e8f") => {
+            TETHER_USDT_DESCRIPTOR
+        }
+        _ => STAKE_WEIGHT_DESCRIPTOR,
+    };
+    descriptor
 }
 
 fn decode_calldata(calldata_hex: &str) -> Result<Vec<u8>, EngineErrorFfi> {

@@ -131,6 +131,7 @@ pub fn format(
             &decoded,
             &descriptor.metadata,
             chain_id,
+            to,
         )?;
         warnings.append(&mut format_warnings);
         Ok(DisplayModel {
@@ -343,6 +344,7 @@ fn apply_display_format(
     decoded: &DecodedArguments,
     metadata: &serde_json::Value,
     chain_id: u64,
+    contract_address: &str,
 ) -> Result<(Vec<DisplayItem>, Vec<String>), EngineError> {
     let mut items = Vec::new();
     let mut warnings = Vec::new();
@@ -355,8 +357,14 @@ fn apply_display_format(
 
     for field in &format.fields {
         if let Some(value) = decoded.get(&field.path) {
-            let rendered =
-                render_field(field, value, decoded, metadata, chain_id)?;
+            let rendered = render_field(
+                field,
+                value,
+                decoded,
+                metadata,
+                chain_id,
+                contract_address,
+            )?;
             items.push(DisplayItem {
                 label: field.label.clone(),
                 value: rendered,
@@ -378,12 +386,18 @@ fn render_field(
     decoded: &DecodedArguments,
     metadata: &serde_json::Value,
     chain_id: u64,
+    contract_address: &str,
 ) -> Result<String, EngineError> {
     match field.format.as_deref() {
         Some("date") => Ok(format_date(value)),
-        Some("tokenAmount") => {
-            format_token_amount(field, value, decoded, metadata, chain_id)
-        }
+        Some("tokenAmount") => format_token_amount(
+            field,
+            value,
+            decoded,
+            metadata,
+            chain_id,
+            contract_address,
+        ),
         Some("amount") => Ok(format_native_amount(value)),
         Some("address") | Some("addressName") => Ok(format_address(value)),
         Some("number") => Ok(format_number(value)),
@@ -421,6 +435,7 @@ fn format_token_amount(
     decoded: &DecodedArguments,
     metadata: &serde_json::Value,
     chain_id: u64,
+    contract_address: &str,
 ) -> Result<String, EngineError> {
     let ArgumentValue::Uint(amount) = value else {
         return Ok(value.default_string());
@@ -430,7 +445,8 @@ fn format_token_amount(
         return Ok(message);
     }
 
-    let token_meta = resolve_token_meta(field, decoded, chain_id)?;
+    let token_meta =
+        resolve_token_meta(field, decoded, chain_id, contract_address)?;
     let formatted_amount =
         format_amount_with_decimals(amount, token_meta.decimals);
     Ok(format!("{} {}", formatted_amount, token_meta.symbol))
@@ -480,6 +496,7 @@ fn resolve_token_meta(
     field: &DisplayField,
     decoded: &DecodedArguments,
     chain_id: u64,
+    contract_address: &str,
 ) -> Result<TokenMeta, EngineError> {
     if let Some(token) =
         field.params.get("token").and_then(|value| value.as_str())
@@ -497,6 +514,16 @@ fn resolve_token_meta(
     if let Some(token_path) =
         field.params.get("tokenPath").and_then(|value| value.as_str())
     {
+        if token_path == "@.to" {
+            return token_registry::lookup_token(chain_id, contract_address)
+                .ok_or_else(|| {
+                    EngineError::TokenRegistry(format!(
+                        "token registry missing entry for chain {} and address {}",
+                        chain_id, contract_address
+                    ))
+                });
+        }
+
         let token_value = decoded.get(token_path).ok_or_else(|| {
             EngineError::TokenRegistry(format!(
                 "token path '{}' not found for field '{}'",
