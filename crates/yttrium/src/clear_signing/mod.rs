@@ -479,13 +479,17 @@ fn token_amount_message(
     amount: &BigUint,
     metadata: &serde_json::Value,
 ) -> Option<String> {
-    let threshold_ptr =
+    let threshold_spec =
         field.params.get("threshold").and_then(|value| value.as_str())?;
     let message =
         field.params.get("message").and_then(|value| value.as_str())?;
 
-    let threshold = resolve_metadata_biguint(metadata, threshold_ptr)?;
-    if amount == &threshold {
+    let threshold = if threshold_spec.starts_with("$.") {
+        resolve_metadata_biguint(metadata, threshold_spec)?
+    } else {
+        parse_biguint(threshold_spec)?
+    };
+    if amount >= &threshold {
         Some(message.to_string())
     } else {
         None
