@@ -12,8 +12,8 @@ pub async fn create_attestation(
 ) -> Result<Option<String>, String> {
     let window = web_sys::window().ok_or_else(|| "no window".to_string())?;
     let document = window.document().ok_or("no document".to_string())?;
+    let body = document.body().ok_or("no body".to_string())?;
 
-    // Get the origin of the wallet app
     let origin =
         window.location().origin().map_err(|e| format!("get origin: {e:?}"))?;
 
@@ -38,18 +38,14 @@ pub async fn create_attestation(
         .set_attribute("style", "display: none;")
         .map_err(|e| format!("set style: {e:?}"))?;
 
-    document
-        .body()
-        .ok_or("no body".to_string())?
+    body
         .append_child(&iframe)
         .map_err(|e| format!("append iframe: {e:?}"))?;
 
-    // Create a channel to receive the attestation
     let (tx, rx) =
         tokio::sync::oneshot::channel::<Result<Option<String>, String>>();
     let tx = Arc::new(std::sync::Mutex::new(Some(tx)));
 
-    // Set up the message event listener
     let tx_clone = tx.clone();
     let iframe_clone = iframe.clone();
     let closure = Closure::wrap(Box::new(move |event: web_sys::MessageEvent| {
@@ -91,7 +87,7 @@ pub async fn create_attestation(
         )
         .map_err(|e| format!("add event listener: {e:?}"))?;
 
-    // Set a timeout of 10 seconds
+    // Set a timeout of 5 seconds
     let timeout_tx = tx.clone();
     let iframe_timeout = iframe.clone();
     let timeout_closure = Closure::once(Box::new(move || {
@@ -109,7 +105,7 @@ pub async fn create_attestation(
     window
         .set_timeout_with_callback_and_timeout_and_arguments_0(
             timeout_closure.as_ref().unchecked_ref(),
-            10000,
+            5000,
         )
         .map_err(|e| format!("set timeout: {e:?}"))?;
 
