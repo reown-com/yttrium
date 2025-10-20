@@ -486,6 +486,7 @@ fn render_field(
         Some("address") | Some("addressName") => {
             Ok(format_address(value, address_book))
         }
+        Some("enum") => format_enum(field, value, metadata),
         Some("number") => Ok(format_number(value)),
         _ => Ok(value.default_string()),
     }
@@ -573,6 +574,35 @@ fn format_native_amount(value: &ArgumentValue) -> String {
     };
     let formatted = format_amount_with_decimals(amount, 18);
     format!("{} ETH", formatted)
+}
+
+fn format_enum(
+    field: &DisplayField,
+    value: &ArgumentValue,
+    metadata: &serde_json::Value,
+) -> Result<String, EngineError> {
+    let ArgumentValue::Uint(amount) = value else {
+        return Ok(value.default_string());
+    };
+
+    let Some(reference) = field.params.get("$ref").and_then(|v| v.as_str())
+    else {
+        return Ok(value.default_string());
+    };
+
+    let Some(enum_map) = resolve_metadata_value(metadata, reference) else {
+        return Ok(value.default_string());
+    };
+
+    if let Some(mapping) = enum_map.as_object() {
+        if let Some(label) = mapping.get(&amount.to_string()) {
+            if let Some(text) = label.as_str() {
+                return Ok(text.to_string());
+            }
+        }
+    }
+
+    Ok(amount.to_string())
 }
 
 fn token_amount_message(
