@@ -38,9 +38,7 @@ pub async fn create_attestation(
         .set_attribute("style", "display: none;")
         .map_err(|e| format!("set style: {e:?}"))?;
 
-    body
-        .append_child(&iframe)
-        .map_err(|e| format!("append iframe: {e:?}"))?;
+    body.append_child(&iframe).map_err(|e| format!("append iframe: {e:?}"))?;
 
     let (tx, rx) =
         tokio::sync::oneshot::channel::<Result<Option<String>, String>>();
@@ -49,27 +47,39 @@ pub async fn create_attestation(
     let tx_clone = tx.clone();
     let iframe_clone = iframe.clone();
     let closure = Closure::wrap(Box::new(move |event: web_sys::MessageEvent| {
-        // Get the data from the message
-        if let Ok(data) = event.data().dyn_into::<js_sys::Object>() {
-            // Check if this is an attestation response
+        let event_data = event.data();
+
+        // The iframe sends JSON.stringify'd data, so we need to parse it
+        let data = if let Some(json_str) = event_data.as_string() {
+            // Parse the JSON string
+            match js_sys::JSON::parse(&json_str) {
+                Ok(parsed) => parsed,
+                Err(_) => return, // Not valid JSON, ignore
+            }
+        } else if event_data.is_object() {
+            // Already an object (in case the implementation changes)
+            event_data
+        } else {
+            return; // Neither string nor object, ignore
+        };
+
+        // Now work with the data as an object
+        if let Ok(obj) = data.dyn_into::<js_sys::Object>() {
             if let Ok(type_val) =
-                js_sys::Reflect::get(&data, &JsValue::from_str("type"))
+                js_sys::Reflect::get(&obj, &JsValue::from_str("type"))
             {
                 if let Some(type_str) = type_val.as_string() {
                     if type_str == "verify_attestation" {
-                        // Extract the attestation
                         let attestation = js_sys::Reflect::get(
-                            &data,
+                            &obj,
                             &JsValue::from_str("attestation"),
                         )
                         .ok()
                         .and_then(|v| v.as_string());
 
-                        // Send the result and cleanup
                         if let Some(tx) = tx_clone.lock().unwrap().take() {
                             let _ = tx.send(Ok(attestation));
 
-                            // Remove the iframe
                             if let Some(parent) = iframe_clone.parent_node() {
                                 let _ = parent.remove_child(&iframe_clone);
                             }

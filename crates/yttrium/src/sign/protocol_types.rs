@@ -32,7 +32,9 @@ pub struct Proposal {
     pub optional_namespaces: Option<ProposalNamespaces>,
     pub relays: Vec<Relay>,
     pub proposer: Proposer,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub session_properties: Option<HashMap<String, String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub scoped_properties: Option<HashMap<String, String>>,
     pub expiry_timestamp: Option<u64>,
 }

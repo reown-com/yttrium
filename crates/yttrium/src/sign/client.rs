@@ -9,7 +9,7 @@ use {
             ConnectParams, ConnectResult, PairingInfo, RejectionReason,
             Session, SessionProposal, TransportType,
         },
-        envelope_type0::decrypt_type0_envelope,
+        envelope_type0::decrypt_type0_envelope_with_hashes,
         pairing_uri,
         protocol_types::{
             Controller, JsonRpcRequest, JsonRpcRequestParams, Metadata,
@@ -39,7 +39,6 @@ use {
         },
     },
     serde::de::DeserializeOwned,
-    sha2::Digest,
     std::{collections::HashMap, sync::Arc},
     tracing::debug,
     x25519_dalek::PublicKey,
@@ -261,8 +260,17 @@ impl Client {
             )));
         }
 
-        let decrypted =
-            decrypt_type0_envelope(pairing_uri.sym_key, &message.message)?;
+        let (decrypted, decrypted_hash, encrypted_hash) =
+            decrypt_type0_envelope_with_hashes(
+                pairing_uri.sym_key,
+                &message.message,
+            )?;
+        tracing::debug!(
+            "Decrypted Proposal: {:?}, Decrypted Hash: {:?}, Encrypted Hash: {:?}",
+            String::from_utf8_lossy(&decrypted),
+            decrypted_hash.as_str(),
+            encrypted_hash.as_str()
+        );
         let request = serde_json::from_slice::<ProposalJsonRpc>(&decrypted)
             .map_err(|e| {
                 PairError::Internal(format!(
@@ -275,7 +283,6 @@ impl Client {
                 request.method
             )));
         }
-        tracing::debug!("Decrypted Proposal: {:?}", request);
         tracing::debug!("rpc request: {}", request.id);
         tracing::debug!(
             "{}",
@@ -319,13 +326,13 @@ impl Client {
 
         // TODO: validate namespaces: https://specs.walletconnect.com/2.0/specs/clients/sign/namespaces#12-proposal-namespaces-must-not-have-chains-empty
 
-        let decrypted_hash = sha2::Sha256::digest(&decrypted);
         let attestation = handle_verify(
             VERIFY_SERVER_URL.to_string(),
-            decrypted_hash.to_vec().try_into().unwrap(),
+            decrypted_hash,
             self.http_client.clone(),
             self.storage.clone(),
-            message.clone(),
+            message.attestation.clone(),
+            encrypted_hash.clone(),
             proposal.proposer.metadata.url.clone(),
         )
         .await;
@@ -388,8 +395,12 @@ impl Client {
             ),
         };
         let session_proposal_params_json =
-            serde_json::to_string_pretty(&session_proposal_json_rpc)
+            serde_json::to_string(&session_proposal_json_rpc)
                 .map_err(|e| ConnectError::ShouldNeverHappen(e.to_string()))?;
+        tracing::debug!(
+            "session_proposal_params_json: {:?}",
+            session_proposal_params_json
+        );
 
         let (encrypted_id, decrypted_id, message) =
             serialize_and_encrypt_message_type0_envelope_with_ids(
@@ -554,8 +565,12 @@ impl Client {
                 metadata: self_metadata.clone(),
             },
             expiry: session_expiry,
-            session_properties: proposal.session_properties.clone(),
-            scoped_properties: proposal.scoped_properties.clone(),
+            session_properties: Some(
+                proposal.session_properties.clone().unwrap_or_default(),
+            ),
+            scoped_properties: Some(
+                proposal.scoped_properties.clone().unwrap_or_default(),
+            ),
         };
         let session_settlement_json_rpc = JsonRpcRequest {
             id: session_settlement_request_id,
@@ -565,6 +580,10 @@ impl Client {
                 session_settlement_request_params.clone(),
             ),
         };
+        tracing::debug!(
+            "session_settlement_request_params: {:?}",
+            session_settlement_request_params
+        );
         let session_settlement_request =
             serialize_and_encrypt_message_type0_envelope(
                 shared_secret,

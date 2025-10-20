@@ -4,9 +4,7 @@ use {
         utils::{DecryptedHash, EncryptedHash},
     },
     jsonwebtoken::{jwk::Jwk, Algorithm, DecodingKey, Validation},
-    relay_rpc::rpc::SubscriptionData,
     serde::{Deserialize, Serialize},
-    sha2::Digest,
     std::sync::Arc,
     url::Url,
 };
@@ -120,7 +118,7 @@ async fn decode_attestation_into_verify_context(
     app_metadata_url: &str,
     attestation: &str,
     public_key: &Jwk,
-    encrypted_id: &str,
+    encrypted_id: EncryptedHash,
     http_client: reqwest::Client,
     storage: Arc<dyn Storage>,
 ) -> VerifyContext {
@@ -205,19 +203,21 @@ async fn decode_attestation_into_verify_context(
             return VerifyContext {
                 origin: None,
                 validation: VerifyValidation::Unknown,
-                is_scam: attestation.is_scam,
+                is_scam: attestation.is_scam.unwrap_or(false),
             };
         }
     };
 
-    if attestation.id != encrypted_id {
+    if attestation.id != encrypted_id.as_str() {
         tracing::debug!(
-            "decode_attestation_into_verify_context: attestation id mismatch"
+            "decode_attestation_into_verify_context: expected attestation id: {}, got: {}",
+            encrypted_id.as_str(),
+            attestation.id
         );
         return VerifyContext {
             origin: None,
             validation: VerifyValidation::Unknown,
-            is_scam: attestation.is_scam,
+            is_scam: attestation.is_scam.unwrap_or(false),
         };
     }
 
@@ -226,7 +226,7 @@ async fn decode_attestation_into_verify_context(
         return VerifyContext {
             origin: None,
             validation: VerifyValidation::Unknown,
-            is_scam: attestation.is_scam,
+            is_scam: attestation.is_scam.unwrap_or(false),
         };
     }
 
@@ -239,7 +239,7 @@ async fn decode_attestation_into_verify_context(
             VerifyValidation::Invalid
         },
         origin: Some(attestation.origin),
-        is_scam: attestation.is_scam,
+        is_scam: attestation.is_scam.unwrap_or(false),
     }
 }
 
@@ -249,7 +249,7 @@ pub struct Attestation {
     pub exp: u64,
     pub id: String,
     pub origin: String,
-    pub is_scam: bool,
+    pub is_scam: Option<bool>,
     pub is_verified: bool,
 }
 
@@ -263,14 +263,14 @@ struct VerifyAttestation {
 
 pub async fn handle_verify(
     verify_server_url: String,
-    decrypted_hash: [u8; 32],
+    decrypted_hash: DecryptedHash,
     http_client: reqwest::Client,
     storage: Arc<dyn Storage>,
-    sub_msg_data: SubscriptionData,
+    attestation: Option<Arc<str>>,
+    encrypted_hash: EncryptedHash,
     app_metadata_url: String,
 ) -> VerifyContext {
-    let encrypted_hash = sha2::Sha256::digest(sub_msg_data.message.as_bytes());
-    if let Some(attestation) = &sub_msg_data.attestation {
+    if let Some(attestation) = attestation {
         if attestation.is_empty() {
             // Handling deprecated path just-in-case. Mostly should be null or JWT w/ isVerified=false
             tracing::debug!("handle_verify: attestation is empty");
@@ -301,25 +301,26 @@ pub async fn handle_verify(
         decode_attestation_into_verify_context(
             verify_server_url,
             &app_metadata_url,
-            attestation,
+            attestation.as_ref(),
             &verify_public_key,
-            &hex::encode(encrypted_hash),
+            encrypted_hash.clone(),
             http_client,
             storage,
         )
         .await
     } else {
         let attestation_result = {
+            let url = format!(
+                "{verify_server_url}{ATTESTATION_ENDPOINT}{decrypted_hash}?v2Supported=true",
+                decrypted_hash = decrypted_hash.as_str()
+            );
             // spawn() to support WASM environments where the `reqwest::send()` future is not Send
             // TODO consider removing when compiling for native platforms
             let (tx, rx) = tokio::sync::oneshot::channel();
             crate::spawn::spawn(async move {
                 let result = async {
                     let response = http_client
-                        .get(format!(
-                        "{verify_server_url}{ATTESTATION_ENDPOINT}{decrypted_hash}?v2Supported=true",
-                        decrypted_hash = hex::encode(decrypted_hash)
-                    ))
+                        .get(url)
                         .send()
                         .await
                         .map_err(GetPublicKeyError::Network)?;
@@ -371,7 +372,7 @@ pub async fn handle_verify(
             }
         };
 
-        if attestation.attestation_id != hex::encode(decrypted_hash) {
+        if attestation.attestation_id != decrypted_hash.as_str() {
             tracing::debug!("handle_verify: attestation id mismatch");
             return VerifyContext {
                 origin: None,
@@ -401,7 +402,7 @@ pub struct VerifyContext {
     pub is_scam: bool,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum VerifyValidation {
     Unknown,
     Valid,
@@ -454,6 +455,7 @@ mod tests {
             storage::StoragePairing,
         },
         relay_rpc::domain::Topic,
+        sha2::Digest,
         wiremock::{
             matchers::{method, path},
             Mock, MockServer, ResponseTemplate,
@@ -910,16 +912,11 @@ mod tests {
         let storage = Arc::new(MockStorage);
         let verify_context = handle_verify(
             verify_url,
-            [0; 32],
+            DecryptedHash(hex::encode(sha2::Sha256::digest(&[0; 32]))),
             http_client,
             storage,
-            SubscriptionData {
-                topic: "".to_string().into(),
-                message: "".to_string().into(),
-                attestation: Some("".to_string().into()),
-                published_at: 0,
-                tag: 0,
-            },
+            Some("".to_string().into()),
+            EncryptedHash(hex::encode(sha2::Sha256::digest(&[1; 32]))),
             "https://app.walletconnect.org".to_string(),
         )
         .await;
@@ -1040,7 +1037,8 @@ mod tests {
         let http_client = reqwest::Client::new();
         let storage = create_mock_storage_with_public_key();
 
-        let decrypted_hash = [1u8; 32];
+        let decrypted_hash =
+            DecryptedHash(hex::encode(sha2::Sha256::digest(&[1; 32])));
         let app_origin = "https://app.walletconnect.org";
         let attestation_origin = app_origin;
 
@@ -1049,11 +1047,11 @@ mod tests {
             .and(path(format!(
                 "{}/{}",
                 ATTESTATION_ENDPOINT.trim_end_matches('/'),
-                hex::encode(decrypted_hash)
+                decrypted_hash.as_str()
             )))
             .respond_with(ResponseTemplate::new(200).set_body_json(
                 VerifyAttestation {
-                    attestation_id: hex::encode(decrypted_hash),
+                    attestation_id: decrypted_hash.as_str().to_string(),
                     origin: attestation_origin.to_string(),
                     is_scam: Some(false),
                 },
@@ -1066,13 +1064,8 @@ mod tests {
             decrypted_hash,
             http_client,
             storage,
-            SubscriptionData {
-                topic: "test".to_string().into(),
-                message: "test_message".to_string().into(),
-                attestation: None, // No attestation triggers v2 path
-                published_at: 0,
-                tag: 0,
-            },
+            None,
+            EncryptedHash(hex::encode(sha2::Sha256::digest(&[0; 32]))),
             app_origin.to_string(),
         )
         .await;
@@ -1089,7 +1082,8 @@ mod tests {
         let http_client = reqwest::Client::new();
         let storage = create_mock_storage_with_public_key();
 
-        let decrypted_hash = [1u8; 32];
+        let decrypted_hash =
+            DecryptedHash(hex::encode(sha2::Sha256::digest(&[1; 32])));
         let app_origin = "https://app.walletconnect.org";
 
         // Mock the v2 attestation endpoint to return 500 error
@@ -1097,7 +1091,7 @@ mod tests {
             .and(path(format!(
                 "{}/{}",
                 ATTESTATION_ENDPOINT.trim_end_matches('/'),
-                hex::encode(decrypted_hash)
+                decrypted_hash.as_str()
             )))
             .respond_with(ResponseTemplate::new(500))
             .mount(&mock_server)
@@ -1108,13 +1102,8 @@ mod tests {
             decrypted_hash,
             http_client,
             storage,
-            SubscriptionData {
-                topic: "test".to_string().into(),
-                message: "test_message".to_string().into(),
-                attestation: None, // No attestation triggers v2 path
-                published_at: 0,
-                tag: 0,
-            },
+            None,
+            EncryptedHash(hex::encode(sha2::Sha256::digest(&[0; 32]))),
             app_origin.to_string(),
         )
         .await;
@@ -1131,7 +1120,8 @@ mod tests {
         let http_client = reqwest::Client::new();
         let storage = create_mock_storage_with_public_key();
 
-        let decrypted_hash = [1u8; 32];
+        let decrypted_hash =
+            DecryptedHash(hex::encode(sha2::Sha256::digest(&[1; 32])));
         let app_origin = "https://app.walletconnect.org";
         let malicious_origin = "https://malicious.example.com";
 
@@ -1140,11 +1130,11 @@ mod tests {
             .and(path(format!(
                 "{}/{}",
                 ATTESTATION_ENDPOINT.trim_end_matches('/'),
-                hex::encode(decrypted_hash)
+                decrypted_hash.as_str()
             )))
             .respond_with(ResponseTemplate::new(200).set_body_json(
                 VerifyAttestation {
-                    attestation_id: hex::encode(decrypted_hash),
+                    attestation_id: decrypted_hash.as_str().to_string(),
                     origin: malicious_origin.to_string(),
                     is_scam: Some(false),
                 },
@@ -1157,13 +1147,8 @@ mod tests {
             decrypted_hash,
             http_client,
             storage,
-            SubscriptionData {
-                topic: "test".to_string().into(),
-                message: "test_message".to_string().into(),
-                attestation: None, // No attestation triggers v2 path
-                published_at: 0,
-                tag: 0,
-            },
+            None,
+            EncryptedHash(hex::encode(sha2::Sha256::digest(&[0; 32]))),
             app_origin.to_string(),
         )
         .await;
@@ -1180,7 +1165,8 @@ mod tests {
         let http_client = reqwest::Client::new();
         let storage = create_mock_storage_with_public_key();
 
-        let decrypted_hash = [1u8; 32];
+        let decrypted_hash =
+            DecryptedHash(hex::encode(sha2::Sha256::digest(&[1; 32])));
         let app_origin = "https://app.walletconnect.org";
 
         // Mock the v2 attestation endpoint with wrong ID
@@ -1188,7 +1174,7 @@ mod tests {
             .and(path(format!(
                 "{}/{}",
                 ATTESTATION_ENDPOINT.trim_end_matches('/'),
-                hex::encode(decrypted_hash)
+                decrypted_hash.as_str()
             )))
             .respond_with(ResponseTemplate::new(200).set_body_json(
                 VerifyAttestation {
@@ -1205,13 +1191,8 @@ mod tests {
             decrypted_hash,
             http_client,
             storage,
-            SubscriptionData {
-                topic: "test".to_string().into(),
-                message: "test_message".to_string().into(),
-                attestation: None, // No attestation triggers v2 path
-                published_at: 0,
-                tag: 0,
-            },
+            None,
+            EncryptedHash(hex::encode(sha2::Sha256::digest(&[0; 32]))),
             app_origin.to_string(),
         )
         .await;
@@ -1228,7 +1209,8 @@ mod tests {
         let http_client = reqwest::Client::new();
         let storage = create_mock_storage_with_public_key();
 
-        let decrypted_hash = [1u8; 32];
+        let decrypted_hash =
+            DecryptedHash(hex::encode(sha2::Sha256::digest(&[1; 32])));
         let app_origin = "https://app.walletconnect.org";
 
         // Mock the v2 attestation endpoint with scam flag
@@ -1236,11 +1218,11 @@ mod tests {
             .and(path(format!(
                 "{}/{}",
                 ATTESTATION_ENDPOINT.trim_end_matches('/'),
-                hex::encode(decrypted_hash)
+                decrypted_hash.as_str()
             )))
             .respond_with(ResponseTemplate::new(200).set_body_json(
                 VerifyAttestation {
-                    attestation_id: hex::encode(decrypted_hash),
+                    attestation_id: decrypted_hash.as_str().to_string(),
                     origin: app_origin.to_string(),
                     is_scam: Some(true), // Scam detected
                 },
@@ -1253,13 +1235,8 @@ mod tests {
             decrypted_hash,
             http_client,
             storage,
-            SubscriptionData {
-                topic: "test".to_string().into(),
-                message: "test_message".to_string().into(),
-                attestation: None, // No attestation triggers v2 path
-                published_at: 0,
-                tag: 0,
-            },
+            None,
+            EncryptedHash(hex::encode(sha2::Sha256::digest(&[0; 32]))),
             app_origin.to_string(),
         )
         .await;

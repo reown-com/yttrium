@@ -67,7 +67,7 @@ fn read_local_storage(key: &str) -> Result<MyState, String> {
         .get_item(key)
         .map_err(|e| format!("Failed to get item: {:?}", e.as_string()))?;
     if let Some(state) = state {
-        tracing::info!("state: {:?}", state);
+        // tracing::trace!("state: {:?}", state);
         match serde_json::from_str(&state) {
             Ok(state) => Ok(state),
             Err(e) => {
@@ -539,6 +539,7 @@ pub fn App() -> impl IntoView {
     let connect_uri = RwSignal::new(None::<Option<String>>);
     let connect_action = Action::new({
         move |_request: &()| {
+            let url = web_sys::window().unwrap().location().origin().unwrap();
             connect_uri.set(Some(None));
             let client = clients.read_value().as_ref().unwrap().clone();
             async move {
@@ -561,7 +562,7 @@ pub fn App() -> impl IntoView {
                         Metadata {
                             name: "Reown Rust Sample App".to_string(),
                             description: "Reown Rust Sample App".to_string(),
-                            url: "https://reown.com".to_string(),
+                            url,
                             icons: vec![],
                             verify_url: None,
                             redirect: None,
@@ -762,9 +763,9 @@ pub fn App() -> impl IntoView {
         <Flex vertical=true>
             <Flex>
                 <Label prop:for="pairing-uri">"Pairing URI"</Label>
-                <Input id="pairing-uri" value=pairing_uri />
+                <Input id="pairing-uri" attr:data-testid="input-pairing-uri" value=pairing_uri />
                 <Button
-                    attr:data-testid="pair-approve-button"
+                    attr:data-testid="pair-submit-button"
                     loading=pair_action.pending()
                     on_click=move |_| {
                         pair_action.dispatch(pairing_uri.get());
@@ -999,7 +1000,7 @@ pub fn App() -> impl IntoView {
                                         .unwrap_or_default()
                                         .map(|uri| {
                                             view! {
-                                                <p>{uri.clone()}</p>
+                                                <p data-testid="pairing-uri" data-pairing-uri={uri.clone()}>{uri.clone()}</p>
                                                 <Button
                                                     attr:data-testid="self-connect-button"
                                                     on_click=move |_| {

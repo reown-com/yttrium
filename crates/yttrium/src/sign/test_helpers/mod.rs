@@ -8,7 +8,7 @@ use {
             SessionRequestRequest, SettleNamespace,
         },
         storage::{Jwk, Storage, StorageError, StoragePairing},
-        IncomingSessionMessage,
+        IncomingSessionMessage, VerifyValidation,
     },
     relay_rpc::domain::Topic,
     std::{
@@ -234,6 +234,8 @@ pub async fn test_sign_impl() -> Result<(), String> {
         .await
         .map_err(|e| format!("Failed to pair: {e}"))?;
     tracing::debug!(probe = "pair_finished", "pair finished");
+
+    assert_eq!(pairing.1.validation, VerifyValidation::Unknown);
 
     let mut namespaces = HashMap::new();
     for (namespace, namespace_proposal) in pairing.0.required_namespaces.clone()

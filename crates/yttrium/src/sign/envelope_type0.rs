@@ -1,7 +1,11 @@
 use {
-    crate::sign::client_errors::PairError,
+    crate::sign::{
+        client_errors::PairError,
+        utils::{DecryptedHash, EncryptedHash},
+    },
     chacha20poly1305::{aead::Aead, ChaCha20Poly1305, KeyInit, Nonce},
     data_encoding::BASE64,
+    sha2::Digest,
 };
 
 const IV_LENGTH: usize = 12;
@@ -54,10 +58,13 @@ pub fn encode_envelope_type0(envelope: &EnvelopeType0) -> Vec<u8> {
 }
 
 /// Decrypt a type-0 envelope and return the decrypted bytes.
-pub fn decrypt_type0_envelope(
+pub fn decrypt_type0_envelope_with_hashes(
     sym_key: [u8; 32],
     message_b64: &str,
-) -> Result<Vec<u8>, PairError> {
+) -> Result<(Vec<u8>, DecryptedHash, EncryptedHash), PairError> {
+    let encrypted_hash = EncryptedHash(hex::encode(sha2::Sha256::digest(
+        message_b64.as_bytes(),
+    )));
     let decoded = BASE64.decode(message_b64.as_bytes()).map_err(|e| {
         PairError::Internal(format!("Failed to decode message: {e}"))
     })?;
@@ -69,5 +76,7 @@ pub fn decrypt_type0_envelope(
     let decrypted = key
         .decrypt(&Nonce::from(envelope.iv), envelope.sb.as_slice())
         .map_err(|e| PairError::Internal(e.to_string()))?;
-    Ok(decrypted)
+    let decrypted_hash =
+        DecryptedHash(hex::encode(sha2::Sha256::digest(&decrypted)));
+    Ok((decrypted, decrypted_hash, encrypted_hash))
 }

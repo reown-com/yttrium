@@ -13,7 +13,9 @@ use {
         },
         relay::IncomingSessionMessage,
         storage::{Storage, StoragePairing},
-        utils::{diffie_hellman, topic_from_sym_key},
+        utils::{
+            diffie_hellman, topic_from_sym_key, DecryptedHash, EncryptedHash,
+        },
         verify::{handle_verify, VERIFY_SERVER_URL},
     },
     chacha20poly1305::{aead::Aead, ChaCha20Poly1305, KeyInit, Nonce},
@@ -73,6 +75,9 @@ pub async fn handle(
         ));
     };
 
+    let encrypted_hash = EncryptedHash(hex::encode(sha2::Sha256::digest(
+        sub_msg.data.message.as_bytes(),
+    )));
     let decoded = BASE64
         .decode(sub_msg.data.message.as_bytes())
         .map_err(|e| HandleError::Peer(format!("decode message: {e}")))?;
@@ -221,13 +226,16 @@ pub async fn handle(
                         ))?;
 
                     // Warning: this is a network call!!!!
-                    let decrypted_hash = sha2::Sha256::digest(&decrypted);
+                    let decrypted_hash = DecryptedHash(hex::encode(
+                        sha2::Sha256::digest(&decrypted),
+                    ));
                     let attestation = handle_verify(
                         VERIFY_SERVER_URL.to_string(),
-                        decrypted_hash.to_vec().try_into().unwrap(),
+                        decrypted_hash,
                         http_client,
                         storage.clone(),
-                        sub_msg.data.clone(),
+                        sub_msg.data.attestation.clone(),
+                        encrypted_hash,
                         session.peer_meta_data.as_ref().unwrap().url.clone(),
                     )
                     .await;

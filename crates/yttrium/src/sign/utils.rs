@@ -121,9 +121,9 @@ pub fn validate_extend_request(
 
 // base64_encode(type0_envelope(encrypt(json_serialize(rpc))))
 
-// Hash of the envelope
+// Hash of the whole raw relay data: base64-encoded envelope
 #[derive(Clone)]
-pub struct EncryptedHash(String);
+pub struct EncryptedHash(pub String);
 
 impl EncryptedHash {
     pub fn as_str(&self) -> &str {
@@ -133,7 +133,7 @@ impl EncryptedHash {
 
 // Hash of the message after JSON serialization and before it's encrypted
 #[derive(Clone)]
-pub struct DecryptedHash(String);
+pub struct DecryptedHash(pub String);
 
 impl DecryptedHash {
     pub fn as_str(&self) -> &str {
@@ -205,8 +205,8 @@ fn serialize_and_encrypt_message_type0_envelope_with_ids_impl(
     let decrypted_id =
         DecryptedHash(hex::encode(sha2::Sha256::digest(message)));
     let encrypted = encrypt(shared_secret, message)?;
-    let encrypted_id =
-        EncryptedHash(hex::encode(sha2::Sha256::digest(&encrypted)));
     let encoded = encode(&encrypted);
+    let encrypted_id =
+        EncryptedHash(hex::encode(sha2::Sha256::digest(encoded.as_bytes())));
     Ok((encrypted_id, decrypted_id, encoded))
 }
