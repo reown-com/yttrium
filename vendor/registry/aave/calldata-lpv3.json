@@ -40,7 +40,7 @@
             "path": "amount",
             "format": "tokenAmount",
             "label": "Amount to repay",
-            "params": { "tokenPath": "asset", "threshold": "$.metadata.constants.max", "message": "All" }
+            "params": { "tokenPath": "asset", "threshold": "$.metadata.constants.max", "message": "Unlimited" }
           },
           {
             "path": "interestRateMode",
@@ -65,7 +65,7 @@
             "path": "amount",
             "format": "tokenAmount",
             "label": "Amount to repay",
-            "params": { "tokenPath": "asset", "threshold": "$.metadata.constants.max", "message": "All" }
+            "params": { "tokenPath": "asset", "threshold": "$.metadata.constants.max", "message": "Unlimited" }
           },
           {
             "path": "interestRateMode",
