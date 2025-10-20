@@ -1,13 +1,10 @@
-use alloy::primitives::Address;
 use hex::FromHex;
-use std::str::FromStr;
 use yttrium::clear_signing::{format, DisplayItem};
 
 const USDT_DESCRIPTOR: &str =
     include_str!("../../../vendor/registry/tether/calldata-usdt.json");
 
 const USDT_OPTIMISM: &str = "0x94b008aa00579c1307b0ef2c499ad98a8ce58e58";
-const AAVE_POOL_OPTIMISM: &str = "0x794a61358d6845594f94dc1db02a252b5b4814ad";
 
 fn decode_calldata(hex: &str) -> Vec<u8> {
     Vec::from_hex(hex.trim_start_matches("0x")).expect("valid hex")
@@ -22,9 +19,6 @@ fn approve_all_usdt_displays_all_message() {
     let model = format(USDT_DESCRIPTOR, 10, USDT_OPTIMISM, &calldata)
         .expect("format succeeds");
 
-    let expected_spender =
-        Address::from_str(AAVE_POOL_OPTIMISM).unwrap().to_checksum(None);
-
     assert_eq!(model.intent, "Approve");
     assert!(model.warnings.is_empty());
     assert_eq!(model.items.len(), 2);
@@ -32,7 +26,7 @@ fn approve_all_usdt_displays_all_message() {
         model.items[0],
         DisplayItem {
             label: "Spender".to_owned(),
-            value: expected_spender.clone(),
+            value: "Aave DAO".to_owned(),
         }
     );
     assert_eq!(
@@ -54,11 +48,12 @@ fn approve_specific_usdt_amount_formats_with_decimals() {
     assert_eq!(model.intent, "Approve");
     assert!(model.warnings.is_empty());
     assert_eq!(model.items.len(), 2);
-    let expected_spender =
-        Address::from_str(AAVE_POOL_OPTIMISM).unwrap().to_checksum(None);
     assert_eq!(
         model.items[0],
-        DisplayItem { label: "Spender".to_owned(), value: expected_spender }
+        DisplayItem {
+            label: "Spender".to_owned(),
+            value: "Aave DAO".to_owned(),
+        }
     );
     assert_eq!(
         model.items[1],

@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::OnceLock};
 
 use num_bigint::BigUint;
 use serde::Deserialize;
@@ -10,8 +10,17 @@ mod token_registry;
 pub use token_registry::{lookup_token, TokenMeta};
 
 use crate::descriptors::aave::{
-    AAVE_LPV2_ABI, AAVE_LPV3_ABI, AAVE_WETH_GATEWAY_V3_ABI,
+    AAVE_LPV2, AAVE_LPV2_ABI, AAVE_LPV3, AAVE_LPV3_ABI, AAVE_WETH_GATEWAY_V3,
+    AAVE_WETH_GATEWAY_V3_ABI,
 };
+
+const TETHER_USDT_DESCRIPTOR: &str =
+    include_str!("../../../../vendor/registry/tether/calldata-usdt.json");
+
+const ADDRESS_BOOK_DESCRIPTORS: &[&str] =
+    &[TETHER_USDT_DESCRIPTOR, AAVE_LPV2, AAVE_LPV3, AAVE_WETH_GATEWAY_V3];
+
+static GLOBAL_ADDRESS_BOOK: OnceLock<HashMap<String, String>> = OnceLock::new();
 
 /// Minimal display item for the clear signing preview.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -73,6 +82,8 @@ pub fn format(
         .map_err(|err| EngineError::DescriptorParse(err.to_string()))?;
     println!("[clear_signing] descriptor parsed");
 
+    let local_address_book = descriptor_address_book(&descriptor);
+
     let mut warnings = Vec::new();
 
     if !descriptor.context.contract.is_bound_to(chain_id, to) {
@@ -132,6 +143,7 @@ pub fn format(
             &descriptor.metadata,
             chain_id,
             to,
+            &local_address_book,
         )?;
         warnings.append(&mut format_warnings);
         Ok(DisplayModel {
@@ -180,6 +192,9 @@ struct Descriptor {
 
 #[derive(Debug, Deserialize)]
 struct DescriptorContext {
+    #[serde(rename = "$id")]
+    #[serde(default)]
+    id: Option<String>,
     contract: DescriptorContract,
 }
 
@@ -189,6 +204,72 @@ struct DescriptorContract {
     deployments: Vec<ContractDeployment>,
     #[serde(default)]
     abi: Option<AbiDefinition>,
+}
+
+fn global_address_book() -> &'static HashMap<String, String> {
+    GLOBAL_ADDRESS_BOOK.get_or_init(|| {
+        let mut map = HashMap::new();
+        for descriptor_json in ADDRESS_BOOK_DESCRIPTORS {
+            if let Ok(parsed) =
+                serde_json::from_str::<Descriptor>(descriptor_json)
+            {
+                let local_book = descriptor_address_book(&parsed);
+                for (address, label) in local_book {
+                    map.entry(address).or_insert(label);
+                }
+            }
+        }
+        map
+    })
+}
+
+fn descriptor_address_book(descriptor: &Descriptor) -> HashMap<String, String> {
+    let mut map = HashMap::new();
+    if let Some(label) = descriptor_friendly_label(descriptor) {
+        for deployment in &descriptor.context.contract.deployments {
+            map.insert(normalize_address(&deployment.address), label.clone());
+        }
+    }
+    map
+}
+
+fn descriptor_friendly_label(descriptor: &Descriptor) -> Option<String> {
+    let metadata = &descriptor.metadata;
+
+    if let Some(token) = metadata.get("token") {
+        let name = token.get("name").and_then(|value| value.as_str());
+        let symbol = token.get("symbol").and_then(|value| value.as_str());
+        match (name, symbol) {
+            (Some(name), Some(symbol)) => {
+                if name.eq_ignore_ascii_case(symbol) {
+                    return Some(name.to_string());
+                } else {
+                    return Some(format!("{name} ({symbol})"));
+                }
+            }
+            (Some(name), None) => return Some(name.to_string()),
+            (None, Some(symbol)) => return Some(symbol.to_string()),
+            (None, None) => {}
+        }
+    }
+
+    if let Some(info) = metadata.get("info") {
+        if let Some(name) =
+            info.get("legalName").and_then(|value| value.as_str())
+        {
+            return Some(name.to_string());
+        }
+        if let Some(name) = info.get("name").and_then(|value| value.as_str()) {
+            return Some(name.to_string());
+        }
+    }
+
+    if let Some(owner) = metadata.get("owner").and_then(|value| value.as_str())
+    {
+        return Some(owner.to_string());
+    }
+
+    descriptor.context.id.clone()
 }
 
 #[derive(Debug, Deserialize)]
@@ -345,6 +426,7 @@ fn apply_display_format(
     metadata: &serde_json::Value,
     chain_id: u64,
     contract_address: &str,
+    address_book: &HashMap<String, String>,
 ) -> Result<(Vec<DisplayItem>, Vec<String>), EngineError> {
     let mut items = Vec::new();
     let mut warnings = Vec::new();
@@ -364,6 +446,7 @@ fn apply_display_format(
                 metadata,
                 chain_id,
                 contract_address,
+                address_book,
             )?;
             items.push(DisplayItem {
                 label: field.label.clone(),
@@ -387,6 +470,7 @@ fn render_field(
     metadata: &serde_json::Value,
     chain_id: u64,
     contract_address: &str,
+    address_book: &HashMap<String, String>,
 ) -> Result<String, EngineError> {
     match field.format.as_deref() {
         Some("date") => Ok(format_date(value)),
@@ -399,7 +483,9 @@ fn render_field(
             contract_address,
         ),
         Some("amount") => Ok(format_native_amount(value)),
-        Some("address") | Some("addressName") => Ok(format_address(value)),
+        Some("address") | Some("addressName") => {
+            Ok(format_address(value, address_book))
+        }
         Some("number") => Ok(format_number(value)),
         _ => Ok(value.default_string()),
     }
@@ -452,11 +538,26 @@ fn format_token_amount(
     Ok(format!("{} {}", formatted_amount, token_meta.symbol))
 }
 
-fn format_address(value: &ArgumentValue) -> String {
+fn format_address(
+    value: &ArgumentValue,
+    local_address_book: &HashMap<String, String>,
+) -> String {
     let Some(bytes) = value.as_address() else {
         return value.default_string();
     };
-    to_checksum_address(bytes)
+
+    let checksum = to_checksum_address(bytes);
+    let normalized = checksum.to_ascii_lowercase();
+
+    if let Some(label) = local_address_book.get(&normalized) {
+        return label.clone();
+    }
+
+    if let Some(label) = global_address_book().get(&normalized) {
+        return label.clone();
+    }
+
+    checksum
 }
 
 fn format_number(value: &ArgumentValue) -> String {
