@@ -18,10 +18,7 @@ use {
             TransportType,
         },
         protocol_types::{
-            Metadata, ProposalNamespace, SessionRequest, SessionRequestJsonRpc,
-            SessionRequestJsonRpcErrorResponse, SessionRequestJsonRpcResponse,
-            SessionRequestJsonRpcResultResponse, SessionRequestRequest,
-            SettleNamespace,
+            Metadata, ProposalNamespace, SessionRequest, SessionRequestJsonRpc, SessionRequestJsonRpcErrorResponse, SessionRequestJsonRpcResponse, SessionRequestJsonRpcResultResponse, SessionRequestRequest, SettleNamespace
         },
         storage::{Jwk, Storage, StorageError, StoragePairing},
         ErrorData, IncomingSessionMessage, SecretKey, Topic, VerifyContext,
@@ -551,6 +548,13 @@ pub fn App() -> impl IntoView {
                             optional_namespaces: HashMap::from([(
                                 "eip155".to_string(),
                                 ProposalNamespace {
+                                    chains: vec!["eip155:1".to_string()],
+                                    methods: vec!["personal_sign".to_string()],
+                                    events: vec![],
+                                },
+                            ), (
+                                "eip155".to_string(),
+                                ProposalNamespace {
                                     chains: vec!["eip155:11155111".to_string()],
                                     methods: vec!["personal_sign".to_string()],
                                     events: vec![],
@@ -779,8 +783,11 @@ pub fn App() -> impl IntoView {
                 <Button
                     attr:data-testid="connect-button"
                     on_click=move |_| {
-                    connect_action.dispatch(());
-                }>"Connect"</Button>
+                        connect_action.dispatch(());
+                    }
+                >
+                    "Connect"
+                </Button>
             </Flex>
             <ul data-testid="wallet-sessions">
                 {move || {
@@ -824,8 +831,8 @@ pub fn App() -> impl IntoView {
                         .get()
                         .iter()
                         .map(|session| {
+                            let session = session.clone();
                             let topic = session.topic.clone();
-                            let topic2 = session.topic.clone();
                             view! {
                                 <li>
                                     <Flex>
@@ -851,34 +858,64 @@ pub fn App() -> impl IntoView {
                                                 }
                                             });
                                         }>"Disconnect"</Button>
-                                        <Button on_click=move |_| {
-                                            let topic = topic2.clone();
-                                            leptos::task::spawn_local(async move {
-                                                let client = clients.read_value().as_ref().unwrap().clone();
-                                                let mut client = client.lock().await;
-                                                match client.app_client.request(topic, SessionRequest {
-                                                    chain_id: "eip155:11155111".to_string(),
-                                                    request: SessionRequestRequest {
-                                                        method: "personal_sign".to_string(),
-                                                        params: serde_json::Value::Null,
-                                                        expiry: None,
-                                                    },
-                                                }).await {
-                                                    Ok(_) => {
-                                                        show_success_toast(
-                                                            toaster,
-                                                            "Successfully requested (app)".to_owned(),
-                                                        );
+                                        <Button
+                                            attr:data-testid="request-button"
+                                            on_click=move |_| {
+                                                let session = session.clone();
+                                                leptos::task::spawn_local(async move {
+                                                    let mut account = session
+                                                        .session_namespaces
+                                                        .iter()
+                                                        .next()
+                                                        .unwrap()
+                                                        .1
+                                                        .accounts
+                                                        .first()
+                                                        .unwrap()
+                                                        .splitn(3, ':');
+                                                    let namespace = account.next().unwrap().to_string();
+                                                    let chain_id = account.next().unwrap().to_string();
+                                                    let address = account.next().unwrap().to_string();
+                                                    let client = clients.read_value().as_ref().unwrap().clone();
+                                                    let mut client = client.lock().await;
+                                                    match client
+                                                        .app_client
+                                                        .request(
+                                                            session.topic,
+                                                            SessionRequest {
+                                                                chain_id: format!("{namespace}:{chain_id}"),
+                                                                request: SessionRequestRequest {
+                                                                    method: "personal_sign".to_string(),
+                                                                    params: serde_json::Value::Array(
+                                                                        vec![
+                                                                            serde_json::Value::String(address.to_string()),
+                                                                            serde_json::Value::String("0x00".to_string()),
+                                                                        ],
+                                                                    ),
+                                                                    expiry: None,
+                                                                },
+                                                            },
+                                                        )
+                                                        .await
+                                                    {
+                                                        Ok(_) => {
+                                                            show_success_toast(
+                                                                toaster,
+                                                                "Successfully requested (app)".to_owned(),
+                                                            );
+                                                        }
+                                                        Err(e) => {
+                                                            show_error_toast(
+                                                                toaster,
+                                                                format!("Request failed (app): {e}"),
+                                                            );
+                                                        }
                                                     }
-                                                    Err(e) => {
-                                                        show_error_toast(
-                                                            toaster,
-                                                            format!("Request failed (app): {e}"),
-                                                        );
-                                                    }
-                                                }
-                                            });
-                                        }>"Request"</Button>
+                                                });
+                                            }
+                                        >
+                                            "Request"
+                                        </Button>
                                     </Flex>
                                 </li>
                             }
@@ -1000,12 +1037,17 @@ pub fn App() -> impl IntoView {
                                         .unwrap_or_default()
                                         .map(|uri| {
                                             view! {
-                                                <p data-testid="pairing-uri" data-pairing-uri={uri.clone()}>{uri.clone()}</p>
+                                                <p data-testid="pairing-uri" data-pairing-uri=uri.clone()>
+                                                    {uri.clone()}
+                                                </p>
                                                 <Button
                                                     attr:data-testid="self-connect-button"
                                                     on_click=move |_| {
-                                                    pair_action.dispatch(uri.clone());
-                                                }>"Self connect"</Button>
+                                                        pair_action.dispatch(uri.clone());
+                                                    }
+                                                >
+                                                    "Self connect"
+                                                </Button>
                                             }
                                                 .into_any()
                                         })

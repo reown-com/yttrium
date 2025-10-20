@@ -26,9 +26,6 @@ test('connect Rust wallet to JS app', async ({ browser, page, baseURL }) => {
     await connectJsApp(app, page);
 });
 
-// TODO add tests for Rust app and JS wallet
-// TODO test verify in various scenarios
-
 test('sign message Rust wallet to JS app', async ({ browser, page, baseURL }) => {
     await page.goto(baseURL!);
     const context = await browser.newContext();
