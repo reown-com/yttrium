@@ -342,7 +342,7 @@ pub fn App() -> impl IntoView {
 
                 let mut namespaces = HashMap::new();
                 for (namespace, namespace_proposal) in
-                    pairing.0.optional_namespaces.clone().unwrap()
+                    pairing.0.optional_namespaces.clone()
                 {
                     let accounts = namespace_proposal
                         .chains

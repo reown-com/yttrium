@@ -36,7 +36,7 @@ test:
   cargo test --features=full --lib --bins
 
 test-sign:
-  RUST_BACKTRACE=1 cargo test --features=test_sign --lib --bins sign::tests -- --nocapture
+  RUST_BACKTRACE=1 cargo test --features=test_sign --lib --bins sign:: -- --nocapture
 sign-canary:
   cargo run --bin sign-canary --features=sign_canary
 

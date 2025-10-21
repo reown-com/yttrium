@@ -152,7 +152,7 @@ pub async fn handle(
                         ),
                         session_namespaces: request.namespaces.clone(),
                         required_namespaces: HashMap::new(),
-                        optional_namespaces: None,
+                        optional_namespaces: HashMap::new(),
                         session_properties: request.session_properties.clone(),
                         scoped_properties: request.scoped_properties.clone(),
                         is_acknowledged: false,

@@ -375,13 +375,13 @@ impl Client {
         let session_proposal = Proposal {
             relays: vec![Relay { protocol: "irn".to_string() }],
             required_namespaces: HashMap::new(), // Deprecated, now empty
-            optional_namespaces: Some(params.optional_namespaces),
+            optional_namespaces: params.optional_namespaces,
             proposer: Proposer {
                 public_key: hex::encode(self_public_key.to_bytes()),
                 metadata: self_metadata.clone(),
             },
-            session_properties: params.session_properties.clone(),
-            scoped_properties: params.scoped_properties.clone(),
+            session_properties: params.session_properties.unwrap_or_default(),
+            scoped_properties: params.scoped_properties.unwrap_or_default(),
             expiry_timestamp: Some(expiry_timestamp),
         };
 
@@ -565,12 +565,8 @@ impl Client {
                 metadata: self_metadata.clone(),
             },
             expiry: session_expiry,
-            session_properties: Some(
-                proposal.session_properties.clone().unwrap_or_default(),
-            ),
-            scoped_properties: Some(
-                proposal.scoped_properties.clone().unwrap_or_default(),
-            ),
+            session_properties: proposal.session_properties.clone(),
+            scoped_properties: proposal.scoped_properties.clone(),
         };
         let session_settlement_json_rpc = JsonRpcRequest {
             id: session_settlement_request_id,
