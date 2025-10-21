@@ -593,7 +593,8 @@ mod tests {
         let client = create_test_client();
         let mnemonic = "dose ice enrich trigger test dove century still betray gas diet dune use other base gym mad law immense village world example praise game".to_string();
 
-        let keypair = client.generate_keypair_from_ton_mnemonic(mnemonic).unwrap();
+        let keypair =
+            client.generate_keypair_from_ton_mnemonic(mnemonic).unwrap();
 
         assert!(!keypair.sk.is_empty());
         assert!(!keypair.pk.is_empty());
