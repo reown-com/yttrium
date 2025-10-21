@@ -912,11 +912,11 @@ mod tests {
         let storage = Arc::new(MockStorage);
         let verify_context = handle_verify(
             verify_url,
-            DecryptedHash(hex::encode(sha2::Sha256::digest(&[0; 32]))),
+            DecryptedHash(hex::encode(sha2::Sha256::digest([0; 32]))),
             http_client,
             storage,
             Some("".to_string().into()),
-            EncryptedHash(hex::encode(sha2::Sha256::digest(&[1; 32]))),
+            EncryptedHash(hex::encode(sha2::Sha256::digest([1; 32]))),
             "https://app.walletconnect.org".to_string(),
         )
         .await;
@@ -1038,7 +1038,7 @@ mod tests {
         let storage = create_mock_storage_with_public_key();
 
         let decrypted_hash =
-            DecryptedHash(hex::encode(sha2::Sha256::digest(&[1; 32])));
+            DecryptedHash(hex::encode(sha2::Sha256::digest([1; 32])));
         let app_origin = "https://app.walletconnect.org";
         let attestation_origin = app_origin;
 
@@ -1065,7 +1065,7 @@ mod tests {
             http_client,
             storage,
             None,
-            EncryptedHash(hex::encode(sha2::Sha256::digest(&[0; 32]))),
+            EncryptedHash(hex::encode(sha2::Sha256::digest([0; 32]))),
             app_origin.to_string(),
         )
         .await;
@@ -1083,7 +1083,7 @@ mod tests {
         let storage = create_mock_storage_with_public_key();
 
         let decrypted_hash =
-            DecryptedHash(hex::encode(sha2::Sha256::digest(&[1; 32])));
+            DecryptedHash(hex::encode(sha2::Sha256::digest([1; 32])));
         let app_origin = "https://app.walletconnect.org";
 
         // Mock the v2 attestation endpoint to return 500 error
@@ -1103,7 +1103,7 @@ mod tests {
             http_client,
             storage,
             None,
-            EncryptedHash(hex::encode(sha2::Sha256::digest(&[0; 32]))),
+            EncryptedHash(hex::encode(sha2::Sha256::digest([0; 32]))),
             app_origin.to_string(),
         )
         .await;
@@ -1121,7 +1121,7 @@ mod tests {
         let storage = create_mock_storage_with_public_key();
 
         let decrypted_hash =
-            DecryptedHash(hex::encode(sha2::Sha256::digest(&[1; 32])));
+            DecryptedHash(hex::encode(sha2::Sha256::digest([1; 32])));
         let app_origin = "https://app.walletconnect.org";
         let malicious_origin = "https://malicious.example.com";
 
@@ -1148,7 +1148,7 @@ mod tests {
             http_client,
             storage,
             None,
-            EncryptedHash(hex::encode(sha2::Sha256::digest(&[0; 32]))),
+            EncryptedHash(hex::encode(sha2::Sha256::digest([0; 32]))),
             app_origin.to_string(),
         )
         .await;
@@ -1166,7 +1166,7 @@ mod tests {
         let storage = create_mock_storage_with_public_key();
 
         let decrypted_hash =
-            DecryptedHash(hex::encode(sha2::Sha256::digest(&[1; 32])));
+            DecryptedHash(hex::encode(sha2::Sha256::digest([1; 32])));
         let app_origin = "https://app.walletconnect.org";
 
         // Mock the v2 attestation endpoint with wrong ID
@@ -1192,7 +1192,7 @@ mod tests {
             http_client,
             storage,
             None,
-            EncryptedHash(hex::encode(sha2::Sha256::digest(&[0; 32]))),
+            EncryptedHash(hex::encode(sha2::Sha256::digest([0; 32]))),
             app_origin.to_string(),
         )
         .await;
@@ -1210,7 +1210,7 @@ mod tests {
         let storage = create_mock_storage_with_public_key();
 
         let decrypted_hash =
-            DecryptedHash(hex::encode(sha2::Sha256::digest(&[1; 32])));
+            DecryptedHash(hex::encode(sha2::Sha256::digest([1; 32])));
         let app_origin = "https://app.walletconnect.org";
 
         // Mock the v2 attestation endpoint with scam flag
@@ -1236,7 +1236,7 @@ mod tests {
             http_client,
             storage,
             None,
-            EncryptedHash(hex::encode(sha2::Sha256::digest(&[0; 32]))),
+            EncryptedHash(hex::encode(sha2::Sha256::digest([0; 32]))),
             app_origin.to_string(),
         )
         .await;

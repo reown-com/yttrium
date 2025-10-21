@@ -18,7 +18,10 @@ use {
             TransportType,
         },
         protocol_types::{
-            Metadata, ProposalNamespace, SessionRequest, SessionRequestJsonRpc, SessionRequestJsonRpcErrorResponse, SessionRequestJsonRpcResponse, SessionRequestJsonRpcResultResponse, SessionRequestRequest, SettleNamespace
+            Metadata, ProposalNamespace, SessionRequest, SessionRequestJsonRpc,
+            SessionRequestJsonRpcErrorResponse, SessionRequestJsonRpcResponse,
+            SessionRequestJsonRpcResultResponse, SessionRequestRequest,
+            SettleNamespace,
         },
         storage::{Jwk, Storage, StorageError, StoragePairing},
         ErrorData, IncomingSessionMessage, SecretKey, Topic, VerifyContext,
@@ -534,14 +537,16 @@ pub fn App() -> impl IntoView {
     });
 
     let connect_uri = RwSignal::new(None::<Option<String>>);
-    let connect_action = Action::new({
-        move |_request: &()| {
-            let url = web_sys::window().unwrap().location().origin().unwrap();
-            connect_uri.set(Some(None));
-            let client = clients.read_value().as_ref().unwrap().clone();
-            async move {
-                let mut client = client.lock().await;
-                match client
+    let connect_action =
+        Action::new({
+            move |_request: &()| {
+                let url =
+                    web_sys::window().unwrap().location().origin().unwrap();
+                connect_uri.set(Some(None));
+                let client = clients.read_value().as_ref().unwrap().clone();
+                async move {
+                    let mut client = client.lock().await;
+                    match client
                     .app_client
                     .connect(
                         ConnectParams {
@@ -595,9 +600,9 @@ pub fn App() -> impl IntoView {
                         );
                     }
                 }
+                }
             }
-        }
-    });
+        });
 
     let unmounted = Arc::new(AtomicBool::new(false));
     on_cleanup({
