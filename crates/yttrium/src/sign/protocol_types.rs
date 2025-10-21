@@ -1,8 +1,17 @@
 use {
     relay_rpc::domain::MessageId,
-    serde::{Deserialize, Serialize},
+    serde::{Deserialize, Deserializer, Serialize},
     std::collections::HashMap,
 };
+
+fn deserialize_null_default<'de, D, T>(deserializer: D) -> Result<T, D::Error>
+where
+    T: Default + Deserialize<'de>,
+    D: Deserializer<'de>,
+{
+    let opt = Option::deserialize(deserializer)?;
+    Ok(opt.unwrap_or_default())
+}
 
 pub mod methods {
     pub const SESSION_PROPOSE: &str = "wc_sessionPropose";
@@ -30,14 +39,22 @@ pub struct ProposalJsonRpc {
 pub struct Proposal {
     pub required_namespaces: ProposalNamespaces,
     // Must be at least `{}`: https://reown-inc.slack.com/archives/C04DB2EAHE3/p1761048078934459?thread_ts=1761047215.003739&cid=C04DB2EAHE3
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub optional_namespaces: ProposalNamespaces,
     pub relays: Vec<Relay>,
     pub proposer: Proposer,
     // skip serializing properties: https://reown-inc.slack.com/archives/C04DB2EAHE3/p1761047855481929?thread_ts=1761047215.003739&cid=C04DB2EAHE3
-    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    #[serde(
+        default,
+        deserialize_with = "deserialize_null_default",
+        skip_serializing_if = "HashMap::is_empty"
+    )]
     pub session_properties: HashMap<String, String>,
-    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    #[serde(
+        default,
+        deserialize_with = "deserialize_null_default",
+        skip_serializing_if = "HashMap::is_empty"
+    )]
     pub scoped_properties: HashMap<String, String>,
     // also skip serializing expiry
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -122,9 +139,17 @@ pub struct SessionSettle {
     pub namespaces: SettleNamespaces,
     pub controller: Controller,
     pub expiry: u64,
-    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    #[serde(
+        default,
+        deserialize_with = "deserialize_null_default",
+        skip_serializing_if = "HashMap::is_empty"
+    )]
     pub session_properties: HashMap<String, String>,
-    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    #[serde(
+        default,
+        deserialize_with = "deserialize_null_default",
+        skip_serializing_if = "HashMap::is_empty"
+    )]
     pub scoped_properties: HashMap<String, String>,
     // pub session_config: serde_json::Value,
 }
