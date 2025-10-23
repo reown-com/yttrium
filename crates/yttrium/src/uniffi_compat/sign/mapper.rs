@@ -309,7 +309,7 @@ mod conversion_tests {
             proposer_public_key: [2u8; 32],
             relays: vec![],
             required_namespaces: std::collections::HashMap::new(),
-            optional_namespaces: Some(std::collections::HashMap::new()),
+            optional_namespaces: std::collections::HashMap::new(),
             metadata: Metadata {
                 name: "Test".to_string(),
                 description: "Test".to_string(),
@@ -318,8 +318,8 @@ mod conversion_tests {
                 verify_url: None,
                 redirect: None,
             },
-            session_properties: None,
-            scoped_properties: None,
+            session_properties: std::collections::HashMap::new(),
+            scoped_properties: std::collections::HashMap::new(),
             expiry_timestamp: None,
         };
 

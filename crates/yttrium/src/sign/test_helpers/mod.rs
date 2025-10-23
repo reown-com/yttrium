@@ -8,7 +8,7 @@ use {
             SessionRequestRequest, SettleNamespace,
         },
         storage::{Jwk, Storage, StorageError, StoragePairing},
-        IncomingSessionMessage,
+        IncomingSessionMessage, VerifyValidation,
     },
     relay_rpc::domain::Topic,
     std::{
@@ -235,6 +235,8 @@ pub async fn test_sign_impl() -> Result<(), String> {
         .map_err(|e| format!("Failed to pair: {e}"))?;
     tracing::debug!(probe = "pair_finished", "pair finished");
 
+    assert_eq!(pairing.1.validation, VerifyValidation::Unknown);
+
     let mut namespaces = HashMap::new();
     for (namespace, namespace_proposal) in pairing.0.required_namespaces.clone()
     {
@@ -323,8 +325,9 @@ pub async fn test_sign_impl() -> Result<(), String> {
         probe = "received_session_request",
         "receiving session request"
     );
-    assert!(matches!(message.1, IncomingSessionMessage::SessionRequest(_)));
-    let req = if let IncomingSessionMessage::SessionRequest(req) = message.1 {
+    assert!(matches!(message.1, IncomingSessionMessage::SessionRequest(_, _)));
+    let req = if let IncomingSessionMessage::SessionRequest(req, _) = message.1
+    {
         req
     } else {
         panic!("Expected SessionRequest");

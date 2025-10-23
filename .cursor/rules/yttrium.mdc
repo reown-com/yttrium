@@ -1,0 +1,9 @@
+---
+alwaysApply: true
+---
+
+## Cursor Rules: Yttrium repo
+
+### Workflow
+
+Rust `just lint` as your linting tool. It will internally run `cargo fmt` and `cargo clippy` with the full configuration.

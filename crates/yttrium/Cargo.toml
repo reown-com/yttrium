@@ -276,5 +276,10 @@ data-encoding = { workspace = true }
 ton_lib = "0.0.39"
 hex = "0.4.3"
 
+# JWT and crypto testing dependencies
+p256 = "0.13"
+base64 = "0.22"
+rand = "0.8"
+
 [package.metadata.wasm-pack.profile.release]
 wasm-opt = ['-Oz']

@@ -591,12 +591,11 @@ mod tests {
     fn test_generate_keypair_from_ton_mnemonic_valid() {
         // Test with known TON mnemonic
         let client = create_test_client();
-        let mnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about".to_string();
+        let mnemonic = "dose ice enrich trigger test dove century still betray gas diet dune use other base gym mad law immense village world example praise game".to_string();
 
-        let result = client.generate_keypair_from_ton_mnemonic(mnemonic);
-        assert!(result.is_ok());
+        let keypair =
+            client.generate_keypair_from_ton_mnemonic(mnemonic).unwrap();
 
-        let keypair = result.unwrap();
         assert!(!keypair.sk.is_empty());
         assert!(!keypair.pk.is_empty());
 

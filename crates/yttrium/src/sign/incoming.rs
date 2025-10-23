@@ -1,5 +1,6 @@
 use {
     crate::sign::{
+        client::MaybeVerifiedRequest,
         client_errors::RequestError,
         client_types::{Session, TransportType},
         envelope_type0,
@@ -12,7 +13,10 @@ use {
         },
         relay::IncomingSessionMessage,
         storage::{Storage, StoragePairing},
-        utils::{diffie_hellman, topic_from_sym_key},
+        utils::{
+            diffie_hellman, topic_from_sym_key, DecryptedHash, EncryptedHash,
+        },
+        verify::{handle_verify, VERIFY_SERVER_URL},
     },
     chacha20poly1305::{aead::Aead, ChaCha20Poly1305, KeyInit, Nonce},
     data_encoding::BASE64,
@@ -20,6 +24,7 @@ use {
         domain::Topic,
         rpc::{BatchSubscribe, Params, Response, Subscription},
     },
+    sha2::Digest,
     std::{collections::HashMap, sync::Arc},
 };
 
@@ -41,15 +46,16 @@ pub enum HandleError {
     AlreadyHandled,
 }
 
-pub fn handle(
+pub async fn handle(
     storage: Arc<dyn Storage>,
+    http_client: reqwest::Client,
     sub_msg: Subscription,
     session_request_tx: tokio::sync::mpsc::UnboundedSender<(
         Topic,
         IncomingSessionMessage,
     )>,
     priority_request_tx: tokio::sync::mpsc::UnboundedSender<(
-        Params,
+        MaybeVerifiedRequest,
         tokio::sync::oneshot::Sender<Result<Response, RequestError>>,
     )>,
 ) -> Result<(), HandleError> {
@@ -69,6 +75,9 @@ pub fn handle(
         ));
     };
 
+    let encrypted_hash = EncryptedHash(hex::encode(sha2::Sha256::digest(
+        sub_msg.data.message.as_bytes(),
+    )));
     let decoded = BASE64
         .decode(sub_msg.data.message.as_bytes())
         .map_err(|e| HandleError::Peer(format!("decode message: {e}")))?;
@@ -143,7 +152,7 @@ pub fn handle(
                         ),
                         session_namespaces: request.namespaces.clone(),
                         required_namespaces: HashMap::new(),
-                        optional_namespaces: None,
+                        optional_namespaces: HashMap::new(),
                         session_properties: request.session_properties.clone(),
                         scoped_properties: request.scoped_properties.clone(),
                         is_acknowledged: false,
@@ -207,6 +216,30 @@ pub fn handle(
                             ))
                         })?;
 
+                    let session = storage
+                        .get_session(sub_msg.data.topic.clone())
+                        .map_err(|e| {
+                            HandleError::Temporary(format!("get session: {e}"))
+                        })?
+                        .ok_or(HandleError::Peer(
+                            "should never happen:session not found".to_string(),
+                        ))?;
+
+                    // Warning: this is a network call!!!!
+                    let decrypted_hash = DecryptedHash(hex::encode(
+                        sha2::Sha256::digest(&decrypted),
+                    ));
+                    let attestation = handle_verify(
+                        VERIFY_SERVER_URL.to_string(),
+                        decrypted_hash,
+                        http_client,
+                        storage.clone(),
+                        sub_msg.data.attestation.clone(),
+                        encrypted_hash,
+                        session.peer_meta_data.as_ref().unwrap().url.clone(),
+                    )
+                    .await;
+
                     storage
                         .insert_json_rpc_history(
                             request_id,
@@ -226,7 +259,10 @@ pub fn handle(
                     if let Err(e) = session_request_tx
                         .send((
                             sub_msg.data.topic.clone(),
-                            IncomingSessionMessage::SessionRequest(request),
+                            IncomingSessionMessage::SessionRequest(
+                                request,
+                                attestation,
+                            ),
                         ))
                         .map_err(|e| {
                             HandleError::Temporary(format!(
@@ -622,7 +658,9 @@ pub fn handle(
                             response
                         );
                     });
-                    if let Err(e) = priority_request_tx.send((params, tx)) {
+                    if let Err(e) = priority_request_tx
+                        .send((MaybeVerifiedRequest::Unverified(params), tx))
+                    {
                         tracing::warn!("Failed to send priority request: {e}");
                     }
                 }
@@ -679,9 +717,8 @@ pub fn handle(
 
                 Ok(())
             } else {
-                Err(HandleError::Peer(format!(
-                    "ignoring message with invalid ID: {value:?}",
-                )))
+                tracing::debug!("ignoring message: {value:?}");
+                Ok(())
             }
         }
     }
