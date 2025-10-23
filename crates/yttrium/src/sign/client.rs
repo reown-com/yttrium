@@ -44,7 +44,10 @@ use {
     x25519_dalek::PublicKey,
 };
 
-const RELAY_URL: &str = "wss://relay.walletconnect.org";
+pub fn get_relay_url() -> String {
+    std::env::var("WC_SIGN_RELAY_URL")
+        .unwrap_or_else(|_| "wss://relay.walletconnect.org".to_owned())
+}
 
 // Type alias for the callback that creates params with attestation
 pub(crate) type AttestationCallback = Box<dyn Fn(String) -> Params + Send>;
@@ -190,7 +193,7 @@ impl Client {
 
             crate::spawn::spawn(
                 crate::sign::relay::connect_loop_state_machine(
-                    RELAY_URL.to_string(),
+                    get_relay_url(),
                     project_id,
                     signing_key,
                     session_store,

@@ -21,4 +21,5 @@ FROM debian:trixie-slim AS runtime
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates
 WORKDIR /app
 COPY --from=builder /app/target/release/sign-canary /usr/local/bin
+ENV ENABLE_RECORD_CLOUDWATCH_METRICS=true
 ENTRYPOINT ["timeout", "60", "/usr/local/bin/sign-canary"]

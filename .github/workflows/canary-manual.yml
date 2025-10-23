@@ -1,0 +1,59 @@
+name: sign-canary-manual
+on:
+  workflow_dispatch:
+    inputs:
+      relay_type:
+        description: 'Relay Environment'
+        required: true
+        type: choice
+        options:
+          - prod
+          - staging
+          - custom
+        default: 'prod'
+      custom_relay_url:
+        description: 'Custom Relay URL (only used if relay_type is "custom")'
+        required: false
+        type: string
+        default: ''
+
+concurrency: ${{ github.workflow }}
+
+env:
+  TERM: linux
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - uses: Swatinem/rust-cache@v2
+      - uses: extractions/setup-just@v2
+      
+      - name: Determine Relay URL
+        id: relay
+        run: |
+          if [ "${{ inputs.relay_type }}" = "prod" ]; then
+            echo "url=" >> $GITHUB_OUTPUT
+            echo "name=Production" >> $GITHUB_OUTPUT
+          elif [ "${{ inputs.relay_type }}" = "staging" ]; then
+            echo "url=wss://staging-relay.walletconnect.org" >> $GITHUB_OUTPUT
+            echo "name=Staging" >> $GITHUB_OUTPUT
+          else
+            echo "url=${{ inputs.custom_relay_url }}" >> $GITHUB_OUTPUT
+            echo "name=Custom (${{ inputs.custom_relay_url }})" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Pre-warm canary with ${{ steps.relay.outputs.name }} relay
+        run: just sign-canary
+        env:
+          REOWN_PROJECT_ID: ${{ vars.REOWN_PROJECT_ID }}
+          WC_SIGN_RELAY_URL: ${{ steps.relay.outputs.url }}
+      
+      - name: Run canary with ${{ steps.relay.outputs.name }} relay
+        run: just sign-canary
+        env:
+          REOWN_PROJECT_ID: ${{ vars.REOWN_PROJECT_ID }}
+          WC_SIGN_RELAY_URL: ${{ steps.relay.outputs.url }}
+

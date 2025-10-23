@@ -14,7 +14,7 @@ use {
         util::SubscriberInitExt,
         Layer,
     },
-    yttrium::sign::test_helpers::test_sign_impl,
+    yttrium::sign::{client::get_relay_url, test_helpers::test_sign_impl},
 };
 
 #[tokio::main]
@@ -32,92 +32,104 @@ pub async fn main() {
     tracing::debug!(probe = "e2e");
     // let e2e_latency = start.elapsed();
 
-    let config = aws_config::load_from_env().await;
-    let cloudwatch_client = aws_sdk_cloudwatch::Client::new(&config);
-    let region = config.region().unwrap().to_string();
-    let region_dimension = Dimension::builder()
-        .name("Region".to_string())
-        .value(region.clone())
-        .build();
+    if std::env::var("ENABLE_RECORD_CLOUDWATCH_METRICS")
+        == Ok("true".to_string())
+    {
+        let config = aws_config::load_from_env().await;
+        let cloudwatch_client = aws_sdk_cloudwatch::Client::new(&config);
+        let region = config.region().unwrap().to_string();
+        let region_dimension = Dimension::builder()
+            .name("Region".to_string())
+            .value(region.clone())
+            .build();
 
-    // TODO measure crypto operation latency
-    // TODO measure storage operation latency
-    // TODO measure client request latency
+        // TODO measure crypto operation latency
+        // TODO measure storage operation latency
+        // TODO measure client request latency
 
-    println!("probe_layer: {:?}", probe_layer.accumulator());
-    // panic!();
+        println!("probe_layer: {:?}", probe_layer.accumulator());
+        // panic!();
 
-    let now = DateTime::from(SystemTime::now());
-    let metrics = probe_layer
-        .accumulator()
-        .iter()
-        .flat_map(|p| {
-            let probe_dimension = Dimension::builder()
-                .name("Probe".to_string())
-                .value(p.probe.clone())
-                .build();
-            let group_dimension = p.group.clone().map(|g| {
-                Dimension::builder().name("Group".to_string()).value(g).build()
-            });
-            vec![
-                {
-                    let mut metric = MetricDatum::builder()
-                        .metric_name("probe_hit")
-                        // .metric_name(format!("probe_{}_hit", p.probe.clone()))
-                        .dimensions(probe_dimension.clone());
-                    if let Some(group_dimension) = group_dimension.clone() {
-                        metric = metric.dimensions(group_dimension);
-                    }
-                    metric
-                        .dimensions(region_dimension.clone())
-                        .value(1.)
-                        .unit(StandardUnit::Count)
-                        .timestamp(now)
+        let now = DateTime::from(SystemTime::now());
+        let metrics = probe_layer
+            .accumulator()
+            .iter()
+            .flat_map(|p| {
+                let probe_dimension = Dimension::builder()
+                    .name("Probe".to_string())
+                    .value(p.probe.clone())
+                    .build();
+                let group_dimension = p.group.clone().map(|g| {
+                    Dimension::builder()
+                        .name("Group".to_string())
+                        .value(g)
                         .build()
-                },
-                {
-                    let mut metric = MetricDatum::builder()
-                        .metric_name("probe_latency_seconds")
-                        .dimensions(probe_dimension.clone());
-                    if let Some(group_dimension) = group_dimension.clone() {
-                        metric = metric.dimensions(group_dimension);
-                    }
-                    metric
-                        .dimensions(region_dimension.clone())
-                        .value(p.elapsed_s)
-                        .unit(StandardUnit::Seconds)
-                        .timestamp(now)
-                        .build()
-                },
-            ]
-        })
-        .collect::<Vec<_>>();
+                });
+                let relay_url_dimension = Dimension::builder()
+                    .name("RelayUrl".to_string())
+                    .value(get_relay_url())
+                    .build();
+                vec![
+                    {
+                        let mut metric = MetricDatum::builder()
+                            .metric_name("probe_hit")
+                            // .metric_name(format!("probe_{}_hit", p.probe.clone()))
+                            .dimensions(probe_dimension.clone());
+                        if let Some(group_dimension) = group_dimension.clone() {
+                            metric = metric.dimensions(group_dimension);
+                        }
+                        metric
+                            .dimensions(region_dimension.clone())
+                            .dimensions(relay_url_dimension.clone())
+                            .value(1.)
+                            .unit(StandardUnit::Count)
+                            .timestamp(now)
+                            .build()
+                    },
+                    {
+                        let mut metric = MetricDatum::builder()
+                            .metric_name("probe_latency_seconds")
+                            .dimensions(probe_dimension.clone());
+                        if let Some(group_dimension) = group_dimension.clone() {
+                            metric = metric.dimensions(group_dimension);
+                        }
+                        metric
+                            .dimensions(region_dimension.clone())
+                            .value(p.elapsed_s)
+                            .unit(StandardUnit::Seconds)
+                            .timestamp(now)
+                            .build()
+                    },
+                ]
+            })
+            .collect::<Vec<_>>();
 
-    cloudwatch_client
-        .put_metric_data()
-        .namespace("dev2_Canary_RustSignClient")
-        .set_metric_data(Some(metrics))
-        // .metric_data(
-        //     MetricDatum::builder()
-        //         .metric_name("e2e.success".to_string())
-        //         .dimensions(dimensions.clone())
-        //         .value(if result.is_ok() { 1. } else { 0. })
-        //         .unit(StandardUnit::Count)
-        //         .timestamp(DateTime::from(SystemTime::now()))
-        //         .build(),
-        // )
-        // .metric_data(
-        //     MetricDatum::builder()
-        //         .metric_name("e2e.latency".to_string())
-        //         .dimensions(dimensions.clone())
-        //         .value(e2e_latency.as_millis() as f64)
-        //         .unit(StandardUnit::Milliseconds)
-        //         .timestamp(DateTime::from(SystemTime::now()))
-        //         .build(),
-        // )
-        .send()
-        .await
-        .unwrap();
+        cloudwatch_client
+            .put_metric_data()
+            .namespace("RustSignClientCanary")
+            .set_metric_data(Some(metrics))
+            // .metric_data(
+            //     MetricDatum::builder()
+            //         .metric_name("e2e.success".to_string())
+            //         .dimensions(dimensions.clone())
+            //         .value(if result.is_ok() { 1. } else { 0. })
+            //         .unit(StandardUnit::Count)
+            //         .timestamp(DateTime::from(SystemTime::now()))
+            //         .build(),
+            // )
+            // .metric_data(
+            //     MetricDatum::builder()
+            //         .metric_name("e2e.latency".to_string())
+            //         .dimensions(dimensions.clone())
+            //         .value(e2e_latency.as_millis() as f64)
+            //         .unit(StandardUnit::Milliseconds)
+            //         .timestamp(DateTime::from(SystemTime::now()))
+            //         .build(),
+            // )
+            .send()
+            .await
+            .unwrap();
+    }
 
     if let Err(e) = result {
         panic!("Test failed: {e}");
