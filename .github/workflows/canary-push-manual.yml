@@ -1,6 +1,12 @@
-name: sign-canary
+name: sign-canary-push-manual
 on:
-  push:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Branch, tag, or commit SHA to build from'
+        required: true
+        type: string
+        default: 'main'
 
 concurrency: ${{ github.workflow }}
 
@@ -15,6 +21,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+      
       - uses: Swatinem/rust-cache@v2
       - uses: extractions/setup-just@v2
       - name: Pre-warm canary with default relay URL (prod)
@@ -37,7 +46,6 @@ jobs:
           WC_SIGN_RELAY_URL: wss://staging-relay.walletconnect.org
 
   push:
-    if: ${{ github.ref == 'refs/heads/main' }}
     needs: test
     runs-on: ubuntu-latest
     permissions:
@@ -46,6 +54,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4

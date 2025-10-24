@@ -361,6 +361,7 @@ pub async fn test_sign_impl() -> Result<(), String> {
         "Receiving session request response"
     );
     let message = app_session_request_rx.recv().await.unwrap();
+    tracing::debug!("message: {:?}", message);
     assert!(matches!(
         message.1,
         IncomingSessionMessage::SessionRequestResponse(_, _, _)
