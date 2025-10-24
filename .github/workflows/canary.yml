@@ -35,7 +35,7 @@ jobs:
           WC_SIGN_RELAY_URL: wss://staging-relay.walletconnect.org
 
   push:
-    if: ${{ github.ref == 'refs/heads/main' }}
+    # if: ${{ github.ref == 'refs/heads/main' }}
     needs: test
     runs-on: ubuntu-latest
     permissions:
