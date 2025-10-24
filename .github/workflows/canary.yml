@@ -1,10 +1,6 @@
-name: publish_sign_canary
+name: sign-canary
 on:
-  workflow_dispatch:
   push:
-    branches:
-      - main
-      - push-uqyplrystyoz
 
 concurrency: ${{ github.workflow }}
 
@@ -12,7 +8,35 @@ env:
   TERM: linux
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - uses: Swatinem/rust-cache@v2
+      - uses: extractions/setup-just@v2
+      - name: Pre-warm canary with default relay URL (prod)
+        run: just sign-canary
+        env:
+          REOWN_PROJECT_ID: ${{ vars.REOWN_PROJECT_ID }}
+      - name: Run canary with default relay URL (prod)
+        run: just sign-canary
+        env:
+          REOWN_PROJECT_ID: ${{ vars.REOWN_PROJECT_ID }}
+      - name: Pre-warm canary with staging relay URL
+        run: just sign-canary
+        env:
+          REOWN_PROJECT_ID: ${{ vars.REOWN_PROJECT_ID }}
+          WC_SIGN_RELAY_URL: wss://staging-relay.walletconnect.org
+      - name: Run canary with staging relay URL
+        run: just sign-canary
+        env:
+          REOWN_PROJECT_ID: ${{ vars.REOWN_PROJECT_ID }}
+          WC_SIGN_RELAY_URL: wss://staging-relay.walletconnect.org
+
   push:
+    if: ${{ github.ref == 'refs/heads/main' }}
+    needs: test
     runs-on: ubuntu-latest
     permissions:
       id-token: write
