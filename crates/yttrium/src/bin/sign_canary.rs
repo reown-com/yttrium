@@ -1,4 +1,5 @@
 use {
+    aws_config::Region,
     aws_sdk_cloudwatch::{
         primitives::DateTime,
         types::{Dimension, MetricDatum, StandardUnit},
@@ -35,13 +36,29 @@ pub async fn main() {
     if std::env::var("ENABLE_RECORD_CLOUDWATCH_METRICS")
         == Ok("true".to_string())
     {
-        let config = aws_config::load_from_env().await;
+        // Load the config twice
+        let region = {
+            // Once to get the region
+            let config = aws_config::load_from_env().await;
+            config.region().unwrap().to_string()
+        };
+
+        // Second time to actually create the actual client we'll use
+        const RECORD_REGION: &str = "eu-central-1";
+        let config = aws_config::from_env()
+            .region(Region::new(RECORD_REGION))
+            .load()
+            .await;
         let cloudwatch_client = aws_sdk_cloudwatch::Client::new(&config);
-        let region = config.region().unwrap().to_string();
         let region_dimension = Dimension::builder()
             .name("Region".to_string())
             .value(region.clone())
             .build();
+        let relay_url_dimension = Dimension::builder()
+            .name("RelayUrl".to_string())
+            .value(get_relay_url())
+            .build();
+        let dimensions = vec![region_dimension, relay_url_dimension];
 
         // TODO measure crypto operation latency
         // TODO measure storage operation latency
@@ -55,46 +72,35 @@ pub async fn main() {
             .accumulator()
             .iter()
             .flat_map(|p| {
-                let probe_dimension = Dimension::builder()
-                    .name("Probe".to_string())
-                    .value(p.probe.clone())
-                    .build();
-                let group_dimension = p.group.clone().map(|g| {
+                let mut dimensions = dimensions.clone();
+                dimensions.push(
                     Dimension::builder()
-                        .name("Group".to_string())
-                        .value(g)
-                        .build()
-                });
-                let relay_url_dimension = Dimension::builder()
-                    .name("RelayUrl".to_string())
-                    .value(get_relay_url())
-                    .build();
+                        .name("Probe".to_string())
+                        .value(p.probe.clone())
+                        .build(),
+                );
+                if let Some(group) = p.group.clone() {
+                    dimensions.push(
+                        Dimension::builder()
+                            .name("Group".to_string())
+                            .value(group)
+                            .build(),
+                    );
+                }
                 vec![
                     {
-                        let mut metric = MetricDatum::builder()
+                        MetricDatum::builder()
                             .metric_name("probe_hit")
-                            // .metric_name(format!("probe_{}_hit", p.probe.clone()))
-                            .dimensions(probe_dimension.clone());
-                        if let Some(group_dimension) = group_dimension.clone() {
-                            metric = metric.dimensions(group_dimension);
-                        }
-                        metric
-                            .dimensions(region_dimension.clone())
-                            .dimensions(relay_url_dimension.clone())
+                            .set_dimensions(Some(dimensions.clone()))
                             .value(1.)
                             .unit(StandardUnit::Count)
                             .timestamp(now)
                             .build()
                     },
                     {
-                        let mut metric = MetricDatum::builder()
+                        MetricDatum::builder()
                             .metric_name("probe_latency_seconds")
-                            .dimensions(probe_dimension.clone());
-                        if let Some(group_dimension) = group_dimension.clone() {
-                            metric = metric.dimensions(group_dimension);
-                        }
-                        metric
-                            .dimensions(region_dimension.clone())
+                            .set_dimensions(Some(dimensions.clone()))
                             .value(p.elapsed_s)
                             .unit(StandardUnit::Seconds)
                             .timestamp(now)
