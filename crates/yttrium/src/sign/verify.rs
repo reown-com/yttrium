@@ -6,6 +6,7 @@ use {
     jsonwebtoken::{jwk::Jwk, Algorithm, DecodingKey, Validation},
     serde::{Deserialize, Serialize},
     std::sync::Arc,
+    tracing::Instrument,
     url::Url,
 };
 
@@ -39,12 +40,14 @@ pub async fn get_optimistic_public_key(
     verify_server_url: String,
     http_client: reqwest::Client,
     storage: Arc<dyn Storage>,
+    probe_group: Option<String>,
 ) -> Result<Jwk, GetPublicKeyError> {
     get_optimistic_public_key_impl(
         verify_server_url,
         http_client,
         storage,
         PUBLIC_KEY,
+        probe_group.clone(),
     )
     .await
 }
@@ -54,6 +57,7 @@ pub async fn get_optimistic_public_key_impl(
     http_client: reqwest::Client,
     storage: Arc<dyn Storage>,
     hardcoded_public_key: &str,
+    probe_group: Option<String>,
 ) -> Result<Jwk, GetPublicKeyError> {
     let public_key = storage
         .get_verify_public_key()
@@ -65,8 +69,13 @@ pub async fn get_optimistic_public_key_impl(
             Ok(public_key) => Ok(public_key),
             Err(e) => {
                 tracing::error!("verify parse hardcoded public key: {e}");
-                get_latest_public_key(verify_server_url, http_client, storage)
-                    .await
+                get_latest_public_key(
+                    verify_server_url,
+                    http_client,
+                    storage,
+                    probe_group.clone(),
+                )
+                .await
             }
         }
     }
@@ -76,29 +85,38 @@ pub async fn get_latest_public_key(
     verify_server_url: String,
     http_client: reqwest::Client,
     storage: Arc<dyn Storage>,
+    probe_group: Option<String>,
 ) -> Result<Jwk, GetPublicKeyError> {
     // spawn() to support WASM environments where the `send()` future is not Send
     // TODO consider removing when compiling for native platforms
     let (tx, rx) = tokio::sync::oneshot::channel();
-    crate::spawn::spawn(async move {
-        let result = async {
-            let response = http_client
-                .get(format!("{verify_server_url}{PUBLIC_KEY_ENDPOINT}"))
-                .send()
-                .await
-                .map_err(GetPublicKeyError::Network)?;
-            if !response.status().is_success() {
-                return Err(GetPublicKeyError::NotSuccess(response.status()));
+    crate::spawn::spawn(
+        async move {
+            let result = async {
+                let response = http_client
+                    .get(format!("{verify_server_url}{PUBLIC_KEY_ENDPOINT}"))
+                    .send()
+                    .await
+                    .map_err(GetPublicKeyError::Network)?;
+                if !response.status().is_success() {
+                    return Err(GetPublicKeyError::NotSuccess(
+                        response.status(),
+                    ));
+                }
+                let public_key = response
+                    .json::<VerifyPublicKey>()
+                    .await
+                    .map_err(GetPublicKeyError::Json)?;
+                Ok(public_key.public_key)
             }
-            let public_key = response
-                .json::<VerifyPublicKey>()
-                .await
-                .map_err(GetPublicKeyError::Json)?;
-            Ok(public_key.public_key)
+            .await;
+            let _ = tx.send(result);
         }
-        .await;
-        let _ = tx.send(result);
-    });
+        .instrument(tracing::debug_span!(
+            "get_latest_public_key",
+            group = probe_group.clone()
+        )),
+    );
     let public_key = rx.await.map_err(GetPublicKeyError::Recv)??;
     storage
         .set_verify_public_key(public_key.clone())
@@ -113,6 +131,7 @@ struct VerifyPublicKey {
     pub expires_at: u64,
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn decode_attestation_into_verify_context(
     verify_server_url: String,
     app_metadata_url: &str,
@@ -121,6 +140,7 @@ async fn decode_attestation_into_verify_context(
     encrypted_id: EncryptedHash,
     http_client: reqwest::Client,
     storage: Arc<dyn Storage>,
+    probe_group: Option<String>,
 ) -> VerifyContext {
     let decoding_key = match DecodingKey::from_jwk(public_key) {
         Ok(decoding_key) => decoding_key,
@@ -146,6 +166,7 @@ async fn decode_attestation_into_verify_context(
                     verify_server_url,
                     http_client,
                     storage,
+                    probe_group.clone(),
                 )
                 .await
                 {
@@ -261,6 +282,7 @@ struct VerifyAttestation {
     is_scam: Option<bool>,
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn handle_verify(
     verify_server_url: String,
     decrypted_hash: DecryptedHash,
@@ -269,6 +291,7 @@ pub async fn handle_verify(
     attestation: Option<Arc<str>>,
     encrypted_hash: EncryptedHash,
     app_metadata_url: String,
+    probe_group: Option<String>,
 ) -> VerifyContext {
     if let Some(attestation) = attestation {
         if attestation.is_empty() {
@@ -285,6 +308,7 @@ pub async fn handle_verify(
             verify_server_url.clone(),
             http_client.clone(),
             storage.clone(),
+            probe_group.clone(),
         )
         .await
         {
@@ -306,6 +330,7 @@ pub async fn handle_verify(
             encrypted_hash.clone(),
             http_client,
             storage,
+            probe_group.clone(),
         )
         .await
     } else {
@@ -317,27 +342,33 @@ pub async fn handle_verify(
             // spawn() to support WASM environments where the `reqwest::send()` future is not Send
             // TODO consider removing when compiling for native platforms
             let (tx, rx) = tokio::sync::oneshot::channel();
-            crate::spawn::spawn(async move {
-                let result = async {
-                    let response = http_client
-                        .get(url)
-                        .send()
-                        .await
-                        .map_err(GetPublicKeyError::Network)?;
-                    if !response.status().is_success() {
-                        return Err(GetPublicKeyError::NotSuccess(
-                            response.status(),
-                        ));
+            crate::spawn::spawn(
+                async move {
+                    let result = async {
+                        let response = http_client
+                            .get(url)
+                            .send()
+                            .await
+                            .map_err(GetPublicKeyError::Network)?;
+                        if !response.status().is_success() {
+                            return Err(GetPublicKeyError::NotSuccess(
+                                response.status(),
+                            ));
+                        }
+                        let attestation = response
+                            .json::<VerifyAttestation>()
+                            .await
+                            .map_err(GetPublicKeyError::Json)?;
+                        Ok(attestation)
                     }
-                    let attestation = response
-                        .json::<VerifyAttestation>()
-                        .await
-                        .map_err(GetPublicKeyError::Json)?;
-                    Ok(attestation)
+                    .await;
+                    let _ = tx.send(result);
                 }
-                .await;
-                let _ = tx.send(result);
-            });
+                .instrument(tracing::debug_span!(
+                    "get_attestation",
+                    group = probe_group.clone()
+                )),
+            );
             rx.await.map_err(GetPublicKeyError::Recv)
         };
         let attestation = match attestation_result {
@@ -570,6 +601,7 @@ mod tests {
             http_client,
             storage,
             MOCK_JWK,
+            None,
         )
         .await;
         let public_key = public_key.unwrap();
@@ -685,6 +717,7 @@ mod tests {
             http_client,
             storage,
             mock_jwk,
+            None,
         )
         .await;
         let public_key = public_key.unwrap();
@@ -801,6 +834,7 @@ mod tests {
             http_client,
             storage,
             INVALID_JWK,
+            None,
         )
         .await;
         let public_key = serde_json::to_string(&public_key.unwrap()).unwrap();
@@ -918,6 +952,7 @@ mod tests {
             Some("".to_string().into()),
             EncryptedHash(hex::encode(sha2::Sha256::digest([1; 32]))),
             "https://app.walletconnect.org".to_string(),
+            None,
         )
         .await;
 
@@ -1067,6 +1102,7 @@ mod tests {
             None,
             EncryptedHash(hex::encode(sha2::Sha256::digest([0; 32]))),
             app_origin.to_string(),
+            None,
         )
         .await;
 
@@ -1105,6 +1141,7 @@ mod tests {
             None,
             EncryptedHash(hex::encode(sha2::Sha256::digest([0; 32]))),
             app_origin.to_string(),
+            None,
         )
         .await;
 
@@ -1150,6 +1187,7 @@ mod tests {
             None,
             EncryptedHash(hex::encode(sha2::Sha256::digest([0; 32]))),
             app_origin.to_string(),
+            None,
         )
         .await;
 
@@ -1194,6 +1232,7 @@ mod tests {
             None,
             EncryptedHash(hex::encode(sha2::Sha256::digest([0; 32]))),
             app_origin.to_string(),
+            None,
         )
         .await;
 
@@ -1238,6 +1277,7 @@ mod tests {
             None,
             EncryptedHash(hex::encode(sha2::Sha256::digest([0; 32]))),
             app_origin.to_string(),
+            None,
         )
         .await;
 
