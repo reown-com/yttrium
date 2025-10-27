@@ -25,6 +25,7 @@ use {
         },
     },
     std::{sync::Arc, time::Duration},
+    tracing::Instrument,
 };
 
 // Wrapper types to prevent mixing up sent vs next message IDs
@@ -161,10 +162,12 @@ async fn connect(
     probe_group: Option<String>,
 ) -> Result<ConnectOutput, ConnectError> {
     let url = {
+        let iss = DecodedClientId::from_key(&key.verifying_key());
+        tracing::debug!("connecting with client_id: {iss}");
         let encoder = &data_encoding::BASE64URL_NOPAD;
         let claims = {
             let data = JwtBasicClaims {
-                iss: DecodedClientId::from_key(&key.verifying_key()).into(),
+                iss: iss.into(),
                 sub: "http://example.com".to_owned(),
                 aud: relay_url.clone(),
                 iat: crate::time::SystemTime::now()
@@ -212,10 +215,12 @@ async fn connect(
             .to_string()
     };
 
-    tracing::debug!(group = probe_group.clone(), probe = "relay_connect_begin");
+    tracing::debug!(probe = "relay_connect_begin");
 
     #[cfg(not(target_arch = "wasm32"))]
     {
+        use tracing::Instrument;
+
         let connect_fut = connect_async(url);
         let (mut ws_stream, _response) = tokio::select! {
             res = connect_fut => res.map_err(|e| ConnectError::ConnectFail(e.to_string()))?,
@@ -224,10 +229,7 @@ async fn connect(
                 return Err(ConnectError::ConnectFail("Timeout connecting to relay".to_string()));
             }
         };
-        tracing::debug!(
-            group = probe_group.clone(),
-            probe = "relay_connect_success"
-        );
+        tracing::debug!(probe = "relay_connect_success");
 
         let (outgoing_tx, mut outgoing_rx) =
             tokio::sync::mpsc::unbounded_channel::<String>();
@@ -242,7 +244,7 @@ async fn connect(
 
                 tokio::select! {
                     Some(message) = outgoing_rx.recv() => {
-                        tracing::debug!("sending websocket message: {message}");
+                        tracing::debug!("sending tungstenite message from connect() function: {message}");
                         if let Err(e) = ws_stream.send(Message::Text(message.into())).await {
                             tracing::debug!("Failed to send outgoing message: {e}");
                             break;
@@ -266,6 +268,7 @@ async fn connect(
                         #[allow(clippy::single_match)]
                         match n {
                             Message::Text(message) => {
+                                tracing::debug!("received tungstenite message: {message}");
                                 let result = serde_json::from_str::<Payload>(&message);
                                 match result {
                                     Ok(payload) => {
@@ -310,7 +313,7 @@ async fn connect(
                 }
             }
             tracing::debug!("tungstenite connection loop ending");
-        });
+        }.instrument(tracing::debug_span!("tungstenite_connection_loop", group = probe_group.clone())));
 
         let mut message_id = NextMessageId::new(MIN_RPC_ID);
 
@@ -478,9 +481,15 @@ async fn connect(
         let (tx_open, mut rx_open) = tokio::sync::mpsc::channel(1);
         let onopen_closure = Closure::wrap(Box::new(move |_event: Event| {
             let tx_open = tx_open.clone();
-            crate::spawn::spawn(async move {
-                let _ = tx_open.send(()).await.ok();
-            });
+            crate::spawn::spawn(
+                async move {
+                    let _ = tx_open.send(()).await.ok();
+                }
+                .instrument(tracing::debug_span!(
+                    "onopen_handler",
+                    group = probe_group.clone()
+                )),
+            );
         }) as Box<dyn Fn(Event)>);
         ws.set_onopen(Some(onopen_closure.as_ref().unchecked_ref()));
 
@@ -518,7 +527,9 @@ async fn connect(
                         "Failed to serialize request: {e}"
                     ))
                 })?;
-            tracing::debug!("sending websocket message: {serialized}");
+            tracing::debug!(
+                "sending wasm websocket batch subscribe request: {serialized}"
+            );
             ws.send_with_str(&serialized).map_err(|e| {
                 ConnectError::ConnectFail(format!(
                     "Failed to send batch subscribe request: {}",
@@ -644,30 +655,37 @@ fn spawn_attestation_fetch(
     encrypted_id: EncryptedHash,
     decrypted_id: DecryptedHash,
     project_id: ProjectId,
+    probe_group: Option<String>,
 ) -> tokio::sync::oneshot::Receiver<String> {
     let (attestation_tx, attestation_rx) = tokio::sync::oneshot::channel();
 
-    crate::spawn::spawn(async move {
-        match crate::sign::verify::create_attestation(
-            encrypted_id,
-            decrypted_id,
-            project_id,
-        )
-        .await
-        {
-            Ok(attestation) => {
-                tracing::debug!(
-                    "Attestation received: {} bytes",
-                    attestation.len()
-                );
-                let _ = attestation_tx.send(attestation);
-            }
-            Err(e) => {
-                tracing::error!("Failed to create attestation: {e:?}");
-                let _ = attestation_tx.send(String::new());
+    crate::spawn::spawn(
+        async move {
+            match crate::sign::verify::create_attestation(
+                encrypted_id,
+                decrypted_id,
+                project_id,
+            )
+            .await
+            {
+                Ok(attestation) => {
+                    tracing::debug!(
+                        "Attestation received: {} bytes",
+                        attestation.len()
+                    );
+                    let _ = attestation_tx.send(attestation);
+                }
+                Err(e) => {
+                    tracing::error!("Failed to create attestation: {e:?}");
+                    let _ = attestation_tx.send(String::new());
+                }
             }
         }
-    });
+        .instrument(tracing::debug_span!(
+            "attestation_fetch",
+            group = probe_group.clone()
+        )),
+    );
 
     attestation_rx
 }
@@ -813,6 +831,7 @@ pub enum IncomingSessionMessage {
 // MaybeVerifiedRequest is now defined in client.rs and imported via the parent module
 
 #[allow(clippy::too_many_arguments)]
+#[tracing::instrument(skip_all, fields(group = probe_group.clone()))]
 pub async fn connect_loop_state_machine(
     relay_url: String,
     project_id: ProjectId,
@@ -847,7 +866,8 @@ pub async fn connect_loop_state_machine(
               priority_request_tx: tokio::sync::mpsc::UnboundedSender<(
             MaybeVerifiedRequest,
             tokio::sync::oneshot::Sender<Result<Response, RequestError>>,
-        )>| {
+        )>,
+              probe_group: Option<String>| {
             let session_store = session_store.clone();
             let http_client = http_client.clone();
             let session_request_tx = session_request_tx.clone();
@@ -859,6 +879,7 @@ pub async fn connect_loop_state_machine(
                     sub_msg,
                     session_request_tx,
                     priority_request_tx.clone(),
+                    probe_group.clone(),
                 )
                 .await;
                 // TODO relay only listens for these types of ACKs for 4s. We should handle longer processing times e.g. via batchFetch in-case of long network latency or other factors
@@ -1196,6 +1217,7 @@ pub async fn connect_loop_state_machine(
                         encrypted_id,
                         decrypted_id,
                         project_id.clone(),
+                        probe_group.clone(),
                     );
 
                     // Start websocket connection immediately (parallel with attestation)
@@ -1470,10 +1492,12 @@ pub async fn connect_loop_state_machine(
                                                 Params::Subscription(
                                                     sub_msg
                                                 ) => {
+                                                    tracing::debug!("handling irn_subscription in Connected state: {sub_msg:?}");
                                                     handle_irn_subscription(
                                                         id,
                                                         sub_msg,
                                                         priority_request_tx.clone(),
+                                                        probe_group.clone(),
                                                     )
                                                     .await;
                                                 }
@@ -1528,7 +1552,7 @@ pub async fn connect_loop_state_machine(
                                 }
                                 MaybeVerifiedRequest::Verified(encrypted_id, decrypted_id, callback) => {
                                     // Spawn attestation fetch and transition to awaiting state
-                                    let attestation_rx = spawn_attestation_fetch(encrypted_id, decrypted_id, project_id.clone());
+                                    let attestation_rx = spawn_attestation_fetch(encrypted_id, decrypted_id, project_id.clone(), probe_group.clone());
 
                                     // Transition to awaiting attestation (will create params once it arrives)
                                     ConnectionState::ConnectedAwaitingAttestation(
@@ -1570,7 +1594,7 @@ pub async fn connect_loop_state_machine(
                                     ))
                                 })
                                 .expect("TODO");
-                            tracing::debug!("sending websocket message: {serialized}");
+                            tracing::debug!("sending wasm websocket message from connected state: {serialized}");
                             #[cfg(target_arch = "wasm32")]
                             ws.0.send_with_str(&serialized).expect("TODO");
                             #[cfg(not(target_arch = "wasm32"))]
@@ -1723,10 +1747,12 @@ pub async fn connect_loop_state_machine(
                                                 Params::Subscription(
                                                     sub_msg
                                                 ) => {
+                                                    tracing::debug!("handling irn_subscription in AwaitingRequestResponse state: {sub_msg:?}");
                                                     handle_irn_subscription(
                                                         id,
                                                         sub_msg,
                                                         priority_request_tx.clone(),
+                                                        probe_group.clone(),
                                                     )
                                                     .await;
                                                 }

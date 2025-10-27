@@ -23,6 +23,7 @@ pub async fn main() {
     let probe_layer = ProbeLayer::new();
     tracing_subscriber::fmt()
         .with_max_level(tracing::Level::DEBUG)
+        .with_ansi(false)
         .finish()
         .with(probe_layer.clone())
         .try_init()

@@ -177,6 +177,7 @@ impl Client {
         self.probe_group = Some(probe_group);
     }
 
+    #[tracing::instrument(skip_all, fields(group = self.probe_group.clone()))]
     pub fn start(&mut self) {
         if let (Some(request_rx), Some(online_rx)) =
             (self.pending_request_rx.take(), self.pending_online_rx.take())
@@ -211,6 +212,7 @@ impl Client {
     /// Call this when the app and user are ready to receive session requests.
     /// Skip calling this if you intend to shortly call another SDK method, as those other methods will themselves call this.
     /// TODO actually call this from other methods
+    #[tracing::instrument(skip_all, fields(group = self.probe_group.clone()))]
     pub fn online(&mut self) {
         if let Some(online_tx) = self.online_tx.take() {
             if let Err(e) = online_tx.send(()) {
@@ -221,6 +223,7 @@ impl Client {
         }
     }
 
+    #[tracing::instrument(skip_all, fields(group = self.probe_group.clone()))]
     pub async fn pair(
         &mut self,
         uri: &str,
@@ -337,6 +340,7 @@ impl Client {
             message.attestation.clone(),
             encrypted_hash.clone(),
             proposal.proposer.metadata.url.clone(),
+            self.probe_group.clone(),
         )
         .await;
 
@@ -358,6 +362,7 @@ impl Client {
         ))
     }
 
+    #[tracing::instrument(skip_all, fields(group = self.probe_group.clone()))]
     pub async fn connect(
         &mut self,
         params: ConnectParams,
@@ -412,10 +417,7 @@ impl Client {
             )
             .map_err(ConnectError::ShouldNeverHappen)?;
 
-        tracing::debug!(
-            group = self.probe_group.clone(),
-            probe = "sending_propose_session_request",
-        );
+        tracing::debug!(probe = "sending_propose_session_request",);
 
         self.do_verified_request::<bool>(
             encrypted_id,
@@ -445,10 +447,7 @@ impl Client {
         .await
         .map_err(ConnectError::Request)?;
 
-        tracing::debug!(
-            group = self.probe_group.clone(),
-            probe = "propose_session_request_success",
-        );
+        tracing::debug!(probe = "propose_session_request_success",);
 
         self.storage.insert_json_rpc_history(
             rpc_id,
@@ -464,11 +463,7 @@ impl Client {
             sym_key,
             self_key.to_bytes(),
         );
-        tracing::debug!(
-            group = self.probe_group.clone(),
-            probe = "pairing_saved",
-            "pairing saved"
-        );
+        tracing::debug!(probe = "pairing_saved",);
 
         // TODO should return a promise/completer like JS/Flutter or should we just await the on_session_connect event?
         Ok(ConnectResult { topic: pairing_info.topic.clone(), uri })
@@ -513,6 +508,7 @@ impl Client {
         Ok(())
     }
 
+    #[tracing::instrument(skip_all, fields(group = self.probe_group.clone()))]
     pub async fn approve(
         &mut self,
         proposal: SessionProposal,
@@ -678,6 +674,7 @@ impl Client {
     }
 
     // TODO will use storage in the future, for now it's ok to receive the whole proposal as parameter much like on approve() method.
+    #[tracing::instrument(skip_all, fields(group = self.probe_group.clone()))]
     pub async fn reject(
         &mut self,
         proposal: SessionProposal,
@@ -755,12 +752,7 @@ impl Client {
         }
     }
 
-    pub async fn _extend(&self) {
-        // TODO implement
-        // https://github.com/WalletConnect/walletconnect-monorepo/blob/5bef698dcf0ae910548481959a6a5d87eaf7aaa5/packages/sign-client/src/controllers/engine.ts#L569
-        unimplemented!()
-    }
-
+    #[tracing::instrument(skip_all, fields(group = self.probe_group.clone()))]
     pub async fn request(
         &mut self,
         topic: Topic,
@@ -825,6 +817,7 @@ impl Client {
         Ok(rpc.id)
     }
 
+    #[tracing::instrument(skip_all, fields(group = self.probe_group.clone()))]
     pub async fn respond(
         &mut self,
         topic: Topic,
@@ -889,6 +882,7 @@ impl Client {
         Ok(())
     }
 
+    #[tracing::instrument(skip_all, fields(group = self.probe_group.clone()))]
     pub async fn update(
         &mut self,
         topic: Topic,
@@ -966,6 +960,7 @@ impl Client {
     }
 
     /// Extend session by 7 days from now
+    #[tracing::instrument(skip_all, fields(group = self.probe_group.clone()))]
     pub async fn extend(&mut self, topic: Topic) -> Result<(), ExtendError> {
         let mut session = self
             .storage
@@ -1034,12 +1029,15 @@ impl Client {
 
         Ok(())
     }
+
+    #[tracing::instrument(skip_all, fields(group = self.probe_group.clone()))]
     pub async fn _ping(&self) {
         // TODO implement
         // https://github.com/WalletConnect/walletconnect-monorepo/blob/5bef698dcf0ae910548481959a6a5d87eaf7aaa5/packages/sign-client/src/controllers/engine.ts#L727
         unimplemented!()
     }
 
+    #[tracing::instrument(skip_all, fields(group = self.probe_group.clone()))]
     pub async fn emit(
         &mut self,
         topic: Topic,
@@ -1105,6 +1103,7 @@ impl Client {
         Ok(())
     }
 
+    #[tracing::instrument(skip_all, fields(group = self.probe_group.clone()))]
     pub async fn disconnect(
         &mut self,
         topic: Topic,
@@ -1175,18 +1174,21 @@ impl Client {
         Ok(())
     }
 
+    #[tracing::instrument(skip_all, fields(group = self.probe_group.clone()))]
     pub async fn _authenticate(&self) {
         // TODO implement
         // https://github.com/WalletConnect/walletconnect-monorepo/blob/5bef698dcf0ae910548481959a6a5d87eaf7aaa5/packages/sign-client/src/controllers/engine.ts#L817
         unimplemented!()
     }
 
+    #[tracing::instrument(skip_all, fields(group = self.probe_group.clone()))]
     pub async fn _approve_session_authenticate(&self) {
         // TODO implement
         // https://github.com/WalletConnect/walletconnect-monorepo/blob/5bef698dcf0ae910548481959a6a5d87eaf7aaa5/packages/sign-client/src/controllers/engine.ts#L1123
         unimplemented!()
     }
 
+    #[tracing::instrument(skip_all, fields(group = self.probe_group.clone()))]
     pub async fn _reject_session_authenticate(&self) {
         // TODO implement
         // https://github.com/WalletConnect/walletconnect-monorepo/blob/5bef698dcf0ae910548481959a6a5d87eaf7aaa5/packages/sign-client/src/controllers/engine.ts#L1298

@@ -22,10 +22,11 @@ use {
     data_encoding::BASE64,
     relay_rpc::{
         domain::Topic,
-        rpc::{BatchSubscribe, Params, Response, Subscription},
+        rpc::{Params, Response, Subscribe, Subscription},
     },
     sha2::Digest,
     std::{collections::HashMap, sync::Arc},
+    tracing::Instrument,
 };
 
 #[derive(Debug, thiserror::Error)]
@@ -58,6 +59,7 @@ pub async fn handle(
         MaybeVerifiedRequest,
         tokio::sync::oneshot::Sender<Result<Response, RequestError>>,
     )>,
+    probe_group: Option<String>,
 ) -> Result<(), HandleError> {
     // WARNING: This function must complete in <4s not including network latency, so don't do blocking operations such as network requests
 
@@ -237,6 +239,7 @@ pub async fn handle(
                         sub_msg.data.attestation.clone(),
                         encrypted_hash,
                         session.peer_meta_data.as_ref().unwrap().url.clone(),
+                        probe_group.clone(),
                     )
                     .await;
 
@@ -643,21 +646,28 @@ pub async fn handle(
                         ))
                     })?;
 
-                // No SessionConnect emit... that's actually emitted when the sessionSettle request comes in
+                // No SessionConnect emit yet... that's emitted when the sessionSettle request comes in
 
                 {
-                    let params = Params::BatchSubscribe(BatchSubscribe {
-                        topics: vec![session_topic],
-                    });
+                    let params =
+                        Params::Subscribe(Subscribe { topic: session_topic });
                     let (tx, rx) = tokio::sync::oneshot::channel();
-                    crate::spawn::spawn(async move {
-                        // Consume the response to avoid a publish error
-                        let response = rx.await;
-                        tracing::debug!(
-                            "Received batch subscribe response: {:?}",
-                            response
-                        );
-                    });
+                    crate::spawn::spawn(
+                        async move {
+                            // Consume the response to avoid a publish error
+                            let response = rx.await;
+                            tracing::debug!(
+                                "Received subscribe response: {:?}",
+                                response
+                            );
+                        }
+                        .instrument(
+                            tracing::debug_span!(
+                                "subscribe_response",
+                                group = probe_group.clone()
+                            ),
+                        ),
+                    );
                     if let Err(e) = priority_request_tx
                         .send((MaybeVerifiedRequest::Unverified(params), tx))
                     {

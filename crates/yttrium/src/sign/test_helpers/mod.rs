@@ -173,7 +173,7 @@ impl Storage for MySessionStore {
 
 pub async fn test_sign_impl() -> Result<(), String> {
     let app_client_id = generate_client_id_key();
-    tracing::debug!(probe = "app_client_id", "app_client_id generated");
+    tracing::debug!(group = "app", probe = "client_id_generated");
     let (mut app_client, mut app_session_request_rx) = Client::new(
         std::env::var("REOWN_PROJECT_ID").unwrap().into(),
         app_client_id,
@@ -184,9 +184,9 @@ pub async fn test_sign_impl() -> Result<(), String> {
         })))),
     );
     app_client.set_probe_group("app".to_string());
-    tracing::debug!(probe = "app_client", "app_client created");
+    tracing::debug!(group = "app", probe = "client_created");
     app_client.start();
-    tracing::debug!(probe = "app_client_started", "app_client started");
+    tracing::debug!(group = "app", probe = "client_started");
     let connect_result = app_client
         .connect(
             ConnectParams {
@@ -212,10 +212,10 @@ pub async fn test_sign_impl() -> Result<(), String> {
         )
         .await
         .map_err(|e| format!("Failed to connect: {e}"))?;
-    tracing::debug!(probe = "connect_finished", "connect finished");
+    tracing::debug!(group = "app", probe = "connect_finished");
 
     let wallet_client_id = generate_client_id_key();
-    tracing::debug!(probe = "wallet_client_id", "wallet_client_id generated");
+    tracing::debug!(group = "wallet", probe = "client_id_generated");
     let (mut wallet_client, mut wallet_session_request_rx) = Client::new(
         std::env::var("REOWN_PROJECT_ID").unwrap().into(),
         wallet_client_id,
@@ -226,14 +226,14 @@ pub async fn test_sign_impl() -> Result<(), String> {
         })))),
     );
     wallet_client.set_probe_group("wallet".to_string());
-    tracing::debug!(probe = "wallet_client", "wallet_client created");
+    tracing::debug!(group = "wallet", probe = "client_created");
     wallet_client.start();
-    tracing::debug!(probe = "wallet_client_started", "wallet_client started");
+    tracing::debug!(group = "wallet", probe = "client_started");
     let pairing = wallet_client
         .pair(&connect_result.uri)
         .await
         .map_err(|e| format!("Failed to pair: {e}"))?;
-    tracing::debug!(probe = "pair_finished", "pair finished");
+    tracing::debug!(group = "wallet", probe = "pair_finished");
 
     assert_eq!(pairing.1.validation, VerifyValidation::Unknown);
 
@@ -267,41 +267,31 @@ pub async fn test_sign_impl() -> Result<(), String> {
         verify_url: None,
         redirect: None,
     };
-    tracing::debug!(probe = "metadata", "metadata created");
+    tracing::debug!(group = "wallet", probe = "metadata");
 
     wallet_client
         .approve(pairing.0, namespaces, metadata)
         .await
         .map_err(|e| format!("Failed to approve: {e}"))?;
-    tracing::debug!(probe = "approve_finished", "approve finished");
+    tracing::debug!(group = "wallet", probe = "approve_finished");
 
     let message = wallet_session_request_rx
         .recv()
         .await
         .ok_or_else(|| "Failed to receive session connect".to_string())?;
-    tracing::debug!(
-        probe = "app_session_connect_received",
-        "session connect received"
-    );
-
     if !(matches!(message.1, IncomingSessionMessage::SessionConnect(_, _))) {
         Err(format!("Expected SessionConnect, got {:?}", message.1))?;
     }
+    tracing::debug!(group = "wallet", probe = "session_connect_received");
 
     let message = app_session_request_rx
         .recv()
         .await
         .ok_or_else(|| "Failed to receive session connect".to_string())?;
-    tracing::debug!(
-        probe = "app_session_connect_received",
-        "session connect received"
-    );
     assert!(matches!(message.1, IncomingSessionMessage::SessionConnect(_, _)));
+    tracing::debug!(group = "app", probe = "session_connect_received");
 
-    tracing::debug!(
-        probe = "requesting_personal_sign",
-        "requesting personal sign"
-    );
+    tracing::debug!(group = "app", probe = "requesting_personal_sign");
     app_client
         .request(
             message.0,
@@ -316,16 +306,10 @@ pub async fn test_sign_impl() -> Result<(), String> {
         )
         .await
         .unwrap();
-    tracing::debug!(
-        probe = "receiving_session_request",
-        "receiving session request"
-    );
+    tracing::debug!(group = "wallet", probe = "receiving_session_request");
     let message = wallet_session_request_rx.recv().await.unwrap();
-    tracing::debug!(
-        probe = "received_session_request",
-        "receiving session request"
-    );
     assert!(matches!(message.1, IncomingSessionMessage::SessionRequest(_, _)));
+    tracing::debug!(group = "wallet", probe = "received_session_request");
     let req = if let IncomingSessionMessage::SessionRequest(req, _) = message.1
     {
         req
@@ -339,10 +323,7 @@ pub async fn test_sign_impl() -> Result<(), String> {
         serde_json::Value::String("0x0".to_string())
     );
     assert_eq!(req.params.request.expiry, Some(0));
-    tracing::debug!(
-        probe = "responding_to_session_request",
-        "responding to session request"
-    );
+    tracing::debug!(group = "wallet", probe = "responding_to_session_request");
     wallet_client
         .respond(
             message.0,
@@ -357,10 +338,11 @@ pub async fn test_sign_impl() -> Result<(), String> {
         .await
         .unwrap();
     tracing::debug!(
-        probe = "receiving_session_request_response",
-        "Receiving session request response"
+        group = "app",
+        probe = "receiving_session_request_response"
     );
     let message = app_session_request_rx.recv().await.unwrap();
+    tracing::debug!(group = "app", probe = "received_session_request_response");
     tracing::debug!("message: {:?}", message);
     assert!(matches!(
         message.1,
