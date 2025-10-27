@@ -3,7 +3,7 @@ use {
         client_errors::{
             ApproveError, ConnectError, DisconnectError, EmitError,
             ExtendError, PairError, RejectError, RequestError, RespondError,
-            UpdateError,
+            SessionRequestError, UpdateError,
         },
         client_types::{
             ConnectParams, ConnectResult, PairingInfo, RejectionReason,
@@ -44,6 +44,7 @@ use {
     },
     serde::de::DeserializeOwned,
     std::{collections::HashMap, sync::Arc},
+    tokio::sync::Mutex,
     tracing::debug,
     x25519_dalek::PublicKey,
 };
@@ -69,18 +70,20 @@ type RpcRequestReceiver =
     tokio::sync::mpsc::UnboundedReceiver<RpcRequestMessage>;
 
 pub struct Client {
+    probe_group: Option<String>,
     http_client: reqwest::Client,
     tx: tokio::sync::mpsc::UnboundedSender<(Topic, IncomingSessionMessage)>,
     request_tx: RpcRequestSender,
     online_tx: Option<tokio::sync::mpsc::UnboundedSender<()>>,
     cleanup_tx: Option<tokio_util::sync::CancellationToken>,
     storage: Arc<dyn Storage>,
+    mem_pairing_expiry_list: Arc<Mutex<HashMap<Topic, u64>>>,
+    expiration_wake_tx: tokio::sync::broadcast::Sender<()>,
     // Lazy-start fields for spawning the relay loop
     project_id: ProjectId,
     signing_key_bytes: [u8; 32],
     pending_request_rx: Option<RpcRequestReceiver>,
     pending_online_rx: Option<tokio::sync::mpsc::UnboundedReceiver<()>>,
-    probe_group: Option<String>,
 }
 
 // Deduplication: does deduplication happen at the irn_subscription layer (like current SDKs) or do we do it for each action e.g. update, event, etc. (remember layered state and stateless architecture)
@@ -139,7 +142,7 @@ impl Client {
     pub fn new(
         project_id: ProjectId,
         key: SecretKey,
-        session_store: Arc<dyn Storage>,
+        storage: Arc<dyn Storage>,
     ) -> (
         Self,
         tokio::sync::mpsc::UnboundedReceiver<(Topic, IncomingSessionMessage)>,
@@ -155,21 +158,24 @@ impl Client {
         let (request_tx, request_rx): (RpcRequestSender, RpcRequestReceiver) =
             tokio::sync::mpsc::unbounded_channel();
         let (online_tx, online_rx) = tokio::sync::mpsc::unbounded_channel();
+        let (expiration_wake_tx, _) = tokio::sync::broadcast::channel(16);
         let cleanup_rx = tokio_util::sync::CancellationToken::new();
 
         (
             Self {
+                probe_group: None,
                 http_client: reqwest::Client::new(),
                 tx,
                 request_tx,
-                storage: session_store,
+                storage,
                 online_tx: Some(online_tx),
                 cleanup_tx: Some(cleanup_rx),
+                mem_pairing_expiry_list: Default::default(),
+                expiration_wake_tx,
                 project_id,
                 signing_key_bytes: SigningKey::from_bytes(&key).to_bytes(),
                 pending_request_rx: Some(request_rx),
                 pending_online_rx: Some(online_rx),
-                probe_group: None,
             },
             rx,
         )
@@ -193,21 +199,32 @@ impl Client {
             let signing_key = SigningKey::from_bytes(&self.signing_key_bytes);
             let session_store = self.storage.clone();
             let tx = self.tx.clone();
+            let mem_pairing_expiry_list = self.mem_pairing_expiry_list.clone();
 
             crate::spawn::spawn(
                 crate::sign::relay::connect_loop_state_machine(
                     get_relay_url(),
                     project_id,
                     signing_key,
-                    session_store,
+                    session_store.clone(),
                     self.http_client.clone(),
-                    tx,
+                    tx.clone(),
                     request_rx,
                     online_rx,
-                    cleanup_rx,
+                    cleanup_rx.clone(),
                     self.probe_group.clone(),
                 ),
             );
+
+            crate::sign::expiry::start(
+                session_store.clone(),
+                tx.clone(),
+                mem_pairing_expiry_list,
+                self.expiration_wake_tx.subscribe(),
+                cleanup_rx.clone(),
+            );
+        } else {
+            tracing::warn!("Already called start()");
         }
     }
 
@@ -230,16 +247,9 @@ impl Client {
         &mut self,
         uri: &str,
     ) -> Result<(SessionProposal, VerifyContext), PairError> {
-        // TODO implement
-        // https://github.com/WalletConnect/walletconnect-monorepo/blob/5bef698dcf0ae910548481959a6a5d87eaf7aaa5/packages/sign-client/src/controllers/engine.ts#L330
-
-        // TODO parse URI and URI validation
-        // https://github.com/WalletConnect/walletconnect-monorepo/blob/5bef698dcf0ae910548481959a6a5d87eaf7aaa5/packages/core/src/controllers/pairing.ts#L132
-
+        tracing::debug!("Pairing with URI: {uri}");
         let pairing_uri = pairing_uri::parse(uri)
             .map_err(|e| PairError::Internal(e.to_string()))?;
-
-        tracing::debug!("Pairing with URI: {uri}");
 
         // TODO consider: immediately throw if expired? - maybe not necessary since FetchMessages returns empty array?
         // TODO update relay method to not remove message & approveSession removes it
@@ -257,7 +267,7 @@ impl Client {
             .messages
             .iter()
             .find(|message| message.tag == 1100)
-            .ok_or(PairError::Internal(
+            .ok_or(PairError::ExpiredOrInvalidPairing(
                 "No message found with tag 1100".to_owned(),
             ))?;
 
@@ -305,12 +315,17 @@ impl Client {
                 request.id
             )));
         } else {
+            let insertion_timestamp = crate::time::SystemTime::now()
+                .duration_since(crate::time::UNIX_EPOCH)
+                .unwrap()
+                .as_secs();
             self.storage.insert_json_rpc_history(
                 request.id,
                 pairing_uri.topic.clone(),
                 request.method.clone(),
                 request_json,
                 Some(TransportType::Relay),
+                insertion_timestamp,
             );
         }
 
@@ -345,6 +360,9 @@ impl Client {
             self.probe_group.clone(),
         )
         .await;
+
+        // TODO insert proposal expiry timer to emit an event for wallet to dismiss the approve UI
+        // TODO cancel this timer when calling approve() or reject()
 
         Ok((
             SessionProposal {
@@ -451,12 +469,17 @@ impl Client {
 
         tracing::debug!(probe = "propose_session_request_success",);
 
+        let insertion_timestamp = crate::time::SystemTime::now()
+            .duration_since(crate::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
         self.storage.insert_json_rpc_history(
             rpc_id,
             pairing_info.topic.clone(),
             "wc_sessionPropose".to_string(),
             session_proposal_params_json,
             Some(TransportType::Relay),
+            insertion_timestamp,
         );
 
         self.storage.save_pairing(
@@ -464,8 +487,10 @@ impl Client {
             rpc_id,
             sym_key,
             self_key.to_bytes(),
+            expiry_timestamp,
         );
-        tracing::debug!(probe = "pairing_saved",);
+        self.wake_expiration_task();
+        tracing::debug!(probe = "pairing_saved");
 
         // TODO should return a promise/completer like JS/Flutter or should we just await the on_session_connect event?
         Ok(ConnectResult { topic: pairing_info.topic.clone(), uri })
@@ -491,9 +516,6 @@ impl Client {
             methods: None,       // TODO: Add methods parameter
             peer_metadata: None, // TODO: Add peer metadata parameter
         };
-
-        // TODO: Store pairing in local storage
-        // TODO: Emit pairing created event
 
         Ok(pairing_info)
     }
@@ -521,6 +543,16 @@ impl Client {
         // https://github.com/WalletConnect/walletconnect-monorepo/blob/5bef698dcf0ae910548481959a6a5d87eaf7aaa5/packages/sign-client/src/controllers/engine.ts#L341
 
         // TODO check is valid: validate namespaces, validate metadata, validate expiry timestamp
+
+        if let Some(expiry) = proposal.expiry_timestamp {
+            if is_expired(expiry) {
+                // TODO change to  a "user error" error
+                // A background event should've been fired for wallet to dismiss the approve UI
+                return Err(ApproveError::Internal(
+                    "Session proposal has expired".to_string(),
+                ));
+            }
+        }
 
         let self_key = x25519_dalek::StaticSecret::random();
         let self_public_key = PublicKey::from(&self_key);
@@ -629,7 +661,10 @@ impl Client {
             transport_type: None, //TODO: add transport type for link mode
         };
 
-        self.storage.add_session(session.clone());
+        self.storage
+            .add_session(session.clone())
+            .map_err(|e| ApproveError::Internal(format!("add session: {e}")))?;
+        self.wake_expiration_task();
 
         match self
             .do_request::<bool>(relay_rpc::rpc::Params::ApproveSession(
@@ -638,13 +673,16 @@ impl Client {
             .await
         {
             Ok(true) => {
-                //Store SessionSettle Request
                 self.storage.insert_json_rpc_history(
                     session_settlement_request_id,
                     session.topic.clone(),
                     "wc_sessionSettle".to_string(),
                     session_settlement_request_params_json,
                     Some(TransportType::Relay),
+                    crate::time::SystemTime::now()
+                        .duration_since(crate::time::UNIX_EPOCH)
+                        .unwrap()
+                        .as_secs(),
                 );
 
                 //Store SessionApprove Response
@@ -666,12 +704,14 @@ impl Client {
             }
             Ok(false) => {
                 self.storage.delete_session(session.topic);
+                self.wake_expiration_task();
                 Err(ApproveError::Internal(
                     "Session rejected by relay".to_owned(),
                 ))
             }
             Err(e) => {
                 self.storage.delete_session(session.topic);
+                self.wake_expiration_task();
                 Err(ApproveError::Request(e))
             }
         }
@@ -684,14 +724,10 @@ impl Client {
         proposal: SessionProposal,
         reason: RejectionReason,
     ) -> Result<(), RejectError> {
-        // Check if proposal is expired
-        // TODO remove this check: https://reown-inc.slack.com/archives/C098LHLHCNM/p1756148081338769
         if let Some(expiry) = proposal.expiry_timestamp {
             if is_expired(expiry) {
-                return Err(RejectError::Internal(format!(
-                    "Proposal id {} has expired",
-                    proposal.session_proposal_rpc_id
-                )));
+                // If already expired, then rejection isn't needed
+                return Ok(());
             }
         }
 
@@ -754,13 +790,14 @@ impl Client {
         &mut self,
         topic: Topic,
         session_request: SessionRequest,
-    ) -> Result<ProtocolRpcId, RequestError> {
-        let shared_secret = self
+    ) -> Result<ProtocolRpcId, SessionRequestError> {
+        let session = self
             .storage
             .get_session(topic.clone())
-            .map_err(|e| RequestError::Internal(e.to_string()))?
-            .map(|s| s.session_sym_key)
-            .unwrap();
+            .map_err(SessionRequestError::Storage)?
+            .ok_or(SessionRequestError::SessionNotFoundOrExpired)?
+            .require_not_expired()
+            .map_err(|_| SessionRequestError::SessionNotFoundOrExpired)?;
 
         let rpc = SessionRequestJsonRpc {
             id: ProtocolRpcId::generate(),
@@ -770,10 +807,10 @@ impl Client {
         };
         let (encrypted_id, decrypted_id, message) =
             serialize_and_encrypt_message_type0_envelope_with_ids(
-                shared_secret,
+                session.session_sym_key,
                 &rpc,
             )
-            .map_err(|e| RequestError::Internal(e.to_string()))?;
+            .map_err(SessionRequestError::ShouldNeverHappen)?;
 
         self.do_verified_request::<bool>(
             encrypted_id,
@@ -795,13 +832,15 @@ impl Client {
             }),
         )
         .await
-        .map_err(|e| RequestError::Internal(e.to_string()))?;
+        .map_err(SessionRequestError::Request)?;
 
         // TODO WS handling:
         // - when a session request is pending, and we get the event that the page regained focus, should we immediately ping the WS connection to test its liveness (?)
 
         let session_request_params_json = serde_json::to_string_pretty(&rpc)
-            .map_err(|e| RequestError::Internal(e.to_string()))?;
+            .map_err(|e| {
+                SessionRequestError::ShouldNeverHappen(e.to_string())
+            })?;
 
         self.storage.insert_json_rpc_history(
             rpc.id,
@@ -809,6 +848,10 @@ impl Client {
             rpc.method,
             session_request_params_json,
             Some(TransportType::Relay),
+            crate::time::SystemTime::now()
+                .duration_since(crate::time::UNIX_EPOCH)
+                .unwrap()
+                .as_secs(),
         );
 
         Ok(rpc.id)
@@ -820,15 +863,16 @@ impl Client {
         topic: Topic,
         response: SessionRequestJsonRpcResponse,
     ) -> Result<(), RespondError> {
-        let shared_secret = self
+        let session = self
             .storage
             .get_session(topic.clone())
             .map_err(RespondError::Storage)?
-            .map(|s| s.session_sym_key)
-            .ok_or(RespondError::SessionNotFound)?;
+            .ok_or(RespondError::SessionNotFoundOrExpired)?
+            .require_not_expired()
+            .map_err(|_| RespondError::SessionNotFoundOrExpired)?;
 
         let message = serialize_and_encrypt_message_type0_envelope(
-            shared_secret,
+            session.session_sym_key,
             &response,
         )
         .map_err(RespondError::ShouldNeverHappen)?;
@@ -884,28 +928,30 @@ impl Client {
         topic: Topic,
         namespaces: std::collections::HashMap<String, SettleNamespace>,
     ) -> Result<(), UpdateError> {
-        //TODO: add validate namespaces
-
-        let session_opt = self
+        let session = self
             .storage
             .get_session(topic.clone())
-            .map_err(UpdateError::Storage)?;
-        let shared_secret = session_opt
-            .as_ref()
-            .map(|s| s.session_sym_key)
-            .ok_or(UpdateError::SessionNotFound)?;
+            .map_err(UpdateError::Storage)?
+            .ok_or(UpdateError::SessionNotFoundOrExpired)?
+            .require_not_expired()
+            .map_err(|_| UpdateError::SessionNotFoundOrExpired)?;
+
+        //TODO: add validate namespaces
 
         // validateController: only the controller can send updates
-        if let Some(session) = &session_opt {
-            if session.controller_key != Some(session.self_public_key) {
-                return Err(UpdateError::Unauthorized);
-            }
+        if session.controller_key != Some(session.self_public_key) {
+            return Err(UpdateError::Unauthorized);
         }
 
+        let shared_secret = session.session_sym_key;
+
         // Update local storage immediately
-        if let Some(mut session) = session_opt {
+        {
+            let mut session = session;
             session.session_namespaces = namespaces.clone();
             self.storage.add_session(session);
+            // Wake expiration task in case expiry changed (though update doesn't change expiry)
+            self.wake_expiration_task();
         }
 
         let id = ProtocolRpcId::generate();
@@ -950,6 +996,10 @@ impl Client {
             "wc_sessionUpdate".to_string(),
             namespaces_params_json,
             Some(TransportType::Relay),
+            crate::time::SystemTime::now()
+                .duration_since(crate::time::UNIX_EPOCH)
+                .unwrap()
+                .as_secs(),
         );
 
         Ok(())
@@ -962,7 +1012,9 @@ impl Client {
             .storage
             .get_session(topic.clone())
             .map_err(ExtendError::Storage)?
-            .ok_or(ExtendError::SessionNotFound)?;
+            .ok_or(ExtendError::SessionNotFound)?
+            .require_not_expired()
+            .map_err(|_| ExtendError::SessionNotFound)?;
 
         // Compute new expiry = now + 7 days
         let now = crate::time::SystemTime::now()
@@ -980,6 +1032,8 @@ impl Client {
         session.expiry = new_expiry;
         let shared_secret = session.session_sym_key;
         self.storage.add_session(session);
+        self.wake_expiration_task();
+
         let id = ProtocolRpcId::generate();
         let session_extend_json_rpc = SessionExtendJsonRpc {
             id,
@@ -1021,6 +1075,10 @@ impl Client {
             "wc_sessionExtend".to_string(),
             expiry_rpc_json,
             Some(TransportType::Relay),
+            crate::time::SystemTime::now()
+                .duration_since(crate::time::UNIX_EPOCH)
+                .unwrap()
+                .as_secs(),
         );
 
         Ok(())
@@ -1041,12 +1099,13 @@ impl Client {
         data: serde_json::Value,
         chain_id: String,
     ) -> Result<(), EmitError> {
-        let shared_secret = self
+        let session = self
             .storage
             .get_session(topic.clone())
             .map_err(EmitError::Storage)?
-            .map(|s| s.session_sym_key)
-            .ok_or(EmitError::SessionNotFound)?;
+            .ok_or(EmitError::SessionNotFound)?
+            .require_not_expired()
+            .map_err(|_| EmitError::SessionNotFound)?;
 
         let id = ProtocolRpcId::generate();
         let session_event_json_rpc =
@@ -1065,7 +1124,7 @@ impl Client {
         let event_json = serde_json::to_string_pretty(&session_event_json_rpc)
             .map_err(|e| EmitError::ShouldNeverHappen(e.to_string()))?;
         let message = serialize_and_encrypt_message_type0_envelope(
-            shared_secret,
+            session.session_sym_key,
             &session_event_json_rpc,
         )
         .map_err(EmitError::ShouldNeverHappen)?;
@@ -1094,6 +1153,10 @@ impl Client {
             "wc_sessionEvent".to_string(),
             event_json,
             Some(TransportType::Relay),
+            crate::time::SystemTime::now()
+                .duration_since(crate::time::UNIX_EPOCH)
+                .unwrap()
+                .as_secs(),
         );
 
         Ok(())
@@ -1104,68 +1167,73 @@ impl Client {
         &mut self,
         topic: Topic,
     ) -> Result<(), DisconnectError> {
-        let shared_secret = self
+        let session = match match self
             .storage
             .get_session(topic.clone())
             .map_err(DisconnectError::Storage)?
-            .map(|s| s.session_sym_key);
-
-        if let Some(shared_secret) = shared_secret {
-            let id = ProtocolRpcId::generate();
-            let session_delete_json_rpc = SessionDeleteJsonRpc {
-                id,
-                jsonrpc: JsonRpcVersion::version_2(),
-                method: "wc_sessionDelete".to_string(),
-                params: SessionDelete {
-                    code: 6000,
-                    message: "User disconnected.".to_string(),
-                },
-            };
-            let delete_json =
-                serde_json::to_string_pretty(&session_delete_json_rpc)
-                    .map_err(|e| {
-                        DisconnectError::ShouldNeverHappen(e.to_string())
-                    })?;
-            let message = serialize_and_encrypt_message_type0_envelope(
-                shared_secret,
-                &session_delete_json_rpc,
-            )
-            .map_err(DisconnectError::ShouldNeverHappen)?;
-
-            self.do_request::<bool>(relay_rpc::rpc::Params::Publish(Publish {
-                topic: topic.clone(),
-                message,
-                attestation: None,
-                ttl_secs: 86400,
-                tag: 1112,
-                prompt: false,
-                analytics: None,
-            }))
-            .await
-            .map_err(DisconnectError::Request)?;
-
-            self.storage.insert_json_rpc_history(
-                id,
-                topic.clone(),
-                "wc_sessionDelete".to_string(),
-                delete_json,
-                Some(TransportType::Relay),
-            );
-
-            self.storage.delete_session(topic.clone());
-
-            self.tx
-                .send((
-                    topic.clone(),
-                    IncomingSessionMessage::Disconnect(id, topic),
-                ))
-                .unwrap();
-        } else {
-            tracing::debug!(
-                "disconnect: session not found for topic, ignoring: {:?}",
-                topic
-            );
+        {
+            Some(s) => s,
+            None => return Ok(()),
         }
+        .require_not_expired()
+        {
+            Ok(s) => s,
+            Err(()) => return Ok(()),
+        };
+
+        let id = ProtocolRpcId::generate();
+        let session_delete_json_rpc = SessionDeleteJsonRpc {
+            id,
+            jsonrpc: JsonRpcVersion::version_2(),
+            method: "wc_sessionDelete".to_string(),
+            params: SessionDelete {
+                code: 6000,
+                message: "User disconnected.".to_string(),
+            },
+        };
+        let delete_json = serde_json::to_string_pretty(
+            &session_delete_json_rpc,
+        )
+        .map_err(|e| DisconnectError::ShouldNeverHappen(e.to_string()))?;
+        let message = serialize_and_encrypt_message_type0_envelope(
+            session.session_sym_key,
+            &session_delete_json_rpc,
+        )
+        .map_err(DisconnectError::ShouldNeverHappen)?;
+
+        self.do_request::<bool>(relay_rpc::rpc::Params::Publish(Publish {
+            topic: topic.clone(),
+            message,
+            attestation: None,
+            ttl_secs: 86400,
+            tag: 1112,
+            prompt: false,
+            analytics: None,
+        }))
+        .await
+        .map_err(DisconnectError::Request)?;
+
+        self.storage.insert_json_rpc_history(
+            id,
+            topic.clone(),
+            "wc_sessionDelete".to_string(),
+            delete_json,
+            Some(TransportType::Relay),
+            crate::time::SystemTime::now()
+                .duration_since(crate::time::UNIX_EPOCH)
+                .unwrap()
+                .as_secs(),
+        );
+
+        self.storage.delete_session(topic.clone());
+        self.wake_expiration_task();
+
+        self.tx
+            .send((
+                topic.clone(),
+                IncomingSessionMessage::Disconnect(id, topic),
+            ))
+            .unwrap();
 
         Ok(())
     }
@@ -1249,6 +1317,11 @@ impl Client {
                 response.error
             ))),
         }
+    }
+
+    /// Send wake-up signal to expiration task
+    fn wake_expiration_task(&self) {
+        let _ = self.expiration_wake_tx.send(());
     }
 }
 

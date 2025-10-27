@@ -33,12 +33,17 @@ pub trait Storage: Send + Sync {
         rpc_id: ProtocolRpcId,
         sym_key: [u8; 32],
         self_key: [u8; 32],
+        expiry: u64,
     ) -> Result<(), StorageError>;
     fn get_pairing(
         &self,
         topic: Topic,
         rpc_id: ProtocolRpcId,
     ) -> Result<Option<StoragePairing>, StorageError>;
+    fn get_all_pairings(
+        &self,
+    ) -> Result<Vec<(Topic, ProtocolRpcId, u64)>, StorageError>; // Returns (topic, rpc_id, expiry)
+    fn delete_pairing(&self, topic: Topic) -> Result<(), StorageError>;
     fn save_partial_session(
         &self,
         topic: Topic,
@@ -55,6 +60,7 @@ pub trait Storage: Send + Sync {
         method: String,
         body: String,
         transport_type: Option<TransportType>,
+        insertion_timestamp: u64,
     ) -> Result<(), StorageError>;
 
     fn update_json_rpc_history_response(
@@ -63,15 +69,18 @@ pub trait Storage: Send + Sync {
         response: String,
     ) -> Result<(), StorageError>;
 
-    fn delete_json_rpc_history_by_topic(
-        &self,
-        topic: Topic,
-    ) -> Result<(), StorageError>;
-
     fn does_json_rpc_exist(
         &self,
         request_id: ProtocolRpcId,
     ) -> Result<bool, StorageError>;
+
+    fn get_all_json_rpc_with_timestamps(
+        &self,
+    ) -> Result<Vec<(ProtocolRpcId, Topic, u64)>, StorageError>;
+    fn delete_json_rpc_history_by_id(
+        &self,
+        request_id: ProtocolRpcId,
+    ) -> Result<(), StorageError>;
 }
 
 #[cfg_attr(feature = "uniffi", derive(uniffi::Error))]
@@ -83,6 +92,7 @@ pub enum StorageError {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StoragePairing {
+    pub expiry: u64,
     pub sym_key: [u8; 32],
     pub self_key: [u8; 32],
 }

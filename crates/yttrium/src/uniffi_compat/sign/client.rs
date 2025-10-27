@@ -4,8 +4,8 @@ use {
             client::{generate_client_id_key, Client},
             client_errors::{
                 ApproveError, ConnectError, DisconnectError, EmitError,
-                ExtendError, PairError, RejectError, RequestError,
-                RespondError, UpdateError,
+                ExtendError, PairError, RejectError, RespondError,
+                SessionRequestError, UpdateError,
             },
             client_types::{ConnectParams, SessionProposal},
             protocol_types::{
@@ -57,6 +57,9 @@ pub trait SignListener: Send + Sync {
         topic: Topic,
         response: SessionRequestJsonRpcResponseFfi,
     );
+    fn on_session_expired(&self, id: ProtocolRpcId, topic: Topic);
+    fn on_session_proposal_expired(&self, id: ProtocolRpcId, topic: Topic);
+    fn on_pairing_expired(&self, topic: Topic);
 }
 
 #[derive(uniffi::Object)]
@@ -165,6 +168,18 @@ impl SignClient {
                                 topic,
                                 response.into(),
                             );
+                        }
+                        IncomingSessionMessage::SessionExpired(id, topic) => {
+                            listener.on_session_expired(id, topic);
+                        }
+                        IncomingSessionMessage::SessionProposalExpired(
+                            id,
+                            topic,
+                        ) => {
+                            listener.on_session_proposal_expired(id, topic);
+                        }
+                        IncomingSessionMessage::PairingExpired(topic) => {
+                            listener.on_pairing_expired(topic);
                         }
                     }
                 }
@@ -296,7 +311,7 @@ impl SignClient {
         &self,
         topic: String,
         session_request: SessionRequestFfi,
-    ) -> Result<ProtocolRpcId, RequestError> {
+    ) -> Result<ProtocolRpcId, SessionRequestError> {
         let mut client = self.client.lock().await;
         let session_request: SessionRequest = session_request.into();
         client.request(topic.into(), session_request).await

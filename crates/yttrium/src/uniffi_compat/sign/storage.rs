@@ -33,12 +33,15 @@ pub trait StorageFfi: Send + Sync {
         rpc_id: ProtocolRpcId,
         sym_key: Vec<u8>,
         self_key: Vec<u8>,
+        expiry: u64,
     ) -> Result<(), StorageError>;
     fn get_pairing(
         &self,
         topic: Topic,
         rpc_id: ProtocolRpcId,
     ) -> Result<Option<PairingFfi>, StorageError>;
+    fn get_all_pairings(&self) -> Result<Vec<PairingFfi>, StorageError>;
+    fn delete_pairing(&self, topic: Topic) -> Result<(), StorageError>;
     fn save_partial_session(
         &self,
         topic: Topic,
@@ -55,6 +58,7 @@ pub trait StorageFfi: Send + Sync {
         method: String,
         body: String,
         transport_type: Option<TransportType>,
+        insertion_timestamp: u64,
     ) -> Result<(), StorageError>;
 
     fn update_json_rpc_history_response(
@@ -63,15 +67,17 @@ pub trait StorageFfi: Send + Sync {
         response: String,
     ) -> Result<(), StorageError>;
 
-    fn delete_json_rpc_history_by_topic(
-        &self,
-        topic: Topic,
-    ) -> Result<(), StorageError>;
-
     fn does_json_rpc_exist(
         &self,
         request_id: ProtocolRpcId,
     ) -> Result<bool, StorageError>;
+    fn get_all_json_rpc_with_timestamps(
+        &self,
+    ) -> Result<Vec<JsonRpcHistoryEntryFfi>, StorageError>;
+    fn delete_json_rpc_history_by_id(
+        &self,
+        request_id: ProtocolRpcId,
+    ) -> Result<(), StorageError>;
 }
 
 pub struct StorageFfiProxy(pub Arc<dyn StorageFfi>);
@@ -116,8 +122,15 @@ impl Storage for StorageFfiProxy {
         rpc_id: ProtocolRpcId,
         sym_key: [u8; 32],
         self_key: [u8; 32],
+        expiry: u64,
     ) -> Result<(), StorageError> {
-        self.0.save_pairing(topic, rpc_id, sym_key.to_vec(), self_key.to_vec())
+        self.0.save_pairing(
+            topic,
+            rpc_id,
+            sym_key.to_vec(),
+            self_key.to_vec(),
+            expiry,
+        )
     }
 
     fn get_pairing(
@@ -126,9 +139,25 @@ impl Storage for StorageFfiProxy {
         rpc_id: ProtocolRpcId,
     ) -> Result<Option<StoragePairing>, StorageError> {
         Ok(self.0.get_pairing(topic, rpc_id)?.map(|pairing| StoragePairing {
+            expiry: pairing.expiry,
             sym_key: pairing.sym_key.try_into().unwrap(),
             self_key: pairing.self_key.try_into().unwrap(),
         }))
+    }
+
+    fn get_all_pairings(
+        &self,
+    ) -> Result<Vec<(Topic, ProtocolRpcId, u64)>, StorageError> {
+        Ok(self
+            .0
+            .get_all_pairings()?
+            .into_iter()
+            .map(|pairing| (pairing.topic, pairing.rpc_id, pairing.expiry))
+            .collect())
+    }
+
+    fn delete_pairing(&self, topic: Topic) -> Result<(), StorageError> {
+        self.0.delete_pairing(topic)
     }
 
     fn save_partial_session(
@@ -162,6 +191,7 @@ impl Storage for StorageFfiProxy {
         method: String,
         body: String,
         transport_type: Option<TransportType>,
+        insertion_timestamp: u64,
     ) -> Result<(), StorageError> {
         self.0.insert_json_rpc_history(
             request_id,
@@ -169,6 +199,7 @@ impl Storage for StorageFfiProxy {
             method,
             body,
             transport_type,
+            insertion_timestamp,
         )
     }
 
@@ -180,26 +211,48 @@ impl Storage for StorageFfiProxy {
         self.0.update_json_rpc_history_response(request_id, response)
     }
 
-    fn delete_json_rpc_history_by_topic(
-        &self,
-        topic: Topic,
-    ) -> Result<(), StorageError> {
-        self.0.delete_json_rpc_history_by_topic(topic)
-    }
-
     fn does_json_rpc_exist(
         &self,
         request_id: ProtocolRpcId,
     ) -> Result<bool, StorageError> {
         self.0.does_json_rpc_exist(request_id)
     }
+
+    fn get_all_json_rpc_with_timestamps(
+        &self,
+    ) -> Result<Vec<(ProtocolRpcId, Topic, u64)>, StorageError> {
+        Ok(self
+            .0
+            .get_all_json_rpc_with_timestamps()?
+            .into_iter()
+            .map(|entry| {
+                (entry.request_id, entry.topic, entry.insertion_timestamp)
+            })
+            .collect())
+    }
+
+    fn delete_json_rpc_history_by_id(
+        &self,
+        request_id: ProtocolRpcId,
+    ) -> Result<(), StorageError> {
+        self.0.delete_json_rpc_history_by_id(request_id)
+    }
 }
 
 #[derive(uniffi::Record)]
 pub struct PairingFfi {
+    topic: Topic,
+    expiry: u64,
     rpc_id: ProtocolRpcId,
     sym_key: Vec<u8>,
     self_key: Vec<u8>,
+}
+
+#[derive(uniffi::Record)]
+pub struct JsonRpcHistoryEntryFfi {
+    request_id: ProtocolRpcId,
+    topic: Topic,
+    insertion_timestamp: u64,
 }
 
 impl From<UnexpectedUniFFICallbackError> for StorageError {

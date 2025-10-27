@@ -510,6 +510,7 @@ mod tests {
                 _rpc_id: ProtocolRpcId,
                 _sym_key: [u8; 32],
                 _self_key: [u8; 32],
+                _expiry: u64,
             ) -> Result<(), StorageError> {
                 Err(StorageError::Runtime("unimplemented".to_string()))
             }
@@ -518,6 +519,18 @@ mod tests {
                 _topic: Topic,
                 _rpc_id: ProtocolRpcId,
             ) -> Result<Option<StoragePairing>, StorageError> {
+                Err(StorageError::Runtime("unimplemented".to_string()))
+            }
+            fn get_all_pairings(
+                &self,
+            ) -> Result<Vec<(Topic, ProtocolRpcId, u64)>, StorageError>
+            {
+                Err(StorageError::Runtime("unimplemented".to_string()))
+            }
+            fn delete_pairing(
+                &self,
+                _topic: Topic,
+            ) -> Result<(), StorageError> {
                 Err(StorageError::Runtime("unimplemented".to_string()))
             }
             fn save_partial_session(
@@ -534,6 +547,7 @@ mod tests {
                 _method: String,
                 _body: String,
                 _transport_type: Option<TransportType>,
+                _insertion_timestamp: u64,
             ) -> Result<(), StorageError> {
                 Err(StorageError::Runtime("unimplemented".to_string()))
             }
@@ -544,16 +558,22 @@ mod tests {
             ) -> Result<(), StorageError> {
                 Err(StorageError::Runtime("unimplemented".to_string()))
             }
-            fn delete_json_rpc_history_by_topic(
-                &self,
-                _topic: Topic,
-            ) -> Result<(), StorageError> {
-                Err(StorageError::Runtime("unimplemented".to_string()))
-            }
             fn does_json_rpc_exist(
                 &self,
                 _request_id: ProtocolRpcId,
             ) -> Result<bool, StorageError> {
+                Err(StorageError::Runtime("unimplemented".to_string()))
+            }
+            fn get_all_json_rpc_with_timestamps(
+                &self,
+            ) -> Result<Vec<(ProtocolRpcId, Topic, u64)>, StorageError>
+            {
+                Err(StorageError::Runtime("unimplemented".to_string()))
+            }
+            fn delete_json_rpc_history_by_id(
+                &self,
+                _request_id: ProtocolRpcId,
+            ) -> Result<(), StorageError> {
                 Err(StorageError::Runtime("unimplemented".to_string()))
             }
         }
@@ -625,6 +645,7 @@ mod tests {
                 _rpc_id: ProtocolRpcId,
                 _sym_key: [u8; 32],
                 _self_key: [u8; 32],
+                _expiry: u64,
             ) -> Result<(), StorageError> {
                 Err(StorageError::Runtime("unimplemented".to_string()))
             }
@@ -633,6 +654,18 @@ mod tests {
                 _topic: Topic,
                 _rpc_id: ProtocolRpcId,
             ) -> Result<Option<StoragePairing>, StorageError> {
+                Err(StorageError::Runtime("unimplemented".to_string()))
+            }
+            fn get_all_pairings(
+                &self,
+            ) -> Result<Vec<(Topic, ProtocolRpcId, u64)>, StorageError>
+            {
+                Err(StorageError::Runtime("unimplemented".to_string()))
+            }
+            fn delete_pairing(
+                &self,
+                _topic: Topic,
+            ) -> Result<(), StorageError> {
                 Err(StorageError::Runtime("unimplemented".to_string()))
             }
             fn save_partial_session(
@@ -649,6 +682,7 @@ mod tests {
                 _method: String,
                 _body: String,
                 _transport_type: Option<TransportType>,
+                _insertion_timestamp: u64,
             ) -> Result<(), StorageError> {
                 Err(StorageError::Runtime("unimplemented".to_string()))
             }
@@ -659,16 +693,22 @@ mod tests {
             ) -> Result<(), StorageError> {
                 Err(StorageError::Runtime("unimplemented".to_string()))
             }
-            fn delete_json_rpc_history_by_topic(
-                &self,
-                _topic: Topic,
-            ) -> Result<(), StorageError> {
-                Err(StorageError::Runtime("unimplemented".to_string()))
-            }
             fn does_json_rpc_exist(
                 &self,
                 _request_id: ProtocolRpcId,
             ) -> Result<bool, StorageError> {
+                Err(StorageError::Runtime("unimplemented".to_string()))
+            }
+            fn get_all_json_rpc_with_timestamps(
+                &self,
+            ) -> Result<Vec<(ProtocolRpcId, Topic, u64)>, StorageError>
+            {
+                Err(StorageError::Runtime("unimplemented".to_string()))
+            }
+            fn delete_json_rpc_history_by_id(
+                &self,
+                _request_id: ProtocolRpcId,
+            ) -> Result<(), StorageError> {
                 Err(StorageError::Runtime("unimplemented".to_string()))
             }
         }
@@ -743,6 +783,7 @@ mod tests {
                 _rpc_id: ProtocolRpcId,
                 _sym_key: [u8; 32],
                 _self_key: [u8; 32],
+                _expiry: u64,
             ) -> Result<(), StorageError> {
                 Err(StorageError::Runtime("unimplemented".to_string()))
             }
@@ -751,6 +792,18 @@ mod tests {
                 _topic: Topic,
                 _rpc_id: ProtocolRpcId,
             ) -> Result<Option<StoragePairing>, StorageError> {
+                Err(StorageError::Runtime("unimplemented".to_string()))
+            }
+            fn get_all_pairings(
+                &self,
+            ) -> Result<Vec<(Topic, ProtocolRpcId, u64)>, StorageError>
+            {
+                Err(StorageError::Runtime("unimplemented".to_string()))
+            }
+            fn delete_pairing(
+                &self,
+                _topic: Topic,
+            ) -> Result<(), StorageError> {
                 Err(StorageError::Runtime("unimplemented".to_string()))
             }
             fn save_partial_session(
@@ -767,6 +820,7 @@ mod tests {
                 _method: String,
                 _body: String,
                 _transport_type: Option<TransportType>,
+                _insertion_timestamp: u64,
             ) -> Result<(), StorageError> {
                 Err(StorageError::Runtime("unimplemented".to_string()))
             }
@@ -777,16 +831,22 @@ mod tests {
             ) -> Result<(), StorageError> {
                 Err(StorageError::Runtime("unimplemented".to_string()))
             }
-            fn delete_json_rpc_history_by_topic(
-                &self,
-                _topic: Topic,
-            ) -> Result<(), StorageError> {
-                Err(StorageError::Runtime("unimplemented".to_string()))
-            }
             fn does_json_rpc_exist(
                 &self,
                 _request_id: ProtocolRpcId,
             ) -> Result<bool, StorageError> {
+                Err(StorageError::Runtime("unimplemented".to_string()))
+            }
+            fn get_all_json_rpc_with_timestamps(
+                &self,
+            ) -> Result<Vec<(ProtocolRpcId, Topic, u64)>, StorageError>
+            {
+                Err(StorageError::Runtime("unimplemented".to_string()))
+            }
+            fn delete_json_rpc_history_by_id(
+                &self,
+                _request_id: ProtocolRpcId,
+            ) -> Result<(), StorageError> {
                 Err(StorageError::Runtime("unimplemented".to_string()))
             }
         }
@@ -859,6 +919,7 @@ mod tests {
                 _rpc_id: ProtocolRpcId,
                 _sym_key: [u8; 32],
                 _self_key: [u8; 32],
+                _expiry: u64,
             ) -> Result<(), StorageError> {
                 Err(StorageError::Runtime("unimplemented".to_string()))
             }
@@ -867,6 +928,18 @@ mod tests {
                 _topic: Topic,
                 _rpc_id: ProtocolRpcId,
             ) -> Result<Option<StoragePairing>, StorageError> {
+                Err(StorageError::Runtime("unimplemented".to_string()))
+            }
+            fn get_all_pairings(
+                &self,
+            ) -> Result<Vec<(Topic, ProtocolRpcId, u64)>, StorageError>
+            {
+                Err(StorageError::Runtime("unimplemented".to_string()))
+            }
+            fn delete_pairing(
+                &self,
+                _topic: Topic,
+            ) -> Result<(), StorageError> {
                 Err(StorageError::Runtime("unimplemented".to_string()))
             }
             fn save_partial_session(
@@ -883,6 +956,7 @@ mod tests {
                 _method: String,
                 _body: String,
                 _transport_type: Option<TransportType>,
+                _insertion_timestamp: u64,
             ) -> Result<(), StorageError> {
                 Err(StorageError::Runtime("unimplemented".to_string()))
             }
@@ -893,16 +967,22 @@ mod tests {
             ) -> Result<(), StorageError> {
                 Err(StorageError::Runtime("unimplemented".to_string()))
             }
-            fn delete_json_rpc_history_by_topic(
-                &self,
-                _topic: Topic,
-            ) -> Result<(), StorageError> {
-                Err(StorageError::Runtime("unimplemented".to_string()))
-            }
             fn does_json_rpc_exist(
                 &self,
                 _request_id: ProtocolRpcId,
             ) -> Result<bool, StorageError> {
+                Err(StorageError::Runtime("unimplemented".to_string()))
+            }
+            fn get_all_json_rpc_with_timestamps(
+                &self,
+            ) -> Result<Vec<(ProtocolRpcId, Topic, u64)>, StorageError>
+            {
+                Err(StorageError::Runtime("unimplemented".to_string()))
+            }
+            fn delete_json_rpc_history_by_id(
+                &self,
+                _request_id: ProtocolRpcId,
+            ) -> Result<(), StorageError> {
                 Err(StorageError::Runtime("unimplemented".to_string()))
             }
         }
@@ -978,6 +1058,7 @@ mod tests {
                 _rpc_id: ProtocolRpcId,
                 _sym_key: [u8; 32],
                 _self_key: [u8; 32],
+                _expiry: u64,
             ) -> Result<(), StorageError> {
                 Err(StorageError::Runtime("unimplemented".to_string()))
             }
@@ -986,6 +1067,18 @@ mod tests {
                 _topic: Topic,
                 _rpc_id: ProtocolRpcId,
             ) -> Result<Option<StoragePairing>, StorageError> {
+                Err(StorageError::Runtime("unimplemented".to_string()))
+            }
+            fn get_all_pairings(
+                &self,
+            ) -> Result<Vec<(Topic, ProtocolRpcId, u64)>, StorageError>
+            {
+                Err(StorageError::Runtime("unimplemented".to_string()))
+            }
+            fn delete_pairing(
+                &self,
+                _topic: Topic,
+            ) -> Result<(), StorageError> {
                 Err(StorageError::Runtime("unimplemented".to_string()))
             }
             fn save_partial_session(
@@ -1002,6 +1095,7 @@ mod tests {
                 _method: String,
                 _body: String,
                 _transport_type: Option<TransportType>,
+                _insertion_timestamp: u64,
             ) -> Result<(), StorageError> {
                 Err(StorageError::Runtime("unimplemented".to_string()))
             }
@@ -1012,16 +1106,22 @@ mod tests {
             ) -> Result<(), StorageError> {
                 Err(StorageError::Runtime("unimplemented".to_string()))
             }
-            fn delete_json_rpc_history_by_topic(
-                &self,
-                _topic: Topic,
-            ) -> Result<(), StorageError> {
-                Err(StorageError::Runtime("unimplemented".to_string()))
-            }
             fn does_json_rpc_exist(
                 &self,
                 _request_id: ProtocolRpcId,
             ) -> Result<bool, StorageError> {
+                Err(StorageError::Runtime("unimplemented".to_string()))
+            }
+            fn get_all_json_rpc_with_timestamps(
+                &self,
+            ) -> Result<Vec<(ProtocolRpcId, Topic, u64)>, StorageError>
+            {
+                Err(StorageError::Runtime("unimplemented".to_string()))
+            }
+            fn delete_json_rpc_history_by_id(
+                &self,
+                _request_id: ProtocolRpcId,
+            ) -> Result<(), StorageError> {
                 Err(StorageError::Runtime("unimplemented".to_string()))
             }
         }

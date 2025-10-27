@@ -47,6 +47,24 @@ pub struct Session {
     pub transport_type: Option<TransportType>,
 }
 
+impl Session {
+    pub fn is_expired(&self) -> bool {
+        self.expiry
+            <= crate::time::SystemTime::now()
+                .duration_since(crate::time::UNIX_EPOCH)
+                .unwrap()
+                .as_secs()
+    }
+
+    #[allow(clippy::result_unit_err)]
+    pub fn require_not_expired(self) -> Result<Self, ()> {
+        if self.is_expired() {
+            return Err(());
+        }
+        Ok(self)
+    }
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Enum))]
 pub enum TransportType {
