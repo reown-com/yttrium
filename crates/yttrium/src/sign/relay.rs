@@ -24,6 +24,7 @@ use {
             SuccessfulResponse,
         },
     },
+    sha2::Digest,
     std::{sync::Arc, time::Duration},
     tracing::Instrument,
 };
@@ -239,6 +240,7 @@ async fn connect(
             tokio::sync::mpsc::unbounded_channel();
 
         crate::spawn::spawn(async move {
+            let mut seen_messages = Vec::with_capacity(64);
             loop {
                 use tokio_tungstenite::tungstenite::protocol::frame::coding::CloseCode;
 
@@ -272,6 +274,16 @@ async fn connect(
                                 let result = serde_json::from_str::<Payload>(&message);
                                 match result {
                                     Ok(payload) => {
+                                        if let Payload::Request(request) = &payload {
+                                            if let Params::Subscription(subscription) = &request.params {
+                                                let key = (subscription.data.topic.clone(), sha2::Sha256::digest(subscription.data.message.as_bytes()));
+                                                if seen_messages.contains(&key) {
+                                                    tracing::warn!("Duplicate subscription message received: {key:?}");
+                                                    continue;
+                                                }
+                                                seen_messages.push(key);
+                                            }
+                                        }
                                         if let Err(e) = on_incomingmessage_tx.send(IncomingMessage::Message(payload)) {
                                             tracing::debug!("Failed to send incoming message: {e}");
                                         }
@@ -454,13 +466,37 @@ async fn connect(
         }) as Box<dyn Fn(Event)>);
         ws.set_onerror(Some(on_error_closure.as_ref().unchecked_ref()));
 
-        let onmessage_closure =
-            Closure::wrap(Box::new(move |event: MessageEvent| {
+        let seen_messages =
+            Arc::new(std::sync::Mutex::new(Vec::with_capacity(64)));
+        let onmessage_closure = Closure::wrap(Box::new(
+            move |event: MessageEvent| {
                 if let Some(message) = event.data().as_string() {
                     tracing::debug!("websocket onmessage: {:?}", message);
                     let result = serde_json::from_str::<Payload>(&message);
                     match result {
                         Ok(payload) => {
+                            if let Payload::Request(request) = &payload {
+                                if let Params::Subscription(subscription) =
+                                    &request.params
+                                {
+                                    let key = (
+                                        subscription.data.topic.clone(),
+                                        sha2::Sha256::digest(
+                                            subscription
+                                                .data
+                                                .message
+                                                .as_bytes(),
+                                        ),
+                                    );
+                                    let mut seen_messages =
+                                        seen_messages.lock().unwrap();
+                                    if seen_messages.contains(&key) {
+                                        tracing::warn!("Duplicate subscription message received: {key:?}");
+                                        return;
+                                    }
+                                    seen_messages.push(key);
+                                }
+                            }
                             let _ = on_incomingmessage_tx
                                 .clone()
                                 .send(IncomingMessage::Message(payload))
@@ -475,7 +511,9 @@ async fn connect(
                         "received non-string JsValue for WS onmessage"
                     )
                 }
-            }) as Box<dyn Fn(MessageEvent)>);
+            },
+        )
+            as Box<dyn Fn(MessageEvent)>);
         ws.set_onmessage(Some(onmessage_closure.as_ref().unchecked_ref()));
 
         let (tx_open, mut rx_open) = tokio::sync::mpsc::channel(1);
