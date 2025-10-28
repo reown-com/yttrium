@@ -17,13 +17,31 @@ use {
     },
 };
 
+#[derive(Clone)]
+struct JsonRpcHistoryEntry {
+    topic: String,
+    response: Option<String>,
+}
+
 struct MySessionStoreInner {
     sessions: Vec<Session>,
     pairing_keys: HashMap<Topic, (u64, StoragePairing)>,
     partial_sessions: HashMap<Topic, [u8; 32]>,
+    json_rpc_history: HashMap<u64, JsonRpcHistoryEntry>,
 }
 
 struct MySessionStore(Arc<Mutex<MySessionStoreInner>>);
+
+impl MySessionStore {
+    pub fn new() -> Self {
+        Self(Arc::new(Mutex::new(MySessionStoreInner {
+            sessions: vec![],
+            pairing_keys: HashMap::new(),
+            partial_sessions: HashMap::new(),
+            json_rpc_history: HashMap::new(),
+        })))
+    }
+}
 
 impl Storage for MySessionStore {
     fn add_session(&self, session: Session) -> Result<(), StorageError> {
@@ -135,39 +153,51 @@ impl Storage for MySessionStore {
 
     fn insert_json_rpc_history(
         &self,
-        _request_id: u64,
-        _topic: String,
+        request_id: u64,
+        topic: String,
         _method: String,
         _body: String,
         _transport_type: Option<TransportType>,
     ) -> Result<(), StorageError> {
-        // Test implementation - just return Ok for now
+        let mut inner = self.0.lock().unwrap();
+        inner
+            .json_rpc_history
+            .insert(request_id, JsonRpcHistoryEntry { topic, response: None });
         Ok(())
     }
 
     fn update_json_rpc_history_response(
         &self,
-        _request_id: u64,
-        _response: String,
+        request_id: u64,
+        response: String,
     ) -> Result<(), StorageError> {
-        // Test implementation - just return Ok for now
+        let mut inner = self.0.lock().unwrap();
+        let entry =
+            inner.json_rpc_history.get_mut(&request_id).ok_or_else(|| {
+                StorageError::Runtime(format!(
+                    "JSON-RPC history entry not found for request_id: {}",
+                    request_id
+                ))
+            })?;
+        entry.response = Some(response);
         Ok(())
     }
 
     fn delete_json_rpc_history_by_topic(
         &self,
-        _topic: String,
+        topic: String,
     ) -> Result<(), StorageError> {
-        // Test implementation - just return Ok for now
+        let mut inner = self.0.lock().unwrap();
+        inner.json_rpc_history.retain(|_, entry| entry.topic != topic);
         Ok(())
     }
 
     fn does_json_rpc_exist(
         &self,
-        _request_id: u64,
+        request_id: u64,
     ) -> Result<bool, StorageError> {
-        // Test implementation - return false for now
-        Ok(false)
+        let inner = self.0.lock().unwrap();
+        Ok(inner.json_rpc_history.contains_key(&request_id))
     }
 }
 
@@ -177,11 +207,7 @@ pub async fn test_sign_impl() -> Result<(), String> {
     let (mut app_client, mut app_session_request_rx) = Client::new(
         std::env::var("REOWN_PROJECT_ID").unwrap().into(),
         app_client_id,
-        Arc::new(MySessionStore(Arc::new(Mutex::new(MySessionStoreInner {
-            sessions: vec![],
-            pairing_keys: HashMap::new(),
-            partial_sessions: HashMap::new(),
-        })))),
+        Arc::new(MySessionStore::new()),
     );
     app_client.set_probe_group("app".to_string());
     tracing::debug!(group = "app", probe = "client_created");
@@ -219,11 +245,7 @@ pub async fn test_sign_impl() -> Result<(), String> {
     let (mut wallet_client, mut wallet_session_request_rx) = Client::new(
         std::env::var("REOWN_PROJECT_ID").unwrap().into(),
         wallet_client_id,
-        Arc::new(MySessionStore(Arc::new(Mutex::new(MySessionStoreInner {
-            sessions: vec![],
-            pairing_keys: HashMap::new(),
-            partial_sessions: HashMap::new(),
-        })))),
+        Arc::new(MySessionStore::new()),
     );
     wallet_client.set_probe_group("wallet".to_string());
     tracing::debug!(group = "wallet", probe = "client_created");
