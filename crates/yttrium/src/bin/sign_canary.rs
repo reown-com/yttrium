@@ -23,15 +23,18 @@ pub async fn main() {
     let probe_layer = ProbeLayer::new();
     tracing_subscriber::fmt()
         .with_max_level(tracing::Level::DEBUG)
+        .with_ansi(false)
         .finish()
         .with(probe_layer.clone())
         .try_init()
         .unwrap();
 
-    // let start = Instant::now();
     let result = test_sign_impl().await;
-    tracing::debug!(probe = "e2e");
-    // let e2e_latency = start.elapsed();
+    if result.is_ok() {
+        tracing::debug!(probe = "e2e");
+    } else {
+        tracing::debug!(probe = "e2e_fail");
+    }
 
     if std::env::var("ENABLE_RECORD_CLOUDWATCH_METRICS")
         == Ok("true".to_string())
