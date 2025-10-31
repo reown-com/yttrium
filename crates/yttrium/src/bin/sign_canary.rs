@@ -221,6 +221,11 @@ where
         if let Some(group) = visitor.group {
             if let Some(span) = ctx.span(id) {
                 span.extensions_mut().insert(GroupExtension(group));
+            } else {
+                tracing::trace!(
+                    "Failed to lookup span {:?} for group extension insertion",
+                    id
+                );
             }
         }
     }
