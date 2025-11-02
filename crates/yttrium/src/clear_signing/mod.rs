@@ -1,7 +1,9 @@
+mod eip712;
 mod engine;
 mod resolver;
 mod token_registry;
 
+pub use eip712::{format_typed_data, Eip712Error, TypeMember, TypedData};
 pub use engine::{
     format_with_resolved, DisplayItem, DisplayModel, EngineError, RawPreview,
 };

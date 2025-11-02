@@ -41,8 +41,34 @@ const DESCRIPTOR_UNISWAP_V3_ROUTER_V1: &str =
 const DESCRIPTOR_WETH9: &str = include_str!("assets/descriptors/weth9.json");
 const DESCRIPTOR_AGGREGATION_ROUTER_V4: &str =
     include_str!("assets/descriptors/aggregation_router_v4.json");
+const DESCRIPTOR_1INCH_AGG_ROUTER_V3: &str =
+    include_str!("assets/descriptors/1inch/calldata-AggregationRouterV3.json");
+const DESCRIPTOR_1INCH_AGG_ROUTER_V4_ETH: &str = include_str!(
+    "assets/descriptors/1inch/calldata-AggregationRouterV4-eth.json"
+);
+const DESCRIPTOR_1INCH_AGG_ROUTER_V4: &str =
+    include_str!("assets/descriptors/1inch/calldata-AggregationRouterV4.json");
+const DESCRIPTOR_1INCH_AGG_ROUTER_V5: &str =
+    include_str!("assets/descriptors/1inch/calldata-AggregationRouterV5.json");
+const DESCRIPTOR_1INCH_AGG_ROUTER_V6: &str =
+    include_str!("assets/descriptors/1inch/calldata-AggregationRouterV6.json");
+const DESCRIPTOR_1INCH_AGG_ROUTER_V6_ZKSYNC: &str = include_str!(
+    "assets/descriptors/1inch/calldata-AggregationRouterV6-zksync.json"
+);
+const DESCRIPTOR_1INCH_NATIVE_ORDER_FACTORY: &str =
+    include_str!("assets/descriptors/1inch/calldata-NativeOrderFactory.json");
+const DESCRIPTOR_AAVE_LPV2: &str =
+    include_str!("assets/descriptors/aave/calldata-lpv2.json");
+const DESCRIPTOR_AAVE_LPV3: &str =
+    include_str!("assets/descriptors/aave/calldata-lpv3.json");
+const DESCRIPTOR_AAVE_WETH_GATEWAY_V3: &str =
+    include_str!("assets/descriptors/aave/calldata-WrappedTokenGatewayV3.json");
 const INCLUDE_COMMON_TEST_ROUTER: &str =
     include_str!("assets/descriptors/common-test-router.json");
+const INCLUDE_1INCH_COMMON_V4: &str =
+    include_str!("assets/descriptors/1inch/common-AggregationRouterV4.json");
+const INCLUDE_1INCH_COMMON_V6: &str =
+    include_str!("assets/descriptors/1inch/common-AggregationRouterV6.json");
 
 const ABI_ERC20: &str = include_str!("assets/abis/erc20.json");
 const ABI_UNISWAP_V3_ROUTER_V1: &str =
@@ -50,6 +76,13 @@ const ABI_UNISWAP_V3_ROUTER_V1: &str =
 const ABI_WETH9: &str = include_str!("assets/abis/weth9.json");
 
 static INDEX: OnceLock<IndexMap> = OnceLock::new();
+const TYPED_INDEX_JSON: &str = include_str!("assets/index_eip712.json");
+const TYPED_DESCRIPTOR_1INCH_LIMIT_ORDER: &str =
+    include_str!("assets/descriptors/1inch/eip712-1inch-limit-order.json");
+const TYPED_DESCRIPTOR_1INCH_AGG_ROUTER_V6: &str =
+    include_str!("assets/descriptors/1inch/eip712-AggregationRouterV6.json");
+type TypedIndexMap = HashMap<String, String>;
+static TYPED_INDEX: OnceLock<TypedIndexMap> = OnceLock::new();
 
 fn load_index() -> IndexMap {
     serde_json::from_str(INDEX_JSON)
@@ -58,6 +91,15 @@ fn load_index() -> IndexMap {
 
 fn index() -> &'static IndexMap {
     INDEX.get_or_init(load_index)
+}
+
+fn load_typed_index() -> TypedIndexMap {
+    serde_json::from_str(TYPED_INDEX_JSON)
+        .expect("clear signing typed index JSON must be valid")
+}
+
+fn typed_index() -> &'static TypedIndexMap {
+    TYPED_INDEX.get_or_init(load_typed_index)
 }
 
 /// Resolves the descriptor and ABI (if present) for the given target.
@@ -101,6 +143,32 @@ fn descriptor_content(path: &str) -> Option<&'static str> {
         "descriptors/aggregation_router_v4.json" => {
             Some(DESCRIPTOR_AGGREGATION_ROUTER_V4)
         }
+        "descriptors/1inch/calldata-AggregationRouterV3.json" => {
+            Some(DESCRIPTOR_1INCH_AGG_ROUTER_V3)
+        }
+        "descriptors/1inch/calldata-AggregationRouterV4-eth.json" => {
+            Some(DESCRIPTOR_1INCH_AGG_ROUTER_V4_ETH)
+        }
+        "descriptors/1inch/calldata-AggregationRouterV4.json" => {
+            Some(DESCRIPTOR_1INCH_AGG_ROUTER_V4)
+        }
+        "descriptors/1inch/calldata-AggregationRouterV5.json" => {
+            Some(DESCRIPTOR_1INCH_AGG_ROUTER_V5)
+        }
+        "descriptors/1inch/calldata-AggregationRouterV6.json" => {
+            Some(DESCRIPTOR_1INCH_AGG_ROUTER_V6)
+        }
+        "descriptors/1inch/calldata-AggregationRouterV6-zksync.json" => {
+            Some(DESCRIPTOR_1INCH_AGG_ROUTER_V6_ZKSYNC)
+        }
+        "descriptors/1inch/calldata-NativeOrderFactory.json" => {
+            Some(DESCRIPTOR_1INCH_NATIVE_ORDER_FACTORY)
+        }
+        "descriptors/aave/calldata-lpv2.json" => Some(DESCRIPTOR_AAVE_LPV2),
+        "descriptors/aave/calldata-lpv3.json" => Some(DESCRIPTOR_AAVE_LPV3),
+        "descriptors/aave/calldata-WrappedTokenGatewayV3.json" => {
+            Some(DESCRIPTOR_AAVE_WETH_GATEWAY_V3)
+        }
         _ => None,
     }
 }
@@ -116,6 +184,42 @@ fn abi_content(path: &str) -> Option<&'static str> {
 
 fn normalize_address(address: &str) -> String {
     address.trim().to_ascii_lowercase()
+}
+
+pub struct ResolvedTypedDescriptor<'a> {
+    pub descriptor_json: &'a str,
+}
+
+pub fn resolve_typed(
+    chain_id: u64,
+    verifying_contract: &str,
+) -> Result<ResolvedTypedDescriptor<'static>, ResolverError> {
+    let key = format!(
+        "eip155:{}:{}",
+        chain_id,
+        normalize_address(verifying_contract)
+    );
+    let path = typed_index()
+        .get(&key)
+        .ok_or_else(|| ResolverError::NotFound(key.clone()))?;
+
+    let descriptor = typed_descriptor_content(path).ok_or_else(|| {
+        ResolverError::InvalidIndexEntry { path: path.clone() }
+    })?;
+
+    Ok(ResolvedTypedDescriptor { descriptor_json: descriptor })
+}
+
+fn typed_descriptor_content(path: &str) -> Option<&'static str> {
+    match path {
+        "descriptors/1inch/eip712-1inch-limit-order.json" => {
+            Some(TYPED_DESCRIPTOR_1INCH_LIMIT_ORDER)
+        }
+        "descriptors/1inch/eip712-AggregationRouterV6.json" => {
+            Some(TYPED_DESCRIPTOR_1INCH_AGG_ROUTER_V6)
+        }
+        _ => None,
+    }
 }
 
 fn extract_includes(
@@ -162,6 +266,8 @@ fn extract_includes(
 fn include_content(name: &str) -> Option<&'static str> {
     match name {
         "common-test-router.json" => Some(INCLUDE_COMMON_TEST_ROUTER),
+        "common-AggregationRouterV4.json" => Some(INCLUDE_1INCH_COMMON_V4),
+        "common-AggregationRouterV6.json" => Some(INCLUDE_1INCH_COMMON_V6),
         _ => None,
     }
 }

@@ -5,7 +5,7 @@
     "$id": "AggregationRouterV4",
     "contract": {
       "deployments": [
-        { "chainId": 1, "address": "0x1111111254fb6c44bac0bed2854e76f90643097d" }
+        { "chainId": 1, "address": "0xF00D000000000000000000000000000000000123" }
       ],
       "abi": [
         {

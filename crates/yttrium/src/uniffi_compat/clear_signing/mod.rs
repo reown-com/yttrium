@@ -1,6 +1,6 @@
 use crate::clear_signing::{
-    format as format_without_value, format_with_value, DisplayItem,
-    DisplayModel, EngineError, RawPreview,
+    format as format_without_value, format_typed_data, format_with_value,
+    DisplayItem, DisplayModel, Eip712Error, EngineError, RawPreview, TypedData,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
@@ -72,6 +72,29 @@ impl From<EngineError> for EngineErrorFfi {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error, uniffi::Enum)]
+pub enum TypedEngineErrorFfi {
+    #[error("typed data parse error: {0}")]
+    TypedData(String),
+    #[error("resolver error: {0}")]
+    Resolver(String),
+    #[error("descriptor error: {0}")]
+    Descriptor(String),
+    #[error("token registry error: {0}")]
+    TokenRegistry(String),
+}
+
+impl From<Eip712Error> for TypedEngineErrorFfi {
+    fn from(value: Eip712Error) -> Self {
+        match value {
+            Eip712Error::TypedData(err) => Self::TypedData(err),
+            Eip712Error::Resolver(err) => Self::Resolver(err),
+            Eip712Error::DescriptorParse(err) => Self::Descriptor(err),
+            Eip712Error::TokenRegistry(err) => Self::TokenRegistry(err),
+        }
+    }
+}
+
 #[uniffi::export]
 pub fn clear_signing_format(
     chain_id: u64,
@@ -111,4 +134,13 @@ fn decode_hex(input: &str, context: &str) -> Result<Vec<u8>, EngineErrorFfi> {
     hex::decode(without_prefix).map_err(|err| {
         EngineErrorFfi::Calldata(format!("invalid {context} hex: {err}"))
     })
+}
+
+#[uniffi::export]
+pub fn clear_signing_format_typed(
+    typed_data_json: String,
+) -> Result<DisplayModelFfi, TypedEngineErrorFfi> {
+    let typed: TypedData = serde_json::from_str(&typed_data_json)
+        .map_err(|err| TypedEngineErrorFfi::TypedData(err.to_string()))?;
+    format_typed_data(&typed).map(Into::into).map_err(Into::into)
 }

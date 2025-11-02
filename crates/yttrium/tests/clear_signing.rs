@@ -1,11 +1,14 @@
 use num_bigint::BigUint;
+use serde_json::json;
 use tiny_keccak::{Hasher, Keccak};
-use yttrium::clear_signing::{format_with_value, DisplayItem};
+use yttrium::clear_signing::{
+    format_typed_data, format_with_value, DisplayItem, TypedData,
+};
 
 const USDT_MAINNET: &str = "0xdAC17F958D2ee523a2206206994597C13D831ec7";
 const UNISWAP_V3_ROUTER: &str = "0xE592427A0AEce92De3Edee1F18E0157C05861564";
 const WETH_MAINNET: &str = "0xC02aaA39b223FE8D0A0E5C4F27eAD9083C756Cc2";
-const TEST_ROUTER: &str = "0x1111111254fb6c44bac0bed2854e76f90643097d";
+const TEST_ROUTER: &str = "0xF00D000000000000000000000000000000000123";
 
 #[test]
 fn approve_usdt_spender() {
@@ -128,6 +131,77 @@ fn includes_descriptor_merges_display() {
             label: "Amount".to_string(),
             value: "42".to_string()
         }]
+    );
+    assert!(model.warnings.is_empty());
+    assert!(model.raw.is_none());
+}
+
+#[test]
+fn eip712_limit_order_formats_tokens() {
+    let typed_data_json = json!({
+        "types": {
+            "EIP712Domain": [
+                {"name": "name", "type": "string"},
+                {"name": "version", "type": "string"},
+                {"name": "chainId", "type": "uint256"},
+                {"name": "verifyingContract", "type": "address"}
+            ],
+            "OrderStructure": [
+                {"name": "salt", "type": "uint256"},
+                {"name": "maker", "type": "address"},
+                {"name": "receiver", "type": "address"},
+                {"name": "makerAsset", "type": "address"},
+                {"name": "takerAsset", "type": "address"},
+                {"name": "makingAmount", "type": "uint256"},
+                {"name": "takingAmount", "type": "uint256"},
+                {"name": "makerTraits", "type": "uint256"}
+            ]
+        },
+        "primaryType": "OrderStructure",
+        "domain": {
+            "name": "1inch",
+            "version": "1",
+            "chainId": 1,
+            "verifyingContract": "0x119c71d3BbAc22029622CBaEC24854d3D32D2828"
+        },
+        "message": {
+            "salt": "1",
+            "maker": "0xabc0000000000000000000000000000000000001",
+            "receiver": "0xabc0000000000000000000000000000000000002",
+            "makerAsset": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+            "takerAsset": "0xC02aaA39b223FE8D0A0E5C4F27eAD9083C756Cc2",
+            "makingAmount": "1000000",
+            "takingAmount": "1000000000000000000",
+            "makerTraits": "0"
+        }
+    });
+
+    let typed: TypedData = serde_json::from_value(typed_data_json)
+        .expect("typed data should parse");
+
+    let model = format_typed_data(&typed).expect("format succeeds");
+
+    assert_eq!(model.intent, "1inch Order");
+    assert_eq!(
+        model.items,
+        vec![
+            DisplayItem {
+                label: "From".to_string(),
+                value: "0xabc0000000000000000000000000000000000001".to_string(),
+            },
+            DisplayItem {
+                label: "Send".to_string(),
+                value: "1 USDC".to_string(),
+            },
+            DisplayItem {
+                label: "Receive minimum".to_string(),
+                value: "1 WETH".to_string(),
+            },
+            DisplayItem {
+                label: "To".to_string(),
+                value: "0xabc0000000000000000000000000000000000002".to_string(),
+            },
+        ]
     );
     assert!(model.warnings.is_empty());
     assert!(model.raw.is_none());

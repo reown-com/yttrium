@@ -96,7 +96,7 @@ fn needs_abi_injection(descriptor_value: &JsonValue) -> bool {
         .and_then(|context| context.get("contract"))
         .and_then(|contract| contract.get("abi"))
     {
-        Some(value) if !value.is_null() => false,
+        Some(value) if value.is_array() || value.is_object() => false,
         _ => true,
     }
 }
@@ -181,6 +181,7 @@ pub fn format_with_resolved(
             chain_id,
             to,
             &local_address_book,
+            descriptor.display.definitions(),
         )?;
         warnings.append(&mut format_warnings);
         Ok(DisplayModel {
@@ -350,7 +351,9 @@ impl FunctionDescriptor {
 }
 
 #[derive(Debug, Default, Deserialize)]
-struct DescriptorDisplay {
+pub(crate) struct DescriptorDisplay {
+    #[serde(default)]
+    definitions: HashMap<String, DisplayField>,
     #[serde(default)]
     formats: HashMap<String, DisplayFormat>,
 }
@@ -365,25 +368,42 @@ impl DescriptorDisplay {
             })
             .collect()
     }
+
+    fn definitions(&self) -> &HashMap<String, DisplayField> {
+        &self.definitions
+    }
 }
 
 #[derive(Debug, Clone, Deserialize)]
-struct DisplayFormat {
-    intent: String,
+pub(crate) struct DisplayFormat {
+    pub(crate) intent: String,
     #[serde(default)]
-    fields: Vec<DisplayField>,
+    pub(crate) fields: Vec<DisplayField>,
     #[serde(default)]
-    required: Vec<String>,
+    pub(crate) required: Vec<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
-struct DisplayField {
-    path: String,
-    label: String,
+pub(crate) struct DisplayField {
+    #[serde(default)]
+    path: Option<String>,
+    #[serde(default)]
+    label: Option<String>,
     #[serde(default)]
     format: Option<String>,
     #[serde(default)]
     params: serde_json::Value,
+    #[serde(rename = "$ref")]
+    #[serde(default)]
+    reference: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct EffectiveField {
+    pub(crate) path: String,
+    pub(crate) label: String,
+    pub(crate) format: Option<String>,
+    pub(crate) params: serde_json::Value,
 }
 
 fn apply_display_format(
@@ -393,6 +413,7 @@ fn apply_display_format(
     chain_id: u64,
     contract_address: &str,
     address_book: &HashMap<String, String>,
+    definitions: &HashMap<String, DisplayField>,
 ) -> Result<(Vec<DisplayItem>, Vec<String>), EngineError> {
     let mut items = Vec::new();
     let mut warnings = Vec::new();
@@ -404,9 +425,15 @@ fn apply_display_format(
     }
 
     for field in &format.fields {
-        if let Some(value) = decoded.get(&field.path) {
+        let Some(effective) =
+            resolve_effective_field(field, definitions, &mut warnings)
+        else {
+            continue;
+        };
+
+        if let Some(value) = decoded.get(&effective.path) {
             let rendered = render_field(
-                field,
+                &effective,
                 value,
                 decoded,
                 metadata,
@@ -415,13 +442,13 @@ fn apply_display_format(
                 address_book,
             )?;
             items.push(DisplayItem {
-                label: field.label.clone(),
+                label: effective.label.clone(),
                 value: rendered,
             });
         } else {
             warnings.push(format!(
                 "No value found for field path '{}'",
-                field.path
+                effective.path
             ));
         }
     }
@@ -430,7 +457,7 @@ fn apply_display_format(
 }
 
 fn render_field(
-    field: &DisplayField,
+    field: &EffectiveField,
     value: &ArgumentValue,
     decoded: &DecodedArguments,
     metadata: &serde_json::Value,
@@ -455,6 +482,81 @@ fn render_field(
         Some("enum") => format_enum(field, value, metadata),
         Some("number") => Ok(format_number(value)),
         _ => Ok(value.default_string()),
+    }
+}
+
+pub(crate) fn resolve_effective_field(
+    field: &DisplayField,
+    definitions: &HashMap<String, DisplayField>,
+    warnings: &mut Vec<String>,
+) -> Option<EffectiveField> {
+    let mut path = field.path.clone();
+    let mut label = field.label.clone();
+    let mut format = field.format.clone();
+    let mut params = field.params.clone();
+
+    if let Some(reference) = &field.reference {
+        if let Some(name) = extract_definition_name(reference) {
+            if let Some(def) = definitions.get(name) {
+                if path.is_none() {
+                    path = def.path.clone();
+                }
+                if label.is_none() {
+                    label = def.label.clone();
+                }
+                if format.is_none() {
+                    format = def.format.clone();
+                }
+                params = merge_params(&def.params, &params);
+            } else {
+                warnings.push(format!(
+                    "Unknown display definition reference '{}'",
+                    reference
+                ));
+            }
+        } else {
+            warnings.push(format!(
+                "Unsupported display definition reference '{}'",
+                reference
+            ));
+        }
+    }
+
+    let path = match path {
+        Some(value) => value,
+        None => {
+            warnings.push("Display field missing path".to_string());
+            return None;
+        }
+    };
+
+    let label = label.unwrap_or_else(|| path.clone());
+
+    Some(EffectiveField { path, label, format, params })
+}
+
+pub(crate) fn extract_definition_name(reference: &str) -> Option<&str> {
+    reference.strip_prefix("$.display.definitions.")
+}
+
+pub(crate) fn merge_params(
+    base: &serde_json::Value,
+    overlay: &serde_json::Value,
+) -> serde_json::Value {
+    match (base, overlay) {
+        (
+            serde_json::Value::Object(base_map),
+            serde_json::Value::Object(overlay_map),
+        ) => {
+            let mut merged = base_map.clone();
+            for (key, value) in overlay_map {
+                merged.insert(key.clone(), value.clone());
+            }
+            serde_json::Value::Object(merged)
+        }
+        (_, serde_json::Value::Null) => base.clone(),
+        (_, overlay_value) if overlay_value.is_null() => base.clone(),
+        (_, overlay_value) => overlay_value.clone(),
     }
 }
 
@@ -483,7 +585,7 @@ fn format_date(value: &ArgumentValue) -> String {
 }
 
 fn format_token_amount(
-    field: &DisplayField,
+    field: &EffectiveField,
     value: &ArgumentValue,
     decoded: &DecodedArguments,
     metadata: &serde_json::Value,
@@ -543,7 +645,7 @@ fn format_native_amount(value: &ArgumentValue) -> String {
 }
 
 fn format_enum(
-    field: &DisplayField,
+    field: &EffectiveField,
     value: &ArgumentValue,
     metadata: &serde_json::Value,
 ) -> Result<String, EngineError> {
@@ -572,7 +674,7 @@ fn format_enum(
 }
 
 fn token_amount_message(
-    field: &DisplayField,
+    field: &EffectiveField,
     amount: &BigUint,
     metadata: &serde_json::Value,
 ) -> Option<String> {
@@ -594,7 +696,7 @@ fn token_amount_message(
 }
 
 fn resolve_token_meta(
-    field: &DisplayField,
+    field: &EffectiveField,
     decoded: &DecodedArguments,
     chain_id: u64,
     contract_address: &str,
@@ -656,7 +758,10 @@ fn resolve_token_meta(
     )))
 }
 
-fn format_amount_with_decimals(amount: &BigUint, decimals: u8) -> String {
+pub(crate) fn format_amount_with_decimals(
+    amount: &BigUint,
+    decimals: u8,
+) -> String {
     if decimals == 0 {
         return add_thousand_separators(&amount.to_string());
     }
@@ -692,7 +797,7 @@ fn format_amount_with_decimals(amount: &BigUint, decimals: u8) -> String {
     }
 }
 
-fn add_thousand_separators(value: &str) -> String {
+pub(crate) fn add_thousand_separators(value: &str) -> String {
     let mut reversed = String::with_capacity(value.len());
     for (index, ch) in value.chars().rev().enumerate() {
         if index > 0 && index % 3 == 0 {
@@ -717,7 +822,7 @@ fn resolve_metadata_biguint(
     }
 }
 
-fn resolve_metadata_value<'a>(
+pub(crate) fn resolve_metadata_value<'a>(
     metadata: &'a serde_json::Value,
     pointer: &str,
 ) -> Option<&'a serde_json::Value> {
@@ -730,7 +835,7 @@ fn resolve_metadata_value<'a>(
     Some(current)
 }
 
-fn parse_biguint(text: &str) -> Option<BigUint> {
+pub(crate) fn parse_biguint(text: &str) -> Option<BigUint> {
     if let Some(hex) = text.strip_prefix("0x") {
         BigUint::parse_bytes(hex.as_bytes(), 16)
     } else {
@@ -1135,7 +1240,7 @@ fn normalize_address(address: &str) -> String {
     address.trim().to_ascii_lowercase()
 }
 
-fn to_checksum_address(bytes: &[u8; 20]) -> String {
+pub(crate) fn to_checksum_address(bytes: &[u8; 20]) -> String {
     let lower = hex::encode(bytes);
     let mut hasher = Keccak::v256();
     hasher.update(lower.as_bytes());
