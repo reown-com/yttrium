@@ -2,13 +2,17 @@ use num_bigint::BigUint;
 use serde_json::json;
 use tiny_keccak::{Hasher, Keccak};
 use yttrium::clear_signing::{
-    format_typed_data, format_with_value, DisplayItem, TypedData,
+    format_typed_data, format_with_value, DisplayItem, EngineError, TypedData,
 };
 
 const USDT_MAINNET: &str = "0xdAC17F958D2ee523a2206206994597C13D831ec7";
 const UNISWAP_V3_ROUTER: &str = "0xE592427A0AEce92De3Edee1F18E0157C05861564";
 const WETH_MAINNET: &str = "0xC02aaA39b223FE8D0A0E5C4F27eAD9083C756Cc2";
 const TEST_ROUTER: &str = "0xF00D000000000000000000000000000000000123";
+const AAVE_LPV2_MAINNET: &str = "0x7d2768de32b0b80b7a3454c06bdac94a69ddc7a9";
+const USDC: &str = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
+const DAI: &str = "0x6B175474E89094C44Da98b954EedeAC495271d0F";
+const ON_BEHALF_OF: &str = "0x1111111111111111111111111111111111111111";
 
 #[test]
 fn approve_usdt_spender() {
@@ -78,6 +82,86 @@ fn swap_usdc_to_weth_exact_input_single() {
     );
     assert!(model.warnings.is_empty());
     assert!(model.raw.is_none());
+}
+
+#[test]
+fn aave_deposit_formats_usdc_amount() {
+    let calldata = build_calldata(
+        selector("deposit(address,uint256,address,uint16)"),
+        &[
+            address_word(USDC),
+            uint_word_u128(1_000_000_000),
+            address_word(ON_BEHALF_OF),
+            uint_word_u128(0),
+        ],
+    );
+
+    let model = format_with_value(1, AAVE_LPV2_MAINNET, None, &calldata)
+        .expect("format succeeds");
+
+    assert_eq!(model.intent, "Supply");
+    assert!(model.warnings.is_empty());
+    assert_eq!(model.items.len(), 2);
+    assert_eq!(
+        model.items[0],
+        DisplayItem {
+            label: "Amount to supply".to_string(),
+            value: "1,000 USDC".to_string(),
+        }
+    );
+    assert_eq!(model.items[1].label, "Collateral recipient".to_string());
+    assert_eq!(
+        model.items[1].value.to_ascii_lowercase(),
+        ON_BEHALF_OF.to_ascii_lowercase()
+    );
+}
+
+#[test]
+fn aave_repay_all_uses_message() {
+    let max = BigUint::parse_bytes(
+        b"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        16,
+    )
+    .expect("max constant");
+    let calldata = build_calldata(
+        selector("repay(address,uint256,uint256,address)"),
+        &[
+            address_word(DAI),
+            uint_word_biguint(max.clone()),
+            uint_word_u128(2),
+            address_word(ON_BEHALF_OF),
+        ],
+    );
+
+    let model = format_with_value(1, AAVE_LPV2_MAINNET, None, &calldata)
+        .expect("format succeeds");
+
+    assert_eq!(model.intent, "Repay loan");
+    assert_eq!(
+        model.items.first(),
+        Some(&DisplayItem {
+            label: "Amount to repay".to_string(),
+            value: "All".to_string(),
+        })
+    );
+}
+
+#[test]
+fn aave_missing_token_errors() {
+    let calldata = build_calldata(
+        selector("deposit(address,uint256,address,uint16)"),
+        &[
+            address_word("0x000000000000000000000000000000000000dead"),
+            uint_word_u128(1_000_000_000),
+            address_word(ON_BEHALF_OF),
+            uint_word_u128(0),
+        ],
+    );
+
+    let err = format_with_value(1, AAVE_LPV2_MAINNET, None, &calldata)
+        .expect_err("token lookup should fail");
+
+    assert!(matches!(err, EngineError::TokenRegistry(_)));
 }
 
 #[test]
@@ -205,6 +289,66 @@ fn eip712_limit_order_formats_tokens() {
     );
     assert!(model.warnings.is_empty());
     assert!(model.raw.is_none());
+}
+
+#[test]
+fn usdt_approve_all_displays_all_message() {
+    let calldata = build_calldata(
+        selector("approve(address,uint256)"),
+        &[
+            address_word(AAVE_LPV2_MAINNET),
+            uint_word_biguint(
+                BigUint::parse_bytes(
+                    b"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+                    16,
+                )
+                .expect("max constant"),
+            ),
+        ],
+    );
+
+    let model = format_with_value(1, USDT_MAINNET, None, &calldata)
+        .expect("format succeeds");
+
+    assert_eq!(model.intent, "Approve USDT spending");
+    assert!(model.warnings.is_empty());
+    assert_eq!(model.items.len(), 2);
+    assert_eq!(model.items[0].label, "Spender");
+    assert_eq!(
+        model.items[0].value.to_ascii_lowercase(),
+        AAVE_LPV2_MAINNET.to_ascii_lowercase()
+    );
+    assert_eq!(
+        model.items[1],
+        DisplayItem { label: "Amount".to_string(), value: "All".to_string() }
+    );
+}
+
+#[test]
+fn usdt_approve_specific_amount_formats_decimals() {
+    let calldata = build_calldata(
+        selector("approve(address,uint256)"),
+        &[address_word(AAVE_LPV2_MAINNET), uint_word_u128(85_031)],
+    );
+
+    let model = format_with_value(1, USDT_MAINNET, None, &calldata)
+        .expect("format succeeds");
+
+    assert_eq!(model.intent, "Approve USDT spending");
+    assert!(model.warnings.is_empty());
+    assert_eq!(model.items.len(), 2);
+    assert_eq!(model.items[0].label, "Spender");
+    assert_eq!(
+        model.items[0].value.to_ascii_lowercase(),
+        AAVE_LPV2_MAINNET.to_ascii_lowercase()
+    );
+    assert_eq!(
+        model.items[1],
+        DisplayItem {
+            label: "Amount".to_string(),
+            value: "0.085031 USDT".to_string(),
+        }
+    );
 }
 
 fn build_calldata(selector: [u8; 4], words: &[[u8; 32]]) -> Vec<u8> {

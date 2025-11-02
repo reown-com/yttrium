@@ -178,6 +178,30 @@ fn abi_content(path: &str) -> Option<&'static str> {
         "abis/erc20.json" => Some(ABI_ERC20),
         "abis/uniswap_v3_router_v1.json" => Some(ABI_UNISWAP_V3_ROUTER_V1),
         "abis/weth9.json" => Some(ABI_WETH9),
+        "abis/1inch/aggregation_router_v3.json" => {
+            Some(include_str!("assets/abis/1inch/aggregation_router_v3.json"))
+        }
+        "abis/1inch/aggregation_router_v4.json" => {
+            Some(include_str!("assets/abis/1inch/aggregation_router_v4.json"))
+        }
+        "abis/1inch/aggregation_router_v5.json" => {
+            Some(include_str!("assets/abis/1inch/aggregation_router_v5.json"))
+        }
+        "abis/1inch/aggregation_router_v6.json" => {
+            Some(include_str!("assets/abis/1inch/aggregation_router_v6.json"))
+        }
+        "abis/1inch/native_order_factory.json" => {
+            Some(include_str!("assets/abis/1inch/native_order_factory.json"))
+        }
+        "abis/aave/lpv2.json" => {
+            Some(include_str!("assets/abis/aave/lpv2.json"))
+        }
+        "abis/aave/lpv3.json" => {
+            Some(include_str!("assets/abis/aave/lpv3.json"))
+        }
+        "abis/aave/weth_gateway_v3.json" => {
+            Some(include_str!("assets/abis/aave/weth_gateway_v3.json"))
+        }
         _ => None,
     }
 }

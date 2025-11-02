@@ -3,7 +3,34 @@
   "context": {
     "$id": "Lending Pool v2",
     "contract": {
-      "abi": "https://github.com/LedgerHQ/ledger-asset-dapps/blob/211e75ed27de3894f592ca73710fa0b72c3ceeae/ethereum/aave/abis/0x7d2768de32b0b80b7a3454c06bdac94a69ddc7a9.abi.json",
+      "abi": [
+        {
+          "inputs": [
+            { "internalType": "address", "name": "asset", "type": "address" },
+            { "internalType": "uint256", "name": "amount", "type": "uint256" },
+            { "internalType": "address", "name": "onBehalfOf", "type": "address" },
+            { "internalType": "uint16", "name": "referralCode", "type": "uint16" }
+          ],
+          "name": "deposit",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            { "internalType": "address", "name": "asset", "type": "address" },
+            { "internalType": "uint256", "name": "amount", "type": "uint256" },
+            { "internalType": "uint256", "name": "interestRateMode", "type": "uint256" },
+            { "internalType": "address", "name": "onBehalfOf", "type": "address" }
+          ],
+          "name": "repay",
+          "outputs": [
+            { "internalType": "uint256", "name": "", "type": "uint256" }
+          ],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        }
+      ],
       "deployments": [
         { "chainId": 1, "address": "0x7d2768dE32b0b80b7a3454c06BdAc94A69DDc7A9" },
         { "chainId": 137, "address": "0x8dFf5E27EA6b7AC08EbFdf9eB090F32ee9a30fcf" },
