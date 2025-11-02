@@ -1,0 +1,17 @@
+{
+  "eip155:1:0xe592427a0aece92de3edee1f18e0157c05861564": {
+    "descriptor": "descriptors/uniswap_v3_router_v1.json",
+    "abi": "abis/uniswap_v3_router_v1.json"
+  },
+  "eip155:1:0xdac17f958d2ee523a2206206994597c13d831ec7": {
+    "descriptor": "descriptors/erc20_usdt.json",
+    "abi": "abis/erc20.json"
+  },
+  "eip155:1:0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2": {
+    "descriptor": "descriptors/weth9.json",
+    "abi": "abis/weth9.json"
+  },
+  "eip155:1:0x1111111254fb6c44bac0bed2854e76f90643097d": {
+    "descriptor": "descriptors/aggregation_router_v4.json"
+  }
+}

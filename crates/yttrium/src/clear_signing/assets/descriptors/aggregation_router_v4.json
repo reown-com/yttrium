@@ -1,0 +1,23 @@
+{
+  "$schema": "https://raw.githubusercontent.com/ethereum/ERCs/master/ERC-7730/schema.json",
+  "includes": "common-test-router.json",
+  "context": {
+    "$id": "AggregationRouterV4",
+    "contract": {
+      "deployments": [
+        { "chainId": 1, "address": "0x1111111254fb6c44bac0bed2854e76f90643097d" }
+      ],
+      "abi": [
+        {
+          "name": "setAmount",
+          "type": "function",
+          "stateMutability": "nonpayable",
+          "inputs": [
+            { "name": "amount", "type": "uint256" }
+          ],
+          "outputs": []
+        }
+      ]
+    }
+  }
+}

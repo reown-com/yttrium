@@ -1,21 +1,145 @@
+use num_bigint::BigUint;
 use tiny_keccak::{Hasher, Keccak};
-use yttrium::clear_signing::{format, DisplayItem, DisplayModel, RawPreview};
+use yttrium::clear_signing::{format_with_value, DisplayItem};
 
-const DESCRIPTOR: &str = include_str!("fixtures/stake_weight_descriptor.json");
+const USDT_MAINNET: &str = "0xdAC17F958D2ee523a2206206994597C13D831ec7";
+const UNISWAP_V3_ROUTER: &str = "0xE592427A0AEce92De3Edee1F18E0157C05861564";
+const WETH_MAINNET: &str = "0xC02aaA39b223FE8D0A0E5C4F27eAD9083C756Cc2";
+const TEST_ROUTER: &str = "0x1111111254fb6c44bac0bed2854e76f90643097d";
 
-fn build_calldata(selector: [u8; 4], args: &[[u8; 32]]) -> Vec<u8> {
-    let mut data = Vec::with_capacity(4 + args.len() * 32);
-    data.extend_from_slice(&selector);
-    for arg in args {
-        data.extend_from_slice(arg);
-    }
-    data
+#[test]
+fn approve_usdt_spender() {
+    let selector = selector("approve(address,uint256)");
+    let spender = address_word(UNISWAP_V3_ROUTER);
+    let amount = uint_word_u128(1_000_000_000_000u128);
+    let calldata = build_calldata(selector, &[spender, amount]);
+
+    let model = format_with_value(1, USDT_MAINNET, None, &calldata)
+        .expect("format succeeds");
+
+    assert_eq!(model.intent, "Approve USDT spending");
+    assert_eq!(
+        model.items,
+        vec![
+            DisplayItem {
+                label: "Spender".to_string(),
+                value: "Uniswap V3 Router".to_string(),
+            },
+            DisplayItem {
+                label: "Amount".to_string(),
+                value: "1,000,000 USDT".to_string(),
+            },
+        ]
+    );
+    assert!(model.warnings.is_empty());
+    assert!(model.raw.is_none());
 }
 
-fn uint_word(value: u64) -> [u8; 32] {
-    let mut word = [0u8; 32];
-    word[24..].copy_from_slice(&value.to_be_bytes());
-    word
+#[test]
+fn swap_usdc_to_weth_exact_input_single() {
+    let selector =
+        selector("exactInputSingle((address,address,uint24,address,uint256,uint256,uint160))");
+
+    let params = [
+        address_word("0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"),
+        address_word(WETH_MAINNET),
+        uint_word_u32(3_000u32),
+        address_word("0x1234567890abcdef1234567890abcdef12345678"),
+        uint_word_u128(1_000_000_000_000u128),
+        uint_word_u128(1_000_000_000_000_000_000u128),
+        uint_word_u128(0u128),
+    ];
+
+    let calldata = build_calldata(selector, &params);
+
+    let model = format_with_value(1, UNISWAP_V3_ROUTER, None, &calldata)
+        .expect("format succeeds");
+
+    assert_eq!(model.intent, "Swap tokens");
+    assert_eq!(
+        model.items,
+        vec![
+            DisplayItem {
+                label: "Amount in".to_string(),
+                value: "1,000,000 USDC".to_string(),
+            },
+            DisplayItem {
+                label: "Minimum received".to_string(),
+                value: "1 WETH".to_string(),
+            },
+            DisplayItem {
+                label: "Recipient".to_string(),
+                value: "0x1234567890AbcdEF1234567890aBcdef12345678".to_string(),
+            },
+        ]
+    );
+    assert!(model.warnings.is_empty());
+    assert!(model.raw.is_none());
+}
+
+#[test]
+fn deposit_weth_uses_call_value() {
+    let selector = selector("deposit()");
+    let calldata = build_calldata(selector, &[]);
+    let value = uint_word_u128(500_000_000_000_000_000u128);
+
+    let model = format_with_value(1, WETH_MAINNET, Some(&value), &calldata)
+        .expect("format succeeds");
+
+    assert_eq!(model.intent, "Wrap ETH into WETH");
+    assert_eq!(
+        model.items,
+        vec![DisplayItem {
+            label: "Amount".to_string(),
+            value: "0.5 WETH".to_string(),
+        }]
+    );
+    assert!(model.warnings.is_empty());
+    assert!(model.raw.is_none());
+}
+
+#[test]
+fn unknown_selector_returns_fallback() {
+    let selector = [0u8, 1u8, 2u8, 3u8];
+    let calldata = build_calldata(selector, &[uint_word_u128(42u128)]);
+
+    let model = format_with_value(1, USDT_MAINNET, None, &calldata)
+        .expect("format succeeds");
+
+    assert_eq!(model.intent, "Unknown transaction");
+    assert!(model.items.is_empty());
+    assert!(model.warnings.iter().any(|w| w.contains("No ABI match")));
+    assert!(model.raw.is_some());
+}
+
+#[test]
+fn includes_descriptor_merges_display() {
+    let selector = selector("setAmount(uint256)");
+    let amount = uint_word_u128(42u128);
+    let calldata = build_calldata(selector, &[amount]);
+
+    let model = format_with_value(1, TEST_ROUTER, None, &calldata)
+        .expect("format succeeds");
+
+    assert_eq!(model.intent, "Set router amount");
+    assert_eq!(
+        model.items,
+        vec![DisplayItem {
+            label: "Amount".to_string(),
+            value: "42".to_string()
+        }]
+    );
+    assert!(model.warnings.is_empty());
+    assert!(model.raw.is_none());
+}
+
+fn build_calldata(selector: [u8; 4], words: &[[u8; 32]]) -> Vec<u8> {
+    let mut data = Vec::with_capacity(4 + words.len() * 32);
+    data.extend_from_slice(&selector);
+    for word in words {
+        data.extend_from_slice(word);
+    }
+    data
 }
 
 fn selector(signature: &str) -> [u8; 4] {
@@ -26,115 +150,27 @@ fn selector(signature: &str) -> [u8; 4] {
     [output[0], output[1], output[2], output[3]]
 }
 
-#[test]
-fn increase_unlock_time_ok() {
-    // increaseUnlockTime(uint256)
-    let selector = selector("increaseUnlockTime(uint256)");
-    let unlock_time = 1_735_660_800u64; // 2024-12-31 16:00:00 UTC
-    let calldata = build_calldata(selector, &[uint_word(unlock_time)]);
-
-    let model = format(
-        DESCRIPTOR,
-        10,
-        "0x521B4C065Bbdbe3E20B3727340730936912DfA46",
-        &calldata,
-    )
-    .expect("format should succeed");
-
-    let expected = DisplayModel {
-        intent: "Increase Unlock Time".to_string(),
-        items: vec![DisplayItem {
-            label: "New Unlock Time".to_string(),
-            value: "2024-12-31 16:00:00 UTC".to_string(),
-        }],
-        warnings: Vec::new(),
-        raw: None,
-    };
-
-    assert_eq!(model, expected);
+fn address_word(address: &str) -> [u8; 32] {
+    let mut word = [0u8; 32];
+    let cleaned = address.trim().trim_start_matches("0x");
+    let bytes = hex::decode(cleaned).expect("valid address hex");
+    assert_eq!(bytes.len(), 20, "address must be 20 bytes");
+    word[12..].copy_from_slice(&bytes);
+    word
 }
 
-#[test]
-fn hardcoded_swift_payload_matches() {
-    let chain_id = 10u64;
-    let to = "0x521B4C065Bbdbe3E20B3727340730936912DfA46";
-    let calldata = build_calldata(
-        selector("increaseUnlockTime(uint256)"),
-        &[uint_word(1_735_660_800u64)],
-    );
-
-    let model = format(DESCRIPTOR, chain_id, to, &calldata)
-        .expect("format should succeed");
-
-    assert_eq!(model.intent, "Increase Unlock Time");
-    assert!(
-        model.warnings.is_empty(),
-        "no warnings expected: {:?}",
-        model.warnings
-    );
-    assert_eq!(
-        model.items,
-        vec![DisplayItem {
-            label: "New Unlock Time".to_string(),
-            value: "2024-12-31 16:00:00 UTC".to_string(),
-        }]
-    );
-    assert!(model.raw.is_none());
+fn uint_word_u32(value: u32) -> [u8; 32] {
+    uint_word_biguint(BigUint::from(value))
 }
 
-#[test]
-fn unknown_selector_fallback() {
-    let selector = [0xde, 0xad, 0xbe, 0xef];
-    let calldata = build_calldata(selector, &[uint_word(42)]);
-
-    let model = format(
-        DESCRIPTOR,
-        10,
-        "0x521B4C065Bbdbe3E20B3727340730936912DfA46",
-        &calldata,
-    )
-    .expect("format should succeed");
-
-    assert_eq!(model.intent, "Unknown transaction");
-    assert!(model.items.is_empty());
-    assert!(model
-        .warnings
-        .iter()
-        .any(|warning| warning.contains("No ABI match")));
-    assert_eq!(
-        model.raw,
-        Some(RawPreview {
-            selector: "0xdeadbeef".to_string(),
-            args: vec![(String::from("0x000000000000000000000000000000000000000000000000000000000000002a"))],
-        })
-    );
+fn uint_word_u128(value: u128) -> [u8; 32] {
+    uint_word_biguint(BigUint::from(value))
 }
 
-#[test]
-fn binding_mismatch_warn() {
-    let selector = selector("increaseUnlockTime(uint256)");
-    let unlock_time = 1_735_660_800u64;
-    let calldata = build_calldata(selector, &[uint_word(unlock_time)]);
-
-    let model = format(
-        DESCRIPTOR,
-        10,
-        "0x0000000000000000000000000000000000000000",
-        &calldata,
-    )
-    .expect("format should succeed");
-
-    assert_eq!(model.intent, "Increase Unlock Time");
-    assert_eq!(
-        model.items,
-        vec![DisplayItem {
-            label: "New Unlock Time".to_string(),
-            value: "2024-12-31 16:00:00 UTC".to_string(),
-        }]
-    );
-    assert!(model
-        .warnings
-        .iter()
-        .any(|warning| warning.contains("Descriptor deployment mismatch")));
-    assert!(model.raw.is_none());
+fn uint_word_biguint(value: BigUint) -> [u8; 32] {
+    let bytes = value.to_bytes_be();
+    assert!(bytes.len() <= 32, "value must fit in 32 bytes");
+    let mut word = [0u8; 32];
+    word[32 - bytes.len()..].copy_from_slice(&bytes);
+    word
 }

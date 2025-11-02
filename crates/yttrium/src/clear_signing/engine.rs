@@ -1,0 +1,1184 @@
+use std::{collections::HashMap, sync::OnceLock};
+
+use num_bigint::BigUint;
+use serde::Deserialize;
+use serde_json::Value as JsonValue;
+use thiserror::Error;
+use time::{macros::format_description, OffsetDateTime};
+use tiny_keccak::{Hasher, Keccak};
+
+use super::{
+    resolver::ResolvedDescriptor,
+    token_registry::{self, TokenMeta},
+};
+
+const TETHER_USDT_DESCRIPTOR: &str =
+    include_str!("assets/descriptors/erc20_usdt.json");
+const UNISWAP_V3_ROUTER_DESCRIPTOR: &str =
+    include_str!("assets/descriptors/uniswap_v3_router_v1.json");
+const WETH9_DESCRIPTOR: &str = include_str!("assets/descriptors/weth9.json");
+
+const ADDRESS_BOOK_DESCRIPTORS: &[&str] =
+    &[TETHER_USDT_DESCRIPTOR, UNISWAP_V3_ROUTER_DESCRIPTOR, WETH9_DESCRIPTOR];
+
+static GLOBAL_ADDRESS_BOOK: OnceLock<HashMap<String, String>> = OnceLock::new();
+
+/// Minimal display item for the clear signing preview.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DisplayItem {
+    pub label: String,
+    pub value: String,
+}
+
+/// Display model produced by the clear signing engine.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DisplayModel {
+    pub intent: String,
+    pub items: Vec<DisplayItem>,
+    pub warnings: Vec<String>,
+    pub raw: Option<RawPreview>,
+}
+
+/// Raw fallback preview details.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RawPreview {
+    pub selector: String,
+    pub args: Vec<String>,
+}
+
+/// Errors returned by the clear signing engine.
+#[derive(Debug, Error)]
+pub enum EngineError {
+    #[error("descriptor parse error: {0}")]
+    DescriptorParse(String),
+    #[error("calldata decode error: {0}")]
+    Calldata(String),
+    #[error("resolver error: {0}")]
+    Resolver(String),
+    #[error("internal error: {0}")]
+    Internal(String),
+    #[error("token registry error: {0}")]
+    TokenRegistry(String),
+}
+
+fn build_descriptor(
+    resolved: ResolvedDescriptor<'_>,
+) -> Result<Descriptor, EngineError> {
+    let mut descriptor_value: JsonValue =
+        serde_json::from_str(resolved.descriptor_json)
+            .map_err(|err| EngineError::DescriptorParse(err.to_string()))?;
+
+    for include_json in resolved.includes {
+        let include_value: JsonValue = serde_json::from_str(include_json)
+            .map_err(|err| EngineError::DescriptorParse(err.to_string()))?;
+        merge_include(&mut descriptor_value, include_value);
+    }
+
+    if let Some(object) = descriptor_value.as_object_mut() {
+        object.remove("includes");
+    }
+
+    if let Some(abi_json) = resolved.abi_json {
+        if needs_abi_injection(&descriptor_value) {
+            let abi_value: JsonValue = serde_json::from_str(abi_json)
+                .map_err(|err| EngineError::DescriptorParse(err.to_string()))?;
+            inject_abi(&mut descriptor_value, abi_value);
+        }
+    }
+
+    serde_json::from_value(descriptor_value)
+        .map_err(|err| EngineError::DescriptorParse(err.to_string()))
+}
+
+fn needs_abi_injection(descriptor_value: &JsonValue) -> bool {
+    match descriptor_value
+        .get("context")
+        .and_then(|context| context.get("contract"))
+        .and_then(|contract| contract.get("abi"))
+    {
+        Some(value) if !value.is_null() => false,
+        _ => true,
+    }
+}
+
+fn inject_abi(descriptor_value: &mut JsonValue, abi_value: JsonValue) {
+    if let Some(contract) = descriptor_value
+        .get_mut("context")
+        .and_then(|context| context.as_object_mut())
+        .and_then(|context_obj| context_obj.get_mut("contract"))
+        .and_then(|contract| contract.as_object_mut())
+    {
+        contract.insert("abi".to_string(), abi_value);
+    }
+}
+
+fn merge_include(target: &mut JsonValue, include: JsonValue) {
+    match (target, include) {
+        (JsonValue::Object(target_map), JsonValue::Object(include_map)) => {
+            for (key, value) in include_map {
+                match target_map.get_mut(&key) {
+                    Some(existing) => {
+                        if existing.is_object() && value.is_object() {
+                            merge_include(existing, value);
+                        }
+                    }
+                    None => {
+                        target_map.insert(key, value);
+                    }
+                }
+            }
+        }
+        _ => {}
+    }
+}
+
+/// Decodes calldata using a previously resolved descriptor bundle and returns
+/// a human-readable preview.
+pub fn format_with_resolved(
+    resolved: ResolvedDescriptor<'_>,
+    chain_id: u64,
+    to: &str,
+    value: Option<&[u8]>,
+    calldata: &[u8],
+) -> Result<DisplayModel, EngineError> {
+    let descriptor = build_descriptor(resolved)?;
+
+    let mut warnings = Vec::new();
+
+    if !descriptor.context.contract.is_bound_to(chain_id, to) {
+        warnings.push(format!(
+            "Descriptor deployment mismatch for chain {chain_id} and address {to}"
+        ));
+    }
+
+    let selector = extract_selector(calldata)?;
+    let selector_hex = format_selector_hex(&selector);
+
+    let functions = descriptor.context.contract.function_descriptors()?;
+    let display_formats = descriptor.display.format_map();
+    let local_address_book = descriptor_address_book(&descriptor);
+
+    let Some(function) =
+        functions.iter().find(|func| func.selector == selector)
+    else {
+        warnings.push(format!("No ABI match for selector {selector_hex}"));
+        return Ok(DisplayModel {
+            intent: "Unknown transaction".to_string(),
+            items: Vec::new(),
+            warnings,
+            raw: Some(raw_preview_from_calldata(&selector, calldata)),
+        });
+    };
+
+    let decoded = decode_arguments(function, calldata)?;
+    let decoded = decoded.with_value(value)?;
+
+    if let Some(format_def) = display_formats.get(&function.typed_signature) {
+        let (items, mut format_warnings) = apply_display_format(
+            format_def,
+            &decoded,
+            &descriptor.metadata,
+            chain_id,
+            to,
+            &local_address_book,
+        )?;
+        warnings.append(&mut format_warnings);
+        Ok(DisplayModel {
+            intent: format_def.intent.clone(),
+            items,
+            warnings,
+            raw: None,
+        })
+    } else {
+        warnings.push(format!(
+            "No display format defined for signature {}",
+            function.typed_signature
+        ));
+        let items = decoded
+            .ordered()
+            .iter()
+            .map(|arg| DisplayItem {
+                label: arg.display_label(),
+                value: arg.value.default_string(),
+            })
+            .collect();
+        Ok(DisplayModel {
+            intent: "Transaction".to_string(),
+            items,
+            warnings,
+            raw: Some(RawPreview {
+                selector: selector_hex,
+                args: decoded
+                    .ordered()
+                    .iter()
+                    .map(|arg| arg.raw_word_hex())
+                    .collect(),
+            }),
+        })
+    }
+}
+
+/// Convenience helper to call the engine directly with raw JSON assets.
+#[allow(dead_code)]
+pub fn format(
+    descriptor_json: &str,
+    abi_json: Option<&str>,
+    chain_id: u64,
+    to: &str,
+    value: Option<&[u8]>,
+    calldata: &[u8],
+) -> Result<DisplayModel, EngineError> {
+    format_with_resolved(
+        ResolvedDescriptor { descriptor_json, abi_json, includes: Vec::new() },
+        chain_id,
+        to,
+        value,
+        calldata,
+    )
+}
+
+#[derive(Debug, Deserialize)]
+struct Descriptor {
+    context: DescriptorContext,
+    #[serde(default)]
+    metadata: serde_json::Value,
+    #[serde(default)]
+    display: DescriptorDisplay,
+}
+
+#[derive(Debug, Deserialize)]
+struct DescriptorContext {
+    #[serde(rename = "$id")]
+    #[serde(default)]
+    id: Option<String>,
+    contract: DescriptorContract,
+}
+
+#[derive(Debug, Deserialize)]
+struct DescriptorContract {
+    #[serde(default)]
+    deployments: Vec<ContractDeployment>,
+    #[serde(default)]
+    abi: Option<AbiDefinition>,
+}
+
+impl DescriptorContract {
+    fn is_bound_to(&self, chain_id: u64, address: &str) -> bool {
+        let address = normalize_address(address);
+        self.deployments.iter().any(|deployment| {
+            deployment.chain_id == chain_id
+                && normalize_address(&deployment.address) == address
+        })
+    }
+
+    fn function_descriptors(
+        &self,
+    ) -> Result<Vec<FunctionDescriptor>, EngineError> {
+        let abi = self.resolve_abi()?;
+        Ok(abi.iter().filter_map(FunctionDescriptor::from_abi).collect())
+    }
+
+    fn resolve_abi(&self) -> Result<Vec<AbiFunction>, EngineError> {
+        match &self.abi {
+            Some(AbiDefinition::Inline(functions)) => Ok(functions.clone()),
+            Some(AbiDefinition::Reference(reference)) => {
+                Err(EngineError::DescriptorParse(format!(
+                    "unsupported ABI reference '{}'",
+                    reference
+                )))
+            }
+            None => Ok(Vec::new()),
+        }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+enum AbiDefinition {
+    Inline(Vec<AbiFunction>),
+    Reference(String),
+}
+
+#[derive(Debug, Deserialize)]
+struct ContractDeployment {
+    #[serde(rename = "chainId")]
+    chain_id: u64,
+    address: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct AbiFunction {
+    name: String,
+    #[serde(default)]
+    inputs: Vec<FunctionInput>,
+    #[serde(rename = "type")]
+    kind: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct FunctionInput {
+    #[serde(default)]
+    name: String,
+    #[serde(rename = "type")]
+    r#type: String,
+    #[serde(default)]
+    components: Vec<FunctionInput>,
+}
+
+#[derive(Debug, Clone)]
+struct FunctionDescriptor {
+    inputs: Vec<FunctionInput>,
+    typed_signature: String,
+    selector: [u8; 4],
+}
+
+impl FunctionDescriptor {
+    fn from_abi(function: &AbiFunction) -> Option<Self> {
+        if function.kind != "function" {
+            return None;
+        }
+
+        let typed_signature = typed_signature_for(function);
+        let selector = selector_for_signature(&typed_signature);
+
+        Some(Self {
+            inputs: function.inputs.clone(),
+            typed_signature,
+            selector,
+        })
+    }
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct DescriptorDisplay {
+    #[serde(default)]
+    formats: HashMap<String, DisplayFormat>,
+}
+
+impl DescriptorDisplay {
+    fn format_map(&self) -> HashMap<String, DisplayFormat> {
+        self.formats
+            .iter()
+            .filter_map(|(signature, format)| {
+                normalize_signature_key(signature)
+                    .map(|normalized| (normalized, format.clone()))
+            })
+            .collect()
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct DisplayFormat {
+    intent: String,
+    #[serde(default)]
+    fields: Vec<DisplayField>,
+    #[serde(default)]
+    required: Vec<String>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct DisplayField {
+    path: String,
+    label: String,
+    #[serde(default)]
+    format: Option<String>,
+    #[serde(default)]
+    params: serde_json::Value,
+}
+
+fn apply_display_format(
+    format: &DisplayFormat,
+    decoded: &DecodedArguments,
+    metadata: &serde_json::Value,
+    chain_id: u64,
+    contract_address: &str,
+    address_book: &HashMap<String, String>,
+) -> Result<(Vec<DisplayItem>, Vec<String>), EngineError> {
+    let mut items = Vec::new();
+    let mut warnings = Vec::new();
+
+    for required in &format.required {
+        if decoded.get(required).is_none() {
+            warnings.push(format!("Missing required argument '{required}'"));
+        }
+    }
+
+    for field in &format.fields {
+        if let Some(value) = decoded.get(&field.path) {
+            let rendered = render_field(
+                field,
+                value,
+                decoded,
+                metadata,
+                chain_id,
+                contract_address,
+                address_book,
+            )?;
+            items.push(DisplayItem {
+                label: field.label.clone(),
+                value: rendered,
+            });
+        } else {
+            warnings.push(format!(
+                "No value found for field path '{}'",
+                field.path
+            ));
+        }
+    }
+
+    Ok((items, warnings))
+}
+
+fn render_field(
+    field: &DisplayField,
+    value: &ArgumentValue,
+    decoded: &DecodedArguments,
+    metadata: &serde_json::Value,
+    chain_id: u64,
+    contract_address: &str,
+    address_book: &HashMap<String, String>,
+) -> Result<String, EngineError> {
+    match field.format.as_deref() {
+        Some("date") => Ok(format_date(value)),
+        Some("tokenAmount") => format_token_amount(
+            field,
+            value,
+            decoded,
+            metadata,
+            chain_id,
+            contract_address,
+        ),
+        Some("amount") => Ok(format_native_amount(value)),
+        Some("address") | Some("addressName") => {
+            Ok(format_address(value, address_book))
+        }
+        Some("enum") => format_enum(field, value, metadata),
+        Some("number") => Ok(format_number(value)),
+        _ => Ok(value.default_string()),
+    }
+}
+
+fn format_date(value: &ArgumentValue) -> String {
+    let ArgumentValue::Uint(amount) = value else {
+        return value.default_string();
+    };
+
+    let Ok(seconds) = u64::try_from(amount.clone()) else {
+        return value.default_string();
+    };
+    let Ok(timestamp) = i64::try_from(seconds) else {
+        return value.default_string();
+    };
+    let Ok(datetime) = OffsetDateTime::from_unix_timestamp(timestamp) else {
+        return value.default_string();
+    };
+
+    let format = format_description!(
+        "[year]-[month]-[day] [hour]:[minute]:[second] UTC"
+    );
+    datetime
+        .to_offset(time::UtcOffset::UTC)
+        .format(&format)
+        .unwrap_or_else(|_| value.default_string())
+}
+
+fn format_token_amount(
+    field: &DisplayField,
+    value: &ArgumentValue,
+    decoded: &DecodedArguments,
+    metadata: &serde_json::Value,
+    chain_id: u64,
+    contract_address: &str,
+) -> Result<String, EngineError> {
+    let ArgumentValue::Uint(amount) = value else {
+        return Ok(value.default_string());
+    };
+
+    if let Some(message) = token_amount_message(field, amount, metadata) {
+        return Ok(message);
+    }
+
+    let token_meta =
+        resolve_token_meta(field, decoded, chain_id, contract_address)?;
+    let formatted_amount =
+        format_amount_with_decimals(amount, token_meta.decimals);
+    Ok(format!("{} {}", formatted_amount, token_meta.symbol))
+}
+
+fn format_address(
+    value: &ArgumentValue,
+    local_address_book: &HashMap<String, String>,
+) -> String {
+    let Some(bytes) = value.as_address() else {
+        return value.default_string();
+    };
+
+    let checksum = to_checksum_address(bytes);
+    let normalized = checksum.to_ascii_lowercase();
+
+    if let Some(label) = local_address_book.get(&normalized) {
+        return label.clone();
+    }
+
+    if let Some(label) = global_address_book().get(&normalized) {
+        return label.clone();
+    }
+
+    checksum
+}
+
+fn format_number(value: &ArgumentValue) -> String {
+    let Some(number) = value.as_uint() else {
+        return value.default_string();
+    };
+    number.to_string()
+}
+
+fn format_native_amount(value: &ArgumentValue) -> String {
+    let ArgumentValue::Uint(amount) = value else {
+        return value.default_string();
+    };
+    let formatted = format_amount_with_decimals(amount, 18);
+    format!("{} ETH", formatted)
+}
+
+fn format_enum(
+    field: &DisplayField,
+    value: &ArgumentValue,
+    metadata: &serde_json::Value,
+) -> Result<String, EngineError> {
+    let ArgumentValue::Uint(amount) = value else {
+        return Ok(value.default_string());
+    };
+
+    let Some(reference) = field.params.get("$ref").and_then(|v| v.as_str())
+    else {
+        return Ok(value.default_string());
+    };
+
+    let Some(enum_map) = resolve_metadata_value(metadata, reference) else {
+        return Ok(value.default_string());
+    };
+
+    if let Some(mapping) = enum_map.as_object() {
+        if let Some(label) = mapping.get(&amount.to_string()) {
+            if let Some(text) = label.as_str() {
+                return Ok(text.to_string());
+            }
+        }
+    }
+
+    Ok(amount.to_string())
+}
+
+fn token_amount_message(
+    field: &DisplayField,
+    amount: &BigUint,
+    metadata: &serde_json::Value,
+) -> Option<String> {
+    let threshold_spec =
+        field.params.get("threshold").and_then(|value| value.as_str())?;
+    let message =
+        field.params.get("message").and_then(|value| value.as_str())?;
+
+    let threshold = if threshold_spec.starts_with("$.") {
+        resolve_metadata_biguint(metadata, threshold_spec)?
+    } else {
+        parse_biguint(threshold_spec)?
+    };
+    if amount >= &threshold {
+        Some(message.to_string())
+    } else {
+        None
+    }
+}
+
+fn resolve_token_meta(
+    field: &DisplayField,
+    decoded: &DecodedArguments,
+    chain_id: u64,
+    contract_address: &str,
+) -> Result<TokenMeta, EngineError> {
+    if let Some(token) =
+        field.params.get("token").and_then(|value| value.as_str())
+    {
+        return token_registry::lookup_token_by_caip19(token).ok_or_else(
+            || {
+                EngineError::TokenRegistry(format!(
+                    "token registry missing entry for {}",
+                    token
+                ))
+            },
+        );
+    }
+
+    if let Some(token_path) =
+        field.params.get("tokenPath").and_then(|value| value.as_str())
+    {
+        if token_path == "@.to" {
+            return token_registry::lookup_token(chain_id, contract_address)
+                .ok_or_else(|| {
+                    EngineError::TokenRegistry(format!(
+                        "token registry missing entry for chain {} and address {}",
+                        chain_id, contract_address
+                    ))
+                });
+        }
+
+        let token_value = decoded.get(token_path).ok_or_else(|| {
+            EngineError::TokenRegistry(format!(
+                "token path '{}' not found for field '{}'",
+                token_path, field.path
+            ))
+        })?;
+
+        let address_bytes = token_value.as_address().ok_or_else(|| {
+            EngineError::TokenRegistry(format!(
+                "token path '{}' is not an address for field '{}'",
+                token_path, field.path
+            ))
+        })?;
+
+        let address = format!("0x{}", hex::encode(address_bytes));
+        return token_registry::lookup_token(chain_id, &address).ok_or_else(
+            || {
+                EngineError::TokenRegistry(format!(
+                    "token registry missing entry for chain {} and address {}",
+                    chain_id, address
+                ))
+            },
+        );
+    }
+
+    Err(EngineError::TokenRegistry(format!(
+        "missing token lookup parameters for field '{}'",
+        field.path
+    )))
+}
+
+fn format_amount_with_decimals(amount: &BigUint, decimals: u8) -> String {
+    if decimals == 0 {
+        return add_thousand_separators(&amount.to_string());
+    }
+
+    let factor = BigUint::from(10u32).pow(decimals as u32);
+    let integer = amount / &factor;
+    let remainder = amount % &factor;
+
+    let integer_part = add_thousand_separators(&integer.to_string());
+    if remainder == BigUint::from(0u32) {
+        return integer_part;
+    }
+
+    let mut fractional = remainder.to_string();
+    let width = decimals as usize;
+    if fractional.len() < width {
+        let mut padded = String::with_capacity(width);
+        for _ in 0..(width - fractional.len()) {
+            padded.push('0');
+        }
+        padded.push_str(&fractional);
+        fractional = padded;
+    }
+
+    while fractional.ends_with('0') {
+        fractional.pop();
+    }
+
+    if fractional.is_empty() {
+        integer_part
+    } else {
+        format!("{}.{}", integer_part, fractional)
+    }
+}
+
+fn add_thousand_separators(value: &str) -> String {
+    let mut reversed = String::with_capacity(value.len());
+    for (index, ch) in value.chars().rev().enumerate() {
+        if index > 0 && index % 3 == 0 {
+            reversed.push(',');
+        }
+        reversed.push(ch);
+    }
+    reversed.chars().rev().collect()
+}
+
+fn resolve_metadata_biguint(
+    metadata: &serde_json::Value,
+    pointer: &str,
+) -> Option<BigUint> {
+    let value = resolve_metadata_value(metadata, pointer)?;
+    if let Some(text) = value.as_str() {
+        parse_biguint(text)
+    } else if let Some(number) = value.as_u64() {
+        Some(BigUint::from(number))
+    } else {
+        None
+    }
+}
+
+fn resolve_metadata_value<'a>(
+    metadata: &'a serde_json::Value,
+    pointer: &str,
+) -> Option<&'a serde_json::Value> {
+    const PREFIX: &str = "$.metadata.";
+    let rest = pointer.strip_prefix(PREFIX)?;
+    let mut current = metadata;
+    for segment in rest.split('.') {
+        current = current.get(segment)?;
+    }
+    Some(current)
+}
+
+fn parse_biguint(text: &str) -> Option<BigUint> {
+    if let Some(hex) = text.strip_prefix("0x") {
+        BigUint::parse_bytes(hex.as_bytes(), 16)
+    } else {
+        BigUint::parse_bytes(text.as_bytes(), 10)
+    }
+}
+
+fn raw_preview_from_calldata(
+    selector: &[u8; 4],
+    calldata: &[u8],
+) -> RawPreview {
+    let args = if calldata.len() > 4 {
+        calldata[4..]
+            .chunks(32)
+            .map(|chunk| format!("0x{}", hex::encode(chunk)))
+            .collect()
+    } else {
+        Vec::new()
+    };
+
+    RawPreview { selector: format_selector_hex(selector), args }
+}
+
+fn extract_selector(calldata: &[u8]) -> Result<[u8; 4], EngineError> {
+    if calldata.len() < 4 {
+        return Err(EngineError::Calldata(
+            "calldata must be at least 4 bytes".to_string(),
+        ));
+    }
+    let mut selector = [0u8; 4];
+    selector.copy_from_slice(&calldata[0..4]);
+    Ok(selector)
+}
+
+fn decode_arguments(
+    function: &FunctionDescriptor,
+    calldata: &[u8],
+) -> Result<DecodedArguments, EngineError> {
+    let total_words: usize =
+        function.inputs.iter().map(argument_word_count).sum();
+    let expected_len = 4 + total_words * 32;
+    if calldata.len() < expected_len {
+        return Err(EngineError::Calldata(format!(
+            "calldata length {} too small for {} arguments",
+            calldata.len(),
+            total_words
+        )));
+    }
+
+    let mut decoded = DecodedArguments::new();
+    let mut cursor = 4;
+    let mut global_index = 0;
+    for input in &function.inputs {
+        decode_input(
+            input,
+            calldata,
+            &mut cursor,
+            &mut decoded,
+            None,
+            &mut global_index,
+        )?;
+    }
+
+    Ok(decoded)
+}
+
+fn decode_input(
+    input: &FunctionInput,
+    calldata: &[u8],
+    cursor: &mut usize,
+    decoded: &mut DecodedArguments,
+    prefix: Option<String>,
+    global_index: &mut usize,
+) -> Result<(), EngineError> {
+    if input.r#type.starts_with("tuple") && !input.components.is_empty() {
+        let base_prefix = if let Some(existing) = prefix {
+            if input.name.trim().is_empty() {
+                existing
+            } else {
+                format!("{}.{}", existing, input.name.trim())
+            }
+        } else if input.name.trim().is_empty() {
+            String::new()
+        } else {
+            input.name.trim().to_string()
+        };
+        let next_prefix = if base_prefix.is_empty() {
+            None
+        } else {
+            Some(base_prefix.clone())
+        };
+        for component in &input.components {
+            decode_input(
+                component,
+                calldata,
+                cursor,
+                decoded,
+                next_prefix.clone(),
+                global_index,
+            )?;
+        }
+        Ok(())
+    } else {
+        let start = *cursor;
+        let end = start + 32;
+        if end > calldata.len() {
+            return Err(EngineError::Calldata(format!(
+                "calldata length {} too small while decoding argument '{}'",
+                calldata.len(),
+                input.name
+            )));
+        }
+        let mut word = [0u8; 32];
+        word.copy_from_slice(&calldata[start..end]);
+        *cursor = end;
+
+        let value = decode_word(&input.r#type, &word);
+        let name = argument_name(prefix, input);
+        decoded.push(name, *global_index, value, word);
+        *global_index += 1;
+        Ok(())
+    }
+}
+
+fn argument_word_count(input: &FunctionInput) -> usize {
+    if input.r#type.starts_with("tuple") && !input.components.is_empty() {
+        input.components.iter().map(argument_word_count).sum()
+    } else {
+        1
+    }
+}
+
+fn argument_name(
+    prefix: Option<String>,
+    input: &FunctionInput,
+) -> Option<String> {
+    let trimmed = input.name.trim();
+    if let Some(prefix) = prefix {
+        if trimmed.is_empty() {
+            Some(prefix)
+        } else {
+            Some(format!("{}.{}", prefix, trimmed))
+        }
+    } else if trimmed.is_empty() {
+        None
+    } else {
+        Some(trimmed.to_string())
+    }
+}
+
+fn decode_word(kind: &str, word: &[u8; 32]) -> ArgumentValue {
+    match kind {
+        t if t.starts_with("uint") => {
+            ArgumentValue::Uint(BigUint::from_bytes_be(word))
+        }
+        "address" => {
+            let mut bytes = [0u8; 20];
+            bytes.copy_from_slice(&word[12..]);
+            ArgumentValue::Address(bytes)
+        }
+        _ => ArgumentValue::Raw(*word),
+    }
+}
+
+#[derive(Debug, Clone)]
+struct DecodedArgument {
+    index: usize,
+    name: Option<String>,
+    value: ArgumentValue,
+    word: [u8; 32],
+}
+
+impl DecodedArgument {
+    fn display_label(&self) -> String {
+        self.name
+            .clone()
+            .filter(|name| !name.is_empty())
+            .unwrap_or_else(|| format!("arg{}", self.index))
+    }
+
+    fn raw_word_hex(&self) -> String {
+        format!("0x{}", hex::encode(self.word))
+    }
+}
+
+#[derive(Debug, Clone)]
+struct DecodedArguments {
+    ordered: Vec<DecodedArgument>,
+    index_by_name: HashMap<String, usize>,
+}
+
+impl DecodedArguments {
+    fn new() -> Self {
+        Self { ordered: Vec::new(), index_by_name: HashMap::new() }
+    }
+
+    fn with_value(mut self, value: Option<&[u8]>) -> Result<Self, EngineError> {
+        if let Some(raw) = value {
+            if raw.len() > 32 {
+                return Err(EngineError::Calldata(
+                    "call value must be at most 32 bytes".to_string(),
+                ));
+            }
+            let mut word = [0u8; 32];
+            let start = 32 - raw.len();
+            word[start..].copy_from_slice(raw);
+            let amount = BigUint::from_bytes_be(&word);
+            self.push(
+                Some("@value".to_string()),
+                self.ordered.len(),
+                ArgumentValue::Uint(amount),
+                word,
+            );
+        }
+        Ok(self)
+    }
+
+    fn push(
+        &mut self,
+        name: Option<String>,
+        index: usize,
+        value: ArgumentValue,
+        word: [u8; 32],
+    ) {
+        let entry_index = self.ordered.len();
+        if let Some(ref name) = name {
+            self.index_by_name.insert(name.clone(), entry_index);
+        }
+        self.index_by_name.insert(format!("arg{}", index), entry_index);
+        self.ordered.push(DecodedArgument { index, name, value, word });
+    }
+
+    fn get(&self, key: &str) -> Option<&ArgumentValue> {
+        self.index_by_name
+            .get(key)
+            .and_then(|&idx| self.ordered.get(idx))
+            .map(|entry| &entry.value)
+    }
+
+    fn ordered(&self) -> &[DecodedArgument] {
+        &self.ordered
+    }
+}
+
+#[derive(Debug, Clone)]
+enum ArgumentValue {
+    Address([u8; 20]),
+    Uint(BigUint),
+    Raw([u8; 32]),
+}
+
+impl ArgumentValue {
+    fn default_string(&self) -> String {
+        match self {
+            ArgumentValue::Address(bytes) => {
+                format!("0x{}", hex::encode(bytes))
+            }
+            ArgumentValue::Uint(value) => value.to_string(),
+            ArgumentValue::Raw(bytes) => format!("0x{}", hex::encode(bytes)),
+        }
+    }
+
+    fn as_uint(&self) -> Option<&BigUint> {
+        if let ArgumentValue::Uint(value) = self {
+            Some(value)
+        } else {
+            None
+        }
+    }
+
+    fn as_address(&self) -> Option<&[u8; 20]> {
+        if let ArgumentValue::Address(bytes) = self {
+            Some(bytes)
+        } else {
+            None
+        }
+    }
+}
+
+fn normalize_signature_key(signature: &str) -> Option<String> {
+    let open_paren = signature.find('(')?;
+    let close_paren = signature.rfind(')')?;
+    let name = signature[..open_paren].trim();
+    let params = &signature[open_paren + 1..close_paren];
+    let mut types = Vec::new();
+    if !params.trim().is_empty() {
+        for param in params.split(',') {
+            let trimmed = param.trim();
+            if trimmed.is_empty() {
+                continue;
+            }
+            let ty = trimmed.split_whitespace().next().unwrap_or(trimmed);
+            types.push(ty.trim().to_string());
+        }
+    }
+    Some(format!("{}({})", name, types.join(",")))
+}
+
+fn typed_signature_for(function: &AbiFunction) -> String {
+    let mut params = Vec::with_capacity(function.inputs.len());
+    for input in &function.inputs {
+        params.push(type_signature_for_input(input));
+    }
+    format!("{}({})", function.name.trim(), params.join(","))
+}
+
+fn selector_for_signature(signature: &str) -> [u8; 4] {
+    let mut hasher = Keccak::v256();
+    hasher.update(signature.as_bytes());
+    let mut output = [0u8; 32];
+    hasher.finalize(&mut output);
+    [output[0], output[1], output[2], output[3]]
+}
+
+fn format_selector_hex(selector: &[u8; 4]) -> String {
+    format!("0x{}", hex::encode(selector))
+}
+
+fn type_signature_for_input(input: &FunctionInput) -> String {
+    let ty = input.r#type.trim();
+    if let Some(stripped) = ty.strip_prefix("tuple") {
+        let suffix = stripped;
+        let nested = input
+            .components
+            .iter()
+            .map(type_signature_for_input)
+            .collect::<Vec<_>>()
+            .join(",");
+        format!("({}){}", nested, suffix)
+    } else {
+        ty.to_string()
+    }
+}
+
+fn global_address_book() -> &'static HashMap<String, String> {
+    GLOBAL_ADDRESS_BOOK.get_or_init(|| {
+        let mut map = HashMap::new();
+        for descriptor_json in ADDRESS_BOOK_DESCRIPTORS {
+            if let Ok(parsed) =
+                serde_json::from_str::<Descriptor>(descriptor_json)
+            {
+                let local_book = descriptor_address_book(&parsed);
+                for (address, label) in local_book {
+                    map.entry(address).or_insert(label);
+                }
+            }
+        }
+        map
+    })
+}
+
+fn descriptor_address_book(descriptor: &Descriptor) -> HashMap<String, String> {
+    let mut map = HashMap::new();
+    if let Some(label) = descriptor_friendly_label(descriptor) {
+        for deployment in &descriptor.context.contract.deployments {
+            map.insert(normalize_address(&deployment.address), label.clone());
+        }
+    }
+    map
+}
+
+fn descriptor_friendly_label(descriptor: &Descriptor) -> Option<String> {
+    let metadata = &descriptor.metadata;
+
+    if let Some(token) = metadata.get("token") {
+        let name = token.get("name").and_then(|value| value.as_str());
+        let symbol = token.get("symbol").and_then(|value| value.as_str());
+        match (name, symbol) {
+            (Some(name), Some(symbol)) => {
+                if name.eq_ignore_ascii_case(symbol) {
+                    return Some(name.to_string());
+                } else {
+                    return Some(format!("{name} ({symbol})"));
+                }
+            }
+            (Some(name), None) => return Some(name.to_string()),
+            (None, Some(symbol)) => return Some(symbol.to_string()),
+            (None, None) => {}
+        }
+    }
+
+    if let Some(info) = metadata.get("info") {
+        if let Some(name) =
+            info.get("legalName").and_then(|value| value.as_str())
+        {
+            return Some(name.to_string());
+        }
+        if let Some(name) = info.get("name").and_then(|value| value.as_str()) {
+            return Some(name.to_string());
+        }
+    }
+
+    if let Some(owner) = metadata.get("owner").and_then(|value| value.as_str())
+    {
+        return Some(owner.to_string());
+    }
+
+    descriptor.context.id.clone()
+}
+
+fn normalize_address(address: &str) -> String {
+    address.trim().to_ascii_lowercase()
+}
+
+fn to_checksum_address(bytes: &[u8; 20]) -> String {
+    let lower = hex::encode(bytes);
+    let mut hasher = Keccak::v256();
+    hasher.update(lower.as_bytes());
+    let mut hash = [0u8; 32];
+    hasher.finalize(&mut hash);
+
+    let mut result = String::with_capacity(42);
+    result.push_str("0x");
+    for (index, ch) in lower.chars().enumerate() {
+        if ch.is_ascii_hexdigit() && ch.is_ascii_alphabetic() {
+            let hash_byte = hash[index / 2];
+            let nibble = if index % 2 == 0 {
+                (hash_byte >> 4) & 0x0f
+            } else {
+                hash_byte & 0x0f
+            };
+            if nibble >= 8 {
+                result.push(ch.to_ascii_uppercase());
+                continue;
+            }
+        }
+        result.push(ch);
+    }
+    result
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn normalize_signature_without_param_names() {
+        assert_eq!(
+            normalize_signature_key("foo(uint256,uint256)"),
+            Some("foo(uint256,uint256)".to_string())
+        );
+    }
+
+    #[test]
+    fn normalize_signature_with_param_names() {
+        assert_eq!(
+            normalize_signature_key("foo(uint256 amount, address to)"),
+            Some("foo(uint256,address)".to_string())
+        );
+    }
+}

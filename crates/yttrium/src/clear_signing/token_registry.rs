@@ -3,8 +3,7 @@ use std::sync::OnceLock;
 
 use serde::Deserialize;
 
-const TOKEN_REGISTRY_JSON: &str =
-    include_str!("../../tests/fixtures/token_registry.json");
+const TOKEN_REGISTRY_JSON: &str = include_str!("assets/tokens-min.json");
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TokenMeta {

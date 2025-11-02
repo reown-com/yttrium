@@ -1,0 +1,47 @@
+{
+  "$schema": "https://raw.githubusercontent.com/ethereum/ERCs/master/ERC-7730/schema.json",
+  "context": {
+    "$id": "Uniswap V3 Router",
+    "contract": {
+      "deployments": [
+        { "chainId": 1, "address": "0xE592427A0AEce92De3Edee1F18E0157C05861564" }
+      ]
+    }
+  },
+  "metadata": {
+    "info": {
+      "legalName": "Uniswap V3 Router"
+    }
+  },
+  "display": {
+    "formats": {
+      "exactInputSingle((address,address,uint24,address,uint256,uint256,uint160))": {
+        "intent": "Swap tokens",
+        "fields": [
+          {
+            "path": "params.amountIn",
+            "label": "Amount in",
+            "format": "tokenAmount",
+            "params": { "tokenPath": "params.tokenIn" }
+          },
+          {
+            "path": "params.amountOutMinimum",
+            "label": "Minimum received",
+            "format": "tokenAmount",
+            "params": { "tokenPath": "params.tokenOut" }
+          },
+          {
+            "path": "params.recipient",
+            "label": "Recipient",
+            "format": "addressName"
+          }
+        ],
+        "required": [
+          "params.amountIn",
+          "params.amountOutMinimum",
+          "params.recipient"
+        ]
+      }
+    }
+  }
+}
