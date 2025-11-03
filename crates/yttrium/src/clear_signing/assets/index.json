@@ -35,8 +35,13 @@
     "descriptor": "descriptors/aave/calldata-lpv3.json",
     "abi": "abis/aave/lpv3.json"
   },
+  "eip155:10:0x7f5c764cbc14f9669b88837ca1490cca17c31607": {
+    "descriptor": "descriptors/erc20_usdc.json",
+    "abi": "abis/erc20.json"
+  },
   "eip155:10:0x94b008aa00579c1307b0ef2c499ad98a8ce58e58": {
-    "descriptor": "descriptors/erc20_usdt.json"
+    "descriptor": "descriptors/erc20_usdt.json",
+    "abi": "abis/erc20.json"
   },
   "eip155:10:0xe12e0f117d23a5ccc57f8935cd8c4e80cd91ff01": {
     "descriptor": "descriptors/1inch/calldata-NativeOrderFactory.json",
@@ -126,6 +131,10 @@
     "descriptor": "descriptors/aave/calldata-lpv3.json",
     "abi": "abis/aave/lpv3.json"
   },
+  "eip155:1:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": {
+    "descriptor": "descriptors/erc20_usdc.json",
+    "abi": "abis/erc20.json"
+  },
   "eip155:1:0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2": {
     "abi": "abis/weth9.json",
     "descriptor": "descriptors/weth9.json"
@@ -181,9 +190,17 @@
     "descriptor": "descriptors/aave/calldata-lpv3.json",
     "abi": "abis/aave/lpv3.json"
   },
+  "eip155:42161:0xaf88d065e77c8cc2239327c5edb3a432268e5831": {
+    "descriptor": "descriptors/erc20_usdc.json",
+    "abi": "abis/erc20.json"
+  },
   "eip155:42161:0xe12e0f117d23a5ccc57f8935cd8c4e80cd91ff01": {
     "descriptor": "descriptors/1inch/calldata-NativeOrderFactory.json",
     "abi": "abis/1inch/native_order_factory.json"
+  },
+  "eip155:42161:0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9": {
+    "descriptor": "descriptors/erc20_usdt.json",
+    "abi": "abis/erc20.json"
   },
   "eip155:42220:0x3e59a31363e2ad014dcbc521c4a0d5757d9f3402": {
     "descriptor": "descriptors/aave/calldata-lpv3.json",
@@ -268,6 +285,14 @@
   "eip155:8453:0x1111111254eeb25477b68fb85ed929f73a960582": {
     "descriptor": "descriptors/1inch/calldata-AggregationRouterV5.json",
     "abi": "abis/1inch/aggregation_router_v5.json"
+  },
+  "eip155:8453:0x4b8e4fad8a8a401555aab5da8697c2b352269b33": {
+    "descriptor": "descriptors/erc20_usdt.json",
+    "abi": "abis/erc20.json"
+  },
+  "eip155:8453:0x833589fcd6edb6e08f4c7c32d4f71b54bda02913": {
+    "descriptor": "descriptors/erc20_usdc.json",
+    "abi": "abis/erc20.json"
   },
   "eip155:8453:0xa0d9c1e9e48ca30c8d8c3b5d69ff5dc1f6dffc24": {
     "descriptor": "descriptors/aave/calldata-WrappedTokenGatewayV3.json",

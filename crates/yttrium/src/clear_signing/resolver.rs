@@ -148,6 +148,9 @@ pub fn resolve(
 fn descriptor_content(path: &str) -> Option<&'static str> {
     match path {
         "descriptors/erc20_usdt.json" => Some(DESCRIPTOR_ERC20_USDT),
+        "descriptors/erc20_usdc.json" => Some(include_str!(
+            "assets/descriptors/erc20_usdc.json"
+        )),
         "descriptors/uniswap_v3_router_v1.json" => {
             Some(DESCRIPTOR_UNISWAP_V3_ROUTER_V1)
         }

@@ -13,6 +13,59 @@ const AAVE_LPV2_MAINNET: &str = "0x7d2768de32b0b80b7a3454c06bdac94a69ddc7a9";
 const USDC: &str = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
 const DAI: &str = "0x6B175474E89094C44Da98b954EedeAC495271d0F";
 const ON_BEHALF_OF: &str = "0x1111111111111111111111111111111111111111";
+const UNIVERSAL_ROUTER_OPTIMISM: &str =
+    "0x851116d9223fAbEd8e56C0e6B8AD0c31d98B3507";
+const UNIVERSAL_ROUTER_CALLDATA_HEX: &str = concat!(
+    "3593564c00000000000000000000000000000000000000000000000000000000",
+    "0000006000000000000000000000000000000000000000000000000000000000",
+    "000000a000000000000000000000000000000000000000000000000000000000",
+    "69087dd700000000000000000000000000000000000000000000000000000000",
+    "0000000310060400000000000000000000000000000000000000000000000000",
+    "0000000000000000000000000000000000000000000000000000000000000000",
+    "0000000030000000000000000000000000000000000000000000000000000000",
+    "0000000600000000000000000000000000000000000000000000000000000000",
+    "0000004400000000000000000000000000000000000000000000000000000000",
+    "0000004c00000000000000000000000000000000000000000000000000000000",
+    "0000003c00000000000000000000000000000000000000000000000000000000",
+    "0000000400000000000000000000000000000000000000000000000000000000",
+    "0000000800000000000000000000000000000000000000000000000000000000",
+    "000000003070b0e0000000000000000000000000000000000000000000000000",
+    "0000000000000000000000000000000000000000000000000000000000000000",
+    "0000000030000000000000000000000000000000000000000000000000000000",
+    "0000000600000000000000000000000000000000000000000000000000000000",
+    "0000002200000000000000000000000000000000000000000000000000000000",
+    "0000002a00000000000000000000000000000000000000000000000000000000",
+    "0000001a00000000000000000000000000000000000000000000000000000000",
+    "0000000200000000000000000000000000000000000000000000000000000000",
+    "0000000000000000000000000000000000000000000000000000000000000000",
+    "0000000800000000000000000000000000000000000000000000000000001e12",
+    "64f50cc870000000000000000000000000000000000000000000000000000000",
+    "0000000000000000000000000000000000000000000000000000000000000000",
+    "0000000010000000000000000000000000000000000000000000000000000000",
+    "0000000200000000000000000000000000b2c639c533813f4aa9d7837caf6265",
+    "3d097ff850000000000000000000000000000000000000000000000000000000",
+    "0000001f40000000000000000000000000000000000000000000000000000000",
+    "00000000a0000000000000000000000000000000000000000000000000000000",
+    "0000000000000000000000000000000000000000000000000000000000000000",
+    "0000000a00000000000000000000000000000000000000000000000000000000",
+    "0000000000000000000000000000000000000000000000000000000000000000",
+    "0000000600000000000000000000000000000000000000000000000000000000",
+    "0000000000000000000000000000000000000000000000000000000000000000",
+    "0000000000000000000000000000000000000000000000000000000000000000",
+    "0000000010000000000000000000000000000000000000000000000000000000",
+    "0000000600000000000000000000000000b2c639c533813f4aa9d7837caf6265",
+    "3d097ff850000000000000000000000000000000000000000000000000000000",
+    "0000000020000000000000000000000000000000000000000000000000000000",
+    "0000000000000000000000000000000000000000000000000000000000000000",
+    "0000000600000000000000000000000000b2c639c533813f4aa9d7837caf6265",
+    "3d097ff850000000000000000000000007ffc3dbf3b2b50ff3a1d5523bc24bb5",
+    "043837b140000000000000000000000000000000000000000000000000000000",
+    "0000000190000000000000000000000000000000000000000000000000000000",
+    "0000000600000000000000000000000000b2c639c533813f4aa9d7837caf6265",
+    "3d097ff85000000000000000000000000bf01daf454dce008d3e2bfd47d5e186",
+    "f714772530000000000000000000000000000000000000000000000000000000",
+    "000000000000000000000000000000000000000000000000000000001d2ec50c",
+);
 
 #[test]
 fn approve_usdt_spender() {
@@ -201,6 +254,32 @@ fn aave_borrow_variable_on_optimism() {
 }
 
 #[test]
+fn uniswap_universal_router_missing_descriptor() {
+    let calldata =
+        hex::decode(UNIVERSAL_ROUTER_CALLDATA_HEX).expect("valid hex");
+    let call_value =
+        uint_word_u128(u128::from_str_radix("1e1264f50cc87", 16).expect("value"));
+
+    let err = format_with_value(
+        10,
+        UNIVERSAL_ROUTER_OPTIMISM,
+        Some(&call_value),
+        &calldata,
+    )
+    .expect_err("descriptor lookup should fail");
+
+    match err {
+        EngineError::Resolver(message) => {
+            assert!(
+                message.contains("descriptor not found"),
+                "unexpected resolver error: {message}"
+            );
+        }
+        other => panic!("expected resolver error, got {other:?}"),
+    }
+}
+
+#[test]
 fn deposit_weth_uses_call_value() {
     let selector = selector("deposit()");
     let calldata = build_calldata(selector, &[]);
@@ -384,6 +463,82 @@ fn usdt_approve_specific_amount_formats_decimals() {
             label: "Amount".to_string(),
             value: "0.085031 USDT".to_string(),
         }
+    );
+}
+
+#[test]
+fn usdt_approve_all_on_optimism() {
+    let calldata = build_calldata(
+        selector("approve(address,uint256)"),
+        &[
+            address_word(AAVE_LPV2_MAINNET),
+            uint_word_biguint(
+                BigUint::parse_bytes(
+                    b"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+                    16,
+                )
+                .expect("max constant"),
+            ),
+        ],
+    );
+
+    let model = format_with_value(
+        10,
+        "0x94b008aa00579c1307b0ef2c499ad98a8ce58e58",
+        None,
+        &calldata,
+    )
+    .expect("format succeeds");
+
+    assert_eq!(model.intent, "Approve USDT spending");
+    assert!(model.warnings.is_empty());
+    assert_eq!(model.items.len(), 2);
+    assert_eq!(model.items[0].label, "Spender");
+    assert_eq!(
+        model.items[0].value.to_ascii_lowercase(),
+        AAVE_LPV2_MAINNET.to_ascii_lowercase()
+    );
+    assert_eq!(
+        model.items[1],
+        DisplayItem { label: "Amount".to_string(), value: "All".to_string() }
+    );
+}
+
+#[test]
+fn usdc_approve_all_on_optimism() {
+    let calldata = build_calldata(
+        selector("approve(address,uint256)"),
+        &[
+            address_word(AAVE_LPV2_MAINNET),
+            uint_word_biguint(
+                BigUint::parse_bytes(
+                    b"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+                    16,
+                )
+                .expect("max constant"),
+            ),
+        ],
+    );
+
+    let model = format_with_value(
+        10,
+        "0x7f5c764cBc14f9669B88837CA1490cCa17C31607",
+        None,
+        &calldata,
+    )
+    .expect("format succeeds");
+
+    assert_eq!(model.intent, "Approve USDC spending");
+    assert!(model.warnings.is_empty());
+    assert_eq!(model.items.len(), 2);
+    assert_eq!(model.items[0].label, "Spender");
+    assert_eq!(
+        model.items[0].value.to_ascii_lowercase(),
+        AAVE_LPV2_MAINNET.to_ascii_lowercase()
+    );
+    assert_eq!(
+        model.items[1],
+        DisplayItem { label: "Amount".to_string(), value: "All".to_string() }
     );
 }
 

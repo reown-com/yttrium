@@ -1,20 +1,20 @@
 {
   "$schema": "https://raw.githubusercontent.com/ethereum/ERCs/master/ERC-7730/schema.json",
   "context": {
-    "$id": "Tether USD",
+    "$id": "USD Coin",
     "contract": {
       "deployments": [
-        { "chainId": 1, "address": "0xdAC17F958D2ee523a2206206994597C13D831ec7" },
-        { "chainId": 10, "address": "0x94b008aA00579c1307B0EF2C499aD98a8ce58e58" },
-        { "chainId": 42161, "address": "0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9" },
-        { "chainId": 8453, "address": "0x4b8e4fad8a8a401555aab5da8697c2b352269b33" }
+        { "chainId": 1, "address": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48" },
+        { "chainId": 10, "address": "0x7F5c764cBc14f9669B88837CA1490cCa17C31607" },
+        { "chainId": 42161, "address": "0xaf88d065e77c8cc2239327c5edb3a432268e5831" },
+        { "chainId": 8453, "address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bDa02913" }
       ]
     }
   },
   "metadata": {
     "token": {
-      "symbol": "USDT",
-      "name": "Tether USD"
+      "symbol": "USDC",
+      "name": "USD Coin"
     },
     "constants": {
       "maxApproval": "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
@@ -23,7 +23,7 @@
   "display": {
     "formats": {
       "approve(address,uint256)": {
-        "intent": "Approve USDT spending",
+        "intent": "Approve USDC spending",
         "fields": [
           {
             "path": "spender",
