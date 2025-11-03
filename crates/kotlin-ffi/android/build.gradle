@@ -80,10 +80,34 @@ android {
         checkReleaseBuilds false
     }
 
+    flavorDimensions "artifact"
+
+    productFlavors {
+        yttrium {
+            dimension "artifact"
+        }
+        utils {
+            dimension "artifact"
+        }
+    }
+
+    publishing {
+        singleVariant("yttriumRelease")
+        singleVariant("utilsRelease")
+    }
+
     sourceSets {
         main {
-            jniLibs.srcDirs = ['src/main/jniLibs']
-            java.srcDirs = ['src/main/kotlin']
+            java.srcDirs = []
+            jniLibs.srcDirs = []
+        }
+        yttrium {
+            java.srcDirs += ["${project.buildDir}/generated/yttrium/kotlin"]
+            jniLibs.srcDirs += ["${project.buildDir}/generated/yttrium/jniLibs"]
+        }
+        utils {
+            java.srcDirs += ["${project.buildDir}/generated/utils/kotlin"]
+            jniLibs.srcDirs += ["${project.buildDir}/generated/utils/jniLibs"]
         }
     }
 
@@ -96,6 +120,7 @@ android {
 
      packagingOptions {
         doNotStrip "*/libuniffi_yttrium.so"
+        doNotStrip "*/libuniffi_yttrium_utils.so"
     }
 
     compileOptions {
@@ -113,6 +138,7 @@ android {
     // Ensure proper alignment for 16 KB page sizes
     packagingOptions {
         doNotStrip "*/libuniffi_yttrium.so"
+        doNotStrip "*/libuniffi_yttrium_utils.so"
         // Add 16 KB alignment for native libraries
         jniLibs {
             useLegacyPackaging = false
@@ -134,30 +160,63 @@ java {
     }
 }
 
+def publicationVersion = project.hasProperty("version") ? project.getProperty("version") : "0.0.1"
+
 publishing {
     publications {
-        release(MavenPublication) {
-            artifact("$buildDir/outputs/aar/${project.name}-release.aar")
-
+        register("yttriumRelease", MavenPublication) {
             groupId = 'com.github.reown-com'
             artifactId = 'yttrium'
-            version = project.hasProperty("version") ? project.getProperty("version") : "0.0.1"
+            version = publicationVersion
 
             pom {
                 name.set("Yttrium")
                 description.set("An Android library for Yttrium.")
                 url.set("https://github.com/reown-com/Yttrium")
+                scm {
+                    connection.set("scm:git:git://github.com:reown-com/yttrium.git")
+                    developerConnection.set("scm:git:ssh://github.com:reown-com/yttrium.git")
+                    url.set("https://github.com/reown-com/yttrium")
+                }
+            }
+        }
 
-                 scm {
-                        connection.set("scm:git:git://github.com:reown-com/yttrium.git")
-                        developerConnection.set("scm:git:ssh://github.com:reown-com/yttrium.git")
-                        url.set("https://github.com/reown-com/yttrium")
-                    }
+        register("yttriumUtilsRelease", MavenPublication) {
+            groupId = 'com.github.reown-com'
+            artifactId = 'yttrium-utils'
+            version = publicationVersion
+
+            pom {
+                name.set("Yttrium Utils")
+                description.set("Yttrium utils bindings for Android.")
+                url.set("https://github.com/reown-com/Yttrium")
+                scm {
+                    connection.set("scm:git:git://github.com:reown-com/yttrium.git")
+                    developerConnection.set("scm:git:ssh://github.com:reown-com/yttrium.git")
+                    url.set("https://github.com/reown-com/Yttrium")
+                }
             }
         }
     }
 }
 
-tasks.named("publishReleasePublicationToMavenLocal") {
-    dependsOn("assembleRelease")
+components.all { component ->
+    if (component.name == "yttriumRelease") {
+        publishing.publications.named("yttriumRelease", MavenPublication).configure {
+            from(component)
+        }
+    }
+    if (component.name == "utilsRelease") {
+        publishing.publications.named("yttriumUtilsRelease", MavenPublication).configure {
+            from(component)
+        }
+    }
+}
+
+tasks.matching { it.name == "publishYttriumReleasePublicationToMavenLocal" }.configureEach {
+    dependsOn("assembleYttriumRelease")
+}
+
+tasks.matching { it.name == "publishYttriumUtilsReleasePublicationToMavenLocal" }.configureEach {
+    dependsOn("assembleUtilsRelease")
 }

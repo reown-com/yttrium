@@ -18,12 +18,16 @@ use {
         smart_accounts::safe::{SignOutputEnum, SignStep3Params},
     },
 };
+#[cfg(any(feature = "chain_abstraction_client", feature = "account_client"))]
+use alloy::primitives::Bytes as FFIBytes;
+#[cfg(any(feature = "chain_abstraction_client", feature = "account_client"))]
+use yttrium::call::Call;
 #[cfg(feature = "chain_abstraction_client")]
 use {
     alloy::{
         hex,
         primitives::{
-            ruint::aliases::U256, Address as FFIAddress, Bytes as FFIBytes,
+            ruint::aliases::U256, Address as FFIAddress,
             PrimitiveSignature as FFIPrimitiveSignature, Uint, U128 as FFIU128,
             U256 as FFIU256, U64 as FFIU64,
         },
@@ -42,7 +46,6 @@ use {
     alloy::{providers::Provider, sol_types::SolCall},
     relay_rpc::domain::ProjectId,
     std::time::Duration,
-    yttrium::call::Call,
     yttrium::chain_abstraction::client::ExecuteDetails,
     yttrium::chain_abstraction::{
         api::{
@@ -104,7 +107,7 @@ uniffi::custom_type!(FFIU256, String, {
     lower: |obj| uint_to_hex(obj),
 });
 
-#[cfg(feature = "chain_abstraction_client")]
+#[cfg(any(feature = "chain_abstraction_client", feature = "account_client"))]
 uniffi::custom_type!(FFIBytes, String, {
     remote,
     try_lift: |val| Ok(val.parse()?),
