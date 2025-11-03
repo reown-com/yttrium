@@ -155,6 +155,10 @@ pub struct ProbePoint {
     pub elapsed_s: f64,
 }
 
+// Extension type to store group in span extensions
+#[derive(Clone, Debug)]
+struct GroupExtension(String);
+
 #[derive(Clone)]
 pub struct ProbeLayer {
     start: Instant,
@@ -179,30 +183,49 @@ impl<S> Layer<S> for ProbeLayer
 where
     S: tracing::Subscriber + for<'a> LookupSpan<'a>,
 {
-    fn on_event(&self, event: &Event<'_>, _ctx: Context<'_, S>) {
+    fn on_event(&self, event: &Event<'_>, ctx: Context<'_, S>) {
         let mut visitor = ProbeVisitor::default();
         event.record(&mut visitor);
 
         if let Some(probe_name) = visitor.probe {
             let elapsed_s = self.start.elapsed().as_secs_f64();
 
+            // If group wasn't set on the event, walk up the span hierarchy to find it
+            let group = visitor.group.or_else(|| {
+                let mut current_span = ctx.event_span(event);
+                while let Some(span) = current_span {
+                    if let Some(ext) = span.extensions().get::<GroupExtension>()
+                    {
+                        return Some(ext.0.clone());
+                    }
+                    current_span = span.parent();
+                }
+                None
+            });
+
             if let Ok(mut buf) = self.accumulator.lock() {
-                buf.push(ProbePoint {
-                    // probe: format!(
-                    //     "probe_{}_latency_seconds",
-                    //     sanitize_metric(&probe_name)
-                    // ),
-                    probe: probe_name,
-                    group: visitor.group,
-                    elapsed_s,
-                });
-                // buf.push(ProbePoint {
-                //     probe: format!(
-                //         "probe_{}_hit",
-                //         sanitize_metric(&probe_name)
-                //     ),
-                //     elapsed_s: 1.,
-                // });
+                buf.push(ProbePoint { probe: probe_name, group, elapsed_s });
+            }
+        }
+    }
+
+    fn on_new_span(
+        &self,
+        attrs: &tracing::span::Attributes<'_>,
+        id: &tracing::span::Id,
+        ctx: Context<'_, S>,
+    ) {
+        let mut visitor = ProbeVisitor::default();
+        attrs.record(&mut visitor);
+
+        if let Some(group) = visitor.group {
+            if let Some(span) = ctx.span(id) {
+                span.extensions_mut().insert(GroupExtension(group));
+            } else {
+                tracing::trace!(
+                    "Failed to lookup span {:?} for group extension insertion",
+                    id
+                );
             }
         }
     }
@@ -234,5 +257,199 @@ impl tracing::field::Visit for ProbeVisitor {
         } else if field.name() == GROUP_KEY {
             self.group = Some(format!("{value:?}"));
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use {
+        super::*,
+        tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt},
+    };
+
+    #[test]
+    fn test_probe_with_event_group() {
+        let probe_layer = ProbeLayer::new();
+        let _guard = tracing_subscriber::registry()
+            .with(probe_layer.clone())
+            .set_default();
+
+        tracing::debug!(probe = "test_probe", group = "event_group");
+
+        let points = probe_layer.accumulator();
+        assert_eq!(points.len(), 1);
+        assert_eq!(points[0].probe, "test_probe");
+        assert_eq!(points[0].group, Some("event_group".to_string()));
+    }
+
+    #[test]
+    fn test_probe_with_span_group() {
+        let probe_layer = ProbeLayer::new();
+        let _guard = tracing_subscriber::registry()
+            .with(probe_layer.clone())
+            .set_default();
+
+        let span = tracing::debug_span!("test_span", group = "span_group");
+        let _enter = span.enter();
+        tracing::debug!(probe = "test_probe");
+
+        let points = probe_layer.accumulator();
+        assert_eq!(points.len(), 1);
+        assert_eq!(points[0].probe, "test_probe");
+        assert_eq!(points[0].group, Some("span_group".to_string()));
+    }
+
+    #[test]
+    fn test_probe_with_nested_spans_inner_group() {
+        let probe_layer = ProbeLayer::new();
+        let _guard = tracing_subscriber::registry()
+            .with(probe_layer.clone())
+            .set_default();
+
+        let outer = tracing::debug_span!("outer_span");
+        let _outer_enter = outer.enter();
+        let inner = tracing::debug_span!("inner_span", group = "inner_group");
+        let _inner_enter = inner.enter();
+        tracing::debug!(probe = "test_probe");
+
+        let points = probe_layer.accumulator();
+        assert_eq!(points.len(), 1);
+        assert_eq!(points[0].probe, "test_probe");
+        assert_eq!(points[0].group, Some("inner_group".to_string()));
+    }
+
+    #[test]
+    fn test_probe_with_nested_spans_outer_group() {
+        let probe_layer = ProbeLayer::new();
+        let _guard = tracing_subscriber::registry()
+            .with(probe_layer.clone())
+            .set_default();
+
+        let outer = tracing::debug_span!("outer_span", group = "outer_group");
+        let _outer_enter = outer.enter();
+        let inner = tracing::debug_span!("inner_span");
+        let _inner_enter = inner.enter();
+        tracing::debug!(probe = "test_probe");
+
+        let points = probe_layer.accumulator();
+        assert_eq!(points.len(), 1);
+        assert_eq!(points[0].probe, "test_probe");
+        // Should find the group from the outer span
+        assert_eq!(points[0].group, Some("outer_group".to_string()));
+    }
+
+    #[test]
+    fn test_probe_with_nested_spans_both_groups() {
+        let probe_layer = ProbeLayer::new();
+        let _guard = tracing_subscriber::registry()
+            .with(probe_layer.clone())
+            .set_default();
+
+        let outer = tracing::debug_span!("outer_span", group = "outer_group");
+        let _outer_enter = outer.enter();
+        let inner = tracing::debug_span!("inner_span", group = "inner_group");
+        let _inner_enter = inner.enter();
+        tracing::debug!(probe = "test_probe");
+
+        let points = probe_layer.accumulator();
+        assert_eq!(points.len(), 1);
+        assert_eq!(points[0].probe, "test_probe");
+        // Inner span group should take precedence
+        assert_eq!(points[0].group, Some("inner_group".to_string()));
+    }
+
+    #[test]
+    fn test_probe_event_group_overrides_span() {
+        let probe_layer = ProbeLayer::new();
+        let _guard = tracing_subscriber::registry()
+            .with(probe_layer.clone())
+            .set_default();
+
+        let span = tracing::debug_span!("test_span", group = "span_group");
+        let _enter = span.enter();
+        tracing::debug!(probe = "test_probe", group = "event_group");
+
+        let points = probe_layer.accumulator();
+        assert_eq!(points.len(), 1);
+        assert_eq!(points[0].probe, "test_probe");
+        // Event group should override span group
+        assert_eq!(points[0].group, Some("event_group".to_string()));
+    }
+
+    #[test]
+    fn test_probe_without_group() {
+        let probe_layer = ProbeLayer::new();
+        let _guard = tracing_subscriber::registry()
+            .with(probe_layer.clone())
+            .set_default();
+
+        tracing::debug!(probe = "test_probe");
+
+        let points = probe_layer.accumulator();
+        assert_eq!(points.len(), 1);
+        assert_eq!(points[0].probe, "test_probe");
+        assert_eq!(points[0].group, None);
+    }
+
+    #[test]
+    fn test_multiple_probes_same_span() {
+        let probe_layer = ProbeLayer::new();
+        let _guard = tracing_subscriber::registry()
+            .with(probe_layer.clone())
+            .set_default();
+
+        let span = tracing::debug_span!("test_span", group = "shared_group");
+        let _enter = span.enter();
+        tracing::debug!(probe = "probe1");
+        tracing::debug!(probe = "probe2");
+        tracing::debug!(probe = "probe3");
+
+        let points = probe_layer.accumulator();
+        assert_eq!(points.len(), 3);
+        assert_eq!(points[0].probe, "probe1");
+        assert_eq!(points[0].group, Some("shared_group".to_string()));
+        assert_eq!(points[1].probe, "probe2");
+        assert_eq!(points[1].group, Some("shared_group".to_string()));
+        assert_eq!(points[2].probe, "probe3");
+        assert_eq!(points[2].group, Some("shared_group".to_string()));
+    }
+
+    #[test]
+    fn test_deeply_nested_spans() {
+        let probe_layer = ProbeLayer::new();
+        let _guard = tracing_subscriber::registry()
+            .with(probe_layer.clone())
+            .set_default();
+
+        let level1 = tracing::debug_span!("level1", group = "top_level");
+        let _enter1 = level1.enter();
+        let level2 = tracing::debug_span!("level2");
+        let _enter2 = level2.enter();
+        let level3 = tracing::debug_span!("level3");
+        let _enter3 = level3.enter();
+        tracing::debug!(probe = "deep_probe");
+
+        let points = probe_layer.accumulator();
+        assert_eq!(points.len(), 1);
+        assert_eq!(points[0].probe, "deep_probe");
+        // Should find the group from the top-level span
+        assert_eq!(points[0].group, Some("top_level".to_string()));
+    }
+
+    #[test]
+    fn test_non_probe_events_ignored() {
+        let probe_layer = ProbeLayer::new();
+        let _guard = tracing_subscriber::registry()
+            .with(probe_layer.clone())
+            .set_default();
+
+        tracing::debug!("regular debug message");
+        tracing::info!(group = "some_group", "message with group but no probe");
+        tracing::debug!(probe = "actual_probe", group = "probe_group");
+
+        let points = probe_layer.accumulator();
+        assert_eq!(points.len(), 1);
+        assert_eq!(points[0].probe, "actual_probe");
+        assert_eq!(points[0].group, Some("probe_group".to_string()));
     }
 }
