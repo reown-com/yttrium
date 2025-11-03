@@ -102,12 +102,13 @@ fn typed_index() -> &'static TypedIndexMap {
     TYPED_INDEX.get_or_init(load_typed_index)
 }
 
-/// Resolves the descriptor and ABI (if present) for the given target.
 pub fn resolve(
     chain_id: u64,
     to: &str,
 ) -> Result<ResolvedDescriptor<'static>, ResolverError> {
+    eprintln!("[resolver] resolve request chain_id={} to={}", chain_id, to);
     let key = format!("eip155:{}:{}", chain_id, normalize_address(to));
+    eprintln!("[resolver] lookup key {}", key);
     let entry = index()
         .get(&key)
         .ok_or_else(|| ResolverError::NotFound(key.clone()))?;
@@ -116,15 +117,26 @@ pub fn resolve(
         descriptor_content(&entry.descriptor).ok_or_else(|| {
             ResolverError::InvalidIndexEntry { path: entry.descriptor.clone() }
         })?;
+    eprintln!(
+        "[resolver] descriptor path {} length {}",
+        entry.descriptor,
+        descriptor.len()
+    );
 
     let abi = match entry.abi.as_deref() {
-        Some(path) => Some(abi_content(path).ok_or_else(|| {
-            ResolverError::InvalidIndexEntry { path: path.to_string() }
-        })?),
+        Some(path) => {
+            eprintln!("[resolver] abi path {}", path);
+            Some(abi_content(path).ok_or_else(|| {
+                ResolverError::InvalidIndexEntry { path: path.to_string() }
+            })?)
+        }
         None => None,
     };
 
     let includes = extract_includes(descriptor)?;
+    if !includes.is_empty() {
+        eprintln!("[resolver] includes count {}", includes.len());
+    }
 
     Ok(ResolvedDescriptor {
         descriptor_json: descriptor,

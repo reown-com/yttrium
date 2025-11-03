@@ -6027,6 +6027,8 @@ public enum EngineErrorFfi: Swift.Error {
     )
     case Calldata(String
     )
+    case Resolver(String
+    )
     case Internal(String
     )
     case TokenRegistry(String
@@ -6053,10 +6055,13 @@ public struct FfiConverterTypeEngineErrorFfi: FfiConverterRustBuffer {
         case 2: return .Calldata(
             try FfiConverterString.read(from: &buf)
             )
-        case 3: return .Internal(
+        case 3: return .Resolver(
             try FfiConverterString.read(from: &buf)
             )
-        case 4: return .TokenRegistry(
+        case 4: return .Internal(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 5: return .TokenRegistry(
             try FfiConverterString.read(from: &buf)
             )
 
@@ -6081,13 +6086,18 @@ public struct FfiConverterTypeEngineErrorFfi: FfiConverterRustBuffer {
             FfiConverterString.write(v1, into: &buf)
             
         
-        case let .Internal(v1):
+        case let .Resolver(v1):
             writeInt(&buf, Int32(3))
             FfiConverterString.write(v1, into: &buf)
             
         
-        case let .TokenRegistry(v1):
+        case let .Internal(v1):
             writeInt(&buf, Int32(4))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .TokenRegistry(v1):
+            writeInt(&buf, Int32(5))
             FfiConverterString.write(v1, into: &buf)
             
         }
@@ -8327,6 +8337,112 @@ extension TransferFeesError: Equatable, Hashable {}
 
 
 extension TransferFeesError: Foundation.LocalizedError {
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+}
+
+
+
+
+
+public enum TypedEngineErrorFfi: Swift.Error {
+
+    
+    
+    case TypedData(String
+    )
+    case Resolver(String
+    )
+    case Descriptor(String
+    )
+    case TokenRegistry(String
+    )
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeTypedEngineErrorFfi: FfiConverterRustBuffer {
+    typealias SwiftType = TypedEngineErrorFfi
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> TypedEngineErrorFfi {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+
+        
+
+        
+        case 1: return .TypedData(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 2: return .Resolver(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 3: return .Descriptor(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 4: return .TokenRegistry(
+            try FfiConverterString.read(from: &buf)
+            )
+
+         default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: TypedEngineErrorFfi, into buf: inout [UInt8]) {
+        switch value {
+
+        
+
+        
+        
+        case let .TypedData(v1):
+            writeInt(&buf, Int32(1))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .Resolver(v1):
+            writeInt(&buf, Int32(2))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .Descriptor(v1):
+            writeInt(&buf, Int32(3))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .TokenRegistry(v1):
+            writeInt(&buf, Int32(4))
+            FfiConverterString.write(v1, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTypedEngineErrorFfi_lift(_ buf: RustBuffer) throws -> TypedEngineErrorFfi {
+    return try FfiConverterTypeTypedEngineErrorFfi.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTypedEngineErrorFfi_lower(_ value: TypedEngineErrorFfi) -> RustBuffer {
+    return FfiConverterTypeTypedEngineErrorFfi.lower(value)
+}
+
+
+extension TypedEngineErrorFfi: Equatable, Hashable {}
+
+
+
+
+extension TypedEngineErrorFfi: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
@@ -10865,6 +10981,23 @@ public func clearSigningFormat(chainId: UInt64, to: String, calldataHex: String)
     )
 })
 }
+public func clearSigningFormatTyped(typedDataJson: String)throws  -> DisplayModelFfi  {
+    return try  FfiConverterTypeDisplayModelFfi_lift(try rustCallWithError(FfiConverterTypeTypedEngineErrorFfi_lift) {
+    uniffi_yttrium_fn_func_clear_signing_format_typed(
+        FfiConverterString.lower(typedDataJson),$0
+    )
+})
+}
+public func clearSigningFormatWithValue(chainId: UInt64, to: String, valueHex: String?, calldataHex: String)throws  -> DisplayModelFfi  {
+    return try  FfiConverterTypeDisplayModelFfi_lift(try rustCallWithError(FfiConverterTypeEngineErrorFfi_lift) {
+    uniffi_yttrium_fn_func_clear_signing_format_with_value(
+        FfiConverterUInt64.lower(chainId),
+        FfiConverterString.lower(to),
+        FfiConverterOptionString.lower(valueHex),
+        FfiConverterString.lower(calldataHex),$0
+    )
+})
+}
 public func fundingMetadataToAmount(value: FundingMetadata) -> Amount  {
     return try!  FfiConverterTypeAmount_lift(try! rustCall() {
     uniffi_yttrium_fn_func_funding_metadata_to_amount(
@@ -10959,6 +11092,12 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.contractVersionMismatch
     }
     if (uniffi_yttrium_checksum_func_clear_signing_format() != 47054) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_func_clear_signing_format_typed() != 46707) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_func_clear_signing_format_with_value() != 45860) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_yttrium_checksum_func_funding_metadata_to_amount() != 52092) {

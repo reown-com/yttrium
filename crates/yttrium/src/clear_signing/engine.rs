@@ -64,11 +64,26 @@ pub enum EngineError {
 fn build_descriptor(
     resolved: ResolvedDescriptor<'_>,
 ) -> Result<Descriptor, EngineError> {
+    eprintln!(
+        "[engine] build_descriptor includes={} descriptor_len={} preview={}",
+        resolved.includes.len(),
+        resolved.descriptor_json.len(),
+        &resolved.descriptor_json.chars().take(120).collect::<String>()
+    );
+    eprintln!(
+        "[engine] descriptor contains abi? {}",
+        resolved.descriptor_json.contains("\"abi\"")
+    );
     let mut descriptor_value: JsonValue =
         serde_json::from_str(resolved.descriptor_json)
             .map_err(|err| EngineError::DescriptorParse(err.to_string()))?;
 
     for include_json in resolved.includes {
+        eprintln!(
+            "[engine] merging include len={} preview={}",
+            include_json.len(),
+            &include_json.chars().take(80).collect::<String>()
+        );
         let include_value: JsonValue = serde_json::from_str(include_json)
             .map_err(|err| EngineError::DescriptorParse(err.to_string()))?;
         merge_include(&mut descriptor_value, include_value);
@@ -91,13 +106,19 @@ fn build_descriptor(
 }
 
 fn needs_abi_injection(descriptor_value: &JsonValue) -> bool {
-    match descriptor_value
+    let abi_value = descriptor_value
         .get("context")
         .and_then(|context| context.get("contract"))
-        .and_then(|contract| contract.get("abi"))
-    {
+        .and_then(|contract| contract.get("abi"));
+    eprintln!("[engine] needs_abi_injection abi_value={:?}", abi_value);
+    match abi_value {
         Some(value) if value.is_array() || value.is_object() => false,
-        _ => true,
+        Some(value) if value.is_null() => true,
+        None => true,
+        Some(other) => {
+            eprintln!("[engine] unexpected abi value {:?}", other);
+            true
+        }
     }
 }
 
@@ -141,6 +162,12 @@ pub fn format_with_resolved(
     value: Option<&[u8]>,
     calldata: &[u8],
 ) -> Result<DisplayModel, EngineError> {
+    eprintln!(
+        "[engine] format_with_resolved chain_id={} to={} calldata_len={}",
+        chain_id,
+        to,
+        calldata.len()
+    );
     let descriptor = build_descriptor(resolved)?;
 
     let mut warnings = Vec::new();
@@ -162,6 +189,7 @@ pub fn format_with_resolved(
         functions.iter().find(|func| func.selector == selector)
     else {
         warnings.push(format!("No ABI match for selector {selector_hex}"));
+        eprintln!("[engine] no ABI match for selector {}", selector_hex);
         return Ok(DisplayModel {
             intent: "Unknown transaction".to_string(),
             items: Vec::new(),
@@ -171,7 +199,9 @@ pub fn format_with_resolved(
     };
 
     let decoded = decode_arguments(function, calldata)?;
+    eprintln!("[engine] decoded arguments count {}", decoded.ordered().len());
     let decoded = decoded.with_value(value)?;
+    eprintln!("[engine] decoded with value count {}", decoded.ordered().len());
 
     if let Some(format_def) = display_formats.get(&function.typed_signature) {
         let (items, mut format_warnings) = apply_display_format(
@@ -309,6 +339,7 @@ struct ContractDeployment {
 
 #[derive(Debug, Clone, Deserialize)]
 struct AbiFunction {
+    #[serde(default)]
     name: String,
     #[serde(default)]
     inputs: Vec<FunctionInput>,

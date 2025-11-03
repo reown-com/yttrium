@@ -165,6 +165,42 @@ fn aave_missing_token_errors() {
 }
 
 #[test]
+fn aave_borrow_variable_on_optimism() {
+    let calldata = hex::decode("a415bcad00000000000000000000000094b008aa00579c1307b0ef2c499ad98a8ce58e5800000000000000000000000000000000000000000000000000000000000f424000000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000000000000000000000000000bf01daf454dce008d3e2bfd47d5e186f71477253").expect("valid hex");
+
+    let model = format_with_value(
+        10,
+        "0x794a61358D6845594F94dc1DB02A252b5b4814aD",
+        None,
+        &calldata,
+    )
+    .expect("format succeeds");
+
+    assert_eq!(model.intent, "Borrow");
+    assert!(model.warnings.is_empty());
+    assert_eq!(model.items.len(), 3);
+    assert_eq!(
+        model.items[0],
+        DisplayItem {
+            label: "Amount to borrow".to_string(),
+            value: "1 USDT".to_string()
+        }
+    );
+    assert_eq!(
+        model.items[1],
+        DisplayItem {
+            label: "Interest Rate mode".to_string(),
+            value: "variable".to_string()
+        }
+    );
+    assert_eq!(model.items[2].label, "Debtor");
+    assert_eq!(
+        model.items[2].value.to_ascii_lowercase(),
+        "0xbf01daf454dce008d3e2bfd47d5e186f71477253"
+    );
+}
+
+#[test]
 fn deposit_weth_uses_call_value() {
     let selector = selector("deposit()");
     let calldata = build_calldata(selector, &[]);
