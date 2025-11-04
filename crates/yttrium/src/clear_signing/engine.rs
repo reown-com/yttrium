@@ -24,6 +24,7 @@ const ADDRESS_BOOK_DESCRIPTORS: &[&str] =
 static GLOBAL_ADDRESS_BOOK: OnceLock<HashMap<String, String>> = OnceLock::new();
 
 /// Minimal display item for the clear signing preview.
+#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DisplayItem {
     pub label: String,
@@ -31,6 +32,7 @@ pub struct DisplayItem {
 }
 
 /// Display model produced by the clear signing engine.
+#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DisplayModel {
     pub intent: String,
@@ -40,6 +42,7 @@ pub struct DisplayModel {
 }
 
 /// Raw fallback preview details.
+#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RawPreview {
     pub selector: String,

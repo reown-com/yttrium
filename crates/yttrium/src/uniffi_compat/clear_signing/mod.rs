@@ -1,50 +1,7 @@
 use crate::clear_signing::{
     format as format_without_value, format_typed_data, format_with_value,
-    DisplayItem, DisplayModel, Eip712Error, EngineError, RawPreview, TypedData,
+    DisplayModel, Eip712Error, EngineError, TypedData,
 };
-
-#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
-pub struct DisplayItemFfi {
-    pub label: String,
-    pub value: String,
-}
-
-impl From<DisplayItem> for DisplayItemFfi {
-    fn from(value: DisplayItem) -> Self {
-        Self { label: value.label, value: value.value }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
-pub struct RawPreviewFfi {
-    pub selector: String,
-    pub args: Vec<String>,
-}
-
-impl From<RawPreview> for RawPreviewFfi {
-    fn from(value: RawPreview) -> Self {
-        Self { selector: value.selector, args: value.args }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
-pub struct DisplayModelFfi {
-    pub intent: String,
-    pub items: Vec<DisplayItemFfi>,
-    pub warnings: Vec<String>,
-    pub raw: Option<RawPreviewFfi>,
-}
-
-impl From<DisplayModel> for DisplayModelFfi {
-    fn from(value: DisplayModel) -> Self {
-        Self {
-            intent: value.intent,
-            items: value.items.into_iter().map(Into::into).collect(),
-            warnings: value.warnings,
-            raw: value.raw.map(Into::into),
-        }
-    }
-}
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error, uniffi::Enum)]
 pub enum EngineErrorFfi {
@@ -100,7 +57,7 @@ pub fn clear_signing_format(
     chain_id: u64,
     to: String,
     calldata_hex: String,
-) -> Result<DisplayModelFfi, EngineErrorFfi> {
+) -> Result<DisplayModel, EngineErrorFfi> {
     clear_signing_format_with_value(chain_id, to, None, calldata_hex)
 }
 
@@ -110,7 +67,7 @@ pub fn clear_signing_format_with_value(
     to: String,
     value_hex: Option<String>,
     calldata_hex: String,
-) -> Result<DisplayModelFfi, EngineErrorFfi> {
+) -> Result<DisplayModel, EngineErrorFfi> {
     let calldata = decode_hex(&calldata_hex, "calldata")?;
     let value_bytes = match value_hex {
         Some(value_hex) => Some(decode_hex(&value_hex, "value")?),
@@ -125,7 +82,7 @@ pub fn clear_signing_format_with_value(
     }
     .map_err(EngineErrorFfi::from)?;
 
-    Ok(model.into())
+    Ok(model)
 }
 
 fn decode_hex(input: &str, context: &str) -> Result<Vec<u8>, EngineErrorFfi> {
@@ -139,8 +96,8 @@ fn decode_hex(input: &str, context: &str) -> Result<Vec<u8>, EngineErrorFfi> {
 #[uniffi::export]
 pub fn clear_signing_format_typed(
     typed_data_json: String,
-) -> Result<DisplayModelFfi, TypedEngineErrorFfi> {
+) -> Result<DisplayModel, TypedEngineErrorFfi> {
     let typed: TypedData = serde_json::from_str(&typed_data_json)
         .map_err(|err| TypedEngineErrorFfi::TypedData(err.to_string()))?;
-    format_typed_data(&typed).map(Into::into).map_err(Into::into)
+    format_typed_data(&typed).map_err(Into::into)
 }
