@@ -257,8 +257,9 @@ fn aave_borrow_variable_on_optimism() {
 fn uniswap_universal_router_missing_descriptor() {
     let calldata =
         hex::decode(UNIVERSAL_ROUTER_CALLDATA_HEX).expect("valid hex");
-    let call_value =
-        uint_word_u128(u128::from_str_radix("1e1264f50cc87", 16).expect("value"));
+    let call_value = uint_word_u128(
+        u128::from_str_radix("1e1264f50cc87", 16).expect("value"),
+    );
 
     let err = format_with_value(
         10,

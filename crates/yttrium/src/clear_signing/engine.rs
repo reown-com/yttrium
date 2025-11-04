@@ -353,6 +353,9 @@ struct FunctionInput {
     name: String,
     #[serde(rename = "type")]
     r#type: String,
+    #[serde(rename = "internalType")]
+    #[serde(default)]
+    internal_type: Option<String>,
     #[serde(default)]
     components: Vec<FunctionInput>,
 }
@@ -983,7 +986,8 @@ fn decode_input(
         word.copy_from_slice(&calldata[start..end]);
         *cursor = end;
 
-        let value = decode_word(&input.r#type, &word);
+        let value =
+            decode_word(&input.r#type, input.internal_type.as_deref(), &word);
         let name = argument_name(prefix, input);
         decoded.push(name, *global_index, value, word);
         *global_index += 1;
@@ -1017,18 +1021,45 @@ fn argument_name(
     }
 }
 
-fn decode_word(kind: &str, word: &[u8; 32]) -> ArgumentValue {
-    match kind {
-        t if t.starts_with("uint") => {
-            ArgumentValue::Uint(BigUint::from_bytes_be(word))
-        }
-        "address" => {
-            let mut bytes = [0u8; 20];
-            bytes.copy_from_slice(&word[12..]);
-            ArgumentValue::Address(bytes)
-        }
-        _ => ArgumentValue::Raw(*word),
+fn decode_word(
+    kind: &str,
+    internal_type: Option<&str>,
+    word: &[u8; 32],
+) -> ArgumentValue {
+    if internal_type_is_address(internal_type, kind) || kind == "address" {
+        let mut bytes = [0u8; 20];
+        bytes.copy_from_slice(&word[12..]);
+        return ArgumentValue::Address(bytes);
     }
+
+    if kind.starts_with("uint") {
+        return ArgumentValue::Uint(BigUint::from_bytes_be(word));
+    }
+
+    ArgumentValue::Raw(*word)
+}
+
+fn internal_type_is_address(internal_type: Option<&str>, kind: &str) -> bool {
+    let Some(alias) = internal_type else {
+        return false;
+    };
+    let normalized = alias.trim();
+    if normalized.is_empty() {
+        return false;
+    }
+    if normalized.eq_ignore_ascii_case("address") {
+        return true;
+    }
+    if normalized
+        .rsplit(|c: char| c == ' ' || c == '.' || c == ':')
+        .next()
+        .map(|segment| segment.eq_ignore_ascii_case("address"))
+        .unwrap_or(false)
+    {
+        return true;
+    }
+    // Handle 1inch custom type alias `Address` used with uint256 ABI type.
+    normalized == "Address" && kind.starts_with("uint")
 }
 
 #[derive(Debug, Clone)]
