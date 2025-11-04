@@ -1,3 +1,7 @@
+pub mod client;
+
+pub use client::EvmSigningClient;
+
 use {
     crate::provider_pool::ProviderPool,
     alloy::{
@@ -198,22 +202,21 @@ async fn populate_missing_fields(
                     provider.estimate_eip1559_fees(None).await.map_err(
                         |err| EvmSigningError::FeeEstimation(err.to_string()),
                     )?;
-                (
-                    maybe_max_fee
-                        .map(|value| value.to())
-                        .unwrap_or(estimate.max_fee_per_gas),
-                    maybe_priority
-                        .map(|value| value.to())
-                        .unwrap_or(estimate.max_priority_fee_per_gas),
-                )
+
+                let max_fee = maybe_max_fee
+                    .map(|fee| fee.to())
+                    .unwrap_or(estimate.max_fee_per_gas);
+                let max_priority = maybe_priority
+                    .map(|fee| fee.to())
+                    .unwrap_or(estimate.max_priority_fee_per_gas);
+
+                (max_fee, max_priority)
             }
         };
+
     request = request
         .with_max_fee_per_gas(max_fee_per_gas)
         .with_max_priority_fee_per_gas(max_priority_fee_per_gas);
-
-    let fee_estimate =
-        Eip1559Estimation { max_fee_per_gas, max_priority_fee_per_gas };
 
     let nonce = match params.nonce {
         Some(nonce) => nonce.to(),
@@ -222,7 +225,11 @@ async fn populate_missing_fields(
             .await
             .map_err(|err| EvmSigningError::Nonce(err.to_string()))?,
     };
-    request = request.with_nonce(nonce);
 
-    Ok((request, gas_limit, fee_estimate, nonce))
+    Ok((
+        request.with_nonce(nonce),
+        gas_limit,
+        Eip1559Estimation { max_fee_per_gas, max_priority_fee_per_gas },
+        nonce,
+    ))
 }

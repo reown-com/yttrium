@@ -1,13 +1,11 @@
 use {
+    super::{
+        sign_and_send_transaction, EvmSigningError, SignAndSendParams,
+        SignAndSendResult,
+    },
     crate::{
         blockchain_api::BLOCKCHAIN_API_URL_PROD,
-        chain_abstraction::{
-            evm_signing::{
-                self, EvmSigningError, SignAndSendParams, SignAndSendResult,
-            },
-            pulse::PulseMetadata,
-        },
-        provider_pool::ProviderPool,
+        chain_abstraction::pulse::PulseMetadata, provider_pool::ProviderPool,
     },
     alloy::signers::local::PrivateKeySigner,
     relay_rpc::domain::ProjectId,
@@ -61,11 +59,6 @@ impl EvmSigningClient {
         params: SignAndSendParams,
         signer: &PrivateKeySigner,
     ) -> Result<SignAndSendResult, EvmSigningError> {
-        evm_signing::sign_and_send_transaction(
-            &self.provider_pool,
-            params,
-            signer,
-        )
-        .await
+        sign_and_send_transaction(&self.provider_pool, params, signer).await
     }
 }

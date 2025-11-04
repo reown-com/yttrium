@@ -12,9 +12,6 @@ pub mod ui_fields;
 #[cfg(feature = "solana")]
 pub mod solana;
 
-#[cfg(feature = "evm_signing")]
-pub mod evm_signing;
-
 #[cfg(test)]
 pub mod test_helpers;
 
