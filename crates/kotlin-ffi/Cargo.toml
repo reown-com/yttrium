@@ -8,14 +8,16 @@ name = "uniffi_yttrium"
 crate-type = ["staticlib", "cdylib"]
 
 [features]
-default = ["chain_abstraction_client", "solana", "sui", "stacks", "sign_client", "ton"]
+default = []
 account_client = ["yttrium/account_client"]
 chain_abstraction_client = ["yttrium/chain_abstraction_client"]
+erc6492_client = ["yttrium/erc6492_client"]
 sign_client = ["yttrium/sign_client"]
 solana = ["yttrium/solana"]
 sui = ["yttrium/sui"]
 stacks = ["yttrium/stacks"]
 ton = ["yttrium/ton"]
+eip155 = ["yttrium/eip155"]
 
 android = ["yttrium/android"]
 ios = ["yttrium/ios"]
@@ -24,7 +26,7 @@ ios = ["yttrium/ios"]
 uniffi_build.workspace = true
 
 [dependencies]
-yttrium = { path = "../yttrium", features = ["uniffi"] }
+yttrium = { path = "../yttrium", default-features = false, features = ["uniffi"] }
 uniffi = { workspace = true, features = ["tokio", "cli"] }
 openssl = { version = "0.10", features = ["vendored"] }
 openssl-sys = { version = "0.9.103", features = ["vendored"] }

@@ -349,6 +349,140 @@ impl ChainAbstractionClient {
     }
 }
 
+// TON wrappers exposed via kotlin-ffi so they are included in this crate's UniFFI bindings.
+// These forward calls to the underlying yttrium implementation.
+#[cfg(feature = "ton")]
+mod ton_wrappers {
+    use super::*;
+    use yttrium::uniffi_compat::ton as yt_ton;
+
+    #[derive(uniffi::Record, Clone)]
+    pub struct TonClientConfig {
+        pub network_id: String,
+    }
+
+    #[derive(uniffi::Record, Clone)]
+    pub struct SendTxMessage {
+        pub address: String,
+        pub amount: String,
+        pub state_init: Option<String>,
+        pub payload: Option<String>,
+    }
+
+    #[derive(uniffi::Record, Clone)]
+    pub struct Keypair {
+        pub sk: String,
+        pub pk: String,
+    }
+
+    #[derive(uniffi::Record, Clone)]
+    pub struct WalletIdentity {
+        pub workchain: i8,
+        pub raw_hex: String,
+        pub friendly: String,
+    }
+
+    #[derive(Debug, thiserror::Error, uniffi::Error)]
+    pub enum TonError {
+        #[error("{0}")]
+        Msg(String),
+    }
+
+    impl From<yt_ton::TonError> for TonError {
+        fn from(value: yt_ton::TonError) -> Self { TonError::Msg(value.to_string()) }
+    }
+
+    fn to_inner_cfg(cfg: TonClientConfig) -> yt_ton::TonClientConfig {
+        yt_ton::TonClientConfig { network_id: cfg.network_id }
+    }
+
+    fn to_inner_kp(kp: &Keypair) -> yt_ton::Keypair {
+        yt_ton::Keypair { sk: kp.sk.clone(), pk: kp.pk.clone() }
+    }
+
+    fn from_inner_kp(kp: yt_ton::Keypair) -> Keypair { Keypair { sk: kp.sk, pk: kp.pk } }
+
+    fn from_inner_identity(identity: yt_ton::WalletIdentity) -> WalletIdentity {
+        WalletIdentity { workchain: identity.workchain, raw_hex: identity.raw_hex, friendly: identity.friendly }
+    }
+
+    fn to_inner_msg(msg: &SendTxMessage) -> yt_ton::SendTxMessage {
+        yt_ton::SendTxMessage { address: msg.address.clone(), amount: msg.amount.clone(), state_init: msg.state_init.clone(), payload: msg.payload.clone() }
+    }
+
+    #[derive(uniffi::Object)]
+    pub struct TonClient {
+        inner: yt_ton::TonClient,
+    }
+
+    #[uniffi::export(async_runtime = "tokio")]
+    impl TonClient {
+        #[uniffi::constructor]
+        pub fn new(
+            cfg: TonClientConfig,
+            project_id: String,
+            #[cfg(feature = "chain_abstraction_client")] pulse_metadata: yttrium::pulse::PulseMetadata,
+        ) -> Self {
+            let inner = yt_ton::TonClient::new(
+                to_inner_cfg(cfg),
+                relay_rpc::domain::ProjectId::from(project_id),
+                #[cfg(feature = "chain_abstraction_client")] pulse_metadata,
+            );
+            Self { inner }
+        }
+
+        pub fn generate_keypair(&self) -> Keypair {
+            from_inner_kp(self.inner.generate_keypair())
+        }
+
+        pub fn generate_keypair_from_ton_mnemonic(
+            &self,
+            mnemonic: String,
+        ) -> Result<Keypair, TonError> {
+            self.inner
+                .generate_keypair_from_ton_mnemonic(mnemonic)
+                .map(from_inner_kp)
+                .map_err(Into::into)
+        }
+
+        pub fn generate_keypair_from_bip39_mnemonic(
+            &self,
+            mnemonic: String,
+        ) -> Result<Keypair, TonError> {
+            self.inner
+                .generate_keypair_from_bip39_mnemonic(&mnemonic)
+                .map(from_inner_kp)
+                .map_err(Into::into)
+        }
+
+        pub fn get_address_from_keypair(&self, keypair: &Keypair) -> Result<WalletIdentity, TonError> {
+            self.inner
+                .get_address_from_keypair(&to_inner_kp(keypair))
+                .map(from_inner_identity)
+                .map_err(Into::into)
+        }
+
+        pub fn sign_data(&self, text: String, keypair: &Keypair) -> Result<String, TonError> {
+            self.inner.sign_data(text, &to_inner_kp(keypair)).map_err(Into::into)
+        }
+
+        pub async fn send_message(
+            &self,
+            network: String,
+            from: String,
+            keypair: &Keypair,
+            valid_until: u32,
+            messages: Vec<SendTxMessage>,
+        ) -> Result<String, TonError> {
+            let inner_msgs: Vec<yt_ton::SendTxMessage> = messages.iter().map(to_inner_msg).collect();
+            self.inner
+                .send_message(network, from, &to_inner_kp(keypair), valid_until, inner_msgs)
+                .await
+                .map_err(Into::into)
+        }
+    }
+}
+
 #[cfg(feature = "account_client")]
 #[uniffi::export(async_runtime = "tokio")]
 impl FFIAccountClient {

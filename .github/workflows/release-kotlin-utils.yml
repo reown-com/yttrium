@@ -37,9 +37,6 @@ jobs:
           api-level: 35
           build-tools: 35.0.0
           ndk-version: 28.2.13676358
-      - name: Build with Gradle
-        run: |
-          ./gradlew clean assembleRelease -Pversion=${{ env.VERSION }}
       - name: Install cargo-ndk
         run: |
           cargo install cargo-ndk --locked
@@ -48,18 +45,20 @@ jobs:
           cargo ndk -t ${{ matrix.target }} build \
             --profile=uniffi-release-kotlin \
             --no-default-features \
-            --features=android,chain_abstraction_client,solana,stacks,sui,ton,uniffi/cli
+            --features=android,chain_abstraction_client,solana,stacks,sui,ton,eip155,uniffi/cli
       - name: Generate Kotlin utils bindings (once, on aarch64 only)
         if: ${{ matrix.target == 'aarch64-linux-android' }}
         run: |
+          rm -rf yttrium/kotlin-utils-bindings
           cargo run \
             --no-default-features \
-            --features=android,chain_abstraction_client,solana,stacks,sui,ton,uniffi/cli \
+            --features=android,chain_abstraction_client,solana,stacks,sui,ton,eip155,uniffi/cli \
             -p kotlin-ffi \
             --bin uniffi-bindgen generate \
             --library target/${{ matrix.target }}/uniffi-release-kotlin/libuniffi_yttrium.so \
             --language kotlin \
             --out-dir yttrium/kotlin-utils-bindings
+          perl -0pi -e 's/return "uniffi_yttrium"/return "uniffi_yttrium_utils"/g' yttrium/kotlin-utils-bindings/uniffi/uniffi_yttrium/uniffi_yttrium.kt
       - name: Strip binaries
         run: |
             LATEST_NDK=$(ls -1 $ANDROID_HOME/ndk/ | sort -V | tail -1)

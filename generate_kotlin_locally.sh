@@ -1,9 +1,9 @@
 #!/bin/bash
 set -eo pipefail
 
-ACCOUNT_FEATURES="android,account_client,uniffi/cli"
-UTILS_FEATURES="android,chain_abstraction_client,solana,stacks,sui,ton,uniffi/cli"
-PROFILE="profile1"
+ACCOUNT_FEATURES="android,erc6492_client,eip155,uniffi/cli"
+UTILS_FEATURES="android,chain_abstraction_client,solana,stacks,sui,ton,eip155,uniffi/cli"
+PROFILE="uniffi-release-kotlin"
 OUTPUT_ROOT="build/kotlin-artifacts"
 GEN_ROOT="crates/kotlin-ffi/android/build/generated"
 TARGETS=("aarch64-linux-android" "armv7-linux-androideabi")
@@ -21,6 +21,11 @@ cleanup() {
     rm -rf yttrium/kotlin-bindings
     rm -rf yttrium/kotlin-utils-bindings
     rm -rf "$GEN_ROOT"
+
+    # Purge any legacy sources/libs in src/main to avoid mixing with generated flavor inputs
+    rm -rf crates/kotlin-ffi/android/src/main/jniLibs/arm64-v8a
+    rm -rf crates/kotlin-ffi/android/src/main/jniLibs/armeabi-v7a
+    rm -rf crates/kotlin-ffi/android/src/main/kotlin/com/reown/yttrium
 }
 
 copy_bindings() {
@@ -96,7 +101,7 @@ install_variant_sources() {
 }
 
 build_account_variant() {
-    echo "Building account_client variant..."
+    echo "Building yttrium (erc6492_client) variant..."
     cargo ndk -t armv7-linux-androideabi -t aarch64-linux-android build \
         --profile="$PROFILE" \
         --no-default-features \
@@ -192,10 +197,15 @@ strip_binaries() {
 }
 
 cleanup
+./gradlew clean
 build_account_variant
 build_utils_variant
 strip_binaries
 
 echo "Kotlin artifacts generated under $OUTPUT_ROOT"
 
-./gradlew clean assembleRelease publishToMavenLocal
+./gradlew \
+  assembleYttriumRelease \
+  assembleUtilsRelease \
+  publishYttriumReleasePublicationToMavenLocal \
+  publishYttriumUtilsReleasePublicationToMavenLocal
