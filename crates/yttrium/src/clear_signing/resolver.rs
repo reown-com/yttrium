@@ -84,22 +84,18 @@ const TYPED_DESCRIPTOR_1INCH_AGG_ROUTER_V6: &str =
 type TypedIndexMap = HashMap<String, String>;
 static TYPED_INDEX: OnceLock<TypedIndexMap> = OnceLock::new();
 
-fn load_index() -> IndexMap {
-    serde_json::from_str(INDEX_JSON)
-        .expect("clear signing index JSON must be valid")
-}
-
 fn index() -> &'static IndexMap {
-    INDEX.get_or_init(load_index)
-}
-
-fn load_typed_index() -> TypedIndexMap {
-    serde_json::from_str(TYPED_INDEX_JSON)
-        .expect("clear signing typed index JSON must be valid")
+    INDEX.get_or_init(|| {
+        serde_json::from_str(INDEX_JSON)
+            .expect("clear signing index JSON must be valid")
+    })
 }
 
 fn typed_index() -> &'static TypedIndexMap {
-    TYPED_INDEX.get_or_init(load_typed_index)
+    TYPED_INDEX.get_or_init(|| {
+        serde_json::from_str(TYPED_INDEX_JSON)
+            .expect("clear signing typed index JSON must be valid")
+    })
 }
 
 pub fn resolve(
