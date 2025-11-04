@@ -90,12 +90,36 @@ install_variant_sources() {
     cp "${bindings_dir}/uniffi/yttrium/yttrium.kt" "$kotlin_base/"
 
     if [ "$variant" = "utils" ]; then
+        # Change generated Kotlin package names and library name to avoid class duplication when both AARs are added
+        
+        # Process uniffi_yttrium.kt:
+        # 1. Change package: uniffi.uniffi_yttrium -> uniffi.uniffi_yttrium_utils
+        # 2. Change imports: uniffi.yttrium -> uniffi.yttrium_utils (but NOT uniffi.yttrium_utils)
+        # 3. Change library name: "uniffi_yttrium" -> "uniffi_yttrium_utils"
         if command -v perl >/dev/null 2>&1; then
+            perl -0pi -e 's/\bpackage\s+uniffi\.uniffi_yttrium\b/package uniffi.uniffi_yttrium_utils/g' "$kotlin_base/uniffi_yttrium.kt"
+            perl -0pi -e 's/\buniffi\.yttrium(?!_utils)\b/uniffi.yttrium_utils/g' "$kotlin_base/uniffi_yttrium.kt"
             perl -0pi -e 's/return "uniffi_yttrium"/return "uniffi_yttrium_utils"/g' "$kotlin_base/uniffi_yttrium.kt"
         else
-            tmp_file="$kotlin_base/uniffi_yttrium.tmp"
-            sed 's/return "uniffi_yttrium"/return "uniffi_yttrium_utils"/' "$kotlin_base/uniffi_yttrium.kt" > "$tmp_file"
-            mv "$tmp_file" "$kotlin_base/uniffi_yttrium.kt"
+            sed -i '' 's/^package uniffi\.uniffi_yttrium$/package uniffi.uniffi_yttrium_utils/' "$kotlin_base/uniffi_yttrium.kt" || true
+            sed -i '' 's/uniffi\.yttrium\([^_]\)/uniffi.yttrium_utils\1/g' "$kotlin_base/uniffi_yttrium.kt" || true
+            sed -i '' 's/uniffi\.yttrium$/uniffi.yttrium_utils/g' "$kotlin_base/uniffi_yttrium.kt" || true
+            sed -i '' 's/return "uniffi_yttrium"/return "uniffi_yttrium_utils"/g' "$kotlin_base/uniffi_yttrium.kt" || true
+        fi
+
+        # Process yttrium.kt:
+        # 1. Change package: uniffi.yttrium -> uniffi.yttrium_utils
+        # 2. Change imports: uniffi.uniffi_yttrium -> uniffi.uniffi_yttrium_utils
+        # 3. Change library name: "uniffi_yttrium" -> "uniffi_yttrium_utils"
+        if command -v perl >/dev/null 2>&1; then
+            perl -0pi -e 's/\bpackage\s+uniffi\.yttrium\b/package uniffi.yttrium_utils/g' "$kotlin_base/yttrium.kt"
+            perl -0pi -e 's/\buniffi\.uniffi_yttrium(?!_utils)\b/uniffi.uniffi_yttrium_utils/g' "$kotlin_base/yttrium.kt"
+            perl -0pi -e 's/return "uniffi_yttrium"/return "uniffi_yttrium_utils"/g' "$kotlin_base/yttrium.kt"
+        else
+            sed -i '' 's/^package uniffi\.yttrium$/package uniffi.yttrium_utils/' "$kotlin_base/yttrium.kt" || true
+            sed -i '' 's/uniffi\.uniffi_yttrium\([^_]\)/uniffi.uniffi_yttrium_utils\1/g' "$kotlin_base/yttrium.kt" || true
+            sed -i '' 's/uniffi\.uniffi_yttrium$/uniffi.uniffi_yttrium_utils/g' "$kotlin_base/yttrium.kt" || true
+            sed -i '' 's/return "uniffi_yttrium"/return "uniffi_yttrium_utils"/g' "$kotlin_base/yttrium.kt" || true
         fi
     fi
 }
@@ -191,7 +215,8 @@ strip_binaries() {
 
     for lib in "${libs_to_strip[@]}"; do
         if [ -f "$lib" ]; then
-            "$strip_bin" "$lib"
+            # Preserve exported symbols required by JNA/UniFFI; strip debug info only
+            "$strip_bin" --strip-debug "$lib"
         fi
     done
 }

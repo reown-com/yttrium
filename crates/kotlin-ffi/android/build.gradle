@@ -55,7 +55,7 @@ repositories {
 }
 
 android {
-    namespace "com.reown.yttrium.uniffi"
+    // namespace is set per-flavor below to avoid BuildConfig clashes
 
     compileSdkVersion 35
 
@@ -72,7 +72,8 @@ android {
     }
     
     buildFeatures {
-        buildConfig = true
+        // Avoid BuildConfig class collisions across flavors in published AARs
+        buildConfig = false
     }
 
     lintOptions {
@@ -85,9 +86,13 @@ android {
     productFlavors {
         yttrium {
             dimension "artifact"
+            // Unique namespace for base artifact to avoid BuildConfig clashes
+            namespace "com.reown.yttrium.uniffi"
         }
         utils {
             dimension "artifact"
+            // Unique namespace for utils artifact
+            namespace "com.reown.yttrium.utils.uniffi"
         }
     }
 
@@ -99,14 +104,19 @@ android {
     sourceSets {
         main {
             java.srcDirs = []
+            kotlin.srcDirs = []
             jniLibs.srcDirs = []
         }
         yttrium {
-            java.srcDirs += ["${project.buildDir}/generated/yttrium/kotlin"]
+            // Include static flavor sources and generated bindings
+            kotlin.srcDirs += [
+                "${project.projectDir}/src/yttrium/kotlin",
+                "${project.buildDir}/generated/yttrium/kotlin"
+            ]
             jniLibs.srcDirs += ["${project.buildDir}/generated/yttrium/jniLibs"]
         }
         utils {
-            java.srcDirs += ["${project.buildDir}/generated/utils/kotlin"]
+            kotlin.srcDirs += ["${project.buildDir}/generated/utils/kotlin"]
             jniLibs.srcDirs += ["${project.buildDir}/generated/utils/jniLibs"]
         }
     }

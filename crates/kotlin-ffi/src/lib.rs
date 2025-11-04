@@ -483,6 +483,24 @@ mod ton_wrappers {
     }
 }
 
+// Free-function helpers required by utils bindings; export them from this crate so the
+// checksum symbols are present in the final cdylib regardless of upstream crate layout.
+#[cfg(feature = "chain_abstraction_client")]
+#[uniffi::export]
+fn funding_metadata_to_amount(
+    value: yttrium::chain_abstraction::api::prepare::FundingMetadata,
+) -> yttrium::chain_abstraction::amount::Amount {
+    value.to_amount()
+}
+
+#[cfg(feature = "chain_abstraction_client")]
+#[uniffi::export]
+fn funding_metadata_to_bridging_fee_amount(
+    value: yttrium::chain_abstraction::api::prepare::FundingMetadata,
+) -> yttrium::chain_abstraction::amount::Amount {
+    value.to_bridging_fee_amount()
+}
+
 #[cfg(feature = "account_client")]
 #[uniffi::export(async_runtime = "tokio")]
 impl FFIAccountClient {
