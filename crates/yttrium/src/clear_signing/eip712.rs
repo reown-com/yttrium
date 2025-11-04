@@ -220,7 +220,7 @@ fn format_token_amount(
             })?;
 
         if let Some(meta) =
-            token_registry::lookup_token(chain_id, &token_address)
+            token_registry::lookup_erc20_token(chain_id, &token_address)
         {
             let formatted = format_amount_with_decimals(&amount, meta.decimals);
             return Ok(format!("{} {}", formatted, meta.symbol));

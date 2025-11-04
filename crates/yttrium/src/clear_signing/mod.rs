@@ -8,7 +8,7 @@ pub use engine::{
     format_with_resolved, DisplayItem, DisplayModel, EngineError, RawPreview,
 };
 pub use resolver::ResolvedDescriptor;
-pub use token_registry::{lookup_token, TokenMeta};
+pub use token_registry::{lookup_erc20_token, TokenMeta};
 
 use resolver::ResolverError;
 

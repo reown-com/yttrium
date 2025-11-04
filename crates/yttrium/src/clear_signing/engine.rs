@@ -755,13 +755,16 @@ fn resolve_token_meta(
         field.params.get("tokenPath").and_then(|value| value.as_str())
     {
         if token_path == "@.to" {
-            return token_registry::lookup_token(chain_id, contract_address)
-                .ok_or_else(|| {
-                    EngineError::TokenRegistry(format!(
-                        "token registry missing entry for chain {} and address {}",
-                        chain_id, contract_address
-                    ))
-                });
+            return token_registry::lookup_erc20_token(
+                chain_id,
+                contract_address,
+            )
+            .ok_or_else(|| {
+                EngineError::TokenRegistry(format!(
+                    "token registry missing entry for chain {} and address {}",
+                    chain_id, contract_address
+                ))
+            });
         }
 
         let token_value = decoded.get(token_path).ok_or_else(|| {
@@ -779,14 +782,13 @@ fn resolve_token_meta(
         })?;
 
         let address = format!("0x{}", hex::encode(address_bytes));
-        return token_registry::lookup_token(chain_id, &address).ok_or_else(
-            || {
+        return token_registry::lookup_erc20_token(chain_id, &address)
+            .ok_or_else(|| {
                 EngineError::TokenRegistry(format!(
                     "token registry missing entry for chain {} and address {}",
                     chain_id, address
                 ))
-            },
-        );
+            });
     }
 
     Err(EngineError::TokenRegistry(format!(

@@ -21,7 +21,7 @@ struct TokenRegistryEntry {
 
 static TOKEN_REGISTRY: OnceLock<HashMap<String, TokenMeta>> = OnceLock::new();
 
-pub fn lookup_token(chain_id: u64, address: &str) -> Option<TokenMeta> {
+pub fn lookup_erc20_token(chain_id: u64, address: &str) -> Option<TokenMeta> {
     let key = format!("eip155:{}/erc20:{}", chain_id, normalize(address));
     lookup_token_by_caip19(&key)
 }
