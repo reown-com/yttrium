@@ -5,11 +5,11 @@ use {
         client_types::{Session, TransportType},
         envelope_type0,
         protocol_types::{
-            methods, GenericJsonRpcMessage, GenericJsonRpcResponse, Metadata,
+            methods, GenericJsonRpcMessage, GenericJsonRpcResponse,
+            GenericJsonRpcResponseError, Metadata, ProtocolRpcId,
             SessionDeleteJsonRpc, SessionProposalJsonRpcResponse,
-            SessionRequestJsonRpc, SessionRequestJsonRpcErrorResponse,
-            SessionRequestJsonRpcResponse, SessionRequestJsonRpcResultResponse,
-            SessionSettle,
+            SessionRequestJsonRpc, SessionRequestJsonRpcResponse,
+            SessionRequestJsonRpcResultResponse, SessionSettle,
         },
         relay::IncomingSessionMessage,
         storage::{Storage, StoragePairing},
@@ -103,7 +103,7 @@ pub async fn handle(
 
     match message {
         GenericJsonRpcMessage::Request(request) => {
-            let request_id = request.id.into_value();
+            let request_id = request.id;
             let method = request.method;
 
             let exists =
@@ -131,7 +131,7 @@ pub async fn handle(
                     );
 
                     let session = Session {
-                        request_id: 0,
+                        request_id: ProtocolRpcId::generate(), // TODO this is wrong
                         topic: sub_msg.data.topic.clone(),
                         expiry: request.expiry,
                         relay_protocol: "irn".to_string(),
@@ -176,7 +176,7 @@ pub async fn handle(
                     storage
                         .insert_json_rpc_history(
                             request_id,
-                            sub_msg.data.topic.to_string(),
+                            sub_msg.data.topic.clone(),
                             method,
                             value.to_string(),
                             Some(TransportType::Relay),
@@ -192,7 +192,7 @@ pub async fn handle(
                         .send((
                             sub_msg.data.topic.clone(),
                             IncomingSessionMessage::SessionConnect(
-                                0,
+                                ProtocolRpcId::generate(), // TODO use real value? Do we need this?
                                 sub_msg.data.topic.clone(),
                             ),
                         ))
@@ -250,7 +250,7 @@ pub async fn handle(
                     storage
                         .insert_json_rpc_history(
                             request_id,
-                            sub_msg.data.topic.to_string(),
+                            sub_msg.data.topic.clone(),
                             method,
                             value.to_string(),
                             Some(TransportType::Relay),
@@ -316,7 +316,7 @@ pub async fn handle(
                     storage
                         .insert_json_rpc_history(
                             request_id,
-                            sub_msg.data.topic.to_string(),
+                            sub_msg.data.topic.clone(),
                             method,
                             value.to_string(),
                             Some(TransportType::Relay),
@@ -382,7 +382,7 @@ pub async fn handle(
                                 storage
                                     .insert_json_rpc_history(
                                         request_id,
-                                        sub_msg.data.topic.to_string(),
+                                        sub_msg.data.topic.clone(),
                                         method,
                                         value.to_string(),
                                         Some(TransportType::Relay),
@@ -417,7 +417,7 @@ pub async fn handle(
                                 storage
                                     .insert_json_rpc_history(
                                         request_id,
-                                        sub_msg.data.topic.to_string(),
+                                        sub_msg.data.topic.clone(),
                                         method,
                                         value.to_string(),
                                         Some(TransportType::Relay),
@@ -438,7 +438,7 @@ pub async fn handle(
                         storage
                             .insert_json_rpc_history(
                                 request_id,
-                                sub_msg.data.topic.to_string(),
+                                sub_msg.data.topic,
                                 method,
                                 value.to_string(),
                                 Some(TransportType::Relay),
@@ -468,7 +468,7 @@ pub async fn handle(
                     storage
                         .insert_json_rpc_history(
                             request_id,
-                            sub_msg.data.topic.to_string(),
+                            sub_msg.data.topic.clone(),
                             method,
                             value.to_string(),
                             Some(TransportType::Relay),
@@ -522,7 +522,7 @@ pub async fn handle(
                     storage
                         .insert_json_rpc_history(
                             request_id,
-                            sub_msg.data.topic.to_string(),
+                            sub_msg.data.topic.clone(),
                             method,
                             value.to_string(),
                             Some(TransportType::Relay),
@@ -554,10 +554,8 @@ pub async fn handle(
         }
         GenericJsonRpcMessage::Response(response) => {
             let rpc_id = match response {
-                GenericJsonRpcResponse::Success(success) => {
-                    success.id.into_value()
-                }
-                GenericJsonRpcResponse::Error(error) => error.id.into_value(),
+                GenericJsonRpcResponse::Success(success) => success.id,
+                GenericJsonRpcResponse::Error(error) => error.id,
             };
 
             let pairing = storage
@@ -684,7 +682,7 @@ pub async fn handle(
                 let response = if value.get("error").is_some() {
                     // Parse as error response
                     let error_response = serde_json::from_value::<
-                        SessionRequestJsonRpcErrorResponse,
+                        GenericJsonRpcResponseError,
                     >(value.clone())
                     .map_err(|e| {
                         HandleError::Peer(format!(

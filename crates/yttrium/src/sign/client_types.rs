@@ -1,6 +1,7 @@
 use {
     crate::sign::protocol_types::{
-        Metadata, ProposalNamespaces, Relay, SettleNamespace,
+        GenericJsonRpcResponseErrorData, Metadata, ProposalNamespaces,
+        ProtocolRpcId, Relay, SettleNamespace,
     },
     relay_rpc::domain::Topic,
     serde::{Deserialize, Serialize},
@@ -10,7 +11,7 @@ use {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SessionProposal {
-    pub session_proposal_rpc_id: u64,
+    pub session_proposal_rpc_id: ProtocolRpcId,
     pub pairing_topic: Topic,
     pub pairing_sym_key: [u8; 32],
     pub proposer_public_key: [u8; 32],
@@ -25,7 +26,7 @@ pub struct SessionProposal {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Session {
-    pub request_id: u64,
+    pub request_id: ProtocolRpcId,
     pub topic: Topic,
     pub expiry: u64,
     pub relay_protocol: String,
@@ -121,7 +122,7 @@ impl RejectionReason {
     }
 }
 
-impl From<RejectionReason> for relay_rpc::rpc::ErrorData {
+impl From<RejectionReason> for GenericJsonRpcResponseErrorData {
     fn from(reason: RejectionReason) -> Self {
         Self {
             code: reason.code(),
