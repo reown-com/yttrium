@@ -7,14 +7,16 @@ use thiserror::Error;
 use time::{macros::format_description, OffsetDateTime};
 
 use super::{
+    descriptor::{
+        resolve_effective_field, DisplayField, DisplayFormat, EffectiveField,
+    },
     engine::{
-        format_amount_with_decimals, parse_biguint, resolve_effective_field,
-        resolve_metadata_value, DisplayField, DisplayFormat, DisplayItem,
-        DisplayModel, EffectiveField,
+        format_amount_with_decimals, parse_biguint, resolve_metadata_value,
+        DisplayItem, DisplayModel,
     },
     resolver,
     resolver::ResolvedTypedDescriptor,
-    token_registry,
+    token_registry::TOKEN_RESOLVER,
 };
 
 #[derive(Debug, Clone, Deserialize)]
@@ -220,7 +222,7 @@ fn format_token_amount(
             })?;
 
         if let Some(meta) =
-            token_registry::lookup_erc20_token(chain_id, &token_address)
+            TOKEN_RESOLVER.lookup_erc20_token(chain_id, &token_address)
         {
             let formatted = format_amount_with_decimals(&amount, meta.decimals);
             return Ok(format!("{} {}", formatted, meta.symbol));

@@ -12,6 +12,29 @@ pub struct TokenMeta {
     pub name: String,
 }
 
+#[derive(Clone, Copy, Debug, Default)]
+pub struct TokenResolver;
+
+pub const TOKEN_RESOLVER: TokenResolver = TokenResolver;
+
+impl TokenResolver {
+    pub fn lookup_erc20_token(
+        self,
+        chain_id: u64,
+        address: &str,
+    ) -> Option<TokenMeta> {
+        lookup_erc20_token(chain_id, address)
+    }
+
+    pub fn lookup_native_token(self, chain_id: u64) -> Option<TokenMeta> {
+        lookup_native_token(chain_id)
+    }
+
+    pub fn lookup_by_caip19(self, caip19: &str) -> Option<TokenMeta> {
+        lookup_token_by_caip19(caip19)
+    }
+}
+
 #[derive(Debug, Deserialize)]
 struct TokenRegistryEntry {
     symbol: String,
@@ -21,18 +44,18 @@ struct TokenRegistryEntry {
 
 static TOKEN_REGISTRY: OnceLock<HashMap<String, TokenMeta>> = OnceLock::new();
 
-pub fn lookup_erc20_token(chain_id: u64, address: &str) -> Option<TokenMeta> {
+fn lookup_erc20_token(chain_id: u64, address: &str) -> Option<TokenMeta> {
     let key = format!("eip155:{}/erc20:{}", chain_id, normalize(address));
     lookup_token_by_caip19(&key)
 }
 
-pub fn lookup_native_token(chain_id: u64) -> Option<TokenMeta> {
+fn lookup_native_token(chain_id: u64) -> Option<TokenMeta> {
     let slip44 = native_slip44_code(chain_id)?;
     let key = format!("eip155:{}/slip44:{}", chain_id, slip44);
     lookup_token_by_caip19(&key)
 }
 
-pub fn lookup_token_by_caip19(caip19: &str) -> Option<TokenMeta> {
+fn lookup_token_by_caip19(caip19: &str) -> Option<TokenMeta> {
     let key = normalize(caip19);
     TOKEN_REGISTRY.get_or_init(load_registry).get(&key).cloned()
 }

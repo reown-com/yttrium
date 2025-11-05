@@ -1,14 +1,28 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::OnceLock;
 
 use serde::Deserialize;
 use serde_json::Value;
 use thiserror::Error;
 
+use super::{
+    descriptor::{
+        build_descriptor, decode_arguments, determine_token_key,
+        native_token_key, resolve_effective_field, DescriptorError,
+        TokenLookupError, TokenLookupKey,
+    },
+    token_registry::{TokenMeta, TOKEN_RESOLVER},
+};
+
 pub struct ResolvedDescriptor<'a> {
     pub descriptor_json: &'a str,
     pub abi_json: Option<&'a str>,
     pub includes: Vec<&'a str>,
+}
+
+pub struct ResolvedCall<'a> {
+    pub descriptor: ResolvedDescriptor<'a>,
+    pub token_metadata: HashMap<TokenLookupKey, TokenMeta>,
 }
 
 #[derive(Debug, Error)]
@@ -141,6 +155,88 @@ pub fn resolve(
     })
 }
 
+pub fn resolve_call(
+    chain_id: u64,
+    to: &str,
+    calldata: &[u8],
+    value: Option<&[u8]>,
+) -> Result<ResolvedCall<'static>, ResolverError> {
+    let resolved = resolve(chain_id, to)?;
+    let descriptor_struct =
+        build_descriptor(&resolved).map_err(map_descriptor_error)?;
+
+    let selector = selector_from_calldata(calldata)?;
+
+    let functions = descriptor_struct
+        .context
+        .contract
+        .function_descriptors()
+        .map_err(map_descriptor_error)?;
+
+    let mut token_metadata = HashMap::new();
+    if let Some(function) =
+        functions.iter().find(|func| func.selector == selector)
+    {
+        let decoded = decode_arguments(function, calldata)
+            .and_then(|decoded| decoded.with_value(value))
+            .map_err(map_descriptor_error)?;
+
+        let mut keys: HashSet<TokenLookupKey> = HashSet::new();
+        if let Some(format_def) = descriptor_struct
+            .display
+            .format_map()
+            .get(&function.typed_signature)
+        {
+            let mut warnings = Vec::new();
+            for field in &format_def.fields {
+                let Some(effective) = resolve_effective_field(
+                    field,
+                    descriptor_struct.display.definitions(),
+                    &mut warnings,
+                ) else {
+                    continue;
+                };
+
+                match effective.format.as_deref() {
+                    Some("tokenAmount") => {
+                        let key = determine_token_key(
+                            &effective, &decoded, chain_id, to,
+                        )
+                        .map_err(map_token_lookup_error)?;
+                        keys.insert(key);
+                    }
+                    Some("amount") => {
+                        keys.insert(native_token_key(chain_id));
+                    }
+                    _ => {}
+                }
+            }
+        }
+
+        let resolver = TOKEN_RESOLVER;
+        for key in keys {
+            let meta = match &key {
+                TokenLookupKey::Caip19(caip) => resolver.lookup_by_caip19(caip),
+                TokenLookupKey::Address { chain_id, address } => {
+                    resolver.lookup_erc20_token(*chain_id, address)
+                }
+                TokenLookupKey::Native(chain) => {
+                    resolver.lookup_native_token(*chain)
+                }
+            }
+            .ok_or_else(|| {
+                ResolverError::DescriptorParse(format!(
+                    "token registry missing entry for {:?}",
+                    key
+                ))
+            })?;
+            token_metadata.insert(key, meta);
+        }
+    }
+
+    Ok(ResolvedCall { descriptor: resolved, token_metadata })
+}
+
 fn descriptor_content(path: &str) -> Option<&'static str> {
     match path {
         "descriptors/erc20_usdt.json" => Some(DESCRIPTOR_ERC20_USDT),
@@ -215,6 +311,32 @@ fn abi_content(path: &str) -> Option<&'static str> {
         }
         _ => None,
     }
+}
+
+fn map_descriptor_error(err: DescriptorError) -> ResolverError {
+    match err {
+        DescriptorError::Parse(message) => {
+            ResolverError::DescriptorParse(message)
+        }
+        DescriptorError::Calldata(message) => {
+            ResolverError::DescriptorParse(message)
+        }
+    }
+}
+
+fn map_token_lookup_error(err: TokenLookupError) -> ResolverError {
+    ResolverError::DescriptorParse(err.to_string())
+}
+
+fn selector_from_calldata(calldata: &[u8]) -> Result<[u8; 4], ResolverError> {
+    if calldata.len() < 4 {
+        return Err(ResolverError::DescriptorParse(
+            "calldata must be at least 4 bytes".to_string(),
+        ));
+    }
+    let mut selector = [0u8; 4];
+    selector.copy_from_slice(&calldata[0..4]);
+    Ok(selector)
 }
 
 fn normalize_address(address: &str) -> String {

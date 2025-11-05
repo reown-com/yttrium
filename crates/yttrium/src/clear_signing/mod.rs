@@ -1,3 +1,4 @@
+mod descriptor;
 mod eip712;
 mod engine;
 mod resolver;
@@ -5,10 +6,11 @@ mod token_registry;
 
 pub use eip712::{format_typed_data, Eip712Error, TypeMember, TypedData};
 pub use engine::{
-    format_with_resolved, DisplayItem, DisplayModel, EngineError, RawPreview,
+    format_with_resolved_call, DisplayItem, DisplayModel, EngineError,
+    RawPreview,
 };
-pub use resolver::ResolvedDescriptor;
-pub use token_registry::{lookup_erc20_token, lookup_native_token, TokenMeta};
+pub use resolver::{ResolvedCall, ResolvedDescriptor};
+pub use token_registry::{TokenMeta, TokenResolver, TOKEN_RESOLVER};
 
 use resolver::ResolverError;
 
@@ -19,10 +21,10 @@ pub fn format_with_value(
     value: Option<&[u8]>,
     calldata: &[u8],
 ) -> Result<DisplayModel, EngineError> {
-    let resolved =
-        resolver::resolve(chain_id, to).map_err(map_resolver_error)?;
+    let resolved = resolver::resolve_call(chain_id, to, calldata, value)
+        .map_err(map_resolver_error)?;
 
-    format_with_resolved(resolved, chain_id, to, value, calldata)
+    format_with_resolved_call(resolved, chain_id, to, value, calldata)
 }
 
 /// Formats a clear signing preview without an explicit call value.
@@ -35,5 +37,10 @@ pub fn format(
 }
 
 fn map_resolver_error(err: ResolverError) -> EngineError {
-    EngineError::Resolver(err.to_string())
+    let message = err.to_string();
+    if message.contains("token registry missing entry") {
+        EngineError::TokenRegistry(message)
+    } else {
+        EngineError::Resolver(message)
+    }
 }

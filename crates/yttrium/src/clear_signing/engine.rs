@@ -1,15 +1,19 @@
 use std::{collections::HashMap, sync::OnceLock};
 
 use num_bigint::BigUint;
-use serde::Deserialize;
-use serde_json::Value as JsonValue;
 use thiserror::Error;
 use time::{macros::format_description, OffsetDateTime};
 use tiny_keccak::{Hasher, Keccak};
 
 use super::{
-    resolver::ResolvedDescriptor,
-    token_registry::{self, TokenMeta},
+    descriptor::{
+        build_descriptor, decode_arguments, determine_token_key,
+        resolve_effective_field, ArgumentValue, DecodedArguments, Descriptor,
+        DescriptorError, DisplayField, DisplayFormat, EffectiveField,
+        TokenLookupError, TokenLookupKey,
+    },
+    resolver::ResolvedCall,
+    token_registry::TokenMeta,
 };
 
 const TETHER_USDT_DESCRIPTOR: &str =
@@ -64,102 +68,23 @@ pub enum EngineError {
     TokenRegistry(String),
 }
 
-fn build_descriptor(
-    resolved: ResolvedDescriptor<'_>,
-) -> Result<Descriptor, EngineError> {
-    eprintln!(
-        "[engine] build_descriptor includes={} descriptor_len={} preview={}",
-        resolved.includes.len(),
-        resolved.descriptor_json.len(),
-        &resolved.descriptor_json.chars().take(120).collect::<String>()
-    );
-    eprintln!(
-        "[engine] descriptor contains abi? {}",
-        resolved.descriptor_json.contains("\"abi\"")
-    );
-    let mut descriptor_value: JsonValue =
-        serde_json::from_str(resolved.descriptor_json)
-            .map_err(|err| EngineError::DescriptorParse(err.to_string()))?;
-
-    for include_json in resolved.includes {
-        eprintln!(
-            "[engine] merging include len={} preview={}",
-            include_json.len(),
-            &include_json.chars().take(80).collect::<String>()
-        );
-        let include_value: JsonValue = serde_json::from_str(include_json)
-            .map_err(|err| EngineError::DescriptorParse(err.to_string()))?;
-        merge_include(&mut descriptor_value, include_value);
-    }
-
-    if let Some(object) = descriptor_value.as_object_mut() {
-        object.remove("includes");
-    }
-
-    if let Some(abi_json) = resolved.abi_json {
-        if needs_abi_injection(&descriptor_value) {
-            let abi_value: JsonValue = serde_json::from_str(abi_json)
-                .map_err(|err| EngineError::DescriptorParse(err.to_string()))?;
-            inject_abi(&mut descriptor_value, abi_value);
-        }
-    }
-
-    serde_json::from_value(descriptor_value)
-        .map_err(|err| EngineError::DescriptorParse(err.to_string()))
-}
-
-fn needs_abi_injection(descriptor_value: &JsonValue) -> bool {
-    let abi_value = descriptor_value
-        .get("context")
-        .and_then(|context| context.get("contract"))
-        .and_then(|contract| contract.get("abi"));
-    eprintln!("[engine] needs_abi_injection abi_value={:?}", abi_value);
-    match abi_value {
-        Some(value) if value.is_array() || value.is_object() => false,
-        Some(value) if value.is_null() => true,
-        None => true,
-        Some(other) => {
-            eprintln!("[engine] unexpected abi value {:?}", other);
-            true
-        }
-    }
-}
-
-fn inject_abi(descriptor_value: &mut JsonValue, abi_value: JsonValue) {
-    if let Some(contract) = descriptor_value
-        .get_mut("context")
-        .and_then(|context| context.as_object_mut())
-        .and_then(|context_obj| context_obj.get_mut("contract"))
-        .and_then(|contract| contract.as_object_mut())
-    {
-        contract.insert("abi".to_string(), abi_value);
-    }
-}
-
-fn merge_include(target: &mut JsonValue, include: JsonValue) {
-    match (target, include) {
-        (JsonValue::Object(target_map), JsonValue::Object(include_map)) => {
-            for (key, value) in include_map {
-                match target_map.get_mut(&key) {
-                    Some(existing) => {
-                        if existing.is_object() && value.is_object() {
-                            merge_include(existing, value);
-                        }
-                    }
-                    None => {
-                        target_map.insert(key, value);
-                    }
-                }
+impl From<DescriptorError> for EngineError {
+    fn from(err: DescriptorError) -> Self {
+        match err {
+            DescriptorError::Parse(message) => {
+                EngineError::DescriptorParse(message)
+            }
+            DescriptorError::Calldata(message) => {
+                EngineError::Calldata(message)
             }
         }
-        _ => {}
     }
 }
 
 /// Decodes calldata using a previously resolved descriptor bundle and returns
 /// a human-readable preview.
-pub fn format_with_resolved(
-    resolved: ResolvedDescriptor<'_>,
+pub fn format_with_resolved_call(
+    resolved: ResolvedCall<'_>,
     chain_id: u64,
     to: &str,
     value: Option<&[u8]>,
@@ -171,7 +96,8 @@ pub fn format_with_resolved(
         to,
         calldata.len()
     );
-    let descriptor = build_descriptor(resolved)?;
+    let token_metadata = resolved.token_metadata;
+    let descriptor = build_descriptor(&resolved.descriptor)?;
 
     let mut warnings = Vec::new();
 
@@ -215,6 +141,7 @@ pub fn format_with_resolved(
             to,
             &local_address_book,
             descriptor.display.definitions(),
+            &token_metadata,
         )?;
         warnings.append(&mut format_warnings);
         Ok(DisplayModel {
@@ -254,195 +181,6 @@ pub fn format_with_resolved(
 
 /// Convenience helper to call the engine directly with raw JSON assets.
 #[allow(dead_code)]
-pub fn format(
-    descriptor_json: &str,
-    abi_json: Option<&str>,
-    chain_id: u64,
-    to: &str,
-    value: Option<&[u8]>,
-    calldata: &[u8],
-) -> Result<DisplayModel, EngineError> {
-    format_with_resolved(
-        ResolvedDescriptor { descriptor_json, abi_json, includes: Vec::new() },
-        chain_id,
-        to,
-        value,
-        calldata,
-    )
-}
-
-#[derive(Debug, Deserialize)]
-struct Descriptor {
-    context: DescriptorContext,
-    #[serde(default)]
-    metadata: serde_json::Value,
-    #[serde(default)]
-    display: DescriptorDisplay,
-}
-
-#[derive(Debug, Deserialize)]
-struct DescriptorContext {
-    #[serde(rename = "$id")]
-    #[serde(default)]
-    id: Option<String>,
-    contract: DescriptorContract,
-}
-
-#[derive(Debug, Deserialize)]
-struct DescriptorContract {
-    #[serde(default)]
-    deployments: Vec<ContractDeployment>,
-    #[serde(default)]
-    abi: Option<AbiDefinition>,
-}
-
-impl DescriptorContract {
-    fn is_bound_to(&self, chain_id: u64, address: &str) -> bool {
-        let address = normalize_address(address);
-        self.deployments.iter().any(|deployment| {
-            deployment.chain_id == chain_id
-                && normalize_address(&deployment.address) == address
-        })
-    }
-
-    fn function_descriptors(
-        &self,
-    ) -> Result<Vec<FunctionDescriptor>, EngineError> {
-        let abi = self.resolve_abi()?;
-        Ok(abi.iter().filter_map(FunctionDescriptor::from_abi).collect())
-    }
-
-    fn resolve_abi(&self) -> Result<Vec<AbiFunction>, EngineError> {
-        match &self.abi {
-            Some(AbiDefinition::Inline(functions)) => Ok(functions.clone()),
-            Some(AbiDefinition::Reference(reference)) => {
-                Err(EngineError::DescriptorParse(format!(
-                    "unsupported ABI reference '{}'",
-                    reference
-                )))
-            }
-            None => Ok(Vec::new()),
-        }
-    }
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(untagged)]
-enum AbiDefinition {
-    Inline(Vec<AbiFunction>),
-    Reference(String),
-}
-
-#[derive(Debug, Deserialize)]
-struct ContractDeployment {
-    #[serde(rename = "chainId")]
-    chain_id: u64,
-    address: String,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-struct AbiFunction {
-    #[serde(default)]
-    name: String,
-    #[serde(default)]
-    inputs: Vec<FunctionInput>,
-    #[serde(rename = "type")]
-    kind: String,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-struct FunctionInput {
-    #[serde(default)]
-    name: String,
-    #[serde(rename = "type")]
-    r#type: String,
-    #[serde(rename = "internalType")]
-    #[serde(default)]
-    internal_type: Option<String>,
-    #[serde(default)]
-    components: Vec<FunctionInput>,
-}
-
-#[derive(Debug, Clone)]
-struct FunctionDescriptor {
-    inputs: Vec<FunctionInput>,
-    typed_signature: String,
-    selector: [u8; 4],
-}
-
-impl FunctionDescriptor {
-    fn from_abi(function: &AbiFunction) -> Option<Self> {
-        if function.kind != "function" {
-            return None;
-        }
-
-        let typed_signature = typed_signature_for(function);
-        let selector = selector_for_signature(&typed_signature);
-
-        Some(Self {
-            inputs: function.inputs.clone(),
-            typed_signature,
-            selector,
-        })
-    }
-}
-
-#[derive(Debug, Default, Deserialize)]
-pub(crate) struct DescriptorDisplay {
-    #[serde(default)]
-    definitions: HashMap<String, DisplayField>,
-    #[serde(default)]
-    formats: HashMap<String, DisplayFormat>,
-}
-
-impl DescriptorDisplay {
-    fn format_map(&self) -> HashMap<String, DisplayFormat> {
-        self.formats
-            .iter()
-            .filter_map(|(signature, format)| {
-                normalize_signature_key(signature)
-                    .map(|normalized| (normalized, format.clone()))
-            })
-            .collect()
-    }
-
-    fn definitions(&self) -> &HashMap<String, DisplayField> {
-        &self.definitions
-    }
-}
-
-#[derive(Debug, Clone, Deserialize)]
-pub(crate) struct DisplayFormat {
-    pub(crate) intent: String,
-    #[serde(default)]
-    pub(crate) fields: Vec<DisplayField>,
-    #[serde(default)]
-    pub(crate) required: Vec<String>,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-pub(crate) struct DisplayField {
-    #[serde(default)]
-    path: Option<String>,
-    #[serde(default)]
-    label: Option<String>,
-    #[serde(default)]
-    format: Option<String>,
-    #[serde(default)]
-    params: serde_json::Value,
-    #[serde(rename = "$ref")]
-    #[serde(default)]
-    reference: Option<String>,
-}
-
-#[derive(Debug, Clone)]
-pub(crate) struct EffectiveField {
-    pub(crate) path: String,
-    pub(crate) label: String,
-    pub(crate) format: Option<String>,
-    pub(crate) params: serde_json::Value,
-}
-
 fn apply_display_format(
     format: &DisplayFormat,
     decoded: &DecodedArguments,
@@ -451,6 +189,7 @@ fn apply_display_format(
     contract_address: &str,
     address_book: &HashMap<String, String>,
     definitions: &HashMap<String, DisplayField>,
+    token_metadata: &HashMap<TokenLookupKey, TokenMeta>,
 ) -> Result<(Vec<DisplayItem>, Vec<String>), EngineError> {
     let mut items = Vec::new();
     let mut warnings = Vec::new();
@@ -477,6 +216,7 @@ fn apply_display_format(
                 chain_id,
                 contract_address,
                 address_book,
+                token_metadata,
             )?;
             items.push(DisplayItem {
                 label: effective.label.clone(),
@@ -501,6 +241,7 @@ fn render_field(
     chain_id: u64,
     contract_address: &str,
     address_book: &HashMap<String, String>,
+    token_metadata: &HashMap<TokenLookupKey, TokenMeta>,
 ) -> Result<String, EngineError> {
     match field.format.as_deref() {
         Some("date") => Ok(format_date(value)),
@@ -511,89 +252,17 @@ fn render_field(
             metadata,
             chain_id,
             contract_address,
+            token_metadata,
         ),
-        Some("amount") => Ok(format_native_amount(value, chain_id)),
+        Some("amount") => {
+            Ok(format_native_amount(value, chain_id, token_metadata))
+        }
         Some("address") | Some("addressName") => {
             Ok(format_address(value, address_book))
         }
         Some("enum") => format_enum(field, value, metadata),
         Some("number") => Ok(format_number(value)),
         _ => Ok(value.default_string()),
-    }
-}
-
-pub(crate) fn resolve_effective_field(
-    field: &DisplayField,
-    definitions: &HashMap<String, DisplayField>,
-    warnings: &mut Vec<String>,
-) -> Option<EffectiveField> {
-    let mut path = field.path.clone();
-    let mut label = field.label.clone();
-    let mut format = field.format.clone();
-    let mut params = field.params.clone();
-
-    if let Some(reference) = &field.reference {
-        if let Some(name) = extract_definition_name(reference) {
-            if let Some(def) = definitions.get(name) {
-                if path.is_none() {
-                    path = def.path.clone();
-                }
-                if label.is_none() {
-                    label = def.label.clone();
-                }
-                if format.is_none() {
-                    format = def.format.clone();
-                }
-                params = merge_params(&def.params, &params);
-            } else {
-                warnings.push(format!(
-                    "Unknown display definition reference '{}'",
-                    reference
-                ));
-            }
-        } else {
-            warnings.push(format!(
-                "Unsupported display definition reference '{}'",
-                reference
-            ));
-        }
-    }
-
-    let path = match path {
-        Some(value) => value,
-        None => {
-            warnings.push("Display field missing path".to_string());
-            return None;
-        }
-    };
-
-    let label = label.unwrap_or_else(|| path.clone());
-
-    Some(EffectiveField { path, label, format, params })
-}
-
-pub(crate) fn extract_definition_name(reference: &str) -> Option<&str> {
-    reference.strip_prefix("$.display.definitions.")
-}
-
-pub(crate) fn merge_params(
-    base: &serde_json::Value,
-    overlay: &serde_json::Value,
-) -> serde_json::Value {
-    match (base, overlay) {
-        (
-            serde_json::Value::Object(base_map),
-            serde_json::Value::Object(overlay_map),
-        ) => {
-            let mut merged = base_map.clone();
-            for (key, value) in overlay_map {
-                merged.insert(key.clone(), value.clone());
-            }
-            serde_json::Value::Object(merged)
-        }
-        (_, serde_json::Value::Null) => base.clone(),
-        (_, overlay_value) if overlay_value.is_null() => base.clone(),
-        (_, overlay_value) => overlay_value.clone(),
     }
 }
 
@@ -628,6 +297,7 @@ fn format_token_amount(
     metadata: &serde_json::Value,
     chain_id: u64,
     contract_address: &str,
+    token_metadata: &HashMap<TokenLookupKey, TokenMeta>,
 ) -> Result<String, EngineError> {
     let ArgumentValue::Uint(amount) = value else {
         return Ok(value.default_string());
@@ -637,8 +307,13 @@ fn format_token_amount(
         return Ok(message);
     }
 
-    let token_meta =
-        resolve_token_meta(field, decoded, chain_id, contract_address)?;
+    let token_meta = lookup_token_meta(
+        field,
+        decoded,
+        chain_id,
+        contract_address,
+        token_metadata,
+    )?;
     let formatted_amount =
         format_amount_with_decimals(amount, token_meta.decimals);
     Ok(format!("{} {}", formatted_amount, token_meta.symbol))
@@ -673,18 +348,26 @@ fn format_number(value: &ArgumentValue) -> String {
     number.to_string()
 }
 
-fn format_native_amount(value: &ArgumentValue, chain_id: u64) -> String {
+fn format_native_amount(
+    value: &ArgumentValue,
+    chain_id: u64,
+    token_metadata: &HashMap<TokenLookupKey, TokenMeta>,
+) -> String {
     let ArgumentValue::Uint(amount) = value else {
         return value.default_string();
     };
 
-    if let Some(meta) = token_registry::lookup_native_token(chain_id) {
+    if let Some(meta) = token_metadata.get(&TokenLookupKey::Native(chain_id)) {
         let formatted = format_amount_with_decimals(amount, meta.decimals);
         return format!("{} {}", formatted, meta.symbol);
     }
 
     let formatted = format_amount_with_decimals(amount, 18);
     format!("{} ETH", formatted)
+}
+
+fn map_token_lookup_error(err: TokenLookupError) -> EngineError {
+    EngineError::TokenRegistry(err.to_string())
 }
 
 fn format_enum(
@@ -738,69 +421,21 @@ fn token_amount_message(
     }
 }
 
-fn resolve_token_meta(
+fn lookup_token_meta(
     field: &EffectiveField,
     decoded: &DecodedArguments,
     chain_id: u64,
     contract_address: &str,
+    token_metadata: &HashMap<TokenLookupKey, TokenMeta>,
 ) -> Result<TokenMeta, EngineError> {
-    if let Some(token) =
-        field.params.get("token").and_then(|value| value.as_str())
-    {
-        return token_registry::lookup_token_by_caip19(token).ok_or_else(
-            || {
-                EngineError::TokenRegistry(format!(
-                    "token registry missing entry for {}",
-                    token
-                ))
-            },
-        );
-    }
-
-    if let Some(token_path) =
-        field.params.get("tokenPath").and_then(|value| value.as_str())
-    {
-        if token_path == "@.to" {
-            return token_registry::lookup_erc20_token(
-                chain_id,
-                contract_address,
-            )
-            .ok_or_else(|| {
-                EngineError::TokenRegistry(format!(
-                    "token registry missing entry for chain {} and address {}",
-                    chain_id, contract_address
-                ))
-            });
-        }
-
-        let token_value = decoded.get(token_path).ok_or_else(|| {
-            EngineError::TokenRegistry(format!(
-                "token path '{}' not found for field '{}'",
-                token_path, field.path
-            ))
-        })?;
-
-        let address_bytes = token_value.as_address().ok_or_else(|| {
-            EngineError::TokenRegistry(format!(
-                "token path '{}' is not an address for field '{}'",
-                token_path, field.path
-            ))
-        })?;
-
-        let address = format!("0x{}", hex::encode(address_bytes));
-        return token_registry::lookup_erc20_token(chain_id, &address)
-            .ok_or_else(|| {
-                EngineError::TokenRegistry(format!(
-                    "token registry missing entry for chain {} and address {}",
-                    chain_id, address
-                ))
-            });
-    }
-
-    Err(EngineError::TokenRegistry(format!(
-        "missing token lookup parameters for field '{}'",
-        field.path
-    )))
+    let key = determine_token_key(field, decoded, chain_id, contract_address)
+        .map_err(map_token_lookup_error)?;
+    token_metadata.get(&key).cloned().ok_or_else(|| {
+        EngineError::TokenRegistry(format!(
+            "token registry missing entry for {:?}",
+            key
+        ))
+    })
 }
 
 pub(crate) fn format_amount_with_decimals(
@@ -915,332 +550,8 @@ fn extract_selector(calldata: &[u8]) -> Result<[u8; 4], EngineError> {
     Ok(selector)
 }
 
-fn decode_arguments(
-    function: &FunctionDescriptor,
-    calldata: &[u8],
-) -> Result<DecodedArguments, EngineError> {
-    let total_words: usize =
-        function.inputs.iter().map(argument_word_count).sum();
-    let expected_len = 4 + total_words * 32;
-    if calldata.len() < expected_len {
-        return Err(EngineError::Calldata(format!(
-            "calldata length {} too small for {} arguments",
-            calldata.len(),
-            total_words
-        )));
-    }
-
-    let mut decoded = DecodedArguments::new();
-    let mut cursor = 4;
-    let mut global_index = 0;
-    for input in &function.inputs {
-        decode_input(
-            input,
-            calldata,
-            &mut cursor,
-            &mut decoded,
-            None,
-            &mut global_index,
-        )?;
-    }
-
-    Ok(decoded)
-}
-
-fn decode_input(
-    input: &FunctionInput,
-    calldata: &[u8],
-    cursor: &mut usize,
-    decoded: &mut DecodedArguments,
-    prefix: Option<String>,
-    global_index: &mut usize,
-) -> Result<(), EngineError> {
-    if input.r#type.starts_with("tuple") && !input.components.is_empty() {
-        let base_prefix = if let Some(existing) = prefix {
-            if input.name.trim().is_empty() {
-                existing
-            } else {
-                format!("{}.{}", existing, input.name.trim())
-            }
-        } else if input.name.trim().is_empty() {
-            String::new()
-        } else {
-            input.name.trim().to_string()
-        };
-        let next_prefix = if base_prefix.is_empty() {
-            None
-        } else {
-            Some(base_prefix.clone())
-        };
-        for component in &input.components {
-            decode_input(
-                component,
-                calldata,
-                cursor,
-                decoded,
-                next_prefix.clone(),
-                global_index,
-            )?;
-        }
-        Ok(())
-    } else {
-        let start = *cursor;
-        let end = start + 32;
-        if end > calldata.len() {
-            return Err(EngineError::Calldata(format!(
-                "calldata length {} too small while decoding argument '{}'",
-                calldata.len(),
-                input.name
-            )));
-        }
-        let mut word = [0u8; 32];
-        word.copy_from_slice(&calldata[start..end]);
-        *cursor = end;
-
-        let value =
-            decode_word(&input.r#type, input.internal_type.as_deref(), &word);
-        let name = argument_name(prefix, input);
-        decoded.push(name, *global_index, value, word);
-        *global_index += 1;
-        Ok(())
-    }
-}
-
-fn argument_word_count(input: &FunctionInput) -> usize {
-    if input.r#type.starts_with("tuple") && !input.components.is_empty() {
-        input.components.iter().map(argument_word_count).sum()
-    } else {
-        1
-    }
-}
-
-fn argument_name(
-    prefix: Option<String>,
-    input: &FunctionInput,
-) -> Option<String> {
-    let trimmed = input.name.trim();
-    if let Some(prefix) = prefix {
-        if trimmed.is_empty() {
-            Some(prefix)
-        } else {
-            Some(format!("{}.{}", prefix, trimmed))
-        }
-    } else if trimmed.is_empty() {
-        None
-    } else {
-        Some(trimmed.to_string())
-    }
-}
-
-fn decode_word(
-    kind: &str,
-    internal_type: Option<&str>,
-    word: &[u8; 32],
-) -> ArgumentValue {
-    if internal_type_is_address(internal_type, kind) || kind == "address" {
-        let mut bytes = [0u8; 20];
-        bytes.copy_from_slice(&word[12..]);
-        return ArgumentValue::Address(bytes);
-    }
-
-    if kind.starts_with("uint") {
-        return ArgumentValue::Uint(BigUint::from_bytes_be(word));
-    }
-
-    ArgumentValue::Raw(*word)
-}
-
-fn internal_type_is_address(internal_type: Option<&str>, kind: &str) -> bool {
-    let Some(alias) = internal_type else {
-        return false;
-    };
-    let normalized = alias.trim();
-    if normalized.is_empty() {
-        return false;
-    }
-    if normalized.eq_ignore_ascii_case("address") {
-        return true;
-    }
-    if normalized
-        .rsplit(|c: char| c == ' ' || c == '.' || c == ':')
-        .next()
-        .map(|segment| segment.eq_ignore_ascii_case("address"))
-        .unwrap_or(false)
-    {
-        return true;
-    }
-    // Handle 1inch custom type alias `Address` used with uint256 ABI type.
-    normalized == "Address" && kind.starts_with("uint")
-}
-
-#[derive(Debug, Clone)]
-struct DecodedArgument {
-    index: usize,
-    name: Option<String>,
-    value: ArgumentValue,
-    word: [u8; 32],
-}
-
-impl DecodedArgument {
-    fn display_label(&self) -> String {
-        self.name
-            .clone()
-            .filter(|name| !name.is_empty())
-            .unwrap_or_else(|| format!("arg{}", self.index))
-    }
-
-    fn raw_word_hex(&self) -> String {
-        format!("0x{}", hex::encode(self.word))
-    }
-}
-
-#[derive(Debug, Clone)]
-struct DecodedArguments {
-    ordered: Vec<DecodedArgument>,
-    index_by_name: HashMap<String, usize>,
-}
-
-impl DecodedArguments {
-    fn new() -> Self {
-        Self { ordered: Vec::new(), index_by_name: HashMap::new() }
-    }
-
-    fn with_value(mut self, value: Option<&[u8]>) -> Result<Self, EngineError> {
-        if let Some(raw) = value {
-            if raw.len() > 32 {
-                return Err(EngineError::Calldata(
-                    "call value must be at most 32 bytes".to_string(),
-                ));
-            }
-            let mut word = [0u8; 32];
-            let start = 32 - raw.len();
-            word[start..].copy_from_slice(raw);
-            let amount = BigUint::from_bytes_be(&word);
-            self.push(
-                Some("@value".to_string()),
-                self.ordered.len(),
-                ArgumentValue::Uint(amount),
-                word,
-            );
-        }
-        Ok(self)
-    }
-
-    fn push(
-        &mut self,
-        name: Option<String>,
-        index: usize,
-        value: ArgumentValue,
-        word: [u8; 32],
-    ) {
-        let entry_index = self.ordered.len();
-        if let Some(ref name) = name {
-            self.index_by_name.insert(name.clone(), entry_index);
-        }
-        self.index_by_name.insert(format!("arg{}", index), entry_index);
-        self.ordered.push(DecodedArgument { index, name, value, word });
-    }
-
-    fn get(&self, key: &str) -> Option<&ArgumentValue> {
-        self.index_by_name
-            .get(key)
-            .and_then(|&idx| self.ordered.get(idx))
-            .map(|entry| &entry.value)
-    }
-
-    fn ordered(&self) -> &[DecodedArgument] {
-        &self.ordered
-    }
-}
-
-#[derive(Debug, Clone)]
-enum ArgumentValue {
-    Address([u8; 20]),
-    Uint(BigUint),
-    Raw([u8; 32]),
-}
-
-impl ArgumentValue {
-    fn default_string(&self) -> String {
-        match self {
-            ArgumentValue::Address(bytes) => {
-                format!("0x{}", hex::encode(bytes))
-            }
-            ArgumentValue::Uint(value) => value.to_string(),
-            ArgumentValue::Raw(bytes) => format!("0x{}", hex::encode(bytes)),
-        }
-    }
-
-    fn as_uint(&self) -> Option<&BigUint> {
-        if let ArgumentValue::Uint(value) = self {
-            Some(value)
-        } else {
-            None
-        }
-    }
-
-    fn as_address(&self) -> Option<&[u8; 20]> {
-        if let ArgumentValue::Address(bytes) = self {
-            Some(bytes)
-        } else {
-            None
-        }
-    }
-}
-
-fn normalize_signature_key(signature: &str) -> Option<String> {
-    let open_paren = signature.find('(')?;
-    let close_paren = signature.rfind(')')?;
-    let name = signature[..open_paren].trim();
-    let params = &signature[open_paren + 1..close_paren];
-    let mut types = Vec::new();
-    if !params.trim().is_empty() {
-        for param in params.split(',') {
-            let trimmed = param.trim();
-            if trimmed.is_empty() {
-                continue;
-            }
-            let ty = trimmed.split_whitespace().next().unwrap_or(trimmed);
-            types.push(ty.trim().to_string());
-        }
-    }
-    Some(format!("{}({})", name, types.join(",")))
-}
-
-fn typed_signature_for(function: &AbiFunction) -> String {
-    let mut params = Vec::with_capacity(function.inputs.len());
-    for input in &function.inputs {
-        params.push(type_signature_for_input(input));
-    }
-    format!("{}({})", function.name.trim(), params.join(","))
-}
-
-fn selector_for_signature(signature: &str) -> [u8; 4] {
-    let mut hasher = Keccak::v256();
-    hasher.update(signature.as_bytes());
-    let mut output = [0u8; 32];
-    hasher.finalize(&mut output);
-    [output[0], output[1], output[2], output[3]]
-}
-
 fn format_selector_hex(selector: &[u8; 4]) -> String {
     format!("0x{}", hex::encode(selector))
-}
-
-fn type_signature_for_input(input: &FunctionInput) -> String {
-    let ty = input.r#type.trim();
-    if let Some(stripped) = ty.strip_prefix("tuple") {
-        let suffix = stripped;
-        let nested = input
-            .components
-            .iter()
-            .map(type_signature_for_input)
-            .collect::<Vec<_>>()
-            .join(",");
-        format!("({}){}", nested, suffix)
-    } else {
-        ty.to_string()
-    }
 }
 
 fn global_address_book() -> &'static HashMap<String, String> {
@@ -1343,20 +654,4 @@ pub(crate) fn to_checksum_address(bytes: &[u8; 20]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn normalize_signature_without_param_names() {
-        assert_eq!(
-            normalize_signature_key("foo(uint256,uint256)"),
-            Some("foo(uint256,uint256)".to_string())
-        );
-    }
-
-    #[test]
-    fn normalize_signature_with_param_names() {
-        assert_eq!(
-            normalize_signature_key("foo(uint256 amount, address to)"),
-            Some("foo(uint256,address)".to_string())
-        );
-    }
 }
