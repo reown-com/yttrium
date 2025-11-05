@@ -2,7 +2,7 @@ pub use {
     relay::IncomingSessionMessage,
     relay_rpc::{
         auth::ed25519_dalek::{SecretKey, SigningKey},
-        domain::Topic,
+        domain::{MessageId, Topic},
         rpc::ErrorData,
     },
     verify::validate::VerifyContext,

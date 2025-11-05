@@ -18,13 +18,14 @@ use {
             TransportType,
         },
         protocol_types::{
-            Metadata, ProposalNamespace, SessionRequest, SessionRequestJsonRpc,
-            SessionRequestJsonRpcErrorResponse, SessionRequestJsonRpcResponse,
+            GenericJsonRpcResponseError, JsonRpcVersion, Metadata,
+            ProposalNamespace, ProtocolRpcId, SessionRequest,
+            SessionRequestJsonRpc, SessionRequestJsonRpcResponse,
             SessionRequestJsonRpcResultResponse, SessionRequestRequest,
             SettleNamespace,
         },
         storage::{Jwk, Storage, StorageError, StoragePairing},
-        ErrorData, IncomingSessionMessage, SecretKey, Topic, VerifyContext,
+        IncomingSessionMessage, SecretKey, Topic, VerifyContext,
     },
 };
 
@@ -37,7 +38,7 @@ struct MyState {
     key: SecretKey,
     verify_public_key: Option<Jwk>,
     sessions: Vec<Session>,
-    pairing_keys: HashMap<Topic, (u64, StoragePairing)>,
+    pairing_keys: HashMap<Topic, (ProtocolRpcId, StoragePairing)>,
     partial_sessions: HashMap<Topic, [u8; 32]>,
 }
 
@@ -185,7 +186,7 @@ impl Storage for MySessionStore {
     fn save_pairing(
         &self,
         topic: Topic,
-        rpc_id: u64,
+        rpc_id: ProtocolRpcId,
         sym_key: [u8; 32],
         self_key: [u8; 32],
     ) -> Result<(), StorageError> {
@@ -201,7 +202,7 @@ impl Storage for MySessionStore {
     fn get_pairing(
         &self,
         topic: Topic,
-        _rpc_id: u64,
+        _rpc_id: ProtocolRpcId,
     ) -> Result<Option<StoragePairing>, StorageError> {
         Ok(read_local_storage(&self.key)
             .map_err(StorageError::Runtime)?
@@ -242,8 +243,8 @@ impl Storage for MySessionStore {
 
     fn insert_json_rpc_history(
         &self,
-        _request_id: u64,
-        _topic: String,
+        _request_id: ProtocolRpcId,
+        _topic: Topic,
         _method: String,
         _body: String,
         _transport_type: Option<TransportType>,
@@ -254,7 +255,7 @@ impl Storage for MySessionStore {
 
     fn update_json_rpc_history_response(
         &self,
-        _request_id: u64,
+        _request_id: ProtocolRpcId,
         _response: String,
     ) -> Result<(), StorageError> {
         // Sample wallet doesn't need to store JSON-RPC history
@@ -263,7 +264,7 @@ impl Storage for MySessionStore {
 
     fn delete_json_rpc_history_by_topic(
         &self,
-        _topic: String,
+        _topic: Topic,
     ) -> Result<(), StorageError> {
         // Sample wallet doesn't need to store JSON-RPC history
         Ok(())
@@ -271,7 +272,7 @@ impl Storage for MySessionStore {
 
     fn does_json_rpc_exist(
         &self,
-        _request_id: u64,
+        _request_id: ProtocolRpcId,
     ) -> Result<bool, StorageError> {
         // Sample wallet doesn't need to store JSON-RPC history
         Ok(false)
@@ -457,7 +458,7 @@ pub fn App() -> impl IntoView {
                         SessionRequestJsonRpcResponse::Result(
                             SessionRequestJsonRpcResultResponse {
                                 id: request.1.id,
-                                jsonrpc: "2.0".to_string(),
+                                jsonrpc: JsonRpcVersion::version_2(),
                                 result: "0x0".to_string().into(),
                             },
                         ),
@@ -499,13 +500,10 @@ pub fn App() -> impl IntoView {
                     .respond(
                         request.0,
                         SessionRequestJsonRpcResponse::Error(
-                            SessionRequestJsonRpcErrorResponse {
+                            GenericJsonRpcResponseError {
                                 id: request.1.id,
-                                jsonrpc: "2.0".to_string(),
-                                error: serde_json::to_value(ErrorData::from(
-                                    RejectionReason::UserRejected,
-                                ))
-                                .unwrap(),
+                                jsonrpc: JsonRpcVersion::version_2(),
+                                error: RejectionReason::UserRejected.into(),
                             },
                         ),
                     )

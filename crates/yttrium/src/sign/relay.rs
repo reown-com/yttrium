@@ -6,7 +6,8 @@ use {
             incoming::HandleError,
             priority_future::PriorityReceiver,
             protocol_types::{
-                SessionRequestJsonRpc, SessionRequestJsonRpcResponse,
+                ProtocolRpcId, SessionRequestJsonRpc,
+                SessionRequestJsonRpcResponse,
             },
             relay_url::ConnectionOptions,
             storage::Storage,
@@ -831,13 +832,17 @@ impl std::fmt::Debug for ConnectionState {
 #[derive(Debug)]
 pub enum IncomingSessionMessage {
     SessionRequest(SessionRequestJsonRpc, VerifyContext),
-    Disconnect(u64, Topic),
+    Disconnect(ProtocolRpcId, Topic),
     SessionEvent(Topic, String, serde_json::Value, String),
-    SessionUpdate(u64, Topic, crate::sign::protocol_types::SettleNamespaces),
-    SessionExtend(u64, Topic),
-    SessionConnect(u64, Topic),
-    SessionReject(u64, Topic),
-    SessionRequestResponse(u64, Topic, SessionRequestJsonRpcResponse),
+    SessionUpdate(
+        ProtocolRpcId,
+        Topic,
+        crate::sign::protocol_types::SettleNamespaces,
+    ),
+    SessionExtend(ProtocolRpcId, Topic),
+    SessionConnect(ProtocolRpcId, Topic),
+    SessionReject(ProtocolRpcId, Topic),
+    SessionRequestResponse(ProtocolRpcId, Topic, SessionRequestJsonRpcResponse),
 }
 
 // MaybeVerifiedRequest is now defined in client.rs and imported via the parent module
