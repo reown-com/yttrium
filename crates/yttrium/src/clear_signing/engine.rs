@@ -512,7 +512,7 @@ fn render_field(
             chain_id,
             contract_address,
         ),
-        Some("amount") => Ok(format_native_amount(value)),
+        Some("amount") => Ok(format_native_amount(value, chain_id)),
         Some("address") | Some("addressName") => {
             Ok(format_address(value, address_book))
         }
@@ -673,10 +673,16 @@ fn format_number(value: &ArgumentValue) -> String {
     number.to_string()
 }
 
-fn format_native_amount(value: &ArgumentValue) -> String {
+fn format_native_amount(value: &ArgumentValue, chain_id: u64) -> String {
     let ArgumentValue::Uint(amount) = value else {
         return value.default_string();
     };
+
+    if let Some(meta) = token_registry::lookup_native_token(chain_id) {
+        let formatted = format_amount_with_decimals(amount, meta.decimals);
+        return format!("{} {}", formatted, meta.symbol);
+    }
+
     let formatted = format_amount_with_decimals(amount, 18);
     format!("{} ETH", formatted)
 }
