@@ -367,7 +367,7 @@ fn format_native_amount(
     }
 
     let formatted = format_amount_with_decimals(amount, 18);
-    format!("{} ETH", formatted)
+    format!("{} NATIVE", formatted)
 }
 
 fn map_token_lookup_error(err: TokenLookupError) -> EngineError {
