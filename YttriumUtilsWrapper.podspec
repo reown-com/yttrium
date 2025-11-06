@@ -23,4 +23,4 @@ Pod::Spec.new do |spec|
   spec.source_files = "Sources/YttriumUtils/**/*.swift"
 
   # No prepare_command needed for binary pod
-end 
+end
