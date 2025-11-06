@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        target: [aarch64-linux-android, armv7-linux-androideabi]
+        target: [aarch64-linux-android, armv7-linux-androideabi, x86_64-linux-android]
     steps:
       - uses: actions/checkout@v3
       - name: Install Rust toolchain
@@ -46,14 +46,14 @@ jobs:
           cargo ndk -t ${{ matrix.target }} build \
             --profile=uniffi-release-kotlin \
             --no-default-features \
-            --features=android,erc6492_client,eip155,uniffi/cli
+            --features=android,erc6492_client,uniffi/cli
       - name: Generate Kotlin bindings (once, on aarch64 only)
         if: ${{ matrix.target == 'aarch64-linux-android' }}
         run: |
           rm -rf yttrium/kotlin-bindings
           cargo run \
             --no-default-features \
-            --features=android,erc6492_client,eip155,uniffi/cli \
+            --features=android,erc6492_client,uniffi/cli \
             -p kotlin-ffi \
             --bin uniffi-bindgen generate \
             --library target/${{ matrix.target }}/uniffi-release-kotlin/libuniffi_yttrium.so \
@@ -69,7 +69,7 @@ jobs:
             NDK_PATH="$ANDROID_HOME/ndk/$LATEST_NDK"
             if [ -f "$NDK_PATH/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip" ]; then
                 echo "Found llvm-strip at: $NDK_PATH/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip"
-                $NDK_PATH/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip --strip-debug target/${{ matrix.target }}/uniffi-release-kotlin/libuniffi_yttrium.so
+                $NDK_PATH/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip target/${{ matrix.target }}/uniffi-release-kotlin/libuniffi_yttrium.so
             else
                 echo "Warning: Could not find llvm-strip, skipping strip step"
                 echo "Available NDK versions:"
@@ -86,6 +86,7 @@ jobs:
           declare -A abi_map
           abi_map[aarch64-linux-android]="arm64-v8a"
           abi_map[armv7-linux-androideabi]="armeabi-v7a"
+          abi_map[x86_64-linux-android]="x86_64"
 
           abi_name=${abi_map[${{ matrix.target }}]}
 
@@ -137,6 +138,17 @@ jobs:
               echo "Contents of combined/armv7:"
               ls -R combined/armv7
 
+      - name: Download x86_64 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: artifacts-x86_64-linux-android
+          path: combined/x86_64
+
+      - name: Debug listing of downloaded artifact x86_64
+        run: |
+              echo "Contents of combined/x86_64:"
+              ls -R combined/x86_64
+
       - name: Merge artifacts
         run: |
           # We'll create one combined folder that contains all ABIs. 
@@ -148,6 +160,9 @@ jobs:
 
           # Copy armv7's libs
           cp -r combined/armv7/libs/armeabi-v7a merged/yttrium/libs/
+
+          # Copy x86_64's libs
+          cp -r combined/x86_64/libs/x86_64 merged/yttrium/libs/
           
           
           # Copy Kotlin bindings if it exists in the aarch64 artifact

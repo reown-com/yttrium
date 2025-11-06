@@ -116,7 +116,11 @@ android {
             jniLibs.srcDirs += ["${project.buildDir}/generated/yttrium/jniLibs"]
         }
         utils {
-            kotlin.srcDirs += ["${project.buildDir}/generated/utils/kotlin"]
+            // Include static flavor sources and generated bindings
+            kotlin.srcDirs += [
+                "${project.projectDir}/src/utils/kotlin",
+                "${project.buildDir}/generated/utils/kotlin"
+            ]
             jniLibs.srcDirs += ["${project.buildDir}/generated/utils/jniLibs"]
         }
     }

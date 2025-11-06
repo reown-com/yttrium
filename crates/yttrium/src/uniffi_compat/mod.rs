@@ -30,14 +30,15 @@ use {
         transaction::VersionedTransaction,
     },
 };
+#[cfg(any(feature = "account_client", feature = "chain_abstraction_client"))]
+use crate::smart_accounts::account_address::AccountAddress;
+#[cfg(feature = "chain_abstraction_client")]
+use crate::wallet_service_api::{
+    AddressOrNative, Asset, AssetData, Erc20Metadata, Erc721Metadata,
+    NativeMetadata,
+};
 use {
-    crate::{
-        smart_accounts::account_address::AccountAddress,
-        wallet_service_api::{
-            AddressOrNative, Asset, AssetData, Erc20Metadata, Erc721Metadata,
-            NativeMetadata,
-        },
-    },
+    crate::{},
     alloy::{
         contract::Error as AlloyError,
         dyn_abi::Eip712Domain,
@@ -67,6 +68,7 @@ uniffi::custom_type!(Address, String, {
     try_lift: |val| Ok(val.parse()?),
     lower: |obj| obj.to_string(),
 });
+#[cfg(any(feature = "account_client", feature = "chain_abstraction_client"))]
 uniffi::custom_type!(AccountAddress, Address, {
     try_lift: |val| Ok(val.into()),
     lower: |obj| obj.into(),
@@ -371,11 +373,13 @@ fn solana_derive_keypair_from_mnemonic(
         })
 }
 
+#[cfg(feature = "chain_abstraction_client")]
 uniffi::custom_type!(Asset, AssetFfi, {
     try_lift: |val| Ok(val.into()),
     lower: |obj| obj.into(),
 });
 
+#[cfg(feature = "chain_abstraction_client")]
 #[derive(Debug, Clone, PartialEq, uniffi_macros::Enum)]
 pub enum AssetFfi {
     Native { address: AddressOrNative, balance: U256, metadata: NativeMetadata },
@@ -383,6 +387,7 @@ pub enum AssetFfi {
     Erc721 { address: AddressOrNative, balance: U256, metadata: Erc721Metadata },
 }
 
+#[cfg(feature = "chain_abstraction_client")]
 impl From<AssetFfi> for Asset {
     fn from(value: AssetFfi) -> Self {
         match value {
@@ -399,6 +404,7 @@ impl From<AssetFfi> for Asset {
     }
 }
 
+#[cfg(feature = "chain_abstraction_client")]
 impl From<Asset> for AssetFfi {
     fn from(value: Asset) -> Self {
         match value {

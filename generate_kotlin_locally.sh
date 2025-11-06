@@ -1,31 +1,56 @@
 #!/bin/bash
 set -eo pipefail
 
-ACCOUNT_FEATURES="android,erc6492_client,eip155,uniffi/cli"
+# Check if ANDROID_NDK_HOME is set
+if [ -z "$ANDROID_NDK_HOME" ]; then
+    echo "ERROR: ANDROID_NDK_HOME is not set!"
+    echo "Please set it before running this script:"
+    echo "  export ANDROID_NDK_HOME=\$HOME/Library/Android/sdk/ndk/<version>"
+    echo ""
+    echo "Available NDK versions:"
+    ls -1 "$HOME/Library/Android/sdk/ndk/" 2>/dev/null || echo "  No NDK found at $HOME/Library/Android/sdk/ndk/"
+    exit 1
+fi
+
+echo "Using ANDROID_NDK_HOME: $ANDROID_NDK_HOME"
+
+ACCOUNT_FEATURES="android,erc6492_client,uniffi/cli"
 UTILS_FEATURES="android,chain_abstraction_client,solana,stacks,sui,ton,eip155,uniffi/cli"
 PROFILE="uniffi-release-kotlin"
 OUTPUT_ROOT="build/kotlin-artifacts"
 GEN_ROOT="crates/kotlin-ffi/android/build/generated"
-TARGETS=("aarch64-linux-android" "armv7-linux-androideabi")
+TARGETS=("aarch64-linux-android" "armv7-linux-androideabi" "x86_64-linux-android")
 
 abi_name() {
     case "$1" in
         aarch64-linux-android) echo "arm64-v8a" ;;
         armv7-linux-androideabi) echo "armeabi-v7a" ;;
+        x86_64-linux-android) echo "x86_64" ;;
         *) echo "" ;;
     esac
 }
 
 cleanup() {
+    echo "Cleaning build artifacts..."
+    
+    # Remove output artifacts
     rm -rf "$OUTPUT_ROOT"
     rm -rf yttrium/kotlin-bindings
     rm -rf yttrium/kotlin-utils-bindings
+    
+    # Remove generated sources and JNI libs (ensures fresh stripped binaries are used)
     rm -rf "$GEN_ROOT"
+    
+    # Remove entire Gradle build directory to prevent cached unstripped binaries
+    rm -rf crates/kotlin-ffi/android/build
 
     # Purge any legacy sources/libs in src/main to avoid mixing with generated flavor inputs
     rm -rf crates/kotlin-ffi/android/src/main/jniLibs/arm64-v8a
     rm -rf crates/kotlin-ffi/android/src/main/jniLibs/armeabi-v7a
+    rm -rf crates/kotlin-ffi/android/src/main/jniLibs/x86_64
     rm -rf crates/kotlin-ffi/android/src/main/kotlin/com/reown/yttrium
+    
+    echo "Cleanup complete"
 }
 
 copy_bindings() {
@@ -55,6 +80,24 @@ copy_library_variants() {
             echo "Missing expected library at $src"
             exit 1
         fi
+        
+        # Strip the binary before copying
+        if [ -n "$ANDROID_NDK_HOME" ]; then
+            local strip_bin=""
+            if [ -f "$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip" ]; then
+                strip_bin="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip"
+            elif [ -f "$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-strip" ]; then
+                strip_bin="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-strip"
+            else
+                strip_bin=$(find "$ANDROID_NDK_HOME" -name "llvm-strip" -print -quit 2>/dev/null || true)
+            fi
+            
+            if [ -n "$strip_bin" ]; then
+                echo "Stripping $src with $strip_bin"
+                "$strip_bin" "$src"
+            fi
+        fi
+        
         mkdir -p "$destination_root/libs/${abi}"
         cp "$src" "$destination_root/libs/${abi}/${binary_name}"
     done
@@ -126,7 +169,7 @@ install_variant_sources() {
 
 build_account_variant() {
     echo "Building yttrium (erc6492_client) variant..."
-    cargo ndk -t armv7-linux-androideabi -t aarch64-linux-android build \
+    cargo ndk -t armv7-linux-androideabi -t aarch64-linux-android -t x86_64-linux-android build \
         --profile="$PROFILE" \
         --no-default-features \
         --features="$ACCOUNT_FEATURES" \
@@ -149,7 +192,7 @@ build_account_variant() {
 
 build_utils_variant() {
     echo "Building utils variant (solana, stacks, sui, ton)..."
-    cargo ndk -t armv7-linux-androideabi -t aarch64-linux-android build \
+    cargo ndk -t armv7-linux-androideabi -t aarch64-linux-android -t x86_64-linux-android build \
         --profile="$PROFILE" \
         --no-default-features \
         --features="$UTILS_FEATURES" \
@@ -165,10 +208,30 @@ build_utils_variant() {
         --out-dir yttrium/kotlin-utils-bindings
 
     mkdir -p "$OUTPUT_ROOT"
+    
+    # Find llvm-strip once for all targets
+    local strip_bin=""
+    if [ -n "$ANDROID_NDK_HOME" ]; then
+        if [ -f "$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip" ]; then
+            strip_bin="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip"
+        elif [ -f "$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-strip" ]; then
+            strip_bin="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-strip"
+        else
+            strip_bin=$(find "$ANDROID_NDK_HOME" -name "llvm-strip" -print -quit 2>/dev/null || true)
+        fi
+    fi
+    
     for target in "${TARGETS[@]}"; do
         local abi
         abi="$(abi_name "$target")"
         local src="target/${target}/${PROFILE}/libuniffi_yttrium.so"
+        
+        # Strip the binary before copying
+        if [ -n "$strip_bin" ]; then
+            echo "Stripping $src with $strip_bin"
+            "$strip_bin" "$src"
+        fi
+        
         mkdir -p "$OUTPUT_ROOT/libs/${abi}"
         cp "$src" "$OUTPUT_ROOT/libs/${abi}/libuniffi_yttrium_utils.so"
     done
@@ -215,14 +278,13 @@ strip_binaries() {
 
     for lib in "${libs_to_strip[@]}"; do
         if [ -f "$lib" ]; then
-            # Preserve exported symbols required by JNA/UniFFI; strip debug info only
-            "$strip_bin" --strip-debug "$lib"
+            # Full strip to minimize binary size (matching 0.9.55 release)
+            "$strip_bin" "$lib"
         fi
     done
 }
 
 cleanup
-./gradlew clean
 build_account_variant
 build_utils_variant
 strip_binaries

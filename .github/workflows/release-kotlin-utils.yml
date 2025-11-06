@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        target: [aarch64-linux-android, armv7-linux-androideabi]
+        target: [aarch64-linux-android, armv7-linux-androideabi, x86_64-linux-android]
     steps:
       - uses: actions/checkout@v3
       - name: Install Rust toolchain
@@ -58,7 +58,15 @@ jobs:
             --library target/${{ matrix.target }}/uniffi-release-kotlin/libuniffi_yttrium.so \
             --language kotlin \
             --out-dir yttrium/kotlin-utils-bindings
-          perl -0pi -e 's/return "uniffi_yttrium"/return "uniffi_yttrium_utils"/g' yttrium/kotlin-utils-bindings/uniffi/uniffi_yttrium/uniffi_yttrium.kt
+          
+          # Rename packages and imports for utils variant
+          find yttrium/kotlin-utils-bindings -type f -name "*.kt" -exec perl -i -pe '
+            s/^package uniffi\.yttrium$/package uniffi.yttrium_utils/;
+            s/^import uniffi\.yttrium\./import uniffi.yttrium_utils./g;
+            s/^package uniffi\.uniffi_yttrium$/package uniffi.uniffi_yttrium_utils/;
+            s/^import uniffi\.uniffi_yttrium\./import uniffi.uniffi_yttrium_utils./g;
+            s/return "uniffi_yttrium"/return "uniffi_yttrium_utils"/g;
+          ' {} \;
       - name: Strip binaries
         run: |
             LATEST_NDK=$(ls -1 $ANDROID_HOME/ndk/ | sort -V | tail -1)
@@ -67,7 +75,7 @@ jobs:
             NDK_PATH="$ANDROID_HOME/ndk/$LATEST_NDK"
             if [ -f "$NDK_PATH/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip" ]; then
                 echo "Found llvm-strip at: $NDK_PATH/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip"
-                $NDK_PATH/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip --strip-debug target/${{ matrix.target }}/uniffi-release-kotlin/libuniffi_yttrium.so
+                $NDK_PATH/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip target/${{ matrix.target }}/uniffi-release-kotlin/libuniffi_yttrium.so
             else
                 echo "Warning: Could not find llvm-strip, skipping strip step"
                 echo "Available NDK versions:"
@@ -80,6 +88,7 @@ jobs:
           declare -A abi_map
           abi_map[aarch64-linux-android]="arm64-v8a"
           abi_map[armv7-linux-androideabi]="armeabi-v7a"
+          abi_map[x86_64-linux-android]="x86_64"
 
           abi_name=${abi_map[${{ matrix.target }}]}
 
@@ -112,12 +121,18 @@ jobs:
         with:
           name: utils-artifacts-armv7-linux-androideabi
           path: combined/armv7
+      - name: Download x86_64 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: utils-artifacts-x86_64-linux-android
+          path: combined/x86_64
       - name: Merge utils artifacts
         run: |
           mkdir -p merged/yttrium/libs
 
           cp -r combined/aarch64/libs/arm64-v8a merged/yttrium/libs/
           cp -r combined/armv7/libs/armeabi-v7a merged/yttrium/libs/
+          cp -r combined/x86_64/libs/x86_64 merged/yttrium/libs/
 
           if [ -d combined/aarch64/kotlin-utils-bindings ]; then
             cp -r combined/aarch64/kotlin-utils-bindings merged/yttrium/
