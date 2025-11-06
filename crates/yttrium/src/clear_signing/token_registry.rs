@@ -1,3 +1,5 @@
+//! Token registry helpers for the clear signing engine.
+
 use std::collections::HashMap;
 use std::sync::OnceLock;
 
@@ -21,6 +23,7 @@ struct TokenRegistryEntry {
 
 static TOKEN_REGISTRY: OnceLock<HashMap<String, TokenMeta>> = OnceLock::new();
 
+/// Returns token metadata associated with a CAIP-19 identifier, if present.
 pub fn lookup_token_by_caip19(caip19: &str) -> Option<TokenMeta> {
     let key = normalize(caip19);
     TOKEN_REGISTRY.get_or_init(load_registry).get(&key).cloned()
@@ -48,4 +51,3 @@ fn load_registry() -> HashMap<String, TokenMeta> {
 fn normalize(input: &str) -> String {
     input.trim().to_ascii_lowercase()
 }
-

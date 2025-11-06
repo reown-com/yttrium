@@ -1,3 +1,5 @@
+//! Descriptor parsing and token lookup utilities for clear signing.
+
 use std::collections::HashMap;
 
 use num_bigint::BigUint;
@@ -679,7 +681,7 @@ pub fn determine_token_key(
     if let Some(token) =
         field.params.get("token").and_then(|value| value.as_str())
     {
-        let normalized = token.trim().to_ascii_lowercase();
+        let normalized = normalize_caip19(token);
         return Ok(TokenLookupKey::Caip19(normalized));
     }
 
@@ -708,19 +710,23 @@ pub fn determine_token_key(
         };
 
         let caip19 = format!("eip155:{}/erc20:{}", chain_id, address);
+        let caip19 = normalize_caip19(&caip19);
         return Ok(TokenLookupKey::Caip19(caip19));
     }
 
     Err(TokenLookupError::MissingToken { field: field.path.clone() })
 }
 
-pub fn native_token_key(chain_id: u64) -> Result<TokenLookupKey, TokenLookupError> {
+pub fn native_token_key(
+    chain_id: u64,
+) -> Result<TokenLookupKey, TokenLookupError> {
     let slip44 = native_slip44_code(chain_id).ok_or_else(|| {
         TokenLookupError::MissingToken {
             field: format!("native token for chain {}", chain_id),
         }
     })?;
     let caip19 = format!("eip155:{}/slip44:{}", chain_id, slip44);
+    let caip19 = normalize_caip19(&caip19);
     Ok(TokenLookupKey::Caip19(caip19))
 }
 
@@ -729,6 +735,10 @@ fn native_slip44_code(chain_id: u64) -> Option<u32> {
         1 | 10 | 42161 | 8453 => Some(60),
         _ => None,
     }
+}
+
+fn normalize_caip19(input: &str) -> String {
+    input.trim().to_ascii_lowercase()
 }
 
 #[cfg(test)]
@@ -772,7 +782,10 @@ mod tests {
         let result = native_token_key(1);
         assert!(result.is_ok());
         let key = result.unwrap();
-        assert_eq!(key, TokenLookupKey::Caip19("eip155:1/slip44:60".to_string()));
+        assert_eq!(
+            key,
+            TokenLookupKey::Caip19("eip155:1/slip44:60".to_string())
+        );
     }
 
     #[test]

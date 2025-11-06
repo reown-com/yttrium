@@ -1,3 +1,5 @@
+//! Descriptor lookup and token metadata resolution entry points for clear signing.
+
 use std::collections::{HashMap, HashSet};
 use std::sync::OnceLock;
 
@@ -112,6 +114,7 @@ fn typed_index() -> &'static TypedIndexMap {
     })
 }
 
+/// Resolves a descriptor bundle and associated assets for the given chain and address.
 pub fn resolve(
     chain_id: u64,
     to: &str,
@@ -155,6 +158,7 @@ pub fn resolve(
     })
 }
 
+/// Resolves a descriptor and fetches token metadata required for rendering a call preview.
 pub fn resolve_call(
     chain_id: u64,
     to: &str,

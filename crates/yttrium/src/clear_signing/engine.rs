@@ -1,3 +1,5 @@
+//! Presentation engine for clear signing previews.
+
 use std::{collections::HashMap, sync::OnceLock};
 
 use num_bigint::BigUint;
