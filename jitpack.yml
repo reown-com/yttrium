@@ -109,14 +109,27 @@ install:
   - |
     set -e
     
+    # Determine the tag (same logic as before_install)
+    if [ -n "$GIT_TAG" ]; then
+      RELEASE_TAG="$GIT_TAG"
+    else
+      RELEASE_TAG=$(git describe --tags --exact-match 2>/dev/null || echo "")
+      if [ -z "$RELEASE_TAG" ]; then
+        echo "ERROR: Could not determine release tag in install step!"
+        exit 1
+      fi
+    fi
+    
+    echo "Building from tag: $RELEASE_TAG"
+    
     # Determine which publication to build based on the tag
-    if [[ "$GIT_TAG" == kotlin-utils-* ]]; then
+    if [[ "$RELEASE_TAG" == kotlin-utils-* ]]; then
       # Extract version from tag (e.g., kotlin-utils-0.9.55 -> 0.9.55)
-      VERSION="${GIT_TAG#kotlin-utils-}"
+      VERSION="${RELEASE_TAG#kotlin-utils-}"
       echo "Building yttrium-utils with version: $VERSION"
       ./gradlew assembleUtilsRelease publishYttriumUtilsReleasePublicationToMavenLocal -Pversion="$VERSION"
     else
-      VERSION="$GIT_TAG"
+      VERSION="$RELEASE_TAG"
       echo "Building yttrium with version: $VERSION"
       ./gradlew assembleYttriumRelease publishYttriumReleasePublicationToMavenLocal -Pversion="$VERSION"
     fi
