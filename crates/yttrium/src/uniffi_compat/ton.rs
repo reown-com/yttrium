@@ -227,8 +227,6 @@ impl TonClient {
     ) -> Result<String, TonError> {
         let mut message_bytes = Vec::new();
 
-        // TON Connect text signing format
-        message_bytes.extend_from_slice(b"ton-connect:");
         message_bytes.extend_from_slice(text.as_bytes());
 
         let sk_bytes = BASE64.decode(keypair.sk.as_bytes()).map_err(|e| {
