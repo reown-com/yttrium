@@ -1,10 +1,5 @@
 name: Build and Release Yttrium Kotlin Utils
 on:
-  push:
-    branches:
-      - two_frameworks_kt
-    paths:
-      - '.github/workflows/release-kotlin-utils.yml'
   workflow_dispatch:
     inputs:
       version:
@@ -12,7 +7,7 @@ on:
         required: true
 env:
   CARGO_TERM_COLOR: always
-  VERSION: ${{ github.event.inputs.version || '0.9.56-test' }}
+  VERSION: ${{ github.event.inputs.version || '0.0.1' }}
   TARGET_BRANCH: ${{ github.ref_name }}
 permissions:
   contents: write
