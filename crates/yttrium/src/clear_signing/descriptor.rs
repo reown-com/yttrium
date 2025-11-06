@@ -658,8 +658,6 @@ fn normalize_address(address: &str) -> String {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum TokenLookupKey {
     Caip19(String),
-    Address { chain_id: u64, address: String },
-    Native(u64),
 }
 
 #[derive(Debug, Error)]
@@ -687,37 +685,47 @@ pub fn determine_token_key(
     if let Some(token_path) =
         field.params.get("tokenPath").and_then(|value| value.as_str())
     {
-        if token_path == "@.to" {
-            return Ok(TokenLookupKey::Address {
-                chain_id,
-                address: normalize_address(contract_address),
-            });
-        }
+        let address = if token_path == "@.to" {
+            normalize_address(contract_address)
+        } else {
+            let token_value = decoded.get(token_path).ok_or_else(|| {
+                TokenLookupError::MissingTokenPath {
+                    path: token_path.to_string(),
+                    field: field.path.clone(),
+                }
+            })?;
 
-        let token_value = decoded.get(token_path).ok_or_else(|| {
-            TokenLookupError::MissingTokenPath {
-                path: token_path.to_string(),
-                field: field.path.clone(),
-            }
-        })?;
+            let address_bytes = token_value.as_address().ok_or_else(|| {
+                TokenLookupError::TokenPathNotAddress {
+                    path: token_path.to_string(),
+                    field: field.path.clone(),
+                }
+            })?;
 
-        let address_bytes = token_value.as_address().ok_or_else(|| {
-            TokenLookupError::TokenPathNotAddress {
-                path: token_path.to_string(),
-                field: field.path.clone(),
-            }
-        })?;
+            let addr = format!("0x{}", hex::encode(address_bytes));
+            normalize_address(&addr)
+        };
 
-        let address = format!("0x{}", hex::encode(address_bytes));
-        return Ok(TokenLookupKey::Address {
-            chain_id,
-            address: normalize_address(&address),
-        });
+        let caip19 = format!("eip155:{}/erc20:{}", chain_id, address);
+        return Ok(TokenLookupKey::Caip19(caip19));
     }
 
     Err(TokenLookupError::MissingToken { field: field.path.clone() })
 }
 
-pub fn native_token_key(chain_id: u64) -> TokenLookupKey {
-    TokenLookupKey::Native(chain_id)
+pub fn native_token_key(chain_id: u64) -> Result<TokenLookupKey, TokenLookupError> {
+    let slip44 = native_slip44_code(chain_id).ok_or_else(|| {
+        TokenLookupError::MissingToken {
+            field: format!("native token for chain {}", chain_id),
+        }
+    })?;
+    let caip19 = format!("eip155:{}/slip44:{}", chain_id, slip44);
+    Ok(TokenLookupKey::Caip19(caip19))
+}
+
+fn native_slip44_code(chain_id: u64) -> Option<u32> {
+    match chain_id {
+        1 | 10 | 42161 | 8453 => Some(60),
+        _ => None,
+    }
 }

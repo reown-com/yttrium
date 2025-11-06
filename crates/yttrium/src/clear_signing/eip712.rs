@@ -16,7 +16,7 @@ use super::{
     },
     resolver,
     resolver::ResolvedTypedDescriptor,
-    token_registry::lookup_erc20_token,
+    token_registry::lookup_token_by_caip19,
 };
 
 #[derive(Debug, Clone, Deserialize)]
@@ -221,7 +221,12 @@ fn format_token_amount(
                 ))
             })?;
 
-        if let Some(meta) = lookup_erc20_token(chain_id, &token_address) {
+        let caip19 = format!(
+            "eip155:{}/erc20:{}",
+            chain_id,
+            token_address.to_ascii_lowercase()
+        );
+        if let Some(meta) = lookup_token_by_caip19(&caip19) {
             let formatted = format_amount_with_decimals(&amount, meta.decimals);
             return Ok(format!("{} {}", formatted, meta.symbol));
         } else {

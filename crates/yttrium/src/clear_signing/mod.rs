@@ -10,9 +10,7 @@ pub use engine::{
     RawPreview,
 };
 pub use resolver::{ResolvedCall, ResolvedDescriptor};
-pub use token_registry::{
-    lookup_erc20_token, lookup_native_token, lookup_token_by_caip19, TokenMeta,
-};
+pub use token_registry::{lookup_token_by_caip19, TokenMeta};
 
 use resolver::ResolverError;
 

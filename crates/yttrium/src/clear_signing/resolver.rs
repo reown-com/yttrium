@@ -11,10 +11,7 @@ use super::{
         native_token_key, resolve_effective_field, DescriptorError,
         TokenLookupError, TokenLookupKey,
     },
-    token_registry::{
-        lookup_erc20_token, lookup_native_token, lookup_token_by_caip19,
-        TokenMeta,
-    },
+    token_registry::{lookup_token_by_caip19, TokenMeta},
 };
 
 pub struct ResolvedDescriptor<'a> {
@@ -209,7 +206,9 @@ pub fn resolve_call(
                         keys.insert(key);
                     }
                     Some("amount") => {
-                        keys.insert(native_token_key(chain_id));
+                        let key = native_token_key(chain_id)
+                            .map_err(map_token_lookup_error)?;
+                        keys.insert(key);
                     }
                     _ => {}
                 }
@@ -217,14 +216,8 @@ pub fn resolve_call(
         }
 
         for key in keys {
-            let meta = match &key {
-                TokenLookupKey::Caip19(caip) => lookup_token_by_caip19(caip),
-                TokenLookupKey::Address { chain_id, address } => {
-                    lookup_erc20_token(*chain_id, address)
-                }
-                TokenLookupKey::Native(chain) => lookup_native_token(*chain),
-            }
-            .ok_or_else(|| {
+            let TokenLookupKey::Caip19(caip) = &key;
+            let meta = lookup_token_by_caip19(caip).ok_or_else(|| {
                 ResolverError::DescriptorParse(format!(
                     "token registry missing entry for {:?}",
                     key

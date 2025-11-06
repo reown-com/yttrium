@@ -21,17 +21,6 @@ struct TokenRegistryEntry {
 
 static TOKEN_REGISTRY: OnceLock<HashMap<String, TokenMeta>> = OnceLock::new();
 
-pub fn lookup_erc20_token(chain_id: u64, address: &str) -> Option<TokenMeta> {
-    let key = format!("eip155:{}/erc20:{}", chain_id, normalize(address));
-    lookup_token_by_caip19(&key)
-}
-
-pub fn lookup_native_token(chain_id: u64) -> Option<TokenMeta> {
-    let slip44 = native_slip44_code(chain_id)?;
-    let key = format!("eip155:{}/slip44:{}", chain_id, slip44);
-    lookup_token_by_caip19(&key)
-}
-
 pub fn lookup_token_by_caip19(caip19: &str) -> Option<TokenMeta> {
     let key = normalize(caip19);
     TOKEN_REGISTRY.get_or_init(load_registry).get(&key).cloned()
@@ -60,9 +49,3 @@ fn normalize(input: &str) -> String {
     input.trim().to_ascii_lowercase()
 }
 
-fn native_slip44_code(chain_id: u64) -> Option<u32> {
-    match chain_id {
-        1 | 10 | 42161 | 8453 => Some(60),
-        _ => None,
-    }
-}
