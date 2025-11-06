@@ -31,9 +31,9 @@ use {
     },
     yttrium::{
         chain_abstraction::{
-            error::PrepareDetailedResponse, pulse::PulseMetadata,
-            ui_fields::RouteSig,
+            error::PrepareDetailedResponse, ui_fields::RouteSig,
         },
+        pulse::PulseMetadata,
         wallet_service_api::{GetAssetsParams, GetAssetsResult},
     },
 };

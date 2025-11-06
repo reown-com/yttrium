@@ -7,7 +7,7 @@ use {
             pimlico::{self, paymaster::client::PaymasterClient},
         },
         call::Call,
-        chain_abstraction::{amount::Amount, pulse::PulseMetadata},
+        chain_abstraction::amount::Amount,
         entry_point::ENTRYPOINT_ADDRESS_V07,
         erc7579::{
             accounts::safe::encode_validator_key,
@@ -17,6 +17,7 @@ use {
             },
         },
         provider_pool::ProviderPool,
+        pulse::PulseMetadata,
         smart_accounts::{
             nonce::get_nonce_with_key,
             safe::{

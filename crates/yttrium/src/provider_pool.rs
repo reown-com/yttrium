@@ -1,11 +1,9 @@
 #[cfg(feature = "chain_abstraction_client")]
-use crate::chain_abstraction::{
-    pulse::{PulseMetadata, PULSE_SDK_TYPE},
-    send_transaction::RpcRequestAnalytics,
-};
+use crate::chain_abstraction::send_transaction::RpcRequestAnalytics;
 use {
     crate::{
         blockchain_api::{PROXY_ENDPOINT_PATH, WALLET_ENDPOINT_PATH},
+        pulse::PulseMetadata,
         wallet_provider::WalletProvider,
     },
     alloy::{
@@ -36,11 +34,14 @@ pub struct ProviderPool {
     pub project_id: ProjectId,
     pub rpc_overrides: HashMap<String, Url>,
     pub session_id: Uuid,
-    #[cfg(feature = "chain_abstraction_client")]
     pub pulse_metadata: PulseMetadata,
     #[cfg(feature = "sui")]
     pub sui_clients: std::sync::Arc<
         tokio::sync::RwLock<HashMap<String, sui_sdk::SuiClient>>,
+    >,
+    #[cfg(feature = "ton")]
+    pub ton_clients: std::sync::Arc<
+        tokio::sync::RwLock<HashMap<String, crate::ton_provider::TonProvider>>,
     >,
 }
 
@@ -48,7 +49,6 @@ impl ProviderPool {
     pub fn new(
         project_id: ProjectId,
         client: ReqwestClient,
-        #[cfg(feature = "chain_abstraction_client")]
         pulse_metadata: PulseMetadata,
         blockchain_api_base_url: Url,
     ) -> Self {
@@ -67,6 +67,10 @@ impl ProviderPool {
             pulse_metadata,
             #[cfg(feature = "sui")]
             sui_clients: std::sync::Arc::new(tokio::sync::RwLock::new(
+                HashMap::new(),
+            )),
+            #[cfg(feature = "ton")]
+            ton_clients: std::sync::Arc::new(tokio::sync::RwLock::new(
                 HashMap::new(),
             )),
         }
@@ -183,7 +187,6 @@ impl ProviderPool {
         #[cfg(feature = "chain_abstraction_client")] tracing: Option<
             std::sync::mpsc::Sender<RpcRequestAnalytics>,
         >,
-        #[cfg(not(feature = "chain_abstraction_client"))] _tracing: Option<()>,
         path: &str,
         additional_query_params: impl IntoIterator<Item = (&str, &str)>,
         url_override: Option<Url>,
@@ -207,17 +210,9 @@ impl ProviderPool {
             let mut url = blockchain_api_base_url.join(path).unwrap();
             url.query_pairs_mut()
                 .append_pair("projectId", self.project_id.as_ref())
-                .append_pair("sessionId", self.session_id.to_string().as_str());
-
-            #[cfg(feature = "chain_abstraction_client")]
-            {
-                url.query_pairs_mut()
-                    .append_pair("st", PULSE_SDK_TYPE)
-                    .append_pair(
-                        "sv",
-                        self.pulse_metadata.sdk_version.as_str(),
-                    );
-            }
+                .append_pair("sessionId", self.session_id.to_string().as_str())
+                .append_pair("st", "ypp")
+                .append_pair("sv", self.pulse_metadata.sdk_version.as_str());
 
             url.query_pairs_mut().extend_pairs(additional_query_params);
             url
@@ -228,8 +223,6 @@ impl ProviderPool {
             url,
             #[cfg(feature = "chain_abstraction_client")]
             tracing,
-            #[cfg(not(feature = "chain_abstraction_client"))]
-            _tracing,
         );
         ClientBuilder::default()
             // .layer(RpcRequestModifyingLayer { tracing })
@@ -251,17 +244,9 @@ impl ProviderPool {
                 self.blockchain_api_base_url.join(PROXY_ENDPOINT_PATH).unwrap();
             url.query_pairs_mut()
                 .append_pair("projectId", self.project_id.as_ref())
-                .append_pair("sessionId", self.session_id.to_string().as_str());
-
-            #[cfg(feature = "chain_abstraction_client")]
-            {
-                url.query_pairs_mut()
-                    .append_pair("st", PULSE_SDK_TYPE)
-                    .append_pair(
-                        "sv",
-                        self.pulse_metadata.sdk_version.as_str(),
-                    );
-            }
+                .append_pair("sessionId", self.session_id.to_string().as_str())
+                .append_pair("st", "ypp")
+                .append_pair("sv", self.pulse_metadata.sdk_version.as_str());
 
             url.query_pairs_mut().append_pair("chainId", sui_chain_id.as_str());
             let sui_client =
@@ -293,6 +278,41 @@ impl ProviderPool {
                 .await,
         }
     }
+
+    #[cfg(feature = "ton")]
+    pub async fn get_ton_client(
+        &self,
+        network: &str,
+        tracing: Option<std::sync::mpsc::Sender<RpcRequestAnalytics>>,
+        url_override: Option<Url>,
+    ) -> crate::ton_provider::TonProvider {
+        let ton_client = self.ton_clients.read().await.get(network).cloned();
+        if let Some(ton_client) = ton_client {
+            ton_client
+        } else {
+            // Create RpcClient using the same pattern as Stacks
+            let rpc_client = self
+                .get_rpc_client(
+                    #[cfg(feature = "chain_abstraction_client")]
+                    tracing,
+                    #[cfg(not(feature = "chain_abstraction_client"))]
+                    None,
+                    crate::blockchain_api::PROXY_ENDPOINT_PATH,
+                    vec![("chainId", network)],
+                    url_override,
+                    None,
+                )
+                .await;
+
+            let ton_client = crate::ton_provider::TonProvider::new(rpc_client);
+
+            self.ton_clients
+                .write()
+                .await
+                .insert(network.to_owned(), ton_client.clone());
+            ton_client
+        }
+    }
 }
 
 fn polling_interval_for_chain_id(chain_id: &str) -> Duration {
@@ -322,25 +342,37 @@ pub mod network {
         pub const MAINNET: &str = "stacks:1";
         pub const TESTNET: &str = "stacks:2147483648";
     }
+
+    pub mod ton {
+        pub const MAINNET: &str = "ton:-239";
+        pub const TESTNET: &str = "ton:-3";
+    }
 }
 
 #[cfg(feature = "chain_abstraction_client")]
 type TracingType = Option<std::sync::mpsc::Sender<RpcRequestAnalytics>>;
-
-#[cfg(not(feature = "chain_abstraction_client"))]
-type TracingType = Option<()>;
 
 /// Custom client that enables adding things like tracing to the requests.
 #[derive(Clone)]
 pub struct CustomClient {
     client: ReqwestClient,
     url: Url,
+    #[cfg(feature = "chain_abstraction_client")]
     tracing: TracingType,
 }
 
 impl CustomClient {
-    pub fn new(client: ReqwestClient, url: Url, tracing: TracingType) -> Self {
-        Self { client, url, tracing }
+    pub fn new(
+        client: ReqwestClient,
+        url: Url,
+        #[cfg(feature = "chain_abstraction_client")] tracing: TracingType,
+    ) -> Self {
+        Self {
+            client,
+            url,
+            #[cfg(feature = "chain_abstraction_client")]
+            tracing,
+        }
     }
 }
 
@@ -360,7 +392,11 @@ impl Service<RequestPacket> for CustomClient {
 
     #[inline]
     fn call(&mut self, req: RequestPacket) -> Self::Future {
-        Box::pin(self.clone().do_reqwest(req, self.tracing.clone()))
+        Box::pin(self.clone().do_reqwest(
+            req,
+            #[cfg(feature = "chain_abstraction_client")]
+            self.tracing.clone(),
+        ))
     }
 }
 
@@ -370,18 +406,24 @@ impl CustomClient {
     async fn do_reqwest(
         self,
         req: RequestPacket,
-        _tracing: TracingType,
+        #[cfg(feature = "chain_abstraction_client")] tracing: TracingType,
     ) -> TransportResult<ResponsePacket> {
-        trace!("req: {}", serde_json::to_string(&req).unwrap());
+        tracing::debug!(
+            "rpc POST url={} body={}",
+            self.url,
+            serde_json::to_string(&req).unwrap()
+        );
+
         let resp = self
             .client
             .post(self.url)
+            .header("X-Ton-Client-Version", "15.3.1")
             .json(&req)
             .send()
             .await
             .map_err(TransportErrorKind::custom)?;
         let status = resp.status();
-        trace!("res_status: {}", status);
+        tracing::debug!("res_status: {}", status);
 
         let req_id = resp
             .headers()
@@ -391,7 +433,7 @@ impl CustomClient {
         trace!("req_id: {}", req_id.as_deref().unwrap_or("none"));
 
         #[cfg(feature = "chain_abstraction_client")]
-        if let Some(tracing) = _tracing {
+        if let Some(tracing) = tracing {
             let rpcs = match req {
                 RequestPacket::Single(req) => {
                     vec![(req.id().clone(), req.method().to_owned())]
@@ -417,7 +459,7 @@ impl CustomClient {
         // the status code, as we want to return the error in the body
         // if there is one.
         let body = resp.bytes().await.map_err(TransportErrorKind::custom)?;
-        trace!("res_body: {}", String::from_utf8_lossy(&body));
+        tracing::debug!("res_body: {}", String::from_utf8_lossy(&body));
 
         if !status.is_success() {
             return Err(TransportErrorKind::http_error(

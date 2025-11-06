@@ -16,9 +16,15 @@ mod incoming;
 mod pairing_uri;
 mod priority_future;
 pub mod protocol_types;
+pub mod pulse;
 mod relay;
 mod relay_url;
 pub mod storage;
+pub mod test_helpers;
 #[cfg(test)]
 mod tests;
 pub mod utils;
+mod verify;
+#[cfg(target_arch = "wasm32")]
+mod verify_attestation;
+pub use verify::{VerifyContext, VerifyValidation};

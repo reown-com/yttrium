@@ -13,6 +13,11 @@ name = "uniffi-bindgen"
 path = "uniffi-bindgen.rs"
 required-features = ["uniffi"]
 
+[[bin]]
+name = "sign-canary"
+path = "src/bin/sign_canary.rs"
+required-features = ["sign_canary"]
+
 [features]
 default = ["eip155", "erc6492_client", "chain_abstraction_client"]
 full = ["all_platforms", "all_clients", "all_namespaces"]
@@ -50,7 +55,7 @@ wasm = [
     "web-sys/MessageEvent",
 ]
 
-all_namespaces = ["eip155", "solana", "sui", "stacks"]
+all_namespaces = ["eip155", "solana", "sui", "stacks", "ton"]
 eip155 = []
 solana = [
     "dep:solana-sdk",
@@ -72,6 +77,7 @@ sui = [
     "dep:tiny-bip39",
 ]
 stacks = ["dep:stacks-rs", "dep:bip32", "dep:stacks_secp256k1", "dep:rand"]
+ton = ["dep:ton_lib", "dep:ed25519-dalek", "dep:rand", "dep:data-encoding"]
 
 # Features contributing to bundle size, that you might not need
 all_clients = [
@@ -94,6 +100,13 @@ sign_client = [
     "dep:hkdf",
     "dep:sha2",
     "dep:tokio-util",
+    "dep:jsonwebtoken",
+]
+
+sign_canary = [
+    "sign_client",
+    "dep:aws-config",
+    "dep:aws-sdk-cloudwatch",
 ]
 clear_signing = []
 evm_signing = ["chain_abstraction_client"]
@@ -107,6 +120,10 @@ test_full = [
 test_pimlico_api = []
 test_blockchain_api = []
 test_depends_on_env_REOWN_PROJECT_ID = []
+test_sign = [
+    "sign_client",
+    "test_depends_on_env_REOWN_PROJECT_ID",
+]
 
 [dependencies]
 uniffi = { workspace = true, optional = true, features = ["cli"] }
@@ -170,7 +187,7 @@ async-trait = { version = "0.1.83", default-features = false }
 tracing = { version = "0.1.40", default-features = false, features = [
     "release_max_level_debug",
 ] }
-tracing-subscriber = { version = "0.3.19", default-features = false, optional = true, features = [
+tracing-subscriber = { version = "0.3.20", default-features = false, optional = true, features = [
     "fmt",
     "std",
 ] }
@@ -223,8 +240,12 @@ stacks_secp256k1 = { workspace = true, optional = true, features = [
 ] }
 time = { version = "0.3.36", default-features = false, features = ["formatting", "macros", "std"] }
 num-bigint = "0.4.6"
-
 rand = { workspace = true, optional = true }
+
+#TON
+ton_lib = { version = "0.0.39", optional = true }
+anyhow = "1"
+ed25519-dalek = { version = "2", features = ["rand_core"], optional = true }
 
 # Sign Client
 futures-concurrency = { version = "7.6.3", optional = true }
@@ -240,6 +261,10 @@ x25519-dalek = { version = "3.0.0-pre.0", features = [
 ], optional = true }
 hkdf = { version = "0.13.0-rc.0", optional = true }
 sha2 = { version = "0.11.0-rc.0", optional = true }
+jsonwebtoken = { version = "9.3.1", optional = true }
+
+aws-config = { version = "1.1.7", features = ["behavior-version-latest"], optional = true }
+aws-sdk-cloudwatch = { version = "1.91.0", optional = true }
 
 [dev-dependencies]
 # mocking
@@ -254,6 +279,13 @@ alloy = { workspace = true, features = ["node-bindings", "reqwest"] }
 serial_test.workspace = true
 chacha20poly1305 = { workspace = true, features = ["alloc", "os_rng"] }
 data-encoding = { workspace = true }
+ton_lib = "0.0.39"
+hex = "0.4.3"
+
+# JWT and crypto testing dependencies
+p256 = "0.13"
+base64 = "0.22"
+rand = "0.8"
 
 [package.metadata.wasm-pack.profile.release]
 wasm-opt = ['-Oz']

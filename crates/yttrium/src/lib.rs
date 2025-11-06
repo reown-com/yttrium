@@ -30,6 +30,7 @@ pub mod jsonrpc;
     feature = "transaction_sponsorship_client"
 ))]
 pub mod provider_pool;
+pub mod pulse;
 pub mod serde;
 #[cfg(feature = "sign_client")]
 pub mod sign;
@@ -39,6 +40,8 @@ pub mod spawn;
 pub mod stacks_provider;
 pub mod test_helpers;
 pub mod time;
+#[cfg(feature = "ton")]
+pub mod ton_provider;
 #[cfg(feature = "transaction_sponsorship_client")]
 pub mod transaction_sponsorship;
 pub mod user_operation;

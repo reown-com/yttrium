@@ -7,14 +7,16 @@ use {
         },
         client_types::{
             ConnectParams, ConnectResult, PairingInfo, RejectionReason,
-            Session, SessionProposal,
+            Session, SessionProposal, TransportType,
         },
-        envelope_type0, pairing_uri,
+        envelope_type0::decrypt_type0_envelope_with_hashes,
+        pairing_uri,
         protocol_types::{
             Controller, JsonRpcRequest, JsonRpcRequestParams, Metadata,
-            Proposal, ProposalResponse, ProposalResultResponseJsonRpc,
-            Proposer, Relay, SessionDelete, SessionDeleteJsonRpc,
-            SessionExtend, SessionRequest, SessionRequestJsonRpc,
+            Proposal, ProposalJsonRpc, ProposalResponse,
+            ProposalResultResponseJsonRpc, Proposer, Relay, SessionDelete,
+            SessionDeleteJsonRpc, SessionExtend, SessionExtendJsonRpc,
+            SessionRequest, SessionRequestJsonRpc,
             SessionRequestJsonRpcResponse, SessionSettle, SessionUpdate,
             SettleNamespace,
         },
@@ -22,8 +24,11 @@ use {
         storage::Storage,
         utils::{
             diffie_hellman, generate_rpc_id, is_expired,
-            serialize_and_encrypt_message_type0_envelope, topic_from_sym_key,
+            serialize_and_encrypt_message_type0_envelope,
+            serialize_and_encrypt_message_type0_envelope_with_ids,
+            topic_from_sym_key, DecryptedHash, EncryptedHash,
         },
+        verify::{handle_verify, VerifyContext, VERIFY_SERVER_URL},
     },
     relay_rpc::{
         auth::ed25519_dalek::{SecretKey, SigningKey},
@@ -39,26 +44,42 @@ use {
     x25519_dalek::PublicKey,
 };
 
-const RELAY_URL: &str = "wss://relay.walletconnect.org";
+pub fn get_relay_url() -> String {
+    std::env::var("WC_SIGN_RELAY_URL")
+        .unwrap_or_else(|_| "wss://relay.walletconnect.org".to_owned())
+}
+
+// Type alias for the callback that creates params with attestation
+pub(crate) type AttestationCallback = Box<dyn Fn(String) -> Params + Send>;
+
+// Abstraction for requests that may need Verify API attestation (internal)
+pub(crate) enum MaybeVerifiedRequest {
+    Unverified(Params),
+    Verified(EncryptedHash, DecryptedHash, AttestationCallback),
+}
 
 // Type aliases to reduce clippy::type-complexity warnings for channel message types
-type RpcRequestMessage =
-    (Params, tokio::sync::oneshot::Sender<Result<Response, RequestError>>);
+type RpcRequestMessage = (
+    MaybeVerifiedRequest,
+    tokio::sync::oneshot::Sender<Result<Response, RequestError>>,
+);
 type RpcRequestSender = tokio::sync::mpsc::UnboundedSender<RpcRequestMessage>;
 type RpcRequestReceiver =
     tokio::sync::mpsc::UnboundedReceiver<RpcRequestMessage>;
 
 pub struct Client {
+    http_client: reqwest::Client,
     tx: tokio::sync::mpsc::UnboundedSender<(Topic, IncomingSessionMessage)>,
     request_tx: RpcRequestSender,
     online_tx: Option<tokio::sync::mpsc::UnboundedSender<()>>,
     cleanup_tx: Option<tokio_util::sync::CancellationToken>,
-    session_store: Arc<dyn Storage>,
+    storage: Arc<dyn Storage>,
     // Lazy-start fields for spawning the relay loop
     project_id: ProjectId,
     signing_key_bytes: [u8; 32],
     pending_request_rx: Option<RpcRequestReceiver>,
     pending_online_rx: Option<tokio::sync::mpsc::UnboundedReceiver<()>>,
+    probe_group: Option<String>,
 }
 
 // Deduplication: does deduplication happen at the irn_subscription layer (like current SDKs) or do we do it for each action e.g. update, event, etc. (remember layered state and stateless architecture)
@@ -136,20 +157,27 @@ impl Client {
 
         (
             Self {
+                http_client: reqwest::Client::new(),
                 tx,
                 request_tx,
-                session_store,
+                storage: session_store,
                 online_tx: Some(online_tx),
                 cleanup_tx: Some(cleanup_rx),
                 project_id,
                 signing_key_bytes: SigningKey::from_bytes(&key).to_bytes(),
                 pending_request_rx: Some(request_rx),
                 pending_online_rx: Some(online_rx),
+                probe_group: None,
             },
             rx,
         )
     }
 
+    pub fn set_probe_group(&mut self, probe_group: String) {
+        self.probe_group = Some(probe_group);
+    }
+
+    #[tracing::instrument(skip_all, fields(group = self.probe_group.clone()))]
     pub fn start(&mut self) {
         if let (Some(request_rx), Some(online_rx)) =
             (self.pending_request_rx.take(), self.pending_online_rx.take())
@@ -161,19 +189,21 @@ impl Client {
                 .clone();
             let project_id = self.project_id.clone();
             let signing_key = SigningKey::from_bytes(&self.signing_key_bytes);
-            let session_store = self.session_store.clone();
+            let session_store = self.storage.clone();
             let tx = self.tx.clone();
 
             crate::spawn::spawn(
                 crate::sign::relay::connect_loop_state_machine(
-                    RELAY_URL.to_string(),
+                    get_relay_url(),
                     project_id,
                     signing_key,
                     session_store,
+                    self.http_client.clone(),
                     tx,
                     request_rx,
                     online_rx,
                     cleanup_rx,
+                    self.probe_group.clone(),
                 ),
             );
         }
@@ -182,6 +212,7 @@ impl Client {
     /// Call this when the app and user are ready to receive session requests.
     /// Skip calling this if you intend to shortly call another SDK method, as those other methods will themselves call this.
     /// TODO actually call this from other methods
+    #[tracing::instrument(skip_all, fields(group = self.probe_group.clone()))]
     pub fn online(&mut self) {
         if let Some(online_tx) = self.online_tx.take() {
             if let Err(e) = online_tx.send(()) {
@@ -192,10 +223,11 @@ impl Client {
         }
     }
 
+    #[tracing::instrument(skip_all, fields(group = self.probe_group.clone()))]
     pub async fn pair(
         &mut self,
         uri: &str,
-    ) -> Result<SessionProposal, PairError> {
+    ) -> Result<(SessionProposal, VerifyContext), PairError> {
         // TODO implement
         // https://github.com/WalletConnect/walletconnect-monorepo/blob/5bef698dcf0ae910548481959a6a5d87eaf7aaa5/packages/sign-client/src/controllers/engine.ts#L330
 
@@ -219,63 +251,118 @@ impl Client {
 
         tracing::debug!("Pairing Response: {:?}", response);
 
-        for message in response.messages {
-            if message.topic == pairing_uri.topic {
-                let request =
-                    envelope_type0::decode_type0_encrypted_proposal_message(
-                        pairing_uri.sym_key,
-                        &message.message,
-                    )?;
-                if request.method != "wc_sessionPropose" {
-                    return Err(PairError::Internal(format!(
-                        "Expected wc_sessionPropose, got {}",
-                        request.method
-                    )));
-                }
-                tracing::debug!("Decrypted Proposal: {:?}", request);
-                tracing::debug!("rpc request: {}", request.id);
-                tracing::debug!(
-                    "{}",
-                    serde_json::to_string_pretty(&request.params).unwrap()
-                );
-                let proposal = request.params;
-                tracing::debug!("{proposal:?}");
+        let message = response
+            .messages
+            .iter()
+            .find(|message| message.tag == 1100)
+            .ok_or(PairError::Internal(
+                "No message found with tag 1100".to_owned(),
+            ))?;
 
-                let proposer_public_key = hex::decode(proposal.proposer.public_key)
-                    .map_err(|e| {
-                        PairError::Internal(format!(
-                            "Failed to decode proposer public key: {e}"
-                        ))
-                    })?
-                    .try_into()
-                    .map_err(|_| {
-                        PairError::Internal(
-                            "Failed to convert proposer public key to fixed-size array".to_owned()
-                        )
-                    })?;
-                tracing::debug!("pairing topic: {}", pairing_uri.topic);
-
-                // TODO validate namespaces: https://specs.walletconnect.com/2.0/specs/clients/sign/namespaces#12-proposal-namespaces-must-not-have-chains-empty
-
-                return Ok(SessionProposal {
-                    session_proposal_rpc_id: request.id.into_value(),
-                    pairing_topic: pairing_uri.topic,
-                    pairing_sym_key: pairing_uri.sym_key,
-                    proposer_public_key,
-                    relays: proposal.relays,
-                    required_namespaces: proposal.required_namespaces,
-                    optional_namespaces: proposal.optional_namespaces,
-                    metadata: proposal.proposer.metadata,
-                    session_properties: proposal.session_properties,
-                    scoped_properties: proposal.scoped_properties,
-                    expiry_timestamp: proposal.expiry_timestamp,
-                });
-            }
+        if message.topic != pairing_uri.topic {
+            return Err(PairError::Internal(format!(
+                "Expected topic {}, got {}",
+                pairing_uri.topic, message.topic
+            )));
         }
 
-        Err(PairError::Internal("No message found".to_string()))
+        let (decrypted, decrypted_hash, encrypted_hash) =
+            decrypt_type0_envelope_with_hashes(
+                pairing_uri.sym_key,
+                &message.message,
+            )?;
+        tracing::debug!(
+            "Decrypted Proposal: {:?}, Decrypted Hash: {:?}, Encrypted Hash: {:?}",
+            String::from_utf8_lossy(&decrypted),
+            decrypted_hash.as_str(),
+            encrypted_hash.as_str()
+        );
+        let request = serde_json::from_slice::<ProposalJsonRpc>(&decrypted)
+            .map_err(|e| {
+                PairError::Internal(format!(
+                    "Failed to parse decrypted message: {e}"
+                ))
+            })?;
+        if request.method != "wc_sessionPropose" {
+            return Err(PairError::Internal(format!(
+                "Expected wc_sessionPropose, got {}",
+                request.method
+            )));
+        }
+        tracing::debug!("rpc request: {}", request.id);
+        tracing::debug!(
+            "{}",
+            serde_json::to_string_pretty(&request.params).unwrap()
+        );
+
+        let request_json = serde_json::to_string_pretty(&request).unwrap();
+
+        if self.storage.does_json_rpc_exist(request.id).unwrap_or(false) {
+            return Err(PairError::Internal(format!(
+                "Duplicated JsonRpc RequestId for SessionPropose {}",
+                request.id
+            )));
+        } else {
+            self.storage.insert_json_rpc_history(
+                request.id,
+                pairing_uri.topic.to_string(),
+                request.method.clone(),
+                request_json,
+                Some(TransportType::Relay),
+            );
+        }
+
+        let proposal = request.params;
+        tracing::debug!("{proposal:?}");
+
+        let proposer_public_key = hex::decode(proposal.proposer.public_key)
+            .map_err(|e| {
+                PairError::Internal(format!(
+                    "Failed to decode proposer public key: {e}"
+                ))
+            })?
+            .try_into()
+            .map_err(|_| {
+                PairError::Internal(
+                    "Failed to convert proposer public key to fixed-size array"
+                        .to_owned(),
+                )
+            })?;
+        tracing::debug!("pairing topic: {:?}", pairing_uri.topic.clone());
+
+        // TODO: validate namespaces: https://specs.walletconnect.com/2.0/specs/clients/sign/namespaces#12-proposal-namespaces-must-not-have-chains-empty
+
+        let attestation = handle_verify(
+            VERIFY_SERVER_URL.to_string(),
+            decrypted_hash,
+            self.http_client.clone(),
+            self.storage.clone(),
+            message.attestation.clone(),
+            encrypted_hash.clone(),
+            proposal.proposer.metadata.url.clone(),
+            self.probe_group.clone(),
+        )
+        .await;
+
+        Ok((
+            SessionProposal {
+                session_proposal_rpc_id: request.id,
+                pairing_topic: pairing_uri.topic,
+                pairing_sym_key: pairing_uri.sym_key,
+                proposer_public_key,
+                relays: proposal.relays,
+                required_namespaces: proposal.required_namespaces,
+                optional_namespaces: proposal.optional_namespaces,
+                metadata: proposal.proposer.metadata,
+                session_properties: proposal.session_properties,
+                scoped_properties: proposal.scoped_properties,
+                expiry_timestamp: proposal.expiry_timestamp,
+            },
+            attestation,
+        ))
     }
 
+    #[tracing::instrument(skip_all, fields(group = self.probe_group.clone()))]
     pub async fn connect(
         &mut self,
         params: ConnectParams,
@@ -296,52 +383,87 @@ impl Client {
         let session_proposal = Proposal {
             relays: vec![Relay { protocol: "irn".to_string() }],
             required_namespaces: HashMap::new(), // Deprecated, now empty
-            optional_namespaces: Some(params.optional_namespaces),
+            optional_namespaces: params.optional_namespaces,
             proposer: Proposer {
                 public_key: hex::encode(self_public_key.to_bytes()),
                 metadata: self_metadata.clone(),
             },
-            session_properties: params.session_properties.clone(),
-            scoped_properties: params.scoped_properties.clone(),
+            session_properties: params.session_properties.unwrap_or_default(),
+            scoped_properties: params.scoped_properties.unwrap_or_default(),
             expiry_timestamp: Some(expiry_timestamp),
         };
 
         let rpc_id = generate_rpc_id();
+        let session_proposal_json_rpc = JsonRpcRequest {
+            id: rpc_id,
+            jsonrpc: "2.0".to_string(),
+            method: "wc_sessionPropose".to_string(),
+            params: JsonRpcRequestParams::SessionPropose(
+                session_proposal.clone(),
+            ),
+        };
+        let session_proposal_params_json =
+            serde_json::to_string(&session_proposal_json_rpc)
+                .map_err(|e| ConnectError::ShouldNeverHappen(e.to_string()))?;
+        tracing::debug!(
+            "session_proposal_params_json: {:?}",
+            session_proposal_params_json
+        );
 
-        let message = serialize_and_encrypt_message_type0_envelope(
-            sym_key,
-            &JsonRpcRequest {
-                id: rpc_id,
-                jsonrpc: "2.0".to_string(),
-                method: "wc_sessionPropose".to_string(),
-                params: JsonRpcRequestParams::SessionPropose(session_proposal),
-            },
+        let (encrypted_id, decrypted_id, message) =
+            serialize_and_encrypt_message_type0_envelope_with_ids(
+                sym_key,
+                &session_proposal_json_rpc,
+            )
+            .map_err(ConnectError::ShouldNeverHappen)?;
+
+        tracing::debug!(probe = "sending_propose_session_request",);
+
+        self.do_verified_request::<bool>(
+            encrypted_id,
+            decrypted_id,
+            Box::new({
+                let pairing_topic = pairing_info.topic.clone();
+                let session_proposal_message = message.clone();
+                let correlation_id = rpc_id;
+                move |attestation: String| {
+                    Params::ProposeSession(ProposeSession {
+                        pairing_topic: pairing_topic.clone(),
+                        session_proposal: session_proposal_message.clone(),
+                        attestation: Some(attestation.into()),
+                        analytics: Some(AnalyticsData {
+                            correlation_id: Some(
+                                correlation_id.try_into().unwrap(),
+                            ),
+                            chain_id: None,
+                            rpc_methods: None,
+                            tx_hashes: None,
+                            contract_addresses: None,
+                        }),
+                    })
+                }
+            }),
         )
-        .map_err(ConnectError::ShouldNeverHappen)?;
-
-        self.do_request::<bool>(relay_rpc::rpc::Params::ProposeSession(
-            ProposeSession {
-                pairing_topic: pairing_info.topic.clone(),
-                session_proposal: message,
-                attestation: None, // TODO
-                analytics: Some(AnalyticsData {
-                    correlation_id: Some(rpc_id.try_into().unwrap()),
-                    chain_id: None,
-                    rpc_methods: None,
-                    tx_hashes: None,
-                    contract_addresses: None,
-                }),
-            },
-        ))
         .await
         .map_err(ConnectError::Request)?;
 
-        self.session_store.save_pairing(
+        tracing::debug!(probe = "propose_session_request_success",);
+
+        self.storage.insert_json_rpc_history(
+            rpc_id,
+            pairing_info.topic.to_string(),
+            "wc_sessionPropose".to_string(),
+            session_proposal_params_json,
+            Some(TransportType::Relay),
+        );
+
+        self.storage.save_pairing(
             pairing_info.topic.clone(),
             rpc_id,
             sym_key,
             self_key.to_bytes(),
         );
+        tracing::debug!(probe = "pairing_saved",);
 
         // TODO should return a promise/completer like JS/Flutter or should we just await the on_session_connect event?
         Ok(ConnectResult { topic: pairing_info.topic.clone(), uri })
@@ -386,6 +508,7 @@ impl Client {
         Ok(())
     }
 
+    #[tracing::instrument(skip_all, fields(group = self.probe_group.clone()))]
     pub async fn approve(
         &mut self,
         proposal: SessionProposal,
@@ -404,17 +527,21 @@ impl Client {
         let session_topic = topic_from_sym_key(&shared_secret);
         debug!("session topic: {}", session_topic);
 
+        let response_result_json_rpc = ProposalResultResponseJsonRpc {
+            id: proposal.session_proposal_rpc_id,
+            jsonrpc: "2.0".to_string(),
+            result: ProposalResponse {
+                relay: Relay { protocol: "irn".to_string() },
+                responder_public_key: hex::encode(self_public_key.to_bytes()),
+            },
+        };
+
+        let response_result_json =
+            serde_json::to_string_pretty(&response_result_json_rpc)
+                .map_err(|e| ApproveError::ShouldNeverHappen(e.to_string()))?;
+
         let session_proposal_response = {
-            let proposal_response = ProposalResultResponseJsonRpc {
-                id: proposal.session_proposal_rpc_id,
-                jsonrpc: "2.0".to_string(),
-                result: ProposalResponse {
-                    relay: Relay { protocol: "irn".to_string() },
-                    responder_public_key: hex::encode(
-                        self_public_key.to_bytes(),
-                    ),
-                },
-            };
+            let proposal_response = response_result_json_rpc;
             serialize_and_encrypt_message_type0_envelope(
                 proposal.pairing_sym_key,
                 &proposal_response,
@@ -428,30 +555,40 @@ impl Client {
             .as_secs()
             + 60 * 60 * 24 * 7; // Session expiry is 7 days
 
-        let session_settlement_request = {
-            let message = JsonRpcRequest {
-                id: generate_rpc_id(),
-                jsonrpc: "2.0".to_string(),
-                method: "wc_sessionSettle".to_string(),
-                params: JsonRpcRequestParams::SessionSettle(SessionSettle {
-                    relay: Relay { protocol: "irn".to_string() },
-                    namespaces: approved_namespaces.clone(),
-                    controller: Controller {
-                        public_key: hex::encode(self_public_key.to_bytes()),
-                        metadata: self_metadata.clone(),
-                    },
-                    expiry: session_expiry,
-                    session_properties: proposal.session_properties.clone(),
-                    scoped_properties: proposal.scoped_properties.clone(),
-                }),
-            };
-
+        let session_settlement_request_id = generate_rpc_id();
+        let session_settlement_request_params = SessionSettle {
+            relay: Relay { protocol: "irn".to_string() },
+            namespaces: approved_namespaces.clone(),
+            controller: Controller {
+                public_key: hex::encode(self_public_key.to_bytes()),
+                metadata: self_metadata.clone(),
+            },
+            expiry: session_expiry,
+            session_properties: proposal.session_properties.clone(),
+            scoped_properties: proposal.scoped_properties.clone(),
+        };
+        let session_settlement_json_rpc = JsonRpcRequest {
+            id: session_settlement_request_id,
+            jsonrpc: "2.0".to_string(),
+            method: "wc_sessionSettle".to_string(),
+            params: JsonRpcRequestParams::SessionSettle(
+                session_settlement_request_params.clone(),
+            ),
+        };
+        tracing::debug!(
+            "session_settlement_request_params: {:?}",
+            session_settlement_request_params
+        );
+        let session_settlement_request =
             serialize_and_encrypt_message_type0_envelope(
                 shared_secret,
-                &message,
+                &session_settlement_json_rpc,
             )
-            .map_err(ApproveError::ShouldNeverHappen)?
-        };
+            .map_err(ApproveError::ShouldNeverHappen)?;
+
+        let session_settlement_request_params_json =
+            serde_json::to_string_pretty(&session_settlement_json_rpc)
+                .map_err(|e| ApproveError::ShouldNeverHappen(e.to_string()))?;
 
         let approve_session = ApproveSession {
             pairing_topic: proposal.pairing_topic.clone(),
@@ -488,7 +625,7 @@ impl Client {
             transport_type: None, //TODO: add transport type for link mode
         };
 
-        self.session_store.add_session(session.clone());
+        self.storage.add_session(session.clone());
 
         match self
             .do_request::<bool>(relay_rpc::rpc::Params::ApproveSession(
@@ -497,6 +634,21 @@ impl Client {
             .await
         {
             Ok(true) => {
+                //Store SessionSettle Request
+                self.storage.insert_json_rpc_history(
+                    session_settlement_request_id,
+                    session.topic.to_string(),
+                    "wc_sessionSettle".to_string(),
+                    session_settlement_request_params_json,
+                    Some(TransportType::Relay),
+                );
+
+                //Store SessionApprove Response
+                self.storage.update_json_rpc_history_response(
+                    proposal.session_proposal_rpc_id,
+                    response_result_json,
+                );
+
                 self.tx
                     .send((
                         session.topic.clone(),
@@ -509,19 +661,20 @@ impl Client {
                 Ok(session)
             }
             Ok(false) => {
-                self.session_store.delete_session(session.topic);
+                self.storage.delete_session(session.topic);
                 Err(ApproveError::Internal(
                     "Session rejected by relay".to_owned(),
                 ))
             }
             Err(e) => {
-                self.session_store.delete_session(session.topic);
+                self.storage.delete_session(session.topic);
                 Err(ApproveError::Request(e))
             }
         }
     }
 
     // TODO will use storage in the future, for now it's ok to receive the whole proposal as parameter much like on approve() method.
+    #[tracing::instrument(skip_all, fields(group = self.probe_group.clone()))]
     pub async fn reject(
         &mut self,
         proposal: SessionProposal,
@@ -550,6 +703,10 @@ impl Client {
             error: mapped_error,
         };
 
+        let response_result_json =
+            serde_json::to_string_pretty(&error_response)
+                .map_err(|e| RejectError::ShouldNeverHappen(e.to_string()))?;
+
         let message = serialize_and_encrypt_message_type0_envelope(
             proposal.pairing_sym_key,
             &error_response,
@@ -561,7 +718,7 @@ impl Client {
             .do_request::<bool>(relay_rpc::rpc::Params::Publish(Publish {
                 topic: proposal.pairing_topic.clone(),
                 message,
-                attestation: None, // TODO
+                attestation: None,
                 ttl_secs: 300,
                 tag: 1120,
                 prompt: false,
@@ -577,7 +734,13 @@ impl Client {
             }))
             .await
         {
-            Ok(true) => Ok(()),
+            Ok(true) => {
+                self.storage.update_json_rpc_history_response(
+                    proposal.session_proposal_rpc_id,
+                    response_result_json,
+                );
+                Ok(())
+            }
             Ok(false) => {
                 // we don't need delete from storage from rust side (like on approve method does for session) as is not implemented for proposal
                 // proposal will be deleted from each SDK storage.
@@ -589,19 +752,14 @@ impl Client {
         }
     }
 
-    pub async fn _extend(&self) {
-        // TODO implement
-        // https://github.com/WalletConnect/walletconnect-monorepo/blob/5bef698dcf0ae910548481959a6a5d87eaf7aaa5/packages/sign-client/src/controllers/engine.ts#L569
-        unimplemented!()
-    }
-
+    #[tracing::instrument(skip_all, fields(group = self.probe_group.clone()))]
     pub async fn request(
         &mut self,
         topic: Topic,
         session_request: SessionRequest,
     ) -> Result<(u64), RequestError> {
         let shared_secret = self
-            .session_store
+            .storage
             .get_session(topic.clone())
             .map_err(|e| RequestError::Internal(e.to_string()))?
             .map(|s| s.session_sym_key)
@@ -609,37 +767,64 @@ impl Client {
 
         let rpc = SessionRequestJsonRpc {
             id: generate_rpc_id(),
+            jsonrpc: "2.0".to_string(),
             method: "wc_sessionRequest".to_string(),
             params: session_request,
         };
-        let message =
-            serialize_and_encrypt_message_type0_envelope(shared_secret, &rpc)
-                .map_err(|e| RequestError::Internal(e.to_string()))?;
-        self.do_request::<bool>(relay_rpc::rpc::Params::Publish(Publish {
-            topic,
-            message,
-            attestation: None, // TODO
-            ttl_secs: 300,
-            tag: 1108,
-            prompt: false,
-            analytics: None, // TODO
-        }))
+        let (encrypted_id, decrypted_id, message) =
+            serialize_and_encrypt_message_type0_envelope_with_ids(
+                shared_secret,
+                &rpc,
+            )
+            .map_err(|e| RequestError::Internal(e.to_string()))?;
+
+        self.do_verified_request::<bool>(
+            encrypted_id,
+            decrypted_id,
+            Box::new({
+                let publish_topic = topic.clone();
+                let publish_message = message.clone();
+                move |attestation: String| {
+                    Params::Publish(Publish {
+                        topic: publish_topic.clone(),
+                        message: publish_message.clone(),
+                        attestation: Some(attestation.into()),
+                        ttl_secs: 300,
+                        tag: 1108,
+                        prompt: false,
+                        analytics: None,
+                    })
+                }
+            }),
+        )
         .await
         .map_err(|e| RequestError::Internal(e.to_string()))?;
 
         // TODO WS handling:
         // - when a session request is pending, and we get the event that the page regained focus, should we immediately ping the WS connection to test its liveness (?)
 
+        let session_request_params_json = serde_json::to_string_pretty(&rpc)
+            .map_err(|e| RequestError::Internal(e.to_string()))?;
+
+        self.storage.insert_json_rpc_history(
+            rpc.id,
+            topic.to_string(),
+            rpc.method,
+            session_request_params_json,
+            Some(TransportType::Relay),
+        );
+
         Ok(rpc.id)
     }
 
+    #[tracing::instrument(skip_all, fields(group = self.probe_group.clone()))]
     pub async fn respond(
         &mut self,
         topic: Topic,
         response: SessionRequestJsonRpcResponse,
     ) -> Result<(), RespondError> {
         let shared_secret = self
-            .session_store
+            .storage
             .get_session(topic.clone())
             .map_err(RespondError::Storage)?
             .map(|s| s.session_sym_key)
@@ -654,7 +839,7 @@ impl Client {
         self.do_request::<bool>(relay_rpc::rpc::Params::Publish(Publish {
             topic,
             message,
-            attestation: None, // TODO
+            attestation: None,
             ttl_secs: 300,
             tag: 1109,
             prompt: false,
@@ -667,18 +852,37 @@ impl Client {
                     .try_into()
                     .unwrap(),
                 ),
-                chain_id: None,           // TODO
-                rpc_methods: None,        // TODO
-                tx_hashes: None,          // TODO
-                contract_addresses: None, // TODO
+                chain_id: None,
+                rpc_methods: None,
+                tx_hashes: None,
+                contract_addresses: None,
             }),
         }))
         .await
         .map_err(RespondError::Request)?;
 
+        let response_result_json = serde_json::to_string_pretty(&response)
+            .map_err(|e| RespondError::ShouldNeverHappen(e.to_string()))?;
+
+        match &response {
+            SessionRequestJsonRpcResponse::Result(r) => {
+                self.storage.update_json_rpc_history_response(
+                    r.id,
+                    response_result_json,
+                );
+            }
+            SessionRequestJsonRpcResponse::Error(e) => {
+                self.storage.update_json_rpc_history_response(
+                    e.id,
+                    response_result_json,
+                );
+            }
+        }
+
         Ok(())
     }
 
+    #[tracing::instrument(skip_all, fields(group = self.probe_group.clone()))]
     pub async fn update(
         &mut self,
         topic: Topic,
@@ -687,7 +891,7 @@ impl Client {
         //TODO: add validate namespaces
 
         let session_opt = self
-            .session_store
+            .storage
             .get_session(topic.clone())
             .map_err(UpdateError::Storage)?;
         let shared_secret = session_opt
@@ -705,18 +909,24 @@ impl Client {
         // Update local storage immediately
         if let Some(mut session) = session_opt {
             session.session_namespaces = namespaces.clone();
-            self.session_store.add_session(session);
+            self.storage.add_session(session);
         }
 
         let id = generate_rpc_id();
-        let message = serialize_and_encrypt_message_type0_envelope(
-            shared_secret,
-            &crate::sign::protocol_types::SessionUpdateJsonRpc {
+        let session_update_json_rpc =
+            crate::sign::protocol_types::SessionUpdateJsonRpc {
                 id,
                 jsonrpc: "2.0".to_string(),
                 method: "wc_sessionUpdate".to_string(),
                 params: SessionUpdate { namespaces: namespaces.clone() },
-            },
+            };
+        let namespaces_params_json =
+            serde_json::to_string_pretty(&session_update_json_rpc)
+                .map_err(|e| UpdateError::ShouldNeverHappen(e.to_string()))?;
+
+        let message = serialize_and_encrypt_message_type0_envelope(
+            shared_secret,
+            &session_update_json_rpc,
         )
         .map_err(UpdateError::ShouldNeverHappen)?;
 
@@ -738,13 +948,22 @@ impl Client {
         .await
         .map_err(UpdateError::Request)?;
 
+        self.storage.insert_json_rpc_history(
+            id,
+            topic.to_string(),
+            "wc_sessionUpdate".to_string(),
+            namespaces_params_json,
+            Some(TransportType::Relay),
+        );
+
         Ok(())
     }
 
     /// Extend session by 7 days from now
+    #[tracing::instrument(skip_all, fields(group = self.probe_group.clone()))]
     pub async fn extend(&mut self, topic: Topic) -> Result<(), ExtendError> {
         let mut session = self
-            .session_store
+            .storage
             .get_session(topic.clone())
             .map_err(ExtendError::Storage)?
             .ok_or(ExtendError::SessionNotFound)?;
@@ -764,18 +983,21 @@ impl Client {
         // Update local storage first
         session.expiry = new_expiry;
         let shared_secret = session.session_sym_key;
-        self.session_store.add_session(session);
-
-        // Build and publish wc_sessionExtend with tag 1106, ttl 86400
+        self.storage.add_session(session);
         let id = generate_rpc_id();
+        let session_extend_json_rpc = SessionExtendJsonRpc {
+            id,
+            jsonrpc: "2.0".to_string(),
+            method: "wc_sessionExtend".to_string(),
+            params: SessionExtend { expiry: new_expiry },
+        };
+        let expiry_rpc_json =
+            serde_json::to_string_pretty(&session_extend_json_rpc)
+                .map_err(|e| ExtendError::ShouldNeverHappen(e.to_string()))?;
+
         let message = serialize_and_encrypt_message_type0_envelope(
             shared_secret,
-            &crate::sign::protocol_types::SessionExtendJsonRpc {
-                id,
-                jsonrpc: "2.0".to_string(),
-                method: "wc_sessionExtend".to_string(),
-                params: SessionExtend { expiry: new_expiry },
-            },
+            &session_extend_json_rpc,
         )
         .map_err(ExtendError::ShouldNeverHappen)?;
 
@@ -797,14 +1019,25 @@ impl Client {
         .await
         .map_err(ExtendError::Request)?;
 
+        self.storage.insert_json_rpc_history(
+            id,
+            topic.to_string(),
+            "wc_sessionExtend".to_string(),
+            expiry_rpc_json,
+            Some(TransportType::Relay),
+        );
+
         Ok(())
     }
+
+    #[tracing::instrument(skip_all, fields(group = self.probe_group.clone()))]
     pub async fn _ping(&self) {
         // TODO implement
         // https://github.com/WalletConnect/walletconnect-monorepo/blob/5bef698dcf0ae910548481959a6a5d87eaf7aaa5/packages/sign-client/src/controllers/engine.ts#L727
         unimplemented!()
     }
 
+    #[tracing::instrument(skip_all, fields(group = self.probe_group.clone()))]
     pub async fn emit(
         &mut self,
         topic: Topic,
@@ -813,16 +1046,15 @@ impl Client {
         chain_id: String,
     ) -> Result<(), EmitError> {
         let shared_secret = self
-            .session_store
+            .storage
             .get_session(topic.clone())
             .map_err(EmitError::Storage)?
             .map(|s| s.session_sym_key)
             .ok_or(EmitError::SessionNotFound)?;
 
         let id = generate_rpc_id();
-        let message = serialize_and_encrypt_message_type0_envelope(
-            shared_secret,
-            &crate::sign::protocol_types::SessionEventJsonRpc {
+        let session_event_json_rpc =
+            crate::sign::protocol_types::SessionEventJsonRpc {
                 id,
                 jsonrpc: "2.0".to_string(),
                 method: "wc_sessionEvent".to_string(),
@@ -833,12 +1065,17 @@ impl Client {
                     },
                     chain_id,
                 },
-            },
+            };
+        let event_json = serde_json::to_string_pretty(&session_event_json_rpc)
+            .map_err(|e| EmitError::ShouldNeverHappen(e.to_string()))?;
+        let message = serialize_and_encrypt_message_type0_envelope(
+            shared_secret,
+            &session_event_json_rpc,
         )
         .map_err(EmitError::ShouldNeverHappen)?;
 
         self.do_request::<bool>(relay_rpc::rpc::Params::Publish(Publish {
-            topic,
+            topic: topic.clone(),
             message,
             attestation: None,
             ttl_secs: 86400,
@@ -855,52 +1092,71 @@ impl Client {
         .await
         .map_err(EmitError::Request)?;
 
+        self.storage.insert_json_rpc_history(
+            id,
+            topic.to_string(),
+            "wc_sessionEvent".to_string(),
+            event_json,
+            Some(TransportType::Relay),
+        );
+
         Ok(())
     }
 
+    #[tracing::instrument(skip_all, fields(group = self.probe_group.clone()))]
     pub async fn disconnect(
         &mut self,
         topic: Topic,
     ) -> Result<(), DisconnectError> {
         let shared_secret = self
-            .session_store
+            .storage
             .get_session(topic.clone())
             .map_err(DisconnectError::Storage)?
             .map(|s| s.session_sym_key);
 
         if let Some(shared_secret) = shared_secret {
             let id = generate_rpc_id();
-            let message = {
-                let message = SessionDeleteJsonRpc {
-                    id,
-                    jsonrpc: "2.0".to_string(),
-                    method: "wc_sessionDelete".to_string(),
-                    params: SessionDelete {
-                        code: 6000,
-                        message: "User disconnected.".to_string(),
-                    },
-                };
-
-                serialize_and_encrypt_message_type0_envelope(
-                    shared_secret,
-                    &message,
-                )
-                .map_err(DisconnectError::ShouldNeverHappen)?
+            let session_delete_json_rpc = SessionDeleteJsonRpc {
+                id,
+                jsonrpc: "2.0".to_string(),
+                method: "wc_sessionDelete".to_string(),
+                params: SessionDelete {
+                    code: 6000,
+                    message: "User disconnected.".to_string(),
+                },
             };
+            let delete_json =
+                serde_json::to_string_pretty(&session_delete_json_rpc)
+                    .map_err(|e| {
+                        DisconnectError::ShouldNeverHappen(e.to_string())
+                    })?;
+            let message = serialize_and_encrypt_message_type0_envelope(
+                shared_secret,
+                &session_delete_json_rpc,
+            )
+            .map_err(DisconnectError::ShouldNeverHappen)?;
 
             self.do_request::<bool>(relay_rpc::rpc::Params::Publish(Publish {
                 topic: topic.clone(),
                 message,
-                attestation: None, // TODO
+                attestation: None,
                 ttl_secs: 86400,
                 tag: 1112,
                 prompt: false,
-                analytics: None, // TODO
+                analytics: None,
             }))
             .await
             .map_err(DisconnectError::Request)?;
 
-            self.session_store.delete_session(topic.clone());
+            self.storage.insert_json_rpc_history(
+                id,
+                topic.to_string(),
+                "wc_sessionDelete".to_string(),
+                delete_json,
+                Some(TransportType::Relay),
+            );
+
+            self.storage.delete_session(topic.clone());
 
             self.tx
                 .send((
@@ -918,18 +1174,21 @@ impl Client {
         Ok(())
     }
 
+    #[tracing::instrument(skip_all, fields(group = self.probe_group.clone()))]
     pub async fn _authenticate(&self) {
         // TODO implement
         // https://github.com/WalletConnect/walletconnect-monorepo/blob/5bef698dcf0ae910548481959a6a5d87eaf7aaa5/packages/sign-client/src/controllers/engine.ts#L817
         unimplemented!()
     }
 
+    #[tracing::instrument(skip_all, fields(group = self.probe_group.clone()))]
     pub async fn _approve_session_authenticate(&self) {
         // TODO implement
         // https://github.com/WalletConnect/walletconnect-monorepo/blob/5bef698dcf0ae910548481959a6a5d87eaf7aaa5/packages/sign-client/src/controllers/engine.ts#L1123
         unimplemented!()
     }
 
+    #[tracing::instrument(skip_all, fields(group = self.probe_group.clone()))]
     pub async fn _reject_session_authenticate(&self) {
         // TODO implement
         // https://github.com/WalletConnect/walletconnect-monorepo/blob/5bef698dcf0ae910548481959a6a5d87eaf7aaa5/packages/sign-client/src/controllers/engine.ts#L1298
@@ -938,12 +1197,31 @@ impl Client {
 
     async fn do_request<T: DeserializeOwned>(
         &mut self,
-        params: relay_rpc::rpc::Params,
+        params: Params,
     ) -> Result<T, RequestError> {
-        tracing::debug!("Connect: Call");
+        self.do_request_internal(MaybeVerifiedRequest::Unverified(params)).await
+    }
 
+    async fn do_verified_request<T: DeserializeOwned>(
+        &mut self,
+        encrypted_id: EncryptedHash,
+        decrypted_id: DecryptedHash,
+        callback: AttestationCallback,
+    ) -> Result<T, RequestError> {
+        self.do_request_internal(MaybeVerifiedRequest::Verified(
+            encrypted_id,
+            decrypted_id,
+            callback,
+        ))
+        .await
+    }
+
+    async fn do_request_internal<T: DeserializeOwned>(
+        &mut self,
+        request: MaybeVerifiedRequest,
+    ) -> Result<T, RequestError> {
         let (response_tx, response_rx) = tokio::sync::oneshot::channel();
-        self.request_tx.send((params, response_tx)).map_err(|e| {
+        self.request_tx.send((request, response_tx)).map_err(|e| {
             RequestError::Internal(format!(
                 "Failed to send request, request_tx closed: {e}"
             ))

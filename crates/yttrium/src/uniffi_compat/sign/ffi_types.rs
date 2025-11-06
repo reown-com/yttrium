@@ -20,15 +20,13 @@ pub struct SessionProposalFfi {
         String,
         crate::sign::protocol_types::ProposalNamespace,
     >,
-    pub optional_namespaces: Option<
-        std::collections::HashMap<
-            String,
-            crate::sign::protocol_types::ProposalNamespace,
-        >,
+    pub optional_namespaces: std::collections::HashMap<
+        String,
+        crate::sign::protocol_types::ProposalNamespace,
     >,
     pub metadata: crate::sign::protocol_types::Metadata,
-    pub session_properties: Option<std::collections::HashMap<String, String>>,
-    pub scoped_properties: Option<std::collections::HashMap<String, String>>,
+    pub session_properties: std::collections::HashMap<String, String>,
+    pub scoped_properties: std::collections::HashMap<String, String>,
     pub expiry_timestamp: Option<u64>,
 }
 
@@ -90,9 +88,9 @@ pub struct SessionFfi {
     pub peer_meta_data: Option<Metadata>,
     pub session_namespaces: HashMap<String, SettleNamespace>,
     pub required_namespaces: ProposalNamespaces,
-    pub optional_namespaces: Option<ProposalNamespaces>,
-    pub properties: Option<HashMap<String, String>>,
-    pub scoped_properties: Option<HashMap<String, String>>,
+    pub optional_namespaces: ProposalNamespaces,
+    pub properties: HashMap<String, String>,
+    pub scoped_properties: HashMap<String, String>,
     pub is_acknowledged: bool,
     pub pairing_topic: String,
     pub transport_type: Option<TransportType>,

@@ -13,14 +13,18 @@ use {
     },
     yttrium::sign::{
         client::{generate_client_id_key, Client},
-        client_types::{ConnectParams, Session, SessionProposal},
+        client_types::{
+            ConnectParams, RejectionReason, Session, SessionProposal,
+            TransportType,
+        },
         protocol_types::{
             Metadata, ProposalNamespace, SessionRequest, SessionRequestJsonRpc,
-            SessionRequestJsonRpcResponse, SessionRequestJsonRpcResultResponse,
-            SessionRequestRequest, SettleNamespace,
+            SessionRequestJsonRpcErrorResponse, SessionRequestJsonRpcResponse,
+            SessionRequestJsonRpcResultResponse, SessionRequestRequest,
+            SettleNamespace,
         },
-        storage::{Storage, StorageError, StoragePairing},
-        IncomingSessionMessage, SecretKey, Topic,
+        storage::{Jwk, Storage, StorageError, StoragePairing},
+        ErrorData, IncomingSessionMessage, SecretKey, Topic, VerifyContext,
     },
 };
 
@@ -31,6 +35,7 @@ use {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 struct MyState {
     key: SecretKey,
+    verify_public_key: Option<Jwk>,
     sessions: Vec<Session>,
     pairing_keys: HashMap<Topic, (u64, StoragePairing)>,
     partial_sessions: HashMap<Topic, [u8; 32]>,
@@ -62,13 +67,14 @@ fn read_local_storage(key: &str) -> Result<MyState, String> {
         .get_item(key)
         .map_err(|e| format!("Failed to get item: {:?}", e.as_string()))?;
     if let Some(state) = state {
-        tracing::info!("state: {:?}", state);
+        // tracing::trace!("state: {:?}", state);
         match serde_json::from_str(&state) {
             Ok(state) => Ok(state),
             Err(e) => {
                 tracing::error!("Failed to deserialize state: {:?}", e);
                 Ok(MyState {
                     key: generate_client_id_key(),
+                    verify_public_key: None,
                     sessions: Vec::new(),
                     pairing_keys: HashMap::new(),
                     partial_sessions: HashMap::new(),
@@ -78,6 +84,7 @@ fn read_local_storage(key: &str) -> Result<MyState, String> {
     } else {
         Ok(MyState {
             key: generate_client_id_key(),
+            verify_public_key: None,
             sessions: Vec::new(),
             pairing_keys: HashMap::new(),
             partial_sessions: HashMap::new(),
@@ -161,7 +168,6 @@ impl Storage for MySessionStore {
     ) -> Result<Option<[u8; 32]>, StorageError> {
         let state =
             read_local_storage(&self.key).map_err(StorageError::Runtime)?;
-        tracing::info!("get_decryption_key_for_topic: state: {:?}", state);
         let result = state
             .sessions
             .into_iter()
@@ -173,7 +179,6 @@ impl Storage for MySessionStore {
                 )
             })
             .or_else(|| state.partial_sessions.get(&topic).copied());
-        tracing::info!("get_decryption_key_for_topic: result: {:?}", result);
         Ok(result)
     }
 
@@ -217,6 +222,60 @@ impl Storage for MySessionStore {
         write_local_storage(&self.key, state).map_err(StorageError::Runtime)?;
         Ok(())
     }
+
+    fn get_verify_public_key(&self) -> Result<Option<Jwk>, StorageError> {
+        Ok(read_local_storage(&self.key)
+            .map_err(StorageError::Runtime)?
+            .verify_public_key)
+    }
+
+    fn set_verify_public_key(
+        &self,
+        public_key: Jwk,
+    ) -> Result<(), StorageError> {
+        let mut state =
+            read_local_storage(&self.key).map_err(StorageError::Runtime)?;
+        state.verify_public_key = Some(public_key);
+        write_local_storage(&self.key, state).map_err(StorageError::Runtime)?;
+        Ok(())
+    }
+
+    fn insert_json_rpc_history(
+        &self,
+        _request_id: u64,
+        _topic: String,
+        _method: String,
+        _body: String,
+        _transport_type: Option<TransportType>,
+    ) -> Result<(), StorageError> {
+        // Sample wallet doesn't need to store JSON-RPC history
+        Ok(())
+    }
+
+    fn update_json_rpc_history_response(
+        &self,
+        _request_id: u64,
+        _response: String,
+    ) -> Result<(), StorageError> {
+        // Sample wallet doesn't need to store JSON-RPC history
+        Ok(())
+    }
+
+    fn delete_json_rpc_history_by_topic(
+        &self,
+        _topic: String,
+    ) -> Result<(), StorageError> {
+        // Sample wallet doesn't need to store JSON-RPC history
+        Ok(())
+    }
+
+    fn does_json_rpc_exist(
+        &self,
+        _request_id: u64,
+    ) -> Result<bool, StorageError> {
+        // Sample wallet doesn't need to store JSON-RPC history
+        Ok(false)
+    }
 }
 
 // TODO reject session request
@@ -237,12 +296,14 @@ pub fn App() -> impl IntoView {
     let clients =
         StoredValue::new(None::<std::sync::Arc<tokio::sync::Mutex<Clients>>>);
 
-    let pairing_request =
-        RwSignal::new(None::<RwSignal<Option<SessionProposal>>>);
+    let pairing_request = RwSignal::new(
+        None::<RwSignal<Option<(SessionProposal, VerifyContext)>>>,
+    );
     let pairing_request_open = RwSignal::new(false);
     let pair_action = Action::new({
         move |pairing_uri: &String| {
-            let signal = RwSignal::new(None::<SessionProposal>);
+            let signal =
+                RwSignal::new(None::<(SessionProposal, VerifyContext)>);
             pairing_request_open.set(true);
             pairing_request.set(Some(signal));
             let client = clients.read_value().as_ref().unwrap().clone();
@@ -260,11 +321,11 @@ pub fn App() -> impl IntoView {
                         );
                         pairing_request_open.set(false);
                         leptos::task::spawn_local(async move {
-                            yttrium::time::sleep(
-                                std::time::Duration::from_secs(1),
-                            )
-                            .await;
-                            pairing_request.set(None);
+                            // yttrium::time::sleep(
+                            //     std::time::Duration::from_secs(1),
+                            // )
+                            // .await;
+                            // pairing_request.set(None);
                         });
                     }
                 }
@@ -273,7 +334,7 @@ pub fn App() -> impl IntoView {
     });
 
     let approve_pairing_action = Action::new({
-        move |pairing: &SessionProposal| {
+        move |pairing: &(SessionProposal, VerifyContext)| {
             let pairing = pairing.clone();
             let client = clients.read_value().as_ref().unwrap().clone();
             async move {
@@ -281,7 +342,7 @@ pub fn App() -> impl IntoView {
 
                 let mut namespaces = HashMap::new();
                 for (namespace, namespace_proposal) in
-                    pairing.optional_namespaces.clone().unwrap()
+                    pairing.0.optional_namespaces.clone()
                 {
                     let accounts = namespace_proposal
                         .chains
@@ -315,23 +376,23 @@ pub fn App() -> impl IntoView {
 
                 match client_guard
                     .wallet_client
-                    .approve(pairing, namespaces, metadata)
+                    .approve(pairing.0, namespaces, metadata)
                     .await
                 {
                     Ok(_approved_session) => {
-                        leptos::task::spawn_local(async move {
-                            show_success_toast(
-                                toaster,
-                                "Pairing approved".to_owned(),
-                            );
-                            pairing_request_open.set(false);
+                        show_success_toast(
+                            toaster,
+                            "Pairing approved".to_owned(),
+                        );
+                        pairing_request_open.set(false);
 
-                            yttrium::time::sleep(
-                                std::time::Duration::from_secs(1),
-                            )
-                            .await;
-                            pairing_request.set(None);
-                        });
+                        // leptos::task::spawn_local(async move {
+                        // yttrium::time::sleep(
+                        //     std::time::Duration::from_secs(1),
+                        // )
+                        // .await;
+                        // pairing_request.set(None);
+                        // });
                     }
                     Err(e) => {
                         show_error_toast(
@@ -345,7 +406,7 @@ pub fn App() -> impl IntoView {
     });
 
     let reject_pairing_action = Action::new({
-        move |pairing: &SessionProposal| {
+        move |pairing: &(SessionProposal, VerifyContext)| {
             let pairing = pairing.clone();
             let client = clients.read_value().as_ref().unwrap().clone();
             async move {
@@ -353,7 +414,7 @@ pub fn App() -> impl IntoView {
                 match client
                     .wallet_client
                     .reject(
-                        pairing,
+                        pairing.0,
                         yttrium::sign::client_types::RejectionReason::UserRejected,
                     )
                     .await
@@ -365,9 +426,9 @@ pub fn App() -> impl IntoView {
                         );
                         pairing_request_open.set(false);
 
-                        yttrium::time::sleep(std::time::Duration::from_secs(1))
-                            .await;
-                        pairing_request.set(None);
+                        // yttrium::time::sleep(std::time::Duration::from_secs(1))
+                        //     .await;
+                        // pairing_request.set(None);
                     }
                     Err(e) => {
                         show_error_toast(
@@ -381,10 +442,10 @@ pub fn App() -> impl IntoView {
     });
 
     let signature_request =
-        RwSignal::new(None::<(Topic, SessionRequestJsonRpc)>);
+        RwSignal::new(None::<(Topic, SessionRequestJsonRpc, VerifyContext)>);
     let signature_request_open = RwSignal::new(false);
-    let session_request_action = Action::new({
-        move |request: &(Topic, SessionRequestJsonRpc)| {
+    let session_request_approve_action = Action::new({
+        move |request: &(Topic, SessionRequestJsonRpc, VerifyContext)| {
             let request = request.clone();
             let client = clients.read_value().as_ref().unwrap().clone();
             async move {
@@ -405,13 +466,13 @@ pub fn App() -> impl IntoView {
                 {
                     Ok(_) => {
                         signature_request_open.set(false);
-                        leptos::task::spawn_local(async move {
-                            yttrium::time::sleep(
-                                std::time::Duration::from_secs(1),
-                            )
-                            .await;
-                            signature_request.set(None);
-                        });
+                        // leptos::task::spawn_local(async move {
+                        //     yttrium::time::sleep(
+                        //         std::time::Duration::from_secs(1),
+                        //     )
+                        //     .await;
+                        //     signature_request.set(None);
+                        // });
                         show_success_toast(
                             toaster,
                             "Signature approved".to_owned(),
@@ -428,26 +489,75 @@ pub fn App() -> impl IntoView {
         }
     });
     let session_request_reject_action = Action::new({
-        move |_request: &(Topic, SessionRequestJsonRpc)| async move {
-            show_error_toast(
-                toaster,
-                "Signature rejection not yet supported".to_owned(),
-            );
-        }
-    });
-
-    let connect_uri = RwSignal::new(None::<Option<String>>);
-    let connect_action = Action::new({
-        move |_request: &()| {
-            connect_uri.set(Some(None));
+        move |request: &(Topic, SessionRequestJsonRpc, VerifyContext)| {
+            let request = request.clone();
             let client = clients.read_value().as_ref().unwrap().clone();
             async move {
                 let mut client = client.lock().await;
                 match client
+                    .wallet_client
+                    .respond(
+                        request.0,
+                        SessionRequestJsonRpcResponse::Error(
+                            SessionRequestJsonRpcErrorResponse {
+                                id: request.1.id,
+                                jsonrpc: "2.0".to_string(),
+                                error: serde_json::to_value(ErrorData::from(
+                                    RejectionReason::UserRejected,
+                                ))
+                                .unwrap(),
+                            },
+                        ),
+                    )
+                    .await
+                {
+                    Ok(_) => {
+                        signature_request_open.set(false);
+                        // leptos::task::spawn_local(async move {
+                        //     yttrium::time::sleep(
+                        //         std::time::Duration::from_secs(1),
+                        //     )
+                        //     .await;
+                        //     signature_request.set(None);
+                        // });
+                        show_success_toast(
+                            toaster,
+                            "Signature rejected".to_owned(),
+                        );
+                    }
+                    Err(e) => {
+                        show_error_toast(
+                            toaster,
+                            format!("Signature approval failed: {e}"),
+                        );
+                    }
+                }
+            }
+        }
+    });
+
+    let connect_uri = RwSignal::new(None::<Option<String>>);
+    let connect_action =
+        Action::new({
+            move |_request: &()| {
+                let url =
+                    web_sys::window().unwrap().location().origin().unwrap();
+                connect_uri.set(Some(None));
+                let client = clients.read_value().as_ref().unwrap().clone();
+                async move {
+                    let mut client = client.lock().await;
+                    match client
                     .app_client
                     .connect(
                         ConnectParams {
                             optional_namespaces: HashMap::from([(
+                                "eip155".to_string(),
+                                ProposalNamespace {
+                                    chains: vec!["eip155:1".to_string()],
+                                    methods: vec!["personal_sign".to_string()],
+                                    events: vec![],
+                                },
+                            ), (
                                 "eip155".to_string(),
                                 ProposalNamespace {
                                     chains: vec!["eip155:11155111".to_string()],
@@ -461,7 +571,7 @@ pub fn App() -> impl IntoView {
                         Metadata {
                             name: "Reown Rust Sample App".to_string(),
                             description: "Reown Rust Sample App".to_string(),
-                            url: "https://reown.com".to_string(),
+                            url,
                             icons: vec![],
                             verify_url: None,
                             redirect: None,
@@ -490,9 +600,9 @@ pub fn App() -> impl IntoView {
                         );
                     }
                 }
+                }
             }
-        }
-    });
+        });
 
     let unmounted = Arc::new(AtomicBool::new(false));
     on_cleanup({
@@ -551,16 +661,17 @@ pub fn App() -> impl IntoView {
                                     Some((topic, message)) => {
                                         wallet_sessions.set(read_local_storage(WALLET_KEY).unwrap().sessions);
                                         match message {
-                                            IncomingSessionMessage::SessionRequest(request) => {
+                                            IncomingSessionMessage::SessionRequest(request, attestation) => {
                                                 tracing::info!(
-                                                    "signature request on topic: {:?}: {:?}",
+                                                    "signature request on topic: {:?}: {:?}: {:?}",
                                                     topic,
-                                                    request
+                                                    request,
+                                                    attestation
                                                 );
                                                 match request.params.request.method.as_str() {
                                                     "personal_sign" => {
                                                         signature_request_open.set(true);
-                                                        signature_request.set(Some((topic, request)));
+                                                        signature_request.set(Some((topic, request, attestation)));
                                                     }
                                                     method => {
                                                         tracing::error!(
@@ -661,8 +772,9 @@ pub fn App() -> impl IntoView {
         <Flex vertical=true>
             <Flex>
                 <Label prop:for="pairing-uri">"Pairing URI"</Label>
-                <Input id="pairing-uri" value=pairing_uri />
+                <Input id="pairing-uri" attr:data-testid="input-pairing-uri" value=pairing_uri />
                 <Button
+                    attr:data-testid="pair-submit-button"
                     loading=pair_action.pending()
                     on_click=move |_| {
                         pair_action.dispatch(pairing_uri.get());
@@ -676,8 +788,11 @@ pub fn App() -> impl IntoView {
                 <Button
                     attr:data-testid="connect-button"
                     on_click=move |_| {
-                    connect_action.dispatch(());
-                }>"Connect"</Button>
+                        connect_action.dispatch(());
+                    }
+                >
+                    "Connect"
+                </Button>
             </Flex>
             <ul data-testid="wallet-sessions">
                 {move || {
@@ -721,8 +836,8 @@ pub fn App() -> impl IntoView {
                         .get()
                         .iter()
                         .map(|session| {
+                            let session = session.clone();
                             let topic = session.topic.clone();
-                            let topic2 = session.topic.clone();
                             view! {
                                 <li>
                                     <Flex>
@@ -748,34 +863,64 @@ pub fn App() -> impl IntoView {
                                                 }
                                             });
                                         }>"Disconnect"</Button>
-                                        <Button on_click=move |_| {
-                                            let topic = topic2.clone();
-                                            leptos::task::spawn_local(async move {
-                                                let client = clients.read_value().as_ref().unwrap().clone();
-                                                let mut client = client.lock().await;
-                                                match client.app_client.request(topic, SessionRequest {
-                                                    chain_id: "eip155:11155111".to_string(),
-                                                    request: SessionRequestRequest {
-                                                        method: "personal_sign".to_string(),
-                                                        params: serde_json::Value::Null,
-                                                        expiry: None,
-                                                    },
-                                                }).await {
-                                                    Ok(_) => {
-                                                        show_success_toast(
-                                                            toaster,
-                                                            "Successfully requested (app)".to_owned(),
-                                                        );
+                                        <Button
+                                            attr:data-testid="request-button"
+                                            on_click=move |_| {
+                                                let session = session.clone();
+                                                leptos::task::spawn_local(async move {
+                                                    let mut account = session
+                                                        .session_namespaces
+                                                        .iter()
+                                                        .next()
+                                                        .unwrap()
+                                                        .1
+                                                        .accounts
+                                                        .first()
+                                                        .unwrap()
+                                                        .splitn(3, ':');
+                                                    let namespace = account.next().unwrap().to_string();
+                                                    let chain_id = account.next().unwrap().to_string();
+                                                    let address = account.next().unwrap().to_string();
+                                                    let client = clients.read_value().as_ref().unwrap().clone();
+                                                    let mut client = client.lock().await;
+                                                    match client
+                                                        .app_client
+                                                        .request(
+                                                            session.topic,
+                                                            SessionRequest {
+                                                                chain_id: format!("{namespace}:{chain_id}"),
+                                                                request: SessionRequestRequest {
+                                                                    method: "personal_sign".to_string(),
+                                                                    params: serde_json::Value::Array(
+                                                                        vec![
+                                                                            serde_json::Value::String(address.to_string()),
+                                                                            serde_json::Value::String("0x00".to_string()),
+                                                                        ],
+                                                                    ),
+                                                                    expiry: None,
+                                                                },
+                                                            },
+                                                        )
+                                                        .await
+                                                    {
+                                                        Ok(_) => {
+                                                            show_success_toast(
+                                                                toaster,
+                                                                "Successfully requested (app)".to_owned(),
+                                                            );
+                                                        }
+                                                        Err(e) => {
+                                                            show_error_toast(
+                                                                toaster,
+                                                                format!("Request failed (app): {e}"),
+                                                            );
+                                                        }
                                                     }
-                                                    Err(e) => {
-                                                        show_error_toast(
-                                                            toaster,
-                                                            format!("Request failed (app): {e}"),
-                                                        );
-                                                    }
-                                                }
-                                            });
-                                        }>"Request"</Button>
+                                                });
+                                            }
+                                        >
+                                            "Request"
+                                        </Button>
                                     </Flex>
                                 </li>
                             }
@@ -802,7 +947,7 @@ pub fn App() -> impl IntoView {
                                                     <DialogContent>{format!("{request:?}")}</DialogContent>
                                                     <DialogActions>
                                                         <Button
-                                                            attr:data-testid="approve-button"
+                                                            attr:data-testid="pairing-approve-button"
                                                             loading=approve_pairing_action.pending()
                                                             on_click={
                                                                 let request = request.clone();
@@ -855,11 +1000,12 @@ pub fn App() -> impl IntoView {
                                     <DialogContent>{format!("{request:?}")}</DialogContent>
                                     <DialogActions>
                                         <Button
-                                            loading=session_request_action.pending()
+                                            attr:data-testid="request-approve-button"
+                                            loading=session_request_approve_action.pending()
                                             on_click={
                                                 let request = request.clone();
                                                 move |_| {
-                                                    session_request_action.dispatch(request.clone());
+                                                    session_request_approve_action.dispatch(request.clone());
                                                 }
                                             }
                                         >
@@ -896,12 +1042,17 @@ pub fn App() -> impl IntoView {
                                         .unwrap_or_default()
                                         .map(|uri| {
                                             view! {
-                                                <p>{uri.clone()}</p>
+                                                <p data-testid="pairing-uri" data-pairing-uri=uri.clone()>
+                                                    {uri.clone()}
+                                                </p>
                                                 <Button
                                                     attr:data-testid="self-connect-button"
                                                     on_click=move |_| {
-                                                    pair_action.dispatch(uri.clone());
-                                                }>"Self connect"</Button>
+                                                        pair_action.dispatch(uri.clone());
+                                                    }
+                                                >
+                                                    "Self connect"
+                                                </Button>
                                             }
                                                 .into_any()
                                         })

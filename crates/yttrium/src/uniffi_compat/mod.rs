@@ -15,6 +15,9 @@ pub mod stacks;
 #[cfg(feature = "evm_signing")]
 pub mod evm_signing;
 
+#[cfg(feature = "ton")]
+pub mod ton;
+
 #[cfg(feature = "chain_abstraction_client")]
 use crate::chain_abstraction::{
     amount::Amount,

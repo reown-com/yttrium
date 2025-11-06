@@ -986,6 +986,168 @@ public func FfiConverterTypeConfig_lower(_ value: Config) -> RustBuffer {
 }
 
 
+/**
+ * Minimal display item for the clear signing preview.
+ */
+public struct DisplayItem {
+    public var label: String
+    public var value: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(label: String, value: String) {
+        self.label = label
+        self.value = value
+    }
+}
+
+#if compiler(>=6)
+extension DisplayItem: Sendable {}
+#endif
+
+
+extension DisplayItem: Equatable, Hashable {
+    public static func ==(lhs: DisplayItem, rhs: DisplayItem) -> Bool {
+        if lhs.label != rhs.label {
+            return false
+        }
+        if lhs.value != rhs.value {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(label)
+        hasher.combine(value)
+    }
+}
+
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeDisplayItem: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DisplayItem {
+        return
+            try DisplayItem(
+                label: FfiConverterString.read(from: &buf), 
+                value: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: DisplayItem, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.label, into: &buf)
+        FfiConverterString.write(value.value, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDisplayItem_lift(_ buf: RustBuffer) throws -> DisplayItem {
+    return try FfiConverterTypeDisplayItem.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDisplayItem_lower(_ value: DisplayItem) -> RustBuffer {
+    return FfiConverterTypeDisplayItem.lower(value)
+}
+
+
+/**
+ * Display model produced by the clear signing engine.
+ */
+public struct DisplayModel {
+    public var intent: String
+    public var items: [DisplayItem]
+    public var warnings: [String]
+    public var raw: RawPreview?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(intent: String, items: [DisplayItem], warnings: [String], raw: RawPreview?) {
+        self.intent = intent
+        self.items = items
+        self.warnings = warnings
+        self.raw = raw
+    }
+}
+
+#if compiler(>=6)
+extension DisplayModel: Sendable {}
+#endif
+
+
+extension DisplayModel: Equatable, Hashable {
+    public static func ==(lhs: DisplayModel, rhs: DisplayModel) -> Bool {
+        if lhs.intent != rhs.intent {
+            return false
+        }
+        if lhs.items != rhs.items {
+            return false
+        }
+        if lhs.warnings != rhs.warnings {
+            return false
+        }
+        if lhs.raw != rhs.raw {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(intent)
+        hasher.combine(items)
+        hasher.combine(warnings)
+        hasher.combine(raw)
+    }
+}
+
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeDisplayModel: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DisplayModel {
+        return
+            try DisplayModel(
+                intent: FfiConverterString.read(from: &buf), 
+                items: FfiConverterSequenceTypeDisplayItem.read(from: &buf), 
+                warnings: FfiConverterSequenceString.read(from: &buf), 
+                raw: FfiConverterOptionTypeRawPreview.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: DisplayModel, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.intent, into: &buf)
+        FfiConverterSequenceTypeDisplayItem.write(value.items, into: &buf)
+        FfiConverterSequenceString.write(value.warnings, into: &buf)
+        FfiConverterOptionTypeRawPreview.write(value.raw, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDisplayModel_lift(_ buf: RustBuffer) throws -> DisplayModel {
+    return try FfiConverterTypeDisplayModel.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDisplayModel_lower(_ value: DisplayModel) -> RustBuffer {
+    return FfiConverterTypeDisplayModel.lower(value)
+}
+
+
 public struct DoSendTransactionParams {
     public var userOp: UserOperationV07
     public var validAfter: U48
@@ -1883,6 +2045,165 @@ public func FfiConverterTypePreparedSendTransaction_lift(_ buf: RustBuffer) thro
 #endif
 public func FfiConverterTypePreparedSendTransaction_lower(_ value: PreparedSendTransaction) -> RustBuffer {
     return FfiConverterTypePreparedSendTransaction.lower(value)
+}
+
+
+public struct PulseMetadata {
+    public var url: Url?
+    public var bundleId: String?
+    public var sdkVersion: String
+    public var sdkPlatform: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(url: Url?, bundleId: String?, sdkVersion: String, sdkPlatform: String) {
+        self.url = url
+        self.bundleId = bundleId
+        self.sdkVersion = sdkVersion
+        self.sdkPlatform = sdkPlatform
+    }
+}
+
+#if compiler(>=6)
+extension PulseMetadata: Sendable {}
+#endif
+
+
+extension PulseMetadata: Equatable, Hashable {
+    public static func ==(lhs: PulseMetadata, rhs: PulseMetadata) -> Bool {
+        if lhs.url != rhs.url {
+            return false
+        }
+        if lhs.bundleId != rhs.bundleId {
+            return false
+        }
+        if lhs.sdkVersion != rhs.sdkVersion {
+            return false
+        }
+        if lhs.sdkPlatform != rhs.sdkPlatform {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(url)
+        hasher.combine(bundleId)
+        hasher.combine(sdkVersion)
+        hasher.combine(sdkPlatform)
+    }
+}
+
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypePulseMetadata: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> PulseMetadata {
+        return
+            try PulseMetadata(
+                url: FfiConverterOptionTypeUrl.read(from: &buf), 
+                bundleId: FfiConverterOptionString.read(from: &buf), 
+                sdkVersion: FfiConverterString.read(from: &buf), 
+                sdkPlatform: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: PulseMetadata, into buf: inout [UInt8]) {
+        FfiConverterOptionTypeUrl.write(value.url, into: &buf)
+        FfiConverterOptionString.write(value.bundleId, into: &buf)
+        FfiConverterString.write(value.sdkVersion, into: &buf)
+        FfiConverterString.write(value.sdkPlatform, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePulseMetadata_lift(_ buf: RustBuffer) throws -> PulseMetadata {
+    return try FfiConverterTypePulseMetadata.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePulseMetadata_lower(_ value: PulseMetadata) -> RustBuffer {
+    return FfiConverterTypePulseMetadata.lower(value)
+}
+
+
+/**
+ * Raw fallback preview details.
+ */
+public struct RawPreview {
+    public var selector: String
+    public var args: [String]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(selector: String, args: [String]) {
+        self.selector = selector
+        self.args = args
+    }
+}
+
+#if compiler(>=6)
+extension RawPreview: Sendable {}
+#endif
+
+
+extension RawPreview: Equatable, Hashable {
+    public static func ==(lhs: RawPreview, rhs: RawPreview) -> Bool {
+        if lhs.selector != rhs.selector {
+            return false
+        }
+        if lhs.args != rhs.args {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(selector)
+        hasher.combine(args)
+    }
+}
+
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeRawPreview: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> RawPreview {
+        return
+            try RawPreview(
+                selector: FfiConverterString.read(from: &buf), 
+                args: FfiConverterSequenceString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: RawPreview, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.selector, into: &buf)
+        FfiConverterSequenceString.write(value.args, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRawPreview_lift(_ buf: RustBuffer) throws -> RawPreview {
+    return try FfiConverterTypeRawPreview.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRawPreview_lower(_ value: RawPreview) -> RustBuffer {
+    return FfiConverterTypeRawPreview.lower(value)
 }
 
 
@@ -2947,6 +3268,54 @@ fileprivate struct FfiConverterOptionDouble: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionString: FfiConverterRustBuffer {
+    typealias SwiftType = String?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterString.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterString.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeRawPreview: FfiConverterRustBuffer {
+    typealias SwiftType = RawPreview?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeRawPreview.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeRawPreview.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionSequenceTypeAssetType: FfiConverterRustBuffer {
     typealias SwiftType = [AssetType]?
 
@@ -3085,6 +3454,80 @@ fileprivate struct FfiConverterOptionTypeU256: FfiConverterRustBuffer {
         case 1: return try FfiConverterTypeU256.read(from: &buf)
         default: throw UniffiInternalError.unexpectedOptionalTag
         }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeUrl: FfiConverterRustBuffer {
+    typealias SwiftType = Url?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeUrl.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeUrl.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceString: FfiConverterRustBuffer {
+    typealias SwiftType = [String]
+
+    public static func write(_ value: [String], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterString.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [String] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [String]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterString.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeDisplayItem: FfiConverterRustBuffer {
+    typealias SwiftType = [DisplayItem]
+
+    public static func write(_ value: [DisplayItem], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeDisplayItem.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [DisplayItem] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [DisplayItem]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeDisplayItem.read(from: &buf))
+        }
+        return seq
     }
 }
 

@@ -113,7 +113,7 @@ impl SignClient {
                 );
                 while let Some((topic, message)) = rx.recv().await {
                     match message {
-                        IncomingSessionMessage::SessionRequest(request) => {
+                        IncomingSessionMessage::SessionRequest(request, _) => {
                             tracing::debug!("Received session request - Topic: {:?}, SessionRequest: {:?}", topic, request);
                             let session_request_ffi: SessionRequestJsonRpcFfi =
                                 request.into();
@@ -194,7 +194,7 @@ impl SignClient {
             let mut client = self.client.lock().await;
             client.pair(&uri).await?
         };
-        Ok(proposal.into())
+        Ok(proposal.0.into())
     }
 
     pub async fn connect(
