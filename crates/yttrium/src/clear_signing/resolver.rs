@@ -11,7 +11,10 @@ use super::{
         native_token_key, resolve_effective_field, DescriptorError,
         TokenLookupError, TokenLookupKey,
     },
-    token_registry::{TokenMeta, TOKEN_RESOLVER},
+    token_registry::{
+        lookup_erc20_token, lookup_native_token, lookup_token_by_caip19,
+        TokenMeta,
+    },
 };
 
 pub struct ResolvedDescriptor<'a> {
@@ -213,16 +216,13 @@ pub fn resolve_call(
             }
         }
 
-        let resolver = TOKEN_RESOLVER;
         for key in keys {
             let meta = match &key {
-                TokenLookupKey::Caip19(caip) => resolver.lookup_by_caip19(caip),
+                TokenLookupKey::Caip19(caip) => lookup_token_by_caip19(caip),
                 TokenLookupKey::Address { chain_id, address } => {
-                    resolver.lookup_erc20_token(*chain_id, address)
+                    lookup_erc20_token(*chain_id, address)
                 }
-                TokenLookupKey::Native(chain) => {
-                    resolver.lookup_native_token(*chain)
-                }
+                TokenLookupKey::Native(chain) => lookup_native_token(*chain),
             }
             .ok_or_else(|| {
                 ResolverError::DescriptorParse(format!(
