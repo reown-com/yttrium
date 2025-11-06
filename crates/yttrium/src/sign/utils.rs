@@ -170,6 +170,10 @@ fn encrypt(
     shared_secret: [u8; 32],
     serialized: &[u8],
 ) -> Result<Vec<u8>, String> {
+    tracing::debug!(
+        "encrypting message: {}",
+        String::from_utf8_lossy(serialized)
+    );
     let key = ChaCha20Poly1305::new(&shared_secret.into());
     let nonce = ChaCha20Poly1305::generate_nonce()
         .map_err(|e| format!("Failed to generate nonce: {e}"))?;
