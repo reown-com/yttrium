@@ -37,6 +37,11 @@ use crate::wallet_service_api::{
     AddressOrNative, Asset, AssetData, Erc20Metadata, Erc721Metadata,
     NativeMetadata,
 };
+#[cfg(feature = "sign_client")]
+use {
+    alloy::rpc::json_rpc::Id,
+    relay_rpc::domain::{ClientId, Topic},
+};
 use {
     alloy::{
         contract::Error as AlloyError,
