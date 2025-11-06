@@ -8,9 +8,9 @@ use tiny_keccak::{Hasher, Keccak};
 use super::{
     descriptor::{
         build_descriptor, decode_arguments, determine_token_key,
-        resolve_effective_field, ArgumentValue, DecodedArguments, Descriptor,
-        DescriptorError, DisplayField, DisplayFormat, EffectiveField,
-        TokenLookupError, TokenLookupKey,
+        native_token_key, resolve_effective_field, ArgumentValue,
+        DecodedArguments, Descriptor, DescriptorError, DisplayField,
+        DisplayFormat, EffectiveField, TokenLookupError, TokenLookupKey,
     },
     resolver::ResolvedCall,
     token_registry::TokenMeta,
@@ -357,11 +357,8 @@ fn format_native_amount(
         return value.default_string();
     };
 
-    if let Some(slip44) = native_slip44_code(chain_id) {
-        let caip19 = format!("eip155:{}/slip44:{}", chain_id, slip44);
-        if let Some(meta) =
-            token_metadata.get(&TokenLookupKey::Caip19(caip19))
-        {
+    if let Ok(key) = native_token_key(chain_id) {
+        if let Some(meta) = token_metadata.get(&key) {
             let formatted = format_amount_with_decimals(amount, meta.decimals);
             return format!("{} {}", formatted, meta.symbol);
         }
@@ -369,13 +366,6 @@ fn format_native_amount(
 
     let formatted = format_amount_with_decimals(amount, 18);
     format!("{} ETH", formatted)
-}
-
-fn native_slip44_code(chain_id: u64) -> Option<u32> {
-    match chain_id {
-        1 | 10 | 42161 | 8453 => Some(60),
-        _ => None,
-    }
 }
 
 fn map_token_lookup_error(err: TokenLookupError) -> EngineError {

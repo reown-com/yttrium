@@ -679,7 +679,8 @@ pub fn determine_token_key(
     if let Some(token) =
         field.params.get("token").and_then(|value| value.as_str())
     {
-        return Ok(TokenLookupKey::Caip19(token.to_string()));
+        let normalized = token.trim().to_ascii_lowercase();
+        return Ok(TokenLookupKey::Caip19(normalized));
     }
 
     if let Some(token_path) =
@@ -727,5 +728,56 @@ fn native_slip44_code(chain_id: u64) -> Option<u32> {
     match chain_id {
         1 | 10 | 42161 | 8453 => Some(60),
         _ => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_caip19_normalization() {
+        use serde_json::json;
+
+        // Test with mixed case and whitespace in CAIP-19 string
+        let params = json!({
+            "token": "  EIP155:1/ERC20:0xA0B86991C6218b36c1D19D4a2e9Eb0cE3606eB48  "
+        });
+
+        let field = EffectiveField {
+            path: "test".to_string(),
+            label: "Test".to_string(),
+            format: Some("tokenAmount".to_string()),
+            params,
+        };
+
+        let decoded = DecodedArguments::new();
+        let result = determine_token_key(&field, &decoded, 1, "0xtest");
+
+        assert!(result.is_ok());
+        let key = result.unwrap();
+
+        // Should be normalized to lowercase with whitespace trimmed
+        assert_eq!(
+            key,
+            TokenLookupKey::Caip19(
+                "eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48"
+                    .to_string()
+            )
+        );
+    }
+
+    #[test]
+    fn test_native_token_key_constructs_caip19() {
+        let result = native_token_key(1);
+        assert!(result.is_ok());
+        let key = result.unwrap();
+        assert_eq!(key, TokenLookupKey::Caip19("eip155:1/slip44:60".to_string()));
+    }
+
+    #[test]
+    fn test_native_token_key_unsupported_chain() {
+        let result = native_token_key(999);
+        assert!(result.is_err());
     }
 }
