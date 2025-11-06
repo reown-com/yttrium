@@ -22,13 +22,5 @@ Pod::Spec.new do |spec|
   spec.vendored_frameworks = "libyttrium-utils.xcframework"
   spec.source_files = "Sources/YttriumUtils/**/*.swift"
 
-  # Since this is a utils library with fewer dependencies, we don't need complex configuration
-  spec.user_target_xcconfig = {
-    'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'arm64'
-  }
-  spec.pod_target_xcconfig = {
-    'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'arm64'
-  }
-
   # No prepare_command needed for binary pod
 end 
