@@ -14,32 +14,41 @@ before_install:
     echo "JitPack build starting..."
     echo "Git ref: $GIT_TAG"
     echo "Git commit: $GIT_COMMIT"
+    echo "Git branch: $GIT_BRANCH"
     
-    # Check if GIT_TAG is set
-    if [ -z "$GIT_TAG" ]; then
-      echo "ERROR: GIT_TAG is not set!"
-      echo "JitPack can only build from tagged releases."
-      echo ""
-      echo "To use this library:"
-      echo "1. First create a GitHub release by running the workflow:"
-      echo "   https://github.com/reown-com/yttrium/actions"
-      echo "2. Then use the tag version in your dependency:"
-      echo "   implementation 'com.github.reown-com:yttrium:0.9.82'"
-      echo ""
-      echo "Available releases: https://github.com/reown-com/yttrium/releases"
-      exit 1
+    # Determine the tag - JitPack might use different variable names
+    # Try GIT_TAG first, then fall back to extracting from git
+    if [ -n "$GIT_TAG" ]; then
+      RELEASE_TAG="$GIT_TAG"
+    else
+      # Try to get tag from git
+      RELEASE_TAG=$(git describe --tags --exact-match 2>/dev/null || echo "")
+      if [ -z "$RELEASE_TAG" ]; then
+        echo "ERROR: Could not determine release tag!"
+        echo "GIT_TAG is not set and git describe failed."
+        echo ""
+        echo "JitPack can only build from tagged releases."
+        echo "To use this library:"
+        echo "1. First create a GitHub release by running the workflow:"
+        echo "   https://github.com/reown-com/yttrium/actions"
+        echo "2. Then use the tag version in your dependency:"
+        echo "   implementation 'com.github.reown-com:yttrium:0.9.82'"
+        echo ""
+        echo "Available releases: https://github.com/reown-com/yttrium/releases"
+        exit 1
+      fi
     fi
+    
+    echo "Using release tag: $RELEASE_TAG"
     
     # Determine which release to download
     # For tags like "0.9.55", download kotlin-artifacts.zip (yttrium)
     # For tags like "kotlin-utils-0.9.55", download kotlin-utils-artifacts.zip (yttrium-utils)
-    if [[ "$GIT_TAG" == kotlin-utils-* ]]; then
-      RELEASE_TAG="$GIT_TAG"
+    if [[ "$RELEASE_TAG" == kotlin-utils-* ]]; then
       ARTIFACT_NAME="kotlin-utils-artifacts.zip"
       FLAVOR="utils"
       echo "Building yttrium-utils variant from tag: $RELEASE_TAG"
     else
-      RELEASE_TAG="$GIT_TAG"
       ARTIFACT_NAME="kotlin-artifacts.zip"
       FLAVOR="yttrium"
       echo "Building yttrium variant from tag: $RELEASE_TAG"
