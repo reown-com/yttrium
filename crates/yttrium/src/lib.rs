@@ -40,7 +40,11 @@ pub mod jsonrpc;
     feature = "transaction_sponsorship_client"
 ))]
 pub mod provider_pool;
-#[cfg(any(feature = "account_client", feature = "chain_abstraction_client"))]
+#[cfg(any(
+    feature = "account_client",
+    feature = "chain_abstraction_client",
+    feature = "sign_client"
+))]
 pub mod pulse;
 pub mod serde;
 #[cfg(feature = "sign_client")]

@@ -38,7 +38,6 @@ use crate::wallet_service_api::{
     NativeMetadata,
 };
 use {
-    crate::{},
     alloy::{
         contract::Error as AlloyError,
         dyn_abi::Eip712Domain,
@@ -46,16 +45,13 @@ use {
             aliases::U48, Address, Bytes, PrimitiveSignature, Uint, B256, U128,
             U256, U64, U8,
         },
-        rpc::{
-            json_rpc::Id,
-            types::{Authorization, TransactionReceipt, UserOperationReceipt},
-        },
+        rpc::types::{Authorization, TransactionReceipt, UserOperationReceipt},
         signers::local::PrivateKeySigner,
         transports::{self, TransportErrorKind},
     },
     alloy_provider::PendingTransactionError,
     eyre::Report as EyreError,
-    relay_rpc::domain::{ClientId, ProjectId, Topic},
+    relay_rpc::domain::ProjectId,
     reqwest::{Error as ReqwestError, StatusCode, Url},
     serde_json::Error as SerdeJsonError,
     uniffi::deps::anyhow::Error as AnyhowError,
