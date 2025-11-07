@@ -10,7 +10,7 @@ on:
         required: true
 env:
   CARGO_TERM_COLOR: always
-  VERSION: 0.9.92 #${{ github.event.inputs.version || '0.0.1' }}
+  VERSION: 0.9.93 #${{ github.event.inputs.version || '0.0.1' }}
   TARGET_BRANCH: ${{ github.ref_name }}
 permissions:
   contents: write
@@ -161,14 +161,20 @@ jobs:
           path: yttrium/
       - name: Create utils artifacts zip
         run: |
+          echo "Creating zip from yttrium directory..."
+          ls -R yttrium/
           zip -r kotlin-utils-artifacts.zip yttrium/
+          echo "Zip created, verifying..."
+          ls -lh kotlin-utils-artifacts.zip
+          unzip -t kotlin-utils-artifacts.zip
+          echo "Zip verification successful"
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ env.VERSION }}
+          tag_name: kotlin-utils-${{ env.VERSION }}
           release_name: "Yttrium Kotlin Utils ${{ env.VERSION }}"
           body: |
             Kotlin utils release version ${{ env.VERSION }}

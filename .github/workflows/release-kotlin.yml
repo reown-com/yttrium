@@ -202,7 +202,13 @@ jobs:
 
       - name: Create artifacts zip
         run: |
+          echo "Creating zip from yttrium directory..."
+          ls -R yttrium/
           zip -r kotlin-artifacts.zip yttrium/
+          echo "Zip created, verifying..."
+          ls -lh kotlin-artifacts.zip
+          unzip -t kotlin-artifacts.zip
+          echo "Zip verification successful"
       
       - name: Create Release
         id: create_release
