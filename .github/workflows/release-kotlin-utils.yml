@@ -10,7 +10,7 @@ on:
         required: true
 env:
   CARGO_TERM_COLOR: always
-  VERSION: 0.0.92 #${{ github.event.inputs.version || '0.0.1' }}
+  VERSION: 0.9.92 #${{ github.event.inputs.version || '0.0.1' }}
   TARGET_BRANCH: ${{ github.ref_name }}
 permissions:
   contents: write
@@ -68,6 +68,8 @@ jobs:
             s/^import uniffi\.yttrium\./import uniffi.yttrium_utils./g;
             s/^package uniffi\.uniffi_yttrium$/package uniffi.uniffi_yttrium_utils/;
             s/^import uniffi\.uniffi_yttrium\./import uniffi.uniffi_yttrium_utils./g;
+            s/\buniffi\.yttrium\./uniffi.yttrium_utils./g;
+            s/\buniffi\.uniffi_yttrium\./uniffi.uniffi_yttrium_utils./g;
             s/return "uniffi_yttrium"/return "uniffi_yttrium_utils"/g;
           ' {} \;
       - name: Strip binaries
@@ -166,7 +168,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: kotlin-utils-${{ env.VERSION }}
+          tag_name: ${{ env.VERSION }}
           release_name: "Yttrium Kotlin Utils ${{ env.VERSION }}"
           body: |
             Kotlin utils release version ${{ env.VERSION }}
