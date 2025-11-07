@@ -46,7 +46,7 @@ use {
 
 pub fn get_relay_url() -> String {
     std::env::var("WC_SIGN_RELAY_URL")
-        .unwrap_or_else(|_| "wss://relay.walletconnect.org".to_owned())
+        .unwrap_or_else(|_| "wss://staging-relay.walletconnect.org".to_owned())
 }
 
 // Type alias for the callback that creates params with attestation
@@ -430,7 +430,7 @@ impl Client {
                     Params::ProposeSession(ProposeSession {
                         pairing_topic: pairing_topic.clone(),
                         session_proposal: session_proposal_message.clone(),
-                        attestation: Some(attestation.into()),
+                        attestation: None,
                         analytics: Some(AnalyticsData {
                             correlation_id: Some(
                                 correlation_id.try_into().unwrap(),
@@ -788,7 +788,7 @@ impl Client {
                     Params::Publish(Publish {
                         topic: publish_topic.clone(),
                         message: publish_message.clone(),
-                        attestation: Some(attestation.into()),
+                        attestation: None,
                         ttl_secs: 300,
                         tag: 1108,
                         prompt: false,

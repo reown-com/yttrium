@@ -10,7 +10,7 @@ use {
     url::Url,
 };
 
-pub const VERIFY_SERVER_URL: &str = "https://verify.walletconnect.org";
+pub const VERIFY_SERVER_URL: &str = "https://staging.verify.walletconnect.org";
 const PUBLIC_KEY_ENDPOINT: &str = "/v3/public-key";
 const ATTESTATION_ENDPOINT: &str = "/attestation/";
 const PUBLIC_KEY: &str = include_str!("verify-public.jwk");
