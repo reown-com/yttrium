@@ -4,8 +4,8 @@ use {
         SignAndSendResult,
     },
     crate::{
-        blockchain_api::BLOCKCHAIN_API_URL_PROD,
-        chain_abstraction::pulse::PulseMetadata, provider_pool::ProviderPool,
+        blockchain_api::BLOCKCHAIN_API_URL_PROD, provider_pool::ProviderPool,
+        pulse::PulseMetadata,
     },
     alloy::signers::local::PrivateKeySigner,
     relay_rpc::domain::ProjectId,

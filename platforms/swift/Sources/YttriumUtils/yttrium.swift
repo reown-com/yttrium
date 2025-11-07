@@ -422,6 +422,22 @@ fileprivate struct FfiConverterUInt8: FfiConverterPrimitive {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterInt8: FfiConverterPrimitive {
+    typealias FfiType = Int8
+    typealias SwiftType = Int8
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Int8 {
+        return try lift(readInt(&buf))
+    }
+
+    public static func write(_ value: Int8, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterUInt16: FfiConverterPrimitive {
     typealias FfiType = UInt16
     typealias SwiftType = UInt16
@@ -869,6 +885,119 @@ public func FfiConverterTypeLogger_lower(_ value: Logger) -> UnsafeMutableRawPoi
 
 
 
+public protocol SendTxParamsProtocol: AnyObject, Sendable {
+    
+}
+open class SendTxParams: SendTxParamsProtocol, @unchecked Sendable {
+    fileprivate let pointer: UnsafeMutableRawPointer!
+
+    /// Used to instantiate a [FFIObject] without an actual pointer, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoPointer {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
+        self.pointer = pointer
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noPointer: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing [Pointer] the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noPointer: NoPointer) {
+        self.pointer = nil
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiClonePointer() -> UnsafeMutableRawPointer {
+        return try! rustCall { uniffi_yttrium_fn_clone_sendtxparams(self.pointer, $0) }
+    }
+    // No primary constructor declared for this class.
+
+    deinit {
+        guard let pointer = pointer else {
+            return
+        }
+
+        try! rustCall { uniffi_yttrium_fn_free_sendtxparams(pointer, $0) }
+    }
+
+    
+
+    
+
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSendTxParams: FfiConverter {
+
+    typealias FfiType = UnsafeMutableRawPointer
+    typealias SwiftType = SendTxParams
+
+    public static func lift(_ pointer: UnsafeMutableRawPointer) throws -> SendTxParams {
+        return SendTxParams(unsafeFromRawPointer: pointer)
+    }
+
+    public static func lower(_ value: SendTxParams) -> UnsafeMutableRawPointer {
+        return value.uniffiClonePointer()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SendTxParams {
+        let v: UInt64 = try readInt(&buf)
+        // The Rust code won't compile if a pointer won't fit in a UInt64.
+        // We have to go via `UInt` because that's the thing that's the size of a pointer.
+        let ptr = UnsafeMutableRawPointer(bitPattern: UInt(truncatingIfNeeded: v))
+        if (ptr == nil) {
+            throw UniffiInternalError.unexpectedNullPointer
+        }
+        return try lift(ptr!)
+    }
+
+    public static func write(_ value: SendTxParams, into buf: inout [UInt8]) {
+        // This fiddling is because `Int` is the thing that's the same size as a pointer.
+        // The Rust code won't compile if a pointer won't fit in a `UInt64`.
+        writeInt(&buf, UInt64(bitPattern: Int64(Int(bitPattern: lower(value)))))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSendTxParams_lift(_ pointer: UnsafeMutableRawPointer) throws -> SendTxParams {
+    return try FfiConverterTypeSendTxParams.lift(pointer)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSendTxParams_lower(_ value: SendTxParams) -> UnsafeMutableRawPointer {
+    return FfiConverterTypeSendTxParams.lower(value)
+}
+
+
+
+
+
+
 public protocol StacksClientProtocol: AnyObject, Sendable {
     
     func getAccount(network: String, principal: String) async throws  -> StacksAccount
@@ -1245,6 +1374,217 @@ public func FfiConverterTypeSuiClient_lower(_ value: SuiClient) -> UnsafeMutable
 
 
 
+
+
+public protocol TonClientProtocol: AnyObject, Sendable {
+    
+    func broadcastMessage(from: String, keypair: Keypair, validUntil: UInt32, messages: [SendTxMessage]) async throws  -> String
+    
+    func generateKeypair()  -> Keypair
+    
+    func generateKeypairFromBip39Mnemonic(mnemonic: String) throws  -> Keypair
+    
+    func generateKeypairFromTonMnemonic(mnemonic: String) throws  -> Keypair
+    
+    func getAddressFromKeypair(keypair: Keypair) throws  -> WalletIdentity
+    
+    func sendMessage(network: String, from: String, keypair: Keypair, validUntil: UInt32, messages: [SendTxMessage]) async throws  -> String
+    
+    func signData(text: String, keypair: Keypair) throws  -> String
+    
+}
+open class TonClient: TonClientProtocol, @unchecked Sendable {
+    fileprivate let pointer: UnsafeMutableRawPointer!
+
+    /// Used to instantiate a [FFIObject] without an actual pointer, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoPointer {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
+        self.pointer = pointer
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noPointer: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing [Pointer] the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noPointer: NoPointer) {
+        self.pointer = nil
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiClonePointer() -> UnsafeMutableRawPointer {
+        return try! rustCall { uniffi_yttrium_fn_clone_tonclient(self.pointer, $0) }
+    }
+public convenience init(cfg: TonClientConfig, projectId: ProjectId, pulseMetadata: PulseMetadata) {
+    let pointer =
+        try! rustCall() {
+    uniffi_yttrium_fn_constructor_tonclient_new(
+        FfiConverterTypeTonClientConfig_lower(cfg),
+        FfiConverterTypeProjectId_lower(projectId),
+        FfiConverterTypePulseMetadata_lower(pulseMetadata),$0
+    )
+}
+    self.init(unsafeFromRawPointer: pointer)
+}
+
+    deinit {
+        guard let pointer = pointer else {
+            return
+        }
+
+        try! rustCall { uniffi_yttrium_fn_free_tonclient(pointer, $0) }
+    }
+
+    
+
+    
+open func broadcastMessage(from: String, keypair: Keypair, validUntil: UInt32, messages: [SendTxMessage])async throws  -> String  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_yttrium_fn_method_tonclient_broadcast_message(
+                    self.uniffiClonePointer(),
+                    FfiConverterString.lower(from),FfiConverterTypeKeypair_lower(keypair),FfiConverterUInt32.lower(validUntil),FfiConverterSequenceTypeSendTxMessage.lower(messages)
+                )
+            },
+            pollFunc: ffi_yttrium_rust_future_poll_rust_buffer,
+            completeFunc: ffi_yttrium_rust_future_complete_rust_buffer,
+            freeFunc: ffi_yttrium_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterString.lift,
+            errorHandler: FfiConverterTypeTonError_lift
+        )
+}
+    
+open func generateKeypair() -> Keypair  {
+    return try!  FfiConverterTypeKeypair_lift(try! rustCall() {
+    uniffi_yttrium_fn_method_tonclient_generate_keypair(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+open func generateKeypairFromBip39Mnemonic(mnemonic: String)throws  -> Keypair  {
+    return try  FfiConverterTypeKeypair_lift(try rustCallWithError(FfiConverterTypeTonError_lift) {
+    uniffi_yttrium_fn_method_tonclient_generate_keypair_from_bip39_mnemonic(self.uniffiClonePointer(),
+        FfiConverterString.lower(mnemonic),$0
+    )
+})
+}
+    
+open func generateKeypairFromTonMnemonic(mnemonic: String)throws  -> Keypair  {
+    return try  FfiConverterTypeKeypair_lift(try rustCallWithError(FfiConverterTypeTonError_lift) {
+    uniffi_yttrium_fn_method_tonclient_generate_keypair_from_ton_mnemonic(self.uniffiClonePointer(),
+        FfiConverterString.lower(mnemonic),$0
+    )
+})
+}
+    
+open func getAddressFromKeypair(keypair: Keypair)throws  -> WalletIdentity  {
+    return try  FfiConverterTypeWalletIdentity_lift(try rustCallWithError(FfiConverterTypeTonError_lift) {
+    uniffi_yttrium_fn_method_tonclient_get_address_from_keypair(self.uniffiClonePointer(),
+        FfiConverterTypeKeypair_lower(keypair),$0
+    )
+})
+}
+    
+open func sendMessage(network: String, from: String, keypair: Keypair, validUntil: UInt32, messages: [SendTxMessage])async throws  -> String  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_yttrium_fn_method_tonclient_send_message(
+                    self.uniffiClonePointer(),
+                    FfiConverterString.lower(network),FfiConverterString.lower(from),FfiConverterTypeKeypair_lower(keypair),FfiConverterUInt32.lower(validUntil),FfiConverterSequenceTypeSendTxMessage.lower(messages)
+                )
+            },
+            pollFunc: ffi_yttrium_rust_future_poll_rust_buffer,
+            completeFunc: ffi_yttrium_rust_future_complete_rust_buffer,
+            freeFunc: ffi_yttrium_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterString.lift,
+            errorHandler: FfiConverterTypeTonError_lift
+        )
+}
+    
+open func signData(text: String, keypair: Keypair)throws  -> String  {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeTonError_lift) {
+    uniffi_yttrium_fn_method_tonclient_sign_data(self.uniffiClonePointer(),
+        FfiConverterString.lower(text),
+        FfiConverterTypeKeypair_lower(keypair),$0
+    )
+})
+}
+    
+
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeTonClient: FfiConverter {
+
+    typealias FfiType = UnsafeMutableRawPointer
+    typealias SwiftType = TonClient
+
+    public static func lift(_ pointer: UnsafeMutableRawPointer) throws -> TonClient {
+        return TonClient(unsafeFromRawPointer: pointer)
+    }
+
+    public static func lower(_ value: TonClient) -> UnsafeMutableRawPointer {
+        return value.uniffiClonePointer()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> TonClient {
+        let v: UInt64 = try readInt(&buf)
+        // The Rust code won't compile if a pointer won't fit in a UInt64.
+        // We have to go via `UInt` because that's the thing that's the size of a pointer.
+        let ptr = UnsafeMutableRawPointer(bitPattern: UInt(truncatingIfNeeded: v))
+        if (ptr == nil) {
+            throw UniffiInternalError.unexpectedNullPointer
+        }
+        return try lift(ptr!)
+    }
+
+    public static func write(_ value: TonClient, into buf: inout [UInt8]) {
+        // This fiddling is because `Int` is the thing that's the same size as a pointer.
+        // The Rust code won't compile if a pointer won't fit in a `UInt64`.
+        writeInt(&buf, UInt64(bitPattern: Int64(Int(bitPattern: lower(value)))))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTonClient_lift(_ pointer: UnsafeMutableRawPointer) throws -> TonClient {
+    return try FfiConverterTypeTonClient.lift(pointer)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTonClient_lower(_ value: TonClient) -> UnsafeMutableRawPointer {
+    return FfiConverterTypeTonClient.lower(value)
+}
+
+
+
+
 public struct Amount {
     public var symbol: String
     public var amount: U256
@@ -1555,7 +1895,10 @@ public func FfiConverterTypeConfig_lower(_ value: Config) -> RustBuffer {
 }
 
 
-public struct DisplayItemFfi {
+/**
+ * Minimal display item for the clear signing preview.
+ */
+public struct DisplayItem {
     public var label: String
     public var value: String
 
@@ -1568,12 +1911,12 @@ public struct DisplayItemFfi {
 }
 
 #if compiler(>=6)
-extension DisplayItemFfi: Sendable {}
+extension DisplayItem: Sendable {}
 #endif
 
 
-extension DisplayItemFfi: Equatable, Hashable {
-    public static func ==(lhs: DisplayItemFfi, rhs: DisplayItemFfi) -> Bool {
+extension DisplayItem: Equatable, Hashable {
+    public static func ==(lhs: DisplayItem, rhs: DisplayItem) -> Bool {
         if lhs.label != rhs.label {
             return false
         }
@@ -1594,16 +1937,16 @@ extension DisplayItemFfi: Equatable, Hashable {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
-public struct FfiConverterTypeDisplayItemFfi: FfiConverterRustBuffer {
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DisplayItemFfi {
+public struct FfiConverterTypeDisplayItem: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DisplayItem {
         return
-            try DisplayItemFfi(
+            try DisplayItem(
                 label: FfiConverterString.read(from: &buf), 
                 value: FfiConverterString.read(from: &buf)
         )
     }
 
-    public static func write(_ value: DisplayItemFfi, into buf: inout [UInt8]) {
+    public static func write(_ value: DisplayItem, into buf: inout [UInt8]) {
         FfiConverterString.write(value.label, into: &buf)
         FfiConverterString.write(value.value, into: &buf)
     }
@@ -1613,27 +1956,30 @@ public struct FfiConverterTypeDisplayItemFfi: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
-public func FfiConverterTypeDisplayItemFfi_lift(_ buf: RustBuffer) throws -> DisplayItemFfi {
-    return try FfiConverterTypeDisplayItemFfi.lift(buf)
+public func FfiConverterTypeDisplayItem_lift(_ buf: RustBuffer) throws -> DisplayItem {
+    return try FfiConverterTypeDisplayItem.lift(buf)
 }
 
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
-public func FfiConverterTypeDisplayItemFfi_lower(_ value: DisplayItemFfi) -> RustBuffer {
-    return FfiConverterTypeDisplayItemFfi.lower(value)
+public func FfiConverterTypeDisplayItem_lower(_ value: DisplayItem) -> RustBuffer {
+    return FfiConverterTypeDisplayItem.lower(value)
 }
 
 
-public struct DisplayModelFfi {
+/**
+ * Display model produced by the clear signing engine.
+ */
+public struct DisplayModel {
     public var intent: String
-    public var items: [DisplayItemFfi]
+    public var items: [DisplayItem]
     public var warnings: [String]
-    public var raw: RawPreviewFfi?
+    public var raw: RawPreview?
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(intent: String, items: [DisplayItemFfi], warnings: [String], raw: RawPreviewFfi?) {
+    public init(intent: String, items: [DisplayItem], warnings: [String], raw: RawPreview?) {
         self.intent = intent
         self.items = items
         self.warnings = warnings
@@ -1642,12 +1988,12 @@ public struct DisplayModelFfi {
 }
 
 #if compiler(>=6)
-extension DisplayModelFfi: Sendable {}
+extension DisplayModel: Sendable {}
 #endif
 
 
-extension DisplayModelFfi: Equatable, Hashable {
-    public static func ==(lhs: DisplayModelFfi, rhs: DisplayModelFfi) -> Bool {
+extension DisplayModel: Equatable, Hashable {
+    public static func ==(lhs: DisplayModel, rhs: DisplayModel) -> Bool {
         if lhs.intent != rhs.intent {
             return false
         }
@@ -1676,22 +2022,22 @@ extension DisplayModelFfi: Equatable, Hashable {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
-public struct FfiConverterTypeDisplayModelFfi: FfiConverterRustBuffer {
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DisplayModelFfi {
+public struct FfiConverterTypeDisplayModel: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DisplayModel {
         return
-            try DisplayModelFfi(
+            try DisplayModel(
                 intent: FfiConverterString.read(from: &buf), 
-                items: FfiConverterSequenceTypeDisplayItemFfi.read(from: &buf), 
+                items: FfiConverterSequenceTypeDisplayItem.read(from: &buf), 
                 warnings: FfiConverterSequenceString.read(from: &buf), 
-                raw: FfiConverterOptionTypeRawPreviewFfi.read(from: &buf)
+                raw: FfiConverterOptionTypeRawPreview.read(from: &buf)
         )
     }
 
-    public static func write(_ value: DisplayModelFfi, into buf: inout [UInt8]) {
+    public static func write(_ value: DisplayModel, into buf: inout [UInt8]) {
         FfiConverterString.write(value.intent, into: &buf)
-        FfiConverterSequenceTypeDisplayItemFfi.write(value.items, into: &buf)
+        FfiConverterSequenceTypeDisplayItem.write(value.items, into: &buf)
         FfiConverterSequenceString.write(value.warnings, into: &buf)
-        FfiConverterOptionTypeRawPreviewFfi.write(value.raw, into: &buf)
+        FfiConverterOptionTypeRawPreview.write(value.raw, into: &buf)
     }
 }
 
@@ -1699,15 +2045,15 @@ public struct FfiConverterTypeDisplayModelFfi: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
-public func FfiConverterTypeDisplayModelFfi_lift(_ buf: RustBuffer) throws -> DisplayModelFfi {
-    return try FfiConverterTypeDisplayModelFfi.lift(buf)
+public func FfiConverterTypeDisplayModel_lift(_ buf: RustBuffer) throws -> DisplayModel {
+    return try FfiConverterTypeDisplayModel.lift(buf)
 }
 
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
-public func FfiConverterTypeDisplayModelFfi_lower(_ value: DisplayModelFfi) -> RustBuffer {
-    return FfiConverterTypeDisplayModelFfi.lower(value)
+public func FfiConverterTypeDisplayModel_lower(_ value: DisplayModel) -> RustBuffer {
+    return FfiConverterTypeDisplayModel.lower(value)
 }
 
 
@@ -2995,6 +3341,76 @@ public func FfiConverterTypeInitialTransactionMetadata_lower(_ value: InitialTra
 }
 
 
+public struct Keypair {
+    public var sk: String
+    public var pk: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(sk: String, pk: String) {
+        self.sk = sk
+        self.pk = pk
+    }
+}
+
+#if compiler(>=6)
+extension Keypair: Sendable {}
+#endif
+
+
+extension Keypair: Equatable, Hashable {
+    public static func ==(lhs: Keypair, rhs: Keypair) -> Bool {
+        if lhs.sk != rhs.sk {
+            return false
+        }
+        if lhs.pk != rhs.pk {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(sk)
+        hasher.combine(pk)
+    }
+}
+
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeKeypair: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Keypair {
+        return
+            try Keypair(
+                sk: FfiConverterString.read(from: &buf), 
+                pk: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: Keypair, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.sk, into: &buf)
+        FfiConverterString.write(value.pk, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeKeypair_lift(_ buf: RustBuffer) throws -> Keypair {
+    return try FfiConverterTypeKeypair.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeKeypair_lower(_ value: Keypair) -> RustBuffer {
+    return FfiConverterTypeKeypair.lower(value)
+}
+
+
 public struct NativeMetadata {
     public var name: String
     public var symbol: String
@@ -3657,7 +4073,10 @@ public func FfiConverterTypePulseMetadata_lower(_ value: PulseMetadata) -> RustB
 }
 
 
-public struct RawPreviewFfi {
+/**
+ * Raw fallback preview details.
+ */
+public struct RawPreview {
     public var selector: String
     public var args: [String]
 
@@ -3670,12 +4089,12 @@ public struct RawPreviewFfi {
 }
 
 #if compiler(>=6)
-extension RawPreviewFfi: Sendable {}
+extension RawPreview: Sendable {}
 #endif
 
 
-extension RawPreviewFfi: Equatable, Hashable {
-    public static func ==(lhs: RawPreviewFfi, rhs: RawPreviewFfi) -> Bool {
+extension RawPreview: Equatable, Hashable {
+    public static func ==(lhs: RawPreview, rhs: RawPreview) -> Bool {
         if lhs.selector != rhs.selector {
             return false
         }
@@ -3696,16 +4115,16 @@ extension RawPreviewFfi: Equatable, Hashable {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
-public struct FfiConverterTypeRawPreviewFfi: FfiConverterRustBuffer {
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> RawPreviewFfi {
+public struct FfiConverterTypeRawPreview: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> RawPreview {
         return
-            try RawPreviewFfi(
+            try RawPreview(
                 selector: FfiConverterString.read(from: &buf), 
                 args: FfiConverterSequenceString.read(from: &buf)
         )
     }
 
-    public static func write(_ value: RawPreviewFfi, into buf: inout [UInt8]) {
+    public static func write(_ value: RawPreview, into buf: inout [UInt8]) {
         FfiConverterString.write(value.selector, into: &buf)
         FfiConverterSequenceString.write(value.args, into: &buf)
     }
@@ -3715,15 +4134,15 @@ public struct FfiConverterTypeRawPreviewFfi: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
-public func FfiConverterTypeRawPreviewFfi_lift(_ buf: RustBuffer) throws -> RawPreviewFfi {
-    return try FfiConverterTypeRawPreviewFfi.lift(buf)
+public func FfiConverterTypeRawPreview_lift(_ buf: RustBuffer) throws -> RawPreview {
+    return try FfiConverterTypeRawPreview.lift(buf)
 }
 
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
-public func FfiConverterTypeRawPreviewFfi_lower(_ value: RawPreviewFfi) -> RustBuffer {
-    return FfiConverterTypeRawPreviewFfi.lower(value)
+public func FfiConverterTypeRawPreview_lower(_ value: RawPreview) -> RustBuffer {
+    return FfiConverterTypeRawPreview.lower(value)
 }
 
 
@@ -3887,6 +4306,92 @@ public func FfiConverterTypeSafeOp_lift(_ buf: RustBuffer) throws -> SafeOp {
 #endif
 public func FfiConverterTypeSafeOp_lower(_ value: SafeOp) -> RustBuffer {
     return FfiConverterTypeSafeOp.lower(value)
+}
+
+
+public struct SendTxMessage {
+    public var address: String
+    public var amount: String
+    public var stateInit: String?
+    public var payload: String?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(address: String, amount: String, stateInit: String?, payload: String?) {
+        self.address = address
+        self.amount = amount
+        self.stateInit = stateInit
+        self.payload = payload
+    }
+}
+
+#if compiler(>=6)
+extension SendTxMessage: Sendable {}
+#endif
+
+
+extension SendTxMessage: Equatable, Hashable {
+    public static func ==(lhs: SendTxMessage, rhs: SendTxMessage) -> Bool {
+        if lhs.address != rhs.address {
+            return false
+        }
+        if lhs.amount != rhs.amount {
+            return false
+        }
+        if lhs.stateInit != rhs.stateInit {
+            return false
+        }
+        if lhs.payload != rhs.payload {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(address)
+        hasher.combine(amount)
+        hasher.combine(stateInit)
+        hasher.combine(payload)
+    }
+}
+
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSendTxMessage: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SendTxMessage {
+        return
+            try SendTxMessage(
+                address: FfiConverterString.read(from: &buf), 
+                amount: FfiConverterString.read(from: &buf), 
+                stateInit: FfiConverterOptionString.read(from: &buf), 
+                payload: FfiConverterOptionString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: SendTxMessage, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.address, into: &buf)
+        FfiConverterString.write(value.amount, into: &buf)
+        FfiConverterOptionString.write(value.stateInit, into: &buf)
+        FfiConverterOptionString.write(value.payload, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSendTxMessage_lift(_ buf: RustBuffer) throws -> SendTxMessage {
+    return try FfiConverterTypeSendTxMessage.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSendTxMessage_lower(_ value: SendTxMessage) -> RustBuffer {
+    return FfiConverterTypeSendTxMessage.lower(value)
 }
 
 
@@ -4776,6 +5281,68 @@ public func FfiConverterTypeStatusResponsePendingObject_lower(_ value: StatusRes
 }
 
 
+public struct TonClientConfig {
+    public var networkId: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(networkId: String) {
+        self.networkId = networkId
+    }
+}
+
+#if compiler(>=6)
+extension TonClientConfig: Sendable {}
+#endif
+
+
+extension TonClientConfig: Equatable, Hashable {
+    public static func ==(lhs: TonClientConfig, rhs: TonClientConfig) -> Bool {
+        if lhs.networkId != rhs.networkId {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(networkId)
+    }
+}
+
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeTonClientConfig: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> TonClientConfig {
+        return
+            try TonClientConfig(
+                networkId: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: TonClientConfig, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.networkId, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTonClientConfig_lift(_ buf: RustBuffer) throws -> TonClientConfig {
+    return try FfiConverterTypeTonClientConfig.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTonClientConfig_lower(_ value: TonClientConfig) -> RustBuffer {
+    return FfiConverterTypeTonClientConfig.lower(value)
+}
+
+
 public struct Transaction {
     public var chainId: String
     public var from: Address
@@ -5471,6 +6038,84 @@ public func FfiConverterTypeUserOperationV07_lift(_ buf: RustBuffer) throws -> U
 #endif
 public func FfiConverterTypeUserOperationV07_lower(_ value: UserOperationV07) -> RustBuffer {
     return FfiConverterTypeUserOperationV07.lower(value)
+}
+
+
+public struct WalletIdentity {
+    public var workchain: Int8
+    public var rawHex: String
+    public var friendly: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(workchain: Int8, rawHex: String, friendly: String) {
+        self.workchain = workchain
+        self.rawHex = rawHex
+        self.friendly = friendly
+    }
+}
+
+#if compiler(>=6)
+extension WalletIdentity: Sendable {}
+#endif
+
+
+extension WalletIdentity: Equatable, Hashable {
+    public static func ==(lhs: WalletIdentity, rhs: WalletIdentity) -> Bool {
+        if lhs.workchain != rhs.workchain {
+            return false
+        }
+        if lhs.rawHex != rhs.rawHex {
+            return false
+        }
+        if lhs.friendly != rhs.friendly {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(workchain)
+        hasher.combine(rawHex)
+        hasher.combine(friendly)
+    }
+}
+
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeWalletIdentity: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> WalletIdentity {
+        return
+            try WalletIdentity(
+                workchain: FfiConverterInt8.read(from: &buf), 
+                rawHex: FfiConverterString.read(from: &buf), 
+                friendly: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: WalletIdentity, into buf: inout [UInt8]) {
+        FfiConverterInt8.write(value.workchain, into: &buf)
+        FfiConverterString.write(value.rawHex, into: &buf)
+        FfiConverterString.write(value.friendly, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeWalletIdentity_lift(_ buf: RustBuffer) throws -> WalletIdentity {
+    return try FfiConverterTypeWalletIdentity.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeWalletIdentity_lower(_ value: WalletIdentity) -> RustBuffer {
+    return FfiConverterTypeWalletIdentity.lower(value)
 }
 
 // Note that we don't yet support `indirect` for enums.
@@ -8203,6 +8848,122 @@ extension SuiSignTransactionError: Foundation.LocalizedError {
 
 
 
+
+public enum TonError: Swift.Error {
+
+    
+    
+    case InvalidAddress(String
+    )
+    case NetworkMismatch(String
+    )
+    case SerializationError(String
+    )
+    case SigningError(String
+    )
+    case TonCoreError(String
+    )
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeTonError: FfiConverterRustBuffer {
+    typealias SwiftType = TonError
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> TonError {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+
+        
+
+        
+        case 1: return .InvalidAddress(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 2: return .NetworkMismatch(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 3: return .SerializationError(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 4: return .SigningError(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 5: return .TonCoreError(
+            try FfiConverterString.read(from: &buf)
+            )
+
+         default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: TonError, into buf: inout [UInt8]) {
+        switch value {
+
+        
+
+        
+        
+        case let .InvalidAddress(v1):
+            writeInt(&buf, Int32(1))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .NetworkMismatch(v1):
+            writeInt(&buf, Int32(2))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .SerializationError(v1):
+            writeInt(&buf, Int32(3))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .SigningError(v1):
+            writeInt(&buf, Int32(4))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .TonCoreError(v1):
+            writeInt(&buf, Int32(5))
+            FfiConverterString.write(v1, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTonError_lift(_ buf: RustBuffer) throws -> TonError {
+    return try FfiConverterTypeTonError.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTonError_lower(_ value: TonError) -> RustBuffer {
+    return FfiConverterTypeTonError.lower(value)
+}
+
+
+extension TonError: Equatable, Hashable {}
+
+
+
+
+extension TonError: Foundation.LocalizedError {
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+}
+
+
+
+
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
 
@@ -8598,8 +9359,8 @@ fileprivate struct FfiConverterOptionString: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
-fileprivate struct FfiConverterOptionTypeRawPreviewFfi: FfiConverterRustBuffer {
-    typealias SwiftType = RawPreviewFfi?
+fileprivate struct FfiConverterOptionTypeRawPreview: FfiConverterRustBuffer {
+    typealias SwiftType = RawPreview?
 
     public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
         guard let value = value else {
@@ -8607,13 +9368,13 @@ fileprivate struct FfiConverterOptionTypeRawPreviewFfi: FfiConverterRustBuffer {
             return
         }
         writeInt(&buf, Int8(1))
-        FfiConverterTypeRawPreviewFfi.write(value, into: &buf)
+        FfiConverterTypeRawPreview.write(value, into: &buf)
     }
 
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
         switch try readInt(&buf) as Int8 {
         case 0: return nil
-        case 1: return try FfiConverterTypeRawPreviewFfi.read(from: &buf)
+        case 1: return try FfiConverterTypeRawPreview.read(from: &buf)
         default: throw UniffiInternalError.unexpectedOptionalTag
         }
     }
@@ -8863,23 +9624,23 @@ fileprivate struct FfiConverterSequenceString: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
-fileprivate struct FfiConverterSequenceTypeDisplayItemFfi: FfiConverterRustBuffer {
-    typealias SwiftType = [DisplayItemFfi]
+fileprivate struct FfiConverterSequenceTypeDisplayItem: FfiConverterRustBuffer {
+    typealias SwiftType = [DisplayItem]
 
-    public static func write(_ value: [DisplayItemFfi], into buf: inout [UInt8]) {
+    public static func write(_ value: [DisplayItem], into buf: inout [UInt8]) {
         let len = Int32(value.count)
         writeInt(&buf, len)
         for item in value {
-            FfiConverterTypeDisplayItemFfi.write(item, into: &buf)
+            FfiConverterTypeDisplayItem.write(item, into: &buf)
         }
     }
 
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [DisplayItemFfi] {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [DisplayItem] {
         let len: Int32 = try readInt(&buf)
-        var seq = [DisplayItemFfi]()
+        var seq = [DisplayItem]()
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
-            seq.append(try FfiConverterTypeDisplayItemFfi.read(from: &buf))
+            seq.append(try FfiConverterTypeDisplayItem.read(from: &buf))
         }
         return seq
     }
@@ -8930,6 +9691,31 @@ fileprivate struct FfiConverterSequenceTypeFundingMetadata: FfiConverterRustBuff
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeFundingMetadata.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeSendTxMessage: FfiConverterRustBuffer {
+    typealias SwiftType = [SendTxMessage]
+
+    public static func write(_ value: [SendTxMessage], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeSendTxMessage.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [SendTxMessage] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [SendTxMessage]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeSendTxMessage.read(from: &buf))
         }
         return seq
     }
@@ -10972,8 +11758,8 @@ fileprivate func uniffiFutureContinuationCallback(handle: UInt64, pollResult: In
         print("uniffiFutureContinuationCallback invalid handle")
     }
 }
-public func clearSigningFormat(chainId: UInt64, to: String, calldataHex: String)throws  -> DisplayModelFfi  {
-    return try  FfiConverterTypeDisplayModelFfi_lift(try rustCallWithError(FfiConverterTypeEngineErrorFfi_lift) {
+public func clearSigningFormat(chainId: UInt64, to: String, calldataHex: String)throws  -> DisplayModel  {
+    return try  FfiConverterTypeDisplayModel_lift(try rustCallWithError(FfiConverterTypeEngineErrorFfi_lift) {
     uniffi_yttrium_fn_func_clear_signing_format(
         FfiConverterUInt64.lower(chainId),
         FfiConverterString.lower(to),
@@ -10981,15 +11767,15 @@ public func clearSigningFormat(chainId: UInt64, to: String, calldataHex: String)
     )
 })
 }
-public func clearSigningFormatTyped(typedDataJson: String)throws  -> DisplayModelFfi  {
-    return try  FfiConverterTypeDisplayModelFfi_lift(try rustCallWithError(FfiConverterTypeTypedEngineErrorFfi_lift) {
+public func clearSigningFormatTyped(typedDataJson: String)throws  -> DisplayModel  {
+    return try  FfiConverterTypeDisplayModel_lift(try rustCallWithError(FfiConverterTypeTypedEngineErrorFfi_lift) {
     uniffi_yttrium_fn_func_clear_signing_format_typed(
         FfiConverterString.lower(typedDataJson),$0
     )
 })
 }
-public func clearSigningFormatWithValue(chainId: UInt64, to: String, valueHex: String?, calldataHex: String)throws  -> DisplayModelFfi  {
-    return try  FfiConverterTypeDisplayModelFfi_lift(try rustCallWithError(FfiConverterTypeEngineErrorFfi_lift) {
+public func clearSigningFormatWithValue(chainId: UInt64, to: String, valueHex: String?, calldataHex: String)throws  -> DisplayModel  {
+    return try  FfiConverterTypeDisplayModel_lift(try rustCallWithError(FfiConverterTypeEngineErrorFfi_lift) {
     uniffi_yttrium_fn_func_clear_signing_format_with_value(
         FfiConverterUInt64.lower(chainId),
         FfiConverterString.lower(to),
@@ -11091,13 +11877,13 @@ private let initializationResult: InitializationResult = {
     if bindings_contract_version != scaffolding_contract_version {
         return InitializationResult.contractVersionMismatch
     }
-    if (uniffi_yttrium_checksum_func_clear_signing_format() != 47054) {
+    if (uniffi_yttrium_checksum_func_clear_signing_format() != 49027) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_yttrium_checksum_func_clear_signing_format_typed() != 46707) {
+    if (uniffi_yttrium_checksum_func_clear_signing_format_typed() != 25777) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_yttrium_checksum_func_clear_signing_format_with_value() != 45860) {
+    if (uniffi_yttrium_checksum_func_clear_signing_format_with_value() != 30805) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_yttrium_checksum_func_funding_metadata_to_amount() != 52092) {
@@ -11157,6 +11943,27 @@ private let initializationResult: InitializationResult = {
     if (uniffi_yttrium_checksum_method_suiclient_sign_transaction() != 14754) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_yttrium_checksum_method_tonclient_broadcast_message() != 1154) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_method_tonclient_generate_keypair() != 3598) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_method_tonclient_generate_keypair_from_bip39_mnemonic() != 59997) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_method_tonclient_generate_keypair_from_ton_mnemonic() != 12150) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_method_tonclient_get_address_from_keypair() != 27441) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_method_tonclient_send_message() != 55560) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_method_tonclient_sign_data() != 60300) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_yttrium_checksum_constructor_evmsigningclient_new() != 21912) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -11173,6 +11980,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_yttrium_checksum_constructor_suiclient_with_blockchain_api_url() != 31125) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_constructor_tonclient_new() != 4033) {
         return InitializationResult.apiChecksumMismatch
     }
 
