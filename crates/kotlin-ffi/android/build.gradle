@@ -54,17 +54,8 @@ repositories {
     // }
 }
 
-configurations.all {
-    resolutionStrategy {
-        // Force only AAR variant of JNA to prevent duplicate classes (exclude JAR)
-        eachDependency { details ->
-            if (details.requested.group == 'net.java.dev.jna' && details.requested.name == 'jna' && details.requested.classifier == null) {
-                // Replace JAR variant with AAR variant (android classifier)
-                details.useTarget group: 'net.java.dev.jna', name: 'jna', version: details.requested.version, classifier: 'android'
-            }
-        }
-    }
-}
+// Note: JNA is declared as 'api ...@aar' which forces AAR variant
+// POM modifications below ensure only AAR variant is published
 
 android {
     // namespace is set per-flavor below to avoid BuildConfig clashes
@@ -211,14 +202,12 @@ publishing {
                     if (dependenciesNode != null) {
                         dependenciesNode.dependency.each { dep ->
                             if (dep.groupId[0].text() == 'net.java.dev.jna' && dep.artifactId[0].text() == 'jna') {
-                                // Remove classifier if it's null (JAR variant) and add android classifier
-                                if (dep.classifier == null || dep.classifier.isEmpty()) {
-                                    dep.appendNode('classifier', 'android')
-                                }
-                                // Ensure type is aar
-                                if (dep.type == null || dep.type.isEmpty() || dep.type[0].text() != 'aar') {
-                                    dep.appendNode('type', 'aar')
-                                }
+                                // Remove existing classifier/type nodes if present
+                                dep.remove(dep.classifier)
+                                dep.remove(dep.type)
+                                // Add android classifier and aar type
+                                dep.appendNode('classifier', 'android')
+                                dep.appendNode('type', 'aar')
                             }
                         }
                     }
@@ -246,14 +235,12 @@ publishing {
                     if (dependenciesNode != null) {
                         dependenciesNode.dependency.each { dep ->
                             if (dep.groupId[0].text() == 'net.java.dev.jna' && dep.artifactId[0].text() == 'jna') {
-                                // Remove classifier if it's null (JAR variant) and add android classifier
-                                if (dep.classifier == null || dep.classifier.isEmpty()) {
-                                    dep.appendNode('classifier', 'android')
-                                }
-                                // Ensure type is aar
-                                if (dep.type == null || dep.type.isEmpty() || dep.type[0].text() != 'aar') {
-                                    dep.appendNode('type', 'aar')
-                                }
+                                // Remove existing classifier/type nodes if present
+                                dep.remove(dep.classifier)
+                                dep.remove(dep.type)
+                                // Add android classifier and aar type
+                                dep.appendNode('classifier', 'android')
+                                dep.appendNode('type', 'aar')
                             }
                         }
                     }
