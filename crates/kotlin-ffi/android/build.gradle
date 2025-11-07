@@ -196,18 +196,26 @@ publishing {
                     developerConnection.set("scm:git:ssh://github.com:reown-com/yttrium.git")
                     url.set("https://github.com/reown-com/yttrium")
                 }
-                withXml {
+                withXml { xml ->
                     // Ensure JNA dependency uses AAR variant only (exclude JAR)
-                    def dependenciesNode = asNode().get('dependencies')[0]
+                    def dependenciesNode = xml.asNode().get('dependencies')[0]
                     if (dependenciesNode != null) {
                         dependenciesNode.dependency.each { dep ->
                             if (dep.groupId[0].text() == 'net.java.dev.jna' && dep.artifactId[0].text() == 'jna') {
-                                // Remove existing classifier/type nodes if present
-                                dep.remove(dep.classifier)
-                                dep.remove(dep.type)
-                                // Add android classifier and aar type
-                                dep.appendNode('classifier', 'android')
-                                dep.appendNode('type', 'aar')
+                                // Set or replace classifier
+                                def classifierNodes = dep.classifier
+                                if (classifierNodes && !classifierNodes.isEmpty()) {
+                                    classifierNodes[0].value = 'android'
+                                } else {
+                                    dep.appendNode('classifier', 'android')
+                                }
+                                // Set or replace type
+                                def typeNodes = dep.type
+                                if (typeNodes && !typeNodes.isEmpty()) {
+                                    typeNodes[0].value = 'aar'
+                                } else {
+                                    dep.appendNode('type', 'aar')
+                                }
                             }
                         }
                     }
@@ -229,18 +237,26 @@ publishing {
                     developerConnection.set("scm:git:ssh://github.com:reown-com/yttrium.git")
                     url.set("https://github.com/reown-com/Yttrium")
                 }
-                withXml {
+                withXml { xml ->
                     // Ensure JNA dependency uses AAR variant only (exclude JAR)
-                    def dependenciesNode = asNode().get('dependencies')[0]
+                    def dependenciesNode = xml.asNode().get('dependencies')[0]
                     if (dependenciesNode != null) {
                         dependenciesNode.dependency.each { dep ->
                             if (dep.groupId[0].text() == 'net.java.dev.jna' && dep.artifactId[0].text() == 'jna') {
-                                // Remove existing classifier/type nodes if present
-                                dep.remove(dep.classifier)
-                                dep.remove(dep.type)
-                                // Add android classifier and aar type
-                                dep.appendNode('classifier', 'android')
-                                dep.appendNode('type', 'aar')
+                                // Set or replace classifier
+                                def classifierNodes = dep.classifier
+                                if (classifierNodes && !classifierNodes.isEmpty()) {
+                                    classifierNodes[0].value = 'android'
+                                } else {
+                                    dep.appendNode('classifier', 'android')
+                                }
+                                // Set or replace type
+                                def typeNodes = dep.type
+                                if (typeNodes && !typeNodes.isEmpty()) {
+                                    typeNodes[0].value = 'aar'
+                                } else {
+                                    dep.appendNode('type', 'aar')
+                                }
                             }
                         }
                     }
