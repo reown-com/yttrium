@@ -55,13 +55,11 @@ repositories {
 }
 
 configurations.all {
-    // Exclude JAR variant of JNA to prevent duplicate classes (only use AAR)
-    exclude group: 'net.java.dev.jna', module: 'jna', classifier: null
     resolutionStrategy {
-        // Force only AAR variant of JNA
+        // Force only AAR variant of JNA to prevent duplicate classes (exclude JAR)
         eachDependency { details ->
             if (details.requested.group == 'net.java.dev.jna' && details.requested.name == 'jna' && details.requested.classifier == null) {
-                // Replace JAR variant with AAR variant
+                // Replace JAR variant with AAR variant (android classifier)
                 details.useTarget group: 'net.java.dev.jna', name: 'jna', version: details.requested.version, classifier: 'android'
             }
         }
