@@ -16,7 +16,7 @@ jobs:
     - name: Install dependencies
       run: npm ci
       working-directory: crates/rust-sample-wallet
-    - run: cargo install trunk
+    - run: cargo install trunk --locked
     - name: Install Playwright Browsers
       run: npx playwright install --with-deps
       working-directory: crates/rust-sample-wallet
