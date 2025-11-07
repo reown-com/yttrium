@@ -54,8 +54,10 @@ repositories {
     // }
 }
 
-// Note: JNA is declared as 'api ...@aar' which forces AAR variant
+// Note: JNA is declared with explicit artifact classifier to force AAR variant
 // POM modifications below ensure only AAR variant is published
+
+// No resolution strategy needed - artifact block in dependency declaration handles variant selection
 
 android {
     // namespace is set per-flavor below to avoid BuildConfig clashes
@@ -164,8 +166,14 @@ android {
 
     dependencies { 
         // implementation 'rustls:rustls-platform-verifier:0.1.1'
-        // Use 'api' for JNA so it's exposed to consumers and avoids duplicate class errors
-        api 'net.java.dev.jna:jna:5.17.0@aar'
+        // Use 'api' for JNA so it's exposed to consumers
+        // Explicitly request only the AAR variant with android classifier to prevent JAR variant
+        api('net.java.dev.jna:jna:5.17.0') {
+            artifact {
+                classifier = 'android'
+                type = 'aar'
+            }
+        }
         implementation 'androidx.core:core-ktx:1.10.1'
         implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.1'
         implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.1'
