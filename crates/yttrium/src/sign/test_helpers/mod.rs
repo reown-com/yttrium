@@ -7,8 +7,9 @@ use {
             SessionRequestJsonRpcResponse, SessionRequestJsonRpcResultResponse,
             SessionRequestRequest, SettleNamespace,
         },
+        relay::IncomingSessionMessage,
         storage::{Jwk, Storage, StorageError, StoragePairing},
-        IncomingSessionMessage, VerifyValidation,
+        verify::validate::VerifyValidation,
     },
     relay_rpc::domain::Topic,
     std::{

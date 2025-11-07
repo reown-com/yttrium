@@ -16,7 +16,7 @@ use {
         utils::{
             diffie_hellman, topic_from_sym_key, DecryptedHash, EncryptedHash,
         },
-        verify::{handle_verify, VERIFY_SERVER_URL},
+        verify::{validate::handle_verify, VERIFY_SERVER_URL},
     },
     chacha20poly1305::{aead::Aead, ChaCha20Poly1305, KeyInit, Nonce},
     data_encoding::BASE64,
