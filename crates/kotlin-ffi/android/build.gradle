@@ -174,9 +174,16 @@ android {
     }
 }
 
-// Exclude JAR variant of JNA to prevent duplicate classes
+// Force only AAR variant of JNA to prevent duplicate classes with JAR variant
 configurations.all {
-    exclude group: 'net.java.dev.jna', module: 'jna', extension: 'jar'
+    resolutionStrategy {
+        eachDependency { details ->
+            if (details.requested.group == 'net.java.dev.jna' && details.requested.name == 'jna') {
+                // Force AAR variant by using artifact notation
+                details.useTarget group: 'net.java.dev.jna', name: 'jna', version: '5.17.0', ext: 'aar'
+            }
+        }
+    }
 }
 
 java {
