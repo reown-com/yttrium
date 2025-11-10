@@ -14,6 +14,7 @@ pub mod call;
 pub mod chain;
 #[cfg(feature = "chain_abstraction_client")]
 pub mod chain_abstraction;
+pub mod clear_signing;
 pub mod config;
 pub mod eip7702;
 pub mod entry_point;
