@@ -166,14 +166,8 @@ android {
     dependencies { 
         // implementation 'rustls:rustls-platform-verifier:0.1.1'
         // Use 'api' for JNA so it's exposed to consumers
-        // Regular dependency to ensure all artifacts (including native libs) are included
-        api('net.java.dev.jna:jna:5.17.0') {
-            // Exclude the JAR artifact to prevent duplicate classes
-            artifact {
-                name = 'jna'
-                type = 'aar'
-            }
-        }
+        // Regular dependency - consumers will need to handle variant selection
+        api 'net.java.dev.jna:jna:5.17.0'
         implementation 'androidx.core:core-ktx:1.10.1'
         implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.1'
         implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.1'
@@ -205,19 +199,12 @@ publishing {
                     url.set("https://github.com/reown-com/yttrium")
                 }
                 withXml { xml ->
-                    // Ensure JNA dependency uses AAR variant only (exclude JAR)
+                    // Ensure JNA dependency uses AAR variant (set type to aar)
                     def dependenciesNode = xml.asNode().get('dependencies')[0]
                     if (dependenciesNode != null) {
                         dependenciesNode.dependency.each { dep ->
                             if (dep.groupId[0].text() == 'net.java.dev.jna' && dep.artifactId[0].text() == 'jna') {
-                                // Set or replace classifier
-                                def classifierNodes = dep.classifier
-                                if (classifierNodes && !classifierNodes.isEmpty()) {
-                                    classifierNodes[0].value = 'android'
-                                } else {
-                                    dep.appendNode('classifier', 'android')
-                                }
-                                // Set or replace type
+                                // Set or replace type to aar
                                 def typeNodes = dep.type
                                 if (typeNodes && !typeNodes.isEmpty()) {
                                     typeNodes[0].value = 'aar'
@@ -246,19 +233,12 @@ publishing {
                     url.set("https://github.com/reown-com/Yttrium")
                 }
                 withXml { xml ->
-                    // Ensure JNA dependency uses AAR variant only (exclude JAR)
+                    // Ensure JNA dependency uses AAR variant (set type to aar)
                     def dependenciesNode = xml.asNode().get('dependencies')[0]
                     if (dependenciesNode != null) {
                         dependenciesNode.dependency.each { dep ->
                             if (dep.groupId[0].text() == 'net.java.dev.jna' && dep.artifactId[0].text() == 'jna') {
-                                // Set or replace classifier
-                                def classifierNodes = dep.classifier
-                                if (classifierNodes && !classifierNodes.isEmpty()) {
-                                    classifierNodes[0].value = 'android'
-                                } else {
-                                    dep.appendNode('classifier', 'android')
-                                }
-                                // Set or replace type
+                                // Set or replace type to aar
                                 def typeNodes = dep.type
                                 if (typeNodes && !typeNodes.isEmpty()) {
                                     typeNodes[0].value = 'aar'
