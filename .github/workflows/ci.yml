@@ -78,7 +78,7 @@ jobs:
 
   rust_stable:
     name: Rust stable - build & lint
-    runs-on: [self-hosted, aws-ecs-16cpu-64mem-35disk-60m]
+    runs-on: [self-hosted, aws-ecs-16cpu-64mem-40disk-60m]
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
