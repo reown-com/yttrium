@@ -1,19 +1,21 @@
 //! Descriptor lookup and token metadata resolution entry points for clear signing.
 
-use std::collections::{HashMap, HashSet};
-use std::sync::OnceLock;
-
-use serde::Deserialize;
-use serde_json::Value;
-use thiserror::Error;
-
-use super::{
-    descriptor::{
-        build_descriptor, decode_arguments, determine_token_key,
-        native_token_key, resolve_effective_field, DescriptorError,
-        TokenLookupError, TokenLookupKey,
+use {
+    super::{
+        descriptor::{
+            build_descriptor, decode_arguments, determine_token_key,
+            native_token_key, resolve_effective_field, DescriptorError,
+            TokenLookupError, TokenLookupKey,
+        },
+        token_registry::{lookup_token_by_caip19, TokenMeta},
     },
-    token_registry::{lookup_token_by_caip19, TokenMeta},
+    serde::Deserialize,
+    serde_json::Value,
+    std::{
+        collections::{HashMap, HashSet},
+        sync::OnceLock,
+    },
+    thiserror::Error,
 };
 
 pub struct ResolvedDescriptor<'a> {

@@ -1,8 +1,11 @@
-use num_bigint::BigUint;
-use serde_json::json;
-use tiny_keccak::{Hasher, Keccak};
-use yttrium::clear_signing::{
-    format_typed_data, format_with_value, DisplayItem, EngineError, TypedData,
+use {
+    num_bigint::BigUint,
+    serde_json::json,
+    tiny_keccak::{Hasher, Keccak},
+    yttrium::clear_signing::{
+        format_typed_data, format_with_value, DisplayItem, EngineError,
+        TypedData,
+    },
 };
 
 const USDT_MAINNET: &str = "0xdAC17F958D2ee523a2206206994597C13D831ec7";

@@ -1,22 +1,22 @@
-use std::collections::HashMap;
-
-use num_bigint::BigUint;
-use serde::Deserialize;
-use serde_json::Value;
-use thiserror::Error;
-use time::{macros::format_description, OffsetDateTime};
-
-use super::{
-    descriptor::{
-        resolve_effective_field, DisplayField, DisplayFormat, EffectiveField,
+use {
+    super::{
+        descriptor::{
+            resolve_effective_field, DisplayField, DisplayFormat,
+            EffectiveField,
+        },
+        engine::{
+            format_amount_with_decimals, parse_biguint, resolve_metadata_value,
+            DisplayItem, DisplayModel,
+        },
+        resolver::{self, ResolvedTypedDescriptor},
+        token_registry::lookup_token_by_caip19,
     },
-    engine::{
-        format_amount_with_decimals, parse_biguint, resolve_metadata_value,
-        DisplayItem, DisplayModel,
-    },
-    resolver,
-    resolver::ResolvedTypedDescriptor,
-    token_registry::lookup_token_by_caip19,
+    num_bigint::BigUint,
+    serde::Deserialize,
+    serde_json::Value,
+    std::collections::HashMap,
+    thiserror::Error,
+    time::{macros::format_description, OffsetDateTime},
 };
 
 #[derive(Debug, Clone, Deserialize)]
@@ -378,8 +378,7 @@ fn extract_chain_id(domain: &Value) -> Result<u64, Eip712Error> {
 }
 
 fn extract_verifying_contract(domain: &Value) -> Result<String, Eip712Error> {
-    let Some(value) =
-        domain.get("verifyingContract").and_then(|val| value_as_string(val))
+    let Some(value) = domain.get("verifyingContract").and_then(value_as_string)
     else {
         return Err(Eip712Error::TypedData(
             "typed data domain missing verifyingContract".to_string(),

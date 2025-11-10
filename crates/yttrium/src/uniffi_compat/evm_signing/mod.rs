@@ -1,7 +1,6 @@
 pub mod client;
 
 pub use client::EvmSigningClient;
-
 use {
     crate::provider_pool::ProviderPool,
     alloy::{
@@ -96,7 +95,7 @@ pub async fn sign_and_send_transaction(
     let provider = provider_pool.get_provider(&params.chain_id).await;
 
     let mut request = TransactionRequest::default()
-        .with_chain_id(chain_numeric.into())
+        .with_chain_id(chain_numeric)
         .with_from(params.from);
 
     if let Some(to) = params.to {
@@ -134,7 +133,7 @@ pub async fn sign_and_send_transaction(
         .ok_or(EvmSigningError::UnsupportedTransactionType)?;
 
     let signature = sign_transaction(&tx, signer)?;
-    let signed = tx.into_signed(signature.clone());
+    let signed = tx.into_signed(signature);
     let envelope = TxEnvelope::Eip1559(signed.clone());
 
     let raw = Bytes::from(rlp::encode(envelope.clone()));
@@ -174,7 +173,7 @@ fn sign_transaction(
     let signature = signer
         .sign_hash_sync(&hash)
         .map_err(|err| EvmSigningError::Signing(err.to_string()))?;
-    Ok(signature.into())
+    Ok(signature)
 }
 
 async fn populate_missing_fields(

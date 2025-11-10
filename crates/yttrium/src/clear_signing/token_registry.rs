@@ -1,9 +1,9 @@
 //! Token registry helpers for the clear signing engine.
 
-use std::collections::HashMap;
-use std::sync::OnceLock;
-
-use serde::Deserialize;
+use {
+    serde::Deserialize,
+    std::{collections::HashMap, sync::OnceLock},
+};
 
 const TOKEN_REGISTRY_JSON: &str = include_str!("assets/tokens-min.json");
 

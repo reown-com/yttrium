@@ -4,15 +4,16 @@ mod engine;
 mod resolver;
 mod token_registry;
 
-pub use eip712::{format_typed_data, Eip712Error, TypeMember, TypedData};
-pub use engine::{
-    format_with_resolved_call, DisplayItem, DisplayModel, EngineError,
-    RawPreview,
-};
-pub use resolver::{ResolvedCall, ResolvedDescriptor};
-pub use token_registry::{lookup_token_by_caip19, TokenMeta};
-
 use resolver::ResolverError;
+pub use {
+    eip712::{format_typed_data, Eip712Error, TypeMember, TypedData},
+    engine::{
+        format_with_resolved_call, DisplayItem, DisplayModel, EngineError,
+        RawPreview,
+    },
+    resolver::{ResolvedCall, ResolvedDescriptor},
+    token_registry::{lookup_token_by_caip19, TokenMeta},
+};
 
 /// Formats a clear signing preview including an optional native value.
 pub fn format_with_value(

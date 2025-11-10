@@ -1,21 +1,21 @@
 //! Presentation engine for clear signing previews.
 
-use std::{collections::HashMap, sync::OnceLock};
-
-use num_bigint::BigUint;
-use thiserror::Error;
-use time::{macros::format_description, OffsetDateTime};
-use tiny_keccak::{Hasher, Keccak};
-
-use super::{
-    descriptor::{
-        build_descriptor, decode_arguments, determine_token_key,
-        native_token_key, resolve_effective_field, ArgumentValue,
-        DecodedArguments, Descriptor, DescriptorError, DisplayField,
-        DisplayFormat, EffectiveField, TokenLookupError, TokenLookupKey,
+use {
+    super::{
+        descriptor::{
+            build_descriptor, decode_arguments, determine_token_key,
+            native_token_key, resolve_effective_field, ArgumentValue,
+            DecodedArguments, Descriptor, DescriptorError, DisplayField,
+            DisplayFormat, EffectiveField, TokenLookupError, TokenLookupKey,
+        },
+        resolver::ResolvedCall,
+        token_registry::TokenMeta,
     },
-    resolver::ResolvedCall,
-    token_registry::TokenMeta,
+    num_bigint::BigUint,
+    std::{collections::HashMap, sync::OnceLock},
+    thiserror::Error,
+    time::{macros::format_description, OffsetDateTime},
+    tiny_keccak::{Hasher, Keccak},
 };
 
 const TETHER_USDT_DESCRIPTOR: &str =
@@ -182,7 +182,7 @@ pub fn format_with_resolved_call(
 }
 
 /// Convenience helper to call the engine directly with raw JSON assets.
-#[allow(dead_code)]
+#[allow(dead_code, clippy::too_many_arguments)]
 fn apply_display_format(
     format: &DisplayFormat,
     decoded: &DecodedArguments,
@@ -235,6 +235,7 @@ fn apply_display_format(
     Ok((items, warnings))
 }
 
+#[allow(clippy::too_many_arguments)]
 fn render_field(
     field: &EffectiveField,
     value: &ArgumentValue,
@@ -499,10 +500,8 @@ fn resolve_metadata_biguint(
     let value = resolve_metadata_value(metadata, pointer)?;
     if let Some(text) = value.as_str() {
         parse_biguint(text)
-    } else if let Some(number) = value.as_u64() {
-        Some(BigUint::from(number))
     } else {
-        None
+        value.as_u64().map(BigUint::from)
     }
 }
 
@@ -653,9 +652,4 @@ pub(crate) fn to_checksum_address(bytes: &[u8; 20]) -> String {
         result.push(ch);
     }
     result
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
 }

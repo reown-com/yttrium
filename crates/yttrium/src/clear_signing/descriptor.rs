@@ -1,13 +1,10 @@
 //! Descriptor parsing and token lookup utilities for clear signing.
 
-use std::collections::HashMap;
-
-use num_bigint::BigUint;
-use serde::Deserialize;
-use serde_json::Value as JsonValue;
-use thiserror::Error;
-
-use super::resolver::ResolvedDescriptor;
+use {
+    super::resolver::ResolvedDescriptor, num_bigint::BigUint,
+    serde::Deserialize, serde_json::Value as JsonValue,
+    std::collections::HashMap, thiserror::Error,
+};
 
 #[derive(Debug, Error)]
 pub enum DescriptorError {
@@ -71,22 +68,21 @@ fn inject_abi(descriptor_value: &mut JsonValue, abi_value: JsonValue) {
 }
 
 fn merge_include(target: &mut JsonValue, include: JsonValue) {
-    match (target, include) {
-        (JsonValue::Object(target_map), JsonValue::Object(include_map)) => {
-            for (key, value) in include_map {
-                match target_map.get_mut(&key) {
-                    Some(existing) => {
-                        if existing.is_object() && value.is_object() {
-                            merge_include(existing, value);
-                        }
+    if let (JsonValue::Object(target_map), JsonValue::Object(include_map)) =
+        (target, include)
+    {
+        for (key, value) in include_map {
+            match target_map.get_mut(&key) {
+                Some(existing) => {
+                    if existing.is_object() && value.is_object() {
+                        merge_include(existing, value);
                     }
-                    None => {
-                        target_map.insert(key, value);
-                    }
+                }
+                None => {
+                    target_map.insert(key, value);
                 }
             }
         }
-        _ => {}
     }
 }
 
@@ -643,7 +639,7 @@ fn internal_type_is_address(internal_type: Option<&str>, kind: &str) -> bool {
         return true;
     }
     if normalized
-        .rsplit(|c: char| c == ' ' || c == '.' || c == ':')
+        .rsplit([' ', '.', ':'])
         .next()
         .map(|segment| segment.eq_ignore_ascii_case("address"))
         .unwrap_or(false)
@@ -663,6 +659,12 @@ pub struct TokenLookupKey(String);
 impl TokenLookupKey {
     pub fn from_caip19(value: impl AsRef<str>) -> Self {
         TokenLookupKey(normalize_caip19(value.as_ref()))
+    }
+
+    pub fn from_erc20(chain_id: u64, address: &str) -> Self {
+        let normalized = normalize_address(address);
+        let key = format!("eip155:{}/erc20:{}", chain_id, normalized);
+        TokenLookupKey::from_caip19(key)
     }
 
     pub fn as_str(&self) -> &str {
@@ -689,8 +691,7 @@ pub fn determine_token_key(
     if let Some(token) =
         field.params.get("token").and_then(|value| value.as_str())
     {
-        let normalized = normalize_caip19(token);
-        return Ok(TokenLookupKey::from_caip19(normalized));
+        return Ok(TokenLookupKey::from_caip19(token));
     }
 
     if let Some(token_path) =
@@ -717,9 +718,7 @@ pub fn determine_token_key(
             normalize_address(&addr)
         };
 
-        let caip19 = format!("eip155:{}/erc20:{}", chain_id, address);
-        let caip19 = normalize_caip19(&caip19);
-        return Ok(TokenLookupKey::from_caip19(caip19));
+        return Ok(TokenLookupKey::from_erc20(chain_id, &address));
     }
 
     Err(TokenLookupError::MissingToken { field: field.path.clone() })
