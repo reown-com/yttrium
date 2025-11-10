@@ -658,8 +658,16 @@ fn normalize_address(address: &str) -> String {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum TokenLookupKey {
-    Caip19(String),
+pub struct TokenLookupKey(String);
+
+impl TokenLookupKey {
+    pub fn from_caip19(value: impl AsRef<str>) -> Self {
+        TokenLookupKey(normalize_caip19(value.as_ref()))
+    }
+
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
 }
 
 #[derive(Debug, Error)]
@@ -682,7 +690,7 @@ pub fn determine_token_key(
         field.params.get("token").and_then(|value| value.as_str())
     {
         let normalized = normalize_caip19(token);
-        return Ok(TokenLookupKey::Caip19(normalized));
+        return Ok(TokenLookupKey::from_caip19(normalized));
     }
 
     if let Some(token_path) =
@@ -711,7 +719,7 @@ pub fn determine_token_key(
 
         let caip19 = format!("eip155:{}/erc20:{}", chain_id, address);
         let caip19 = normalize_caip19(&caip19);
-        return Ok(TokenLookupKey::Caip19(caip19));
+        return Ok(TokenLookupKey::from_caip19(caip19));
     }
 
     Err(TokenLookupError::MissingToken { field: field.path.clone() })
@@ -727,7 +735,7 @@ pub fn native_token_key(
     })?;
     let caip19 = format!("eip155:{}/slip44:{}", chain_id, slip44);
     let caip19 = normalize_caip19(&caip19);
-    Ok(TokenLookupKey::Caip19(caip19))
+    Ok(TokenLookupKey::from_caip19(caip19))
 }
 
 fn native_slip44_code(chain_id: u64) -> Option<u32> {
@@ -770,9 +778,8 @@ mod tests {
         // Should be normalized to lowercase with whitespace trimmed
         assert_eq!(
             key,
-            TokenLookupKey::Caip19(
+            TokenLookupKey::from_caip19(
                 "eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48"
-                    .to_string()
             )
         );
     }
@@ -782,10 +789,7 @@ mod tests {
         let result = native_token_key(1);
         assert!(result.is_ok());
         let key = result.unwrap();
-        assert_eq!(
-            key,
-            TokenLookupKey::Caip19("eip155:1/slip44:60".to_string())
-        );
+        assert_eq!(key, TokenLookupKey::from_caip19("eip155:1/slip44:60"));
     }
 
     #[test]

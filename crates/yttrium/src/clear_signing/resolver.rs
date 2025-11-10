@@ -222,13 +222,13 @@ pub fn resolve_call(
         }
 
         for key in keys {
-            let TokenLookupKey::Caip19(caip) = &key;
-            let meta = lookup_token_by_caip19(caip).ok_or_else(|| {
-                ResolverError::DescriptorParse(format!(
-                    "token registry missing entry for {:?}",
-                    key
-                ))
-            })?;
+            let meta =
+                lookup_token_by_caip19(key.as_str()).ok_or_else(|| {
+                    ResolverError::DescriptorParse(format!(
+                        "token registry missing entry for {:?}",
+                        key
+                    ))
+                })?;
             token_metadata.insert(key, meta);
         }
     }
