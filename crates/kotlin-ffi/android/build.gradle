@@ -54,9 +54,9 @@ repositories {
     // }
 }
 
-// Note: JNA is declared with @aar notation to prefer AAR variant
-// POM modifications below ensure only AAR variant is published
-// Consumers may need to exclude JAR variant if duplicate class errors occur
+// Note: JNA is declared as regular 'api' dependency
+// Gradle will resolve appropriate variant (JAR contains native libs, AAR for Android)
+// If duplicate class errors occur, consumers should exclude JNA and add it explicitly
 
 android {
     // namespace is set per-flavor below to avoid BuildConfig clashes
@@ -166,8 +166,8 @@ android {
     dependencies { 
         // implementation 'rustls:rustls-platform-verifier:0.1.1'
         // Use 'api' for JNA so it's exposed to consumers
-        // Regular dependency - consumers will need to handle variant selection
-        api 'net.java.dev.jna:jna:5.17.0'
+        // Use AAR variant for Android consumption
+        api 'net.java.dev.jna:jna:5.17.0@aar'
         implementation 'androidx.core:core-ktx:1.10.1'
         implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.1'
         implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.1'
@@ -198,23 +198,7 @@ publishing {
                     developerConnection.set("scm:git:ssh://github.com:reown-com/yttrium.git")
                     url.set("https://github.com/reown-com/yttrium")
                 }
-                withXml { xml ->
-                    // Ensure JNA dependency uses AAR variant (set type to aar)
-                    def dependenciesNode = xml.asNode().get('dependencies')[0]
-                    if (dependenciesNode != null) {
-                        dependenciesNode.dependency.each { dep ->
-                            if (dep.groupId[0].text() == 'net.java.dev.jna' && dep.artifactId[0].text() == 'jna') {
-                                // Set or replace type to aar
-                                def typeNodes = dep.type
-                                if (typeNodes && !typeNodes.isEmpty()) {
-                                    typeNodes[0].value = 'aar'
-                                } else {
-                                    dep.appendNode('type', 'aar')
-                                }
-                            }
-                        }
-                    }
-                }
+                // No POM modifications needed - let Gradle handle JNA variant resolution
             }
         }
 
@@ -232,23 +216,7 @@ publishing {
                     developerConnection.set("scm:git:ssh://github.com:reown-com/yttrium.git")
                     url.set("https://github.com/reown-com/Yttrium")
                 }
-                withXml { xml ->
-                    // Ensure JNA dependency uses AAR variant (set type to aar)
-                    def dependenciesNode = xml.asNode().get('dependencies')[0]
-                    if (dependenciesNode != null) {
-                        dependenciesNode.dependency.each { dep ->
-                            if (dep.groupId[0].text() == 'net.java.dev.jna' && dep.artifactId[0].text() == 'jna') {
-                                // Set or replace type to aar
-                                def typeNodes = dep.type
-                                if (typeNodes && !typeNodes.isEmpty()) {
-                                    typeNodes[0].value = 'aar'
-                                } else {
-                                    dep.appendNode('type', 'aar')
-                                }
-                            }
-                        }
-                    }
-                }
+                // No POM modifications needed - let Gradle handle JNA variant resolution
             }
         }
     }
