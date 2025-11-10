@@ -166,12 +166,17 @@ android {
     dependencies { 
         // implementation 'rustls:rustls-platform-verifier:0.1.1'
         // Use 'api' for JNA so it's exposed to consumers
-        // Regular dependency (not @aar) to ensure native libraries are included
-        api 'net.java.dev.jna:jna:5.17.0'
+        // Use @aar notation to prefer AAR variant and include native libraries
+        api 'net.java.dev.jna:jna:5.17.0@aar'
         implementation 'androidx.core:core-ktx:1.10.1'
         implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.1'
         implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.1'
     }
+}
+
+// Exclude JAR variant of JNA to prevent duplicate classes
+configurations.all {
+    exclude group: 'net.java.dev.jna', module: 'jna', extension: 'jar'
 }
 
 java {
