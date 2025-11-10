@@ -15,6 +15,9 @@ const DAI: &str = "0x6B175474E89094C44Da98b954EedeAC495271d0F";
 const ON_BEHALF_OF: &str = "0x1111111111111111111111111111111111111111";
 const UNIVERSAL_ROUTER_OPTIMISM: &str =
     "0x851116d9223fAbEd8e56C0e6B8AD0c31d98B3507";
+const STAKEWEIGHT_OPTIMISM: &str = "0x521B4C065Bbdbe3E20B3727340730936912DfA46";
+const STAKEWEIGHT_INCREASE_UNLOCK_TIME_CALLDATA: &str =
+    "0x7c616fe6000000000000000000000000000000000000000000000000000000006945563d";
 const UNIVERSAL_ROUTER_CALLDATA_HEX: &str = concat!(
     "3593564c00000000000000000000000000000000000000000000000000000000",
     "0000006000000000000000000000000000000000000000000000000000000000",
@@ -197,6 +200,28 @@ fn aave_repay_all_uses_message() {
             value: "All".to_string(),
         })
     );
+}
+
+#[test]
+fn walletconnect_increase_unlock_time_renders_date() {
+    let calldata = hex::decode(
+        STAKEWEIGHT_INCREASE_UNLOCK_TIME_CALLDATA.trim_start_matches("0x"),
+    )
+    .expect("call data hex");
+
+    let model = format_with_value(10, STAKEWEIGHT_OPTIMISM, None, &calldata)
+        .expect("format succeeds");
+
+    assert_eq!(model.intent, "Increase Unlock Time");
+    assert_eq!(
+        model.items,
+        vec![DisplayItem {
+            label: "New Unlock Time".to_string(),
+            value: "2025-12-19 13:42:21 UTC".to_string(),
+        }]
+    );
+    assert!(model.warnings.is_empty());
+    assert!(model.raw.is_none());
 }
 
 #[test]

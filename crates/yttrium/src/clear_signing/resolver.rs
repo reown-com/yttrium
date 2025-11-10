@@ -79,6 +79,8 @@ const DESCRIPTOR_AAVE_LPV3: &str =
     include_str!("assets/descriptors/aave/calldata-lpv3.json");
 const DESCRIPTOR_AAVE_WETH_GATEWAY_V3: &str =
     include_str!("assets/descriptors/aave/calldata-WrappedTokenGatewayV3.json");
+const DESCRIPTOR_WALLETC_W_STAKEWEIGHT: &str =
+    include_str!("assets/descriptors/walletconnect/calldata-stakeweight.json");
 const INCLUDE_COMMON_TEST_ROUTER: &str =
     include_str!("assets/descriptors/common-test-router.json");
 const INCLUDE_1INCH_COMMON_V4: &str =
@@ -272,6 +274,9 @@ fn descriptor_content(path: &str) -> Option<&'static str> {
         "descriptors/aave/calldata-lpv3.json" => Some(DESCRIPTOR_AAVE_LPV3),
         "descriptors/aave/calldata-WrappedTokenGatewayV3.json" => {
             Some(DESCRIPTOR_AAVE_WETH_GATEWAY_V3)
+        }
+        "descriptors/walletconnect/calldata-stakeweight.json" => {
+            Some(DESCRIPTOR_WALLETC_W_STAKEWEIGHT)
         }
         _ => None,
     }

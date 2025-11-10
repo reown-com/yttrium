@@ -43,6 +43,9 @@
     "descriptor": "descriptors/erc20_usdt.json",
     "abi": "abis/erc20.json"
   },
+  "eip155:10:0x521b4c065bbdbe3e20b3727340730936912dfa46": {
+    "descriptor": "descriptors/walletconnect/calldata-stakeweight.json"
+  },
   "eip155:10:0xe12e0f117d23a5ccc57f8935cd8c4e80cd91ff01": {
     "descriptor": "descriptors/1inch/calldata-NativeOrderFactory.json",
     "abi": "abis/1inch/native_order_factory.json"
