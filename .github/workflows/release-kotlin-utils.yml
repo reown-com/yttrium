@@ -1,8 +1,5 @@
 name: Build and Release Yttrium Kotlin Utils
 on:
-  push:
-    branches:
-      - two_artefacts_kotlin
   workflow_dispatch:
     inputs:
       version:
@@ -10,7 +7,7 @@ on:
         required: true
 env:
   CARGO_TERM_COLOR: always
-  VERSION: 0.9.107 #${{ github.event.inputs.version || '0.0.1' }}
+  VERSION: ${{ github.event.inputs.version || '0.0.1' }}
   TARGET_BRANCH: ${{ github.ref_name }}
 permissions:
   contents: write
