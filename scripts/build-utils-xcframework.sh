@@ -5,7 +5,7 @@ set -u
 
 PACKAGE_NAME="yttrium"
 # Use chain_abstraction_client which will include Sui code without explicit sui feature
-FEATURES="ios,eip155,chain_abstraction_client,stacks,sui,ton"
+FEATURES="ios,eip155,chain_abstraction_client,stacks,sui,ton,clear_signing,evm_signing"
 fat_simulator_lib_dir="target/ios-simulator-fat/uniffi-release-swift-utils"
 swift_package_dir="platforms/swift/Sources/YttriumUtils"
 ORIG_FFI_MODULE_NAME="yttriumFFI"

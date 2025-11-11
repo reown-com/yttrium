@@ -3,11 +3,17 @@ pub mod log;
 #[cfg(feature = "sign_client")]
 pub mod sign;
 
+#[cfg(feature = "clear_signing")]
+pub mod clear_signing;
+
 #[cfg(feature = "sui")]
 pub mod sui;
 
 #[cfg(feature = "stacks")]
 pub mod stacks;
+
+#[cfg(feature = "evm_signing")]
+pub mod evm_signing;
 
 #[cfg(feature = "ton")]
 pub mod ton;

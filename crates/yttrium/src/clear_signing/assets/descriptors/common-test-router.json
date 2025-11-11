@@ -1,0 +1,22 @@
+{
+  "metadata": {
+    "info": {
+      "legalName": "Shared Test Router"
+    }
+  },
+  "display": {
+    "formats": {
+      "setAmount(uint256)": {
+        "intent": "Set router amount",
+        "fields": [
+          {
+            "path": "amount",
+            "label": "Amount",
+            "format": "number"
+          }
+        ],
+        "required": ["amount"]
+      }
+    }
+  }
+}

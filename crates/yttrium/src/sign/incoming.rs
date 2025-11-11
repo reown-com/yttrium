@@ -90,6 +90,10 @@ pub async fn handle(
     let decrypted = key
         .decrypt(&Nonce::from(envelope.iv), envelope.sb.as_slice())
         .map_err(|e| HandleError::Peer(format!("decrypt message: {e}")))?;
+    tracing::debug!(
+        "decrypted message: {}",
+        String::from_utf8_lossy(&decrypted)
+    );
     let value = serde_json::from_slice::<serde_json::Value>(&decrypted)
         .map_err(|e| HandleError::Peer(format!("parse JSON: {e}")))?;
     let message = serde_json::from_slice::<GenericJsonRpcMessage>(&decrypted)

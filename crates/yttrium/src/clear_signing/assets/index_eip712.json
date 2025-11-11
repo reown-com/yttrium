@@ -1,0 +1,19 @@
+{
+  "eip155:1:0x119c71d3bbac22029622cbaec24854d3d32d2828": "descriptors/1inch/eip712-1inch-limit-order.json",
+  "eip155:10:0x11431a89893025d2a48dca4eddc396f8c8117187": "descriptors/1inch/eip712-1inch-limit-order.json",
+  "eip155:56:0x1e38eff998df9d3669e32f4ff400031385bf6362": "descriptors/1inch/eip712-1inch-limit-order.json",
+  "eip155:137:0x94bc2a1c732bcad7343b25af48385fe76e08734f": "descriptors/1inch/eip712-1inch-limit-order.json",
+  "eip155:42161:0x7f069df72b7a39bce9806e3afaf579e54d8cf2b9": "descriptors/1inch/eip712-1inch-limit-order.json",
+  "eip155:1:0x111111125421ca6dc452d289314280a0f8842a65": "descriptors/1inch/eip712-AggregationRouterV6.json",
+  "eip155:10:0x111111125421ca6dc452d289314280a0f8842a65": "descriptors/1inch/eip712-AggregationRouterV6.json",
+  "eip155:56:0x111111125421ca6dc452d289314280a0f8842a65": "descriptors/1inch/eip712-AggregationRouterV6.json",
+  "eip155:100:0x111111125421ca6dc452d289314280a0f8842a65": "descriptors/1inch/eip712-AggregationRouterV6.json",
+  "eip155:137:0x111111125421ca6dc452d289314280a0f8842a65": "descriptors/1inch/eip712-AggregationRouterV6.json",
+  "eip155:250:0x111111125421ca6dc452d289314280a0f8842a65": "descriptors/1inch/eip712-AggregationRouterV6.json",
+  "eip155:324:0x6fd4383cb451173d5f9304f041c7bcbf27d561ff": "descriptors/1inch/eip712-AggregationRouterV6.json",
+  "eip155:8217:0x111111125421ca6dc452d289314280a0f8842a65": "descriptors/1inch/eip712-AggregationRouterV6.json",
+  "eip155:8453:0x111111125421ca6dc452d289314280a0f8842a65": "descriptors/1inch/eip712-AggregationRouterV6.json",
+  "eip155:42161:0x111111125421ca6dc452d289314280a0f8842a65": "descriptors/1inch/eip712-AggregationRouterV6.json",
+  "eip155:43114:0x111111125421ca6dc452d289314280a0f8842a65": "descriptors/1inch/eip712-AggregationRouterV6.json",
+  "eip155:1313161554:0x111111125421ca6dc452d289314280a0f8842a65": "descriptors/1inch/eip712-AggregationRouterV6.json"
+}
