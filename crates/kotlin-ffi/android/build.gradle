@@ -193,16 +193,15 @@ dependencies {
 def publicationVersion = project.hasProperty("version") ? project.getProperty("version") : "0.0.1"
 
 tasks.register("extractJnaNativeLibs", Sync) {
+    from {
+        configurations.jnaAar.incoming.artifactView { it.lenient = true }.files.collect { zipTree(it) }
+    }
     include "jni/**/libjnidispatch.so"
     eachFile { details ->
         details.path = details.path.replaceFirst("^jni/", "")
     }
     includeEmptyDirs = false
     into jnaNativeLibsDir
-
-    doFirst {
-        from(configurations.jnaAar.resolve().collect { zipTree(it) })
-    }
 }
 
 tasks.withType(MergeSourceSetFolders).configureEach { task ->
