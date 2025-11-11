@@ -1,3 +1,4 @@
+import com.android.build.gradle.tasks.MergeSourceSetFolders
 import groovy.json.JsonSlurper
 
 apply plugin: 'com.android.library'
@@ -54,6 +55,8 @@ repositories {
     // }
 }
 
+def jnaNativeLibsDir = "${project.buildDir}/generated/jnaLibs"
+
 // Note: JNA is declared as regular 'api' dependency
 // Gradle will resolve appropriate variant (JAR contains native libs, AAR for Android)
 // If duplicate class errors occur, consumers should exclude JNA and add it explicitly
@@ -109,7 +112,7 @@ android {
         main {
             java.srcDirs = []
             kotlin.srcDirs = []
-            jniLibs.srcDirs = []
+            jniLibs.srcDirs = [jnaNativeLibsDir]
         }
         yttrium {
             // Include static flavor sources and generated bindings
@@ -166,8 +169,7 @@ android {
     dependencies { 
         // implementation 'rustls:rustls-platform-verifier:0.1.1'
         // Use 'api' for JNA so it's exposed to consumers
-        // Force the Android AAR variant so libjnidispatch.so is packaged with the AAR
-        api('net.java.dev.jna:jna:5.17.0@aar')
+        api 'net.java.dev.jna:jna:5.17.0'
         implementation 'androidx.core:core-ktx:1.10.1'
         implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.1'
         implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.1'
@@ -180,7 +182,34 @@ java {
     }
 }
 
+configurations {
+    jnaAar
+}
+
+dependencies {
+    jnaAar 'net.java.dev.jna:jna:5.17.0@aar'
+}
+
 def publicationVersion = project.hasProperty("version") ? project.getProperty("version") : "0.0.1"
+
+tasks.register("extractJnaNativeLibs", Sync) {
+    include "jni/**/libjnidispatch.so"
+    eachFile { details ->
+        details.path = details.path.replaceFirst("^jni/", "")
+    }
+    includeEmptyDirs = false
+    into jnaNativeLibsDir
+
+    doFirst {
+        from(configurations.jnaAar.resolve().collect { zipTree(it) })
+    }
+}
+
+tasks.withType(MergeSourceSetFolders).configureEach { task ->
+    if (task.name.endsWith("JniLibFolders")) {
+        task.dependsOn("extractJnaNativeLibs")
+    }
+}
 
 publishing {
     publications {
