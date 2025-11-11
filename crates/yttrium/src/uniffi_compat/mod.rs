@@ -34,8 +34,8 @@ use {
 use crate::smart_accounts::account_address::AccountAddress;
 #[cfg(feature = "chain_abstraction_client")]
 use crate::wallet_service_api::{
-    AddressOrNative, Asset, AssetData, Erc20Metadata, Erc721Metadata,
-    NativeMetadata,
+            AddressOrNative, Asset, AssetData, Erc20Metadata, Erc721Metadata,
+            NativeMetadata,
 };
 #[cfg(feature = "sign_client")]
 use {
