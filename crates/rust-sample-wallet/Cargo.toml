@@ -17,6 +17,8 @@ yttrium = { path = "../yttrium", default-features = false, features = [
     "sign_client",
 ] }
 web-sys = { version = "0.3.77", features = ["Window", "Storage"] }
+wasm-bindgen = { workspace = true }
+wasm-bindgen-futures = { workspace = true }
 thaw = { git = "https://github.com/thaw-ui/thaw", branch = "thaw/v0.5", features = [
     "csr",
 ] }
