@@ -2,7 +2,7 @@ name: Build and Release Yttrium Kotlin Utils
 on:
   push:
     branches:
-      - two_frameworks_kt
+      - two_artefacts_kotlin
   workflow_dispatch:
     inputs:
       version:
