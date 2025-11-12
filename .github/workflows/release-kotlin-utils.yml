@@ -1,4 +1,4 @@
-name: Build and Release Yttrium Kotlin
+name: Build and Release Yttrium Kotlin Utils
 on:
   workflow_dispatch:
     inputs:
@@ -12,7 +12,7 @@ env:
 permissions:
   contents: write
 jobs:
-  build-kotlin-artifacts:
+  build-kotlin-utils-artifacts:
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -39,30 +39,38 @@ jobs:
           ndk-version: 28.2.13676358
       - name: Install cargo-ndk
         run: |
-          # --locked to bypass pipeline error in some contexts
           cargo install cargo-ndk --locked
-      - name: Build Rust library
+      - name: Build Rust library (utils feature set)
         run: |
           cargo ndk -t ${{ matrix.target }} build \
             --profile=uniffi-release-kotlin \
             --no-default-features \
-            --features=android,erc6492_client,uniffi/cli
-      - name: Generate Kotlin bindings (once, on aarch64 only)
+            --features=android,chain_abstraction_client,solana,stacks,sui,ton,eip155,uniffi/cli
+      - name: Generate Kotlin utils bindings (once, on aarch64 only)
         if: ${{ matrix.target == 'aarch64-linux-android' }}
         run: |
-          rm -rf yttrium/kotlin-bindings
+          rm -rf yttrium/kotlin-utils-bindings
           cargo run \
             --no-default-features \
-            --features=android,erc6492_client,uniffi/cli \
+            --features=android,chain_abstraction_client,solana,stacks,sui,ton,eip155,uniffi/cli \
             -p kotlin-ffi \
             --bin uniffi-bindgen generate \
             --library target/${{ matrix.target }}/uniffi-release-kotlin/libuniffi_yttrium.so \
             --language kotlin \
-            --out-dir yttrium/kotlin-bindings
+            --out-dir yttrium/kotlin-utils-bindings
+          
+          # Rename packages and imports for utils variant
+          find yttrium/kotlin-utils-bindings -type f -name "*.kt" -exec perl -i -pe '
+            s/^package uniffi\.yttrium$/package uniffi.yttrium_utils/;
+            s/^import uniffi\.yttrium\./import uniffi.yttrium_utils./g;
+            s/^package uniffi\.uniffi_yttrium$/package uniffi.uniffi_yttrium_utils/;
+            s/^import uniffi\.uniffi_yttrium\./import uniffi.uniffi_yttrium_utils./g;
+            s/\buniffi\.yttrium\./uniffi.yttrium_utils./g;
+            s/\buniffi\.uniffi_yttrium\./uniffi.uniffi_yttrium_utils./g;
+            s/return "uniffi_yttrium"/return "uniffi_yttrium_utils"/g;
+          ' {} \;
       - name: Strip binaries
         run: |
-            # Try to find the correct NDK path and llvm-strip
-            # Check available NDK versions and use the latest one
             LATEST_NDK=$(ls -1 $ANDROID_HOME/ndk/ | sort -V | tail -1)
             echo "Using NDK version: $LATEST_NDK"
             
@@ -77,12 +85,8 @@ jobs:
                 echo "Looking for llvm-strip in common locations:"
                 find $ANDROID_HOME/ndk -name "llvm-strip" 2>/dev/null || echo "No llvm-strip found"
             fi
-
       - name: Prepare local artifacts folder
         run: |
-         echo "Matrix ${{ matrix.target }}"
-
-          # Map Rust targets to Android ABI names
           declare -A abi_map
           abi_map[aarch64-linux-android]="arm64-v8a"
           abi_map[armv7-linux-androideabi]="armeabi-v7a"
@@ -95,142 +99,92 @@ jobs:
             exit 1
           fi
 
-          # Create a local folder with everything for this target
           mkdir -p yttrium/libs/$abi_name
-          cp target/${{ matrix.target }}/uniffi-release-kotlin/libuniffi_yttrium.so yttrium/libs/$abi_name/
-
-      - name: Debug listing of yttrium
-        run: |
-              echo "Contents of yttrium/:"
-              ls -R yttrium/
+          cp target/${{ matrix.target }}/uniffi-release-kotlin/libuniffi_yttrium.so yttrium/libs/$abi_name/libuniffi_yttrium_utils.so
 
       - name: Upload artifact (unique name per target)
         uses: actions/upload-artifact@v4
         with:
-          name: artifacts-${{ matrix.target }}
+          name: utils-artifacts-${{ matrix.target }}
           path: yttrium/
 
-  combine-artifacts:
-    needs: build-kotlin-artifacts
+  combine-utils-artifacts:
+    needs: build-kotlin-utils-artifacts
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v3
       - name: Download aarch64 artifact
         uses: actions/download-artifact@v4
         with:
-          name: artifacts-aarch64-linux-android
+          name: utils-artifacts-aarch64-linux-android
           path: combined/aarch64
-
-      - name: Debug listing of downloaded artifact aarch64
-        run: |
-            echo "Contents of combined/aarch64:"
-            ls -R combined/aarch64
-
       - name: Download armv7 artifact
         uses: actions/download-artifact@v4
         with:
-          name: artifacts-armv7-linux-androideabi
+          name: utils-artifacts-armv7-linux-androideabi
           path: combined/armv7
-
-      - name: Debug listing of downloaded artifact armv7
-        run: |
-              echo "Contents of combined/armv7:"
-              ls -R combined/armv7
-
       - name: Download x86_64 artifact
         uses: actions/download-artifact@v4
         with:
-          name: artifacts-x86_64-linux-android
+          name: utils-artifacts-x86_64-linux-android
           path: combined/x86_64
-
-      - name: Debug listing of downloaded artifact x86_64
+      - name: Merge utils artifacts
         run: |
-              echo "Contents of combined/x86_64:"
-              ls -R combined/x86_64
-
-      - name: Merge artifacts
-        run: |
-          # We'll create one combined folder that contains all ABIs. 
-          # For example, copy the libs into the same 'yttrium/libs/...' structure
           mkdir -p merged/yttrium/libs
 
-          # Copy aarch64's libs
           cp -r combined/aarch64/libs/arm64-v8a merged/yttrium/libs/
-
-          # Copy armv7's libs
           cp -r combined/armv7/libs/armeabi-v7a merged/yttrium/libs/
-
-          # Copy x86_64's libs
           cp -r combined/x86_64/libs/x86_64 merged/yttrium/libs/
-          
-          
-          # Copy Kotlin bindings if it exists in the aarch64 artifact
-          if [ -d combined/aarch64/kotlin-bindings ]; then
-            cp -r combined/aarch64/kotlin-bindings merged/yttrium/
+
+          if [ -d combined/aarch64/kotlin-utils-bindings ]; then
+            cp -r combined/aarch64/kotlin-utils-bindings merged/yttrium/
           fi
-
-      - name: Debug listing of merged folder
-        run: |
-            echo "Merged final content:"
-            ls -R merged/yttrium
-
       - name: Upload single combined artifact
         uses: actions/upload-artifact@v4
         with:
-          name: artifacts
+          name: utils-artifacts
           path: merged/yttrium/
 
-  create-github-release:
-    needs: combine-artifacts
+  create-utils-release:
+    needs: combine-utils-artifacts
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
-
       - name: Download single final artifact
         uses: actions/download-artifact@v4
         with:
-          name: artifacts
+          name: utils-artifacts
           path: yttrium/
-
-      - name: Debug listing of yttrium before zip
-        run: |
-              echo "Before zip:"
-              ls -R yttrium/
-
-      - name: Create artifacts zip
+      - name: Create utils artifacts zip
         run: |
           echo "Creating zip from yttrium directory..."
           ls -R yttrium/
-          zip -r kotlin-artifacts.zip yttrium/
+          zip -r kotlin-utils-artifacts.zip yttrium/
           echo "Zip created, verifying..."
-          ls -lh kotlin-artifacts.zip
-          unzip -t kotlin-artifacts.zip
+          ls -lh kotlin-utils-artifacts.zip
+          unzip -t kotlin-utils-artifacts.zip
           echo "Zip verification successful"
-      
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ env.VERSION }}
-          release_name: "Yttrium Kotlin ${{ env.VERSION }}"
+          tag_name: kotlin-utils-${{ env.VERSION }}
+          release_name: "Yttrium Kotlin Utils ${{ env.VERSION }}"
           body: |
-            Release version ${{ env.VERSION }}
-            
+            Kotlin utils release version ${{ env.VERSION }}
+
             **Branch:** ${{ env.TARGET_BRANCH }}
           draft: false
           prerelease: false
-
       - name: Upload Release Assets
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: kotlin-artifacts.zip
-          asset_name: kotlin-artifacts.zip
+          asset_path: kotlin-utils-artifacts.zip
+          asset_name: kotlin-utils-artifacts.zip
           asset_content_type: application/zip

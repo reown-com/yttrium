@@ -54,8 +54,12 @@ repositories {
     // }
 }
 
+// Note: JNA is declared with @aar notation to prefer AAR variant
+// POM modifications below ensure only AAR variant is published
+// Consumers may need to exclude JAR variant if duplicate class errors occur
+
 android {
-    namespace "com.reown.yttrium.uniffi"
+    // namespace is set per-flavor below to avoid BuildConfig clashes
 
     compileSdkVersion 35
 
@@ -72,7 +76,8 @@ android {
     }
     
     buildFeatures {
-        buildConfig = true
+        // Avoid BuildConfig class collisions across flavors in published AARs
+        buildConfig = false
     }
 
     lintOptions {
@@ -80,10 +85,47 @@ android {
         checkReleaseBuilds false
     }
 
+    flavorDimensions "artifact"
+
+    productFlavors {
+        yttrium {
+            dimension "artifact"
+            // Unique namespace for base artifact to avoid BuildConfig clashes
+            namespace "com.reown.yttrium.uniffi"
+        }
+        utils {
+            dimension "artifact"
+            // Unique namespace for utils artifact
+            namespace "com.reown.yttrium.utils.uniffi"
+        }
+    }
+
+    publishing {
+        singleVariant("yttriumRelease")
+        singleVariant("utilsRelease")
+    }
+
     sourceSets {
         main {
-            jniLibs.srcDirs = ['src/main/jniLibs']
-            java.srcDirs = ['src/main/kotlin']
+            java.srcDirs = []
+            kotlin.srcDirs = []
+            jniLibs.srcDirs = []
+        }
+        yttrium {
+            // Include static flavor sources and generated bindings
+            kotlin.srcDirs += [
+                "${project.projectDir}/src/yttrium/kotlin",
+                "${project.buildDir}/generated/yttrium/kotlin"
+            ]
+            jniLibs.srcDirs += ["${project.buildDir}/generated/yttrium/jniLibs"]
+        }
+        utils {
+            // Include static flavor sources and generated bindings
+            kotlin.srcDirs += [
+                "${project.projectDir}/src/utils/kotlin",
+                "${project.buildDir}/generated/utils/kotlin"
+            ]
+            jniLibs.srcDirs += ["${project.buildDir}/generated/utils/jniLibs"]
         }
     }
 
@@ -96,6 +138,7 @@ android {
 
      packagingOptions {
         doNotStrip "*/libuniffi_yttrium.so"
+        doNotStrip "*/libuniffi_yttrium_utils.so"
     }
 
     compileOptions {
@@ -113,6 +156,7 @@ android {
     // Ensure proper alignment for 16 KB page sizes
     packagingOptions {
         doNotStrip "*/libuniffi_yttrium.so"
+        doNotStrip "*/libuniffi_yttrium_utils.so"
         // Add 16 KB alignment for native libraries
         jniLibs {
             useLegacyPackaging = false
@@ -121,7 +165,9 @@ android {
 
     dependencies { 
         // implementation 'rustls:rustls-platform-verifier:0.1.1'
-        implementation 'net.java.dev.jna:jna:5.12.0@aar'
+        // Use 'api' for JNA so it's exposed to consumers
+        // Use @aar notation to prefer AAR variant, but consumers may need to exclude JAR variant
+        api 'net.java.dev.jna:jna:5.17.0@aar'
         implementation 'androidx.core:core-ktx:1.10.1'
         implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.1'
         implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.1'
@@ -134,30 +180,111 @@ java {
     }
 }
 
+def publicationVersion = project.hasProperty("version") ? project.getProperty("version") : "0.0.1"
+
 publishing {
     publications {
-        release(MavenPublication) {
-            artifact("$buildDir/outputs/aar/${project.name}-release.aar")
-
+        register("yttriumRelease", MavenPublication) {
             groupId = 'com.github.reown-com'
             artifactId = 'yttrium'
-            version = project.hasProperty("version") ? project.getProperty("version") : "0.0.1"
+            version = publicationVersion
 
             pom {
                 name.set("Yttrium")
                 description.set("An Android library for Yttrium.")
                 url.set("https://github.com/reown-com/Yttrium")
-
-                 scm {
-                        connection.set("scm:git:git://github.com:reown-com/yttrium.git")
-                        developerConnection.set("scm:git:ssh://github.com:reown-com/yttrium.git")
-                        url.set("https://github.com/reown-com/yttrium")
+                scm {
+                    connection.set("scm:git:git://github.com:reown-com/yttrium.git")
+                    developerConnection.set("scm:git:ssh://github.com:reown-com/yttrium.git")
+                    url.set("https://github.com/reown-com/yttrium")
+                }
+                withXml { xml ->
+                    // Ensure JNA dependency uses AAR variant only (exclude JAR)
+                    def dependenciesNode = xml.asNode().get('dependencies')[0]
+                    if (dependenciesNode != null) {
+                        dependenciesNode.dependency.each { dep ->
+                            if (dep.groupId[0].text() == 'net.java.dev.jna' && dep.artifactId[0].text() == 'jna') {
+                                // Set or replace classifier
+                                def classifierNodes = dep.classifier
+                                if (classifierNodes && !classifierNodes.isEmpty()) {
+                                    classifierNodes[0].value = 'android'
+                                } else {
+                                    dep.appendNode('classifier', 'android')
+                                }
+                                // Set or replace type
+                                def typeNodes = dep.type
+                                if (typeNodes && !typeNodes.isEmpty()) {
+                                    typeNodes[0].value = 'aar'
+                                } else {
+                                    dep.appendNode('type', 'aar')
+                                }
+                            }
+                        }
                     }
+                }
+            }
+        }
+
+        register("yttriumUtilsRelease", MavenPublication) {
+            groupId = 'com.github.reown-com'
+            artifactId = 'yttrium-utils'
+            version = publicationVersion
+
+            pom {
+                name.set("Yttrium Utils")
+                description.set("Yttrium utils bindings for Android.")
+                url.set("https://github.com/reown-com/Yttrium")
+                scm {
+                    connection.set("scm:git:git://github.com:reown-com/yttrium.git")
+                    developerConnection.set("scm:git:ssh://github.com:reown-com/yttrium.git")
+                    url.set("https://github.com/reown-com/Yttrium")
+                }
+                withXml { xml ->
+                    // Ensure JNA dependency uses AAR variant only (exclude JAR)
+                    def dependenciesNode = xml.asNode().get('dependencies')[0]
+                    if (dependenciesNode != null) {
+                        dependenciesNode.dependency.each { dep ->
+                            if (dep.groupId[0].text() == 'net.java.dev.jna' && dep.artifactId[0].text() == 'jna') {
+                                // Set or replace classifier
+                                def classifierNodes = dep.classifier
+                                if (classifierNodes && !classifierNodes.isEmpty()) {
+                                    classifierNodes[0].value = 'android'
+                                } else {
+                                    dep.appendNode('classifier', 'android')
+                                }
+                                // Set or replace type
+                                def typeNodes = dep.type
+                                if (typeNodes && !typeNodes.isEmpty()) {
+                                    typeNodes[0].value = 'aar'
+                                } else {
+                                    dep.appendNode('type', 'aar')
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
     }
 }
 
-tasks.named("publishReleasePublicationToMavenLocal") {
-    dependsOn("assembleRelease")
+components.all { component ->
+    if (component.name == "yttriumRelease") {
+        publishing.publications.named("yttriumRelease", MavenPublication).configure {
+            from(component)
+        }
+    }
+    if (component.name == "utilsRelease") {
+        publishing.publications.named("yttriumUtilsRelease", MavenPublication).configure {
+            from(component)
+        }
+    }
+}
+
+tasks.matching { it.name == "publishYttriumReleasePublicationToMavenLocal" }.configureEach {
+    dependsOn("assembleYttriumRelease")
+}
+
+tasks.matching { it.name == "publishYttriumUtilsReleasePublicationToMavenLocal" }.configureEach {
+    dependsOn("assembleUtilsRelease")
 }

@@ -23,6 +23,16 @@ use crate::chain_abstraction::{
     amount::Amount,
     api::prepare::{Eip155OrSolanaAddress, FundingMetadata},
 };
+#[cfg(any(
+    feature = "account_client",
+    feature = "chain_abstraction_client"
+))]
+use crate::smart_accounts::account_address::AccountAddress;
+#[cfg(feature = "chain_abstraction_client")]
+use crate::wallet_service_api::{
+    AddressOrNative, Asset, AssetData, Erc20Metadata, Erc721Metadata,
+    NativeMetadata,
+};
 #[cfg(feature = "solana")]
 use {
     crate::chain_abstraction::solana::{
@@ -36,14 +46,12 @@ use {
         transaction::VersionedTransaction,
     },
 };
+#[cfg(feature = "sign_client")]
 use {
-    crate::{
-        smart_accounts::account_address::AccountAddress,
-        wallet_service_api::{
-            AddressOrNative, Asset, AssetData, Erc20Metadata, Erc721Metadata,
-            NativeMetadata,
-        },
-    },
+    alloy::rpc::json_rpc::Id,
+    relay_rpc::domain::{ClientId, Topic},
+};
+use {
     alloy::{
         contract::Error as AlloyError,
         dyn_abi::Eip712Domain,
@@ -51,16 +59,13 @@ use {
             aliases::U48, Address, Bytes, PrimitiveSignature, Uint, B256, U128,
             U256, U64, U8,
         },
-        rpc::{
-            json_rpc::Id,
-            types::{Authorization, TransactionReceipt, UserOperationReceipt},
-        },
+        rpc::types::{Authorization, TransactionReceipt, UserOperationReceipt},
         signers::local::PrivateKeySigner,
         transports::{self, TransportErrorKind},
     },
     alloy_provider::PendingTransactionError,
     eyre::Report as EyreError,
-    relay_rpc::domain::{ClientId, ProjectId, Topic},
+    relay_rpc::domain::ProjectId,
     reqwest::{Error as ReqwestError, StatusCode, Url},
     serde_json::Error as SerdeJsonError,
     uniffi::deps::anyhow::Error as AnyhowError,
@@ -73,6 +78,7 @@ uniffi::custom_type!(Address, String, {
     try_lift: |val| Ok(val.parse()?),
     lower: |obj| obj.to_string(),
 });
+#[cfg(any(feature = "account_client", feature = "chain_abstraction_client"))]
 uniffi::custom_type!(AccountAddress, Address, {
     try_lift: |val| Ok(val.into()),
     lower: |obj| obj.into(),
@@ -377,11 +383,13 @@ fn solana_derive_keypair_from_mnemonic(
         })
 }
 
+#[cfg(feature = "chain_abstraction_client")]
 uniffi::custom_type!(Asset, AssetFfi, {
     try_lift: |val| Ok(val.into()),
     lower: |obj| obj.into(),
 });
 
+#[cfg(feature = "chain_abstraction_client")]
 #[derive(Debug, Clone, PartialEq, uniffi_macros::Enum)]
 pub enum AssetFfi {
     Native { address: AddressOrNative, balance: U256, metadata: NativeMetadata },
@@ -389,6 +397,7 @@ pub enum AssetFfi {
     Erc721 { address: AddressOrNative, balance: U256, metadata: Erc721Metadata },
 }
 
+#[cfg(feature = "chain_abstraction_client")]
 impl From<AssetFfi> for Asset {
     fn from(value: AssetFfi) -> Self {
         match value {
@@ -405,6 +414,7 @@ impl From<AssetFfi> for Asset {
     }
 }
 
+#[cfg(feature = "chain_abstraction_client")]
 impl From<Asset> for AssetFfi {
     fn from(value: Asset) -> Self {
         match value {

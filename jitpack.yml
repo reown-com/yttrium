@@ -1,0 +1,136 @@
+# JitPack configuration for building Yttrium Kotlin bindings
+# This file tells JitPack how to build the Android library
+
+# Use Ubuntu 22.04 for better compatibility
+jdk:
+  - openjdk17
+
+# Before building, we need to:
+# 1. Download pre-built native libraries and Kotlin bindings from GitHub releases
+# 2. Place them in the correct directories for Gradle to find
+before_install:
+  - |
+    set -e
+    echo "JitPack build starting..."
+    echo "Git ref: $GIT_TAG"
+    echo "Git commit: $GIT_COMMIT"
+    echo "Git branch: $GIT_BRANCH"
+    
+    # Determine the tag - JitPack might use different variable names
+    # Try GIT_TAG first, then fall back to extracting from git
+    if [ -n "$GIT_TAG" ]; then
+      RELEASE_TAG="$GIT_TAG"
+    else
+      # Try to get tag from git
+      RELEASE_TAG=$(git describe --tags --exact-match 2>/dev/null || echo "")
+      if [ -z "$RELEASE_TAG" ]; then
+        echo "ERROR: Could not determine release tag!"
+        echo "GIT_TAG is not set and git describe failed."
+        echo ""
+        echo "JitPack can only build from tagged releases."
+        echo "To use this library:"
+        echo "1. First create a GitHub release by running the workflow:"
+        echo "   https://github.com/reown-com/yttrium/actions"
+        echo "2. Then use the tag version in your dependency:"
+        echo "   implementation 'com.github.reown-com:yttrium:0.9.82'"
+        echo ""
+        echo "Available releases: https://github.com/reown-com/yttrium/releases"
+        exit 1
+      fi
+    fi
+    
+    echo "Using release tag: $RELEASE_TAG"
+    
+    # Determine which release to download
+    # For tags like "0.9.55", download kotlin-artifacts.zip (yttrium)
+    # For tags like "kotlin-utils-0.9.55", download kotlin-utils-artifacts.zip (yttrium-utils)
+    if [[ "$RELEASE_TAG" == kotlin-utils-* ]]; then
+      ARTIFACT_NAME="kotlin-utils-artifacts.zip"
+      FLAVOR="utils"
+      echo "Building yttrium-utils variant from tag: $RELEASE_TAG"
+    else
+      ARTIFACT_NAME="kotlin-artifacts.zip"
+      FLAVOR="yttrium"
+      echo "Building yttrium variant from tag: $RELEASE_TAG"
+    fi
+    
+    # Download the pre-built artifacts from GitHub release
+    DOWNLOAD_URL="https://github.com/reown-com/yttrium/releases/download/${RELEASE_TAG}/${ARTIFACT_NAME}"
+    echo "Downloading artifacts from: $DOWNLOAD_URL"
+    
+    curl -L -o artifacts.zip "$DOWNLOAD_URL"
+    
+    # Extract the artifacts
+    unzip -q artifacts.zip
+    
+    # Show what we downloaded
+    echo "Downloaded artifacts:"
+    ls -R yttrium/
+    
+    # Move artifacts to the correct locations for Gradle build
+    if [ "$FLAVOR" = "yttrium" ]; then
+      # For yttrium variant
+      mkdir -p crates/kotlin-ffi/android/build/generated/yttrium/jniLibs
+      mkdir -p crates/kotlin-ffi/android/build/generated/yttrium/kotlin
+      
+      # Copy native libraries
+      if [ -d "yttrium/libs" ]; then
+        cp -r yttrium/libs/* crates/kotlin-ffi/android/build/generated/yttrium/jniLibs/
+      fi
+      
+      # Copy Kotlin bindings
+      if [ -d "yttrium/kotlin-bindings" ]; then
+        cp -r yttrium/kotlin-bindings/* crates/kotlin-ffi/android/build/generated/yttrium/kotlin/
+      fi
+      
+      echo "Yttrium artifacts placed in build directories"
+      ls -R crates/kotlin-ffi/android/build/generated/yttrium/
+    else
+      # For utils variant
+      mkdir -p crates/kotlin-ffi/android/build/generated/utils/jniLibs
+      mkdir -p crates/kotlin-ffi/android/build/generated/utils/kotlin
+      
+      # Copy native libraries
+      if [ -d "yttrium/libs" ]; then
+        cp -r yttrium/libs/* crates/kotlin-ffi/android/build/generated/utils/jniLibs/
+      fi
+      
+      # Copy Kotlin bindings
+      if [ -d "yttrium/kotlin-utils-bindings" ]; then
+        cp -r yttrium/kotlin-utils-bindings/* crates/kotlin-ffi/android/build/generated/utils/kotlin/
+      fi
+      
+      echo "Yttrium-utils artifacts placed in build directories"
+      ls -R crates/kotlin-ffi/android/build/generated/utils/
+    fi
+
+# Install command - build the appropriate flavor
+install:
+  - |
+    set -e
+    
+    # Determine the tag (same logic as before_install)
+    if [ -n "$GIT_TAG" ]; then
+      RELEASE_TAG="$GIT_TAG"
+    else
+      RELEASE_TAG=$(git describe --tags --exact-match 2>/dev/null || echo "")
+      if [ -z "$RELEASE_TAG" ]; then
+        echo "ERROR: Could not determine release tag in install step!"
+        exit 1
+      fi
+    fi
+    
+    echo "Building from tag: $RELEASE_TAG"
+    
+    # Determine which publication to build based on the tag
+    if [[ "$RELEASE_TAG" == kotlin-utils-* ]]; then
+      # Extract version from tag (e.g., kotlin-utils-0.9.55 -> 0.9.55)
+      VERSION="${RELEASE_TAG#kotlin-utils-}"
+      echo "Building yttrium-utils with version: $VERSION"
+      ./gradlew assembleUtilsRelease publishYttriumUtilsReleasePublicationToMavenLocal -Pversion="$VERSION"
+    else
+      VERSION="$RELEASE_TAG"
+      echo "Building yttrium with version: $VERSION"
+      ./gradlew assembleYttriumRelease publishYttriumReleasePublicationToMavenLocal -Pversion="$VERSION"
+    fi
+

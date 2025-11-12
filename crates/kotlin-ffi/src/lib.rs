@@ -1,9 +1,19 @@
 uniffi::setup_scaffolding!();
 
 // Force import of this crate to ensure that the code is actually generated
+#[cfg(any(
+    feature = "chain_abstraction_client",
+    feature = "account_client"
+))]
+use alloy::primitives::Bytes as FFIBytes;
 #[allow(unused_imports)]
 #[allow(clippy::single_component_path_imports)]
 use yttrium;
+#[cfg(any(
+    feature = "chain_abstraction_client",
+    feature = "account_client"
+))]
+use yttrium::call::Call;
 #[cfg(feature = "account_client")]
 use {
     alloy::sol_types::SolStruct,
@@ -23,7 +33,7 @@ use {
     alloy::{
         hex,
         primitives::{
-            ruint::aliases::U256, Address as FFIAddress, Bytes as FFIBytes,
+            ruint::aliases::U256, Address as FFIAddress,
             PrimitiveSignature as FFIPrimitiveSignature, Uint, U128 as FFIU128,
             U256 as FFIU256, U64 as FFIU64,
         },
@@ -42,7 +52,6 @@ use {
     alloy::{providers::Provider, sol_types::SolCall},
     relay_rpc::domain::ProjectId,
     std::time::Duration,
-    yttrium::call::Call,
     yttrium::chain_abstraction::client::ExecuteDetails,
     yttrium::chain_abstraction::{
         api::{
@@ -104,7 +113,7 @@ uniffi::custom_type!(FFIU256, String, {
     lower: |obj| uint_to_hex(obj),
 });
 
-#[cfg(feature = "chain_abstraction_client")]
+#[cfg(any(feature = "chain_abstraction_client", feature = "account_client"))]
 uniffi::custom_type!(FFIBytes, String, {
     remote,
     try_lift: |val| Ok(val.parse()?),
@@ -344,6 +353,24 @@ impl ChainAbstractionClient {
             .await
             .map_err(|e| FFIError::GetWalletAssets(e.to_string()))
     }
+}
+
+// Free-function helpers required by utils bindings; export them from this crate so the
+// checksum symbols are present in the final cdylib regardless of upstream crate layout.
+#[cfg(feature = "chain_abstraction_client")]
+#[uniffi::export]
+fn funding_metadata_to_amount(
+    value: yttrium::chain_abstraction::api::prepare::FundingMetadata,
+) -> yttrium::chain_abstraction::amount::Amount {
+    value.to_amount()
+}
+
+#[cfg(feature = "chain_abstraction_client")]
+#[uniffi::export]
+fn funding_metadata_to_bridging_fee_amount(
+    value: yttrium::chain_abstraction::api::prepare::FundingMetadata,
+) -> yttrium::chain_abstraction::amount::Amount {
+    value.to_bridging_fee_amount()
 }
 
 #[cfg(feature = "account_client")]
