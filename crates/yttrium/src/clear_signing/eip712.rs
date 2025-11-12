@@ -125,7 +125,20 @@ pub fn format_typed_data(
 fn parse_descriptor(
     resolved: ResolvedTypedDescriptor<'_>,
 ) -> Result<TypedDescriptor, Eip712Error> {
-    serde_json::from_str(resolved.descriptor_json)
+    let mut descriptor_value: Value = serde_json::from_str(resolved.descriptor_json)
+        .map_err(|err| Eip712Error::DescriptorParse(err.to_string()))?;
+
+    for include_json in resolved.includes {
+        let include_value: Value = serde_json::from_str(include_json)
+            .map_err(|err| Eip712Error::DescriptorParse(err.to_string()))?;
+        merge_include(&mut descriptor_value, include_value);
+    }
+
+    if let Some(object) = descriptor_value.as_object_mut() {
+        object.remove("includes");
+    }
+
+    serde_json::from_value(descriptor_value)
         .map_err(|err| Eip712Error::DescriptorParse(err.to_string()))
 }
 
@@ -183,6 +196,25 @@ fn render_field(
         Some("enum") => format_enum(field, value, metadata),
         Some("raw") => Ok(format_raw(value)),
         _ => Ok(format_raw(value)),
+    }
+}
+
+fn merge_include(target: &mut Value, include: Value) {
+    if let (Value::Object(target_map), Value::Object(include_map)) =
+        (target, include)
+    {
+        for (key, value) in include_map {
+            match target_map.get_mut(&key) {
+                Some(existing) => {
+                    if existing.is_object() && value.is_object() {
+                        merge_include(existing, value);
+                    }
+                }
+                None => {
+                    target_map.insert(key, value);
+                }
+            }
+        }
     }
 }
 

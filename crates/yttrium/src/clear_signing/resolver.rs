@@ -89,6 +89,8 @@ const INCLUDE_1INCH_COMMON_V4: &str =
     include_str!("assets/descriptors/1inch/common-AggregationRouterV4.json");
 const INCLUDE_1INCH_COMMON_V6: &str =
     include_str!("assets/descriptors/1inch/common-AggregationRouterV6.json");
+const INCLUDE_UNISWAP_COMMON_EIP712: &str =
+    include_str!("assets/descriptors/uniswap/uniswap-common-eip712.json");
 
 const ABI_ERC20: &str = include_str!("assets/abis/erc20.json");
 const ABI_UNISWAP_V3_ROUTER_V1: &str =
@@ -101,6 +103,8 @@ const TYPED_DESCRIPTOR_1INCH_LIMIT_ORDER: &str =
     include_str!("assets/descriptors/1inch/eip712-1inch-limit-order.json");
 const TYPED_DESCRIPTOR_1INCH_AGG_ROUTER_V6: &str =
     include_str!("assets/descriptors/1inch/eip712-AggregationRouterV6.json");
+const TYPED_DESCRIPTOR_UNISWAP_PERMIT2: &str =
+    include_str!("assets/descriptors/uniswap/eip712-uniswap-permit2.json");
 type TypedIndexMap = HashMap<String, String>;
 static TYPED_INDEX: OnceLock<TypedIndexMap> = OnceLock::new();
 
@@ -349,6 +353,7 @@ fn normalize_address(address: &str) -> String {
 
 pub struct ResolvedTypedDescriptor<'a> {
     pub descriptor_json: &'a str,
+    pub includes: Vec<&'a str>,
 }
 
 pub fn resolve_typed(
@@ -368,7 +373,9 @@ pub fn resolve_typed(
         ResolverError::InvalidIndexEntry { path: path.clone() }
     })?;
 
-    Ok(ResolvedTypedDescriptor { descriptor_json: descriptor })
+    let includes = extract_includes(descriptor)?;
+
+    Ok(ResolvedTypedDescriptor { descriptor_json: descriptor, includes })
 }
 
 fn typed_descriptor_content(path: &str) -> Option<&'static str> {
@@ -378,6 +385,9 @@ fn typed_descriptor_content(path: &str) -> Option<&'static str> {
         }
         "descriptors/1inch/eip712-AggregationRouterV6.json" => {
             Some(TYPED_DESCRIPTOR_1INCH_AGG_ROUTER_V6)
+        }
+        "descriptors/uniswap/eip712-uniswap-permit2.json" => {
+            Some(TYPED_DESCRIPTOR_UNISWAP_PERMIT2)
         }
         _ => None,
     }
@@ -429,6 +439,7 @@ fn include_content(name: &str) -> Option<&'static str> {
         "common-test-router.json" => Some(INCLUDE_COMMON_TEST_ROUTER),
         "common-AggregationRouterV4.json" => Some(INCLUDE_1INCH_COMMON_V4),
         "common-AggregationRouterV6.json" => Some(INCLUDE_1INCH_COMMON_V6),
+        "uniswap-common-eip712.json" => Some(INCLUDE_UNISWAP_COMMON_EIP712),
         _ => None,
     }
 }
