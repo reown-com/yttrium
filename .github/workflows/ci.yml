@@ -195,6 +195,13 @@ jobs:
           target: armv7-linux-androideabi
           override: true
           components: rust-src
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{ env.RUST_MSRV }}
+          target: x86_64-linux-android
+          override: true
+          components: rust-src
       - uses: Swatinem/rust-cache@v2
 
       - name: Set up Java 11
