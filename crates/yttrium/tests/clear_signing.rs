@@ -436,6 +436,72 @@ fn eip712_limit_order_formats_tokens() {
 }
 
 #[test]
+fn eip712_uniswap_permit2_formats_allowance() {
+    let typed_data_json = json!({
+        "types": {
+            "EIP712Domain": [
+                { "name": "name", "type": "string" },
+                { "name": "chainId", "type": "uint256" },
+                { "name": "verifyingContract", "type": "address" }
+            ],
+            "PermitDetails": [
+                { "name": "token", "type": "address" },
+                { "name": "amount", "type": "uint160" },
+                { "name": "expiration", "type": "uint48" },
+                { "name": "nonce", "type": "uint48" }
+            ],
+            "PermitSingle": [
+                { "name": "details", "type": "PermitDetails" },
+                { "name": "spender", "type": "address" },
+                { "name": "sigDeadline", "type": "uint256" }
+            ]
+        },
+        "primaryType": "PermitSingle",
+        "domain": {
+            "name": "Permit2",
+            "chainId": "10",
+            "verifyingContract": "0x000000000022d473030f116ddee9f6b43ac78ba3"
+        },
+        "message": {
+            "details": {
+                "token": "0x0b2c639c533813f4aa9d7837caf62653d097ff85",
+                "amount": "1461501637330902918203684832716283019655932542975",
+                "expiration": "1765546694",
+                "nonce": "0"
+            },
+            "spender": "0x851116d9223fabed8e56c0e6b8ad0c31d98b3507",
+            "sigDeadline": "1762956494"
+        }
+    });
+
+    let typed: TypedData = serde_json::from_value(typed_data_json)
+        .expect("typed data should parse");
+
+    let model = format_typed_data(&typed).expect("format succeeds");
+
+    assert_eq!(model.intent, "Authorize spending of token");
+    assert_eq!(
+        model.items,
+        vec![
+            DisplayItem {
+                label: "Spender".to_string(),
+                value: "0x851116d9223fabed8e56c0e6b8ad0c31d98b3507".to_string(),
+            },
+            DisplayItem {
+                label: "Amount allowance".to_string(),
+                value: "1,461,501,637,330,902,918,203,684,832,716,283,019,655,932.542975 USDC".to_string(),
+            },
+            DisplayItem {
+                label: "Approval expires".to_string(),
+                value: "2025-12-12 13:38:14 UTC".to_string(),
+            },
+        ]
+    );
+    assert!(model.warnings.is_empty());
+    assert!(model.raw.is_none());
+}
+
+#[test]
 fn usdt_approve_all_displays_all_message() {
     let calldata = build_calldata(
         selector("approve(address,uint256)"),
