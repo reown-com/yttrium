@@ -19,6 +19,8 @@ pub mod chain;
 #[cfg(feature = "chain_abstraction_client")]
 pub mod chain_abstraction;
 #[cfg(any(feature = "account_client", feature = "chain_abstraction_client"))]
+pub mod clear_signing;
+#[cfg(any(feature = "account_client", feature = "chain_abstraction_client"))]
 pub mod config;
 #[cfg(feature = "account_client")]
 pub mod eip7702;
