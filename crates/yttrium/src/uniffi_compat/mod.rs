@@ -23,6 +23,16 @@ use crate::chain_abstraction::{
     amount::Amount,
     api::prepare::{Eip155OrSolanaAddress, FundingMetadata},
 };
+#[cfg(any(
+    feature = "account_client",
+    feature = "chain_abstraction_client"
+))]
+use crate::smart_accounts::account_address::AccountAddress;
+#[cfg(feature = "chain_abstraction_client")]
+use crate::wallet_service_api::{
+    AddressOrNative, Asset, AssetData, Erc20Metadata, Erc721Metadata,
+    NativeMetadata,
+};
 #[cfg(feature = "solana")]
 use {
     crate::chain_abstraction::solana::{
@@ -35,13 +45,6 @@ use {
         signer::{SeedDerivable, Signer},
         transaction::VersionedTransaction,
     },
-};
-#[cfg(any(feature = "account_client", feature = "chain_abstraction_client"))]
-use crate::smart_accounts::account_address::AccountAddress;
-#[cfg(feature = "chain_abstraction_client")]
-use crate::wallet_service_api::{
-            AddressOrNative, Asset, AssetData, Erc20Metadata, Erc721Metadata,
-            NativeMetadata,
 };
 #[cfg(feature = "sign_client")]
 use {

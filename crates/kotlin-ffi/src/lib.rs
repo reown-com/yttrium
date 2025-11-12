@@ -1,9 +1,19 @@
 uniffi::setup_scaffolding!();
 
 // Force import of this crate to ensure that the code is actually generated
+#[cfg(any(
+    feature = "chain_abstraction_client",
+    feature = "account_client"
+))]
+use alloy::primitives::Bytes as FFIBytes;
 #[allow(unused_imports)]
 #[allow(clippy::single_component_path_imports)]
 use yttrium;
+#[cfg(any(
+    feature = "chain_abstraction_client",
+    feature = "account_client"
+))]
+use yttrium::call::Call;
 #[cfg(feature = "account_client")]
 use {
     alloy::sol_types::SolStruct,
@@ -18,10 +28,6 @@ use {
         smart_accounts::safe::{SignOutputEnum, SignStep3Params},
     },
 };
-#[cfg(any(feature = "chain_abstraction_client", feature = "account_client"))]
-use alloy::primitives::Bytes as FFIBytes;
-#[cfg(any(feature = "chain_abstraction_client", feature = "account_client"))]
-use yttrium::call::Call;
 #[cfg(feature = "chain_abstraction_client")]
 use {
     alloy::{
