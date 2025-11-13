@@ -21,6 +21,7 @@ use {
 
 #[derive(Clone)]
 struct JsonRpcHistoryEntry {
+    insertion_timestamp: u64,
     topic: Topic,
     response: Option<String>,
 }
@@ -97,7 +98,10 @@ impl Storage for MySessionStore {
             .map(|session| session.session_sym_key)
             .or_else(|| {
                 inner.pairing_keys.get(&topic).map(
-                    |(_, StoragePairing { sym_key, self_key: _ })| *sym_key,
+                    |(
+                        _,
+                        StoragePairing { sym_key, self_key: _, expiry: _ },
+                    )| *sym_key,
                 )
             })
             .or_else(|| inner.partial_sessions.get(&topic).copied());
@@ -110,11 +114,13 @@ impl Storage for MySessionStore {
         rpc_id: ProtocolRpcId,
         sym_key: [u8; 32],
         self_key: [u8; 32],
+        expiry: u64,
     ) -> Result<(), StorageError> {
         let mut inner = self.0.lock().unwrap();
-        inner
-            .pairing_keys
-            .insert(topic, (rpc_id, StoragePairing { sym_key, self_key }));
+        inner.pairing_keys.insert(
+            topic,
+            (rpc_id, StoragePairing { expiry, sym_key, self_key }),
+        );
         Ok(())
     }
 
@@ -130,6 +136,26 @@ impl Storage for MySessionStore {
             .map(|(_, storage_pairing)| storage_pairing)
             .cloned();
         Ok(pairing)
+    }
+
+    fn get_all_pairings(
+        &self,
+    ) -> Result<Vec<(Topic, ProtocolRpcId, u64)>, StorageError> {
+        let inner = self.0.lock().unwrap();
+        let pairings = inner
+            .pairing_keys
+            .iter()
+            .map(|(topic, (rpc_id, pairing))| {
+                (topic.clone(), *rpc_id, pairing.expiry)
+            })
+            .collect();
+        Ok(pairings)
+    }
+
+    fn delete_pairing(&self, topic: Topic) -> Result<(), StorageError> {
+        let mut inner = self.0.lock().unwrap();
+        inner.pairing_keys.remove(&topic);
+        Ok(())
     }
 
     fn save_partial_session(
@@ -160,11 +186,13 @@ impl Storage for MySessionStore {
         _method: String,
         _body: String,
         _transport_type: Option<TransportType>,
+        insertion_timestamp: u64,
     ) -> Result<(), StorageError> {
         let mut inner = self.0.lock().unwrap();
-        inner
-            .json_rpc_history
-            .insert(request_id, JsonRpcHistoryEntry { topic, response: None });
+        inner.json_rpc_history.insert(
+            request_id,
+            JsonRpcHistoryEntry { insertion_timestamp, topic, response: None },
+        );
         Ok(())
     }
 
@@ -185,21 +213,35 @@ impl Storage for MySessionStore {
         Ok(())
     }
 
-    fn delete_json_rpc_history_by_topic(
-        &self,
-        topic: Topic,
-    ) -> Result<(), StorageError> {
-        let mut inner = self.0.lock().unwrap();
-        inner.json_rpc_history.retain(|_, entry| entry.topic != topic);
-        Ok(())
-    }
-
     fn does_json_rpc_exist(
         &self,
         request_id: ProtocolRpcId,
     ) -> Result<bool, StorageError> {
         let inner = self.0.lock().unwrap();
         Ok(inner.json_rpc_history.contains_key(&request_id))
+    }
+
+    fn get_all_json_rpc_with_timestamps(
+        &self,
+    ) -> Result<Vec<(ProtocolRpcId, Topic, u64)>, StorageError> {
+        let inner = self.0.lock().unwrap();
+        let json_rpc_history = inner
+            .json_rpc_history
+            .iter()
+            .map(|(request_id, entry)| {
+                (*request_id, entry.topic.clone(), entry.insertion_timestamp)
+            })
+            .collect();
+        Ok(json_rpc_history)
+    }
+
+    fn delete_json_rpc_history_by_id(
+        &self,
+        request_id: ProtocolRpcId,
+    ) -> Result<(), StorageError> {
+        let mut inner = self.0.lock().unwrap();
+        inner.json_rpc_history.remove(&request_id);
+        Ok(())
     }
 }
 

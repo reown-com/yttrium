@@ -80,13 +80,30 @@ pub enum RejectError {
 
 #[derive(Debug, thiserror::Error)]
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Error))]
+#[error("Sign reject error: {0}")]
+pub enum SessionRequestError {
+    #[error("Storage: {0}")]
+    Storage(StorageError),
+
+    #[error("Session not found or has expired")]
+    SessionNotFoundOrExpired,
+
+    #[error("Request error: {0}")]
+    Request(RequestError),
+
+    #[error("Should never happen: {0}")]
+    ShouldNeverHappen(String),
+}
+
+#[derive(Debug, thiserror::Error)]
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Error))]
 #[error("Sign respond error: {0}")]
 pub enum RespondError {
     #[error("Storage: {0}")]
     Storage(StorageError),
 
-    #[error("Session not found")]
-    SessionNotFound,
+    #[error("Session not found or has expired")]
+    SessionNotFoundOrExpired,
 
     #[error("Request: {0}")]
     Request(RequestError),
@@ -167,8 +184,8 @@ pub enum UpdateError {
     #[error("Storage: {0}")]
     Storage(StorageError),
 
-    #[error("Session not found")]
-    SessionNotFound,
+    #[error("Session not found or has expired")]
+    SessionNotFoundOrExpired,
 
     #[error("Unauthorized: not controller")]
     Unauthorized,

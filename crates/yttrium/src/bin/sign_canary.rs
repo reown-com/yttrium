@@ -30,10 +30,10 @@ pub async fn main() {
         .unwrap();
 
     let result = test_sign_impl().await;
-    if result.is_ok() {
-        tracing::debug!(probe = "e2e");
+    if let Err(e) = result {
+        tracing::error!(probe = "e2e_err", "{e}");
     } else {
-        tracing::debug!(probe = "e2e_fail");
+        tracing::debug!(probe = "e2e");
     }
 
     if std::env::var("ENABLE_RECORD_CLOUDWATCH_METRICS")

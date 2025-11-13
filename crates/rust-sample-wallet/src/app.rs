@@ -40,6 +40,14 @@ struct MyState {
     sessions: Vec<Session>,
     pairing_keys: HashMap<Topic, (ProtocolRpcId, StoragePairing)>,
     partial_sessions: HashMap<Topic, [u8; 32]>,
+    json_rpc_history: HashMap<ProtocolRpcId, JsonRpcHistoryEntry>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+struct JsonRpcHistoryEntry {
+    insertion_timestamp: u64,
+    topic: Topic,
+    response: Option<String>,
 }
 
 struct MySessionStore {
@@ -79,6 +87,7 @@ fn read_local_storage(key: &str) -> Result<MyState, String> {
                     sessions: Vec::new(),
                     pairing_keys: HashMap::new(),
                     partial_sessions: HashMap::new(),
+                    json_rpc_history: HashMap::new(),
                 })
             }
         }
@@ -89,6 +98,7 @@ fn read_local_storage(key: &str) -> Result<MyState, String> {
             sessions: Vec::new(),
             pairing_keys: HashMap::new(),
             partial_sessions: HashMap::new(),
+            json_rpc_history: HashMap::new(),
         })
     }
 }
@@ -176,7 +186,10 @@ impl Storage for MySessionStore {
             .map(|session| session.session_sym_key)
             .or_else(|| {
                 state.pairing_keys.get(&topic).map(
-                    |(_, StoragePairing { sym_key, self_key: _ })| *sym_key,
+                    |(
+                        _,
+                        StoragePairing { sym_key, self_key: _, expiry: _ },
+                    )| *sym_key,
                 )
             })
             .or_else(|| state.partial_sessions.get(&topic).copied());
@@ -189,12 +202,14 @@ impl Storage for MySessionStore {
         rpc_id: ProtocolRpcId,
         sym_key: [u8; 32],
         self_key: [u8; 32],
+        expiry: u64,
     ) -> Result<(), StorageError> {
         let mut state =
             read_local_storage(&self.key).map_err(StorageError::Runtime)?;
-        state
-            .pairing_keys
-            .insert(topic, (rpc_id, StoragePairing { sym_key, self_key }));
+        state.pairing_keys.insert(
+            topic,
+            (rpc_id, StoragePairing { expiry, sym_key, self_key }),
+        );
         write_local_storage(&self.key, state).map_err(StorageError::Runtime)?;
         Ok(())
     }
@@ -210,6 +225,27 @@ impl Storage for MySessionStore {
             .get(&topic)
             .map(|(_, storage_pairing)| storage_pairing)
             .cloned())
+    }
+
+    fn get_all_pairings(
+        &self,
+    ) -> Result<Vec<(Topic, ProtocolRpcId, u64)>, StorageError> {
+        Ok(read_local_storage(&self.key)
+            .map_err(StorageError::Runtime)?
+            .pairing_keys
+            .iter()
+            .map(|(topic, (rpc_id, storage_pairing))| {
+                (topic.clone(), *rpc_id, storage_pairing.expiry)
+            })
+            .collect())
+    }
+
+    fn delete_pairing(&self, topic: Topic) -> Result<(), StorageError> {
+        let mut state =
+            read_local_storage(&self.key).map_err(StorageError::Runtime)?;
+        state.pairing_keys.remove(&topic);
+        write_local_storage(&self.key, state).map_err(StorageError::Runtime)?;
+        Ok(())
     }
 
     fn save_partial_session(
@@ -243,13 +279,20 @@ impl Storage for MySessionStore {
 
     fn insert_json_rpc_history(
         &self,
-        _request_id: ProtocolRpcId,
-        _topic: Topic,
+        request_id: ProtocolRpcId,
+        topic: Topic,
         _method: String,
         _body: String,
         _transport_type: Option<TransportType>,
+        insertion_timestamp: u64,
     ) -> Result<(), StorageError> {
-        // Sample wallet doesn't need to store JSON-RPC history
+        let mut state =
+            read_local_storage(&self.key).map_err(StorageError::Runtime)?;
+        state.json_rpc_history.insert(
+            request_id,
+            JsonRpcHistoryEntry { insertion_timestamp, topic, response: None },
+        );
+        write_local_storage(&self.key, state).map_err(StorageError::Runtime)?;
         Ok(())
     }
 
@@ -262,20 +305,42 @@ impl Storage for MySessionStore {
         Ok(())
     }
 
-    fn delete_json_rpc_history_by_topic(
-        &self,
-        _topic: Topic,
-    ) -> Result<(), StorageError> {
-        // Sample wallet doesn't need to store JSON-RPC history
-        Ok(())
-    }
-
     fn does_json_rpc_exist(
         &self,
-        _request_id: ProtocolRpcId,
+        request_id: ProtocolRpcId,
     ) -> Result<bool, StorageError> {
-        // Sample wallet doesn't need to store JSON-RPC history
-        Ok(false)
+        Ok(read_local_storage(&self.key)
+            .map_err(StorageError::Runtime)?
+            .json_rpc_history
+            .contains_key(&request_id))
+    }
+
+    fn get_all_json_rpc_with_timestamps(
+        &self,
+    ) -> Result<Vec<(ProtocolRpcId, Topic, u64)>, StorageError> {
+        Ok(read_local_storage(&self.key)
+            .map_err(StorageError::Runtime)?
+            .json_rpc_history
+            .iter()
+            .map(|(request_id, json_rpc_history)| {
+                (
+                    *request_id,
+                    json_rpc_history.topic.clone(),
+                    json_rpc_history.insertion_timestamp,
+                )
+            })
+            .collect())
+    }
+
+    fn delete_json_rpc_history_by_id(
+        &self,
+        request_id: ProtocolRpcId,
+    ) -> Result<(), StorageError> {
+        let mut state =
+            read_local_storage(&self.key).map_err(StorageError::Runtime)?;
+        state.json_rpc_history.remove(&request_id);
+        write_local_storage(&self.key, state).map_err(StorageError::Runtime)?;
+        Ok(())
     }
 }
 
@@ -712,6 +777,16 @@ pub fn App() -> impl IntoView {
                                             IncomingSessionMessage::SessionRequestResponse(id, topic, response) => {
                                                 tracing::info!(
                                                     "session request response on topic: {topic}: {id}: {response:?}",
+                                                );
+                                            }
+                                            IncomingSessionMessage::SessionExpired(id, topic) => {
+                                                tracing::info!(
+                                                    "session expired on topic: {topic}: {id}",
+                                                );
+                                            }
+                                            IncomingSessionMessage::SessionProposalExpired(topic) => {
+                                                tracing::info!(
+                                                    "session proposal expired on topic: {topic}",
                                                 );
                                             }
                                         }

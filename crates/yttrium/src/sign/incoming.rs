@@ -180,6 +180,10 @@ pub async fn handle(
                             method,
                             value.to_string(),
                             Some(TransportType::Relay),
+                            crate::time::SystemTime::now()
+                                .duration_since(crate::time::UNIX_EPOCH)
+                                .unwrap()
+                                .as_secs(),
                         )
                         .map_err(|e| {
                             HandleError::Temporary(format!(
@@ -254,6 +258,10 @@ pub async fn handle(
                             method,
                             value.to_string(),
                             Some(TransportType::Relay),
+                            crate::time::SystemTime::now()
+                                .duration_since(crate::time::UNIX_EPOCH)
+                                .unwrap()
+                                .as_secs(),
                         )
                         .map_err(|e| {
                             HandleError::Temporary(format!(
@@ -320,6 +328,10 @@ pub async fn handle(
                             method,
                             value.to_string(),
                             Some(TransportType::Relay),
+                            crate::time::SystemTime::now()
+                                .duration_since(crate::time::UNIX_EPOCH)
+                                .unwrap()
+                                .as_secs(),
                         )
                         .map_err(|e| {
                             HandleError::Temporary(format!(
@@ -386,6 +398,12 @@ pub async fn handle(
                                         method,
                                         value.to_string(),
                                         Some(TransportType::Relay),
+                                        crate::time::SystemTime::now()
+                                            .duration_since(
+                                                crate::time::UNIX_EPOCH,
+                                            )
+                                            .unwrap()
+                                            .as_secs(),
                                     )
                                     .map_err(|e| {
                                         HandleError::Temporary(format!(
@@ -421,6 +439,12 @@ pub async fn handle(
                                         method,
                                         value.to_string(),
                                         Some(TransportType::Relay),
+                                        crate::time::SystemTime::now()
+                                            .duration_since(
+                                                crate::time::UNIX_EPOCH,
+                                            )
+                                            .unwrap()
+                                            .as_secs(),
                                     )
                                     .map_err(|e| {
                                         HandleError::Temporary(format!(
@@ -442,6 +466,10 @@ pub async fn handle(
                                 method,
                                 value.to_string(),
                                 Some(TransportType::Relay),
+                                crate::time::SystemTime::now()
+                                    .duration_since(crate::time::UNIX_EPOCH)
+                                    .unwrap()
+                                    .as_secs(),
                             )
                             .map_err(|e| {
                                 HandleError::Temporary(format!(
@@ -472,6 +500,10 @@ pub async fn handle(
                             method,
                             value.to_string(),
                             Some(TransportType::Relay),
+                            crate::time::SystemTime::now()
+                                .duration_since(crate::time::UNIX_EPOCH)
+                                .unwrap()
+                                .as_secs(),
                         )
                         .map_err(|e| {
                             HandleError::Temporary(format!(
@@ -526,6 +558,10 @@ pub async fn handle(
                             method,
                             value.to_string(),
                             Some(TransportType::Relay),
+                            crate::time::SystemTime::now()
+                                .duration_since(crate::time::UNIX_EPOCH)
+                                .unwrap()
+                                .as_secs(),
                         )
                         .map_err(|e| {
                             HandleError::Temporary(format!(
@@ -563,7 +599,19 @@ pub async fn handle(
                 .map_err(|e| {
                     HandleError::Temporary(format!("get pairing: {e}"))
                 })?;
-            if let Some(StoragePairing { sym_key: _, self_key }) = pairing {
+            if let Some(StoragePairing { sym_key: _, self_key, expiry }) =
+                pairing
+            {
+                if expiry
+                    <= crate::time::SystemTime::now()
+                        .duration_since(crate::time::UNIX_EPOCH)
+                        .unwrap()
+                        .as_secs()
+                {
+                    return Err(HandleError::Peer(format!(
+                        "pairing expired: {expiry}"
+                    )));
+                }
                 let response = serde_json::from_value::<
                     SessionProposalJsonRpcResponse,
                 >(value.clone())

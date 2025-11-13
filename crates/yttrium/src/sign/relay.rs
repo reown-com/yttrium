@@ -843,6 +843,8 @@ pub enum IncomingSessionMessage {
     SessionConnect(ProtocolRpcId, Topic),
     SessionReject(ProtocolRpcId, Topic),
     SessionRequestResponse(ProtocolRpcId, Topic, SessionRequestJsonRpcResponse),
+    SessionExpired(ProtocolRpcId, Topic),
+    SessionProposalExpired(Topic),
 }
 
 // MaybeVerifiedRequest is now defined in client.rs and imported via the parent module
