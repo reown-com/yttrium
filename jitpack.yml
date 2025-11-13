@@ -15,17 +15,37 @@ before_install:
     echo "Git ref: $GIT_TAG"
     echo "Git commit: $GIT_COMMIT"
     echo "Git branch: $GIT_BRANCH"
+    echo "JitPack VERSION: $VERSION"
     
-    # Determine the tag - JitPack might use different variable names
-    # Try GIT_TAG first, then fall back to extracting from git
+    # Determine the tag - JitPack passes the requested version
+    # Try multiple JitPack environment variables in order of preference
     if [ -n "$GIT_TAG" ]; then
       RELEASE_TAG="$GIT_TAG"
+      echo "Using GIT_TAG: $RELEASE_TAG"
+    elif [ -n "$VERSION" ]; then
+      # JitPack sets VERSION to the requested tag/version
+      RELEASE_TAG="$VERSION"
+      echo "Using VERSION: $RELEASE_TAG"
     else
-      # Try to get tag from git
-      RELEASE_TAG=$(git describe --tags --exact-match 2>/dev/null || echo "")
+      # Fallback: Get all tags for current commit and prefer kotlin-utils-* tags
+      echo "Attempting to determine tag from git..."
+      ALL_TAGS=$(git tag --points-at HEAD 2>/dev/null || echo "")
+      echo "Tags at HEAD: $ALL_TAGS"
+      
+      # Try to find kotlin-utils-* tag first (for utils variant)
+      UTILS_TAG=$(echo "$ALL_TAGS" | grep "^kotlin-utils-" | head -1)
+      if [ -n "$UTILS_TAG" ]; then
+        RELEASE_TAG="$UTILS_TAG"
+        echo "Found utils tag: $RELEASE_TAG"
+      else
+        # Otherwise use any tag (for base variant)
+        RELEASE_TAG=$(echo "$ALL_TAGS" | head -1)
+        echo "Found base tag: $RELEASE_TAG"
+      fi
+      
       if [ -z "$RELEASE_TAG" ]; then
         echo "ERROR: Could not determine release tag!"
-        echo "GIT_TAG is not set and git describe failed."
+        echo "GIT_TAG, VERSION not set and no tags found at HEAD."
         echo ""
         echo "JitPack can only build from tagged releases."
         echo "To use this library:"
@@ -112,8 +132,19 @@ install:
     # Determine the tag (same logic as before_install)
     if [ -n "$GIT_TAG" ]; then
       RELEASE_TAG="$GIT_TAG"
+    elif [ -n "$VERSION" ]; then
+      # JitPack sets VERSION to the requested tag/version
+      RELEASE_TAG="$VERSION"
     else
-      RELEASE_TAG=$(git describe --tags --exact-match 2>/dev/null || echo "")
+      # Fallback: Get all tags for current commit and prefer kotlin-utils-* tags
+      ALL_TAGS=$(git tag --points-at HEAD 2>/dev/null || echo "")
+      UTILS_TAG=$(echo "$ALL_TAGS" | grep "^kotlin-utils-" | head -1)
+      if [ -n "$UTILS_TAG" ]; then
+        RELEASE_TAG="$UTILS_TAG"
+      else
+        RELEASE_TAG=$(echo "$ALL_TAGS" | head -1)
+      fi
+      
       if [ -z "$RELEASE_TAG" ]; then
         echo "ERROR: Could not determine release tag in install step!"
         exit 1
