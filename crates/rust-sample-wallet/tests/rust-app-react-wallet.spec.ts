@@ -17,8 +17,8 @@ test('connect Rust app to JS wallet', async ({ browser, page: app, context, base
     await expect(wallet.getByTestId("session-info-verified")).toBeVisible();
     await wallet.getByTestId("session-approve-button").click();
 
-    await expect(app.getByTestId("request-button")).toBeVisible();
-    await app.getByTestId("request-button").click();
+    await expect(app.getByTestId("request-button").first()).toBeVisible();
+    await app.getByTestId("request-button").first().click();
     // note: misleading test ID
     await expect(wallet.getByTestId("session-approve-button")).toBeVisible();
     await expect(wallet.getByTestId("session-info-verified")).toBeVisible();

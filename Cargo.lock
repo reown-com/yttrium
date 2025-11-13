@@ -10061,6 +10061,8 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "tracing-subscriber-wasm",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
  "web-sys",
  "yttrium",
 ]
