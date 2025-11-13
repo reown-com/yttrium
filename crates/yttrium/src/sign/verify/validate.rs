@@ -10,7 +10,6 @@ use {
     url::Url,
 };
 
-pub const VERIFY_SERVER_URL: &str = "https://verify.walletconnect.org";
 const PUBLIC_KEY_ENDPOINT: &str = "/v3/public-key";
 const ATTESTATION_ENDPOINT: &str = "/attestation/";
 const PUBLIC_KEY: &str = include_str!("verify-public.jwk");
@@ -438,43 +437,6 @@ pub enum VerifyValidation {
     Unknown,
     Valid,
     Invalid,
-}
-
-#[cfg(target_arch = "wasm32")]
-pub async fn create_attestation(
-    encrypted_id: EncryptedHash,
-    decrypted_id: DecryptedHash,
-    project_id: relay_rpc::domain::ProjectId,
-) -> Result<String, ()> {
-    match crate::sign::verify_attestation::create_attestation(
-        encrypted_id,
-        decrypted_id,
-        project_id,
-    )
-    .await
-    {
-        Ok(Some(attestation)) => Ok(attestation),
-        Ok(None) => {
-            tracing::warn!(
-                "Verify V3 attestation returned None (timeout or no response)"
-            );
-            Ok(String::new())
-        }
-        Err(e) => {
-            tracing::error!("Verify V3 attestation error: {e}");
-            Ok(String::new())
-        }
-    }
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-pub async fn create_attestation(
-    _encrypted_id: EncryptedHash,
-    _decrypted_id: DecryptedHash,
-    _project_id: relay_rpc::domain::ProjectId,
-) -> Result<String, ()> {
-    tracing::debug!("Verify V3 not supported on non-WASM platforms, returning empty attestation");
-    Ok(String::new())
 }
 
 #[cfg(test)]

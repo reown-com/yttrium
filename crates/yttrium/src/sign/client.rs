@@ -20,7 +20,7 @@ use {
             SessionRequestJsonRpcResponse, SessionSettle, SessionUpdate,
             SettleNamespace,
         },
-        relay::IncomingSessionMessage,
+        relay::{Attestation, AttestationCallback, IncomingSessionMessage},
         storage::Storage,
         utils::{
             diffie_hellman, generate_rpc_id, is_expired,
@@ -28,7 +28,10 @@ use {
             serialize_and_encrypt_message_type0_envelope_with_ids,
             topic_from_sym_key, DecryptedHash, EncryptedHash,
         },
-        verify::{handle_verify, VerifyContext, VERIFY_SERVER_URL},
+        verify::{
+            validate::{handle_verify, VerifyContext},
+            VERIFY_SERVER_URL,
+        },
     },
     relay_rpc::{
         auth::ed25519_dalek::{SecretKey, SigningKey},
@@ -48,9 +51,6 @@ pub fn get_relay_url() -> String {
     std::env::var("WC_SIGN_RELAY_URL")
         .unwrap_or_else(|_| "wss://relay.walletconnect.org".to_owned())
 }
-
-// Type alias for the callback that creates params with attestation
-pub(crate) type AttestationCallback = Box<dyn Fn(String) -> Params + Send>;
 
 // Abstraction for requests that may need Verify API attestation (internal)
 pub(crate) enum MaybeVerifiedRequest {
@@ -131,6 +131,7 @@ pub struct Client {
 // - memory leak slow tests, run for days?. Kill WS many times over and over again to test. Create many sessions over and over again, update sessions, session requests, etc.
 // - test killing the WS, not returning request, failing to connect, etc. in various stages of the lifecycle
 // - flow works even when Verify API isblocked: https://github.com/reown-com/appkit/pull/5023
+// - Verify API is down dapp-side. Public-key endpoint down wallet-side.
 
 #[allow(unused)]
 impl Client {
@@ -426,11 +427,11 @@ impl Client {
                 let pairing_topic = pairing_info.topic.clone();
                 let session_proposal_message = message.clone();
                 let correlation_id = rpc_id;
-                move |attestation: String| {
+                move |attestation: Attestation| {
                     Params::ProposeSession(ProposeSession {
                         pairing_topic: pairing_topic.clone(),
                         session_proposal: session_proposal_message.clone(),
-                        attestation: Some(attestation.into()),
+                        attestation,
                         analytics: Some(AnalyticsData {
                             correlation_id: Some(
                                 correlation_id.try_into().unwrap(),
@@ -784,11 +785,11 @@ impl Client {
             Box::new({
                 let publish_topic = topic.clone();
                 let publish_message = message.clone();
-                move |attestation: String| {
+                move |attestation: Attestation| {
                     Params::Publish(Publish {
                         topic: publish_topic.clone(),
                         message: publish_message.clone(),
-                        attestation: Some(attestation.into()),
+                        attestation,
                         ttl_secs: 300,
                         tag: 1108,
                         prompt: false,
