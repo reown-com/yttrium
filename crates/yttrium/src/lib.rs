@@ -70,7 +70,6 @@ pub mod utils;
 pub mod wallet_provider;
 #[cfg(any(feature = "account_client", feature = "chain_abstraction_client"))]
 pub mod wallet_service_api;
-
 #[cfg(test)]
 pub mod examples;
 
