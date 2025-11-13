@@ -1,6 +1,9 @@
 pub use jsonwebtoken::jwk::Jwk;
 use {
-    crate::sign::client_types::{Session, TransportType},
+    crate::sign::{
+        client_types::{Session, TransportType},
+        protocol_types::ProtocolRpcId,
+    },
     relay_rpc::domain::Topic,
     serde::{Deserialize, Serialize},
 };
@@ -27,14 +30,14 @@ pub trait Storage: Send + Sync {
     fn save_pairing(
         &self,
         topic: Topic,
-        rpc_id: u64,
+        rpc_id: ProtocolRpcId,
         sym_key: [u8; 32],
         self_key: [u8; 32],
     ) -> Result<(), StorageError>;
     fn get_pairing(
         &self,
         topic: Topic,
-        rpc_id: u64,
+        rpc_id: ProtocolRpcId,
     ) -> Result<Option<StoragePairing>, StorageError>;
     fn save_partial_session(
         &self,
@@ -47,8 +50,8 @@ pub trait Storage: Send + Sync {
     // JSON-RPC History
     fn insert_json_rpc_history(
         &self,
-        request_id: u64,
-        topic: String,
+        request_id: ProtocolRpcId,
+        topic: Topic,
         method: String,
         body: String,
         transport_type: Option<TransportType>,
@@ -56,18 +59,18 @@ pub trait Storage: Send + Sync {
 
     fn update_json_rpc_history_response(
         &self,
-        request_id: u64,
+        request_id: ProtocolRpcId,
         response: String,
     ) -> Result<(), StorageError>;
 
     fn delete_json_rpc_history_by_topic(
         &self,
-        topic: String,
+        topic: Topic,
     ) -> Result<(), StorageError>;
 
     fn does_json_rpc_exist(
         &self,
-        request_id: u64,
+        request_id: ProtocolRpcId,
     ) -> Result<bool, StorageError>;
 }
 

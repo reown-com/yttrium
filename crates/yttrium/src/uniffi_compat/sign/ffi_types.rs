@@ -1,7 +1,10 @@
 use {
     crate::sign::{
         client_types::TransportType,
-        protocol_types::{Metadata, ProposalNamespaces, SettleNamespace},
+        protocol_types::{
+            JsonRpcVersion, Metadata, ProposalNamespaces, ProtocolRpcId,
+            SettleNamespace,
+        },
     },
     relay_rpc::domain::Topic,
     serde::{Deserialize, Serialize},
@@ -11,7 +14,7 @@ use {
 #[derive(uniffi_macros::Record, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SessionProposalFfi {
-    pub id: String,
+    pub id: ProtocolRpcId,
     pub topic: String,
     pub pairing_sym_key: Vec<u8>,
     pub proposer_public_key: Vec<u8>,
@@ -46,22 +49,22 @@ pub struct SessionRequestFfi {
 
 #[derive(uniffi_macros::Record, Serialize, Deserialize)]
 pub struct SessionRequestJsonRpcFfi {
-    pub id: u64,
+    pub id: ProtocolRpcId,
     pub method: String,
     pub params: SessionRequestFfi,
 }
 
 #[derive(uniffi_macros::Record, Debug, Serialize, Deserialize)]
 pub struct SessionRequestJsonRpcResultResponseFfi {
-    pub id: u64,
-    pub jsonrpc: String,
+    pub id: ProtocolRpcId,
+    pub jsonrpc: JsonRpcVersion,
     pub result: String, // JSON string instead of serde_json::Value
 }
 
 #[derive(uniffi_macros::Record, Debug, Serialize, Deserialize)]
 pub struct SessionRequestJsonRpcErrorResponseFfi {
-    pub id: u64,
-    pub jsonrpc: String,
+    pub id: ProtocolRpcId,
+    pub jsonrpc: JsonRpcVersion,
     pub error: String, // JSON string instead of serde_json::Value
 }
 
@@ -75,7 +78,7 @@ pub enum SessionRequestJsonRpcResponseFfi {
 #[derive(uniffi_macros::Record, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SessionFfi {
-    pub request_id: u64,
+    pub request_id: ProtocolRpcId,
     pub session_sym_key: Vec<u8>,
     pub self_public_key: Vec<u8>,
     pub topic: Topic,

@@ -30,7 +30,6 @@ use {
     },
     chacha20poly1305::{aead::Aead, AeadCore, ChaCha20Poly1305, KeyInit},
     data_encoding::BASE64,
-    rand::Rng,
     relay_rpc::domain::Topic,
     serde::Serialize,
     sha2::{Digest, Sha256},
@@ -50,17 +49,6 @@ pub fn diffie_hellman(
     let mut expanded_key = [0u8; 32];
     derived_key.expand(b"", &mut expanded_key).unwrap();
     expanded_key
-}
-
-pub fn generate_rpc_id() -> u64 {
-    let time = crate::time::SystemTime::now()
-        .duration_since(crate::time::UNIX_EPOCH)
-        .unwrap()
-        .as_secs()
-        * 1_000_000;
-    let mut rng = rand::thread_rng();
-    let random = rng.gen_range(0..=u16::MAX);
-    time + random as u64
 }
 
 pub fn is_expired(expiry: u64) -> bool {

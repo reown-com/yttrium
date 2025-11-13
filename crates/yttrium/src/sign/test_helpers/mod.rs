@@ -3,9 +3,10 @@ use {
         client::{generate_client_id_key, Client},
         client_types::{ConnectParams, Session, TransportType},
         protocol_types::{
-            Metadata, ProposalNamespace, SessionRequest,
-            SessionRequestJsonRpcResponse, SessionRequestJsonRpcResultResponse,
-            SessionRequestRequest, SettleNamespace,
+            JsonRpcVersion, Metadata, ProposalNamespace, ProtocolRpcId,
+            SessionRequest, SessionRequestJsonRpcResponse,
+            SessionRequestJsonRpcResultResponse, SessionRequestRequest,
+            SettleNamespace,
         },
         relay::IncomingSessionMessage,
         storage::{Jwk, Storage, StorageError, StoragePairing},
@@ -20,15 +21,15 @@ use {
 
 #[derive(Clone)]
 struct JsonRpcHistoryEntry {
-    topic: String,
+    topic: Topic,
     response: Option<String>,
 }
 
 struct MySessionStoreInner {
     sessions: Vec<Session>,
-    pairing_keys: HashMap<Topic, (u64, StoragePairing)>,
+    pairing_keys: HashMap<Topic, (ProtocolRpcId, StoragePairing)>,
     partial_sessions: HashMap<Topic, [u8; 32]>,
-    json_rpc_history: HashMap<u64, JsonRpcHistoryEntry>,
+    json_rpc_history: HashMap<ProtocolRpcId, JsonRpcHistoryEntry>,
 }
 
 struct MySessionStore(Arc<Mutex<MySessionStoreInner>>);
@@ -106,7 +107,7 @@ impl Storage for MySessionStore {
     fn save_pairing(
         &self,
         topic: Topic,
-        rpc_id: u64,
+        rpc_id: ProtocolRpcId,
         sym_key: [u8; 32],
         self_key: [u8; 32],
     ) -> Result<(), StorageError> {
@@ -120,7 +121,7 @@ impl Storage for MySessionStore {
     fn get_pairing(
         &self,
         topic: Topic,
-        _rpc_id: u64,
+        _rpc_id: ProtocolRpcId,
     ) -> Result<Option<StoragePairing>, StorageError> {
         let inner = self.0.lock().unwrap();
         let pairing = inner
@@ -154,8 +155,8 @@ impl Storage for MySessionStore {
 
     fn insert_json_rpc_history(
         &self,
-        request_id: u64,
-        topic: String,
+        request_id: ProtocolRpcId,
+        topic: Topic,
         _method: String,
         _body: String,
         _transport_type: Option<TransportType>,
@@ -169,7 +170,7 @@ impl Storage for MySessionStore {
 
     fn update_json_rpc_history_response(
         &self,
-        request_id: u64,
+        request_id: ProtocolRpcId,
         response: String,
     ) -> Result<(), StorageError> {
         let mut inner = self.0.lock().unwrap();
@@ -186,7 +187,7 @@ impl Storage for MySessionStore {
 
     fn delete_json_rpc_history_by_topic(
         &self,
-        topic: String,
+        topic: Topic,
     ) -> Result<(), StorageError> {
         let mut inner = self.0.lock().unwrap();
         inner.json_rpc_history.retain(|_, entry| entry.topic != topic);
@@ -195,7 +196,7 @@ impl Storage for MySessionStore {
 
     fn does_json_rpc_exist(
         &self,
-        request_id: u64,
+        request_id: ProtocolRpcId,
     ) -> Result<bool, StorageError> {
         let inner = self.0.lock().unwrap();
         Ok(inner.json_rpc_history.contains_key(&request_id))
@@ -353,7 +354,7 @@ pub async fn test_sign_impl() -> Result<(), String> {
             SessionRequestJsonRpcResponse::Result(
                 SessionRequestJsonRpcResultResponse {
                     id: req.id,
-                    jsonrpc: "2.0".to_string(),
+                    jsonrpc: JsonRpcVersion::version_2(),
                     result: serde_json::Value::String("0x0".to_string()),
                 },
             ),
