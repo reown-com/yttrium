@@ -97,6 +97,10 @@ fn approve_usdt_spender() {
             },
         ]
     );
+    assert_eq!(
+        model.interpolated_intent.as_deref(),
+        Some("Approve Uniswap V3 Router to spend 1,000,000 USDT")
+    );
     assert!(model.warnings.is_empty());
     assert!(model.raw.is_none());
 }
@@ -139,6 +143,10 @@ fn swap_usdc_to_weth_exact_input_single() {
             },
         ]
     );
+    assert_eq!(
+        model.interpolated_intent.as_deref(),
+        Some("Swap 1,000,000 USDC for at least 1 WETH to 0x1234567890AbcdEF1234567890aBcdef12345678")
+    );
     assert!(model.warnings.is_empty());
     assert!(model.raw.is_none());
 }
@@ -167,6 +175,12 @@ fn aave_deposit_formats_usdc_amount() {
             label: "Amount to supply".to_string(),
             value: "1,000 USDC".to_string(),
         }
+    );
+    assert_eq!(
+        model.interpolated_intent.as_deref(),
+        Some(
+            "Supply 1,000 USDC for 0x1111111111111111111111111111111111111111"
+        )
     );
     assert_eq!(model.items[1].label, "Collateral recipient".to_string());
     assert_eq!(
@@ -222,6 +236,10 @@ fn walletconnect_increase_unlock_time_renders_date() {
             label: "New Unlock Time".to_string(),
             value: "2025-12-19 13:42:21 UTC".to_string(),
         }]
+    );
+    assert_eq!(
+        model.interpolated_intent.as_deref(),
+        Some("Increase unlock time to 2025-12-19 13:42:21 UTC")
     );
     assert!(model.warnings.is_empty());
     assert!(model.raw.is_none());
@@ -431,6 +449,10 @@ fn eip712_limit_order_formats_tokens() {
             },
         ]
     );
+    assert_eq!(
+        model.interpolated_intent.as_deref(),
+        Some("Send 1 USDC for at least 1 WETH to 0xabc0000000000000000000000000000000000002")
+    );
     assert!(model.warnings.is_empty());
     assert!(model.raw.is_none());
 }
@@ -489,13 +511,21 @@ fn eip712_uniswap_permit2_formats_allowance() {
             },
             DisplayItem {
                 label: "Amount allowance".to_string(),
-                value: "1,461,501,637,330,902,918,203,684,832,716,283,019,655,932.542975 USDC".to_string(),
+                value: "Unlimited".to_string(),
             },
             DisplayItem {
                 label: "Approval expires".to_string(),
                 value: "2025-12-12 13:38:14 UTC".to_string(),
             },
+            DisplayItem {
+                label: "Signature deadline".to_string(),
+                value: "2025-11-12 14:08:14 UTC".to_string(),
+            },
         ]
+    );
+    assert_eq!(
+        model.interpolated_intent.as_deref(),
+        Some("Authorize 0x851116d9223fabed8e56c0e6b8ad0c31d98b3507 to spend Unlimited until 2025-11-12 14:08:14 UTC")
     );
     assert!(model.warnings.is_empty());
     assert!(model.raw.is_none());

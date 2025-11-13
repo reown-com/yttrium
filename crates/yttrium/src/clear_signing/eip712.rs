@@ -5,8 +5,8 @@ use {
             EffectiveField,
         },
         engine::{
-            format_amount_with_decimals, parse_biguint, resolve_metadata_value,
-            DisplayItem, DisplayModel,
+            format_amount_with_decimals, interpolate_template, parse_biguint,
+            resolve_metadata_value, DisplayItem, DisplayModel,
         },
         resolver::{self, ResolvedTypedDescriptor},
         token_registry::lookup_token_by_caip19,
@@ -80,6 +80,7 @@ pub fn format_typed_data(
     };
 
     let mut items = Vec::new();
+    let mut rendered_values: HashMap<String, String> = HashMap::new();
 
     for required in &format.required {
         if get_value(&data.message, required).is_none() {
@@ -111,11 +112,26 @@ pub fn format_typed_data(
             chain_id,
             &mut warnings,
         )?;
+        rendered_values.insert(effective.path.clone(), rendered.clone());
         items.push(DisplayItem { label: effective.label, value: rendered });
     }
 
+    let interpolated_intent =
+        if let Some(template) = format.interpolated_intent.as_deref() {
+            match interpolate_template(template, &rendered_values) {
+                Ok(value) => Some(value),
+                Err(message) => {
+                    warnings.push(message);
+                    None
+                }
+            }
+        } else {
+            None
+        };
+
     Ok(DisplayModel {
         intent: format.intent.clone(),
+        interpolated_intent,
         items,
         warnings,
         raw: None,
@@ -125,8 +141,9 @@ pub fn format_typed_data(
 fn parse_descriptor(
     resolved: ResolvedTypedDescriptor<'_>,
 ) -> Result<TypedDescriptor, Eip712Error> {
-    let mut descriptor_value: Value = serde_json::from_str(resolved.descriptor_json)
-        .map_err(|err| Eip712Error::DescriptorParse(err.to_string()))?;
+    let mut descriptor_value: Value =
+        serde_json::from_str(resolved.descriptor_json)
+            .map_err(|err| Eip712Error::DescriptorParse(err.to_string()))?;
 
     for include_json in resolved.includes {
         let include_value: Value = serde_json::from_str(include_json)

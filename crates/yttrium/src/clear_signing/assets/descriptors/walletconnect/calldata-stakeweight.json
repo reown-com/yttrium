@@ -224,6 +224,7 @@
     "formats": {
       "createLock(uint256,uint256)": {
         "intent": "Lock tokens for a period",
+        "interpolatedIntent": "Lock {amount} until {unlockTime}",
         "fields": [
           {
             "path": "amount",
@@ -244,6 +245,7 @@
       },
       "depositFor(address,uint256)": {
         "intent": "Deposit tokens for a period for a given address",
+        "interpolatedIntent": "Deposit {amount} for {for_}",
         "fields": [
           {
             "path": "for_",
@@ -264,6 +266,7 @@
       },
       "increaseLockAmount(uint256)": {
         "intent": "Increase Lock Amount",
+        "interpolatedIntent": "Increase lock by {amount}",
         "fields": [
           {
             "path": "amount",
@@ -278,6 +281,7 @@
       },
       "increaseUnlockTime(uint256)": {
         "intent": "Increase Unlock Time",
+        "interpolatedIntent": "Increase unlock time to {newUnlockTime}",
         "fields": [
           {
             "path": "newUnlockTime",
@@ -290,6 +294,7 @@
       },
       "updateLock(uint256,uint256)": {
         "intent": "Update lock amount and unlock time",
+        "interpolatedIntent": "Update lock to {amount} until {unlockTime}",
         "fields": [
           {
             "path": "amount",
@@ -310,10 +315,10 @@
       },
       "withdrawAll()": {
         "intent": "Withdraw All",
+        "interpolatedIntent": "Withdraw all locked tokens",
         "fields": [],
         "required": []
       }
     }
   }
 }
-

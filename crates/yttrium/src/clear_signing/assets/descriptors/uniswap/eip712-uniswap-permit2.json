@@ -54,30 +54,57 @@
       "PermitSingle": {
         "$id": "Permit2 Permit Single",
         "intent": "Authorize spending of token",
+        "interpolatedIntent": "Authorize {spender} to spend {details.amount} until {sigDeadline}",
         "fields": [
           { "path": "spender", "label": "Spender", "format": "raw" },
-          { "path": "details.amount", "label": "Amount allowance", "format": "tokenAmount", "params": { "tokenPath": "details.token" } },
-          { "path": "details.expiration", "label": "Approval expires", "format": "date", "params": { "encoding": "timestamp" } }
+          {
+            "path": "details.amount",
+            "label": "Amount allowance",
+            "format": "tokenAmount",
+            "params": {
+              "tokenPath": "details.token",
+              "threshold": "$.metadata.constants.maxPermitAmount",
+              "message": "Unlimited"
+            }
+          },
+          { "path": "details.expiration", "label": "Approval expires", "format": "date", "params": { "encoding": "timestamp" } },
+          { "path": "sigDeadline", "label": "Signature deadline", "format": "date", "params": { "encoding": "timestamp" } }
         ],
         "required": ["spender", "details.amount"],
-        "excluded": ["sigDeadline"],
+        "excluded": [],
         "screens": {}
       },
       "PermitBatch": {
         "$id": "Permit2 Permit Batch",
         "intent": "Authorize spending of tokens",
+        "interpolatedIntent": "Authorize {spender} to spend multiple tokens until {sigDeadline}",
         "fields": [
           { "path": "spender", "label": "Spender", "format": "raw" },
           {
             "path": "details.[]",
             "fields": [
-              { "path": "amount", "label": "Amount allowance", "format": "tokenAmount", "params": { "tokenPath": "token" } },
+              {
+                "path": "amount",
+                "label": "Amount allowance",
+                "format": "tokenAmount",
+                "params": {
+                  "tokenPath": "token",
+                  "threshold": "$.metadata.constants.maxPermitAmount",
+                  "message": "Unlimited"
+                }
+              },
               { "path": "expiration", "label": "Approval expires", "format": "date", "params": { "encoding": "timestamp" } }
             ]
+          },
+          {
+            "path": "sigDeadline",
+            "label": "Signature deadline",
+            "format": "date",
+            "params": { "encoding": "timestamp" }
           }
         ],
         "required": ["spender", "details"],
-        "excluded": ["sigDeadline"],
+        "excluded": [],
         "screens": {}
       }
     }
