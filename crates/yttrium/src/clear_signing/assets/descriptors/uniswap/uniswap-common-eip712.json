@@ -27,6 +27,9 @@
       "legalName": "Uniswap Labs",
       "deploymentDate": "2021-12-14T00:00:00Z",
       "url": "https://uniswap.org/"
+    },
+    "constants": {
+      "maxPermitAmount": "0xffffffffffffffffffffffffffffffffffffffff"
     }
   }
 }

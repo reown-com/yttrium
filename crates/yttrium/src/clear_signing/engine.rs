@@ -42,9 +42,16 @@ pub struct DisplayItem {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DisplayModel {
     pub intent: String,
+    pub interpolated_intent: Option<String>,
     pub items: Vec<DisplayItem>,
     pub warnings: Vec<String>,
     pub raw: Option<RawPreview>,
+}
+
+struct FormatRender {
+    items: Vec<DisplayItem>,
+    warnings: Vec<String>,
+    interpolated_intent: Option<String>,
 }
 
 /// Raw fallback preview details.
@@ -123,6 +130,7 @@ pub fn format_with_resolved_call(
         eprintln!("[engine] no ABI match for selector {}", selector_hex);
         return Ok(DisplayModel {
             intent: "Unknown transaction".to_string(),
+            interpolated_intent: None,
             items: Vec::new(),
             warnings,
             raw: Some(raw_preview_from_calldata(&selector, calldata)),
@@ -135,7 +143,11 @@ pub fn format_with_resolved_call(
     eprintln!("[engine] decoded with value count {}", decoded.ordered().len());
 
     if let Some(format_def) = display_formats.get(&function.typed_signature) {
-        let (items, mut format_warnings) = apply_display_format(
+        let FormatRender {
+            items,
+            warnings: mut format_warnings,
+            interpolated_intent,
+        } = apply_display_format(
             format_def,
             &decoded,
             &descriptor.metadata,
@@ -148,6 +160,7 @@ pub fn format_with_resolved_call(
         warnings.append(&mut format_warnings);
         Ok(DisplayModel {
             intent: format_def.intent.clone(),
+            interpolated_intent,
             items,
             warnings,
             raw: None,
@@ -167,6 +180,7 @@ pub fn format_with_resolved_call(
             .collect();
         Ok(DisplayModel {
             intent: "Transaction".to_string(),
+            interpolated_intent: None,
             items,
             warnings,
             raw: Some(RawPreview {
@@ -192,9 +206,10 @@ fn apply_display_format(
     address_book: &HashMap<String, String>,
     definitions: &HashMap<String, DisplayField>,
     token_metadata: &HashMap<TokenLookupKey, TokenMeta>,
-) -> Result<(Vec<DisplayItem>, Vec<String>), EngineError> {
+) -> Result<FormatRender, EngineError> {
     let mut items = Vec::new();
     let mut warnings = Vec::new();
+    let mut rendered_values: HashMap<String, String> = HashMap::new();
 
     for required in &format.required {
         if decoded.get(required).is_none() {
@@ -222,8 +237,9 @@ fn apply_display_format(
             )?;
             items.push(DisplayItem {
                 label: effective.label.clone(),
-                value: rendered,
+                value: rendered.clone(),
             });
+            rendered_values.insert(effective.path.clone(), rendered);
         } else {
             warnings.push(format!(
                 "No value found for field path '{}'",
@@ -232,7 +248,62 @@ fn apply_display_format(
         }
     }
 
-    Ok((items, warnings))
+    let interpolated_intent =
+        if let Some(template) = format.interpolated_intent.as_deref() {
+            match interpolate_template(template, &rendered_values) {
+                Ok(value) => Some(value),
+                Err(message) => {
+                    warnings.push(message);
+                    None
+                }
+            }
+        } else {
+            None
+        };
+
+    Ok(FormatRender { items, warnings, interpolated_intent })
+}
+
+pub(crate) fn interpolate_template(
+    template: &str,
+    values: &HashMap<String, String>,
+) -> Result<String, String> {
+    let mut output = String::with_capacity(template.len());
+    let mut chars = template.chars();
+
+    while let Some(ch) = chars.next() {
+        if ch == '{' {
+            let mut placeholder = String::new();
+            let mut closed = false;
+            while let Some(next) = chars.next() {
+                if next == '}' {
+                    closed = true;
+                    break;
+                }
+                placeholder.push(next);
+            }
+            if !closed {
+                return Err(
+                    "Unclosed placeholder in interpolated intent".to_string()
+                );
+            }
+            let key = placeholder.trim();
+            if key.is_empty() {
+                return Err(
+                    "Empty placeholder in interpolated intent".to_string()
+                );
+            }
+            if let Some(value) = values.get(key) {
+                output.push_str(value);
+            } else {
+                return Err(format!("Missing interpolated value for '{key}'"));
+            }
+        } else {
+            output.push(ch);
+        }
+    }
+
+    Ok(output)
 }
 
 #[allow(clippy::too_many_arguments)]

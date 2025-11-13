@@ -93,6 +93,7 @@
       "repay(address asset, uint256 amount, uint256 interestRateMode, address onBehalfOf)": {
         "$id": "repay",
         "intent": "Repay loan",
+        "interpolatedIntent": "Repay {amount} for {onBehalfOf} with {interestRateMode} rate",
         "fields": [
           {
             "path": "amount",
@@ -136,6 +137,7 @@
       "repayWithPermit(address asset, uint256 amount, uint256 interestRateMode, address onBehalfOf, uint256 deadline, uint8 permitV, bytes32 permitR, bytes32 permitS)": {
         "$id": "repayWithPermit",
         "intent": "Repay loan",
+        "interpolatedIntent": "Repay {amount} for {onBehalfOf} with {interestRateMode} rate",
         "fields": [
           {
             "path": "amount",
@@ -184,6 +186,7 @@
       },
       "setUserUseReserveAsCollateral(address asset, bool useAsCollateral)": {
         "intent": "Manage collateral",
+        "interpolatedIntent": "Set collateral usage for {asset} to {useAsCollateral}",
         "fields": [
           {
             "path": "asset",
@@ -212,6 +215,7 @@
       },
       "withdraw(address asset, uint256 amount, address to)": {
         "intent": "Withdraw",
+        "interpolatedIntent": "Withdraw {amount} to {to}",
         "fields": [
           {
             "path": "amount",
@@ -245,6 +249,7 @@
       },
       "borrow(address asset, uint256 amount, uint256 interestRateMode, uint16 referralCode, address onBehalfOf)": {
         "intent": "Borrow",
+        "interpolatedIntent": "Borrow {amount} for {onBehalfOf} with {interestRateMode} rate",
         "fields": [
           {
             "path": "amount",
@@ -289,6 +294,7 @@
       "deposit(address asset, uint256 amount, address onBehalfOf, uint16 referralCode)": {
         "$id": "deposit",
         "intent": "Supply",
+        "interpolatedIntent": "Supply {amount} for {onBehalfOf}",
         "fields": [
           {
             "path": "amount",
@@ -324,6 +330,7 @@
       "supply(address asset, uint256 amount, address onBehalfOf, uint16 referralCode)": {
         "$id": "supply",
         "intent": "Supply",
+        "interpolatedIntent": "Supply {amount} for {onBehalfOf}",
         "fields": [
           {
             "path": "amount",
@@ -359,6 +366,7 @@
       "supplyWithPermit(address asset, uint256 amount, address onBehalfOf, uint16 referralCode, uint256 deadline, uint8 permitV, bytes32 permitR, bytes32 permitS)": {
         "$id": "supplyWithPermit",
         "intent": "Supply",
+        "interpolatedIntent": "Supply {amount} for {onBehalfOf}",
         "fields": [
           {
             "path": "amount",
