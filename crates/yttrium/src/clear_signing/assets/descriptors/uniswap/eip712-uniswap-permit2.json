@@ -56,7 +56,7 @@
         "intent": "Authorize spending of token",
         "interpolatedIntent": "Authorize {spender} to spend {details.amount} until {sigDeadline}",
         "fields": [
-          { "path": "spender", "label": "Spender", "format": "raw" },
+          { "path": "spender", "label": "Spender", "format": "addressName" },
           {
             "path": "details.amount",
             "label": "Amount allowance",
@@ -79,7 +79,7 @@
         "intent": "Authorize spending of tokens",
         "interpolatedIntent": "Authorize {spender} to spend multiple tokens until {sigDeadline}",
         "fields": [
-          { "path": "spender", "label": "Spender", "format": "raw" },
+          { "path": "spender", "label": "Spender", "format": "addressName" },
           {
             "path": "details.[]",
             "fields": [

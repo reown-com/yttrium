@@ -382,7 +382,10 @@ fn format_number(value: &Value) -> String {
     }
 }
 
-fn format_address(value: &Value, address_book: &HashMap<String, String>) -> String {
+fn format_address(
+    value: &Value,
+    address_book: &HashMap<String, String>,
+) -> String {
     let Some(address) = value_as_string(value) else {
         return format_raw(value);
     };
@@ -403,7 +406,9 @@ fn format_address(value: &Value, address_book: &HashMap<String, String>) -> Stri
     if let Some(label) = address_book.get(&normalized) {
         return label.clone();
     }
-    if let Some(label) = super::engine::global_address_book().get(&normalized) {
+    if let Some(label) =
+        super::engine::global_address_book().get(&normalized)
+    {
         return label.clone();
     }
 
