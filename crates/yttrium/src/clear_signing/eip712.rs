@@ -80,6 +80,7 @@ pub fn format_typed_data(
     };
 
     let mut items = Vec::new();
+    let address_book = typed_address_book(&descriptor);
     let mut rendered_values: HashMap<String, String> = HashMap::new();
 
     for required in &format.required {
@@ -110,6 +111,7 @@ pub fn format_typed_data(
             &data.message,
             &descriptor.metadata,
             chain_id,
+            &address_book,
             &mut warnings,
         )?;
         rendered_values.insert(effective.path.clone(), rendered.clone());
@@ -201,6 +203,7 @@ fn render_field(
     message: &Value,
     metadata: &Value,
     chain_id: u64,
+    address_book: &HashMap<String, String>,
     warnings: &mut Vec<String>,
 ) -> Result<String, Eip712Error> {
     match field.format.as_deref() {
@@ -209,7 +212,9 @@ fn render_field(
         ),
         Some("date") => Ok(format_date(value)),
         Some("number") => Ok(format_number(value)),
-        Some("address") | Some("addressName") => Ok(format_address(value)),
+        Some("address") | Some("addressName") => {
+            Ok(format_address(value, address_book))
+        }
         Some("enum") => format_enum(field, value, metadata),
         Some("raw") => Ok(format_raw(value)),
         _ => Ok(format_raw(value)),
@@ -377,19 +382,32 @@ fn format_number(value: &Value) -> String {
     }
 }
 
-fn format_address(value: &Value) -> String {
-    if let Some(address) = value_as_string(value) {
-        if let Ok(bytes) = hex::decode(address.trim_start_matches("0x")) {
-            if bytes.len() == 20 {
-                let mut arr = [0u8; 20];
-                arr.copy_from_slice(&bytes);
-                return super::engine::to_checksum_address(&arr);
-            }
-        }
-        address
-    } else {
-        format_raw(value)
+fn format_address(value: &Value, address_book: &HashMap<String, String>) -> String {
+    let Some(address) = value_as_string(value) else {
+        return format_raw(value);
+    };
+
+    let cleaned = address.trim();
+    let bytes = match hex::decode(cleaned.trim_start_matches("0x")) {
+        Ok(bytes) => bytes,
+        Err(_) => return address,
+    };
+    if bytes.len() != 20 {
+        return address;
     }
+    let mut arr = [0u8; 20];
+    arr.copy_from_slice(&bytes);
+    let checksum = super::engine::to_checksum_address(&arr);
+    let normalized = cleaned.to_ascii_lowercase();
+
+    if let Some(label) = address_book.get(&normalized) {
+        return label.clone();
+    }
+    if let Some(label) = super::engine::global_address_book().get(&normalized) {
+        return label.clone();
+    }
+
+    checksum
 }
 
 fn format_raw(value: &Value) -> String {
@@ -399,6 +417,67 @@ fn format_raw(value: &Value) -> String {
         Value::Bool(flag) => flag.to_string(),
         _ => value.to_string(),
     }
+}
+
+fn typed_address_book(descriptor: &TypedDescriptor) -> HashMap<String, String> {
+    let mut map = HashMap::new();
+    if let Some(label) = typed_descriptor_label(&descriptor.metadata) {
+        if let Some(context) = descriptor.context.as_ref() {
+            for deployment in &context.eip712.deployments {
+                map.insert(
+                    normalize_address(&deployment.address),
+                    label.clone(),
+                );
+            }
+        }
+    }
+
+    super::engine::merge_address_book_entries(
+        &mut map,
+        descriptor.metadata.get("addressBook"),
+    );
+    map
+}
+
+fn typed_descriptor_label(metadata: &Value) -> Option<String> {
+    if let Some(token) = metadata.get("token") {
+        let name = token.get("name").and_then(|value| value.as_str());
+        let symbol = token.get("symbol").and_then(|value| value.as_str());
+        match (name, symbol) {
+            (Some(name), Some(symbol)) => {
+                if name.eq_ignore_ascii_case(symbol) {
+                    return Some(name.to_string());
+                } else {
+                    return Some(format!("{name} ({symbol})"));
+                }
+            }
+            (Some(name), None) => return Some(name.to_string()),
+            (None, Some(symbol)) => return Some(symbol.to_string()),
+            (None, None) => {}
+        }
+    }
+
+    if let Some(info) = metadata.get("info") {
+        if let Some(name) =
+            info.get("legalName").and_then(|value| value.as_str())
+        {
+            return Some(name.to_string());
+        }
+        if let Some(name) = info.get("name").and_then(|value| value.as_str()) {
+            return Some(name.to_string());
+        }
+    }
+
+    if let Some(owner) = metadata.get("owner").and_then(|value| value.as_str())
+    {
+        return Some(owner.to_string());
+    }
+
+    None
+}
+
+fn normalize_address(address: &str) -> String {
+    address.trim().to_ascii_lowercase()
 }
 
 fn extract_chain_id(domain: &Value) -> Result<u64, Eip712Error> {

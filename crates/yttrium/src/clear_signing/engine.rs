@@ -23,6 +23,7 @@ const TETHER_USDT_DESCRIPTOR: &str =
 const UNISWAP_V3_ROUTER_DESCRIPTOR: &str =
     include_str!("assets/descriptors/uniswap_v3_router_v1.json");
 const WETH9_DESCRIPTOR: &str = include_str!("assets/descriptors/weth9.json");
+const GLOBAL_ADDRESS_BOOK_JSON: &str = include_str!("assets/address_book.json");
 
 const ADDRESS_BOOK_DESCRIPTORS: &[&str] =
     &[TETHER_USDT_DESCRIPTOR, UNISWAP_V3_ROUTER_DESCRIPTOR, WETH9_DESCRIPTOR];
@@ -628,7 +629,7 @@ fn format_selector_hex(selector: &[u8; 4]) -> String {
     format!("0x{}", hex::encode(selector))
 }
 
-fn global_address_book() -> &'static HashMap<String, String> {
+pub(crate) fn global_address_book() -> &'static HashMap<String, String> {
     GLOBAL_ADDRESS_BOOK.get_or_init(|| {
         let mut map = HashMap::new();
         for descriptor_json in ADDRESS_BOOK_DESCRIPTORS {
@@ -641,6 +642,13 @@ fn global_address_book() -> &'static HashMap<String, String> {
                 }
             }
         }
+
+        if let Ok(value) = serde_json::from_str::<serde_json::Value>(
+            GLOBAL_ADDRESS_BOOK_JSON,
+        ) {
+            merge_address_book_entries(&mut map, Some(&value));
+        }
+
         map
     })
 }
@@ -652,7 +660,34 @@ fn descriptor_address_book(descriptor: &Descriptor) -> HashMap<String, String> {
             map.insert(normalize_address(&deployment.address), label.clone());
         }
     }
+    merge_address_book_entries(&mut map, descriptor.metadata.get("addressBook"));
     map
+}
+
+pub(crate) fn merge_address_book_entries(
+    map: &mut HashMap<String, String>,
+    value: Option<&serde_json::Value>,
+) {
+    let Some(value) = value else { return };
+    let Some(entries) = value.as_object() else { return };
+
+    for (key, label_value) in entries {
+        match label_value {
+            serde_json::Value::String(label) => {
+                map.entry(normalize_address(key))
+                    .or_insert_with(|| label.to_string());
+            }
+            serde_json::Value::Object(nested) => {
+                for (inner_key, inner_label_value) in nested {
+                    if let Some(inner_label) = inner_label_value.as_str() {
+                        map.entry(normalize_address(inner_key))
+                            .or_insert_with(|| inner_label.to_string());
+                    }
+                }
+            }
+            _ => continue,
+        }
+    }
 }
 
 fn descriptor_friendly_label(descriptor: &Descriptor) -> Option<String> {
