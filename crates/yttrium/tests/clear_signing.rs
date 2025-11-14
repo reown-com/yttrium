@@ -507,7 +507,7 @@ fn eip712_uniswap_permit2_formats_allowance() {
         vec![
             DisplayItem {
                 label: "Spender".to_string(),
-                value: "0x851116d9223fabed8e56c0e6b8ad0c31d98b3507".to_string(),
+                value: "Uniswap Universal Router".to_string(),
             },
             DisplayItem {
                 label: "Amount allowance".to_string(),
@@ -525,7 +525,7 @@ fn eip712_uniswap_permit2_formats_allowance() {
     );
     assert_eq!(
         model.interpolated_intent.as_deref(),
-        Some("Authorize 0x851116d9223fabed8e56c0e6b8ad0c31d98b3507 to spend Unlimited until 2025-11-12 14:08:14 UTC")
+        Some("Authorize Uniswap Universal Router to spend Unlimited until 2025-11-12 14:08:14 UTC")
     );
     assert!(model.warnings.is_empty());
     assert!(model.raw.is_none());
