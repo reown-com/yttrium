@@ -49,6 +49,7 @@
       "repay(address,uint256,uint256,address)": {
         "$id": "repay",
         "intent": "Repay loan",
+        "interpolatedIntent": "Repay {amount} for {onBehalfOf} with {rateMode} rate",
         "fields": [
           {
             "path": "amount",
@@ -73,6 +74,7 @@
       },
       "setUserUseReserveAsCollateral(address,bool)": {
         "intent": "Manage collateral",
+        "interpolatedIntent": "Set collateral usage for {asset} to {useAsCollateral}",
         "fields": [
           {
             "path": "asset",
@@ -86,6 +88,7 @@
       },
       "withdraw(address,uint256,address)": {
         "intent": "Withdraw",
+        "interpolatedIntent": "Withdraw {amount} to {to}",
         "fields": [
           {
             "path": "amount",
@@ -104,6 +107,7 @@
       },
       "swapBorrowRateMode(address,uint256)": {
         "intent": "Swap interest rate mode",
+        "interpolatedIntent": "Set {asset} borrow rate mode to {rateMode}",
         "fields": [
           {
             "path": "asset",
@@ -122,6 +126,7 @@
       },
       "borrow(address,uint256,uint256,uint16,address)": {
         "intent": "Borrow",
+        "interpolatedIntent": "Borrow {amount} for {onBehalfOf} with {interestRateMode} rate",
         "fields": [
           { "path": "amount", "format": "tokenAmount", "label": "Amount to borrow", "params": { "tokenPath": "asset" } },
           {
@@ -142,6 +147,7 @@
       "deposit(address,uint256,address,uint16)": {
         "$id": "deposit",
         "intent": "Supply",
+        "interpolatedIntent": "Supply {amount} for {onBehalfOf}",
         "fields": [
           { "path": "amount", "format": "tokenAmount", "label": "Amount to supply", "params": { "tokenPath": "asset" } },
           {

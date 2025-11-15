@@ -13,10 +13,11 @@
       "legalName": "Uniswap V3 Router"
     }
   },
-  "display": {
+      "display": {
     "formats": {
       "exactInputSingle((address,address,uint24,address,uint256,uint256,uint160))": {
         "intent": "Swap tokens",
+        "interpolatedIntent": "Swap {params.amountIn} for at least {params.amountOutMinimum} to {params.recipient}",
         "fields": [
           {
             "path": "params.amountIn",

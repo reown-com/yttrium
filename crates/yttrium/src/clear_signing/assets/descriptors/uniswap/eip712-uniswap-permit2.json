@@ -1,0 +1,112 @@
+{
+  "$schema": "../../specs/erc7730-v1.schema.json",
+  "includes": "uniswap-common-eip712.json",
+  "context": {
+    "eip712": {
+      "schemas": [
+        {
+          "types": {
+            "EIP712Domain": [
+              { "name": "name", "type": "string" },
+              { "name": "chainId", "type": "uint256" },
+              { "name": "verifyingContract", "type": "address" }
+            ],
+            "PermitDetails": [
+              { "name": "token", "type": "address" },
+              { "name": "amount", "type": "uint160" },
+              { "name": "expiration", "type": "uint48" },
+              { "name": "nonce", "type": "uint48" }
+            ],
+            "PermitBatch": [
+              { "name": "details", "type": "PermitDetails[]" },
+              { "name": "spender", "type": "address" },
+              { "name": "sigDeadline", "type": "uint256" }
+            ]
+          },
+          "primaryType": "PermitBatch"
+        },
+        {
+          "types": {
+            "EIP712Domain": [
+              { "name": "name", "type": "string" },
+              { "name": "chainId", "type": "uint256" },
+              { "name": "verifyingContract", "type": "address" }
+            ],
+            "PermitDetails": [
+              { "name": "token", "type": "address" },
+              { "name": "amount", "type": "uint160" },
+              { "name": "expiration", "type": "uint48" },
+              { "name": "nonce", "type": "uint48" }
+            ],
+            "PermitSingle": [
+              { "name": "details", "type": "PermitDetails" },
+              { "name": "spender", "type": "address" },
+              { "name": "sigDeadline", "type": "uint256" }
+            ]
+          },
+          "primaryType": "PermitSingle"
+        }
+      ]
+    }
+  },
+  "display": {
+    "formats": {
+      "PermitSingle": {
+        "$id": "Permit2 Permit Single",
+        "intent": "Authorize spending of token",
+        "interpolatedIntent": "Authorize {spender} to spend {details.amount} until {sigDeadline}",
+        "fields": [
+          { "path": "spender", "label": "Spender", "format": "addressName" },
+          {
+            "path": "details.amount",
+            "label": "Amount allowance",
+            "format": "tokenAmount",
+            "params": {
+              "tokenPath": "details.token",
+              "threshold": "$.metadata.constants.maxPermitAmount",
+              "message": "Unlimited"
+            }
+          },
+          { "path": "details.expiration", "label": "Approval expires", "format": "date", "params": { "encoding": "timestamp" } },
+          { "path": "sigDeadline", "label": "Signature deadline", "format": "date", "params": { "encoding": "timestamp" } }
+        ],
+        "required": ["spender", "details.amount"],
+        "excluded": [],
+        "screens": {}
+      },
+      "PermitBatch": {
+        "$id": "Permit2 Permit Batch",
+        "intent": "Authorize spending of tokens",
+        "interpolatedIntent": "Authorize {spender} to spend multiple tokens until {sigDeadline}",
+        "fields": [
+          { "path": "spender", "label": "Spender", "format": "addressName" },
+          {
+            "path": "details.[]",
+            "fields": [
+              {
+                "path": "amount",
+                "label": "Amount allowance",
+                "format": "tokenAmount",
+                "params": {
+                  "tokenPath": "token",
+                  "threshold": "$.metadata.constants.maxPermitAmount",
+                  "message": "Unlimited"
+                }
+              },
+              { "path": "expiration", "label": "Approval expires", "format": "date", "params": { "encoding": "timestamp" } }
+            ]
+          },
+          {
+            "path": "sigDeadline",
+            "label": "Signature deadline",
+            "format": "date",
+            "params": { "encoding": "timestamp" }
+          }
+        ],
+        "required": ["spender", "details"],
+        "excluded": [],
+        "screens": {}
+      }
+    }
+  }
+}

@@ -20,10 +20,11 @@
       "maxApproval": "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
     }
   },
-  "display": {
+      "display": {
     "formats": {
       "approve(address,uint256)": {
         "intent": "Approve USDT spending",
+        "interpolatedIntent": "Approve {spender} to spend {value}",
         "fields": [
           {
             "path": "spender",

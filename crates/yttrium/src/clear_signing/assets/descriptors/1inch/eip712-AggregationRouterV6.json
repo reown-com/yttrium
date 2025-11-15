@@ -47,6 +47,7 @@
     "formats": {
       "Order": {
         "intent": "1inch Order",
+        "interpolatedIntent": "Send {makingAmount} for at least {takingAmount} to {receiver}",
         "fields": [
           { "path": "maker", "label": "From", "format": "raw" },
           { "path": "makingAmount", "label": "Send", "format": "tokenAmount", "params": { "tokenPath": "makerAsset" } },
