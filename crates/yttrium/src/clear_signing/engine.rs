@@ -5,30 +5,18 @@ use {
         descriptor::{
             build_descriptor, decode_arguments, determine_token_key,
             native_token_key, resolve_effective_field, ArgumentValue,
-            DecodedArguments, Descriptor, DescriptorError, DisplayField,
-            DisplayFormat, EffectiveField, TokenLookupError, TokenLookupKey,
+            DecodedArguments, DescriptorError, DisplayField, DisplayFormat,
+            EffectiveField, TokenLookupError, TokenLookupKey,
         },
         resolver::ResolvedCall,
         token_registry::TokenMeta,
     },
     num_bigint::BigUint,
-    std::{collections::HashMap, sync::OnceLock},
+    std::collections::HashMap,
     thiserror::Error,
     time::{macros::format_description, OffsetDateTime},
     tiny_keccak::{Hasher, Keccak},
 };
-
-const TETHER_USDT_DESCRIPTOR: &str =
-    include_str!("assets/descriptors/erc20_usdt.json");
-const UNISWAP_V3_ROUTER_DESCRIPTOR: &str =
-    include_str!("assets/descriptors/uniswap_v3_router_v1.json");
-const WETH9_DESCRIPTOR: &str = include_str!("assets/descriptors/weth9.json");
-const GLOBAL_ADDRESS_BOOK_JSON: &str = include_str!("assets/address_book.json");
-
-const ADDRESS_BOOK_DESCRIPTORS: &[&str] =
-    &[TETHER_USDT_DESCRIPTOR, UNISWAP_V3_ROUTER_DESCRIPTOR, WETH9_DESCRIPTOR];
-
-static GLOBAL_ADDRESS_BOOK: OnceLock<HashMap<String, String>> = OnceLock::new();
 
 /// Minimal display item for the clear signing preview.
 #[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
@@ -122,7 +110,7 @@ pub fn format_with_resolved_call(
 
     let functions = descriptor.context.contract.function_descriptors()?;
     let display_formats = descriptor.display.format_map();
-    let local_address_book = descriptor_address_book(&descriptor);
+    let address_book = &resolved.address_book;
 
     let Some(function) =
         functions.iter().find(|func| func.selector == selector)
@@ -154,7 +142,7 @@ pub fn format_with_resolved_call(
             &descriptor.metadata,
             chain_id,
             to,
-            &local_address_book,
+            address_book,
             descriptor.display.definitions(),
             &token_metadata,
         )?;
@@ -409,10 +397,6 @@ fn format_address(
         return label.clone();
     }
 
-    if let Some(label) = global_address_book().get(&normalized) {
-        return label.clone();
-    }
-
     checksum
 }
 
@@ -627,110 +611,6 @@ fn extract_selector(calldata: &[u8]) -> Result<[u8; 4], EngineError> {
 
 fn format_selector_hex(selector: &[u8; 4]) -> String {
     format!("0x{}", hex::encode(selector))
-}
-
-pub(crate) fn global_address_book() -> &'static HashMap<String, String> {
-    GLOBAL_ADDRESS_BOOK.get_or_init(|| {
-        let mut map = HashMap::new();
-        for descriptor_json in ADDRESS_BOOK_DESCRIPTORS {
-            if let Ok(parsed) =
-                serde_json::from_str::<Descriptor>(descriptor_json)
-            {
-                let local_book = descriptor_address_book(&parsed);
-                for (address, label) in local_book {
-                    map.entry(address).or_insert(label);
-                }
-            }
-        }
-
-        if let Ok(value) = serde_json::from_str::<serde_json::Value>(
-            GLOBAL_ADDRESS_BOOK_JSON,
-        ) {
-            merge_address_book_entries(&mut map, Some(&value));
-        }
-
-        map
-    })
-}
-
-fn descriptor_address_book(descriptor: &Descriptor) -> HashMap<String, String> {
-    let mut map = HashMap::new();
-    if let Some(label) = descriptor_friendly_label(descriptor) {
-        for deployment in &descriptor.context.contract.deployments {
-            map.insert(normalize_address(&deployment.address), label.clone());
-        }
-    }
-    merge_address_book_entries(&mut map, descriptor.metadata.get("addressBook"));
-    map
-}
-
-pub(crate) fn merge_address_book_entries(
-    map: &mut HashMap<String, String>,
-    value: Option<&serde_json::Value>,
-) {
-    let Some(value) = value else { return };
-    let Some(entries) = value.as_object() else { return };
-
-    for (key, label_value) in entries {
-        match label_value {
-            serde_json::Value::String(label) => {
-                map.entry(normalize_address(key))
-                    .or_insert_with(|| label.to_string());
-            }
-            serde_json::Value::Object(nested) => {
-                for (inner_key, inner_label_value) in nested {
-                    if let Some(inner_label) = inner_label_value.as_str() {
-                        map.entry(normalize_address(inner_key))
-                            .or_insert_with(|| inner_label.to_string());
-                    }
-                }
-            }
-            _ => continue,
-        }
-    }
-}
-
-fn descriptor_friendly_label(descriptor: &Descriptor) -> Option<String> {
-    let metadata = &descriptor.metadata;
-
-    if let Some(token) = metadata.get("token") {
-        let name = token.get("name").and_then(|value| value.as_str());
-        let symbol = token.get("symbol").and_then(|value| value.as_str());
-        match (name, symbol) {
-            (Some(name), Some(symbol)) => {
-                if name.eq_ignore_ascii_case(symbol) {
-                    return Some(name.to_string());
-                } else {
-                    return Some(format!("{name} ({symbol})"));
-                }
-            }
-            (Some(name), None) => return Some(name.to_string()),
-            (None, Some(symbol)) => return Some(symbol.to_string()),
-            (None, None) => {}
-        }
-    }
-
-    if let Some(info) = metadata.get("info") {
-        if let Some(name) =
-            info.get("legalName").and_then(|value| value.as_str())
-        {
-            return Some(name.to_string());
-        }
-        if let Some(name) = info.get("name").and_then(|value| value.as_str()) {
-            return Some(name.to_string());
-        }
-    }
-
-    if let Some(owner) = metadata.get("owner").and_then(|value| value.as_str())
-    {
-        return Some(owner.to_string());
-    }
-
-    descriptor.context.id.clone()
-}
-
-fn normalize_address(address: &str) -> String {
-    address.trim().to_ascii_lowercase()
 }
 
 pub(crate) fn to_checksum_address(bytes: &[u8; 20]) -> String {

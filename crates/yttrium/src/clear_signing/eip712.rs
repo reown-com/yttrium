@@ -56,7 +56,7 @@ pub fn format_typed_data(
 
     let resolved = resolver::resolve_typed(chain_id, &verifying_contract)
         .map_err(|err| Eip712Error::Resolver(err.to_string()))?;
-    let descriptor = parse_descriptor(resolved)?;
+    let descriptor = parse_descriptor(&resolved)?;
     let mut warnings = Vec::new();
 
     if let Some(context) = descriptor.context.as_ref() {
@@ -80,7 +80,7 @@ pub fn format_typed_data(
     };
 
     let mut items = Vec::new();
-    let address_book = typed_address_book(&descriptor);
+    let address_book = &resolved.address_book;
     let mut rendered_values: HashMap<String, String> = HashMap::new();
 
     for required in &format.required {
@@ -111,7 +111,7 @@ pub fn format_typed_data(
             &data.message,
             &descriptor.metadata,
             chain_id,
-            &address_book,
+            address_book,
             &mut warnings,
         )?;
         rendered_values.insert(effective.path.clone(), rendered.clone());
@@ -141,21 +141,13 @@ pub fn format_typed_data(
 }
 
 fn parse_descriptor(
-    resolved: ResolvedTypedDescriptor<'_>,
+    resolved: &ResolvedTypedDescriptor<'_>,
 ) -> Result<TypedDescriptor, Eip712Error> {
-    let mut descriptor_value: Value =
-        serde_json::from_str(resolved.descriptor_json)
-            .map_err(|err| Eip712Error::DescriptorParse(err.to_string()))?;
-
-    for include_json in resolved.includes {
-        let include_value: Value = serde_json::from_str(include_json)
-            .map_err(|err| Eip712Error::DescriptorParse(err.to_string()))?;
-        merge_include(&mut descriptor_value, include_value);
-    }
-
-    if let Some(object) = descriptor_value.as_object_mut() {
-        object.remove("includes");
-    }
+    let descriptor_value = resolver::merged_descriptor_value(
+        resolved.descriptor_json,
+        &resolved.includes,
+    )
+    .map_err(|err| Eip712Error::DescriptorParse(err.to_string()))?;
 
     serde_json::from_value(descriptor_value)
         .map_err(|err| Eip712Error::DescriptorParse(err.to_string()))
@@ -218,25 +210,6 @@ fn render_field(
         Some("enum") => format_enum(field, value, metadata),
         Some("raw") => Ok(format_raw(value)),
         _ => Ok(format_raw(value)),
-    }
-}
-
-fn merge_include(target: &mut Value, include: Value) {
-    if let (Value::Object(target_map), Value::Object(include_map)) =
-        (target, include)
-    {
-        for (key, value) in include_map {
-            match target_map.get_mut(&key) {
-                Some(existing) => {
-                    if existing.is_object() && value.is_object() {
-                        merge_include(existing, value);
-                    }
-                }
-                None => {
-                    target_map.insert(key, value);
-                }
-            }
-        }
     }
 }
 
@@ -406,11 +379,6 @@ fn format_address(
     if let Some(label) = address_book.get(&normalized) {
         return label.clone();
     }
-    if let Some(label) =
-        super::engine::global_address_book().get(&normalized)
-    {
-        return label.clone();
-    }
 
     checksum
 }
@@ -422,67 +390,6 @@ fn format_raw(value: &Value) -> String {
         Value::Bool(flag) => flag.to_string(),
         _ => value.to_string(),
     }
-}
-
-fn typed_address_book(descriptor: &TypedDescriptor) -> HashMap<String, String> {
-    let mut map = HashMap::new();
-    if let Some(label) = typed_descriptor_label(&descriptor.metadata) {
-        if let Some(context) = descriptor.context.as_ref() {
-            for deployment in &context.eip712.deployments {
-                map.insert(
-                    normalize_address(&deployment.address),
-                    label.clone(),
-                );
-            }
-        }
-    }
-
-    super::engine::merge_address_book_entries(
-        &mut map,
-        descriptor.metadata.get("addressBook"),
-    );
-    map
-}
-
-fn typed_descriptor_label(metadata: &Value) -> Option<String> {
-    if let Some(token) = metadata.get("token") {
-        let name = token.get("name").and_then(|value| value.as_str());
-        let symbol = token.get("symbol").and_then(|value| value.as_str());
-        match (name, symbol) {
-            (Some(name), Some(symbol)) => {
-                if name.eq_ignore_ascii_case(symbol) {
-                    return Some(name.to_string());
-                } else {
-                    return Some(format!("{name} ({symbol})"));
-                }
-            }
-            (Some(name), None) => return Some(name.to_string()),
-            (None, Some(symbol)) => return Some(symbol.to_string()),
-            (None, None) => {}
-        }
-    }
-
-    if let Some(info) = metadata.get("info") {
-        if let Some(name) =
-            info.get("legalName").and_then(|value| value.as_str())
-        {
-            return Some(name.to_string());
-        }
-        if let Some(name) = info.get("name").and_then(|value| value.as_str()) {
-            return Some(name.to_string());
-        }
-    }
-
-    if let Some(owner) = metadata.get("owner").and_then(|value| value.as_str())
-    {
-        return Some(owner.to_string());
-    }
-
-    None
-}
-
-fn normalize_address(address: &str) -> String {
-    address.trim().to_ascii_lowercase()
 }
 
 fn extract_chain_id(domain: &Value) -> Result<u64, Eip712Error> {
