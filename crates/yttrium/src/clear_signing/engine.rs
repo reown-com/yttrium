@@ -366,10 +366,6 @@ fn format_token_amount(
         return Ok(value.default_string());
     };
 
-    if let Some(message) = token_amount_message(field, amount, metadata) {
-        return Ok(message);
-    }
-
     let token_meta = lookup_token_meta(
         field,
         decoded,
@@ -377,6 +373,11 @@ fn format_token_amount(
         contract_address,
         token_metadata,
     )?;
+
+    if let Some(message) = token_amount_message(field, amount, metadata) {
+        return Ok(format!("{} {}", message, token_meta.symbol));
+    }
+
     let formatted_amount =
         format_amount_with_decimals(amount, token_meta.decimals);
     Ok(format!("{} {}", formatted_amount, token_meta.symbol))

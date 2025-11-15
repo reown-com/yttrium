@@ -226,10 +226,6 @@ fn format_token_amount(
         Eip712Error::TypedData("token amount is not a number".to_string())
     })?;
 
-    if let Some(message) = token_amount_message(field, &amount, metadata) {
-        return Ok(message);
-    }
-
     if let Some(token_path) =
         field.params.get("tokenPath").and_then(|value| value.as_str())
     {
@@ -253,16 +249,20 @@ fn format_token_amount(
             chain_id,
             token_address.to_ascii_lowercase()
         );
-        if let Some(meta) = lookup_token_by_caip19(&caip19) {
-            let formatted = format_amount_with_decimals(&amount, meta.decimals);
-            return Ok(format!("{} {}", formatted, meta.symbol));
-        } else {
+        let Some(meta) = lookup_token_by_caip19(&caip19) else {
             warnings.push(format!(
                 "Token registry missing entry for chain {} and address {}",
                 chain_id, token_address
             ));
             return Ok(format_raw(value));
+        };
+
+        if let Some(message) = token_amount_message(field, &amount, metadata) {
+            return Ok(format!("{} {}", message, meta.symbol));
         }
+
+        let formatted = format_amount_with_decimals(&amount, meta.decimals);
+        return Ok(format!("{} {}", formatted, meta.symbol));
     }
 
     Err(Eip712Error::TypedData(format!(
