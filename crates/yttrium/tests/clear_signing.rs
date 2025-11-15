@@ -214,7 +214,7 @@ fn aave_repay_all_uses_message() {
         model.items.first(),
         Some(&DisplayItem {
             label: "Amount to repay".to_string(),
-            value: "All".to_string(),
+            value: "All DAI".to_string(),
         })
     );
 }
@@ -511,7 +511,7 @@ fn eip712_uniswap_permit2_formats_allowance() {
             },
             DisplayItem {
                 label: "Amount allowance".to_string(),
-                value: "Unlimited".to_string(),
+                value: "Unlimited USDC".to_string(),
             },
             DisplayItem {
                 label: "Approval expires".to_string(),
@@ -525,7 +525,7 @@ fn eip712_uniswap_permit2_formats_allowance() {
     );
     assert_eq!(
         model.interpolated_intent.as_deref(),
-        Some("Authorize Uniswap Universal Router to spend Unlimited until 2025-11-12 14:08:14 UTC")
+        Some("Authorize Uniswap Universal Router to spend Unlimited USDC until 2025-11-12 14:08:14 UTC")
     );
     assert!(model.warnings.is_empty());
     assert!(model.raw.is_none());
@@ -560,7 +560,10 @@ fn usdt_approve_all_displays_all_message() {
     );
     assert_eq!(
         model.items[1],
-        DisplayItem { label: "Amount".to_string(), value: "All".to_string() }
+        DisplayItem {
+            label: "Amount".to_string(),
+            value: "All USDT".to_string()
+        }
     );
 }
 
@@ -625,7 +628,10 @@ fn usdt_approve_all_on_optimism() {
     );
     assert_eq!(
         model.items[1],
-        DisplayItem { label: "Amount".to_string(), value: "All".to_string() }
+        DisplayItem {
+            label: "Amount".to_string(),
+            value: "All USDT".to_string()
+        }
     );
 }
 
@@ -663,7 +669,10 @@ fn usdc_approve_all_on_optimism() {
     );
     assert_eq!(
         model.items[1],
-        DisplayItem { label: "Amount".to_string(), value: "All".to_string() }
+        DisplayItem {
+            label: "Amount".to_string(),
+            value: "All USDC".to_string()
+        }
     );
 }
 
