@@ -3,6 +3,7 @@
     "0xe592427a0aece92de3edee1f18e0157c05861564": "Uniswap V3 Router"
   },
   "eip155:10": {
-    "0x851116d9223fabed8e56c0e6b8ad0c31d98b3507": "Uniswap Universal Router"
+    "0x851116d9223fabed8e56c0e6b8ad0c31d98b3507": "Uniswap Universal Router",
+    "0x000000000022d473030f116ddee9f6b43ac78ba3": "Uniswap Permit2"
   }
 }

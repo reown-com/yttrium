@@ -14,11 +14,17 @@ const WETH_MAINNET: &str = "0xC02aaA39b223FE8D0A0E5C4F27eAD9083C756Cc2";
 const TEST_ROUTER: &str = "0xF00D000000000000000000000000000000000123";
 const AAVE_LPV2_MAINNET: &str = "0x7d2768de32b0b80b7a3454c06bdac94a69ddc7a9";
 const USDC: &str = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
+const USDC_OPTIMISM_NATIVE: &str =
+    "0x0b2c639c533813f4aa9d7837caf62653d097ff85";
+const BASE_BRIDGE_SPENDER: &str =
+    "0x6f26bf09b1c792e3228e5467807a900a503c0281";
 const DAI: &str = "0x6B175474E89094C44Da98b954EedeAC495271d0F";
 const ON_BEHALF_OF: &str = "0x1111111111111111111111111111111111111111";
 const UNIVERSAL_ROUTER_OPTIMISM: &str =
     "0x851116d9223fAbEd8e56C0e6B8AD0c31d98B3507";
 const STAKEWEIGHT_OPTIMISM: &str = "0x521B4C065Bbdbe3E20B3727340730936912DfA46";
+const USDT_OPTIMISM_CANONICAL: &str =
+    "0x94b008aa00579c1307b0ef2c499ad98a8ce58e58";
 const STAKEWEIGHT_INCREASE_UNLOCK_TIME_CALLDATA: &str =
     "0x7c616fe6000000000000000000000000000000000000000000000000000000006945563d";
 const UNIVERSAL_ROUTER_CALLDATA_HEX: &str = concat!(
@@ -612,7 +618,7 @@ fn usdt_approve_all_on_optimism() {
 
     let model = format_with_value(
         10,
-        "0x94b008aa00579c1307b0ef2c499ad98a8ce58e58",
+        USDT_OPTIMISM_CANONICAL,
         None,
         &calldata,
     )
@@ -666,6 +672,85 @@ fn usdc_approve_all_on_optimism() {
     assert_eq!(
         model.items[0].value.to_ascii_lowercase(),
         AAVE_LPV2_MAINNET.to_ascii_lowercase()
+    );
+    assert_eq!(
+        model.items[1],
+        DisplayItem {
+            label: "Amount".to_string(),
+            value: "All USDC".to_string()
+        }
+    );
+}
+
+#[test]
+fn permit2_spender_labeled_on_optimism() {
+    let calldata = build_calldata(
+        selector("approve(address,uint256)"),
+        &[
+            address_word("0x000000000022d473030f116ddee9f6b43ac78ba3"),
+            uint_word_biguint(
+                BigUint::parse_bytes(
+                    b"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+                    16,
+                )
+                .expect("max constant"),
+            ),
+        ],
+    );
+
+    let model = format_with_value(10, USDT_OPTIMISM_CANONICAL, None, &calldata)
+        .expect("format succeeds");
+
+    assert_eq!(model.intent, "Approve USDT spending");
+    assert!(model.warnings.is_empty());
+    assert_eq!(model.items.len(), 2);
+    assert_eq!(
+        model.items[0],
+        DisplayItem {
+            label: "Spender".to_string(),
+            value: "Uniswap Permit2".to_string()
+        }
+    );
+    assert_eq!(
+        model.items[1],
+        DisplayItem {
+            label: "Amount".to_string(),
+            value: "All USDT".to_string()
+        }
+    );
+}
+
+#[test]
+fn native_usdc_approve_all_on_optimism() {
+    let calldata = build_calldata(
+        selector("approve(address,uint256)"),
+        &[
+            address_word(BASE_BRIDGE_SPENDER),
+            uint_word_biguint(
+                BigUint::parse_bytes(
+                    b"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+                    16,
+                )
+                .expect("max constant"),
+            ),
+        ],
+    );
+
+    let model = format_with_value(
+        10,
+        USDC_OPTIMISM_NATIVE,
+        None,
+        &calldata,
+    )
+    .expect("format succeeds");
+
+    assert_eq!(model.intent, "Approve USDC spending");
+    assert!(model.warnings.is_empty());
+    assert_eq!(model.items.len(), 2);
+    assert_eq!(model.items[0].label, "Spender");
+    assert_eq!(
+        model.items[0].value.to_ascii_lowercase(),
+        BASE_BRIDGE_SPENDER.to_ascii_lowercase()
     );
     assert_eq!(
         model.items[1],
