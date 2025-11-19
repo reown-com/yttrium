@@ -32,6 +32,8 @@ pub mod erc20;
 pub mod erc4337;
 #[cfg(feature = "erc6492_client")]
 pub mod erc6492_client;
+#[cfg(feature = "wallet_pay")]
+pub mod wallet_pay;
 #[cfg(any(feature = "account_client", feature = "chain_abstraction_client"))]
 pub mod erc7579;
 pub mod error;

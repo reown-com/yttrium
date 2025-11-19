@@ -14,7 +14,7 @@ fi
 
 echo "Using ANDROID_NDK_HOME: $ANDROID_NDK_HOME"
 
-ACCOUNT_FEATURES="android,erc6492_client,uniffi/cli"
+ACCOUNT_FEATURES="android,erc6492_client,wallet_pay,uniffi/cli"
 UTILS_FEATURES="android,chain_abstraction_client,solana,stacks,sui,ton,eip155,uniffi/cli"
 PROFILE="uniffi-release-kotlin"
 OUTPUT_ROOT="build/kotlin-artifacts"
@@ -168,7 +168,7 @@ install_variant_sources() {
 }
 
 build_account_variant() {
-    echo "Building yttrium (erc6492_client) variant..."
+    echo "Building yttrium (erc6492_client, wallet_pay) variant..."
     cargo ndk -t armv7-linux-androideabi -t aarch64-linux-android -t x86_64-linux-android build \
         --profile="$PROFILE" \
         --no-default-features \
