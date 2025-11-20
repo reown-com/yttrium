@@ -185,7 +185,7 @@ impl WalletPayClient {
             })?
         } else {
             // Default mock endpoint - TODO: replace with actual BAPI URL
-            "https://api.example.com/v1/wallet-pay".parse().map_err(|e| {
+            "https://rpc.walletconnect.org/v1/wallet-pay".parse().map_err(|e| {
                 WalletPayError::ParseError(format!(
                     "Failed to parse default URL: {e}"
                 ))
@@ -216,6 +216,7 @@ impl WalletPayClient {
 
         // TODO: Replace with actual BAPI call when endpoint is ready
         // For now, return mocked response
+        let url_string = url.to_string();
         let response =
             self.client.post(url).json(&request).send().await.map_err(|e| {
                 WalletPayError::BapiError(format!("Request failed: {e}"))
@@ -223,8 +224,9 @@ impl WalletPayClient {
 
         if !response.status().is_success() {
             return Err(WalletPayError::BapiError(format!(
-                "BAPI returned error status: {}",
-                response.status()
+                "BAPI returned error status: {} on url {}",
+                response.status(),
+                url_string
             )));
         }
 
@@ -286,10 +288,19 @@ impl WalletPayClient {
 
         // TODO: Replace with actual BAPI call when endpoint is ready
         // For now, return mocked response
-        let _response =
+        let url_string = url.to_string();
+        let response =
             self.client.post(url).json(&request).send().await.map_err(|e| {
                 WalletPayError::BapiError(format!("Request failed: {e}"))
             })?;
+
+        if !response.status().is_success() {
+            return Err(WalletPayError::BapiError(format!(
+                "BAPI returned error status: {} on url {}",
+                response.status(),
+                url_string
+            )));
+        }
 
         // Mock response for now
         let mock_response = BapiActionResponse {
@@ -322,10 +333,19 @@ impl WalletPayClient {
 
         // TODO: Replace with actual BAPI call when endpoint is ready
         // For now, return mocked response
-        let _response =
+        let url_string = url.to_string();
+        let response =
             self.client.post(url).json(&request).send().await.map_err(|e| {
                 WalletPayError::BapiError(format!("Request failed: {e}"))
             })?;
+
+        if !response.status().is_success() {
+            return Err(WalletPayError::BapiError(format!(
+                "BAPI returned error status: {} on url {}",
+                response.status(),
+                url_string
+            )));
+        }
 
         // Determine type based on payment option types
         let transfer_type = if payment_option
@@ -470,7 +490,7 @@ pub fn create_wallet_pay_request(
             WalletPayError::ParseError(format!("Failed to parse JSON: {e}"))
         })?;
 
-    // Try to extract wallet_pay from different possible structures
+    // Try to extract walletPay from different possible structures
     let wallet_pay: WalletPay = if let Some(wallet_pay_value) =
         raw_data_value.get("walletPay")
     {
