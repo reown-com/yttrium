@@ -174,23 +174,14 @@ pub(crate) struct BapiTransferConfirmation {
 
 impl WalletPayClient {
     #[cfg_attr(feature = "uniffi", uniffi::constructor)]
-    pub fn new(
-        blockchain_api_base_url: Option<String>,
-    ) -> Result<Self, WalletPayError> {
-        let url = if let Some(url_str) = blockchain_api_base_url {
-            url_str.parse().map_err(|e| {
+    pub fn new() -> Result<Self, WalletPayError> {
+        let url = "https://rpc.walletconnect.org/v1/"
+            .parse()
+            .map_err(|e| {
                 WalletPayError::ParseError(format!(
-                    "Invalid BAPI base URL: {e}"
+                    "Failed to parse hardcoded URL: {e}"
                 ))
-            })?
-        } else {
-            // Default mock endpoint - TODO: replace with actual BAPI URL
-            "https://rpc.walletconnect.org/v1/wallet-pay".parse().map_err(|e| {
-                WalletPayError::ParseError(format!(
-                    "Failed to parse default URL: {e}"
-                ))
-            })?
-        };
+            })?;
 
         Ok(Self {
             client: reqwest::Client::new(),
@@ -205,30 +196,29 @@ impl WalletPayClient {
         &self,
         accepted_payments: &[AcceptedPayment],
     ) -> Result<BapiDisplayDataResponse, WalletPayError> {
-        let url =
-            self.blockchain_api_base_url.join("display-data").map_err(|e| {
-                WalletPayError::BapiError(format!("Invalid URL: {e}"))
-            })?;
+        // TODO: uncomment code when ready with the BAPI endpoing
+        // let url =
+        //     self.blockchain_api_base_url.join("display-data").map_err(|e| {
+        //         WalletPayError::BapiError(format!("Invalid URL: {e}"))
+        //     })?;
 
-        let request = BapiDisplayDataRequest {
-            accepted_payments: accepted_payments.to_vec(),
-        };
+        // let request = BapiDisplayDataRequest {
+        //     accepted_payments: accepted_payments.to_vec(),
+        // };
 
-        // TODO: Replace with actual BAPI call when endpoint is ready
-        // For now, return mocked response
-        let url_string = url.to_string();
-        let response =
-            self.client.post(url).json(&request).send().await.map_err(|e| {
-                WalletPayError::BapiError(format!("Request failed: {e}"))
-            })?;
+        // let url_string = url.to_string();
+        // let response =
+        //     self.client.post(url).json(&request).send().await.map_err(|e| {
+        //         WalletPayError::BapiError(format!("Request failed: {e}"))
+        //     })?;
 
-        if !response.status().is_success() {
-            return Err(WalletPayError::BapiError(format!(
-                "BAPI returned error status: {} on url {}",
-                response.status(),
-                url_string
-            )));
-        }
+        // if !response.status().is_success() {
+        //     return Err(WalletPayError::BapiError(format!(
+        //         "BAPI returned error status: {} on url {}",
+        //         response.status(),
+        //         url_string
+        //     )));
+        // }
 
         // Mock response for now
         let mock_response = BapiDisplayDataResponse {
@@ -279,28 +269,30 @@ impl WalletPayClient {
         &self,
         payment_option: &PaymentOption,
     ) -> Result<BapiActionResponse, WalletPayError> {
-        let url = self.blockchain_api_base_url.join("action").map_err(|e| {
-            WalletPayError::BapiError(format!("Invalid URL: {e}"))
-        })?;
+        // TODO: uncomment code when ready with the BAPI endpoing
 
-        let request =
-            BapiActionRequest { payment_option: payment_option.clone() };
+        // let url = self.blockchain_api_base_url.join("action").map_err(|e| {
+        //     WalletPayError::BapiError(format!("Invalid URL: {e}"))
+        // })?;
 
-        // TODO: Replace with actual BAPI call when endpoint is ready
-        // For now, return mocked response
-        let url_string = url.to_string();
-        let response =
-            self.client.post(url).json(&request).send().await.map_err(|e| {
-                WalletPayError::BapiError(format!("Request failed: {e}"))
-            })?;
+        // let request =
+        //     BapiActionRequest { payment_option: payment_option.clone() };
 
-        if !response.status().is_success() {
-            return Err(WalletPayError::BapiError(format!(
-                "BAPI returned error status: {} on url {}",
-                response.status(),
-                url_string
-            )));
-        }
+        // // TODO: Replace with actual BAPI call when endpoint is ready
+        // // For now, return mocked response
+        // let url_string = url.to_string();
+        // let response =
+        //     self.client.post(url).json(&request).send().await.map_err(|e| {
+        //         WalletPayError::BapiError(format!("Request failed: {e}"))
+        //     })?;
+
+        // if !response.status().is_success() {
+        //     return Err(WalletPayError::BapiError(format!(
+        //         "BAPI returned error status: {} on url {}",
+        //         response.status(),
+        //         url_string
+        //     )));
+        // }
 
         // Mock response for now
         let mock_response = BapiActionResponse {
@@ -321,31 +313,33 @@ impl WalletPayClient {
         payment_option: &PaymentOption,
         signature: &str,
     ) -> Result<BapiFinalizeResponse, WalletPayError> {
-        let url =
-            self.blockchain_api_base_url.join("finalize").map_err(|e| {
-                WalletPayError::BapiError(format!("Invalid URL: {e}"))
-            })?;
+        // TODO: uncomment code when ready with the BAPI endpoing
+        
+        // let url =
+        //     self.blockchain_api_base_url.join("finalize").map_err(|e| {
+        //         WalletPayError::BapiError(format!("Invalid URL: {e}"))
+        //     })?;
 
-        let request = BapiFinalizeRequest {
-            payment_option: payment_option.clone(),
-            signature: signature.to_string(),
-        };
+        // let request = BapiFinalizeRequest {
+        //     payment_option: payment_option.clone(),
+        //     signature: signature.to_string(),
+        // };
 
-        // TODO: Replace with actual BAPI call when endpoint is ready
-        // For now, return mocked response
-        let url_string = url.to_string();
-        let response =
-            self.client.post(url).json(&request).send().await.map_err(|e| {
-                WalletPayError::BapiError(format!("Request failed: {e}"))
-            })?;
+        // // TODO: Replace with actual BAPI call when endpoint is ready
+        // // For now, return mocked response
+        // let url_string = url.to_string();
+        // let response =
+        //     self.client.post(url).json(&request).send().await.map_err(|e| {
+        //         WalletPayError::BapiError(format!("Request failed: {e}"))
+        //     })?;
 
-        if !response.status().is_success() {
-            return Err(WalletPayError::BapiError(format!(
-                "BAPI returned error status: {} on url {}",
-                response.status(),
-                url_string
-            )));
-        }
+        // if !response.status().is_success() {
+        //     return Err(WalletPayError::BapiError(format!(
+        //         "BAPI returned error status: {} on url {}",
+        //         response.status(),
+        //         url_string
+        //     )));
+        // }
 
         // Determine type based on payment option types
         let transfer_type = if payment_option
@@ -480,9 +474,8 @@ impl WalletPayRequest {
 #[cfg_attr(feature = "uniffi", uniffi::export)]
 pub fn create_wallet_pay_request(
     raw_data: String, // JSON string
-    blockchain_api_base_url: Option<String>,
 ) -> Result<WalletPayRequest, WalletPayError> {
-    let client = WalletPayClient::new(blockchain_api_base_url)?;
+    let client = WalletPayClient::new()?;
 
     // Parse JSON string
     let raw_data_value: serde_json::Value = serde_json::from_str(&raw_data)
