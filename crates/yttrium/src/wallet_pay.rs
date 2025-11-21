@@ -314,7 +314,7 @@ impl WalletPayClient {
         signature: &str,
     ) -> Result<BapiFinalizeResponse, WalletPayError> {
         // TODO: uncomment code when ready with the BAPI endpoing
-        
+
         // let url =
         //     self.blockchain_api_base_url.join("finalize").map_err(|e| {
         //         WalletPayError::BapiError(format!("Invalid URL: {e}"))
@@ -483,31 +483,31 @@ pub fn create_wallet_pay_request(
             WalletPayError::ParseError(format!("Failed to parse JSON: {e}"))
         })?;
 
-    // Try to extract walletPay from different possible structures
+    // Try to extract wallet_pay from different possible structures
     let wallet_pay: WalletPay = if let Some(wallet_pay_value) =
-        raw_data_value.get("walletPay")
+        raw_data_value.get("wallet_pay")
     {
         serde_json::from_value(wallet_pay_value.clone()).map_err(|e| {
             WalletPayError::ParseError(format!(
-                "Failed to parse walletPay: {e}"
+                "Failed to parse wallet_pay: {e}"
             ))
         })?
     } else if let Some(params) = raw_data_value.get("params") {
-        // Try to get walletPay from params (RPC structure)
-        if let Some(wallet_pay_value) = params.get("walletPay") {
+        // Try to get wallet_pay from params (RPC structure)
+        if let Some(wallet_pay_value) = params.get("wallet_pay") {
             serde_json::from_value(wallet_pay_value.clone()).map_err(|e| {
                 WalletPayError::ParseError(format!(
-                    "Failed to parse walletPay from params: {e}"
+                    "Failed to parse wallet_pay from params: {e}"
                 ))
             })?
         } else {
             return Err(WalletPayError::NoWalletPayRequestFound(
-                "No walletPay field found in raw data".to_string(),
+                "No wallet_pay field found in raw data".to_string(),
             ));
         }
     } else {
         return Err(WalletPayError::NoWalletPayRequestFound(
-            "No walletPay field found in raw data".to_string(),
+            "No wallet_pay field found in raw data".to_string(),
         ));
     };
 
