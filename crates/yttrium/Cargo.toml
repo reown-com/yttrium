@@ -19,7 +19,7 @@ path = "src/bin/sign_canary.rs"
 required-features = ["sign_canary"]
 
 [features]
-default = ["eip155", "erc6492_client", "chain_abstraction_client"]
+default = ["eip155", "erc6492_client", "wallet_pay", "chain_abstraction_client"]
 full = ["all_platforms", "all_clients", "all_namespaces"]
 
 # Features enabling FFI bindings for different platforms
@@ -86,10 +86,12 @@ all_clients = [
     "chain_abstraction_client",
     "transaction_sponsorship_client",
     "sign_client",
+    "wallet_pay",
 ]
 account_client = []
 erc6492_client = []
 chain_abstraction_client = []
+wallet_pay = []
 transaction_sponsorship_client = []
 sign_client = [
     "dep:futures-concurrency",
