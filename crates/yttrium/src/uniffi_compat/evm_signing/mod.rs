@@ -88,6 +88,9 @@ pub enum EvmSigningError {
     InvalidTypedData(String),
 }
 
+#[cfg(test)]
+mod tests;
+
 /// Signs and broadcasts an EVM transaction using the supplied signer and provider pool.
 pub async fn sign_and_send_transaction(
     provider_pool: &ProviderPool,
