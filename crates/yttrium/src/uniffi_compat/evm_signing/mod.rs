@@ -165,7 +165,9 @@ pub fn sign_typed_data(
     let typed_data: TypedData = serde_json::from_str(&json_data)
         .map_err(|err| EvmSigningError::InvalidTypedData(err.to_string()))?;
 
-    let hash = typed_data.eip712_signing_hash(&typed_data.domain);
+    let hash = typed_data
+        .eip712_signing_hash()
+        .map_err(|err| EvmSigningError::InvalidTypedData(err.to_string()))?;
 
     let signature = signer
         .sign_hash_sync(&hash)

@@ -565,6 +565,8 @@ public protocol EvmSigningClientProtocol: AnyObject, Sendable {
     
     func signAndSend(params: SignAndSendParams, signer: PrivateKeySigner) async throws  -> SignAndSendResult
     
+    func signTypedData(jsonData: String, signer: PrivateKeySigner) throws  -> String
+    
 }
 open class EvmSigningClient: EvmSigningClientProtocol, @unchecked Sendable {
     fileprivate let pointer: UnsafeMutableRawPointer!
@@ -652,6 +654,15 @@ open func signAndSend(params: SignAndSendParams, signer: PrivateKeySigner)async 
             liftFunc: FfiConverterTypeSignAndSendResult_lift,
             errorHandler: FfiConverterTypeEvmSigningError_lift
         )
+}
+    
+open func signTypedData(jsonData: String, signer: PrivateKeySigner)throws  -> String  {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeEvmSigningError_lift) {
+    uniffi_yttrium_fn_method_evmsigningclient_sign_typed_data(self.uniffiClonePointer(),
+        FfiConverterString.lower(jsonData),
+        FfiConverterTypePrivateKeySigner_lower(signer),$0
+    )
+})
 }
     
 
@@ -6809,6 +6820,8 @@ public enum EvmSigningError: Swift.Error {
     )
     case Broadcast(String
     )
+    case InvalidTypedData(String
+    )
 }
 
 
@@ -6849,6 +6862,9 @@ public struct FfiConverterTypeEvmSigningError: FfiConverterRustBuffer {
             try FfiConverterString.read(from: &buf)
             )
         case 9: return .Broadcast(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 10: return .InvalidTypedData(
             try FfiConverterString.read(from: &buf)
             )
 
@@ -6905,6 +6921,11 @@ public struct FfiConverterTypeEvmSigningError: FfiConverterRustBuffer {
         
         case let .Broadcast(v1):
             writeInt(&buf, Int32(9))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .InvalidTypedData(v1):
+            writeInt(&buf, Int32(10))
             FfiConverterString.write(v1, into: &buf)
             
         }
@@ -11928,6 +11949,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_yttrium_checksum_method_evmsigningclient_sign_and_send() != 30425) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_method_evmsigningclient_sign_typed_data() != 26245) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_yttrium_checksum_method_logger_log() != 540) {
