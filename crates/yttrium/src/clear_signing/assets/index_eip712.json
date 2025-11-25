@@ -15,5 +15,19 @@
   "eip155:8453:0x111111125421ca6dc452d289314280a0f8842a65": "descriptors/1inch/eip712-AggregationRouterV6.json",
   "eip155:42161:0x111111125421ca6dc452d289314280a0f8842a65": "descriptors/1inch/eip712-AggregationRouterV6.json",
   "eip155:43114:0x111111125421ca6dc452d289314280a0f8842a65": "descriptors/1inch/eip712-AggregationRouterV6.json",
-  "eip155:1313161554:0x111111125421ca6dc452d289314280a0f8842a65": "descriptors/1inch/eip712-AggregationRouterV6.json"
+  "eip155:1313161554:0x111111125421ca6dc452d289314280a0f8842a65": "descriptors/1inch/eip712-AggregationRouterV6.json",
+  "eip155:1:0x000000000022d473030f116ddee9f6b43ac78ba3": "descriptors/uniswap/eip712-uniswap-permit2.json",
+  "eip155:10:0x000000000022d473030f116ddee9f6b43ac78ba3": "descriptors/uniswap/eip712-uniswap-permit2.json",
+  "eip155:56:0x000000000022d473030f116ddee9f6b43ac78ba3": "descriptors/uniswap/eip712-uniswap-permit2.json",
+  "eip155:137:0x000000000022d473030f116ddee9f6b43ac78ba3": "descriptors/uniswap/eip712-uniswap-permit2.json",
+  "eip155:42161:0x000000000022d473030f116ddee9f6b43ac78ba3": "descriptors/uniswap/eip712-uniswap-permit2.json",
+  "eip155:42220:0x000000000022d473030f116ddee9f6b43ac78ba3": "descriptors/uniswap/eip712-uniswap-permit2.json",
+  "eip155:43114:0x000000000022d473030f116ddee9f6b43ac78ba3": "descriptors/uniswap/eip712-uniswap-permit2.json",
+  "eip155:80001:0x000000000022d473030f116ddee9f6b43ac78ba3": "descriptors/uniswap/eip712-uniswap-permit2.json",
+  "eip155:81457:0x000000000022d473030f116ddee9f6b43ac78ba3": "descriptors/uniswap/eip712-uniswap-permit2.json",
+  "eip155:8453:0x000000000022d473030f116ddee9f6b43ac78ba3": "descriptors/uniswap/eip712-uniswap-permit2.json",
+  "eip155:84532:0x000000000022d473030f116ddee9f6b43ac78ba3": "descriptors/uniswap/eip712-uniswap-permit2.json",
+  "eip155:421614:0x000000000022d473030f116ddee9f6b43ac78ba3": "descriptors/uniswap/eip712-uniswap-permit2.json",
+  "eip155:11155111:0x000000000022d473030f116ddee9f6b43ac78ba3": "descriptors/uniswap/eip712-uniswap-permit2.json",
+  "eip155:11155420:0x000000000022d473030f116ddee9f6b43ac78ba3": "descriptors/uniswap/eip712-uniswap-permit2.json"
 }

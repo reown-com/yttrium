@@ -1973,14 +1973,16 @@ public func FfiConverterTypeDisplayItem_lower(_ value: DisplayItem) -> RustBuffe
  */
 public struct DisplayModel {
     public var intent: String
+    public var interpolatedIntent: String?
     public var items: [DisplayItem]
     public var warnings: [String]
     public var raw: RawPreview?
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(intent: String, items: [DisplayItem], warnings: [String], raw: RawPreview?) {
+    public init(intent: String, interpolatedIntent: String?, items: [DisplayItem], warnings: [String], raw: RawPreview?) {
         self.intent = intent
+        self.interpolatedIntent = interpolatedIntent
         self.items = items
         self.warnings = warnings
         self.raw = raw
@@ -1997,6 +1999,9 @@ extension DisplayModel: Equatable, Hashable {
         if lhs.intent != rhs.intent {
             return false
         }
+        if lhs.interpolatedIntent != rhs.interpolatedIntent {
+            return false
+        }
         if lhs.items != rhs.items {
             return false
         }
@@ -2011,6 +2016,7 @@ extension DisplayModel: Equatable, Hashable {
 
     public func hash(into hasher: inout Hasher) {
         hasher.combine(intent)
+        hasher.combine(interpolatedIntent)
         hasher.combine(items)
         hasher.combine(warnings)
         hasher.combine(raw)
@@ -2027,6 +2033,7 @@ public struct FfiConverterTypeDisplayModel: FfiConverterRustBuffer {
         return
             try DisplayModel(
                 intent: FfiConverterString.read(from: &buf), 
+                interpolatedIntent: FfiConverterOptionString.read(from: &buf), 
                 items: FfiConverterSequenceTypeDisplayItem.read(from: &buf), 
                 warnings: FfiConverterSequenceString.read(from: &buf), 
                 raw: FfiConverterOptionTypeRawPreview.read(from: &buf)
@@ -2035,6 +2042,7 @@ public struct FfiConverterTypeDisplayModel: FfiConverterRustBuffer {
 
     public static func write(_ value: DisplayModel, into buf: inout [UInt8]) {
         FfiConverterString.write(value.intent, into: &buf)
+        FfiConverterOptionString.write(value.interpolatedIntent, into: &buf)
         FfiConverterSequenceTypeDisplayItem.write(value.items, into: &buf)
         FfiConverterSequenceString.write(value.warnings, into: &buf)
         FfiConverterOptionTypeRawPreview.write(value.raw, into: &buf)
