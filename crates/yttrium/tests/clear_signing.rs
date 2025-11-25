@@ -16,6 +16,11 @@ const AAVE_LPV2_MAINNET: &str = "0x7d2768de32b0b80b7a3454c06bdac94a69ddc7a9";
 const USDC: &str = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
 const USDC_OPTIMISM_NATIVE: &str =
     "0x0b2c639c533813f4aa9d7837caf62653d097ff85";
+const USDC_ARBITRUM: &str =
+    "0xaf88d065e77c8cc2239327c5edb3a432268e5831";
+const USDC_BASE: &str = "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913";
+const USDT_ARBITRUM: &str =
+    "0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9";
 const BASE_BRIDGE_SPENDER: &str =
     "0x6f26bf09b1c792e3228e5467807a900a503c0281";
 const DAI: &str = "0x6B175474E89094C44Da98b954EedeAC495271d0F";
@@ -757,6 +762,114 @@ fn native_usdc_approve_all_on_optimism() {
         DisplayItem {
             label: "Amount".to_string(),
             value: "All USDC".to_string()
+        }
+    );
+}
+
+#[test]
+fn usdc_approve_all_on_arbitrum() {
+    let calldata = build_calldata(
+        selector("approve(address,uint256)"),
+        &[
+            address_word(AAVE_LPV2_MAINNET),
+            uint_word_biguint(
+                BigUint::parse_bytes(
+                    b"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+                    16,
+                )
+                .expect("max constant"),
+            ),
+        ],
+    );
+
+    let model =
+        format_with_value(42161, USDC_ARBITRUM, None, &calldata).expect("format succeeds");
+
+    assert_eq!(model.intent, "Approve USDC spending");
+    assert!(model.warnings.is_empty());
+    assert_eq!(model.items.len(), 2);
+    assert_eq!(model.items[0].label, "Spender");
+    assert_eq!(
+        model.items[0].value.to_ascii_lowercase(),
+        AAVE_LPV2_MAINNET.to_ascii_lowercase()
+    );
+    assert_eq!(
+        model.items[1],
+        DisplayItem {
+            label: "Amount".to_string(),
+            value: "All USDC".to_string()
+        }
+    );
+}
+
+#[test]
+fn usdc_approve_all_on_base() {
+    let calldata = build_calldata(
+        selector("approve(address,uint256)"),
+        &[
+            address_word(AAVE_LPV2_MAINNET),
+            uint_word_biguint(
+                BigUint::parse_bytes(
+                    b"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+                    16,
+                )
+                .expect("max constant"),
+            ),
+        ],
+    );
+
+    let model =
+        format_with_value(8453, USDC_BASE, None, &calldata).expect("format succeeds");
+
+    assert_eq!(model.intent, "Approve USDC spending");
+    assert!(model.warnings.is_empty());
+    assert_eq!(model.items.len(), 2);
+    assert_eq!(model.items[0].label, "Spender");
+    assert_eq!(
+        model.items[0].value.to_ascii_lowercase(),
+        AAVE_LPV2_MAINNET.to_ascii_lowercase()
+    );
+    assert_eq!(
+        model.items[1],
+        DisplayItem {
+            label: "Amount".to_string(),
+            value: "All USDC".to_string()
+        }
+    );
+}
+
+#[test]
+fn usdt_approve_all_on_arbitrum() {
+    let calldata = build_calldata(
+        selector("approve(address,uint256)"),
+        &[
+            address_word(AAVE_LPV2_MAINNET),
+            uint_word_biguint(
+                BigUint::parse_bytes(
+                    b"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+                    16,
+                )
+                .expect("max constant"),
+            ),
+        ],
+    );
+
+    let model =
+        format_with_value(42161, USDT_ARBITRUM, None, &calldata).expect("format succeeds");
+
+    assert_eq!(model.intent, "Approve USDT spending");
+    assert!(model.warnings.is_empty());
+    assert_eq!(model.items.len(), 2);
+    assert_eq!(model.items[0].label, "Spender");
+    assert_eq!(
+        model.items[0].value.to_ascii_lowercase(),
+        AAVE_LPV2_MAINNET.to_ascii_lowercase()
+    );
+    assert_eq!(
+        model.items[1],
+        DisplayItem {
+            label: "Amount".to_string(),
+            value: "All USDT".to_string()
         }
     );
 }
