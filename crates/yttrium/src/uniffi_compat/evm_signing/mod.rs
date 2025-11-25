@@ -173,7 +173,7 @@ pub fn sign_typed_data(
         .sign_hash_sync(&hash)
         .map_err(|err| EvmSigningError::Signing(err.to_string()))?;
 
-    Ok(signature.to_string())
+    Ok(format!("0x{}", signature))
 }
 
 fn parse_chain_id(chain_id: &str) -> Result<u64, EvmSigningError> {
