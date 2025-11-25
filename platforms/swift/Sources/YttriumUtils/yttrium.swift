@@ -2404,6 +2404,135 @@ public func FfiConverterTypeErc20Metadata_lower(_ value: Erc20Metadata) -> RustB
 }
 
 
+/**
+ * ERC-3009 authorization with signature components for TransferWithAuthorization.
+ */
+public struct Erc3009Authorization {
+    public var from: String
+    public var to: String
+    public var value: String
+    public var validAfter: UInt64
+    public var validBefore: UInt64
+    public var nonce: String
+    public var v: UInt8
+    public var r: String
+    public var s: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(from: String, to: String, value: String, validAfter: UInt64, validBefore: UInt64, nonce: String, v: UInt8, r: String, s: String) {
+        self.from = from
+        self.to = to
+        self.value = value
+        self.validAfter = validAfter
+        self.validBefore = validBefore
+        self.nonce = nonce
+        self.v = v
+        self.r = r
+        self.s = s
+    }
+}
+
+#if compiler(>=6)
+extension Erc3009Authorization: Sendable {}
+#endif
+
+
+extension Erc3009Authorization: Equatable, Hashable {
+    public static func ==(lhs: Erc3009Authorization, rhs: Erc3009Authorization) -> Bool {
+        if lhs.from != rhs.from {
+            return false
+        }
+        if lhs.to != rhs.to {
+            return false
+        }
+        if lhs.value != rhs.value {
+            return false
+        }
+        if lhs.validAfter != rhs.validAfter {
+            return false
+        }
+        if lhs.validBefore != rhs.validBefore {
+            return false
+        }
+        if lhs.nonce != rhs.nonce {
+            return false
+        }
+        if lhs.v != rhs.v {
+            return false
+        }
+        if lhs.r != rhs.r {
+            return false
+        }
+        if lhs.s != rhs.s {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(from)
+        hasher.combine(to)
+        hasher.combine(value)
+        hasher.combine(validAfter)
+        hasher.combine(validBefore)
+        hasher.combine(nonce)
+        hasher.combine(v)
+        hasher.combine(r)
+        hasher.combine(s)
+    }
+}
+
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeErc3009Authorization: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Erc3009Authorization {
+        return
+            try Erc3009Authorization(
+                from: FfiConverterString.read(from: &buf), 
+                to: FfiConverterString.read(from: &buf), 
+                value: FfiConverterString.read(from: &buf), 
+                validAfter: FfiConverterUInt64.read(from: &buf), 
+                validBefore: FfiConverterUInt64.read(from: &buf), 
+                nonce: FfiConverterString.read(from: &buf), 
+                v: FfiConverterUInt8.read(from: &buf), 
+                r: FfiConverterString.read(from: &buf), 
+                s: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: Erc3009Authorization, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.from, into: &buf)
+        FfiConverterString.write(value.to, into: &buf)
+        FfiConverterString.write(value.value, into: &buf)
+        FfiConverterUInt64.write(value.validAfter, into: &buf)
+        FfiConverterUInt64.write(value.validBefore, into: &buf)
+        FfiConverterString.write(value.nonce, into: &buf)
+        FfiConverterUInt8.write(value.v, into: &buf)
+        FfiConverterString.write(value.r, into: &buf)
+        FfiConverterString.write(value.s, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeErc3009Authorization_lift(_ buf: RustBuffer) throws -> Erc3009Authorization {
+    return try FfiConverterTypeErc3009Authorization.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeErc3009Authorization_lower(_ value: Erc3009Authorization) -> RustBuffer {
+    return FfiConverterTypeErc3009Authorization.lower(value)
+}
+
+
 public struct Erc721Metadata {
     public var name: String
     public var symbol: String
