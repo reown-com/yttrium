@@ -5,6 +5,7 @@ use {
     crate::provider_pool::ProviderPool,
     alloy::{
         consensus::{SignableTransaction, TxEip1559, TxEnvelope},
+        dyn_abi::TypedData,
         network::TransactionBuilder,
         primitives::{
             Address, Bytes, PrimitiveSignature, B256, U128, U256, U64,
@@ -83,6 +84,8 @@ pub enum EvmSigningError {
     Signing(String),
     #[error("provider error while broadcasting transaction: {0}")]
     Broadcast(String),
+    #[error("invalid typed data: {0}")]
+    InvalidTypedData(String),
 }
 
 /// Signs and broadcasts an EVM transaction using the supplied signer and provider pool.
@@ -153,6 +156,22 @@ pub async fn sign_and_send_transaction(
         ),
         nonce: U64::from(nonce),
     })
+}
+
+pub fn sign_typed_data(
+    json_data: String,
+    signer: &PrivateKeySigner,
+) -> Result<String, EvmSigningError> {
+    let typed_data: TypedData = serde_json::from_str(&json_data)
+        .map_err(|err| EvmSigningError::InvalidTypedData(err.to_string()))?;
+
+    let hash = typed_data.eip712_signing_hash(&typed_data.domain);
+
+    let signature = signer
+        .sign_hash_sync(&hash)
+        .map_err(|err| EvmSigningError::Signing(err.to_string()))?;
+
+    Ok(signature.to_string())
 }
 
 fn parse_chain_id(chain_id: &str) -> Result<u64, EvmSigningError> {

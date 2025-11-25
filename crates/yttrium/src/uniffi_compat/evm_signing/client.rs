@@ -1,7 +1,7 @@
 use {
     super::{
-        sign_and_send_transaction, EvmSigningError, SignAndSendParams,
-        SignAndSendResult,
+        sign_and_send_transaction, sign_typed_data, EvmSigningError,
+        SignAndSendParams, SignAndSendResult,
     },
     crate::{
         blockchain_api::BLOCKCHAIN_API_URL_PROD, provider_pool::ProviderPool,
@@ -60,5 +60,13 @@ impl EvmSigningClient {
         signer: &PrivateKeySigner,
     ) -> Result<SignAndSendResult, EvmSigningError> {
         sign_and_send_transaction(&self.provider_pool, params, signer).await
+    }
+
+    pub fn sign_typed_data(
+        &self,
+        json_data: String,
+        signer: &PrivateKeySigner,
+    ) -> Result<String, EvmSigningError> {
+        sign_typed_data(json_data, signer)
     }
 }
