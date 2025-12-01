@@ -28,6 +28,7 @@
 6. **Safe / Recursive calldata** — the resolver decodes exactly one call; there is no recursion or typed detection for `Safe.execTransaction` payloads yet, so nested calls just appear as raw bytes.
 7. **Descriptor provenance** — descriptors and tickers are unsigned and bundled in the binary. There is no signature verification, hash pinning, or remote fetch.
 8. **Tooling** — no generator to pull upstream Ledger descriptors, dedupe proxies, or run schema validation. Updates require manual editing of JSON under `assets/`.
+9. **Testing breadth** — only the bundled fixtures run today; once we add more descriptors/chains there will be bugs until broader coverage lands.
 
 ---
 
