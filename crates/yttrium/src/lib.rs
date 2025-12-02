@@ -35,6 +35,8 @@ pub mod erc6492_client;
 #[cfg(any(feature = "account_client", feature = "chain_abstraction_client"))]
 pub mod erc7579;
 pub mod error;
+#[cfg(test)]
+pub mod examples;
 #[cfg(any(feature = "account_client", feature = "chain_abstraction_client"))]
 pub mod jsonrpc;
 #[cfg(any(
@@ -70,8 +72,6 @@ pub mod utils;
 pub mod wallet_provider;
 #[cfg(any(feature = "account_client", feature = "chain_abstraction_client"))]
 pub mod wallet_service_api;
-#[cfg(test)]
-pub mod examples;
 
 // Android JNI initialization for rustls-platform-verifier
 // TODO try to move this to uniffi_compat or kotlin-ffi
