@@ -4,7 +4,7 @@
       "legalName": "Shared Test Router"
     }
   },
-      "display": {
+  "display": {
     "formats": {
       "setAmount(uint256)": {
         "intent": "Set router amount",

@@ -14,7 +14,7 @@
       "name": "Wrapped Ether"
     }
   },
-      "display": {
+  "display": {
     "formats": {
       "deposit()": {
         "intent": "Wrap ETH into WETH",
