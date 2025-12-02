@@ -283,6 +283,8 @@ impl DescriptorDisplay {
 pub struct DisplayFormat {
     #[serde(default)]
     pub intent: String,
+    #[serde(default, rename = "interpolatedIntent")]
+    pub interpolated_intent: Option<String>,
     #[serde(default)]
     pub fields: Vec<DisplayField>,
     #[serde(default)]

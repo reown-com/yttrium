@@ -4,8 +4,8 @@ use {
     super::{
         descriptor::{
             build_descriptor, decode_arguments, determine_token_key,
-            native_token_key, resolve_effective_field, DescriptorError,
-            TokenLookupError, TokenLookupKey,
+            native_token_key, resolve_effective_field, Descriptor,
+            DescriptorError, TokenLookupError, TokenLookupKey,
         },
         token_registry::{lookup_token_by_caip19, TokenMeta},
     },
@@ -27,6 +27,7 @@ pub struct ResolvedDescriptor<'a> {
 pub struct ResolvedCall<'a> {
     pub descriptor: ResolvedDescriptor<'a>,
     pub token_metadata: HashMap<TokenLookupKey, TokenMeta>,
+    pub address_book: HashMap<String, String>,
 }
 
 #[derive(Debug, Error)]
@@ -89,6 +90,8 @@ const INCLUDE_1INCH_COMMON_V4: &str =
     include_str!("assets/descriptors/1inch/common-AggregationRouterV4.json");
 const INCLUDE_1INCH_COMMON_V6: &str =
     include_str!("assets/descriptors/1inch/common-AggregationRouterV6.json");
+const INCLUDE_UNISWAP_COMMON_EIP712: &str =
+    include_str!("assets/descriptors/uniswap/uniswap-common-eip712.json");
 
 const ABI_ERC20: &str = include_str!("assets/abis/erc20.json");
 const ABI_UNISWAP_V3_ROUTER_V1: &str =
@@ -101,8 +104,13 @@ const TYPED_DESCRIPTOR_1INCH_LIMIT_ORDER: &str =
     include_str!("assets/descriptors/1inch/eip712-1inch-limit-order.json");
 const TYPED_DESCRIPTOR_1INCH_AGG_ROUTER_V6: &str =
     include_str!("assets/descriptors/1inch/eip712-AggregationRouterV6.json");
+const TYPED_DESCRIPTOR_UNISWAP_PERMIT2: &str =
+    include_str!("assets/descriptors/uniswap/eip712-uniswap-permit2.json");
 type TypedIndexMap = HashMap<String, String>;
 static TYPED_INDEX: OnceLock<TypedIndexMap> = OnceLock::new();
+const ADDRESS_BOOK_JSON: &str = include_str!("assets/address_book.json");
+type ChainAddressBook = HashMap<String, HashMap<String, String>>;
+static ADDRESS_BOOK: OnceLock<ChainAddressBook> = OnceLock::new();
 
 fn index() -> &'static IndexMap {
     INDEX.get_or_init(|| {
@@ -235,7 +243,10 @@ pub fn resolve_call(
         }
     }
 
-    Ok(ResolvedCall { descriptor: resolved, token_metadata })
+    let mut address_book = descriptor_address_book(&descriptor_struct);
+    merge_registry_entries(&mut address_book, chain_id);
+
+    Ok(ResolvedCall { descriptor: resolved, token_metadata, address_book })
 }
 
 fn descriptor_content(path: &str) -> Option<&'static str> {
@@ -349,6 +360,8 @@ fn normalize_address(address: &str) -> String {
 
 pub struct ResolvedTypedDescriptor<'a> {
     pub descriptor_json: &'a str,
+    pub includes: Vec<&'a str>,
+    pub address_book: HashMap<String, String>,
 }
 
 pub fn resolve_typed(
@@ -368,7 +381,20 @@ pub fn resolve_typed(
         ResolverError::InvalidIndexEntry { path: path.clone() }
     })?;
 
-    Ok(ResolvedTypedDescriptor { descriptor_json: descriptor })
+    let includes = extract_includes(descriptor)?;
+
+    let address_book = build_typed_address_book(
+        descriptor,
+        &includes,
+        chain_id,
+        verifying_contract,
+    )?;
+
+    Ok(ResolvedTypedDescriptor {
+        descriptor_json: descriptor,
+        includes,
+        address_book,
+    })
 }
 
 fn typed_descriptor_content(path: &str) -> Option<&'static str> {
@@ -378,6 +404,9 @@ fn typed_descriptor_content(path: &str) -> Option<&'static str> {
         }
         "descriptors/1inch/eip712-AggregationRouterV6.json" => {
             Some(TYPED_DESCRIPTOR_1INCH_AGG_ROUTER_V6)
+        }
+        "descriptors/uniswap/eip712-uniswap-permit2.json" => {
+            Some(TYPED_DESCRIPTOR_UNISWAP_PERMIT2)
         }
         _ => None,
     }
@@ -429,6 +458,208 @@ fn include_content(name: &str) -> Option<&'static str> {
         "common-test-router.json" => Some(INCLUDE_COMMON_TEST_ROUTER),
         "common-AggregationRouterV4.json" => Some(INCLUDE_1INCH_COMMON_V4),
         "common-AggregationRouterV6.json" => Some(INCLUDE_1INCH_COMMON_V6),
+        "uniswap-common-eip712.json" => Some(INCLUDE_UNISWAP_COMMON_EIP712),
         _ => None,
+    }
+}
+
+fn descriptor_address_book(descriptor: &Descriptor) -> HashMap<String, String> {
+    let mut map = HashMap::new();
+    if let Some(label) = descriptor_friendly_label(descriptor) {
+        for deployment in &descriptor.context.contract.deployments {
+            map.insert(normalize_address(&deployment.address), label.clone());
+        }
+    }
+    merge_address_book_entries(
+        &mut map,
+        descriptor.metadata.get("addressBook"),
+    );
+    map
+}
+
+fn descriptor_friendly_label(descriptor: &Descriptor) -> Option<String> {
+    metadata_label(&descriptor.metadata)
+        .or_else(|| descriptor.context.id.clone())
+}
+
+fn metadata_label(metadata: &serde_json::Value) -> Option<String> {
+    if let Some(token) = metadata.get("token") {
+        let name = token.get("name").and_then(|value| value.as_str());
+        let symbol = token.get("symbol").and_then(|value| value.as_str());
+        match (name, symbol) {
+            (Some(name), Some(symbol)) => {
+                if name.eq_ignore_ascii_case(symbol) {
+                    return Some(name.to_string());
+                } else {
+                    return Some(format!("{name} ({symbol})"));
+                }
+            }
+            (Some(name), None) => return Some(name.to_string()),
+            (None, Some(symbol)) => return Some(symbol.to_string()),
+            (None, None) => {}
+        }
+    }
+
+    if let Some(info) = metadata.get("info") {
+        if let Some(name) =
+            info.get("legalName").and_then(|value| value.as_str())
+        {
+            return Some(name.to_string());
+        }
+        if let Some(name) = info.get("name").and_then(|value| value.as_str()) {
+            return Some(name.to_string());
+        }
+    }
+
+    if let Some(owner) = metadata.get("owner").and_then(|value| value.as_str())
+    {
+        return Some(owner.to_string());
+    }
+
+    None
+}
+
+fn merge_address_book_entries(
+    map: &mut HashMap<String, String>,
+    value: Option<&serde_json::Value>,
+) {
+    let Some(value) = value else { return };
+    let Some(entries) = value.as_object() else { return };
+
+    for (key, label_value) in entries {
+        match label_value {
+            serde_json::Value::String(label) => {
+                map.entry(normalize_address(key))
+                    .or_insert_with(|| label.to_string());
+            }
+            serde_json::Value::Object(nested) => {
+                for (inner_key, inner_label_value) in nested {
+                    if let Some(inner_label) = inner_label_value.as_str() {
+                        map.entry(normalize_address(inner_key))
+                            .or_insert_with(|| inner_label.to_string());
+                    }
+                }
+            }
+            _ => continue,
+        }
+    }
+}
+
+fn merge_registry_entries(map: &mut HashMap<String, String>, chain_id: u64) {
+    let key = format!("eip155:{chain_id}").to_ascii_lowercase();
+    if let Some(entries) = registry_address_book().get(&key) {
+        for (address, label) in entries {
+            map.entry(address.clone()).or_insert_with(|| label.clone());
+        }
+    }
+}
+
+fn registry_address_book() -> &'static ChainAddressBook {
+    ADDRESS_BOOK.get_or_init(load_address_book_registry)
+}
+
+fn load_address_book_registry() -> ChainAddressBook {
+    let mut map = HashMap::new();
+    if let Ok(value) =
+        serde_json::from_str::<serde_json::Value>(ADDRESS_BOOK_JSON)
+    {
+        if let Some(entries) = value.as_object() {
+            for (chain_key, addresses_value) in entries {
+                let Some(addresses) = addresses_value.as_object() else {
+                    continue;
+                };
+                let normalized_chain = chain_key.trim().to_ascii_lowercase();
+                let mut chain_map = HashMap::new();
+                for (address, label_value) in addresses {
+                    if let Some(label) = label_value.as_str() {
+                        chain_map.insert(
+                            normalize_address(address),
+                            label.to_string(),
+                        );
+                    }
+                }
+                map.insert(normalized_chain, chain_map);
+            }
+        }
+    }
+    map
+}
+
+fn build_typed_address_book(
+    descriptor_json: &str,
+    includes: &[&str],
+    chain_id: u64,
+    verifying_contract: &str,
+) -> Result<HashMap<String, String>, ResolverError> {
+    let descriptor_value = merged_descriptor_value(descriptor_json, includes)?;
+    let mut map = HashMap::new();
+
+    if let Some(metadata) = descriptor_value.get("metadata") {
+        if let Some(label) = metadata_label(metadata) {
+            if let Some(deployments) = descriptor_value
+                .get("context")
+                .and_then(|ctx| ctx.get("eip712"))
+                .and_then(|value| value.get("deployments"))
+                .and_then(|value| value.as_array())
+            {
+                for deployment in deployments {
+                    let Some(address) = deployment
+                        .get("address")
+                        .and_then(|value| value.as_str())
+                    else {
+                        continue;
+                    };
+                    map.insert(normalize_address(address), label.clone());
+                }
+            }
+
+            map.entry(normalize_address(verifying_contract))
+                .or_insert_with(|| label.clone());
+        }
+
+        merge_address_book_entries(&mut map, metadata.get("addressBook"));
+    }
+
+    merge_registry_entries(&mut map, chain_id);
+
+    Ok(map)
+}
+
+pub(crate) fn merged_descriptor_value(
+    descriptor_json: &str,
+    includes: &[&str],
+) -> Result<Value, ResolverError> {
+    let mut descriptor_value: Value = serde_json::from_str(descriptor_json)
+        .map_err(|err| ResolverError::DescriptorParse(err.to_string()))?;
+
+    for include_json in includes {
+        let include_value: Value = serde_json::from_str(include_json)
+            .map_err(|err| ResolverError::DescriptorParse(err.to_string()))?;
+        merge_include_value(&mut descriptor_value, include_value);
+    }
+
+    if let Some(object) = descriptor_value.as_object_mut() {
+        object.remove("includes");
+    }
+
+    Ok(descriptor_value)
+}
+
+fn merge_include_value(target: &mut Value, include: Value) {
+    if let (Value::Object(target_map), Value::Object(include_map)) =
+        (target, include)
+    {
+        for (key, value) in include_map {
+            match target_map.get_mut(&key) {
+                Some(existing) => {
+                    if existing.is_object() && value.is_object() {
+                        merge_include_value(existing, value);
+                    }
+                }
+                None => {
+                    target_map.insert(key, value);
+                }
+            }
+        }
     }
 }

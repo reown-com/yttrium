@@ -14,11 +14,18 @@ const WETH_MAINNET: &str = "0xC02aaA39b223FE8D0A0E5C4F27eAD9083C756Cc2";
 const TEST_ROUTER: &str = "0xF00D000000000000000000000000000000000123";
 const AAVE_LPV2_MAINNET: &str = "0x7d2768de32b0b80b7a3454c06bdac94a69ddc7a9";
 const USDC: &str = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
+const USDC_OPTIMISM_NATIVE: &str = "0x0b2c639c533813f4aa9d7837caf62653d097ff85";
+const USDC_ARBITRUM: &str = "0xaf88d065e77c8cc2239327c5edb3a432268e5831";
+const USDC_BASE: &str = "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913";
+const USDT_ARBITRUM: &str = "0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9";
+const BASE_BRIDGE_SPENDER: &str = "0x6f26bf09b1c792e3228e5467807a900a503c0281";
 const DAI: &str = "0x6B175474E89094C44Da98b954EedeAC495271d0F";
 const ON_BEHALF_OF: &str = "0x1111111111111111111111111111111111111111";
 const UNIVERSAL_ROUTER_OPTIMISM: &str =
     "0x851116d9223fAbEd8e56C0e6B8AD0c31d98B3507";
 const STAKEWEIGHT_OPTIMISM: &str = "0x521B4C065Bbdbe3E20B3727340730936912DfA46";
+const USDT_OPTIMISM_CANONICAL: &str =
+    "0x94b008aa00579c1307b0ef2c499ad98a8ce58e58";
 const STAKEWEIGHT_INCREASE_UNLOCK_TIME_CALLDATA: &str =
     "0x7c616fe6000000000000000000000000000000000000000000000000000000006945563d";
 const UNIVERSAL_ROUTER_CALLDATA_HEX: &str = concat!(
@@ -97,6 +104,10 @@ fn approve_usdt_spender() {
             },
         ]
     );
+    assert_eq!(
+        model.interpolated_intent.as_deref(),
+        Some("Approve Uniswap V3 Router to spend 1,000,000 USDT")
+    );
     assert!(model.warnings.is_empty());
     assert!(model.raw.is_none());
 }
@@ -139,6 +150,10 @@ fn swap_usdc_to_weth_exact_input_single() {
             },
         ]
     );
+    assert_eq!(
+        model.interpolated_intent.as_deref(),
+        Some("Swap 1,000,000 USDC for at least 1 WETH to 0x1234567890AbcdEF1234567890aBcdef12345678")
+    );
     assert!(model.warnings.is_empty());
     assert!(model.raw.is_none());
 }
@@ -167,6 +182,12 @@ fn aave_deposit_formats_usdc_amount() {
             label: "Amount to supply".to_string(),
             value: "1,000 USDC".to_string(),
         }
+    );
+    assert_eq!(
+        model.interpolated_intent.as_deref(),
+        Some(
+            "Supply 1,000 USDC for 0x1111111111111111111111111111111111111111"
+        )
     );
     assert_eq!(model.items[1].label, "Collateral recipient".to_string());
     assert_eq!(
@@ -200,7 +221,7 @@ fn aave_repay_all_uses_message() {
         model.items.first(),
         Some(&DisplayItem {
             label: "Amount to repay".to_string(),
-            value: "All".to_string(),
+            value: "All DAI".to_string(),
         })
     );
 }
@@ -222,6 +243,10 @@ fn walletconnect_increase_unlock_time_renders_date() {
             label: "New Unlock Time".to_string(),
             value: "2025-12-19 13:42:21 UTC".to_string(),
         }]
+    );
+    assert_eq!(
+        model.interpolated_intent.as_deref(),
+        Some("Increase unlock time to 2025-12-19 13:42:21 UTC")
     );
     assert!(model.warnings.is_empty());
     assert!(model.raw.is_none());
@@ -431,6 +456,84 @@ fn eip712_limit_order_formats_tokens() {
             },
         ]
     );
+    assert_eq!(
+        model.interpolated_intent.as_deref(),
+        Some("Send 1 USDC for at least 1 WETH to 0xabc0000000000000000000000000000000000002")
+    );
+    assert!(model.warnings.is_empty());
+    assert!(model.raw.is_none());
+}
+
+#[test]
+fn eip712_uniswap_permit2_formats_allowance() {
+    let typed_data_json = json!({
+        "types": {
+            "EIP712Domain": [
+                { "name": "name", "type": "string" },
+                { "name": "chainId", "type": "uint256" },
+                { "name": "verifyingContract", "type": "address" }
+            ],
+            "PermitDetails": [
+                { "name": "token", "type": "address" },
+                { "name": "amount", "type": "uint160" },
+                { "name": "expiration", "type": "uint48" },
+                { "name": "nonce", "type": "uint48" }
+            ],
+            "PermitSingle": [
+                { "name": "details", "type": "PermitDetails" },
+                { "name": "spender", "type": "address" },
+                { "name": "sigDeadline", "type": "uint256" }
+            ]
+        },
+        "primaryType": "PermitSingle",
+        "domain": {
+            "name": "Permit2",
+            "chainId": "10",
+            "verifyingContract": "0x000000000022d473030f116ddee9f6b43ac78ba3"
+        },
+        "message": {
+            "details": {
+                "token": "0x0b2c639c533813f4aa9d7837caf62653d097ff85",
+                "amount": "1461501637330902918203684832716283019655932542975",
+                "expiration": "1765546694",
+                "nonce": "0"
+            },
+            "spender": "0x851116d9223fabed8e56c0e6b8ad0c31d98b3507",
+            "sigDeadline": "1762956494"
+        }
+    });
+
+    let typed: TypedData = serde_json::from_value(typed_data_json)
+        .expect("typed data should parse");
+
+    let model = format_typed_data(&typed).expect("format succeeds");
+
+    assert_eq!(model.intent, "Authorize spending of token");
+    assert_eq!(
+        model.items,
+        vec![
+            DisplayItem {
+                label: "Spender".to_string(),
+                value: "Uniswap Universal Router".to_string(),
+            },
+            DisplayItem {
+                label: "Amount allowance".to_string(),
+                value: "Unlimited USDC".to_string(),
+            },
+            DisplayItem {
+                label: "Approval expires".to_string(),
+                value: "2025-12-12 13:38:14 UTC".to_string(),
+            },
+            DisplayItem {
+                label: "Signature deadline".to_string(),
+                value: "2025-11-12 14:08:14 UTC".to_string(),
+            },
+        ]
+    );
+    assert_eq!(
+        model.interpolated_intent.as_deref(),
+        Some("Authorize Uniswap Universal Router to spend Unlimited USDC until 2025-11-12 14:08:14 UTC")
+    );
     assert!(model.warnings.is_empty());
     assert!(model.raw.is_none());
 }
@@ -464,7 +567,10 @@ fn usdt_approve_all_displays_all_message() {
     );
     assert_eq!(
         model.items[1],
-        DisplayItem { label: "Amount".to_string(), value: "All".to_string() }
+        DisplayItem {
+            label: "Amount".to_string(),
+            value: "All USDT".to_string()
+        }
     );
 }
 
@@ -511,13 +617,8 @@ fn usdt_approve_all_on_optimism() {
         ],
     );
 
-    let model = format_with_value(
-        10,
-        "0x94b008aa00579c1307b0ef2c499ad98a8ce58e58",
-        None,
-        &calldata,
-    )
-    .expect("format succeeds");
+    let model = format_with_value(10, USDT_OPTIMISM_CANONICAL, None, &calldata)
+        .expect("format succeeds");
 
     assert_eq!(model.intent, "Approve USDT spending");
     assert!(model.warnings.is_empty());
@@ -529,7 +630,10 @@ fn usdt_approve_all_on_optimism() {
     );
     assert_eq!(
         model.items[1],
-        DisplayItem { label: "Amount".to_string(), value: "All".to_string() }
+        DisplayItem {
+            label: "Amount".to_string(),
+            value: "All USDT".to_string()
+        }
     );
 }
 
@@ -567,7 +671,192 @@ fn usdc_approve_all_on_optimism() {
     );
     assert_eq!(
         model.items[1],
-        DisplayItem { label: "Amount".to_string(), value: "All".to_string() }
+        DisplayItem {
+            label: "Amount".to_string(),
+            value: "All USDC".to_string()
+        }
+    );
+}
+
+#[test]
+fn permit2_spender_labeled_on_optimism() {
+    let calldata = build_calldata(
+        selector("approve(address,uint256)"),
+        &[
+            address_word("0x000000000022d473030f116ddee9f6b43ac78ba3"),
+            uint_word_biguint(
+                BigUint::parse_bytes(
+                    b"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+                    16,
+                )
+                .expect("max constant"),
+            ),
+        ],
+    );
+
+    let model = format_with_value(10, USDT_OPTIMISM_CANONICAL, None, &calldata)
+        .expect("format succeeds");
+
+    assert_eq!(model.intent, "Approve USDT spending");
+    assert!(model.warnings.is_empty());
+    assert_eq!(model.items.len(), 2);
+    assert_eq!(
+        model.items[0],
+        DisplayItem {
+            label: "Spender".to_string(),
+            value: "Uniswap Permit2".to_string()
+        }
+    );
+    assert_eq!(
+        model.items[1],
+        DisplayItem {
+            label: "Amount".to_string(),
+            value: "All USDT".to_string()
+        }
+    );
+}
+
+#[test]
+fn native_usdc_approve_all_on_optimism() {
+    let calldata = build_calldata(
+        selector("approve(address,uint256)"),
+        &[
+            address_word(BASE_BRIDGE_SPENDER),
+            uint_word_biguint(
+                BigUint::parse_bytes(
+                    b"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+                    16,
+                )
+                .expect("max constant"),
+            ),
+        ],
+    );
+
+    let model = format_with_value(10, USDC_OPTIMISM_NATIVE, None, &calldata)
+        .expect("format succeeds");
+
+    assert_eq!(model.intent, "Approve USDC spending");
+    assert!(model.warnings.is_empty());
+    assert_eq!(model.items.len(), 2);
+    assert_eq!(model.items[0].label, "Spender");
+    assert_eq!(
+        model.items[0].value.to_ascii_lowercase(),
+        BASE_BRIDGE_SPENDER.to_ascii_lowercase()
+    );
+    assert_eq!(
+        model.items[1],
+        DisplayItem {
+            label: "Amount".to_string(),
+            value: "All USDC".to_string()
+        }
+    );
+}
+
+#[test]
+fn usdc_approve_all_on_arbitrum() {
+    let calldata = build_calldata(
+        selector("approve(address,uint256)"),
+        &[
+            address_word(AAVE_LPV2_MAINNET),
+            uint_word_biguint(
+                BigUint::parse_bytes(
+                    b"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+                    16,
+                )
+                .expect("max constant"),
+            ),
+        ],
+    );
+
+    let model = format_with_value(42161, USDC_ARBITRUM, None, &calldata)
+        .expect("format succeeds");
+
+    assert_eq!(model.intent, "Approve USDC spending");
+    assert!(model.warnings.is_empty());
+    assert_eq!(model.items.len(), 2);
+    assert_eq!(model.items[0].label, "Spender");
+    assert_eq!(
+        model.items[0].value.to_ascii_lowercase(),
+        AAVE_LPV2_MAINNET.to_ascii_lowercase()
+    );
+    assert_eq!(
+        model.items[1],
+        DisplayItem {
+            label: "Amount".to_string(),
+            value: "All USDC".to_string()
+        }
+    );
+}
+
+#[test]
+fn usdc_approve_all_on_base() {
+    let calldata = build_calldata(
+        selector("approve(address,uint256)"),
+        &[
+            address_word(AAVE_LPV2_MAINNET),
+            uint_word_biguint(
+                BigUint::parse_bytes(
+                    b"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+                    16,
+                )
+                .expect("max constant"),
+            ),
+        ],
+    );
+
+    let model = format_with_value(8453, USDC_BASE, None, &calldata)
+        .expect("format succeeds");
+
+    assert_eq!(model.intent, "Approve USDC spending");
+    assert!(model.warnings.is_empty());
+    assert_eq!(model.items.len(), 2);
+    assert_eq!(model.items[0].label, "Spender");
+    assert_eq!(
+        model.items[0].value.to_ascii_lowercase(),
+        AAVE_LPV2_MAINNET.to_ascii_lowercase()
+    );
+    assert_eq!(
+        model.items[1],
+        DisplayItem {
+            label: "Amount".to_string(),
+            value: "All USDC".to_string()
+        }
+    );
+}
+
+#[test]
+fn usdt_approve_all_on_arbitrum() {
+    let calldata = build_calldata(
+        selector("approve(address,uint256)"),
+        &[
+            address_word(AAVE_LPV2_MAINNET),
+            uint_word_biguint(
+                BigUint::parse_bytes(
+                    b"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+                    16,
+                )
+                .expect("max constant"),
+            ),
+        ],
+    );
+
+    let model = format_with_value(42161, USDT_ARBITRUM, None, &calldata)
+        .expect("format succeeds");
+
+    assert_eq!(model.intent, "Approve USDT spending");
+    assert!(model.warnings.is_empty());
+    assert_eq!(model.items.len(), 2);
+    assert_eq!(model.items[0].label, "Spender");
+    assert_eq!(
+        model.items[0].value.to_ascii_lowercase(),
+        AAVE_LPV2_MAINNET.to_ascii_lowercase()
+    );
+    assert_eq!(
+        model.items[1],
+        DisplayItem {
+            label: "Amount".to_string(),
+            value: "All USDT".to_string()
+        }
     );
 }
 

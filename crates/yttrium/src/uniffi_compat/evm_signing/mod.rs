@@ -5,6 +5,7 @@ use {
     crate::provider_pool::ProviderPool,
     alloy::{
         consensus::{SignableTransaction, TxEip1559, TxEnvelope},
+        dyn_abi::TypedData,
         network::TransactionBuilder,
         primitives::{
             Address, Bytes, PrimitiveSignature, B256, U128, U256, U64,
@@ -62,6 +63,22 @@ pub struct SignAndSendResult {
     pub nonce: U64,
 }
 
+/// ERC-3009 authorization with signature components for TransferWithAuthorization.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
+#[serde(rename_all = "camelCase")]
+pub struct Erc3009Authorization {
+    pub from: String,
+    pub to: String,
+    pub value: String,
+    pub valid_after: u64,
+    pub valid_before: u64,
+    pub nonce: String,
+    pub v: u8,
+    pub r: String,
+    pub s: String,
+}
+
 #[derive(Debug, Error)]
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Error))]
 pub enum EvmSigningError {
@@ -83,7 +100,12 @@ pub enum EvmSigningError {
     Signing(String),
     #[error("provider error while broadcasting transaction: {0}")]
     Broadcast(String),
+    #[error("invalid typed data: {0}")]
+    InvalidTypedData(String),
 }
+
+#[cfg(test)]
+mod tests;
 
 /// Signs and broadcasts an EVM transaction using the supplied signer and provider pool.
 pub async fn sign_and_send_transaction(
@@ -153,6 +175,117 @@ pub async fn sign_and_send_transaction(
         ),
         nonce: U64::from(nonce),
     })
+}
+
+pub fn sign_typed_data(
+    json_data: String,
+    signer: &PrivateKeySigner,
+) -> Result<String, EvmSigningError> {
+    // Parse the typed data
+    let typed_data: TypedData = serde_json::from_str(&json_data)
+        .map_err(|err| EvmSigningError::InvalidTypedData(err.to_string()))?;
+
+    // Compute the EIP-712 signing hash
+    let hash = typed_data
+        .eip712_signing_hash()
+        .map_err(|err| EvmSigningError::InvalidTypedData(err.to_string()))?;
+
+    // Sign the hash
+    let signature = signer
+        .sign_hash_sync(&hash)
+        .map_err(|err| EvmSigningError::Signing(err.to_string()))?;
+
+    // Extract r, s, v from the signature
+    // PrimitiveSignature::v() returns a bool (y-parity): true = odd, false = even
+    let r = signature.r();
+    let s = signature.s();
+    let y_parity = signature.v(); // bool: true means odd (28), false means even (27)
+
+    // Extract message fields from the typed data
+    // The message should contain: from, to, value, validAfter, validBefore, nonce
+    let message = typed_data.message.as_object().ok_or_else(|| {
+        EvmSigningError::InvalidTypedData(
+            "message is not an object".to_string(),
+        )
+    })?;
+
+    let from =
+        message.get("from").and_then(|v| v.as_str()).ok_or_else(|| {
+            EvmSigningError::InvalidTypedData(
+                "missing 'from' in message".to_string(),
+            )
+        })?;
+
+    let to = message.get("to").and_then(|v| v.as_str()).ok_or_else(|| {
+        EvmSigningError::InvalidTypedData("missing 'to' in message".to_string())
+    })?;
+
+    let value = message
+        .get("value")
+        .map(|v| {
+            if let Some(s) = v.as_str() {
+                s.to_string()
+            } else if let Some(n) = v.as_u64() {
+                n.to_string()
+            } else {
+                v.to_string()
+            }
+        })
+        .ok_or_else(|| {
+            EvmSigningError::InvalidTypedData(
+                "missing 'value' in message".to_string(),
+            )
+        })?;
+
+    let valid_after = message
+        .get("validAfter")
+        .and_then(|v| v.as_u64())
+        .ok_or_else(|| {
+            EvmSigningError::InvalidTypedData(
+                "missing 'validAfter' in message".to_string(),
+            )
+        })?;
+
+    let valid_before = message
+        .get("validBefore")
+        .and_then(|v| v.as_u64())
+        .ok_or_else(|| {
+            EvmSigningError::InvalidTypedData(
+                "missing 'validBefore' in message".to_string(),
+            )
+        })?;
+
+    let nonce = message
+        .get("nonce")
+        .map(|v| {
+            if let Some(s) = v.as_str() {
+                s.to_string()
+            } else {
+                v.to_string()
+            }
+        })
+        .ok_or_else(|| {
+            EvmSigningError::InvalidTypedData(
+                "missing 'nonce' in message".to_string(),
+            )
+        })?;
+
+    // Construct the authorization object
+    let auth = Erc3009Authorization {
+        from: from.to_string(),
+        to: to.to_string(),
+        value,
+        valid_after,
+        valid_before,
+        nonce,
+        v: if y_parity { 28 } else { 27 },
+        r: format!("0x{:064x}", r),
+        s: format!("0x{:064x}", s),
+    };
+
+    // Serialize to JSON
+    serde_json::to_string(&auth)
+        .map_err(|err| EvmSigningError::InvalidTypedData(err.to_string()))
 }
 
 fn parse_chain_id(chain_id: &str) -> Result<u64, EvmSigningError> {

@@ -5,29 +5,18 @@ use {
         descriptor::{
             build_descriptor, decode_arguments, determine_token_key,
             native_token_key, resolve_effective_field, ArgumentValue,
-            DecodedArguments, Descriptor, DescriptorError, DisplayField,
-            DisplayFormat, EffectiveField, TokenLookupError, TokenLookupKey,
+            DecodedArguments, DescriptorError, DisplayField, DisplayFormat,
+            EffectiveField, TokenLookupError, TokenLookupKey,
         },
         resolver::ResolvedCall,
         token_registry::TokenMeta,
     },
     num_bigint::BigUint,
-    std::{collections::HashMap, sync::OnceLock},
+    std::collections::HashMap,
     thiserror::Error,
     time::{macros::format_description, OffsetDateTime},
     tiny_keccak::{Hasher, Keccak},
 };
-
-const TETHER_USDT_DESCRIPTOR: &str =
-    include_str!("assets/descriptors/erc20_usdt.json");
-const UNISWAP_V3_ROUTER_DESCRIPTOR: &str =
-    include_str!("assets/descriptors/uniswap_v3_router_v1.json");
-const WETH9_DESCRIPTOR: &str = include_str!("assets/descriptors/weth9.json");
-
-const ADDRESS_BOOK_DESCRIPTORS: &[&str] =
-    &[TETHER_USDT_DESCRIPTOR, UNISWAP_V3_ROUTER_DESCRIPTOR, WETH9_DESCRIPTOR];
-
-static GLOBAL_ADDRESS_BOOK: OnceLock<HashMap<String, String>> = OnceLock::new();
 
 /// Minimal display item for the clear signing preview.
 #[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
@@ -42,9 +31,16 @@ pub struct DisplayItem {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DisplayModel {
     pub intent: String,
+    pub interpolated_intent: Option<String>,
     pub items: Vec<DisplayItem>,
     pub warnings: Vec<String>,
     pub raw: Option<RawPreview>,
+}
+
+struct FormatRender {
+    items: Vec<DisplayItem>,
+    warnings: Vec<String>,
+    interpolated_intent: Option<String>,
 }
 
 /// Raw fallback preview details.
@@ -114,7 +110,7 @@ pub fn format_with_resolved_call(
 
     let functions = descriptor.context.contract.function_descriptors()?;
     let display_formats = descriptor.display.format_map();
-    let local_address_book = descriptor_address_book(&descriptor);
+    let address_book = &resolved.address_book;
 
     let Some(function) =
         functions.iter().find(|func| func.selector == selector)
@@ -123,6 +119,7 @@ pub fn format_with_resolved_call(
         eprintln!("[engine] no ABI match for selector {}", selector_hex);
         return Ok(DisplayModel {
             intent: "Unknown transaction".to_string(),
+            interpolated_intent: None,
             items: Vec::new(),
             warnings,
             raw: Some(raw_preview_from_calldata(&selector, calldata)),
@@ -135,19 +132,24 @@ pub fn format_with_resolved_call(
     eprintln!("[engine] decoded with value count {}", decoded.ordered().len());
 
     if let Some(format_def) = display_formats.get(&function.typed_signature) {
-        let (items, mut format_warnings) = apply_display_format(
+        let FormatRender {
+            items,
+            warnings: mut format_warnings,
+            interpolated_intent,
+        } = apply_display_format(
             format_def,
             &decoded,
             &descriptor.metadata,
             chain_id,
             to,
-            &local_address_book,
+            address_book,
             descriptor.display.definitions(),
             &token_metadata,
         )?;
         warnings.append(&mut format_warnings);
         Ok(DisplayModel {
             intent: format_def.intent.clone(),
+            interpolated_intent,
             items,
             warnings,
             raw: None,
@@ -167,6 +169,7 @@ pub fn format_with_resolved_call(
             .collect();
         Ok(DisplayModel {
             intent: "Transaction".to_string(),
+            interpolated_intent: None,
             items,
             warnings,
             raw: Some(RawPreview {
@@ -192,9 +195,10 @@ fn apply_display_format(
     address_book: &HashMap<String, String>,
     definitions: &HashMap<String, DisplayField>,
     token_metadata: &HashMap<TokenLookupKey, TokenMeta>,
-) -> Result<(Vec<DisplayItem>, Vec<String>), EngineError> {
+) -> Result<FormatRender, EngineError> {
     let mut items = Vec::new();
     let mut warnings = Vec::new();
+    let mut rendered_values: HashMap<String, String> = HashMap::new();
 
     for required in &format.required {
         if decoded.get(required).is_none() {
@@ -222,8 +226,9 @@ fn apply_display_format(
             )?;
             items.push(DisplayItem {
                 label: effective.label.clone(),
-                value: rendered,
+                value: rendered.clone(),
             });
+            rendered_values.insert(effective.path.clone(), rendered);
         } else {
             warnings.push(format!(
                 "No value found for field path '{}'",
@@ -232,7 +237,62 @@ fn apply_display_format(
         }
     }
 
-    Ok((items, warnings))
+    let interpolated_intent =
+        if let Some(template) = format.interpolated_intent.as_deref() {
+            match interpolate_template(template, &rendered_values) {
+                Ok(value) => Some(value),
+                Err(message) => {
+                    warnings.push(message);
+                    None
+                }
+            }
+        } else {
+            None
+        };
+
+    Ok(FormatRender { items, warnings, interpolated_intent })
+}
+
+pub(crate) fn interpolate_template(
+    template: &str,
+    values: &HashMap<String, String>,
+) -> Result<String, String> {
+    let mut output = String::with_capacity(template.len());
+    let mut chars = template.chars();
+
+    while let Some(ch) = chars.next() {
+        if ch == '{' {
+            let mut placeholder = String::new();
+            let mut closed = false;
+            for next in chars.by_ref() {
+                if next == '}' {
+                    closed = true;
+                    break;
+                }
+                placeholder.push(next);
+            }
+            if !closed {
+                return Err(
+                    "Unclosed placeholder in interpolated intent".to_string()
+                );
+            }
+            let key = placeholder.trim();
+            if key.is_empty() {
+                return Err(
+                    "Empty placeholder in interpolated intent".to_string()
+                );
+            }
+            if let Some(value) = values.get(key) {
+                output.push_str(value);
+            } else {
+                return Err(format!("Missing interpolated value for '{key}'"));
+            }
+        } else {
+            output.push(ch);
+        }
+    }
+
+    Ok(output)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -306,10 +366,6 @@ fn format_token_amount(
         return Ok(value.default_string());
     };
 
-    if let Some(message) = token_amount_message(field, amount, metadata) {
-        return Ok(message);
-    }
-
     let token_meta = lookup_token_meta(
         field,
         decoded,
@@ -317,6 +373,11 @@ fn format_token_amount(
         contract_address,
         token_metadata,
     )?;
+
+    if let Some(message) = token_amount_message(field, amount, metadata) {
+        return Ok(format!("{} {}", message, token_meta.symbol));
+    }
+
     let formatted_amount =
         format_amount_with_decimals(amount, token_meta.decimals);
     Ok(format!("{} {}", formatted_amount, token_meta.symbol))
@@ -334,10 +395,6 @@ fn format_address(
     let normalized = checksum.to_ascii_lowercase();
 
     if let Some(label) = local_address_book.get(&normalized) {
-        return label.clone();
-    }
-
-    if let Some(label) = global_address_book().get(&normalized) {
         return label.clone();
     }
 
@@ -555,76 +612,6 @@ fn extract_selector(calldata: &[u8]) -> Result<[u8; 4], EngineError> {
 
 fn format_selector_hex(selector: &[u8; 4]) -> String {
     format!("0x{}", hex::encode(selector))
-}
-
-fn global_address_book() -> &'static HashMap<String, String> {
-    GLOBAL_ADDRESS_BOOK.get_or_init(|| {
-        let mut map = HashMap::new();
-        for descriptor_json in ADDRESS_BOOK_DESCRIPTORS {
-            if let Ok(parsed) =
-                serde_json::from_str::<Descriptor>(descriptor_json)
-            {
-                let local_book = descriptor_address_book(&parsed);
-                for (address, label) in local_book {
-                    map.entry(address).or_insert(label);
-                }
-            }
-        }
-        map
-    })
-}
-
-fn descriptor_address_book(descriptor: &Descriptor) -> HashMap<String, String> {
-    let mut map = HashMap::new();
-    if let Some(label) = descriptor_friendly_label(descriptor) {
-        for deployment in &descriptor.context.contract.deployments {
-            map.insert(normalize_address(&deployment.address), label.clone());
-        }
-    }
-    map
-}
-
-fn descriptor_friendly_label(descriptor: &Descriptor) -> Option<String> {
-    let metadata = &descriptor.metadata;
-
-    if let Some(token) = metadata.get("token") {
-        let name = token.get("name").and_then(|value| value.as_str());
-        let symbol = token.get("symbol").and_then(|value| value.as_str());
-        match (name, symbol) {
-            (Some(name), Some(symbol)) => {
-                if name.eq_ignore_ascii_case(symbol) {
-                    return Some(name.to_string());
-                } else {
-                    return Some(format!("{name} ({symbol})"));
-                }
-            }
-            (Some(name), None) => return Some(name.to_string()),
-            (None, Some(symbol)) => return Some(symbol.to_string()),
-            (None, None) => {}
-        }
-    }
-
-    if let Some(info) = metadata.get("info") {
-        if let Some(name) =
-            info.get("legalName").and_then(|value| value.as_str())
-        {
-            return Some(name.to_string());
-        }
-        if let Some(name) = info.get("name").and_then(|value| value.as_str()) {
-            return Some(name.to_string());
-        }
-    }
-
-    if let Some(owner) = metadata.get("owner").and_then(|value| value.as_str())
-    {
-        return Some(owner.to_string());
-    }
-
-    descriptor.context.id.clone()
-}
-
-fn normalize_address(address: &str) -> String {
-    address.trim().to_ascii_lowercase()
 }
 
 pub(crate) fn to_checksum_address(bytes: &[u8; 20]) -> String {

@@ -18,6 +18,7 @@
     "formats": {
       "deposit()": {
         "intent": "Wrap ETH into WETH",
+        "interpolatedIntent": "Wrap {@value} into WETH",
         "fields": [
           {
             "path": "@value",

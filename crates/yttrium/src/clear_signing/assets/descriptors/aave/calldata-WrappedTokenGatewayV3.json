@@ -27,6 +27,7 @@
       "depositETH(address undefined, address onBehalfOf, uint16 referralCode)": {
         "$id": "depositETH",
         "intent": "Supply",
+        "interpolatedIntent": "Supply {@.value} for {onBehalfOf}",
         "fields": [
           { "path": "@.value", "format": "amount", "label": "Amount to supply" },
           {
@@ -42,6 +43,7 @@
       "repayETH(address undefined, uint256 amount, address onBehalfOf)": {
         "$id": "repayETH",
         "intent": "Repay loan",
+        "interpolatedIntent": "Repay {amount} for {onBehalfOf}",
         "fields": [
           { "path": "amount", "format": "amount", "label": "Amount to repay" },
           {
@@ -57,6 +59,7 @@
       "withdrawETH(address undefined, uint256 amount, address to)": {
         "$id": "withdrawETH",
         "intent": "Withdraw",
+        "interpolatedIntent": "Withdraw {amount} to {to}",
         "fields": [
           { "path": "amount", "format": "amount", "label": "Amount to withdraw" },
           {
@@ -72,6 +75,7 @@
       "withdrawETHWithPermit(address undefined, uint256 amount, address to, uint256 deadline, uint8 permitV, bytes32 permitR, bytes32 permitS)": {
         "$id": "withdrawETHWithPermit",
         "intent": "Withdraw",
+        "interpolatedIntent": "Withdraw {amount} to {to}",
         "fields": [
           { "path": "amount", "format": "amount", "label": "Amount to withdraw" },
           {
@@ -87,6 +91,7 @@
       "borrowETH(address undefined, uint256 amount, uint16 referralCode)": {
         "$id": "borrowETH",
         "intent": "Borrow",
+        "interpolatedIntent": "Borrow {amount} as {@.from}",
         "fields": [
           { "path": "amount", "format": "amount", "label": "Amount to borrow" },
           { "path": "@.from", "format": "addressName", "label": "Debtor", "params": { "types": ["eoa"], "sources": ["local", "ens"] } }

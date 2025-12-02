@@ -565,6 +565,8 @@ public protocol EvmSigningClientProtocol: AnyObject, Sendable {
     
     func signAndSend(params: SignAndSendParams, signer: PrivateKeySigner) async throws  -> SignAndSendResult
     
+    func signTypedData(jsonData: String, signer: PrivateKeySigner) throws  -> String
+    
 }
 open class EvmSigningClient: EvmSigningClientProtocol, @unchecked Sendable {
     fileprivate let pointer: UnsafeMutableRawPointer!
@@ -652,6 +654,15 @@ open func signAndSend(params: SignAndSendParams, signer: PrivateKeySigner)async 
             liftFunc: FfiConverterTypeSignAndSendResult_lift,
             errorHandler: FfiConverterTypeEvmSigningError_lift
         )
+}
+    
+open func signTypedData(jsonData: String, signer: PrivateKeySigner)throws  -> String  {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeEvmSigningError_lift) {
+    uniffi_yttrium_fn_method_evmsigningclient_sign_typed_data(self.uniffiClonePointer(),
+        FfiConverterString.lower(jsonData),
+        FfiConverterTypePrivateKeySigner_lower(signer),$0
+    )
+})
 }
     
 
@@ -1973,14 +1984,16 @@ public func FfiConverterTypeDisplayItem_lower(_ value: DisplayItem) -> RustBuffe
  */
 public struct DisplayModel {
     public var intent: String
+    public var interpolatedIntent: String?
     public var items: [DisplayItem]
     public var warnings: [String]
     public var raw: RawPreview?
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(intent: String, items: [DisplayItem], warnings: [String], raw: RawPreview?) {
+    public init(intent: String, interpolatedIntent: String?, items: [DisplayItem], warnings: [String], raw: RawPreview?) {
         self.intent = intent
+        self.interpolatedIntent = interpolatedIntent
         self.items = items
         self.warnings = warnings
         self.raw = raw
@@ -1997,6 +2010,9 @@ extension DisplayModel: Equatable, Hashable {
         if lhs.intent != rhs.intent {
             return false
         }
+        if lhs.interpolatedIntent != rhs.interpolatedIntent {
+            return false
+        }
         if lhs.items != rhs.items {
             return false
         }
@@ -2011,6 +2027,7 @@ extension DisplayModel: Equatable, Hashable {
 
     public func hash(into hasher: inout Hasher) {
         hasher.combine(intent)
+        hasher.combine(interpolatedIntent)
         hasher.combine(items)
         hasher.combine(warnings)
         hasher.combine(raw)
@@ -2027,6 +2044,7 @@ public struct FfiConverterTypeDisplayModel: FfiConverterRustBuffer {
         return
             try DisplayModel(
                 intent: FfiConverterString.read(from: &buf), 
+                interpolatedIntent: FfiConverterOptionString.read(from: &buf), 
                 items: FfiConverterSequenceTypeDisplayItem.read(from: &buf), 
                 warnings: FfiConverterSequenceString.read(from: &buf), 
                 raw: FfiConverterOptionTypeRawPreview.read(from: &buf)
@@ -2035,6 +2053,7 @@ public struct FfiConverterTypeDisplayModel: FfiConverterRustBuffer {
 
     public static func write(_ value: DisplayModel, into buf: inout [UInt8]) {
         FfiConverterString.write(value.intent, into: &buf)
+        FfiConverterOptionString.write(value.interpolatedIntent, into: &buf)
         FfiConverterSequenceTypeDisplayItem.write(value.items, into: &buf)
         FfiConverterSequenceString.write(value.warnings, into: &buf)
         FfiConverterOptionTypeRawPreview.write(value.raw, into: &buf)
@@ -2382,6 +2401,135 @@ public func FfiConverterTypeErc20Metadata_lift(_ buf: RustBuffer) throws -> Erc2
 #endif
 public func FfiConverterTypeErc20Metadata_lower(_ value: Erc20Metadata) -> RustBuffer {
     return FfiConverterTypeErc20Metadata.lower(value)
+}
+
+
+/**
+ * ERC-3009 authorization with signature components for TransferWithAuthorization.
+ */
+public struct Erc3009Authorization {
+    public var from: String
+    public var to: String
+    public var value: String
+    public var validAfter: UInt64
+    public var validBefore: UInt64
+    public var nonce: String
+    public var v: UInt8
+    public var r: String
+    public var s: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(from: String, to: String, value: String, validAfter: UInt64, validBefore: UInt64, nonce: String, v: UInt8, r: String, s: String) {
+        self.from = from
+        self.to = to
+        self.value = value
+        self.validAfter = validAfter
+        self.validBefore = validBefore
+        self.nonce = nonce
+        self.v = v
+        self.r = r
+        self.s = s
+    }
+}
+
+#if compiler(>=6)
+extension Erc3009Authorization: Sendable {}
+#endif
+
+
+extension Erc3009Authorization: Equatable, Hashable {
+    public static func ==(lhs: Erc3009Authorization, rhs: Erc3009Authorization) -> Bool {
+        if lhs.from != rhs.from {
+            return false
+        }
+        if lhs.to != rhs.to {
+            return false
+        }
+        if lhs.value != rhs.value {
+            return false
+        }
+        if lhs.validAfter != rhs.validAfter {
+            return false
+        }
+        if lhs.validBefore != rhs.validBefore {
+            return false
+        }
+        if lhs.nonce != rhs.nonce {
+            return false
+        }
+        if lhs.v != rhs.v {
+            return false
+        }
+        if lhs.r != rhs.r {
+            return false
+        }
+        if lhs.s != rhs.s {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(from)
+        hasher.combine(to)
+        hasher.combine(value)
+        hasher.combine(validAfter)
+        hasher.combine(validBefore)
+        hasher.combine(nonce)
+        hasher.combine(v)
+        hasher.combine(r)
+        hasher.combine(s)
+    }
+}
+
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeErc3009Authorization: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Erc3009Authorization {
+        return
+            try Erc3009Authorization(
+                from: FfiConverterString.read(from: &buf), 
+                to: FfiConverterString.read(from: &buf), 
+                value: FfiConverterString.read(from: &buf), 
+                validAfter: FfiConverterUInt64.read(from: &buf), 
+                validBefore: FfiConverterUInt64.read(from: &buf), 
+                nonce: FfiConverterString.read(from: &buf), 
+                v: FfiConverterUInt8.read(from: &buf), 
+                r: FfiConverterString.read(from: &buf), 
+                s: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: Erc3009Authorization, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.from, into: &buf)
+        FfiConverterString.write(value.to, into: &buf)
+        FfiConverterString.write(value.value, into: &buf)
+        FfiConverterUInt64.write(value.validAfter, into: &buf)
+        FfiConverterUInt64.write(value.validBefore, into: &buf)
+        FfiConverterString.write(value.nonce, into: &buf)
+        FfiConverterUInt8.write(value.v, into: &buf)
+        FfiConverterString.write(value.r, into: &buf)
+        FfiConverterString.write(value.s, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeErc3009Authorization_lift(_ buf: RustBuffer) throws -> Erc3009Authorization {
+    return try FfiConverterTypeErc3009Authorization.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeErc3009Authorization_lower(_ value: Erc3009Authorization) -> RustBuffer {
+    return FfiConverterTypeErc3009Authorization.lower(value)
 }
 
 
@@ -6801,6 +6949,8 @@ public enum EvmSigningError: Swift.Error {
     )
     case Broadcast(String
     )
+    case InvalidTypedData(String
+    )
 }
 
 
@@ -6841,6 +6991,9 @@ public struct FfiConverterTypeEvmSigningError: FfiConverterRustBuffer {
             try FfiConverterString.read(from: &buf)
             )
         case 9: return .Broadcast(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 10: return .InvalidTypedData(
             try FfiConverterString.read(from: &buf)
             )
 
@@ -6897,6 +7050,11 @@ public struct FfiConverterTypeEvmSigningError: FfiConverterRustBuffer {
         
         case let .Broadcast(v1):
             writeInt(&buf, Int32(9))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .InvalidTypedData(v1):
+            writeInt(&buf, Int32(10))
             FfiConverterString.write(v1, into: &buf)
             
         }
@@ -11920,6 +12078,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_yttrium_checksum_method_evmsigningclient_sign_and_send() != 30425) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_method_evmsigningclient_sign_typed_data() != 26245) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_yttrium_checksum_method_logger_log() != 540) {
