@@ -23,7 +23,7 @@ use {
 impl From<SessionProposalFfi> for SessionProposal {
     fn from(proposal: SessionProposalFfi) -> Self {
         Self {
-            session_proposal_rpc_id: proposal.id.parse::<u64>().unwrap(),
+            session_proposal_rpc_id: proposal.id,
             pairing_topic: proposal.topic.into(),
             relays: proposal.relays,
             pairing_sym_key: proposal.pairing_sym_key.try_into().unwrap(),
@@ -64,7 +64,7 @@ impl From<SessionRequestJsonRpc> for SessionRequestJsonRpcFfi {
 impl From<SessionProposal> for SessionProposalFfi {
     fn from(proposal: SessionProposal) -> Self {
         // Ensure both id and topic are properly converted to valid UTF-8 strings
-        let id_string = proposal.session_proposal_rpc_id.to_string();
+        let id_string = proposal.session_proposal_rpc_id;
 
         // Be extremely defensive about topic string conversion
         let topic_string = {
@@ -134,10 +134,10 @@ impl From<SessionRequestJsonRpcResponseFfi>
             }
             SessionRequestJsonRpcResponseFfi::Error(error) => {
                 crate::sign::protocol_types::SessionRequestJsonRpcResponse::Error(
-                    crate::sign::protocol_types::SessionRequestJsonRpcErrorResponse {
+                    crate::sign::protocol_types::GenericJsonRpcResponseError {
                         id: error.id,
                         jsonrpc: error.jsonrpc,
-                        error: serde_json::Value::String(error.error),
+                        error: serde_json::from_str(&error.error).unwrap(),
                     }
                 )
             }
@@ -258,11 +258,11 @@ impl From<crate::sign::protocol_types::SessionRequestJsonRpcResultResponse>
     }
 }
 
-impl From<crate::sign::protocol_types::SessionRequestJsonRpcErrorResponse>
+impl From<crate::sign::protocol_types::GenericJsonRpcResponseError>
     for SessionRequestJsonRpcErrorResponseFfi
 {
     fn from(
-        error: crate::sign::protocol_types::SessionRequestJsonRpcErrorResponse,
+        error: crate::sign::protocol_types::GenericJsonRpcResponseError,
     ) -> Self {
         SessionRequestJsonRpcErrorResponseFfi {
             id: error.id,
@@ -289,7 +289,8 @@ impl From<SessionRequestFfi> for SessionRequest {
 #[cfg(test)]
 mod conversion_tests {
     use {
-        super::*, crate::sign::protocol_types::Metadata,
+        super::*,
+        crate::sign::protocol_types::{Metadata, ProtocolRpcId},
         relay_rpc::domain::Topic,
     };
 
@@ -300,7 +301,7 @@ mod conversion_tests {
             "0c814f7d2d56c0e840f75612addaa170af479b1c8499632430b41c298bf49907"
                 .to_string(),
         );
-        let test_id = 1234567890;
+        let test_id = ProtocolRpcId::generate();
 
         let session_proposal = SessionProposal {
             session_proposal_rpc_id: test_id,
@@ -338,7 +339,7 @@ mod conversion_tests {
         println!("FFI topic len: {}", ffi_proposal.topic.len());
 
         // Check if the values are reasonable
-        assert_eq!(ffi_proposal.id, "1234567890");
+        assert_eq!(ffi_proposal.id, test_id);
         assert!(!ffi_proposal.topic.is_empty(), "Topic should not be empty");
         assert!(ffi_proposal.topic.is_ascii(), "Topic should be ASCII");
 

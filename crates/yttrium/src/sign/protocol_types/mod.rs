@@ -1,8 +1,11 @@
+pub use {json_rpc_version::JsonRpcVersion, rpc_id::ProtocolRpcId};
 use {
-    relay_rpc::domain::MessageId,
     serde::{Deserialize, Deserializer, Serialize},
     std::collections::HashMap,
 };
+
+mod json_rpc_version;
+mod rpc_id;
 
 fn deserialize_null_default<'de, D, T>(deserializer: D) -> Result<T, D::Error>
 where
@@ -27,9 +30,8 @@ pub mod methods {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ProposalJsonRpc {
-    // deserialize number from string (Flutter support)
-    pub id: u64,
-    pub jsonrpc: String,
+    pub id: ProtocolRpcId,
+    pub jsonrpc: JsonRpcVersion,
     pub method: String,
     pub params: Proposal,
 }
@@ -87,16 +89,16 @@ pub struct Proposer {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProposalResultResponseJsonRpc {
-    pub id: u64,
-    pub jsonrpc: String,
+    pub id: ProtocolRpcId,
+    pub jsonrpc: JsonRpcVersion,
     pub result: ProposalResponse,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProposalErrorResponseJsonRpc {
-    pub id: u64,
-    pub jsonrpc: String,
+    pub id: ProtocolRpcId,
+    pub jsonrpc: JsonRpcVersion,
     pub error: serde_json::Value,
 }
 
@@ -117,8 +119,8 @@ pub struct ProposalResponse {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct JsonRpcRequest {
-    pub id: u64,
-    pub jsonrpc: String,
+    pub id: ProtocolRpcId,
+    pub jsonrpc: JsonRpcVersion,
     pub method: String,
     pub params: JsonRpcRequestParams,
 }
@@ -165,8 +167,8 @@ pub struct SessionUpdate {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct SessionUpdateJsonRpc {
-    pub id: u64,
-    pub jsonrpc: String,
+    pub id: ProtocolRpcId,
+    pub jsonrpc: JsonRpcVersion,
     pub method: String,
     pub params: SessionUpdate,
 }
@@ -174,8 +176,8 @@ pub struct SessionUpdateJsonRpc {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct SimpleJsonRpcBoolResponse {
-    pub id: u64,
-    pub jsonrpc: String,
+    pub id: ProtocolRpcId,
+    pub jsonrpc: JsonRpcVersion,
     pub result: bool,
 }
 
@@ -219,8 +221,8 @@ pub struct Redirect {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct SessionRequestJsonRpc {
-    pub id: u64,
-    pub jsonrpc: String,
+    pub id: ProtocolRpcId,
+    pub jsonrpc: JsonRpcVersion,
     pub method: String,
     pub params: SessionRequest,
 }
@@ -243,31 +245,24 @@ pub struct SessionRequestRequest {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SessionRequestJsonRpcResultResponse {
-    pub id: u64,
-    pub jsonrpc: String,
+    pub id: ProtocolRpcId,
+    pub jsonrpc: JsonRpcVersion,
     pub result: serde_json::Value,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct SessionRequestJsonRpcErrorResponse {
-    pub id: u64,
-    pub jsonrpc: String,
-    pub error: serde_json::Value,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum SessionRequestJsonRpcResponse {
     Result(SessionRequestJsonRpcResultResponse),
-    Error(SessionRequestJsonRpcErrorResponse),
+    Error(GenericJsonRpcResponseError),
 }
+
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
 pub struct SessionDeleteJsonRpc {
-    pub id: u64,
-    pub jsonrpc: String,
+    pub id: ProtocolRpcId,
+    pub jsonrpc: JsonRpcVersion,
     pub method: String,
     pub params: SessionDelete,
 }
@@ -289,8 +284,8 @@ pub struct SessionExtend {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct SessionExtendJsonRpc {
-    pub id: u64,
-    pub jsonrpc: String,
+    pub id: ProtocolRpcId,
+    pub jsonrpc: JsonRpcVersion,
     pub method: String,
     pub params: SessionExtend,
 }
@@ -312,8 +307,8 @@ pub struct EventParams {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct SessionEventJsonRpc {
-    pub id: u64,
-    pub jsonrpc: String,
+    pub id: ProtocolRpcId,
+    pub jsonrpc: JsonRpcVersion,
     pub method: String,
     pub params: EventParams,
 }
@@ -328,8 +323,8 @@ pub enum GenericJsonRpcMessage {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct GenericJsonRpcRequest {
-    pub id: MessageId,
-    pub jsonrpc: String,
+    pub id: ProtocolRpcId,
+    pub jsonrpc: JsonRpcVersion,
     pub method: String,
     pub params: serde_json::Value,
 }
@@ -344,17 +339,26 @@ pub enum GenericJsonRpcResponse {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct GenericJsonRpcResponseSuccess {
-    pub id: MessageId,
-    pub jsonrpc: String,
+    pub id: ProtocolRpcId,
+    pub jsonrpc: JsonRpcVersion,
     pub result: serde_json::Value,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct GenericJsonRpcResponseError {
-    pub id: MessageId,
-    pub jsonrpc: String,
-    pub error: serde_json::Value,
+    pub id: ProtocolRpcId,
+    pub jsonrpc: JsonRpcVersion,
+    pub error: GenericJsonRpcResponseErrorData,
+}
+
+#[derive(Debug, Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GenericJsonRpcResponseErrorData {
+    pub code: i32,
+    pub message: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub data: Option<String>,
 }
 
 #[cfg(test)]

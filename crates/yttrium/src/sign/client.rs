@@ -12,23 +12,27 @@ use {
         envelope_type0::decrypt_type0_envelope_with_hashes,
         pairing_uri,
         protocol_types::{
-            Controller, JsonRpcRequest, JsonRpcRequestParams, Metadata,
-            Proposal, ProposalJsonRpc, ProposalResponse,
-            ProposalResultResponseJsonRpc, Proposer, Relay, SessionDelete,
+            Controller, GenericJsonRpcResponseError, JsonRpcRequest,
+            JsonRpcRequestParams, JsonRpcVersion, Metadata, Proposal,
+            ProposalJsonRpc, ProposalResponse, ProposalResultResponseJsonRpc,
+            Proposer, ProtocolRpcId, Relay, SessionDelete,
             SessionDeleteJsonRpc, SessionExtend, SessionExtendJsonRpc,
             SessionRequest, SessionRequestJsonRpc,
             SessionRequestJsonRpcResponse, SessionSettle, SessionUpdate,
             SettleNamespace,
         },
-        relay::IncomingSessionMessage,
+        relay::{Attestation, AttestationCallback, IncomingSessionMessage},
         storage::Storage,
         utils::{
-            diffie_hellman, generate_rpc_id, is_expired,
+            diffie_hellman, is_expired,
             serialize_and_encrypt_message_type0_envelope,
             serialize_and_encrypt_message_type0_envelope_with_ids,
             topic_from_sym_key, DecryptedHash, EncryptedHash,
         },
-        verify::{handle_verify, VerifyContext, VERIFY_SERVER_URL},
+        verify::{
+            validate::{handle_verify, VerifyContext},
+            VERIFY_SERVER_URL,
+        },
     },
     relay_rpc::{
         auth::ed25519_dalek::{SecretKey, SigningKey},
@@ -48,9 +52,6 @@ pub fn get_relay_url() -> String {
     std::env::var("WC_SIGN_RELAY_URL")
         .unwrap_or_else(|_| "wss://relay.walletconnect.org".to_owned())
 }
-
-// Type alias for the callback that creates params with attestation
-pub(crate) type AttestationCallback = Box<dyn Fn(String) -> Params + Send>;
 
 // Abstraction for requests that may need Verify API attestation (internal)
 pub(crate) enum MaybeVerifiedRequest {
@@ -131,6 +132,7 @@ pub struct Client {
 // - memory leak slow tests, run for days?. Kill WS many times over and over again to test. Create many sessions over and over again, update sessions, session requests, etc.
 // - test killing the WS, not returning request, failing to connect, etc. in various stages of the lifecycle
 // - flow works even when Verify API isblocked: https://github.com/reown-com/appkit/pull/5023
+// - Verify API is down dapp-side. Public-key endpoint down wallet-side.
 
 #[allow(unused)]
 impl Client {
@@ -305,7 +307,7 @@ impl Client {
         } else {
             self.storage.insert_json_rpc_history(
                 request.id,
-                pairing_uri.topic.to_string(),
+                pairing_uri.topic.clone(),
                 request.method.clone(),
                 request_json,
                 Some(TransportType::Relay),
@@ -393,10 +395,10 @@ impl Client {
             expiry_timestamp: Some(expiry_timestamp),
         };
 
-        let rpc_id = generate_rpc_id();
+        let rpc_id = ProtocolRpcId::generate();
         let session_proposal_json_rpc = JsonRpcRequest {
             id: rpc_id,
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: JsonRpcVersion::version_2(),
             method: "wc_sessionPropose".to_string(),
             params: JsonRpcRequestParams::SessionPropose(
                 session_proposal.clone(),
@@ -426,14 +428,14 @@ impl Client {
                 let pairing_topic = pairing_info.topic.clone();
                 let session_proposal_message = message.clone();
                 let correlation_id = rpc_id;
-                move |attestation: String| {
+                move |attestation: Attestation| {
                     Params::ProposeSession(ProposeSession {
                         pairing_topic: pairing_topic.clone(),
                         session_proposal: session_proposal_message.clone(),
-                        attestation: Some(attestation.into()),
+                        attestation,
                         analytics: Some(AnalyticsData {
                             correlation_id: Some(
-                                correlation_id.try_into().unwrap(),
+                                correlation_id.into_value() as i64
                             ),
                             chain_id: None,
                             rpc_methods: None,
@@ -451,7 +453,7 @@ impl Client {
 
         self.storage.insert_json_rpc_history(
             rpc_id,
-            pairing_info.topic.to_string(),
+            pairing_info.topic.clone(),
             "wc_sessionPropose".to_string(),
             session_proposal_params_json,
             Some(TransportType::Relay),
@@ -529,7 +531,7 @@ impl Client {
 
         let response_result_json_rpc = ProposalResultResponseJsonRpc {
             id: proposal.session_proposal_rpc_id,
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: JsonRpcVersion::version_2(),
             result: ProposalResponse {
                 relay: Relay { protocol: "irn".to_string() },
                 responder_public_key: hex::encode(self_public_key.to_bytes()),
@@ -555,7 +557,7 @@ impl Client {
             .as_secs()
             + 60 * 60 * 24 * 7; // Session expiry is 7 days
 
-        let session_settlement_request_id = generate_rpc_id();
+        let session_settlement_request_id = ProtocolRpcId::generate();
         let session_settlement_request_params = SessionSettle {
             relay: Relay { protocol: "irn".to_string() },
             namespaces: approved_namespaces.clone(),
@@ -569,7 +571,7 @@ impl Client {
         };
         let session_settlement_json_rpc = JsonRpcRequest {
             id: session_settlement_request_id,
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: JsonRpcVersion::version_2(),
             method: "wc_sessionSettle".to_string(),
             params: JsonRpcRequestParams::SessionSettle(
                 session_settlement_request_params.clone(),
@@ -596,7 +598,9 @@ impl Client {
             session_proposal_response,
             session_settlement_request,
             analytics: Some(AnalyticsData {
-                correlation_id: Some(proposal.session_proposal_rpc_id as i64),
+                correlation_id: Some(
+                    proposal.session_proposal_rpc_id.into_value() as i64,
+                ),
                 chain_id: None,
                 rpc_methods: None,
                 tx_hashes: None,
@@ -637,7 +641,7 @@ impl Client {
                 //Store SessionSettle Request
                 self.storage.insert_json_rpc_history(
                     session_settlement_request_id,
-                    session.topic.to_string(),
+                    session.topic.clone(),
                     "wc_sessionSettle".to_string(),
                     session_settlement_request_params_json,
                     Some(TransportType::Relay),
@@ -691,16 +695,10 @@ impl Client {
             }
         }
 
-        // Map enum to ErrorData using centralized conversion
-        let mapped_error: relay_rpc::rpc::ErrorData = reason.into();
-
-        // Send error response to the pairing topic
-        let error_response = relay_rpc::rpc::ErrorResponse {
-            id: relay_rpc::domain::MessageId::new(
-                proposal.session_proposal_rpc_id,
-            ),
-            jsonrpc: relay_rpc::rpc::JSON_RPC_VERSION.clone(),
-            error: mapped_error,
+        let error_response = GenericJsonRpcResponseError {
+            id: proposal.session_proposal_rpc_id,
+            jsonrpc: JsonRpcVersion::version_2(),
+            error: reason.into(),
         };
 
         let response_result_json =
@@ -713,7 +711,6 @@ impl Client {
         )
         .map_err(RejectError::ShouldNeverHappen)?;
 
-        // Publish error response to pairing topic
         match self
             .do_request::<bool>(relay_rpc::rpc::Params::Publish(Publish {
                 topic: proposal.pairing_topic.clone(),
@@ -724,7 +721,7 @@ impl Client {
                 prompt: false,
                 analytics: Some(AnalyticsData {
                     correlation_id: Some(
-                        proposal.session_proposal_rpc_id.try_into().unwrap(),
+                        proposal.session_proposal_rpc_id.into_value() as i64,
                     ),
                     chain_id: None,
                     rpc_methods: None,
@@ -757,7 +754,7 @@ impl Client {
         &mut self,
         topic: Topic,
         session_request: SessionRequest,
-    ) -> Result<(u64), RequestError> {
+    ) -> Result<ProtocolRpcId, RequestError> {
         let shared_secret = self
             .storage
             .get_session(topic.clone())
@@ -766,8 +763,8 @@ impl Client {
             .unwrap();
 
         let rpc = SessionRequestJsonRpc {
-            id: generate_rpc_id(),
-            jsonrpc: "2.0".to_string(),
+            id: ProtocolRpcId::generate(),
+            jsonrpc: JsonRpcVersion::version_2(),
             method: "wc_sessionRequest".to_string(),
             params: session_request,
         };
@@ -784,11 +781,11 @@ impl Client {
             Box::new({
                 let publish_topic = topic.clone();
                 let publish_message = message.clone();
-                move |attestation: String| {
+                move |attestation: Attestation| {
                     Params::Publish(Publish {
                         topic: publish_topic.clone(),
                         message: publish_message.clone(),
-                        attestation: Some(attestation.into()),
+                        attestation,
                         ttl_secs: 300,
                         tag: 1108,
                         prompt: false,
@@ -808,7 +805,7 @@ impl Client {
 
         self.storage.insert_json_rpc_history(
             rpc.id,
-            topic.to_string(),
+            topic,
             rpc.method,
             session_request_params_json,
             Some(TransportType::Relay),
@@ -849,8 +846,7 @@ impl Client {
                         SessionRequestJsonRpcResponse::Result(r) => r.id,
                         SessionRequestJsonRpcResponse::Error(e) => e.id,
                     }
-                    .try_into()
-                    .unwrap(),
+                    .into_value() as i64,
                 ),
                 chain_id: None,
                 rpc_methods: None,
@@ -912,11 +908,11 @@ impl Client {
             self.storage.add_session(session);
         }
 
-        let id = generate_rpc_id();
+        let id = ProtocolRpcId::generate();
         let session_update_json_rpc =
             crate::sign::protocol_types::SessionUpdateJsonRpc {
                 id,
-                jsonrpc: "2.0".to_string(),
+                jsonrpc: JsonRpcVersion::version_2(),
                 method: "wc_sessionUpdate".to_string(),
                 params: SessionUpdate { namespaces: namespaces.clone() },
             };
@@ -938,7 +934,7 @@ impl Client {
             tag: 1104,
             prompt: false,
             analytics: Some(AnalyticsData {
-                correlation_id: Some(id.try_into().unwrap()),
+                correlation_id: Some(id.into_value() as i64),
                 chain_id: None,
                 rpc_methods: None,
                 tx_hashes: None,
@@ -950,7 +946,7 @@ impl Client {
 
         self.storage.insert_json_rpc_history(
             id,
-            topic.to_string(),
+            topic,
             "wc_sessionUpdate".to_string(),
             namespaces_params_json,
             Some(TransportType::Relay),
@@ -984,10 +980,10 @@ impl Client {
         session.expiry = new_expiry;
         let shared_secret = session.session_sym_key;
         self.storage.add_session(session);
-        let id = generate_rpc_id();
+        let id = ProtocolRpcId::generate();
         let session_extend_json_rpc = SessionExtendJsonRpc {
             id,
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: JsonRpcVersion::version_2(),
             method: "wc_sessionExtend".to_string(),
             params: SessionExtend { expiry: new_expiry },
         };
@@ -1009,7 +1005,7 @@ impl Client {
             tag: 1106,
             prompt: false,
             analytics: Some(AnalyticsData {
-                correlation_id: Some(id.try_into().unwrap()),
+                correlation_id: Some(id.into_value() as i64),
                 chain_id: None,
                 rpc_methods: None,
                 tx_hashes: None,
@@ -1021,7 +1017,7 @@ impl Client {
 
         self.storage.insert_json_rpc_history(
             id,
-            topic.to_string(),
+            topic,
             "wc_sessionExtend".to_string(),
             expiry_rpc_json,
             Some(TransportType::Relay),
@@ -1052,11 +1048,11 @@ impl Client {
             .map(|s| s.session_sym_key)
             .ok_or(EmitError::SessionNotFound)?;
 
-        let id = generate_rpc_id();
+        let id = ProtocolRpcId::generate();
         let session_event_json_rpc =
             crate::sign::protocol_types::SessionEventJsonRpc {
                 id,
-                jsonrpc: "2.0".to_string(),
+                jsonrpc: JsonRpcVersion::version_2(),
                 method: "wc_sessionEvent".to_string(),
                 params: crate::sign::protocol_types::EventParams {
                     event: crate::sign::protocol_types::SessionEventVO {
@@ -1082,7 +1078,7 @@ impl Client {
             tag: 1110,
             prompt: false,
             analytics: Some(AnalyticsData {
-                correlation_id: Some(id.try_into().unwrap()),
+                correlation_id: Some(id.into_value() as i64),
                 chain_id: None,
                 rpc_methods: None,
                 tx_hashes: None,
@@ -1094,7 +1090,7 @@ impl Client {
 
         self.storage.insert_json_rpc_history(
             id,
-            topic.to_string(),
+            topic,
             "wc_sessionEvent".to_string(),
             event_json,
             Some(TransportType::Relay),
@@ -1115,10 +1111,10 @@ impl Client {
             .map(|s| s.session_sym_key);
 
         if let Some(shared_secret) = shared_secret {
-            let id = generate_rpc_id();
+            let id = ProtocolRpcId::generate();
             let session_delete_json_rpc = SessionDeleteJsonRpc {
                 id,
-                jsonrpc: "2.0".to_string(),
+                jsonrpc: JsonRpcVersion::version_2(),
                 method: "wc_sessionDelete".to_string(),
                 params: SessionDelete {
                     code: 6000,
@@ -1150,7 +1146,7 @@ impl Client {
 
             self.storage.insert_json_rpc_history(
                 id,
-                topic.to_string(),
+                topic.clone(),
                 "wc_sessionDelete".to_string(),
                 delete_json,
                 Some(TransportType::Relay),

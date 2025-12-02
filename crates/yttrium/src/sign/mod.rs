@@ -2,9 +2,10 @@ pub use {
     relay::IncomingSessionMessage,
     relay_rpc::{
         auth::ed25519_dalek::{SecretKey, SigningKey},
-        domain::Topic,
+        domain::{MessageId, Topic},
         rpc::ErrorData,
     },
+    verify::validate::VerifyContext,
 };
 
 pub mod client;
@@ -25,6 +26,3 @@ pub mod test_helpers;
 mod tests;
 pub mod utils;
 mod verify;
-#[cfg(target_arch = "wasm32")]
-mod verify_attestation;
-pub use verify::{VerifyContext, VerifyValidation};

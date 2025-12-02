@@ -10,7 +10,6 @@ use {
     url::Url,
 };
 
-pub const VERIFY_SERVER_URL: &str = "https://verify.walletconnect.org";
 const PUBLIC_KEY_ENDPOINT: &str = "/v3/public-key";
 const ATTESTATION_ENDPOINT: &str = "/attestation/";
 const PUBLIC_KEY: &str = include_str!("verify-public.jwk");
@@ -440,49 +439,13 @@ pub enum VerifyValidation {
     Invalid,
 }
 
-#[cfg(target_arch = "wasm32")]
-pub async fn create_attestation(
-    encrypted_id: EncryptedHash,
-    decrypted_id: DecryptedHash,
-    project_id: relay_rpc::domain::ProjectId,
-) -> Result<String, ()> {
-    match crate::sign::verify_attestation::create_attestation(
-        encrypted_id,
-        decrypted_id,
-        project_id,
-    )
-    .await
-    {
-        Ok(Some(attestation)) => Ok(attestation),
-        Ok(None) => {
-            tracing::warn!(
-                "Verify V3 attestation returned None (timeout or no response)"
-            );
-            Ok(String::new())
-        }
-        Err(e) => {
-            tracing::error!("Verify V3 attestation error: {e}");
-            Ok(String::new())
-        }
-    }
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-pub async fn create_attestation(
-    _encrypted_id: EncryptedHash,
-    _decrypted_id: DecryptedHash,
-    _project_id: relay_rpc::domain::ProjectId,
-) -> Result<String, ()> {
-    tracing::debug!("Verify V3 not supported on non-WASM platforms, returning empty attestation");
-    Ok(String::new())
-}
-
 #[cfg(test)]
 mod tests {
     use {
         super::*,
         crate::sign::{
             client_types::{Session, TransportType},
+            protocol_types::ProtocolRpcId,
             storage::StoragePairing,
         },
         relay_rpc::domain::Topic,
@@ -544,7 +507,7 @@ mod tests {
             fn save_pairing(
                 &self,
                 _topic: Topic,
-                _rpc_id: u64,
+                _rpc_id: ProtocolRpcId,
                 _sym_key: [u8; 32],
                 _self_key: [u8; 32],
             ) -> Result<(), StorageError> {
@@ -553,7 +516,7 @@ mod tests {
             fn get_pairing(
                 &self,
                 _topic: Topic,
-                _rpc_id: u64,
+                _rpc_id: ProtocolRpcId,
             ) -> Result<Option<StoragePairing>, StorageError> {
                 Err(StorageError::Runtime("unimplemented".to_string()))
             }
@@ -566,8 +529,8 @@ mod tests {
             }
             fn insert_json_rpc_history(
                 &self,
-                _request_id: u64,
-                _topic: String,
+                _request_id: ProtocolRpcId,
+                _topic: Topic,
                 _method: String,
                 _body: String,
                 _transport_type: Option<TransportType>,
@@ -576,20 +539,20 @@ mod tests {
             }
             fn update_json_rpc_history_response(
                 &self,
-                _request_id: u64,
+                _request_id: ProtocolRpcId,
                 _response: String,
             ) -> Result<(), StorageError> {
                 Err(StorageError::Runtime("unimplemented".to_string()))
             }
             fn delete_json_rpc_history_by_topic(
                 &self,
-                _topic: String,
+                _topic: Topic,
             ) -> Result<(), StorageError> {
                 Err(StorageError::Runtime("unimplemented".to_string()))
             }
             fn does_json_rpc_exist(
                 &self,
-                _request_id: u64,
+                _request_id: ProtocolRpcId,
             ) -> Result<bool, StorageError> {
                 Err(StorageError::Runtime("unimplemented".to_string()))
             }
@@ -659,7 +622,7 @@ mod tests {
             fn save_pairing(
                 &self,
                 _topic: Topic,
-                _rpc_id: u64,
+                _rpc_id: ProtocolRpcId,
                 _sym_key: [u8; 32],
                 _self_key: [u8; 32],
             ) -> Result<(), StorageError> {
@@ -668,7 +631,7 @@ mod tests {
             fn get_pairing(
                 &self,
                 _topic: Topic,
-                _rpc_id: u64,
+                _rpc_id: ProtocolRpcId,
             ) -> Result<Option<StoragePairing>, StorageError> {
                 Err(StorageError::Runtime("unimplemented".to_string()))
             }
@@ -681,8 +644,8 @@ mod tests {
             }
             fn insert_json_rpc_history(
                 &self,
-                _request_id: u64,
-                _topic: String,
+                _request_id: ProtocolRpcId,
+                _topic: Topic,
                 _method: String,
                 _body: String,
                 _transport_type: Option<TransportType>,
@@ -691,20 +654,20 @@ mod tests {
             }
             fn update_json_rpc_history_response(
                 &self,
-                _request_id: u64,
+                _request_id: ProtocolRpcId,
                 _response: String,
             ) -> Result<(), StorageError> {
                 Err(StorageError::Runtime("unimplemented".to_string()))
             }
             fn delete_json_rpc_history_by_topic(
                 &self,
-                _topic: String,
+                _topic: Topic,
             ) -> Result<(), StorageError> {
                 Err(StorageError::Runtime("unimplemented".to_string()))
             }
             fn does_json_rpc_exist(
                 &self,
-                _request_id: u64,
+                _request_id: ProtocolRpcId,
             ) -> Result<bool, StorageError> {
                 Err(StorageError::Runtime("unimplemented".to_string()))
             }
@@ -777,7 +740,7 @@ mod tests {
             fn save_pairing(
                 &self,
                 _topic: Topic,
-                _rpc_id: u64,
+                _rpc_id: ProtocolRpcId,
                 _sym_key: [u8; 32],
                 _self_key: [u8; 32],
             ) -> Result<(), StorageError> {
@@ -786,7 +749,7 @@ mod tests {
             fn get_pairing(
                 &self,
                 _topic: Topic,
-                _rpc_id: u64,
+                _rpc_id: ProtocolRpcId,
             ) -> Result<Option<StoragePairing>, StorageError> {
                 Err(StorageError::Runtime("unimplemented".to_string()))
             }
@@ -799,8 +762,8 @@ mod tests {
             }
             fn insert_json_rpc_history(
                 &self,
-                _request_id: u64,
-                _topic: String,
+                _request_id: ProtocolRpcId,
+                _topic: Topic,
                 _method: String,
                 _body: String,
                 _transport_type: Option<TransportType>,
@@ -809,20 +772,20 @@ mod tests {
             }
             fn update_json_rpc_history_response(
                 &self,
-                _request_id: u64,
+                _request_id: ProtocolRpcId,
                 _response: String,
             ) -> Result<(), StorageError> {
                 Err(StorageError::Runtime("unimplemented".to_string()))
             }
             fn delete_json_rpc_history_by_topic(
                 &self,
-                _topic: String,
+                _topic: Topic,
             ) -> Result<(), StorageError> {
                 Err(StorageError::Runtime("unimplemented".to_string()))
             }
             fn does_json_rpc_exist(
                 &self,
-                _request_id: u64,
+                _request_id: ProtocolRpcId,
             ) -> Result<bool, StorageError> {
                 Err(StorageError::Runtime("unimplemented".to_string()))
             }
@@ -893,7 +856,7 @@ mod tests {
             fn save_pairing(
                 &self,
                 _topic: Topic,
-                _rpc_id: u64,
+                _rpc_id: ProtocolRpcId,
                 _sym_key: [u8; 32],
                 _self_key: [u8; 32],
             ) -> Result<(), StorageError> {
@@ -902,7 +865,7 @@ mod tests {
             fn get_pairing(
                 &self,
                 _topic: Topic,
-                _rpc_id: u64,
+                _rpc_id: ProtocolRpcId,
             ) -> Result<Option<StoragePairing>, StorageError> {
                 Err(StorageError::Runtime("unimplemented".to_string()))
             }
@@ -915,8 +878,8 @@ mod tests {
             }
             fn insert_json_rpc_history(
                 &self,
-                _request_id: u64,
-                _topic: String,
+                _request_id: ProtocolRpcId,
+                _topic: Topic,
                 _method: String,
                 _body: String,
                 _transport_type: Option<TransportType>,
@@ -925,20 +888,20 @@ mod tests {
             }
             fn update_json_rpc_history_response(
                 &self,
-                _request_id: u64,
+                _request_id: ProtocolRpcId,
                 _response: String,
             ) -> Result<(), StorageError> {
                 Err(StorageError::Runtime("unimplemented".to_string()))
             }
             fn delete_json_rpc_history_by_topic(
                 &self,
-                _topic: String,
+                _topic: Topic,
             ) -> Result<(), StorageError> {
                 Err(StorageError::Runtime("unimplemented".to_string()))
             }
             fn does_json_rpc_exist(
                 &self,
-                _request_id: u64,
+                _request_id: ProtocolRpcId,
             ) -> Result<bool, StorageError> {
                 Err(StorageError::Runtime("unimplemented".to_string()))
             }
@@ -1012,7 +975,7 @@ mod tests {
             fn save_pairing(
                 &self,
                 _topic: Topic,
-                _rpc_id: u64,
+                _rpc_id: ProtocolRpcId,
                 _sym_key: [u8; 32],
                 _self_key: [u8; 32],
             ) -> Result<(), StorageError> {
@@ -1021,7 +984,7 @@ mod tests {
             fn get_pairing(
                 &self,
                 _topic: Topic,
-                _rpc_id: u64,
+                _rpc_id: ProtocolRpcId,
             ) -> Result<Option<StoragePairing>, StorageError> {
                 Err(StorageError::Runtime("unimplemented".to_string()))
             }
@@ -1034,8 +997,8 @@ mod tests {
             }
             fn insert_json_rpc_history(
                 &self,
-                _request_id: u64,
-                _topic: String,
+                _request_id: ProtocolRpcId,
+                _topic: Topic,
                 _method: String,
                 _body: String,
                 _transport_type: Option<TransportType>,
@@ -1044,20 +1007,20 @@ mod tests {
             }
             fn update_json_rpc_history_response(
                 &self,
-                _request_id: u64,
+                _request_id: ProtocolRpcId,
                 _response: String,
             ) -> Result<(), StorageError> {
                 Err(StorageError::Runtime("unimplemented".to_string()))
             }
             fn delete_json_rpc_history_by_topic(
                 &self,
-                _topic: String,
+                _topic: Topic,
             ) -> Result<(), StorageError> {
                 Err(StorageError::Runtime("unimplemented".to_string()))
             }
             fn does_json_rpc_exist(
                 &self,
-                _request_id: u64,
+                _request_id: ProtocolRpcId,
             ) -> Result<bool, StorageError> {
                 Err(StorageError::Runtime("unimplemented".to_string()))
             }

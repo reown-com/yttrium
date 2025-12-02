@@ -8,7 +8,9 @@ use {
                 RespondError, UpdateError,
             },
             client_types::{ConnectParams, SessionProposal},
-            protocol_types::{Metadata, SessionRequest, SettleNamespace},
+            protocol_types::{
+                Metadata, ProtocolRpcId, SessionRequest, SettleNamespace,
+            },
             IncomingSessionMessage,
         },
         uniffi_compat::sign::{
@@ -28,31 +30,31 @@ use {
 pub trait SignListener: Send + Sync {
     fn on_session_request(
         &self,
-        topic: String,
+        topic: Topic,
         session_request: SessionRequestJsonRpcFfi,
     );
 
-    fn on_session_disconnect(&self, id: u64, topic: String);
+    fn on_session_disconnect(&self, id: ProtocolRpcId, topic: Topic);
     fn on_session_event(
         &self,
-        topic: String,
+        topic: Topic,
         name: String,
         data: String,
         chain_id: String,
     );
-    fn on_session_extend(&self, id: u64, topic: String);
+    fn on_session_extend(&self, id: ProtocolRpcId, topic: Topic);
     fn on_session_update(
         &self,
-        id: u64,
-        topic: String,
+        id: ProtocolRpcId,
+        topic: Topic,
         namespaces: std::collections::HashMap<String, SettleNamespace>,
     );
-    fn on_session_connect(&self, id: u64, topic: String);
-    fn on_session_reject(&self, id: u64, topic: String);
+    fn on_session_connect(&self, id: ProtocolRpcId, topic: Topic);
+    fn on_session_reject(&self, id: ProtocolRpcId, topic: Topic);
     fn on_session_request_response(
         &self,
-        id: u64,
-        topic: String,
+        id: ProtocolRpcId,
+        topic: Topic,
         response: SessionRequestJsonRpcResponseFfi,
     );
 }
@@ -117,14 +119,11 @@ impl SignClient {
                             tracing::debug!("Received session request - Topic: {:?}, SessionRequest: {:?}", topic, request);
                             let session_request_ffi: SessionRequestJsonRpcFfi =
                                 request.into();
-                            listener.on_session_request(
-                                topic.to_string(),
-                                session_request_ffi,
-                            );
+                            listener
+                                .on_session_request(topic, session_request_ffi);
                         }
                         IncomingSessionMessage::Disconnect(id, topic) => {
-                            listener
-                                .on_session_disconnect(id, topic.to_string());
+                            listener.on_session_disconnect(id, topic);
                         }
                         IncomingSessionMessage::SessionEvent(
                             topic,
@@ -133,7 +132,7 @@ impl SignClient {
                             chain_id,
                         ) => {
                             listener.on_session_event(
-                                topic.to_string(),
+                                topic,
                                 name,
                                 serde_json::to_string(&data)
                                     .unwrap_or_default(),
@@ -145,20 +144,16 @@ impl SignClient {
                             topic,
                             params,
                         ) => {
-                            listener.on_session_update(
-                                id,
-                                topic.to_string(),
-                                params,
-                            );
+                            listener.on_session_update(id, topic, params);
                         }
                         IncomingSessionMessage::SessionExtend(id, topic) => {
-                            listener.on_session_extend(id, topic.to_string());
+                            listener.on_session_extend(id, topic);
                         }
                         IncomingSessionMessage::SessionConnect(id, topic) => {
-                            listener.on_session_connect(id, topic.to_string());
+                            listener.on_session_connect(id, topic);
                         }
                         IncomingSessionMessage::SessionReject(id, topic) => {
-                            listener.on_session_reject(id, topic.to_string());
+                            listener.on_session_reject(id, topic);
                         }
                         IncomingSessionMessage::SessionRequestResponse(
                             id,
@@ -167,7 +162,7 @@ impl SignClient {
                         ) => {
                             listener.on_session_request_response(
                                 id,
-                                topic.to_string(),
+                                topic,
                                 response.into(),
                             );
                         }
@@ -301,7 +296,7 @@ impl SignClient {
         &self,
         topic: String,
         session_request: SessionRequestFfi,
-    ) -> Result<u64, RequestError> {
+    ) -> Result<ProtocolRpcId, RequestError> {
         let mut client = self.client.lock().await;
         let session_request: SessionRequest = session_request.into();
         client.request(topic.into(), session_request).await

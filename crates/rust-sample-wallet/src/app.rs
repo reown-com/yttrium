@@ -11,6 +11,8 @@ use {
         DialogSurface, DialogTitle, Flex, Input, Label, Spinner,
         ToasterInjection,
     },
+    wasm_bindgen::{prelude::*, JsCast},
+    web_sys::js_sys,
     yttrium::sign::{
         client::{generate_client_id_key, Client},
         client_types::{
@@ -18,13 +20,14 @@ use {
             TransportType,
         },
         protocol_types::{
-            Metadata, ProposalNamespace, SessionRequest, SessionRequestJsonRpc,
-            SessionRequestJsonRpcErrorResponse, SessionRequestJsonRpcResponse,
+            GenericJsonRpcResponseError, JsonRpcVersion, Metadata,
+            ProposalNamespace, ProtocolRpcId, SessionRequest,
+            SessionRequestJsonRpc, SessionRequestJsonRpcResponse,
             SessionRequestJsonRpcResultResponse, SessionRequestRequest,
             SettleNamespace,
         },
         storage::{Jwk, Storage, StorageError, StoragePairing},
-        ErrorData, IncomingSessionMessage, SecretKey, Topic, VerifyContext,
+        IncomingSessionMessage, SecretKey, Topic, VerifyContext,
     },
 };
 
@@ -37,7 +40,7 @@ struct MyState {
     key: SecretKey,
     verify_public_key: Option<Jwk>,
     sessions: Vec<Session>,
-    pairing_keys: HashMap<Topic, (u64, StoragePairing)>,
+    pairing_keys: HashMap<Topic, (ProtocolRpcId, StoragePairing)>,
     partial_sessions: HashMap<Topic, [u8; 32]>,
 }
 
@@ -126,6 +129,8 @@ impl Storage for MySessionStore {
     fn add_session(&self, session: Session) -> Result<(), StorageError> {
         let mut state =
             read_local_storage(&self.key).map_err(StorageError::Runtime)?;
+        // Remove existing session with same topic if it exists, then add the new one
+        state.sessions.retain(|s| s.topic != session.topic);
         state.sessions.push(session);
         write_local_storage(&self.key, state).map_err(StorageError::Runtime)?;
         Ok(())
@@ -185,7 +190,7 @@ impl Storage for MySessionStore {
     fn save_pairing(
         &self,
         topic: Topic,
-        rpc_id: u64,
+        rpc_id: ProtocolRpcId,
         sym_key: [u8; 32],
         self_key: [u8; 32],
     ) -> Result<(), StorageError> {
@@ -201,7 +206,7 @@ impl Storage for MySessionStore {
     fn get_pairing(
         &self,
         topic: Topic,
-        _rpc_id: u64,
+        _rpc_id: ProtocolRpcId,
     ) -> Result<Option<StoragePairing>, StorageError> {
         Ok(read_local_storage(&self.key)
             .map_err(StorageError::Runtime)?
@@ -242,8 +247,8 @@ impl Storage for MySessionStore {
 
     fn insert_json_rpc_history(
         &self,
-        _request_id: u64,
-        _topic: String,
+        _request_id: ProtocolRpcId,
+        _topic: Topic,
         _method: String,
         _body: String,
         _transport_type: Option<TransportType>,
@@ -254,7 +259,7 @@ impl Storage for MySessionStore {
 
     fn update_json_rpc_history_response(
         &self,
-        _request_id: u64,
+        _request_id: ProtocolRpcId,
         _response: String,
     ) -> Result<(), StorageError> {
         // Sample wallet doesn't need to store JSON-RPC history
@@ -263,7 +268,7 @@ impl Storage for MySessionStore {
 
     fn delete_json_rpc_history_by_topic(
         &self,
-        _topic: String,
+        _topic: Topic,
     ) -> Result<(), StorageError> {
         // Sample wallet doesn't need to store JSON-RPC history
         Ok(())
@@ -271,7 +276,7 @@ impl Storage for MySessionStore {
 
     fn does_json_rpc_exist(
         &self,
-        _request_id: u64,
+        _request_id: ProtocolRpcId,
     ) -> Result<bool, StorageError> {
         // Sample wallet doesn't need to store JSON-RPC history
         Ok(false)
@@ -457,7 +462,7 @@ pub fn App() -> impl IntoView {
                         SessionRequestJsonRpcResponse::Result(
                             SessionRequestJsonRpcResultResponse {
                                 id: request.1.id,
-                                jsonrpc: "2.0".to_string(),
+                                jsonrpc: JsonRpcVersion::version_2(),
                                 result: "0x0".to_string().into(),
                             },
                         ),
@@ -499,13 +504,10 @@ pub fn App() -> impl IntoView {
                     .respond(
                         request.0,
                         SessionRequestJsonRpcResponse::Error(
-                            SessionRequestJsonRpcErrorResponse {
+                            GenericJsonRpcResponseError {
                                 id: request.1.id,
-                                jsonrpc: "2.0".to_string(),
-                                error: serde_json::to_value(ErrorData::from(
-                                    RejectionReason::UserRejected,
-                                ))
-                                .unwrap(),
+                                jsonrpc: JsonRpcVersion::version_2(),
+                                error: RejectionReason::UserRejected.into(),
                             },
                         ),
                     )
@@ -594,6 +596,7 @@ pub fn App() -> impl IntoView {
                         });
                     }
                     Err(e) => {
+                        connect_uri.set(None);
                         show_error_toast(
                             toaster,
                             format!("Connection propose failed: {e}"),
@@ -645,6 +648,40 @@ pub fn App() -> impl IntoView {
                 }));
                 *client = Some(client_arc.clone());
 
+                // Expose sessionUpdate function to window object
+                {
+                    let client_arc_for_js = client_arc.clone();
+                    let window = web_sys::window().expect("window should be available");
+                    let session_update_fn = Closure::wrap(Box::new(move |topic: String, namespaces: JsValue| -> js_sys::Promise {
+                        let client_arc = client_arc_for_js.clone();
+                        wasm_bindgen_futures::future_to_promise(async move {
+                            let namespaces_map: HashMap<String, SettleNamespace> = serde_json::from_value(
+                                serde_json::from_str(
+                                    &js_sys::JSON::stringify(&namespaces)
+                                        .ok()
+                                        .and_then(|s| s.as_string())
+                                        .ok_or_else(|| JsValue::from_str("Failed to stringify namespaces"))?
+                                )
+                                .map_err(|e| JsValue::from_str(&format!("Failed to parse JSON: {e}")))?,
+                            )
+                            .map_err(|e| JsValue::from_str(&format!("Failed to deserialize namespaces: {e}")))?;
+
+                            let mut clients = client_arc.lock().await;
+                            clients.wallet_client.update(topic.into(), namespaces_map).await
+                                .map_err(|e| JsValue::from_str(&format!("sessionUpdate failed: {e}")))?;
+                            wallet_sessions.set(read_local_storage(WALLET_KEY).unwrap().sessions);
+                            Ok(JsValue::UNDEFINED)
+                        })
+                    }) as Box<dyn Fn(String, JsValue) -> js_sys::Promise>);
+                    js_sys::Reflect::set(
+                        &window,
+                        &"sessionUpdate".into(),
+                        session_update_fn.as_ref().unchecked_ref(),
+                    )
+                    .expect("Failed to set sessionUpdate on window");
+                    session_update_fn.forget(); // Keep the closure alive
+                }
+
                 leptos::task::spawn_local(async move {
                     {
                         let mut clients = client_arc.lock().await;
@@ -663,7 +700,7 @@ pub fn App() -> impl IntoView {
                                         match message {
                                             IncomingSessionMessage::SessionRequest(request, attestation) => {
                                                 tracing::info!(
-                                                    "signature request on topic: {:?}: {:?}: {:?}",
+                                                    "[wallet] signature request on topic: {:?}: {:?}: {:?}",
                                                     topic,
                                                     request,
                                                     attestation
@@ -682,38 +719,38 @@ pub fn App() -> impl IntoView {
                                             }
                                             IncomingSessionMessage::Disconnect(id, topic) => {
                                                 tracing::info!(
-                                                    "session delete on topic: {id}: {topic}",
+                                                    "[wallet] session delete on topic: {id}: {topic}",
                                                 );
                                             }
                                             IncomingSessionMessage::SessionEvent(topic, name, data, chain_id) => {
                                                 tracing::info!(
-                                                    "session event on topic: {topic}: name={name}, chainId={chain_id}, data={:?}",
+                                                    "[wallet] session event on topic: {topic}: name={name}, chainId={chain_id}, data={:?}",
                                                     data
                                                 );
                                             }
                                             IncomingSessionMessage::SessionUpdate(id, topic, params) => {
                                                 tracing::info!(
-                                                    "session update on topic: {id}: {topic}: {params:?}",
+                                                    "[wallet] session update on topic: {id}: {topic}: {params:?}",
                                                 );
                                             }
                                             IncomingSessionMessage::SessionExtend(id, topic) => {
                                                 tracing::info!(
-                                                    "session extend on topic: {id}: {topic}",
+                                                    "[wallet] session extend on topic: {id}: {topic}",
                                                 );
                                             }
                                             IncomingSessionMessage::SessionReject(id, topic) => {
                                                 tracing::info!(
-                                                    "session reject on topic: {id}: {topic}",
+                                                    "[wallet] session reject on topic: {id}: {topic}",
                                                 );
                                             }
                                             IncomingSessionMessage::SessionConnect(id, topic) => {
                                                 tracing::info!(
-                                                    "session connect on topic: {id}: {topic}",
+                                                    "[wallet] session connect on topic: {id}: {topic}",
                                                 );
                                             }
                                             IncomingSessionMessage::SessionRequestResponse(id, topic, response) => {
                                                 tracing::info!(
-                                                    "session request response on topic: {topic}: {id}: {response:?}",
+                                                    "[wallet] session request response on topic: {topic}: {id}: {response:?}",
                                                 );
                                             }
                                         }
@@ -750,6 +787,11 @@ pub fn App() -> impl IntoView {
                                                         );
                                                     }
                                                 }
+                                            }
+                                            IncomingSessionMessage::SessionUpdate(id, topic, params) => {
+                                                tracing::info!(
+                                                    "[app] session update on topic: {id}: {topic}: {params:?}",
+                                                );
                                             }
                                             e => {
                                                 tracing::error!(
@@ -800,29 +842,49 @@ pub fn App() -> impl IntoView {
                         .get()
                         .iter()
                         .map(|session| {
-                            let topic = session.topic.clone();
+                            let session = session.clone();
                             view! {
                                 <li>
-                                    <Flex>
-                                        "Wallet session"
-                                        <Button on_click=move |_| {
-                                            let topic = topic.clone();
-                                            leptos::task::spawn_local(async move {
-                                                let client = clients.read_value().as_ref().unwrap().clone();
-                                                let mut client = client.lock().await;
-                                                match client.wallet_client.disconnect(topic).await {
-                                                    Ok(_) => {
-                                                        show_success_toast(toaster, "Disconnected".to_owned());
+                                    <Flex vertical=true>
+                                        <Flex>
+                                            "Wallet session"
+                                            <Button on_click=move |_| {
+                                                let topic = session.topic.clone();
+                                                leptos::task::spawn_local(async move {
+                                                    let client = clients.read_value().as_ref().unwrap().clone();
+                                                    let mut client = client.lock().await;
+                                                    match client.wallet_client.disconnect(topic).await {
+                                                        Ok(_) => {
+                                                            show_success_toast(toaster, "Disconnected".to_owned());
+                                                        }
+                                                        Err(e) => {
+                                                            show_error_toast(
+                                                                toaster,
+                                                                format!("Disconnect failed: {e}"),
+                                                            );
+                                                        }
                                                     }
-                                                    Err(e) => {
-                                                        show_error_toast(
-                                                            toaster,
-                                                            format!("Disconnect failed: {e}"),
-                                                        );
-                                                    }
-                                                }
-                                            });
-                                        }>"Disconnect"</Button>
+                                                });
+                                            }>"Disconnect"</Button>
+                                        </Flex>
+                                        <ul>
+                                            {move || {
+                                                session
+                                                    .session_namespaces
+                                                    .iter()
+                                                    .flat_map(|(_, settle_namespace)| {
+                                                        settle_namespace.accounts.iter()
+                                                    })
+                                                    .map(|account| {
+                                                        view! {
+                                                            <li>
+                                                                {account.clone()}
+                                                            </li>
+                                                        }
+                                                    })
+                                                    .collect::<Vec<_>>()
+                                            }}
+                                        </ul>
                                     </Flex>
                                 </li>
                             }
@@ -837,90 +899,106 @@ pub fn App() -> impl IntoView {
                         .iter()
                         .map(|session| {
                             let session = session.clone();
-                            let topic = session.topic.clone();
+                            let session2 = session.clone();
                             view! {
                                 <li>
-                                    <Flex>
-                                        "App session"
-                                        <Button on_click=move |_| {
-                                            let topic = topic.clone();
-                                            leptos::task::spawn_local(async move {
-                                                let client = clients.read_value().as_ref().unwrap().clone();
-                                                let mut client = client.lock().await;
-                                                match client.app_client.disconnect(topic).await {
-                                                    Ok(_) => {
-                                                        show_success_toast(
-                                                            toaster,
-                                                            "Disconnected (app)".to_owned(),
-                                                        );
-                                                    }
-                                                    Err(e) => {
-                                                        show_error_toast(
-                                                            toaster,
-                                                            format!("Disconnect failed (app): {e}"),
-                                                        );
-                                                    }
-                                                }
-                                            });
-                                        }>"Disconnect"</Button>
-                                        <Button
-                                            attr:data-testid="request-button"
-                                            on_click=move |_| {
-                                                let session = session.clone();
+                                    <Flex vertical=true>
+                                        <Flex>
+                                            "App session"
+                                            <Button on_click=move |_| {
+                                                let topic = session.topic.clone();
                                                 leptos::task::spawn_local(async move {
-                                                    let mut account = session
-                                                        .session_namespaces
-                                                        .iter()
-                                                        .next()
-                                                        .unwrap()
-                                                        .1
-                                                        .accounts
-                                                        .first()
-                                                        .unwrap()
-                                                        .splitn(3, ':');
-                                                    let namespace = account.next().unwrap().to_string();
-                                                    let chain_id = account.next().unwrap().to_string();
-                                                    let address = account.next().unwrap().to_string();
                                                     let client = clients.read_value().as_ref().unwrap().clone();
                                                     let mut client = client.lock().await;
-                                                    match client
-                                                        .app_client
-                                                        .request(
-                                                            session.topic,
-                                                            SessionRequest {
-                                                                chain_id: format!("{namespace}:{chain_id}"),
-                                                                request: SessionRequestRequest {
-                                                                    method: "personal_sign".to_string(),
-                                                                    params: serde_json::Value::Array(
-                                                                        vec![
-                                                                            serde_json::Value::String(address.to_string()),
-                                                                            serde_json::Value::String("0x00".to_string()),
-                                                                        ],
-                                                                    ),
-                                                                    expiry: None,
-                                                                },
-                                                            },
-                                                        )
-                                                        .await
-                                                    {
+                                                    match client.app_client.disconnect(topic).await {
                                                         Ok(_) => {
                                                             show_success_toast(
                                                                 toaster,
-                                                                "Successfully requested (app)".to_owned(),
+                                                                "Disconnected (app)".to_owned(),
                                                             );
                                                         }
                                                         Err(e) => {
                                                             show_error_toast(
                                                                 toaster,
-                                                                format!("Request failed (app): {e}"),
+                                                                format!("Disconnect failed (app): {e}"),
                                                             );
                                                         }
                                                     }
                                                 });
-                                            }
-                                        >
-                                            "Request"
-                                        </Button>
+                                            }>"Disconnect"</Button>
+                                        </Flex>
+                                        <ul>
+                                            {move || {
+                                                session2
+                                                    .session_namespaces
+                                                    .iter()
+                                                    .flat_map(|(_, settle_namespace)| {
+                                                        let topic = session2.topic.clone();
+                                                        settle_namespace.accounts.iter().map(move |account| {
+                                                            let account = account.clone();
+                                                            let topic = topic.clone();
+                                                            view! {
+                                                                <li>
+                                                                    <Flex>
+                                                                        {account.clone()}
+                                                                        <Button
+                                                                            attr:data-testid="request-button"
+                                                                            on_click=move |_| {
+                                                                                let account = account.clone();
+                                                                                let topic = topic.clone();
+                                                                                leptos::task::spawn_local(async move {
+                                                                                    let mut account_parts = account.splitn(3, ':');
+                                                                                    let namespace = account_parts.next().unwrap().to_string();
+                                                                                    let chain_id = account_parts.next().unwrap().to_string();
+                                                                                    let address = account_parts.next().unwrap().to_string();
+                                                                                    let client = clients.read_value().as_ref().unwrap().clone();
+                                                                                    let mut client = client.lock().await;
+                                                                                    match client
+                                                                                        .app_client
+                                                                                        .request(
+                                                                                            topic,
+                                                                                            SessionRequest {
+                                                                                                chain_id: format!("{namespace}:{chain_id}"),
+                                                                                                request: SessionRequestRequest {
+                                                                                                    method: "personal_sign".to_string(),
+                                                                                                    params: serde_json::Value::Array(
+                                                                                                        vec![
+                                                                                                            serde_json::Value::String(address.to_string()),
+                                                                                                            serde_json::Value::String("0x00".to_string()),
+                                                                                                        ],
+                                                                                                    ),
+                                                                                                    expiry: None,
+                                                                                                },
+                                                                                            },
+                                                                                        )
+                                                                                        .await
+                                                                                    {
+                                                                                        Ok(_) => {
+                                                                                            show_success_toast(
+                                                                                                toaster,
+                                                                                                "Successfully requested (app)".to_owned(),
+                                                                                            );
+                                                                                        }
+                                                                                        Err(e) => {
+                                                                                            show_error_toast(
+                                                                                                toaster,
+                                                                                                format!("Request failed (app): {e}"),
+                                                                                            );
+                                                                                        }
+                                                                                    }
+                                                                                });
+                                                                            }
+                                                                        >
+                                                                            "Request"
+                                                                        </Button>
+                                                                    </Flex>
+                                                                </li>
+                                                            }
+                                                        })
+                                                    })
+                                                    .collect::<Vec<_>>()
+                                            }}
+                                        </ul>
                                     </Flex>
                                 </li>
                             }
@@ -944,7 +1022,7 @@ pub fn App() -> impl IntoView {
                                             .map(|request| {
                                                 // TODO avoid flash here
                                                 view! {
-                                                    <DialogContent>{format!("{request:?}")}</DialogContent>
+                                                    <DialogContent>{format!("{:?}", request.1)}</DialogContent>
                                                     <DialogActions>
                                                         <Button
                                                             attr:data-testid="pairing-approve-button"
