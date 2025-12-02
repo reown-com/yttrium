@@ -470,7 +470,10 @@ fn descriptor_address_book(descriptor: &Descriptor) -> HashMap<String, String> {
             map.insert(normalize_address(&deployment.address), label.clone());
         }
     }
-    merge_address_book_entries(&mut map, descriptor.metadata.get("addressBook"));
+    merge_address_book_entries(
+        &mut map,
+        descriptor.metadata.get("addressBook"),
+    );
     map
 }
 
@@ -600,8 +603,9 @@ fn build_typed_address_book(
                 .and_then(|value| value.as_array())
             {
                 for deployment in deployments {
-                    let Some(address) =
-                        deployment.get("address").and_then(|value| value.as_str())
+                    let Some(address) = deployment
+                        .get("address")
+                        .and_then(|value| value.as_str())
                     else {
                         continue;
                     };
@@ -613,10 +617,7 @@ fn build_typed_address_book(
                 .or_insert_with(|| label.clone());
         }
 
-        merge_address_book_entries(
-            &mut map,
-            metadata.get("addressBook"),
-        );
+        merge_address_book_entries(&mut map, metadata.get("addressBook"));
     }
 
     merge_registry_entries(&mut map, chain_id);

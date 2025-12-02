@@ -14,15 +14,11 @@ const WETH_MAINNET: &str = "0xC02aaA39b223FE8D0A0E5C4F27eAD9083C756Cc2";
 const TEST_ROUTER: &str = "0xF00D000000000000000000000000000000000123";
 const AAVE_LPV2_MAINNET: &str = "0x7d2768de32b0b80b7a3454c06bdac94a69ddc7a9";
 const USDC: &str = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
-const USDC_OPTIMISM_NATIVE: &str =
-    "0x0b2c639c533813f4aa9d7837caf62653d097ff85";
-const USDC_ARBITRUM: &str =
-    "0xaf88d065e77c8cc2239327c5edb3a432268e5831";
+const USDC_OPTIMISM_NATIVE: &str = "0x0b2c639c533813f4aa9d7837caf62653d097ff85";
+const USDC_ARBITRUM: &str = "0xaf88d065e77c8cc2239327c5edb3a432268e5831";
 const USDC_BASE: &str = "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913";
-const USDT_ARBITRUM: &str =
-    "0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9";
-const BASE_BRIDGE_SPENDER: &str =
-    "0x6f26bf09b1c792e3228e5467807a900a503c0281";
+const USDT_ARBITRUM: &str = "0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9";
+const BASE_BRIDGE_SPENDER: &str = "0x6f26bf09b1c792e3228e5467807a900a503c0281";
 const DAI: &str = "0x6B175474E89094C44Da98b954EedeAC495271d0F";
 const ON_BEHALF_OF: &str = "0x1111111111111111111111111111111111111111";
 const UNIVERSAL_ROUTER_OPTIMISM: &str =
@@ -621,13 +617,8 @@ fn usdt_approve_all_on_optimism() {
         ],
     );
 
-    let model = format_with_value(
-        10,
-        USDT_OPTIMISM_CANONICAL,
-        None,
-        &calldata,
-    )
-    .expect("format succeeds");
+    let model = format_with_value(10, USDT_OPTIMISM_CANONICAL, None, &calldata)
+        .expect("format succeeds");
 
     assert_eq!(model.intent, "Approve USDT spending");
     assert!(model.warnings.is_empty());
@@ -741,13 +732,8 @@ fn native_usdc_approve_all_on_optimism() {
         ],
     );
 
-    let model = format_with_value(
-        10,
-        USDC_OPTIMISM_NATIVE,
-        None,
-        &calldata,
-    )
-    .expect("format succeeds");
+    let model = format_with_value(10, USDC_OPTIMISM_NATIVE, None, &calldata)
+        .expect("format succeeds");
 
     assert_eq!(model.intent, "Approve USDC spending");
     assert!(model.warnings.is_empty());
@@ -782,8 +768,8 @@ fn usdc_approve_all_on_arbitrum() {
         ],
     );
 
-    let model =
-        format_with_value(42161, USDC_ARBITRUM, None, &calldata).expect("format succeeds");
+    let model = format_with_value(42161, USDC_ARBITRUM, None, &calldata)
+        .expect("format succeeds");
 
     assert_eq!(model.intent, "Approve USDC spending");
     assert!(model.warnings.is_empty());
@@ -818,8 +804,8 @@ fn usdc_approve_all_on_base() {
         ],
     );
 
-    let model =
-        format_with_value(8453, USDC_BASE, None, &calldata).expect("format succeeds");
+    let model = format_with_value(8453, USDC_BASE, None, &calldata)
+        .expect("format succeeds");
 
     assert_eq!(model.intent, "Approve USDC spending");
     assert!(model.warnings.is_empty());
@@ -854,8 +840,8 @@ fn usdt_approve_all_on_arbitrum() {
         ],
     );
 
-    let model =
-        format_with_value(42161, USDT_ARBITRUM, None, &calldata).expect("format succeeds");
+    let model = format_with_value(42161, USDT_ARBITRUM, None, &calldata)
+        .expect("format succeeds");
 
     assert_eq!(model.intent, "Approve USDT spending");
     assert!(model.warnings.is_empty());

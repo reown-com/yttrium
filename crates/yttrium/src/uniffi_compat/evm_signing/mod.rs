@@ -203,18 +203,25 @@ pub fn sign_typed_data(
 
     // Extract message fields from the typed data
     // The message should contain: from, to, value, validAfter, validBefore, nonce
-    let message = typed_data.message.as_object()
-        .ok_or_else(|| EvmSigningError::InvalidTypedData("message is not an object".to_string()))?;
+    let message = typed_data.message.as_object().ok_or_else(|| {
+        EvmSigningError::InvalidTypedData(
+            "message is not an object".to_string(),
+        )
+    })?;
 
-    let from = message.get("from")
-        .and_then(|v| v.as_str())
-        .ok_or_else(|| EvmSigningError::InvalidTypedData("missing 'from' in message".to_string()))?;
+    let from =
+        message.get("from").and_then(|v| v.as_str()).ok_or_else(|| {
+            EvmSigningError::InvalidTypedData(
+                "missing 'from' in message".to_string(),
+            )
+        })?;
 
-    let to = message.get("to")
-        .and_then(|v| v.as_str())
-        .ok_or_else(|| EvmSigningError::InvalidTypedData("missing 'to' in message".to_string()))?;
+    let to = message.get("to").and_then(|v| v.as_str()).ok_or_else(|| {
+        EvmSigningError::InvalidTypedData("missing 'to' in message".to_string())
+    })?;
 
-    let value = message.get("value")
+    let value = message
+        .get("value")
         .map(|v| {
             if let Some(s) = v.as_str() {
                 s.to_string()
@@ -224,17 +231,32 @@ pub fn sign_typed_data(
                 v.to_string()
             }
         })
-        .ok_or_else(|| EvmSigningError::InvalidTypedData("missing 'value' in message".to_string()))?;
+        .ok_or_else(|| {
+            EvmSigningError::InvalidTypedData(
+                "missing 'value' in message".to_string(),
+            )
+        })?;
 
-    let valid_after = message.get("validAfter")
+    let valid_after = message
+        .get("validAfter")
         .and_then(|v| v.as_u64())
-        .ok_or_else(|| EvmSigningError::InvalidTypedData("missing 'validAfter' in message".to_string()))?;
+        .ok_or_else(|| {
+            EvmSigningError::InvalidTypedData(
+                "missing 'validAfter' in message".to_string(),
+            )
+        })?;
 
-    let valid_before = message.get("validBefore")
+    let valid_before = message
+        .get("validBefore")
         .and_then(|v| v.as_u64())
-        .ok_or_else(|| EvmSigningError::InvalidTypedData("missing 'validBefore' in message".to_string()))?;
+        .ok_or_else(|| {
+            EvmSigningError::InvalidTypedData(
+                "missing 'validBefore' in message".to_string(),
+            )
+        })?;
 
-    let nonce = message.get("nonce")
+    let nonce = message
+        .get("nonce")
         .map(|v| {
             if let Some(s) = v.as_str() {
                 s.to_string()
@@ -242,7 +264,11 @@ pub fn sign_typed_data(
                 v.to_string()
             }
         })
-        .ok_or_else(|| EvmSigningError::InvalidTypedData("missing 'nonce' in message".to_string()))?;
+        .ok_or_else(|| {
+            EvmSigningError::InvalidTypedData(
+                "missing 'nonce' in message".to_string(),
+            )
+        })?;
 
     // Construct the authorization object
     let auth = Erc3009Authorization {

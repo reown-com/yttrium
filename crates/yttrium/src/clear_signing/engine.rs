@@ -264,7 +264,7 @@ pub(crate) fn interpolate_template(
         if ch == '{' {
             let mut placeholder = String::new();
             let mut closed = false;
-            while let Some(next) = chars.next() {
+            for next in chars.by_ref() {
                 if next == '}' {
                     closed = true;
                     break;
