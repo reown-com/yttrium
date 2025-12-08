@@ -1,5 +1,8 @@
 pub mod log;
 
+#[cfg(feature = "pay")]
+pub mod pay;
+
 #[cfg(feature = "sign_client")]
 pub mod sign;
 
