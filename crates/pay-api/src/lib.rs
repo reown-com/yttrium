@@ -4,6 +4,10 @@ pub mod methods {
     pub const GET_PAYMENT: &str = "getPayment";
 }
 
+pub mod currencies {
+    pub const USD: &str = "iso4217/USD";
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct GetPaymentParams {
