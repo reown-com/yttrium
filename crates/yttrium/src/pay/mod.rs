@@ -1,6 +1,5 @@
 use {
     pay_api::{methods, GetPaymentParams, GetPaymentResponse},
-    relay_rpc::domain::ProjectId,
     serde::{Deserialize, Serialize},
 };
 
@@ -38,15 +37,13 @@ impl From<ApiError> for PayError {
 }
 
 pub struct WalletConnectPay {
-    _project_id: ProjectId,
     http_client: reqwest::Client,
     base_url: String,
 }
 
 impl WalletConnectPay {
-    pub fn new(project_id: ProjectId, base_url: String) -> Self {
+    pub fn new(base_url: String) -> Self {
         Self {
-            _project_id: project_id,
             http_client: reqwest::Client::new(),
             base_url,
         }
@@ -55,7 +52,7 @@ impl WalletConnectPay {
     pub async fn get_payment(
         &self,
         payment_id: String,
-        accounts: Option<Vec<String>>,
+        accounts: Vec<String>,
     ) -> Result<GetPaymentResponse, PayError> {
         let request = ApiRequest {
             method: methods::GET_PAYMENT.to_owned(),

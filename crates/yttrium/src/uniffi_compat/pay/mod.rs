@@ -1,8 +1,5 @@
-use {
-    crate::pay::{
-        PayError as CorePayError, WalletConnectPay as CoreWalletConnectPay,
-    },
-    relay_rpc::domain::ProjectId,
+use crate::pay::{
+    PayError as CorePayError, WalletConnectPay as CoreWalletConnectPay,
 };
 
 #[derive(Debug, thiserror::Error, uniffi::Error)]
@@ -30,14 +27,14 @@ pub struct WalletConnectPay {
 #[uniffi::export(async_runtime = "tokio")]
 impl WalletConnectPay {
     #[uniffi::constructor]
-    pub fn new(project_id: ProjectId, base_url: String) -> Self {
-        Self { inner: CoreWalletConnectPay::new(project_id, base_url) }
+    pub fn new(base_url: String) -> Self {
+        Self { inner: CoreWalletConnectPay::new(base_url) }
     }
 
     pub async fn get_payment(
         &self,
         payment_id: String,
-        accounts: Option<Vec<String>>,
+        accounts: Vec<String>,
     ) -> Result<(), PayError> {
         self.inner.get_payment(payment_id, accounts).await?;
         Ok(())

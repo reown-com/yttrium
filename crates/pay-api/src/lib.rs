@@ -21,8 +21,7 @@ pub struct CreatePayment {
 #[serde(rename_all = "camelCase")]
 pub struct GetPaymentParams {
     pub payment_id: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub accounts: Option<Vec<String>>,
+    pub accounts: Vec<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
