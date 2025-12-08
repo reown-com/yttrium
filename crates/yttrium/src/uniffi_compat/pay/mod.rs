@@ -22,15 +22,6 @@ impl From<CorePayError> for PayError {
     }
 }
 
-#[derive(Debug, Clone, uniffi::Record)]
-pub struct GetPaymentResponseFfi {}
-
-impl From<pay_api::GetPaymentResponse> for GetPaymentResponseFfi {
-    fn from(_: pay_api::GetPaymentResponse) -> Self {
-        Self {}
-    }
-}
-
 #[derive(uniffi::Object)]
 pub struct WalletConnectPay {
     inner: CoreWalletConnectPay,
@@ -47,8 +38,8 @@ impl WalletConnectPay {
         &self,
         payment_id: String,
         accounts: Option<Vec<String>>,
-    ) -> Result<GetPaymentResponseFfi, PayError> {
-        let response = self.inner.get_payment(payment_id, accounts).await?;
-        Ok(response.into())
+    ) -> Result<(), PayError> {
+        self.inner.get_payment(payment_id, accounts).await?;
+        Ok(())
     }
 }
