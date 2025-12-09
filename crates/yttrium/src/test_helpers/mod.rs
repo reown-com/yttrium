@@ -178,7 +178,9 @@ async fn use_faucet_unlimited(
     }
 
     if amount > faucet_balance {
-        panic!("not enough funds in faucet. Needed to send {amount} but only had {faucet_balance} available. Please add more funds to the faucet at {chain_id}:{faucet_address}");
+        panic!(
+            "not enough funds in faucet. Needed to send {amount} but only had {faucet_balance} available. Please add more funds to the faucet at {chain_id}:{faucet_address}"
+        );
     }
     let txn = TransactionRequest::default().with_to(to).with_value(amount);
     println!("sending txn: {txn:?}");

@@ -1,5 +1,6 @@
 // Based off: https://github.com/rhinestonewtf/module-sdk-tutorials/blob/main/src/smart-sessions/permissionless-safe-7702.ts
 
+#[cfg(any(feature = "test_local_bundler", feature = "test_pimlico_api"))]
 use {
     crate::{
         bundler::{
@@ -82,6 +83,7 @@ async fn test_pimlico() {
 }
 
 #[tokio::test]
+#[cfg(feature = "test_local_bundler")]
 async fn test_local() {
     let provider =
         ProviderBuilder::new().on_http(LOCAL_RPC_URL.parse().unwrap());
@@ -96,6 +98,7 @@ async fn test_local() {
     .await
 }
 
+#[cfg(any(feature = "test_local_bundler", feature = "test_pimlico_api"))]
 async fn test_impl(
     provider: impl Provider + Clone,
     faucet: PrivateKeySigner,

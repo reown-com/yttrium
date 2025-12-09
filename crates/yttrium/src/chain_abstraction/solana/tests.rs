@@ -202,7 +202,11 @@ async fn solana_happy_path() {
         }
 
         if U256::from(from_amount) > faucet_usdc_balance {
-            panic!("Faucet doesn't have enough USDC. Please send at least {} USDC to {}", from_amount, faucet.address());
+            panic!(
+                "Faucet doesn't have enough USDC. Please send at least {} USDC to {}",
+                from_amount,
+                faucet.address()
+            );
         }
 
         let transaction_request = quote["transactionRequest"].clone();

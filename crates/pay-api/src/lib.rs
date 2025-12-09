@@ -1,17 +1,29 @@
-use serde::{Deserialize, Serialize};
+#[cfg(feature = "uniffi")]
+uniffi::setup_scaffolding!();
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct CreatePayment {
-    pub amount: String, // amount as a string in decimal (must support u256 for ERC-20)
-    pub currency: String, // CAIP-19 or ISO 4217
-    pub reference_id: String, // 255 chars max custom reference ID
-}
+pub mod bodies;
+pub mod envelope;
+pub mod errors;
+
+#[cfg(test)]
+mod tests;
 
 pub mod methods {
     pub const CREATE_PAYMENT: &str = "createPayment";
+    pub const GET_PAYMENT: &str = "getPayment";
+    pub const BUILD_PAYMENT_REQUEST: &str = "buildPaymentRequest";
+    pub const CONFIRM_PAYMENT: &str = "confirmPayment";
 }
 
 pub mod currencies {
     pub const USD: &str = "iso4217/USD";
+}
+
+pub mod payment_states {
+    pub const REQUIRES_ACTION: &str = "requires_action";
+}
+
+pub mod headers {
+    pub const API_KEY: &str = "x-api-key";
+    pub const IDEMPOTENCY_KEY: &str = "idempotency-key";
 }

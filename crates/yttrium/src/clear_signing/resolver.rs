@@ -446,7 +446,7 @@ fn extract_includes(
         _ => {
             return Err(ResolverError::DescriptorParse(
                 "\"includes\" must be string or array".to_string(),
-            ))
+            ));
         }
     };
 

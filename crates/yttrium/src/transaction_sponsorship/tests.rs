@@ -1,3 +1,4 @@
+#[cfg(any(feature = "test_local_bundler", feature = "test_pimlico_api"))]
 use {
     crate::{
         call::Call,
@@ -55,6 +56,7 @@ async fn happy_path_pimlico() {
 }
 
 #[tokio::test]
+#[cfg(feature = "test_local_bundler")]
 async fn happy_path_local() {
     let chain_id = format!(
         "eip155:{}",
@@ -87,6 +89,7 @@ async fn happy_path_local() {
     happy_path_impl(chain_id, client, None).await
 }
 
+#[cfg(any(feature = "test_local_bundler", feature = "test_pimlico_api"))]
 async fn happy_path_impl(
     chain_id: String,
     client: GasAbstractionClient,
