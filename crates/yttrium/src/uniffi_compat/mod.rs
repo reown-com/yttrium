@@ -56,8 +56,8 @@ use {
         contract::Error as AlloyError,
         dyn_abi::Eip712Domain,
         primitives::{
-            aliases::U48, Address, Bytes, PrimitiveSignature, Uint, B256, U128,
-            U256, U64, U8,
+            Address, B256, Bytes, PrimitiveSignature, U8, U64, U128, U256,
+            Uint, aliases::U48,
         },
         rpc::types::{Authorization, TransactionReceipt, UserOperationReceipt},
         signers::local::PrivateKeySigner,
@@ -441,7 +441,7 @@ uniffi::custom_type!(StatusCode, u16, {
 mod tests {
     use {
         super::*,
-        alloy::primitives::{address, bytes, U32},
+        alloy::primitives::{U32, address, bytes},
     };
 
     #[test]

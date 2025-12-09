@@ -76,7 +76,7 @@ pub mod wallet_service_api;
 // Android JNI initialization for rustls-platform-verifier
 // TODO try to move this to uniffi_compat or kotlin-ffi
 #[cfg(all(target_os = "android", feature = "android"))]
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn Java_com_yttrium_YttriumKt_initializeTls(
     mut env: jni::JNIEnv,
     _class: jni::objects::JClass,
@@ -87,7 +87,7 @@ pub extern "C" fn Java_com_yttrium_YttriumKt_initializeTls(
 
 // Android JNI initialization for rustls-platform-verifier (utils variant)
 #[cfg(all(target_os = "android", feature = "android"))]
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn Java_com_yttrium_utils_YttriumUtilsKt_initializeTls(
     mut env: jni::JNIEnv,
     _class: jni::objects::JClass,

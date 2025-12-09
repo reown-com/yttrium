@@ -1,4 +1,4 @@
-use alloy::primitives::{aliases::U192, Address};
+use alloy::primitives::{Address, aliases::U192};
 
 // encodeValidatorNonce in Rhinestone SDK
 pub fn encode_validator_key(validator_module_address: Address) -> U192 {

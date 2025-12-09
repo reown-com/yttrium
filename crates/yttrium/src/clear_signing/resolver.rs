@@ -3,11 +3,11 @@
 use {
     super::{
         descriptor::{
+            Descriptor, DescriptorError, TokenLookupError, TokenLookupKey,
             build_descriptor, decode_arguments, determine_token_key,
-            native_token_key, resolve_effective_field, Descriptor,
-            DescriptorError, TokenLookupError, TokenLookupKey,
+            native_token_key, resolve_effective_field,
         },
-        token_registry::{lookup_token_by_caip19, TokenMeta},
+        token_registry::{TokenMeta, lookup_token_by_caip19},
     },
     serde::Deserialize,
     serde_json::Value,

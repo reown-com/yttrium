@@ -5,10 +5,10 @@ use {
     },
     alloy::{
         contract::{
-            private::{Network, Provider, Transport},
             Error,
+            private::{Network, Provider, Transport},
         },
-        primitives::{aliases::U192, U256},
+        primitives::{U256, aliases::U192},
     },
     core::clone::Clone,
 };

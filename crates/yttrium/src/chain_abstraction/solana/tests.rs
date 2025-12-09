@@ -11,11 +11,11 @@ use {
             tests::{Chain, SolanaChain, USDC_CONTRACT_BASE},
             ui_fields::RouteSig,
         },
-        erc20::{Token, ERC20},
+        erc20::{ERC20, Token},
         pulse::get_pulse_metadata,
         test_helpers::{
-            private_faucet, use_account, use_solana_account,
-            BRIDGE_ACCOUNT_SOLANA_1, BRIDGE_ACCOUNT_SOLANA_2,
+            BRIDGE_ACCOUNT_SOLANA_1, BRIDGE_ACCOUNT_SOLANA_2, private_faucet,
+            use_account, use_solana_account,
         },
         wallet_service_api::{
             AddressOrNative, Asset, GetAssetsFilters, GetAssetsParams,
@@ -24,8 +24,8 @@ use {
     alloy::{
         network::{EthereumWallet, TransactionBuilder},
         primitives::{
+            U64, U128, U256,
             utils::{ParseUnits, Unit},
-            U128, U256, U64,
         },
         rpc::types::TransactionRequest,
         signers::SignerSync,
@@ -222,19 +222,21 @@ async fn solana_happy_path() {
             .remaining;
         println!("Allowance: {allowance}");
         if allowance < send_amount * U256::from(2) {
-            assert!(usdc_erc20_faucet
-                .approve(
-                    bridge_contract,
-                    send_amount.checked_mul(U256::from(2)).unwrap()
-                )
-                .send()
-                .await
-                .unwrap()
-                .with_timeout(Some(Duration::from_secs(60)))
-                .get_receipt()
-                .await
-                .unwrap()
-                .status());
+            assert!(
+                usdc_erc20_faucet
+                    .approve(
+                        bridge_contract,
+                        send_amount.checked_mul(U256::from(2)).unwrap()
+                    )
+                    .send()
+                    .await
+                    .unwrap()
+                    .with_timeout(Some(Duration::from_secs(60)))
+                    .get_receipt()
+                    .await
+                    .unwrap()
+                    .status()
+            );
         }
 
         let transaction_request = TransactionRequest::default()
@@ -439,25 +441,27 @@ async fn solana_happy_path() {
         .await
         .unwrap();
     if account_eth_eth_balance < min_eth_balance {
-        assert!(ProviderBuilder::new()
-            .wallet(EthereumWallet::new(faucet.clone()))
-            .on_provider(
-                client.provider_pool.get_provider(chain_eth.caip2()).await
-            )
-            .send_transaction(
-                TransactionRequest::default()
-                    .with_chain_id(chain_eth.chain_id().parse().unwrap())
-                    .with_from(faucet.address())
-                    .with_to(account_eth.address())
-                    .with_value(min_eth_balance),
-            )
-            .await
-            .unwrap()
-            .with_timeout(Some(Duration::from_secs(60)))
-            .get_receipt()
-            .await
-            .unwrap()
-            .status());
+        assert!(
+            ProviderBuilder::new()
+                .wallet(EthereumWallet::new(faucet.clone()))
+                .on_provider(
+                    client.provider_pool.get_provider(chain_eth.caip2()).await
+                )
+                .send_transaction(
+                    TransactionRequest::default()
+                        .with_chain_id(chain_eth.chain_id().parse().unwrap())
+                        .with_from(faucet.address())
+                        .with_to(account_eth.address())
+                        .with_value(min_eth_balance),
+                )
+                .await
+                .unwrap()
+                .with_timeout(Some(Duration::from_secs(60)))
+                .get_receipt()
+                .await
+                .unwrap()
+                .status()
+        );
     }
 
     // Assert balance of EVM account USDC < $1
@@ -469,16 +473,18 @@ async fn solana_happy_path() {
         .unwrap()
         .balance;
     if account_eth_usdc_balance >= send_amount.div_ceil(U256::from(2)) {
-        assert!(usdc_erc20_account_eth
-            .transfer(faucet.address(), account_eth_usdc_balance)
-            .send()
-            .await
-            .unwrap()
-            .with_timeout(Some(Duration::from_secs(60)))
-            .get_receipt()
-            .await
-            .unwrap()
-            .status());
+        assert!(
+            usdc_erc20_account_eth
+                .transfer(faucet.address(), account_eth_usdc_balance)
+                .send()
+                .await
+                .unwrap()
+                .with_timeout(Some(Duration::from_secs(60)))
+                .get_receipt()
+                .await
+                .unwrap()
+                .status()
+        );
     }
 
     let account_sol_usdc_balance = client_sol

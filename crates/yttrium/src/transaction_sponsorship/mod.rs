@@ -21,19 +21,19 @@ use {
         smart_accounts::{
             nonce::get_nonce_with_key,
             safe::{
-                get_call_data, AddSafe7579Contract, Owners, SetupContract,
-                SAFE_4337_MODULE_ADDRESS, SAFE_ERC_7579_LAUNCHPAD_ADDRESS,
-                SAFE_L2_SINGLETON_1_4_1,
+                AddSafe7579Contract, Owners, SAFE_4337_MODULE_ADDRESS,
+                SAFE_ERC_7579_LAUNCHPAD_ADDRESS, SAFE_L2_SINGLETON_1_4_1,
+                SetupContract, get_call_data,
             },
         },
         test_helpers::anvil_faucet,
-        user_operation::{hash::get_user_operation_hash_v07, UserOperationV07},
+        user_operation::{UserOperationV07, hash::get_user_operation_hash_v07},
     },
     alloy::{
         hex::FromHex,
         network::{EthereumWallet, TransactionBuilder7702},
         primitives::{
-            eip191_hash_message, Address, Bytes, PrimitiveSignature, B256, U256,
+            Address, B256, Bytes, PrimitiveSignature, U256, eip191_hash_message,
         },
         rpc::types::{Authorization, UserOperationReceipt},
         signers::local::{LocalSigner, PrivateKeySigner},

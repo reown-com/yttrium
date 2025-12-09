@@ -1,7 +1,7 @@
 use {
     super::{
-        sign_and_send_transaction, sign_typed_data, EvmSigningError,
-        SignAndSendParams, SignAndSendResult,
+        EvmSigningError, SignAndSendParams, SignAndSendResult,
+        sign_and_send_transaction, sign_typed_data,
     },
     crate::{
         blockchain_api::BLOCKCHAIN_API_URL_PROD, provider_pool::ProviderPool,

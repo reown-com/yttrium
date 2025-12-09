@@ -395,7 +395,7 @@ async fn connect(
     #[cfg(target_arch = "wasm32")]
     {
         use {
-            wasm_bindgen::{prelude::Closure, JsCast},
+            wasm_bindgen::{JsCast, prelude::Closure},
             web_sys::{CloseEvent, Event, MessageEvent},
         };
 
@@ -1175,10 +1175,7 @@ pub async fn connect_loop_state_machine(
                 };
 
                 // Handle MaybeVerifiedRequest
-                let next_state = if let MaybeVerifiedRequest::Unverified(
-                    params,
-                ) = request
-                {
+                if let MaybeVerifiedRequest::Unverified(params) = request {
                     // Prepare the message first (allocates ID)
                     let prepared = prepare_websocket_message(
                         NextMessageId::new(MIN_RPC_ID),
@@ -1346,8 +1343,7 @@ pub async fn connect_loop_state_machine(
                         "Unexpected request type in ConnectRequest handler"
                     );
                     ConnectionState::Idle
-                };
-                next_state
+                }
             }
             ConnectionState::AwaitingConnectRequestResponse(
                 sent_message_id,
@@ -1851,11 +1847,13 @@ pub async fn connect_loop_state_machine(
                 let params = callback(attestation);
 
                 // Prepare and send the request with attestation
-                let prepared =
-                    prepare_websocket_message(message_id, params.clone())
-                        .expect(
-                        "Failed to serialize Params - this should never happen",
-                    );
+                let prepared = prepare_websocket_message(
+                    message_id,
+                    params.clone(),
+                )
+                .expect(
+                    "Failed to serialize Params - this should never happen",
+                );
 
                 match send_prepared_message(&ws, &prepared) {
                     Ok(()) => {

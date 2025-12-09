@@ -2,7 +2,7 @@ use {
     super::module::{Module, ModuleType},
     crate::smart_accounts::safe::Owners,
     alloy::{
-        primitives::{address, bytes, Address, Bytes, U256},
+        primitives::{Address, Bytes, U256, address, bytes},
         sol_types::SolValue,
     },
 };

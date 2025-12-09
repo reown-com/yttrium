@@ -1,5 +1,5 @@
 use {
-    chacha20poly1305::{aead::Aead, ChaCha20Poly1305, KeyInit, Nonce},
+    chacha20poly1305::{ChaCha20Poly1305, KeyInit, Nonce, aead::Aead},
     data_encoding::{BASE64, BASE64URL_NOPAD},
 };
 

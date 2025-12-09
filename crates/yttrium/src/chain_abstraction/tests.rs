@@ -1,6 +1,6 @@
 #[cfg(feature = "solana")]
 use super::solana::{
-    self, usdc_mint, SOLANA_MAINNET_CAIP2, SOLANA_MAINNET_CHAIN_ID,
+    self, SOLANA_MAINNET_CAIP2, SOLANA_MAINNET_CHAIN_ID, usdc_mint,
 };
 use {
     crate::{
@@ -9,12 +9,12 @@ use {
         chain_abstraction::{
             amount::Amount,
             api::{
+                Transaction,
                 prepare::{
                     BridgingError, Eip155OrSolanaAddress, PrepareResponse,
                     PrepareResponseError,
                 },
                 status::StatusResponse,
-                Transaction,
             },
             client::Client,
             currency::Currency,
@@ -22,33 +22,32 @@ use {
             test_helpers::floats_close,
             ui_fields::{RouteSig, TransactionFee, TxnDetails},
         },
-        erc20::{Token, ERC20},
+        erc20::{ERC20, Token},
         provider_pool::ProviderPool,
         pulse::get_pulse_metadata,
         test_helpers::{
-            private_faucet, use_account, use_faucet_gas, BRIDGE_ACCOUNT_1,
-            BRIDGE_ACCOUNT_2, BRIDGE_ACCOUNT_USDC_1557_1,
-            BRIDGE_ACCOUNT_USDC_1557_2,
+            BRIDGE_ACCOUNT_1, BRIDGE_ACCOUNT_2, BRIDGE_ACCOUNT_USDC_1557_1,
+            BRIDGE_ACCOUNT_USDC_1557_2, private_faucet, use_account,
+            use_faucet_gas,
         },
         time::Instant,
         wallet_service_api::{GetAssetsFilters, GetAssetsParams},
     },
+    ERC20::ERC20Instance,
     alloy::{
         network::{Ethereum, EthereumWallet, TransactionBuilder},
         primitives::{
-            address,
+            Address, TxKind, U64, U256, address,
             utils::{ParseUnits, Unit},
-            Address, TxKind, U256, U64,
         },
         rpc::types::TransactionRequest,
-        signers::{k256::ecdsa::SigningKey, local::LocalSigner, SignerSync},
+        signers::{SignerSync, k256::ecdsa::SigningKey, local::LocalSigner},
         sol_types::SolCall,
     },
     alloy_provider::{DynProvider, Provider, ProviderBuilder},
     reqwest::Client as ReqwestClient,
     serial_test::serial,
     std::{cmp::max, collections::HashMap, iter, time::Duration},
-    ERC20::ERC20Instance,
 };
 
 pub const USDC_CONTRACT_OPTIMISM: Address =
@@ -1359,14 +1358,16 @@ async fn happy_path_full_dependency_on_ui_fields() {
             .symbol,
         "USDC"
     );
-    assert!(result
-        .metadata
-        .funding_from
-        .first()
-        .unwrap()
-        .to_amount()
-        .formatted
-        .ends_with(" USDC"));
+    assert!(
+        result
+            .metadata
+            .funding_from
+            .first()
+            .unwrap()
+            .to_amount()
+            .formatted
+            .ends_with(" USDC")
+    );
     println!(
         "{}",
         result.metadata.funding_from.first().unwrap().to_amount().formatted
@@ -1380,14 +1381,16 @@ async fn happy_path_full_dependency_on_ui_fields() {
     //     .to_amount()
     //     .formatted
     //     .starts_with("2.25"));
-    assert!(result
-        .metadata
-        .funding_from
-        .first()
-        .unwrap()
-        .to_bridging_fee_amount()
-        .formatted
-        .starts_with("0."));
+    assert!(
+        result
+            .metadata
+            .funding_from
+            .first()
+            .unwrap()
+            .to_bridging_fee_amount()
+            .formatted
+            .starts_with("0.")
+    );
     assert!(
         result.metadata.funding_from.first().unwrap().amount <= required_amount
     );
@@ -2075,15 +2078,17 @@ async fn happy_path_execute_method() {
             .symbol,
         "USDC"
     );
-    assert!(result
-        .route_response
-        .metadata
-        .funding_from
-        .first()
-        .unwrap()
-        .to_amount()
-        .formatted
-        .ends_with(" USDC"));
+    assert!(
+        result
+            .route_response
+            .metadata
+            .funding_from
+            .first()
+            .unwrap()
+            .to_amount()
+            .formatted
+            .ends_with(" USDC")
+    );
     println!(
         "{}",
         result
@@ -2104,15 +2109,17 @@ async fn happy_path_execute_method() {
     //     .to_amount()
     //     .formatted
     //     .starts_with("2.25"));
-    assert!(result
-        .route_response
-        .metadata
-        .funding_from
-        .first()
-        .unwrap()
-        .to_bridging_fee_amount()
-        .formatted
-        .starts_with("0."));
+    assert!(
+        result
+            .route_response
+            .metadata
+            .funding_from
+            .first()
+            .unwrap()
+            .to_bridging_fee_amount()
+            .formatted
+            .starts_with("0.")
+    );
     assert!(
         result.route_response.metadata.funding_from.first().unwrap().amount
             <= required_amount
@@ -2807,15 +2814,17 @@ async fn happy_path_lifi() {
             .symbol,
         "USDC"
     );
-    assert!(result
-        .route_response
-        .metadata
-        .funding_from
-        .first()
-        .unwrap()
-        .to_amount()
-        .formatted
-        .ends_with(" USDC"));
+    assert!(
+        result
+            .route_response
+            .metadata
+            .funding_from
+            .first()
+            .unwrap()
+            .to_amount()
+            .formatted
+            .ends_with(" USDC")
+    );
     println!(
         "{}",
         result
@@ -2836,15 +2845,17 @@ async fn happy_path_lifi() {
     //     .to_amount()
     //     .formatted
     //     .starts_with("2.25"));
-    assert!(result
-        .route_response
-        .metadata
-        .funding_from
-        .first()
-        .unwrap()
-        .to_bridging_fee_amount()
-        .formatted
-        .starts_with("0."));
+    assert!(
+        result
+            .route_response
+            .metadata
+            .funding_from
+            .first()
+            .unwrap()
+            .to_bridging_fee_amount()
+            .formatted
+            .starts_with("0.")
+    );
     assert!(
         result.route_response.metadata.funding_from.first().unwrap().amount
             <= required_amount

@@ -7,7 +7,7 @@ use {
     },
     alloy::{
         consensus::{SignableTransaction, TxEnvelope},
-        primitives::{PrimitiveSignature, B256},
+        primitives::{B256, PrimitiveSignature},
         rpc::types::TransactionReceipt,
     },
     alloy_provider::Provider,

@@ -6,7 +6,7 @@ use {
     },
     serde::Deserialize,
     std::{cell::RefCell, rc::Rc, sync::Arc},
-    wasm_bindgen::{closure::Closure, JsCast},
+    wasm_bindgen::{JsCast, closure::Closure},
     web_sys::js_sys,
 };
 

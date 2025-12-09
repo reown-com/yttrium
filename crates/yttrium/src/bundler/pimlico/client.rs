@@ -52,11 +52,11 @@ mod tests {
         eyre::ensure,
     };
 
-    pub async fn setup_gas_estimation_bundler_mock(
-    ) -> eyre::Result<BundlerClient> {
+    pub async fn setup_gas_estimation_bundler_mock()
+    -> eyre::Result<BundlerClient> {
         use wiremock::{
-            matchers::{method, path},
             Mock, MockServer, ResponseTemplate,
+            matchers::{method, path},
         };
 
         let mock_server = MockServer::start().await;
