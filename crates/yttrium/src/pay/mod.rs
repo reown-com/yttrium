@@ -1,5 +1,8 @@
 use {
-    pay_api::{methods, GetPaymentParams, GetPaymentResponse},
+    pay_api::{
+        methods, ConfirmPaymentParams, ConfirmPaymentResponse, ConfirmResult,
+        GetPaymentParams, GetPaymentResponse,
+    },
     serde::{Deserialize, Serialize},
 };
 
@@ -65,6 +68,30 @@ impl WalletConnectPay {
             .send()
             .await?
             .json::<ApiResponse<GetPaymentResponse>>()
+            .await?;
+        match response {
+            ApiResponse::Success { data } => Ok(data),
+            ApiResponse::Error { error } => Err(error.into()),
+        }
+    }
+
+    pub async fn confirm_payment(
+        &self,
+        payment_id: String,
+        option_id: String,
+        results: Vec<ConfirmResult>,
+    ) -> Result<ConfirmPaymentResponse, PayError> {
+        let request = ApiRequest {
+            method: methods::CONFIRM_PAYMENT.to_owned(),
+            params: ConfirmPaymentParams { payment_id, option_id, results },
+        };
+        let response = self
+            .http_client
+            .post(format!("{}/v1/gateway", self.base_url))
+            .json(&request)
+            .send()
+            .await?
+            .json::<ApiResponse<ConfirmPaymentResponse>>()
             .await?;
         match response {
             ApiResponse::Success { data } => Ok(data),

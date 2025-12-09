@@ -19,6 +19,18 @@ impl From<CorePayError> for PayError {
     }
 }
 
+#[derive(Debug, Clone, uniffi::Record)]
+pub struct ConfirmResultFfi {
+    pub result_type: String,
+    pub value: String,
+}
+
+impl From<ConfirmResultFfi> for pay_api::ConfirmResult {
+    fn from(r: ConfirmResultFfi) -> Self {
+        Self { result_type: r.result_type, value: r.value }
+    }
+}
+
 #[derive(uniffi::Object)]
 pub struct WalletConnectPay {
     inner: CoreWalletConnectPay,
@@ -37,6 +49,17 @@ impl WalletConnectPay {
         accounts: Vec<String>,
     ) -> Result<(), PayError> {
         self.inner.get_payment(payment_id, accounts).await?;
+        Ok(())
+    }
+
+    pub async fn confirm_payment(
+        &self,
+        payment_id: String,
+        option_id: String,
+        results: Vec<ConfirmResultFfi>,
+    ) -> Result<(), PayError> {
+        let results = results.into_iter().map(Into::into).collect();
+        self.inner.confirm_payment(payment_id, option_id, results).await?;
         Ok(())
     }
 }
