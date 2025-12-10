@@ -1,9 +1,3 @@
-#[cfg(feature = "solana")]
-use solana_sdk::{
-    derivation_path::DerivationPath,
-    signature::{Keypair, generate_seed_from_seed_phrase_and_passphrase},
-    signer::{SeedDerivable, Signer},
-};
 use {
     alloy::{
         network::{EthereumWallet, TransactionBuilder},
@@ -16,6 +10,13 @@ use {
     },
     alloy_provider::{Provider, ProviderBuilder, ext::AnvilApi},
     std::time::Duration,
+};
+#[cfg(feature = "solana")]
+use {
+    solana_derivation_path::DerivationPath, solana_keypair::Keypair,
+    solana_seed_derivable::SeedDerivable,
+    solana_seed_phrase::generate_seed_from_seed_phrase_and_passphrase,
+    solana_signer::Signer,
 };
 
 pub fn private_faucet() -> LocalSigner<SigningKey> {

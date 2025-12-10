@@ -38,13 +38,12 @@ use {
     crate::chain_abstraction::solana::{
         self, SolanaKeypair, SolanaPubkey, SolanaSignature,
     },
-    solana_sdk::{
-        bs58,
-        derivation_path::DerivationPath,
-        signature::generate_seed_from_seed_phrase_and_passphrase,
-        signer::{SeedDerivable, Signer},
-        transaction::VersionedTransaction,
-    },
+    solana_derivation_path::DerivationPath,
+    solana_sdk::bs58,
+    solana_seed_derivable::SeedDerivable,
+    solana_seed_phrase::generate_seed_from_seed_phrase_and_passphrase,
+    solana_signer::Signer,
+    solana_transaction::versioned::VersionedTransaction,
 };
 #[cfg(feature = "sign_client")]
 use {
@@ -495,7 +494,7 @@ mod tests {
     #[cfg(feature = "solana")]
     #[test]
     fn test_solana_signature_lower() {
-        let ffi_u64 = solana_sdk::signature::Signature::from([0xab; 64]);
+        let ffi_u64 = solana_signature::Signature::from([0xab; 64]);
         let u = ::uniffi::FfiConverter::<crate::UniFfiTag>::lower(ffi_u64);
         let s: String =
             ::uniffi::FfiConverter::<crate::UniFfiTag>::try_lift(u).unwrap();

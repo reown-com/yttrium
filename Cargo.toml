@@ -14,7 +14,7 @@ eyre = { version = "0.6.12", features = ["default"], default-features = false }
 thiserror = { version = "1.0", default-features = false }
 
 # Async
-tokio = { version = "1.44", default-features = false }
+tokio = { version = "1.48.0", default-features = false }
 tokio-util = { version = "0.7.16", default-features = false }
 futures = { version = "0.3.31", default-features = false }
 
@@ -55,11 +55,19 @@ wasm-bindgen-futures = "0.4"
 tsify-next = "0.5.4"
 
 # Solana
-solana-sdk = { version = "2.2.2", default-features = false }
-solana-client = { version = "2.2.7", default-features = false }
-solana-seed-phrase = { version = "2.2.1", default-features = false }
-spl-token = { version = "8.0.0", default-features = false }
-spl-associated-token-account = { version = "7.0.0", default-features = false }
+solana-sdk = { version = "3.0.0", default-features = false }
+solana-client = { version = "3.1.4", default-features = false }
+solana-seed-phrase = { version = "3.0.0", default-features = false }
+solana-seed-derivable = { version = "3.0.0", default-features = false }
+solana-transaction = { version = "3.0.2", default-features = false }
+solana-signature = { version = "3.1.0", default-features = false }
+solana-signer = { version = "3.0.0", default-features = false }
+solana-keypair = { version = "3.1.0", default-features = false }
+solana-derivation-path = { version = "3.0.0", default-features = false }
+solana-commitment-config = { version = "3.0.0", default-features = false }
+solana-system-interface = { version = "3.0.0", default-features = false }
+spl-token = { version = "9.0.0", default-features = false }
+spl-associated-token-account = { version = "8.0.0", default-features = false }
 bincode = { version = "1.3.3", default-features = false }
 data-encoding = { version = "2.9.0", default-features = false }
 # Pin quinn to fix rustls-platform-verifier issue: https://github.com/rustls/rustls-platform-verifier/issues/164#issuecomment-2732380093
@@ -67,10 +75,10 @@ quinn = { version = "0.11.8", default-features = false }
 const_format = { version = "0.2.34", default-features = false }
 
 # SUI
-sui_sdk = { git = "https://github.com/mystenlabs/sui", package = "sui-sdk", default-features = false }
-sui_types = { git = "https://github.com/mystenlabs/sui", package = "sui-types", default-features = false }
-sui_keys = { git = "https://github.com/mystenlabs/sui", package = "sui-keys", default-features = false }
-sui_shared_crypto = { git = "https://github.com/mystenlabs/sui", package = "shared-crypto", default-features = false }
+sui_sdk = { git = "https://github.com/mystenlabs/sui", package = "sui-sdk", rev = "f9c8d50", default-features = false }
+sui_types = { git = "https://github.com/mystenlabs/sui", package = "sui-types",rev = "f9c8d50", default-features = false }
+sui_keys = { git = "https://github.com/mystenlabs/sui", package = "sui-keys",rev = "f9c8d50", default-features = false }
+sui_shared_crypto = { git = "https://github.com/mystenlabs/sui", package = "shared-crypto",rev = "f9c8d50", default-features = false }
 # https://github.com/MystenLabs/sui/blob/7214872434b3b0578fccc4d3e468371855a4ecf8/Cargo.toml#L624C1-L624C116
 fastcrypto = { git = "https://github.com/MystenLabs/fastcrypto", rev = "16fa86d0dd943024a9088d46850a72ecd55b7f46", default-features = false }
 rand = { version = "0.8.5", default-features = false }

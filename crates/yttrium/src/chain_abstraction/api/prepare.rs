@@ -12,7 +12,7 @@ use {
 #[cfg(feature = "solana")]
 use {
     crate::chain_abstraction::solana,
-    solana_sdk::transaction::VersionedTransaction,
+    solana_transaction::versioned::VersionedTransaction,
 };
 
 pub const ROUTE_ENDPOINT_PATH: &str = "/v2/ca/orchestrator/route";
