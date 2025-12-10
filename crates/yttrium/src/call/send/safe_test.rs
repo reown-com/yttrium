@@ -11,16 +11,16 @@ use {
         call::Call,
         chain::ChainId,
         config::Config,
-        entry_point::{EntryPointVersion, ENTRYPOINT_ADDRESS_V07},
+        entry_point::{ENTRYPOINT_ADDRESS_V07, EntryPointVersion},
         smart_accounts::{
             account_address::AccountAddress,
             nonce::get_nonce,
             safe::{
-                factory_data, get_account_address, get_call_data,
-                get_call_data_with_try, init_data, user_operation_to_safe_op,
-                Owners, Safe7579Launchpad, SafeOp, DUMMY_SIGNATURE,
-                SAFE_4337_MODULE_ADDRESS, SAFE_ERC_7579_LAUNCHPAD_ADDRESS,
-                SAFE_PROXY_FACTORY_1_4_1, SAFE_SINGLETON_1_4_1,
+                DUMMY_SIGNATURE, Owners, SAFE_4337_MODULE_ADDRESS,
+                SAFE_ERC_7579_LAUNCHPAD_ADDRESS, SAFE_PROXY_FACTORY_1_4_1,
+                SAFE_SINGLETON_1_4_1, Safe7579Launchpad, SafeOp, factory_data,
+                get_account_address, get_call_data, get_call_data_with_try,
+                init_data, user_operation_to_safe_op,
             },
         },
         user_operation::{Authorization, UserOperationV07},
@@ -28,12 +28,12 @@ use {
     alloy::{
         dyn_abi::{DynSolValue, Eip712Domain},
         primitives::{
-            aliases::U48, Address, Bytes, PrimitiveSignature, Uint, B256, U160,
-            U256, U64,
+            Address, B256, Bytes, PrimitiveSignature, U64, U160, U256, Uint,
+            aliases::U48,
         },
         providers::Provider,
         rpc::types::UserOperationReceipt,
-        signers::{k256::ecdsa::SigningKey, local::LocalSigner, SignerSync},
+        signers::{SignerSync, k256::ecdsa::SigningKey, local::LocalSigner},
         sol_types::{SolCall, SolStruct},
     },
     alloy_provider::ProviderBuilder,
@@ -447,15 +447,15 @@ mod tests {
             call::Call,
             chain::ChainId,
             smart_accounts::safe::{
-                prepare_sign, sign, sign_step_3, PreparedSignature,
-                SignOutputEnum,
+                PreparedSignature, SignOutputEnum, prepare_sign, sign,
+                sign_step_3,
             },
             test_helpers::{self, use_faucet},
         },
         alloy::{
             network::{TransactionBuilder, TransactionBuilder7702},
-            primitives::{eip191_hash_message, fixed_bytes, Bytes, U160, U64},
-            providers::{ext::AnvilApi, PendingTransactionConfig},
+            primitives::{Bytes, U64, U160, eip191_hash_message, fixed_bytes},
+            providers::{PendingTransactionConfig, ext::AnvilApi},
             rpc::types::TransactionRequest,
             sol,
         },
@@ -606,11 +606,13 @@ mod tests {
         // The UserOp is successful, but the transaction actually failed. See
         // note above near `Safe7579Launchpad::setupSafe`
         assert!(receipt.success);
-        assert!(!provider
-            .get_code_at(sender_address.into())
-            .await
-            .unwrap()
-            .is_empty());
+        assert!(
+            !provider
+                .get_code_at(sender_address.into())
+                .await
+                .unwrap()
+                .is_empty()
+        );
         assert_eq!(
             provider
                 .get_storage_at(sender_address.into(), Uint::from(0))
@@ -748,11 +750,13 @@ mod tests {
             Owners { owners: vec![owner.address()], threshold: 1 },
         )
         .await;
-        assert!(provider
-            .get_code_at(sender_address.into())
-            .await
-            .unwrap()
-            .is_empty());
+        assert!(
+            provider
+                .get_code_at(sender_address.into())
+                .await
+                .unwrap()
+                .is_empty()
+        );
 
         let transaction = vec![];
 
@@ -766,11 +770,13 @@ mod tests {
         .await?;
         assert!(receipt.success);
 
-        assert!(!provider
-            .get_code_at(sender_address.into())
-            .await
-            .unwrap()
-            .is_empty());
+        assert!(
+            !provider
+                .get_code_at(sender_address.into())
+                .await
+                .unwrap()
+                .is_empty()
+        );
 
         Ok(())
     }
@@ -861,11 +867,13 @@ mod tests {
         .await
         .unwrap();
         assert!(receipt.success);
-        assert!(!provider
-            .get_code_at(sender_address.into())
-            .await
-            .unwrap()
-            .is_empty());
+        assert!(
+            !provider
+                .get_code_at(sender_address.into())
+                .await
+                .unwrap()
+                .is_empty()
+        );
 
         let message = "test message";
         let message_hash = eip191_hash_message(message);
@@ -921,15 +929,17 @@ mod tests {
             .unwrap();
         assert_eq!(magic_value.magicValue, fixed_bytes!("1626ba7e"));
 
-        assert!(erc6492::verify_signature(
-            signature,
-            sender_address.into(),
-            message_hash,
-            &provider
-        )
-        .await
-        .unwrap()
-        .is_valid());
+        assert!(
+            erc6492::verify_signature(
+                signature,
+                sender_address.into(),
+                message_hash,
+                &provider
+            )
+            .await
+            .unwrap()
+            .is_valid()
+        );
     }
 
     #[tokio::test]
@@ -946,11 +956,13 @@ mod tests {
         let sender_address =
             get_account_address(provider.clone(), owners.clone()).await;
 
-        assert!(provider
-            .get_code_at(sender_address.into())
-            .await
-            .unwrap()
-            .is_empty());
+        assert!(
+            provider
+                .get_code_at(sender_address.into())
+                .await
+                .unwrap()
+                .is_empty()
+        );
 
         let message = "test message";
         let message_hash = eip191_hash_message(message);
@@ -992,27 +1004,33 @@ mod tests {
             }
         };
 
-        assert!(provider
-            .get_code_at(sender_address.into())
+        assert!(
+            provider
+                .get_code_at(sender_address.into())
+                .await
+                .unwrap()
+                .is_empty()
+        );
+
+        assert!(
+            erc6492::verify_signature(
+                signature,
+                sender_address.into(),
+                message_hash,
+                &provider
+            )
             .await
             .unwrap()
-            .is_empty());
+            .is_valid()
+        );
 
-        assert!(erc6492::verify_signature(
-            signature,
-            sender_address.into(),
-            message_hash,
-            &provider
-        )
-        .await
-        .unwrap()
-        .is_valid());
-
-        assert!(provider
-            .get_code_at(sender_address.into())
-            .await
-            .unwrap()
-            .is_empty());
+        assert!(
+            provider
+                .get_code_at(sender_address.into())
+                .await
+                .unwrap()
+                .is_empty()
+        );
     }
 
     #[tokio::test]
@@ -1047,11 +1065,13 @@ mod tests {
         .await
         .unwrap();
         assert!(receipt.success);
-        assert!(!provider
-            .get_code_at(sender_address.into())
-            .await
-            .unwrap()
-            .is_empty());
+        assert!(
+            !provider
+                .get_code_at(sender_address.into())
+                .await
+                .unwrap()
+                .is_empty()
+        );
         assert_eq!(
             provider
                 .get_storage_at(sender_address.into(), Uint::from(0))
@@ -1114,15 +1134,17 @@ mod tests {
             .unwrap();
         assert_eq!(magic_value.magicValue, fixed_bytes!("1626ba7e"));
 
-        assert!(erc6492::verify_signature(
-            signature,
-            sender_address.into(),
-            message_hash,
-            &provider
-        )
-        .await
-        .unwrap()
-        .is_valid());
+        assert!(
+            erc6492::verify_signature(
+                signature,
+                sender_address.into(),
+                message_hash,
+                &provider
+            )
+            .await
+            .unwrap()
+            .is_valid()
+        );
 
         let balance =
             provider.get_balance(destination.address()).await.unwrap();

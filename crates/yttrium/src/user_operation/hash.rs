@@ -1,9 +1,9 @@
 use {
     crate::user_operation::{
-        user_operation_hash::UserOperationHash, UserOperationV07,
+        UserOperationV07, user_operation_hash::UserOperationHash,
     },
     alloy::{
-        primitives::{keccak256, Address, Bytes, B256, U256},
+        primitives::{Address, B256, Bytes, U256, keccak256},
         sol_types::SolValue,
     },
 };

@@ -4,7 +4,7 @@ use {
         entry_point::EntryPointAddress,
         erc4337::get_user_operation_receipt,
         jsonrpc::{JSONRPCResponse, Request, Response},
-        time::{sleep, Duration, Instant},
+        time::{Duration, Instant, sleep},
         user_operation::UserOperationV07,
     },
     alloy::{primitives::Bytes, rpc::types::UserOperationReceipt},
@@ -152,11 +152,11 @@ mod tests {
         eyre::ensure,
     };
 
-    pub async fn setup_gas_estimation_bundler_mock(
-    ) -> eyre::Result<BundlerClient> {
+    pub async fn setup_gas_estimation_bundler_mock()
+    -> eyre::Result<BundlerClient> {
         use wiremock::{
-            matchers::{method, path},
             Mock, MockServer, ResponseTemplate,
+            matchers::{method, path},
         };
 
         let mock_server = MockServer::start().await;

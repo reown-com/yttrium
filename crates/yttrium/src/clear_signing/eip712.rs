@@ -1,12 +1,12 @@
 use {
     super::{
         descriptor::{
-            resolve_effective_field, DisplayField, DisplayFormat,
-            EffectiveField,
+            DisplayField, DisplayFormat, EffectiveField,
+            resolve_effective_field,
         },
         engine::{
-            format_amount_with_decimals, interpolate_template, parse_biguint,
-            resolve_metadata_value, DisplayItem, DisplayModel,
+            DisplayItem, DisplayModel, format_amount_with_decimals,
+            interpolate_template, parse_biguint, resolve_metadata_value,
         },
         resolver::{self, ResolvedTypedDescriptor},
         token_registry::lookup_token_by_caip19,
@@ -16,7 +16,7 @@ use {
     serde_json::Value,
     std::collections::HashMap,
     thiserror::Error,
-    time::{macros::format_description, OffsetDateTime},
+    time::{OffsetDateTime, macros::format_description},
 };
 
 #[derive(Debug, Clone, Deserialize)]
@@ -288,11 +288,7 @@ fn token_amount_message(
         parse_biguint(threshold_spec)
     }?;
 
-    if amount >= &threshold {
-        Some(message.to_string())
-    } else {
-        None
-    }
+    if amount >= &threshold { Some(message.to_string()) } else { None }
 }
 
 fn format_enum(

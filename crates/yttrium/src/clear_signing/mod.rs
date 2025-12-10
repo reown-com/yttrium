@@ -6,13 +6,13 @@ mod token_registry;
 
 use resolver::ResolverError;
 pub use {
-    eip712::{format_typed_data, Eip712Error, TypeMember, TypedData},
+    eip712::{Eip712Error, TypeMember, TypedData, format_typed_data},
     engine::{
-        format_with_resolved_call, DisplayItem, DisplayModel, EngineError,
-        RawPreview,
+        DisplayItem, DisplayModel, EngineError, RawPreview,
+        format_with_resolved_call,
     },
     resolver::{ResolvedCall, ResolvedDescriptor},
-    token_registry::{lookup_token_by_caip19, TokenMeta},
+    token_registry::{TokenMeta, lookup_token_by_caip19},
 };
 
 /// Formats a clear signing preview including an optional native value.

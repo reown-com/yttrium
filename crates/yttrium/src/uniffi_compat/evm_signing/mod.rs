@@ -8,13 +8,13 @@ use {
         dyn_abi::TypedData,
         network::TransactionBuilder,
         primitives::{
-            Address, Bytes, PrimitiveSignature, B256, U128, U256, U64,
+            Address, B256, Bytes, PrimitiveSignature, U64, U128, U256,
         },
         rlp,
         rpc::types::TransactionRequest,
-        signers::{local::PrivateKeySigner, SignerSync},
+        signers::{SignerSync, local::PrivateKeySigner},
     },
-    alloy_provider::{utils::Eip1559Estimation, Provider, RootProvider},
+    alloy_provider::{Provider, RootProvider, utils::Eip1559Estimation},
     serde::{Deserialize, Serialize},
     thiserror::Error,
 };
@@ -258,11 +258,7 @@ pub fn sign_typed_data(
     let nonce = message
         .get("nonce")
         .map(|v| {
-            if let Some(s) = v.as_str() {
-                s.to_string()
-            } else {
-                v.to_string()
-            }
+            if let Some(s) = v.as_str() { s.to_string() } else { v.to_string() }
         })
         .ok_or_else(|| {
             EvmSigningError::InvalidTypedData(

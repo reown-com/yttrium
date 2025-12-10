@@ -1,7 +1,8 @@
 use {
     crate::{
         sign::{
-            client::{generate_client_id_key, Client},
+            IncomingSessionMessage,
+            client::{Client, generate_client_id_key},
             client_errors::{
                 ApproveError, ConnectError, DisconnectError, EmitError,
                 ExtendError, PairError, RejectError, RequestError,
@@ -11,7 +12,6 @@ use {
             protocol_types::{
                 Metadata, ProtocolRpcId, SessionRequest, SettleNamespace,
             },
-            IncomingSessionMessage,
         },
         uniffi_compat::sign::{
             ffi_types::{

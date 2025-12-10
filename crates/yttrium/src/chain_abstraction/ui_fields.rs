@@ -2,8 +2,8 @@ use {
     super::{
         amount::Amount,
         api::{
-            prepare::PrepareResponseAvailable, FeeEstimatedTransaction,
-            Transaction,
+            FeeEstimatedTransaction, Transaction,
+            prepare::PrepareResponseAvailable,
         },
     },
     crate::chain_abstraction::{
@@ -11,7 +11,7 @@ use {
         api::fungible_price::{FungiblePriceItem, NATIVE_TOKEN_ADDRESS},
         local_fee_acc::LocalAmountAcc,
     },
-    alloy::primitives::{PrimitiveSignature, B256, U256},
+    alloy::primitives::{B256, PrimitiveSignature, U256},
     alloy_provider::utils::Eip1559Estimation,
     serde::{Deserialize, Serialize},
     tracing::warn,
@@ -355,7 +355,7 @@ mod tests {
             Eip155OrSolanaAddress, FundingMetadata, InitialTransactionMetadata,
             PrepareResponseMetadata, Transactions,
         },
-        alloy::primitives::{address, bytes, utils::Unit, Address, U64},
+        alloy::primitives::{Address, U64, address, bytes, utils::Unit},
         std::iter,
     };
 

@@ -9,8 +9,8 @@ use {
         traits::{EncodeDecodeBase64, KeyPair},
     },
     rand::{
-        rngs::{OsRng, StdRng},
         SeedableRng,
+        rngs::{OsRng, StdRng},
     },
     relay_rpc::domain::ProjectId,
     reqwest::Client as ReqwestClient,

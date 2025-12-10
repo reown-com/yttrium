@@ -1,6 +1,6 @@
 use {
-    alloy::primitives::{Address, U256, U64},
-    serde::{de, Deserialize, Deserializer, Serialize, Serializer},
+    alloy::primitives::{Address, U64, U256},
+    serde::{Deserialize, Deserializer, Serialize, Serializer, de},
     std::collections::HashMap,
 };
 

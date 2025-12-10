@@ -1,20 +1,20 @@
 use {
     super::{
         api::{
+            Transaction,
             fungible_price::{
-                PriceRequestBody, PriceResponseBody,
                 FUNGIBLE_PRICE_ENDPOINT_PATH, NATIVE_TOKEN_ADDRESS,
+                PriceRequestBody, PriceResponseBody,
             },
             prepare::{
                 CallOrCalls, PrepareRequest, PrepareRequestTransaction,
                 PrepareResponse, PrepareResponseAvailable,
-                PrepareResponseSuccess, RouteQueryParams, ROUTE_ENDPOINT_PATH,
+                PrepareResponseSuccess, ROUTE_ENDPOINT_PATH, RouteQueryParams,
             },
             status::{
-                StatusQueryParams, StatusResponse, StatusResponseCompleted,
-                STATUS_ENDPOINT_PATH,
+                STATUS_ENDPOINT_PATH, StatusQueryParams, StatusResponse,
+                StatusResponseCompleted,
             },
-            Transaction,
         },
         currency::Currency,
         error::{
@@ -22,7 +22,7 @@ use {
             PrepareDetailedResponse, PrepareDetailedResponseSuccess,
             PrepareError, StatusError, WaitForSuccessError,
         },
-        send_transaction::{send_transaction, TransactionAnalytics},
+        send_transaction::{TransactionAnalytics, send_transaction},
         ui_fields::{RouteSig, UiFields},
     },
     crate::{
@@ -32,23 +32,23 @@ use {
             api::{fungible_price::PriceQueryParams, prepare::Transactions},
             error::UiFieldsError,
             l1_data_fee::get_l1_data_fee,
-            pulse::{pulse, PULSE_SDK_TYPE},
+            pulse::{PULSE_SDK_TYPE, pulse},
             ui_fields::{self, EstimatedRouteTransaction, Route},
         },
         erc20::ERC20,
         provider_pool::ProviderPool,
         pulse::PulseMetadata,
         serde::{duration_millis, option_duration_millis, systemtime_millis},
-        time::{sleep, Duration, Instant, SystemTime},
+        time::{Duration, Instant, SystemTime, sleep},
         wallet_service_api::{GetAssetsParams, GetAssetsResult},
     },
     alloy::{
         network::TransactionBuilder,
-        primitives::{Address, PrimitiveSignature, B256, U256, U64},
+        primitives::{Address, B256, PrimitiveSignature, U64, U256},
         rpc::types::{TransactionReceipt, TransactionRequest},
         transports::TransportResult,
     },
-    alloy_provider::{utils::Eip1559Estimation, Provider},
+    alloy_provider::{Provider, utils::Eip1559Estimation},
     relay_rpc::domain::ProjectId,
     reqwest::Client as ReqwestClient,
     serde::{Deserialize, Serialize},

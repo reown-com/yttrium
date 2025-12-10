@@ -13,8 +13,8 @@ use {
         primitives::{Bytes, U256},
         providers::ProviderBuilder,
         signers::{
-            local::{LocalSigner, PrivateKeySigner},
             SignerSync,
+            local::{LocalSigner, PrivateKeySigner},
         },
     },
     alloy_provider::Provider,

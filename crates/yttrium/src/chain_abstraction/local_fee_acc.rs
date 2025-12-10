@@ -1,4 +1,4 @@
-use alloy::primitives::{utils::Unit, U256};
+use alloy::primitives::{U256, utils::Unit};
 
 struct Fee {
     fungible_amount: U256,

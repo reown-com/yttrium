@@ -1,7 +1,7 @@
 use {
     alloy::primitives::{
-        utils::{ParseUnits, Unit},
         U256,
+        utils::{ParseUnits, Unit},
     },
     serde::{Deserialize, Serialize},
 };

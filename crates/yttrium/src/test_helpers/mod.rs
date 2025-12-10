@@ -1,21 +1,20 @@
 #[cfg(feature = "solana")]
 use solana_sdk::{
     derivation_path::DerivationPath,
-    signature::{generate_seed_from_seed_phrase_and_passphrase, Keypair},
+    signature::{Keypair, generate_seed_from_seed_phrase_and_passphrase},
     signer::{SeedDerivable, Signer},
 };
 use {
     alloy::{
         network::{EthereumWallet, TransactionBuilder},
         primitives::{
-            keccak256,
+            Address, U256, keccak256,
             utils::{ParseUnits, Unit},
-            Address, U256,
         },
         rpc::types::TransactionRequest,
         signers::{k256::ecdsa::SigningKey, local::LocalSigner},
     },
-    alloy_provider::{ext::AnvilApi, Provider, ProviderBuilder},
+    alloy_provider::{Provider, ProviderBuilder, ext::AnvilApi},
     std::time::Duration,
 };
 
@@ -32,7 +31,7 @@ pub const BRIDGE_ACCOUNT_SOLANA_1: &str = "bridge_5";
 pub const BRIDGE_ACCOUNT_SOLANA_2: u32 = 1;
 
 pub fn use_account(name: Option<&str>) -> LocalSigner<SigningKey> {
-    use alloy::signers::local::{coins_bip39::English, MnemonicBuilder};
+    use alloy::signers::local::{MnemonicBuilder, coins_bip39::English};
     let mut builder = MnemonicBuilder::<English>::default().phrase(
         std::env::var("FAUCET_MNEMONIC")
             .expect("You've not set the FAUCET_MNEMONIC environment variable"),

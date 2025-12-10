@@ -2,32 +2,32 @@ use {
     crate::{
         bundler::pimlico::paymaster::client::PaymasterClient,
         call::{
-            send::safe_test::{
-                encode_send_transactions, prepare_send_transactions_inner,
-                DoSendTransactionParams, OwnerSignature,
-                PreparedSendTransaction,
-            },
             Call,
+            send::safe_test::{
+                DoSendTransactionParams, OwnerSignature,
+                PreparedSendTransaction, encode_send_transactions,
+                prepare_send_transactions_inner,
+            },
         },
         entry_point::{
-            EntryPoint::{self, PackedUserOperation},
             ENTRYPOINT_ADDRESS_V07,
+            EntryPoint::{self, PackedUserOperation},
         },
         erc7579::addresses::RHINESTONE_ATTESTER_ADDRESS,
         smart_accounts::account_address::AccountAddress,
         user_operation::{
+            UserOperationV07,
             hash::pack_v07::{
                 combine::combine_and_trim_first_16_bytes,
                 hashed_paymaster_and_data::get_data,
             },
-            UserOperationV07,
         },
     },
     alloy::{
         dyn_abi::{DynSolValue, Eip712Domain},
         primitives::{
-            address, aliases::U48, bytes, keccak256, Address, Bytes,
-            FixedBytes, Uint, B256, U128, U256, U64,
+            Address, B256, Bytes, FixedBytes, U64, U128, U256, Uint, address,
+            aliases::U48, bytes, keccak256,
         },
         providers::Provider,
         sol,
@@ -140,7 +140,7 @@ pub const SAFE_ERC_7579_LAUNCHPAD_ADDRESS: Address =
 pub const SAFE_4337_MODULE_ADDRESS: Address =
     // address!("75cf11467937ce3F2f357CE24ffc3DBF8fD5c226"); // this is the safe 4337 module, not the one for 7579 (https://reown-inc.slack.com/archives/C077RPLSZ71/p1733866031056889?thread_ts=1729617897.410709&cid=C077RPLSZ71): https://github.com/safe-global/safe-modules/blob/d4f59362e9b16291feb88f14090fcf2311686e74/modules/4337/CHANGELOG.md?plain=1#L28
     address!("7579EE8307284F293B1927136486880611F20002"); // what recent docs use
-                                                          // address!("3Fdb5BC686e861480ef99A6E3FaAe03c0b9F32e2"); // old version
+// address!("3Fdb5BC686e861480ef99A6E3FaAe03c0b9F32e2"); // old version
 
 // https://github.com/safe-global/safe-smart-account/blob/main/CHANGELOG.md#expected-addresses-with-safe-singleton-factory-2
 pub const SAFE_SINGLETON_1_4_1: Address =

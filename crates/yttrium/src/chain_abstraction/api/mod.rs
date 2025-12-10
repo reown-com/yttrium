@@ -4,7 +4,7 @@ use {
     alloy::{
         consensus::{SignableTransaction, TxEip1559},
         network::TransactionBuilder,
-        primitives::{Address, Bytes, B256, U128, U256, U64},
+        primitives::{Address, B256, Bytes, U64, U128, U256},
         rpc::types::TransactionRequest,
     },
     alloy_provider::utils::Eip1559Estimation,

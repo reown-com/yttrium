@@ -2,12 +2,12 @@ pub use std::time::Duration;
 #[cfg(target_arch = "wasm32")]
 pub use wasmtimer::{
     std::{Instant, SystemTime, UNIX_EPOCH},
-    tokio::{sleep, timeout, Sleep},
+    tokio::{Sleep, sleep, timeout},
 };
 #[cfg(not(target_arch = "wasm32"))]
 pub use {
     std::time::{Instant, SystemTime, UNIX_EPOCH},
-    tokio::time::{sleep, timeout, Sleep},
+    tokio::time::{Sleep, sleep, timeout},
 };
 
 // sleep() returns a future that can only be awaited once. If you use select! it will drop the sleep and cannot be used again

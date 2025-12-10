@@ -3,8 +3,8 @@ use {
     serde_json::json,
     tiny_keccak::{Hasher, Keccak},
     yttrium::clear_signing::{
-        format_typed_data, format_with_value, DisplayItem, EngineError,
-        TypedData,
+        DisplayItem, EngineError, TypedData, format_typed_data,
+        format_with_value,
     },
 };
 

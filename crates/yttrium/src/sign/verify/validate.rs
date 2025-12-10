@@ -3,7 +3,7 @@ use {
         storage::{Storage, StorageError},
         utils::{DecryptedHash, EncryptedHash},
     },
-    jsonwebtoken::{jwk::Jwk, Algorithm, DecodingKey, Validation},
+    jsonwebtoken::{Algorithm, DecodingKey, Validation, jwk::Jwk},
     serde::{Deserialize, Serialize},
     std::sync::Arc,
     tracing::Instrument,
@@ -471,8 +471,8 @@ mod tests {
         relay_rpc::domain::Topic,
         sha2::Digest,
         wiremock::{
-            matchers::{method, path},
             Mock, MockServer, ResponseTemplate,
+            matchers::{method, path},
         },
     };
 

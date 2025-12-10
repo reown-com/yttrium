@@ -26,9 +26,9 @@
 use {
     crate::sign::{
         client_types::Session,
-        envelope_type0::{encode_envelope_type0, EnvelopeType0},
+        envelope_type0::{EnvelopeType0, encode_envelope_type0},
     },
-    chacha20poly1305::{aead::Aead, AeadCore, ChaCha20Poly1305, KeyInit},
+    chacha20poly1305::{AeadCore, ChaCha20Poly1305, KeyInit, aead::Aead},
     data_encoding::BASE64,
     relay_rpc::domain::Topic,
     serde::Serialize,
