@@ -1,3 +1,6 @@
+#[cfg(feature = "uniffi")]
+uniffi::setup_scaffolding!();
+
 use serde::{Deserialize, Serialize};
 
 pub mod methods {
@@ -26,6 +29,7 @@ pub struct GetPaymentParams {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
 #[serde(rename_all = "camelCase")]
 pub struct GetPaymentResponse {}
 
@@ -38,6 +42,7 @@ pub struct ConfirmPaymentParams {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
 #[serde(rename_all = "camelCase")]
 pub struct ConfirmResult {
     #[serde(rename = "type")]
@@ -46,5 +51,6 @@ pub struct ConfirmResult {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
 #[serde(rename_all = "camelCase")]
 pub struct ConfirmPaymentResponse {}

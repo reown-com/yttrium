@@ -5,5 +5,9 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 
+[features]
+uniffi = ["dep:uniffi"]
+
 [dependencies]
 serde = { workspace = true, features = ["std"] }
+uniffi = { workspace = true, optional = true }
