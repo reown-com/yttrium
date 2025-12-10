@@ -48,8 +48,10 @@ impl WalletConnectPay {
         payment_id: String,
         accounts: Vec<String>,
     ) -> Result<GetPaymentResponse, PayError> {
-        let request =
-            GatewayRequest::GetPayment(GetPaymentParams { payment_id, accounts });
+        let request = GatewayRequest::GetPayment(GetPaymentParams {
+            payment_id,
+            accounts,
+        });
         let response = self
             .http_client
             .post(format!("{}{}", self.base_url, endpoints::GATEWAY))

@@ -11,6 +11,7 @@ mod tests;
 pub mod methods {
     pub const CREATE_PAYMENT: &str = "createPayment";
     pub const GET_PAYMENT_STATUS: &str = "getPaymentStatus";
+    pub const GET_PAYMENT: &str = "getPayment";
     pub const BUILD_PAYMENT_REQUEST: &str = "buildPaymentRequest";
     pub const CONFIRM_PAYMENT: &str = "confirmPayment";
 }
@@ -26,7 +27,8 @@ pub mod payment_states {
     pub const FAILED: &str = "failed";
     pub const EXPIRED: &str = "expired";
 
-    pub const ALL: [&str; 5] = [REQUIRES_ACTION, PROCESSING, SUCCEEDED, FAILED, EXPIRED];
+    pub const ALL: [&str; 5] =
+        [REQUIRES_ACTION, PROCESSING, SUCCEEDED, FAILED, EXPIRED];
 }
 
 pub mod headers {

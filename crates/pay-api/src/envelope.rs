@@ -8,6 +8,7 @@ use {
 pub enum GatewayRequest {
     CreatePayment(bodies::create_payment::CreatePayment),
     GetPaymentStatus(bodies::get_payment_status::GetPaymentStatusParams),
+    GetPayment(bodies::get_payment::GetPaymentParams),
     BuildPaymentRequest,
     ConfirmPayment(bodies::confirm_payment::ConfirmPaymentParams),
 }
@@ -17,7 +18,10 @@ impl GatewayRequest {
         match self {
             GatewayRequest::CreatePayment(_) => methods::CREATE_PAYMENT,
             GatewayRequest::GetPaymentStatus(_) => methods::GET_PAYMENT_STATUS,
-            GatewayRequest::BuildPaymentRequest => methods::BUILD_PAYMENT_REQUEST,
+            GatewayRequest::BuildPaymentRequest => {
+                methods::BUILD_PAYMENT_REQUEST
+            }
+            GatewayRequest::GetPayment(_) => methods::GET_PAYMENT,
             GatewayRequest::ConfirmPayment(_) => methods::CONFIRM_PAYMENT,
         }
     }
