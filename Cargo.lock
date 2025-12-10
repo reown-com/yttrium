@@ -4702,7 +4702,7 @@ dependencies = [
 [[package]]
 name = "erc6492"
 version = "0.1.0"
-source = "git+https://github.com/reown-com/erc6492.git?branch=push-nrrrvtwooozr#f1bde5f6fa8d2b920ae5f3372ea2c7b26313fd8d"
+source = "git+https://github.com/reown-com/erc6492.git?rev=5e4580a#5e4580a47721b92f5631f7db095332ca74bfd248"
 dependencies = [
  "alloy",
 ]
