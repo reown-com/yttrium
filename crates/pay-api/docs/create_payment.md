@@ -38,6 +38,7 @@ Creates a new payment intent.
 | `amount.value` | string | Amount in minor units. |
 | `expiresAt` | number | Unix timestamp (seconds) when the payment expires. |
 | `pollInMs` | number | Recommended polling interval in milliseconds. |
+| `gatewayUrl` | string | URL for the payment gateway endpoint to process this payment. |
 
 ### Example Response
 
@@ -50,7 +51,8 @@ Creates a new payment intent.
     "value": "1000"
   },
   "expiresAt": 1733126400,
-  "pollInMs": 1000
+  "pollInMs": 1000,
+  "gatewayUrl": "https://pay.walletconnect.com/v1/gateway"
 }
 ```
 
