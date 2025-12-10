@@ -1,14 +1,20 @@
 use crate::{
-    bodies::create_payment::{CreatePayment, CreatePaymentResponse},
+    bodies::{
+        create_payment::{Amount, CreatePayment, CreatePaymentResponse},
+        get_payment::{GetPaymentParams, GetPaymentResponse},
+        get_payment_status::{GetPaymentStatusParams, GetPaymentStatusResponse},
+    },
     envelope::{ErrorResponse, GatewayRequest, GatewayResponse},
 };
 
 #[test]
 fn test_create_payment_request_serialize() {
     let input = GatewayRequest::CreatePayment(CreatePayment {
-        amount: "100".to_string(),
-        currency: "iso4217/USD".to_string(),
-        reference_id: "123".to_string(),
+        reference_id: "ORDER-456".to_string(),
+        amount: Amount {
+            unit: "iso4217/USD".to_string(),
+            value: "1000".to_string(),
+        },
     });
     let result = serde_json::to_value(input).unwrap();
     assert_eq!(
@@ -16,9 +22,11 @@ fn test_create_payment_request_serialize() {
         serde_json::json!({
             "method": "createPayment",
             "params": {
-                "amount": "100",
-                "currency": "iso4217/USD",
-                "referenceId": "123",
+                "referenceId": "ORDER-456",
+                "amount": {
+                    "unit": "iso4217/USD",
+                    "value": "1000",
+                },
             },
         })
     );
@@ -29,9 +37,11 @@ fn test_create_payment_request_deserialize() {
     let input = serde_json::json!({
         "method": "createPayment",
         "params": {
-            "amount": "100",
-            "currency": "iso4217/USD",
-            "referenceId": "123",
+            "referenceId": "ORDER-456",
+            "amount": {
+                "unit": "iso4217/USD",
+                "value": "1000",
+            },
         },
     });
     let result = serde_json::from_value::<GatewayRequest>(input).unwrap();
@@ -39,20 +49,41 @@ fn test_create_payment_request_deserialize() {
     let GatewayRequest::CreatePayment(request) = result else {
         panic!("Expected CreatePayment request");
     };
-    assert_eq!(request.amount, "100");
-    assert_eq!(request.currency, "iso4217/USD");
-    assert_eq!(request.reference_id, "123");
+    assert_eq!(
+        request.amount,
+        Amount {
+            unit: "iso4217/USD".to_string(),
+            value: "1000".to_string(),
+        }
+    );
+    assert_eq!(request.reference_id, "ORDER-456");
 }
 
 #[test]
 fn test_create_payment_response_success() {
     let input = GatewayResponse::Success {
-        data: CreatePaymentResponse { payment_id: "123".to_string() },
+        data: CreatePaymentResponse {
+            payment_id: "pay_123".to_string(),
+            status: "requires_action".to_string(),
+            amount: Amount {
+                unit: "iso4217/USD".to_string(),
+                value: "1000".to_string(),
+            },
+            expires_at: 1733000000,
+            poll_in_ms: 1000,
+        },
     };
     let expected = serde_json::json!({
         "status": "success",
         "data": {
-            "paymentId": "123",
+            "paymentId": "pay_123",
+            "status": "requires_action",
+            "amount": {
+                "unit": "iso4217/USD",
+                "value": "1000",
+            },
+            "expiresAt": 1733000000,
+            "pollInMs": 1000,
         },
     });
     assert_eq!(serde_json::to_value(input).unwrap(), expected);
@@ -71,6 +102,122 @@ fn test_create_payment_response_error() {
         "error": {
             "code": "123",
             "message": "error",
+        },
+    });
+    assert_eq!(serde_json::to_value(input).unwrap(), expected);
+}
+
+#[test]
+fn test_get_payment_request_serialize() {
+    let input = GatewayRequest::GetPayment(GetPaymentParams {
+        payment_id: "pay_123".to_string(),
+        accounts: vec!["0x123".to_string()],
+    });
+    let result = serde_json::to_value(input).unwrap();
+    assert_eq!(
+        result,
+        serde_json::json!({
+            "method": "getPayment",
+            "params": {
+                "paymentId": "pay_123",
+                "accounts": ["0x123"],
+            },
+        })
+    );
+}
+
+#[test]
+fn test_get_payment_request_deserialize_with_accounts() {
+    let input = serde_json::json!({
+        "method": "getPayment",
+        "params": {
+            "paymentId": "pay_123",
+            "accounts": ["0x123"],
+        },
+    });
+    let result = serde_json::from_value::<GatewayRequest>(input).unwrap();
+    let GatewayRequest::GetPayment(params) = result else {
+        panic!("Expected GetPayment request");
+    };
+    assert_eq!(params.payment_id, "pay_123");
+    assert_eq!(params.accounts, vec!["0x123"]);
+}
+
+#[test]
+fn test_get_payment_response_success() {
+    let input = GatewayResponse::Success {
+        data: GetPaymentResponse {
+            payment_id: "pay_123".to_string(),
+            status: "requires_action".to_string(),
+            amount: Amount {
+                unit: "iso4217/USD".to_string(),
+                value: "1000".to_string(),
+            },
+            options: vec![],
+        },
+    };
+    let expected = serde_json::json!({
+        "status": "success",
+        "data": {
+            "paymentId": "pay_123",
+            "status": "requires_action",
+            "amount": {
+                "unit": "iso4217/USD",
+                "value": "1000",
+            },
+            "options": [],
+        },
+    });
+    assert_eq!(serde_json::to_value(input).unwrap(), expected);
+}
+
+#[test]
+fn test_get_payment_status_request_serialize() {
+    let input = GatewayRequest::GetPaymentStatus(GetPaymentStatusParams {
+        payment_id: "pay_123".to_string(),
+    });
+    let result = serde_json::to_value(input).unwrap();
+    assert_eq!(
+        result,
+        serde_json::json!({
+            "method": "getPaymentStatus",
+            "params": {
+                "paymentId": "pay_123",
+            },
+        })
+    );
+}
+
+#[test]
+fn test_get_payment_status_request_deserialize() {
+    let input = serde_json::json!({
+        "method": "getPaymentStatus",
+        "params": {
+            "paymentId": "pay_123",
+        },
+    });
+    let result = serde_json::from_value::<GatewayRequest>(input).unwrap();
+    let GatewayRequest::GetPaymentStatus(params) = result else {
+        panic!("Expected GetPaymentStatus request");
+    };
+    assert_eq!(params.payment_id, "pay_123");
+}
+
+#[test]
+fn test_get_payment_status_response_success() {
+    let input = GatewayResponse::Success {
+        data: GetPaymentStatusResponse {
+            payment_id: "pay_123".to_string(),
+            status: "requires_action".to_string(),
+            poll_in_ms: 1000,
+        },
+    };
+    let expected = serde_json::json!({
+        "status": "success",
+        "data": {
+            "paymentId": "pay_123",
+            "status": "requires_action",
+            "pollInMs": 1000,
         },
     });
     assert_eq!(serde_json::to_value(input).unwrap(), expected);

@@ -13,12 +13,13 @@ Requests use a tagged union format with `method` identifying the operation and `
 
 ### Available Methods
 
-| Method | Description |
-|--------|-------------|
-| [`createPayment`](./create_payment.md) | Create a new payment intent. |
-| `getPayment` | Retrieve payment details. |
-| `buildPaymentRequest` | Build a payment transaction request. |
-| `confirmPayment` | Confirm a completed payment. |
+| Method | Description | Consumer |
+|--------|-------------|----------|
+| [`createPayment`](./create_payment.md) | Create a new payment intent. | POS / PSP |
+| [`getPaymentStatus`](./get_payment_status.md) | Poll for payment status updates. | POS / PSP |
+| [`getPayment`](./get_payment.md) | Retrieve payment details and options. | Wallets |
+| `confirmPayment` | Execute payment (blocking, returns final status). | Wallets |
+| `buildPaymentRequest` | Build a payment transaction request. | Internal |
 
 ### Example Request
 
@@ -26,9 +27,11 @@ Requests use a tagged union format with `method` identifying the operation and `
 {
   "method": "createPayment",
   "params": {
-    "amount": "1000",
-    "currency": "iso4217/USD",
-    "referenceId": "order-123"
+    "referenceId": "ORDER-456",
+    "amount": {
+      "unit": "iso4217/USD",
+      "value": "1000"
+    }
   }
 }
 ```
@@ -50,7 +53,14 @@ Responses use a tagged union format with `status` indicating success or error.
 {
   "status": "success",
   "data": {
-    "paymentId": "wcp_payment_7XJkF2nPqR9vL5mT3hYwZ6aB4cD8eG1j"
+    "paymentId": "wcp_payment_7XJkF2nPqR9vL5mT3hYwZ6aB4cD8eG1j",
+    "status": "requires_action",
+    "amount": {
+      "unit": "iso4217/USD",
+      "value": "1000"
+    },
+    "expiresAt": 1733126400,
+    "pollInMs": 1000
   }
 }
 ```

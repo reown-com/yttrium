@@ -11,6 +11,7 @@ mod tests;
 pub mod methods {
     pub const CREATE_PAYMENT: &str = "createPayment";
     pub const GET_PAYMENT: &str = "getPayment";
+    pub const GET_PAYMENT_STATUS: &str = "getPaymentStatus";
     pub const BUILD_PAYMENT_REQUEST: &str = "buildPaymentRequest";
     pub const CONFIRM_PAYMENT: &str = "confirmPayment";
 }

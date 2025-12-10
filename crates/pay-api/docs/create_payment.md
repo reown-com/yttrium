@@ -10,17 +10,20 @@ Creates a new payment intent.
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `amount` | string | Yes | Payment amount as a string in minor units (e.g., cents for USD). Must be a positive integer without decimals or leading zeros. Max 100 characters. |
-| `currency` | string | Yes | Currency identifier in ISO 4217 format prefixed with `iso4217/` (e.g., `iso4217/USD`). |
 | `referenceId` | string | No | Custom merchant reference ID. Max 35 characters. Only letters, digits, spaces, and `/ - : . , +` allowed. |
+| `amount` | object | Yes | Payment amount details. |
+| `amount.unit` | string | Yes | Currency identifier in ISO 4217 format prefixed with `iso4217/` (e.g., `iso4217/USD`). |
+| `amount.value` | string | Yes | Payment amount as a string in minor units (e.g., cents for USD). Must be a positive integer without decimals or leading zeros. Max 100 characters. |
 
 ### Example Request
 
 ```json
 {
-  "amount": "1000",
-  "currency": "iso4217/USD",
-  "referenceId": "order-123"
+  "referenceId": "ORDER-456",
+  "amount": {
+    "unit": "iso4217/USD",
+    "value": "1000"
+  }
 }
 ```
 
@@ -29,12 +32,25 @@ Creates a new payment intent.
 | Field | Type | Description |
 |-------|------|-------------|
 | `paymentId` | string | Unique payment identifier in the format `wcp_payment_<32 base58 characters>`. |
+| `status` | string | Current payment status. Always `requires_action` for new payments. |
+| `amount` | object | Payment amount details. |
+| `amount.unit` | string | Currency identifier (e.g., `iso4217/USD`). |
+| `amount.value` | string | Amount in minor units. |
+| `expiresAt` | number | Unix timestamp (seconds) when the payment expires. |
+| `pollInMs` | number | Recommended polling interval in milliseconds. |
 
 ### Example Response
 
 ```json
 {
-  "paymentId": "wcp_payment_7XJkF2nPqR9vL5mT3hYwZ6aB4cD8eG1j"
+  "paymentId": "wcp_payment_7XJkF2nPqR9vL5mT3hYwZ6aB4cD8eG1j",
+  "status": "requires_action",
+  "amount": {
+    "unit": "iso4217/USD",
+    "value": "1000"
+  },
+  "expiresAt": 1733126400,
+  "pollInMs": 1000
 }
 ```
 
