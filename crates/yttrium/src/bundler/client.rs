@@ -106,7 +106,7 @@ impl BundlerClient {
         &self,
         hash: Bytes,
     ) -> eyre::Result<Option<UserOperationReceipt>> {
-        let provider = ProviderBuilder::new().on_http(self.config.url());
+        let provider = ProviderBuilder::new().connect_http(self.config.url());
         get_user_operation_receipt(&provider, hash).await.map_err(Into::into)
     }
 

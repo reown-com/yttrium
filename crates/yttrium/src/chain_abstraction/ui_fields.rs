@@ -11,7 +11,7 @@ use {
         api::fungible_price::{FungiblePriceItem, NATIVE_TOKEN_ADDRESS},
         local_fee_acc::LocalAmountAcc,
     },
-    alloy::primitives::{B256, PrimitiveSignature, U256},
+    alloy::primitives::{B256, Signature, U256},
     alloy_provider::utils::Eip1559Estimation,
     serde::{Deserialize, Serialize},
     tracing::warn,
@@ -342,7 +342,7 @@ pub fn ui_fields(
 #[serde(rename_all = "camelCase", tag = "namespace")]
 pub enum RouteSig {
     #[cfg(feature = "eip155")]
-    Eip155(Vec<PrimitiveSignature>),
+    Eip155(Vec<Signature>),
     #[cfg(feature = "solana")]
     Solana(Vec<solana::SolanaSignature>),
 }

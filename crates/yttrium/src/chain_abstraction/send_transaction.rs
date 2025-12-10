@@ -7,7 +7,7 @@ use {
     },
     alloy::{
         consensus::{SignableTransaction, TxEnvelope},
-        primitives::{B256, PrimitiveSignature},
+        primitives::{B256, Signature},
         rpc::types::TransactionReceipt,
     },
     alloy_provider::Provider,
@@ -16,7 +16,7 @@ use {
 
 pub async fn send_transaction(
     txn: FeeEstimatedTransaction,
-    sig: PrimitiveSignature,
+    sig: Signature,
     provider_pool: &ProviderPool,
 ) -> Result<
     (TransactionReceipt, TransactionAnalytics),

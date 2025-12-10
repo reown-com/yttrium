@@ -33,7 +33,7 @@ use {
         hex::FromHex,
         network::{EthereumWallet, TransactionBuilder7702},
         primitives::{
-            Address, B256, Bytes, PrimitiveSignature, U256, eip191_hash_message,
+            Address, B256, Bytes, Signature, U256, eip191_hash_message,
         },
         rpc::types::{Authorization, UserOperationReceipt},
         signers::local::{LocalSigner, PrivateKeySigner},
@@ -382,8 +382,9 @@ impl Client {
             anvil_faucet(&provider).await
         };
         let sponsor_wallet = EthereumWallet::new(sponsor);
-        let sponsor_provider =
-            ProviderBuilder::new().wallet(sponsor_wallet).on_provider(provider);
+        let sponsor_provider = ProviderBuilder::new()
+            .wallet(sponsor_wallet)
+            .connect_provider(provider);
 
         let safe_owners = Owners {
             threshold: 1,
@@ -460,7 +461,7 @@ impl Client {
     // TODO check if receipt is actually OK, return error result if not (with the receipt still)
     pub async fn send(
         &self,
-        signature: PrimitiveSignature,
+        signature: Signature,
         params: SendParams,
     ) -> Result<UserOperationReceipt, SendError> {
         let bundler_client =
@@ -518,7 +519,7 @@ pub struct PreparedGasAbstractionAuthorization {
 pub struct SignedAuthorization {
     // FIXME cannot pass this through FFI like this
     pub auth: Authorization,
-    pub signature: PrimitiveSignature,
+    pub signature: Signature,
 }
 
 #[cfg_attr(feature = "uniffi", derive(uniffi::Record))]

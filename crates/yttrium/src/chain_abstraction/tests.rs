@@ -35,7 +35,7 @@ use {
     },
     ERC20::ERC20Instance,
     alloy::{
-        network::{Ethereum, EthereumWallet, TransactionBuilder},
+        network::{EthereumWallet, TransactionBuilder},
         primitives::{
             Address, TxKind, U64, U256, address,
             utils::{ParseUnits, Unit},
@@ -157,7 +157,7 @@ struct BridgeTokenParams {
 #[derive(Clone)]
 struct BridgeToken {
     params: BridgeTokenParams,
-    token: ERC20Instance<(), DynProvider, Ethereum>,
+    token: ERC20Instance<DynProvider>,
     provider: DynProvider,
 }
 
@@ -169,7 +169,9 @@ impl BridgeToken {
     ) -> BridgeToken {
         let provider = ProviderBuilder::new()
             .wallet(EthereumWallet::new(account))
-            .on_provider(provider_pool.get_provider(params.chain.caip2()).await)
+            .connect_provider(
+                provider_pool.get_provider(params.chain.caip2()).await,
+            )
             .erased();
 
         let token_address = params.chain.token_address(&params.token);
@@ -184,12 +186,7 @@ impl BridgeToken {
     }
 
     async fn token_balance(&self) -> U256 {
-        self.token
-            .balanceOf(self.params.account_address)
-            .call()
-            .await
-            .unwrap()
-            .balance
+        self.token.balanceOf(self.params.account_address).call().await.unwrap()
     }
 }
 
@@ -235,8 +232,8 @@ async fn send_sponsored_txn(
         provider.get_transaction_count(from_address).await.unwrap(),
     );
 
-    let gas = provider.estimate_gas(&txn).await.unwrap();
-    let fees = provider.estimate_eip1559_fees(None).await.unwrap();
+    let gas = provider.estimate_gas(txn.clone()).await.unwrap();
+    let fees = provider.estimate_eip1559_fees().await.unwrap();
     let txn = txn
         .gas_limit(gas)
         .max_fee_per_gas(fees.max_fee_per_gas)
@@ -265,7 +262,7 @@ async fn send_sponsored_txn(
     println!("sending txn: {txn:?}");
     let txn_sent = ProviderBuilder::new()
         .wallet(wallet.clone())
-        .on_provider(provider)
+        .connect_provider(provider)
         .send_transaction(txn.clone())
         .await
         .unwrap()
@@ -835,7 +832,7 @@ async fn happy_path() {
             .get_provider(Chain::from_eip155_chain_id(&txn.chain_id).caip2())
             .await;
         // TODO use fees from response of ui_fields: https://linear.app/reown/issue/RES-140/use-fees-from-response-of-route-ui-fields-for-happy-path-ca-tests
-        let fees = provider.estimate_eip1559_fees(None).await.unwrap();
+        let fees = provider.estimate_eip1559_fees().await.unwrap();
         let txn = map_transaction(txn)
             .with_max_fee_per_gas(fees.max_fee_per_gas)
             .with_max_priority_fee_per_gas(fees.max_priority_fee_per_gas);
@@ -941,7 +938,7 @@ async fn happy_path() {
             .wallet(EthereumWallet::new(
                 wallet_lookup.get(&txn.from.unwrap()).unwrap().clone(),
             ))
-            .on_provider(provider.clone())
+            .connect_provider(provider.clone())
             .send_transaction(txn.clone())
             .await
             .unwrap()
@@ -991,7 +988,7 @@ async fn happy_path() {
         .wallet(EthereumWallet::new(
             wallet_lookup.get(&original.from.unwrap()).unwrap().clone(),
         ))
-        .on_provider(provider.clone())
+        .connect_provider(provider.clone())
         .send_transaction(original.clone())
         .await
         .unwrap();
@@ -1482,7 +1479,7 @@ async fn happy_path_full_dependency_on_ui_fields() {
             .wallet(EthereumWallet::new(
                 wallet_lookup.get(&txn.from.unwrap()).unwrap().clone(),
             ))
-            .on_provider(provider.clone())
+            .connect_provider(provider.clone())
             .send_transaction(txn.clone())
             .await
             .unwrap()
@@ -1529,7 +1526,7 @@ async fn happy_path_full_dependency_on_ui_fields() {
         .wallet(EthereumWallet::new(
             wallet_lookup.get(&original.from.unwrap()).unwrap().clone(),
         ))
-        .on_provider(provider.clone())
+        .connect_provider(provider.clone())
         .send_transaction(original.clone())
         .await
         .unwrap();
@@ -1944,10 +1941,9 @@ async fn happy_path_execute_method() {
         .await;
 
         if faucet_usdc.token_balance().await < required_amount * U256::from(2) {
-            let unit = Unit::new(
-                faucet_usdc.token.decimals().call().await.unwrap()._0,
-            )
-            .unwrap();
+            let unit =
+                Unit::new(faucet_usdc.token.decimals().call().await.unwrap())
+                    .unwrap();
             let want_amount =
                 ParseUnits::from(required_amount * U256::from(10))
                     .format_units(unit);

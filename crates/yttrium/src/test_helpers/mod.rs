@@ -185,7 +185,7 @@ async fn use_faucet_unlimited(
     println!("sending txn: {txn:?}");
     let txn_sent = ProviderBuilder::new()
         .wallet(EthereumWallet::new(faucet.clone()))
-        .on_provider(provider)
+        .connect_provider(provider)
         .send_transaction(txn.clone())
         .await
         .unwrap()

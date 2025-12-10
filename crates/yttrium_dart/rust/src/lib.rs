@@ -189,7 +189,7 @@ impl ChainAbstractionClient {
         )
         .parse()
         .expect("Invalid RPC URL");
-        let provider = ProviderBuilder::new().on_http(url);
+        let provider = ProviderBuilder::new().connect_http(url);
         provider
             .estimate_eip1559_fees(None)
             .await
@@ -233,7 +233,7 @@ mod tests {
         .parse()
         .expect("Invalid RPC URL");
         let provider =
-            ProviderBuilder::new().disable_recommended_fillers().on_http(url);
+            ProviderBuilder::new().disable_recommended_fillers().connect_http(url);
 
         let estimate = provider.estimate_eip1559_fees(None).await.unwrap();
 

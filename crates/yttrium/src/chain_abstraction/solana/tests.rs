@@ -82,7 +82,7 @@ async fn solana_happy_path() {
         chain_eth.token_address(&token),
         ProviderBuilder::new()
             .wallet(EthereumWallet::new(faucet.clone()))
-            .on_provider(
+            .connect_provider(
                 client.provider_pool.get_provider(chain_eth.caip2()).await,
             ),
     );
@@ -90,7 +90,7 @@ async fn solana_happy_path() {
         chain_eth.token_address(&token),
         ProviderBuilder::new()
             .wallet(EthereumWallet::new(account_eth.clone()))
-            .on_provider(
+            .connect_provider(
                 client.provider_pool.get_provider(chain_eth.caip2()).await,
             ),
     );
@@ -126,12 +126,8 @@ async fn solana_happy_path() {
                 }
             }
         };
-    let faucet_usdc_balance = usdc_erc20_faucet
-        .balanceOf(faucet.address())
-        .call()
-        .await
-        .unwrap()
-        .balance;
+    let faucet_usdc_balance =
+        usdc_erc20_faucet.balanceOf(faucet.address()).call().await.unwrap();
     let needs_usdc = account_sol_usdc_balance_ui_amount < 2.0;
     if needs_usdc {
         let quote = reqwest::Client::new()
@@ -182,10 +178,9 @@ async fn solana_happy_path() {
 
         // Check if sender has enough USDC
         if faucet_usdc_balance < U256::from(from_amount) * U256::from(2) {
-            let unit = Unit::new(
-                usdc_erc20_faucet.decimals().call().await.unwrap()._0,
-            )
-            .unwrap();
+            let unit =
+                Unit::new(usdc_erc20_faucet.decimals().call().await.unwrap())
+                    .unwrap();
             let want_amount = ParseUnits::from(from_amount).format_units(unit);
             let result = reqwest::Client::new().post("https://faucetbot.dev/api/faucet-request")
                 .json(&serde_json::json!({
@@ -218,8 +213,7 @@ async fn solana_happy_path() {
             .allowance(faucet.address(), bridge_contract)
             .call()
             .await
-            .unwrap()
-            .remaining;
+            .unwrap();
         println!("Allowance: {allowance}");
         if allowance < send_amount * U256::from(2) {
             assert!(
@@ -276,7 +270,7 @@ async fn solana_happy_path() {
             );
         let receipt = ProviderBuilder::new()
             .wallet(EthereumWallet::new(faucet.clone()))
-            .on_provider(
+            .connect_provider(
                 client.provider_pool.get_provider(chain_eth.caip2()).await,
             )
             .send_transaction(transaction_request)
@@ -444,7 +438,7 @@ async fn solana_happy_path() {
         assert!(
             ProviderBuilder::new()
                 .wallet(EthereumWallet::new(faucet.clone()))
-                .on_provider(
+                .connect_provider(
                     client.provider_pool.get_provider(chain_eth.caip2()).await
                 )
                 .send_transaction(
@@ -470,8 +464,7 @@ async fn solana_happy_path() {
         .balanceOf(account_eth.address())
         .call()
         .await
-        .unwrap()
-        .balance;
+        .unwrap();
     if account_eth_usdc_balance >= send_amount.div_ceil(U256::from(2)) {
         assert!(
             usdc_erc20_account_eth
@@ -598,12 +591,8 @@ async fn solana_happy_path() {
         })
         .collect();
 
-    let original_faucet_balance = usdc_erc20_faucet
-        .balanceOf(faucet.address())
-        .call()
-        .await
-        .unwrap()
-        .balance;
+    let original_faucet_balance =
+        usdc_erc20_faucet.balanceOf(faucet.address()).call().await.unwrap();
     let expected_faucet_balance = original_faucet_balance + send_amount;
 
     let initial_txn_sigs = account_eth
@@ -614,12 +603,8 @@ async fn solana_happy_path() {
     println!("execute_result: {execute_result:?}");
 
     // Ensure the faucet account received the USDC
-    let new_faucet_balance = usdc_erc20_faucet
-        .balanceOf(faucet.address())
-        .call()
-        .await
-        .unwrap()
-        .balance;
+    let new_faucet_balance =
+        usdc_erc20_faucet.balanceOf(faucet.address()).call().await.unwrap();
     assert_eq!(new_faucet_balance, expected_faucet_balance);
 
     // Ensure the EVM account has less than $1 - non-normative, if we bridge more than necessary amount this may fail
@@ -627,7 +612,6 @@ async fn solana_happy_path() {
         .balanceOf(account_eth.address())
         .call()
         .await
-        .unwrap()
-        .balance;
+        .unwrap();
     assert!(new_account_eth_balance < U256::from(1_000_000));
 }

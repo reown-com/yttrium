@@ -76,7 +76,7 @@ async fn test_pimlico() {
     .parse::<Url>()
     .unwrap();
 
-    let provider = ProviderBuilder::new().on_http(rpc);
+    let provider = ProviderBuilder::new().connect_http(rpc);
     let faucet = private_faucet();
     test_impl(provider, faucet, bundler_url.clone(), bundler_url).await
 }
@@ -85,7 +85,7 @@ async fn test_pimlico() {
 #[cfg(feature = "test_local_bundler")]
 async fn test_local() {
     let provider =
-        ProviderBuilder::new().on_http(LOCAL_RPC_URL.parse().unwrap());
+        ProviderBuilder::new().connect_http(LOCAL_RPC_URL.parse().unwrap());
     let faucet = anvil_faucet(&provider).await;
 
     test_impl(
@@ -156,7 +156,7 @@ async fn test_impl(
     let faucet_wallet = EthereumWallet::new(faucet);
     let faucet_provider = ProviderBuilder::new()
         .wallet(faucet_wallet)
-        .on_provider(provider.clone());
+        .connect_provider(provider.clone());
 
     println!("account address: {}", account.address());
     // let mut buf = Vec::new();

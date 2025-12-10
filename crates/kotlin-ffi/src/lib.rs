@@ -34,7 +34,7 @@ use {
         hex,
         primitives::{
             ruint::aliases::U256, Address as FFIAddress,
-            PrimitiveSignature as FFIPrimitiveSignature, Uint, U128 as FFIU128,
+            Signature as FFIPrimitiveSignature, Uint, U128 as FFIU128,
             U256 as FFIU256, U64 as FFIU64,
         },
         sol,
@@ -311,7 +311,7 @@ impl ChainAbstractionClient {
             .provider_pool
             .get_provider(&chain_id)
             .await
-            .estimate_eip1559_fees(None)
+            .estimate_eip1559_fees()
             .await
             .map(Into::into)
             .map_err(|e| FFIError::EstimateFees(e.to_string()))
@@ -493,9 +493,9 @@ mod tests {
             "https://rpc.walletconnect.com/v1?chainId={chain_id}&projectId={project_id}")
         .parse()
         .expect("Invalid RPC URL");
-        let provider = ProviderBuilder::new().on_http(url);
+        let provider = ProviderBuilder::new().connect_http(url);
 
-        let estimate = provider.estimate_eip1559_fees(None).await.unwrap();
+        let estimate = provider.estimate_eip1559_fees().await.unwrap();
 
         println!("estimate: {estimate:?}");
     }

@@ -61,7 +61,7 @@ async fn happy_path_local() {
     let chain_id = format!(
         "eip155:{}",
         ProviderBuilder::new()
-            .on_http(LOCAL_RPC_URL.parse().unwrap())
+            .connect_http(LOCAL_RPC_URL.parse().unwrap())
             .get_chain_id()
             .await
             .unwrap()

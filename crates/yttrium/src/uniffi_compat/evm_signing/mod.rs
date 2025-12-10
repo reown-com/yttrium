@@ -7,9 +7,7 @@ use {
         consensus::{SignableTransaction, TxEip1559, TxEnvelope},
         dyn_abi::TypedData,
         network::TransactionBuilder,
-        primitives::{
-            Address, B256, Bytes, PrimitiveSignature, U64, U128, U256,
-        },
+        primitives::{Address, B256, Bytes, Signature, U64, U128, U256},
         rlp,
         rpc::types::TransactionRequest,
         signers::{SignerSync, local::PrivateKeySigner},
@@ -196,7 +194,7 @@ pub fn sign_typed_data(
         .map_err(|err| EvmSigningError::Signing(err.to_string()))?;
 
     // Extract r, s, v from the signature
-    // PrimitiveSignature::v() returns a bool (y-parity): true = odd, false = even
+    // Signature::v() returns a bool (y-parity): true = odd, false = even
     let r = signature.r();
     let s = signature.s();
     let y_parity = signature.v(); // bool: true means odd (28), false means even (27)
@@ -297,7 +295,7 @@ fn parse_chain_id(chain_id: &str) -> Result<u64, EvmSigningError> {
 fn sign_transaction(
     tx: &TxEip1559,
     signer: &PrivateKeySigner,
-) -> Result<PrimitiveSignature, EvmSigningError> {
+) -> Result<Signature, EvmSigningError> {
     let hash = tx.signature_hash();
     let signature = signer
         .sign_hash_sync(&hash)
@@ -314,7 +312,7 @@ async fn populate_missing_fields(
     let gas_limit = match params.gas_limit {
         Some(gas) => gas.to(),
         None => provider
-            .estimate_gas(&request)
+            .estimate_gas(request.clone())
             .await
             .map_err(|err| EvmSigningError::GasEstimation(err.to_string()))?,
     };
@@ -327,9 +325,9 @@ async fn populate_missing_fields(
             }
             (maybe_max_fee, maybe_priority) => {
                 let estimate =
-                    provider.estimate_eip1559_fees(None).await.map_err(
-                        |err| EvmSigningError::FeeEstimation(err.to_string()),
-                    )?;
+                    provider.estimate_eip1559_fees().await.map_err(|err| {
+                        EvmSigningError::FeeEstimation(err.to_string())
+                    })?;
 
                 let max_fee = maybe_max_fee
                     .map(|fee| fee.to())

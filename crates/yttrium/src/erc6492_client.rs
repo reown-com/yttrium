@@ -22,8 +22,9 @@ impl Erc6492Client {
     #[cfg_attr(feature = "uniffi", uniffi::constructor)]
     pub fn new(rpc_url: String) -> Self {
         let url = rpc_url.parse().expect("Invalid RPC URL");
-        let provider =
-            ProviderBuilder::new().disable_recommended_fillers().on_http(url);
+        let provider = ProviderBuilder::new()
+            .disable_recommended_fillers()
+            .connect_http(url);
         Self { provider }
     }
 
