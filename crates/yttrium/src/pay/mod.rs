@@ -1,14 +1,11 @@
-use {
-    pay_api::{
-        bodies::{
-            confirm_payment::{
-                ConfirmPaymentParams, ConfirmPaymentResponse, ConfirmResult,
-            },
-            get_payment::{GetPaymentParams, GetPaymentResponse},
+use pay_api::{
+    bodies::{
+        confirm_payment::{
+            ConfirmPaymentParams, ConfirmPaymentResponse, ConfirmResult,
         },
-        methods,
+        get_payment::{GetPaymentParams, GetPaymentResponse},
     },
-    serde::{Deserialize, Serialize},
+    envelope::{ErrorResponse, GatewayRequest, GatewayResponse},
 };
 
 #[derive(Debug, thiserror::Error)]
@@ -26,27 +23,8 @@ impl From<reqwest::Error> for PayError {
     }
 }
 
-#[derive(Debug, Serialize)]
-struct ApiRequest<P> {
-    method: String,
-    params: P,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(tag = "status", rename_all = "lowercase")]
-enum ApiResponse<T> {
-    Success { data: T },
-    Error { error: ApiError },
-}
-
-#[derive(Debug, Deserialize)]
-struct ApiError {
-    code: String,
-    message: String,
-}
-
-impl From<ApiError> for PayError {
-    fn from(e: ApiError) -> Self {
+impl From<ErrorResponse> for PayError {
+    fn from(e: ErrorResponse) -> Self {
         Self::Api { code: e.code, message: e.message }
     }
 }
@@ -69,21 +47,19 @@ impl WalletConnectPay {
         payment_id: String,
         accounts: Vec<String>,
     ) -> Result<GetPaymentResponse, PayError> {
-        let request = ApiRequest {
-            method: methods::GET_PAYMENT.to_owned(),
-            params: GetPaymentParams { payment_id, accounts },
-        };
+        let request =
+            GatewayRequest::GetPayment(GetPaymentParams { payment_id, accounts });
         let response = self
             .http_client
             .post(format!("{}/v1/gateway", self.base_url))
             .json(&request)
             .send()
             .await?
-            .json::<ApiResponse<GetPaymentResponse>>()
+            .json::<GatewayResponse<GetPaymentResponse>>()
             .await?;
         match response {
-            ApiResponse::Success { data } => Ok(data),
-            ApiResponse::Error { error } => Err(error.into()),
+            GatewayResponse::Success { data } => Ok(data),
+            GatewayResponse::Error { error } => Err(error.into()),
         }
     }
 
@@ -93,21 +69,22 @@ impl WalletConnectPay {
         option_id: String,
         results: Vec<ConfirmResult>,
     ) -> Result<ConfirmPaymentResponse, PayError> {
-        let request = ApiRequest {
-            method: methods::CONFIRM_PAYMENT.to_owned(),
-            params: ConfirmPaymentParams { payment_id, option_id, results },
-        };
+        let request = GatewayRequest::ConfirmPayment(ConfirmPaymentParams {
+            payment_id,
+            option_id,
+            results,
+        });
         let response = self
             .http_client
             .post(format!("{}/v1/gateway", self.base_url))
             .json(&request)
             .send()
             .await?
-            .json::<ApiResponse<ConfirmPaymentResponse>>()
+            .json::<GatewayResponse<ConfirmPaymentResponse>>()
             .await?;
         match response {
-            ApiResponse::Success { data } => Ok(data),
-            ApiResponse::Error { error } => Err(error.into()),
+            GatewayResponse::Success { data } => Ok(data),
+            GatewayResponse::Error { error } => Err(error.into()),
         }
     }
 }
