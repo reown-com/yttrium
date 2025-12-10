@@ -292,8 +292,7 @@ pub async fn get_account_address(
             .proxyCreationCode()
             .call()
             .await
-            .unwrap()
-            ._0;
+            .unwrap();
     let initializer = get_initializer_code(owners.clone());
     let deployment_code = DynSolValue::Tuple(vec![
         DynSolValue::Bytes(creation_code.to_vec()),
@@ -355,7 +354,7 @@ fn encode_calls(calls: Vec<Call>) -> Bytes {
     if tuples.len() == 1 {
         tuples.abi_encode_packed()
     } else {
-        let call = executionBatchCall { _0: tuples };
+        let call = executionBatchCall(tuples);
 
         // encode without selector
         let mut out = Vec::with_capacity(call.abi_encoded_size());
@@ -435,7 +434,7 @@ pub async fn sign(
     let signature = (Address::ZERO, signature).abi_encode_packed().into();
 
     if provider.get_code_at(account_address.into()).await?.is_empty() {
-        let eip1559_est = provider.estimate_eip1559_fees(None).await?;
+        let eip1559_est = provider.estimate_eip1559_fees().await?;
         let PreparedSendTransaction {
             safe_op,
             domain,

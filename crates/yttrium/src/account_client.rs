@@ -70,7 +70,7 @@ impl AccountClient {
         // TODO refactor class to create Provider on AccountClient
         // initialization instead of lazily
         let provider = ProviderBuilder::new()
-            .on_http(self.config.endpoints.rpc.base_url.parse().unwrap());
+            .connect_http(self.config.endpoints.rpc.base_url.parse().unwrap());
 
         sign(
             Owners { owners: vec![self.owner.into()], threshold: 1 },

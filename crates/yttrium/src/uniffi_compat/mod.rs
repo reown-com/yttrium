@@ -56,8 +56,8 @@ use {
         contract::Error as AlloyError,
         dyn_abi::Eip712Domain,
         primitives::{
-            Address, B256, Bytes, PrimitiveSignature, U8, U64, U128, U256,
-            Uint, aliases::U48,
+            Address, B256, Bytes, Signature as PrimitiveSignature, U8, U64,
+            U128, U256, Uint, aliases::U48,
         },
         rpc::types::{Authorization, TransactionReceipt, UserOperationReceipt},
         signers::local::PrivateKeySigner,

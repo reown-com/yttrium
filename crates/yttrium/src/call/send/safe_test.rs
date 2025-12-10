@@ -28,7 +28,7 @@ use {
     alloy::{
         dyn_abi::{DynSolValue, Eip712Domain},
         primitives::{
-            Address, B256, Bytes, PrimitiveSignature, U64, U160, U256, Uint,
+            Address, B256, Bytes, Signature, U64, U160, U256, Uint,
             aliases::U48,
         },
         providers::Provider,
@@ -81,7 +81,7 @@ pub async fn get_address(
 ) -> eyre::Result<AccountAddress> {
     let rpc_url = config.endpoints.rpc.base_url;
     let rpc_url: reqwest::Url = rpc_url.parse()?;
-    let provider = ProviderBuilder::new().on_http(rpc_url);
+    let provider = ProviderBuilder::new().connect_http(rpc_url);
 
     let owners = Owners { owners: vec![owner_address.into()], threshold: 1 };
 
@@ -182,8 +182,8 @@ pub async fn prepare_send_transactions(
         config.endpoints.bundler.base_url.parse()?,
     ));
 
-    let provider =
-        ProviderBuilder::new().on_http(config.endpoints.rpc.base_url.parse()?);
+    let provider = ProviderBuilder::new()
+        .connect_http(config.endpoints.rpc.base_url.parse()?);
 
     let paymaster_client = PaymasterClient::new(BundlerConfig::new(
         config.endpoints.paymaster.base_url.parse()?,
@@ -366,7 +366,7 @@ pub async fn prepare_send_transactions_inner(
 #[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
 pub struct OwnerSignature {
     pub owner: Address,
-    pub signature: PrimitiveSignature,
+    pub signature: Signature,
 }
 
 pub async fn encode_send_transactions(
@@ -414,8 +414,8 @@ pub async fn do_send_transactions(
 ) -> eyre::Result<Bytes> {
     let user_op = encode_send_transactions(signatures, params).await?;
 
-    let provider =
-        ProviderBuilder::new().on_http(config.endpoints.rpc.base_url.parse()?);
+    let provider = ProviderBuilder::new()
+        .connect_http(config.endpoints.rpc.base_url.parse()?);
     let chain_id = provider.get_chain_id().await?;
     let chain = crate::chain::Chain::new(
         ChainId::new_eip155(chain_id),
@@ -467,7 +467,7 @@ mod tests {
         faucet: LocalSigner<SigningKey>,
     ) -> eyre::Result<()> {
         let provider = ProviderBuilder::new()
-            .on_http(config.endpoints.rpc.base_url.parse()?);
+            .connect_http(config.endpoints.rpc.base_url.parse()?);
 
         let destination = LocalSigner::random();
         let balance = provider.get_balance(destination.address()).await?;
@@ -527,7 +527,7 @@ mod tests {
     async fn anvil_faucet(config: Config) -> LocalSigner<SigningKey> {
         test_helpers::anvil_faucet(
             &ProviderBuilder::new()
-                .on_http(config.endpoints.rpc.base_url.parse().unwrap()),
+                .connect_http(config.endpoints.rpc.base_url.parse().unwrap()),
         )
         .await
     }
@@ -574,7 +574,7 @@ mod tests {
         faucet: LocalSigner<SigningKey>,
     ) {
         let provider = ProviderBuilder::new()
-            .on_http(config.endpoints.rpc.base_url.parse().unwrap());
+            .connect_http(config.endpoints.rpc.base_url.parse().unwrap());
 
         let destination = LocalSigner::random();
         let balance =
@@ -661,7 +661,7 @@ mod tests {
     async fn test_send_transaction_reverted() {
         let config = Config::local();
         let provider = ProviderBuilder::new()
-            .on_http(config.endpoints.rpc.base_url.parse().unwrap());
+            .connect_http(config.endpoints.rpc.base_url.parse().unwrap());
 
         let destination = LocalSigner::random();
         let balance =
@@ -742,7 +742,7 @@ mod tests {
         let config = Config::local();
 
         let provider = ProviderBuilder::new()
-            .on_http(config.endpoints.rpc.base_url.parse()?);
+            .connect_http(config.endpoints.rpc.base_url.parse()?);
 
         let owner = LocalSigner::random();
         let sender_address = get_account_address(
@@ -788,7 +788,7 @@ mod tests {
         let faucet = anvil_faucet(config.clone()).await;
 
         let provider = ProviderBuilder::new()
-            .on_http(config.endpoints.rpc.base_url.parse()?);
+            .connect_http(config.endpoints.rpc.base_url.parse()?);
 
         let destination1 = LocalSigner::random();
         let destination2 = LocalSigner::random();
@@ -848,7 +848,7 @@ mod tests {
     async fn test_sign_message_deployed() {
         let config = Config::local();
         let provider = ProviderBuilder::new()
-            .on_http(config.endpoints.rpc.base_url.parse().unwrap());
+            .connect_http(config.endpoints.rpc.base_url.parse().unwrap());
 
         let owner = LocalSigner::random();
         let owner_address = owner.address();
@@ -927,7 +927,7 @@ mod tests {
             .call()
             .await
             .unwrap();
-        assert_eq!(magic_value.magicValue, fixed_bytes!("1626ba7e"));
+        assert_eq!(magic_value.0, fixed_bytes!("1626ba7e"));
 
         assert!(
             erc6492::verify_signature(
@@ -947,7 +947,7 @@ mod tests {
     async fn test_sign_message_not_deployed() {
         let config = Config::local();
         let provider = ProviderBuilder::new()
-            .on_http(config.endpoints.rpc.base_url.parse().unwrap());
+            .connect_http(config.endpoints.rpc.base_url.parse().unwrap());
 
         let owner = LocalSigner::random();
         let owner_address = owner.address();
@@ -1038,7 +1038,7 @@ mod tests {
     async fn test_sign_message_partial_deployed() {
         let config = Config::local();
         let provider = ProviderBuilder::new()
-            .on_http(config.endpoints.rpc.base_url.parse().unwrap());
+            .connect_http(config.endpoints.rpc.base_url.parse().unwrap());
 
         let owner = LocalSigner::random();
         let owner_address = owner.address();
@@ -1132,7 +1132,7 @@ mod tests {
             .call()
             .await
             .unwrap();
-        assert_eq!(magic_value.magicValue, fixed_bytes!("1626ba7e"));
+        assert_eq!(magic_value.0, fixed_bytes!("1626ba7e"));
 
         assert!(
             erc6492::verify_signature(
@@ -1187,7 +1187,7 @@ mod tests {
     async fn test_send_transaction_7702() -> eyre::Result<()> {
         let config = Config::local();
         let provider = ProviderBuilder::new()
-            .on_http(config.endpoints.rpc.base_url.parse()?);
+            .connect_http(config.endpoints.rpc.base_url.parse()?);
 
         let destination = LocalSigner::random();
         let balance = provider.get_balance(destination.address()).await?;
@@ -1280,7 +1280,7 @@ mod tests {
     async fn test_send_transaction_7702_vanilla_bundler() -> eyre::Result<()> {
         let config = Config::local();
         let provider = ProviderBuilder::new()
-            .on_http(config.endpoints.rpc.base_url.parse()?);
+            .connect_http(config.endpoints.rpc.base_url.parse()?);
 
         let destination = LocalSigner::random();
         let balance = provider.get_balance(destination.address()).await?;

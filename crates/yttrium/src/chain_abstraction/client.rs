@@ -44,7 +44,7 @@ use {
     },
     alloy::{
         network::TransactionBuilder,
-        primitives::{Address, B256, PrimitiveSignature, U64, U256},
+        primitives::{Address, B256, Signature, U64, U256},
         rpc::types::{TransactionReceipt, TransactionRequest},
         transports::TransportResult,
     },
@@ -264,7 +264,7 @@ impl Client {
                 self.provider_pool
                     .get_provider(chain_id)
                     .await
-                    .estimate_eip1559_fees(None)
+                    .estimate_eip1559_fees()
                     .await
                     .map_err(UiFieldsError::Eip1559Estimation)
                     .map(|estimate| (chain_id, estimate))
@@ -536,7 +536,7 @@ impl Client {
         &self,
         ui_fields: UiFields,
         route_txn_sigs: Vec<RouteSig>,
-        initial_txn_sig: PrimitiveSignature,
+        initial_txn_sig: Signature,
     ) -> Result<ExecuteDetails, ExecuteError> {
         assert_eq!(
             ui_fields.route.len(),
@@ -628,7 +628,7 @@ impl Client {
         &self,
         ui_fields: UiFields,
         route_txn_sigs: Vec<RouteSig>,
-        initial_txn_sig: PrimitiveSignature,
+        initial_txn_sig: Signature,
     ) -> Result<
         (ExecuteDetails, ExecuteAnalytics),
         (ExecuteError, ExecuteAnalytics),
@@ -822,7 +822,7 @@ impl Client {
         let provider = self.provider_pool.get_provider(chain_id).await;
         let erc20 = ERC20::new(token, provider);
         let balance = erc20.balanceOf(owner).call().await?;
-        Ok(balance.balance)
+        Ok(balance)
     }
 
     pub async fn get_wallet_assets(
