@@ -2,6 +2,7 @@ pub const INTERNAL_ERROR: &str = "INTERNAL_ERROR";
 pub const METHOD_NOT_FOUND: &str = "METHOD_NOT_FOUND";
 pub const INVALID_PARAMS: &str = "INVALID_PARAMS";
 pub const PARAMS_VALIDATION: &str = "PARAMS_VALIDATION";
+pub const PAYMENT_NOT_FOUND: &str = "PAYMENT_NOT_FOUND";
 
 // TODO differentiate between:
 // - server errors (retryable)
