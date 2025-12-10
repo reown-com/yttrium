@@ -1,7 +1,7 @@
 use {
     pay_api::{
         methods, ConfirmPaymentParams, ConfirmPaymentResponse, ConfirmResult,
-        GetPaymentParams, GetPaymentResponse,
+        CreatePaymentParams, CreatePaymentResponse, GetPaymentParams, GetPaymentResponse,
     },
     serde::{Deserialize, Serialize},
 };
@@ -52,6 +52,36 @@ impl WalletConnectPay {
         }
     }
 
+    /// 
+    /// called by PSP/POS device, so not used from uniffi_compat
+    /// 
+    pub async fn create_payment(
+        &self,
+        amount: String,
+        currency: String,
+        reference_id: String,
+    ) -> Result<CreatePaymentResponse, PayError> {
+        let request = ApiRequest {
+            method: methods::CREATE_PAYMENT.to_owned(),
+            params: CreatePaymentParams { amount, currency, reference_id },
+        };
+        let response = self
+            .http_client
+            .post(format!("{}/v1/gateway", self.base_url))
+            .json(&request)
+            .send()
+            .await?
+            .json::<ApiResponse<CreatePaymentResponse>>()
+            .await?;
+        match response {
+            ApiResponse::Success { data } => Ok(data),
+            ApiResponse::Error { error } => Err(error.into()),
+        }
+    }
+    
+    /// 
+    /// called by Wallet upon scanning, so used from uniffi_compat
+    ///
     pub async fn get_payment(
         &self,
         payment_id: String,
@@ -75,6 +105,34 @@ impl WalletConnectPay {
         }
     }
 
+    ///
+    /// called by Wallet when action is buildPaymentRequest, so used from uniffi_compat
+    ///
+    pub async fn build_payment(
+        &self,
+        option_id: String,
+    ) -> Result<BuildPaymentResponse, PayError> {
+        let request = ApiRequest {
+            method: methods::GET_PAYMENT.to_owned(),
+            params: BuildPaymentParams { option_id },
+        };
+        let response = self
+            .http_client
+            .post(format!("{}/v1/gateway", self.base_url))
+            .json(&request)
+            .send()
+            .await?
+            .json::<ApiResponse<BuildPaymentResponse>>()
+            .await?;
+        match response {
+            ApiResponse::Success { data } => Ok(data),
+            ApiResponse::Error { error } => Err(error.into()),
+        }
+    }
+    
+    /// 
+    /// called by Wallet, so used from uniffi_compat
+    ///
     pub async fn confirm_payment(
         &self,
         payment_id: String,

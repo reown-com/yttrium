@@ -46,7 +46,7 @@ impl WalletConnectPay {
     pub async fn get_payment(
         &self,
         payment_id: String,
-        accounts: Vec<String>,
+        accounts: Option<Vec<String>>,
     ) -> Result<(), PayError> {
         self.inner.get_payment(payment_id, accounts).await?;
         Ok(())
