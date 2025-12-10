@@ -39,6 +39,8 @@ pub mod error;
 pub mod examples;
 #[cfg(any(feature = "account_client", feature = "chain_abstraction_client"))]
 pub mod jsonrpc;
+#[cfg(feature = "pay")]
+pub mod pay;
 #[cfg(any(
     feature = "chain_abstraction_client",
     feature = "transaction_sponsorship_client"

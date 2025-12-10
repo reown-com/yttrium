@@ -8,5 +8,6 @@ pub struct GetPaymentParams {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
 #[serde(rename_all = "camelCase")]
 pub struct GetPaymentResponse {}

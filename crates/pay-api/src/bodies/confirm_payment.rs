@@ -9,6 +9,7 @@ pub struct ConfirmPaymentParams {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
 #[serde(rename_all = "camelCase")]
 pub struct ConfirmResult {
     #[serde(rename = "type")]
@@ -17,6 +18,7 @@ pub struct ConfirmResult {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
 #[serde(rename_all = "camelCase")]
 pub struct ConfirmPaymentResponse {
     pub payment_id: String,

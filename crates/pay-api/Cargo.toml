@@ -12,7 +12,7 @@ uniffi = [
 ]
 
 [dependencies]
-serde = { workspace = true }
+serde = { workspace = true, features = ["std"] }
 uniffi = { workspace = true, optional = true, features = ["cli"] }
 uniffi_macros = { workspace = true, optional = true }
 
