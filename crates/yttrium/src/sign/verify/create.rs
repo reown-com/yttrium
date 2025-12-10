@@ -69,7 +69,9 @@ pub fn create_attestation(
                 match serde_json::from_str::<AttestationResponse>(&json_str) {
                     Ok(parsed) => parsed,
                     Err(_) => {
-                        tracing::warn!("postmessage from Verify origin but didn't parse as AttestationResponse");
+                        tracing::warn!(
+                            "postmessage from Verify origin but didn't parse as AttestationResponse"
+                        );
                         return;
                     }
                 }

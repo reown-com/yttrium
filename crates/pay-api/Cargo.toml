@@ -5,5 +5,16 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 
+[features]
+uniffi = [
+    "dep:uniffi",
+    "dep:uniffi_macros",
+]
+
 [dependencies]
 serde = { workspace = true }
+uniffi = { workspace = true, optional = true, features = ["cli"] }
+uniffi_macros = { workspace = true, optional = true }
+
+[dev-dependencies]
+serde_json = { workspace = true, features = ["std"] }

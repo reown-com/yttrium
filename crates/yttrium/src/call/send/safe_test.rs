@@ -437,6 +437,10 @@ pub async fn do_send_transactions(
 
 #[cfg(test)]
 mod tests {
+    #[cfg(any(
+        feature = "test_local_bundler",
+        feature = "test_pimlico_api"
+    ))]
     use {
         super::*,
         crate::{
@@ -457,6 +461,7 @@ mod tests {
         },
     };
 
+    #[cfg(any(feature = "test_local_bundler", feature = "test_pimlico_api"))]
     async fn test_send_transaction(
         config: Config,
         faucet: LocalSigner<SigningKey>,
@@ -518,6 +523,7 @@ mod tests {
         Ok(())
     }
 
+    #[cfg(feature = "test_local_bundler")]
     async fn anvil_faucet(config: Config) -> LocalSigner<SigningKey> {
         test_helpers::anvil_faucet(
             &ProviderBuilder::new()
@@ -527,6 +533,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg(feature = "test_local_bundler")]
     async fn test_send_transaction_local() {
         let config = Config::local();
         let faucet = anvil_faucet(config.clone()).await;
@@ -543,6 +550,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg(feature = "test_local_bundler")]
     async fn test_send_transaction_first_reverted_local() {
         let config = Config::local();
         let faucet = anvil_faucet(config.clone()).await;
@@ -560,6 +568,7 @@ mod tests {
         test_send_transaction_first_reverted(config, faucet).await;
     }
 
+    #[cfg(any(feature = "test_local_bundler", feature = "test_pimlico_api"))]
     async fn test_send_transaction_first_reverted(
         config: Config,
         faucet: LocalSigner<SigningKey>,
@@ -646,6 +655,7 @@ mod tests {
 
     #[tokio::test]
     #[ignore]
+    #[cfg(feature = "test_local_bundler")]
     async fn test_send_transaction_reverted() {
         let config = Config::local();
         let provider = ProviderBuilder::new()
@@ -725,6 +735,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg(feature = "test_local_bundler")]
     async fn test_send_transaction_just_deploy() -> eyre::Result<()> {
         let config = Config::local();
 
@@ -765,6 +776,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg(feature = "test_local_bundler")]
     async fn test_send_transaction_batch() -> eyre::Result<()> {
         let config = Config::local();
         let faucet = anvil_faucet(config.clone()).await;
@@ -826,6 +838,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg(feature = "test_local_bundler")]
     async fn test_sign_message_deployed() {
         let config = Config::local();
         let provider = ProviderBuilder::new()
@@ -920,6 +933,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg(feature = "test_local_bundler")]
     async fn test_sign_message_not_deployed() {
         let config = Config::local();
         let provider = ProviderBuilder::new()
@@ -1002,6 +1016,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg(feature = "test_local_bundler")]
     async fn test_sign_message_partial_deployed() {
         let config = Config::local();
         let provider = ProviderBuilder::new()
@@ -1146,6 +1161,7 @@ mod tests {
 
     #[tokio::test]
     #[ignore]
+    #[cfg(feature = "test_local_bundler")]
     async fn test_send_transaction_7702() -> eyre::Result<()> {
         let config = Config::local();
         let provider = ProviderBuilder::new()
@@ -1238,6 +1254,7 @@ mod tests {
 
     #[tokio::test]
     #[ignore]
+    #[cfg(feature = "test_local_bundler")]
     async fn test_send_transaction_7702_vanilla_bundler() -> eyre::Result<()> {
         let config = Config::local();
         let provider = ProviderBuilder::new()

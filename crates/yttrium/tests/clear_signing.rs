@@ -26,8 +26,7 @@ const UNIVERSAL_ROUTER_OPTIMISM: &str =
 const STAKEWEIGHT_OPTIMISM: &str = "0x521B4C065Bbdbe3E20B3727340730936912DfA46";
 const USDT_OPTIMISM_CANONICAL: &str =
     "0x94b008aa00579c1307b0ef2c499ad98a8ce58e58";
-const STAKEWEIGHT_INCREASE_UNLOCK_TIME_CALLDATA: &str =
-    "0x7c616fe6000000000000000000000000000000000000000000000000000000006945563d";
+const STAKEWEIGHT_INCREASE_UNLOCK_TIME_CALLDATA: &str = "0x7c616fe6000000000000000000000000000000000000000000000000000000006945563d";
 const UNIVERSAL_ROUTER_CALLDATA_HEX: &str = concat!(
     "3593564c00000000000000000000000000000000000000000000000000000000",
     "0000006000000000000000000000000000000000000000000000000000000000",
@@ -114,8 +113,9 @@ fn approve_usdt_spender() {
 
 #[test]
 fn swap_usdc_to_weth_exact_input_single() {
-    let selector =
-        selector("exactInputSingle((address,address,uint24,address,uint256,uint256,uint160))");
+    let selector = selector(
+        "exactInputSingle((address,address,uint24,address,uint256,uint256,uint160))",
+    );
 
     let params = [
         address_word("0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"),
@@ -152,7 +152,9 @@ fn swap_usdc_to_weth_exact_input_single() {
     );
     assert_eq!(
         model.interpolated_intent.as_deref(),
-        Some("Swap 1,000,000 USDC for at least 1 WETH to 0x1234567890AbcdEF1234567890aBcdef12345678")
+        Some(
+            "Swap 1,000,000 USDC for at least 1 WETH to 0x1234567890AbcdEF1234567890aBcdef12345678"
+        )
     );
     assert!(model.warnings.is_empty());
     assert!(model.raw.is_none());
@@ -458,7 +460,9 @@ fn eip712_limit_order_formats_tokens() {
     );
     assert_eq!(
         model.interpolated_intent.as_deref(),
-        Some("Send 1 USDC for at least 1 WETH to 0xabc0000000000000000000000000000000000002")
+        Some(
+            "Send 1 USDC for at least 1 WETH to 0xabc0000000000000000000000000000000000002"
+        )
     );
     assert!(model.warnings.is_empty());
     assert!(model.raw.is_none());
@@ -532,7 +536,9 @@ fn eip712_uniswap_permit2_formats_allowance() {
     );
     assert_eq!(
         model.interpolated_intent.as_deref(),
-        Some("Authorize Uniswap Universal Router to spend Unlimited USDC until 2025-11-12 14:08:14 UTC")
+        Some(
+            "Authorize Uniswap Universal Router to spend Unlimited USDC until 2025-11-12 14:08:14 UTC"
+        )
     );
     assert!(model.warnings.is_empty());
     assert!(model.raw.is_none());

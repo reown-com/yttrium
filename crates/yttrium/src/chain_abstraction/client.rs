@@ -558,7 +558,10 @@ impl Client {
                             )
                             .unwrap();
                         let expected_address = txn.transaction.from;
-                        assert_eq!(address, expected_address, "invalid route signature at index {route_index}:eip155:{index}. Expected recovered address to be {expected_address} but got {address} instead");
+                        assert_eq!(
+                            address, expected_address,
+                            "invalid route signature at index {route_index}:eip155:{index}. Expected recovered address to be {expected_address} but got {address} instead"
+                        );
                     }
                 }
                 #[cfg(feature = "solana")]
@@ -567,13 +570,19 @@ impl Client {
                         route.iter().zip(route_sig.iter()).enumerate()
                     {
                         assert!(
-                            sig.verify(txn.transaction.from.as_array(), txn.transaction_hash_to_sign.as_ref()),
-                            "invalid route signature at index {route_index}:solana:{index}. Signature is invalid");
+                            sig.verify(
+                                txn.transaction.from.as_array(),
+                                txn.transaction_hash_to_sign.as_ref()
+                            ),
+                            "invalid route signature at index {route_index}:solana:{index}. Signature is invalid"
+                        );
                     }
                 }
                 #[allow(unreachable_patterns)]
                 _ => {
-                    panic!("mis-matched route signature type for route transaction type at index {route_index}");
+                    panic!(
+                        "mis-matched route signature type for route transaction type at index {route_index}"
+                    );
                 }
             }
         }
@@ -585,7 +594,10 @@ impl Client {
                 )
                 .unwrap();
             let expected_address = ui_fields.initial.transaction.from;
-            assert_eq!(address, expected_address, "invalid initial txn signature. Expected recovered address to be {expected_address} but got {address} instead");
+            assert_eq!(
+                address, expected_address,
+                "invalid initial txn signature. Expected recovered address to be {expected_address} but got {address} instead"
+            );
         }
 
         let result = self
@@ -712,7 +724,9 @@ impl Client {
                 }
                 #[allow(unreachable_patterns)]
                 _ => {
-                    panic!("mis-matched route transaction type for route signature type at index {route_index}");
+                    panic!(
+                        "mis-matched route transaction type for route signature type at index {route_index}"
+                    );
                 }
             }
         }

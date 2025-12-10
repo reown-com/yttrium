@@ -118,6 +118,7 @@ test_full = [
     "test_blockchain_api",
     "test_depends_on_env_REOWN_PROJECT_ID",
 ]
+test_local_bundler = []
 test_pimlico_api = []
 test_blockchain_api = []
 test_depends_on_env_REOWN_PROJECT_ID = []

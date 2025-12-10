@@ -354,13 +354,13 @@ async fn bridging_routes_routes_available() {
     if current_balance < required_amount {
         assert!(required_amount < U256::from(5000000));
         println!(
-                "using token faucet {} on chain {} for amount {current_balance} on token {:?} ({}). Send tokens to faucet at: {}",
-                faucet.address(),
-                chain_1_address_1_token.params.chain.caip2(),
-                token,
-                chain_1_address_1_token.token.address(),
-                faucet.address(),
-            );
+            "using token faucet {} on chain {} for amount {current_balance} on token {:?} ({}). Send tokens to faucet at: {}",
+            faucet.address(),
+            chain_1_address_1_token.params.chain.caip2(),
+            token,
+            chain_1_address_1_token.token.address(),
+            faucet.address(),
+        );
         let status = BridgeToken::new(
             chain_1_address_1_token.params.clone(),
             faucet.clone(),
@@ -484,7 +484,9 @@ async fn bridging_routes_routes_available() {
     ]
     .iter()
     .sum::<f64>();
-    println!("combined_fees_intermediate_totals: {combined_fees_intermediate_totals}");
+    println!(
+        "combined_fees_intermediate_totals: {combined_fees_intermediate_totals}"
+    );
     let error = (total_fee - combined_fees_intermediate_totals).abs();
     println!("error: {error}");
     assert!(error < 0.00000000000001);
@@ -882,7 +884,10 @@ async fn happy_path() {
             .as_float_inaccurate();
     println!("ui_bridge_fee: {ui_bridge_fee}");
     println!("send_amount_amount: {send_amount_amount}");
-    assert!(ui_bridge_fee / send_amount_amount < 0.05, "ui_bridge_fee {ui_bridge_fee} must be less than the amount being sent {send_amount_amount}");
+    assert!(
+        ui_bridge_fee / send_amount_amount < 0.05,
+        "ui_bridge_fee {ui_bridge_fee} must be less than the amount being sent {send_amount_amount}"
+    );
 
     for ((chain_id, address), total_fee) in total_fees {
         let provider = provider_pool
@@ -891,7 +896,9 @@ async fn happy_path() {
         let balance = provider.get_balance(address).await.unwrap();
         if total_fee > balance {
             let additional_balance_required = total_fee - balance;
-            println!("using faucet (1) for {chain_id}:{address} at {additional_balance_required}");
+            println!(
+                "using faucet (1) for {chain_id}:{address} at {additional_balance_required}"
+            );
             use_faucet_gas(
                 &provider,
                 faucet.clone(),
@@ -1429,7 +1436,9 @@ async fn happy_path_full_dependency_on_ui_fields() {
         let balance = provider.get_balance(address).await.unwrap();
         if total_fee > balance {
             let additional_balance_required = total_fee - balance;
-            println!("using faucet (1) for {chain_id}:{address} at {additional_balance_required}");
+            println!(
+                "using faucet (1) for {chain_id}:{address} at {additional_balance_required}"
+            );
             use_faucet_gas(
                 &provider,
                 faucet.clone(),
@@ -2172,7 +2181,9 @@ async fn happy_path_execute_method() {
         let balance = provider.get_balance(address).await.unwrap();
         if total_fee > balance {
             let additional_balance_required = total_fee - balance;
-            println!("using faucet (1) for {chain_id}:{address} at {additional_balance_required}");
+            println!(
+                "using faucet (1) for {chain_id}:{address} at {additional_balance_required}"
+            );
             use_faucet_gas(
                 &provider,
                 faucet.clone(),
@@ -2902,7 +2913,9 @@ async fn happy_path_lifi() {
         let balance = provider.get_balance(address).await.unwrap();
         if total_fee > balance {
             let additional_balance_required = total_fee - balance;
-            println!("using faucet (1) for {chain_id}:{address} at {additional_balance_required}");
+            println!(
+                "using faucet (1) for {chain_id}:{address} at {additional_balance_required}"
+            );
             use_faucet_gas(
                 &provider,
                 faucet.clone(),

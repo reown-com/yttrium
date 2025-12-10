@@ -8708,6 +8708,9 @@ name = "pay-api"
 version = "0.1.0"
 dependencies = [
  "serde",
+ "serde_json",
+ "uniffi",
+ "uniffi_macros",
 ]
 
 [[package]]
