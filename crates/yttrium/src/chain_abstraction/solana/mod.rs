@@ -1,14 +1,13 @@
 pub use {
     bincode,
     solana_client::nonblocking::rpc_client::RpcClient as SolanaRpcClient,
-    solana_sdk::{
-        commitment_config::CommitmentConfig as SolanaCommitmentConfig,
-        pubkey::{
-            ParsePubkeyError as SolanaParsePubkeyError, Pubkey as SolanaPubkey,
-        },
-        signature::{Keypair as SolanaKeypair, Signature as SolanaSignature},
-        transaction::VersionedTransaction as SolanaVersionedTransaction,
+    solana_commitment_config::CommitmentConfig as SolanaCommitmentConfig,
+    solana_keypair::Keypair as SolanaKeypair,
+    solana_sdk::pubkey::{
+        ParsePubkeyError as SolanaParsePubkeyError, Pubkey as SolanaPubkey,
     },
+    solana_signature::Signature as SolanaSignature,
+    solana_transaction::versioned::VersionedTransaction as SolanaVersionedTransaction,
     spl_associated_token_account::get_associated_token_address,
 };
 use {const_format::formatcp, std::str::FromStr};

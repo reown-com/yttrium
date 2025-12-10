@@ -38,7 +38,8 @@ use {
     serde_json::json,
     serial_test::serial,
     solana_client::nonblocking::rpc_client::RpcClient,
-    solana_sdk::{commitment_config::CommitmentConfig, signer::Signer},
+    solana_commitment_config::CommitmentConfig,
+    solana_signer::Signer,
     spl_associated_token_account::get_associated_token_address,
     std::time::Duration,
     url::Url,
@@ -395,7 +396,7 @@ async fn solana_happy_path() {
             "Preparing transfer transaction... faucet_amount: {faucet_amount}"
         );
         // Create transfer instruction
-        let transfer_ix = solana_sdk::system_instruction::transfer(
+        let transfer_ix = solana_system_interface::instruction::transfer(
             &faucet_solana.pubkey(),
             &account_solana.pubkey(),
             faucet_amount,
@@ -406,7 +407,7 @@ async fn solana_happy_path() {
 
         // Create and sign transaction
         let transaction =
-            solana_sdk::transaction::Transaction::new_signed_with_payer(
+            solana_transaction::Transaction::new_signed_with_payer(
                 &[transfer_ix],
                 Some(&faucet_solana.pubkey()),
                 &[&faucet_solana],

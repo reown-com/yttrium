@@ -58,7 +58,7 @@ use {
 #[cfg(feature = "solana")]
 use {
     crate::chain_abstraction::solana,
-    solana_sdk::transaction::VersionedTransaction,
+    solana_transaction::versioned::VersionedTransaction,
 };
 
 #[derive(Clone)]
