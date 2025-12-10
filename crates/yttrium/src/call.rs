@@ -1,5 +1,5 @@
 use {
-    alloy::primitives::{address, Address, Bytes, U256},
+    alloy::primitives::{Address, Bytes, U256, address},
     serde::{Deserialize, Serialize},
 };
 

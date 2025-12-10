@@ -1,6 +1,6 @@
 use {
     crate::chain_abstraction::currency::Currency,
-    alloy::primitives::{address, utils::Unit, Address},
+    alloy::primitives::{Address, address, utils::Unit},
     relay_rpc::domain::ProjectId,
     serde::{Deserialize, Serialize},
     std::collections::HashSet,

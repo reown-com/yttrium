@@ -6,7 +6,7 @@ use {
     },
     serde::Deserialize,
     std::{cell::RefCell, rc::Rc, sync::Arc},
-    wasm_bindgen::{closure::Closure, JsCast},
+    wasm_bindgen::{JsCast, closure::Closure},
     web_sys::js_sys,
 };
 
@@ -69,7 +69,9 @@ pub fn create_attestation(
                 match serde_json::from_str::<AttestationResponse>(&json_str) {
                     Ok(parsed) => parsed,
                     Err(_) => {
-                        tracing::warn!("postmessage from Verify origin but didn't parse as AttestationResponse");
+                        tracing::warn!(
+                            "postmessage from Verify origin but didn't parse as AttestationResponse"
+                        );
                         return;
                     }
                 }

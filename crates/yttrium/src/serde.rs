@@ -1,6 +1,6 @@
 pub mod duration_millis {
     use {
-        serde::{de, ser, Deserialize},
+        serde::{Deserialize, de, ser},
         std::time::Duration,
     };
 
@@ -47,7 +47,7 @@ pub mod systemtime_millis {
 
 pub mod option_duration_millis {
     use {
-        serde::{de, ser, Deserialize},
+        serde::{Deserialize, de, ser},
         std::time::Duration,
     };
 

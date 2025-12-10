@@ -2,7 +2,7 @@ use {
     super::error::L1DataFeeError,
     alloy::{
         network::TransactionBuilder,
-        primitives::{address, Address, U256},
+        primitives::{Address, U256, address},
         rlp::Encodable,
         rpc::types::TransactionRequest,
         sol,

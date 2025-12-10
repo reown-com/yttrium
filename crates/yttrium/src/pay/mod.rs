@@ -1,7 +1,12 @@
 use {
     pay_api::{
-        methods, ConfirmPaymentParams, ConfirmPaymentResponse, ConfirmResult,
-        GetPaymentParams, GetPaymentResponse,
+        bodies::{
+            confirm_payment::{
+                ConfirmPaymentParams, ConfirmPaymentResponse, ConfirmResult,
+            },
+            get_payment::{GetPaymentParams, GetPaymentResponse},
+        },
+        methods,
     },
     serde::{Deserialize, Serialize},
 };

@@ -24,14 +24,14 @@ use {
         relay::{Attestation, AttestationCallback, IncomingSessionMessage},
         storage::Storage,
         utils::{
-            diffie_hellman, is_expired,
+            DecryptedHash, EncryptedHash, diffie_hellman, is_expired,
             serialize_and_encrypt_message_type0_envelope,
             serialize_and_encrypt_message_type0_envelope_with_ids,
-            topic_from_sym_key, DecryptedHash, EncryptedHash,
+            topic_from_sym_key,
         },
         verify::{
-            validate::{handle_verify, VerifyContext},
             VERIFY_SERVER_URL,
+            validate::{VerifyContext, handle_verify},
         },
     },
     relay_rpc::{

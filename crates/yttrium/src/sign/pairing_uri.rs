@@ -151,7 +151,10 @@ mod tests {
         let expiry = 1752843899;
         let uri = format(&topic, &sym_key, &relay, expiry);
 
-        assert_eq!(uri, "wc:66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925@2?relay-protocol=irn&symKey=0000000000000000000000000000000000000000000000000000000000000000&expiryTimestamp=1752843899");
+        assert_eq!(
+            uri,
+            "wc:66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925@2?relay-protocol=irn&symKey=0000000000000000000000000000000000000000000000000000000000000000&expiryTimestamp=1752843899"
+        );
 
         assert!(uri.starts_with("wc:"));
         assert!(uri.contains("@2"));

@@ -1,5 +1,6 @@
 // Based off: https://github.com/rhinestonewtf/module-sdk-tutorials/blob/main/src/smart-sessions/permissionless-safe-7702.ts
 
+#[cfg(any(feature = "test_local_bundler", feature = "test_pimlico_api"))]
 use {
     crate::{
         bundler::{
@@ -14,38 +15,37 @@ use {
             accounts::safe::encode_validator_key,
             addresses::RHINESTONE_ATTESTER_ADDRESS,
             ownable_validator::{
-                encode_owners, get_ownable_validator,
-                get_ownable_validator_mock_signature,
-                OWNABLE_VALIDATOR_ADDRESS,
+                OWNABLE_VALIDATOR_ADDRESS, encode_owners,
+                get_ownable_validator, get_ownable_validator_mock_signature,
             },
             policy::get_sudo_policy,
             smart_sessions::{
-                encode_use_signature, get_permission_id,
-                get_smart_sessions_validator, ActionData, ERC7739Data, Session,
+                ActionData, ERC7739Data, Session, encode_use_signature,
+                get_permission_id, get_smart_sessions_validator,
             },
         },
         smart_accounts::{
             nonce::get_nonce_with_key,
             safe::{
-                get_call_data, AddSafe7579Contract, Owners, SetupContract,
-                SAFE_4337_MODULE_ADDRESS, SAFE_ERC_7579_LAUNCHPAD_ADDRESS,
-                SAFE_L2_SINGLETON_1_4_1,
+                AddSafe7579Contract, Owners, SAFE_4337_MODULE_ADDRESS,
+                SAFE_ERC_7579_LAUNCHPAD_ADDRESS, SAFE_L2_SINGLETON_1_4_1,
+                SetupContract, get_call_data,
             },
         },
         test_helpers::anvil_faucet,
-        user_operation::{hash::get_user_operation_hash_v07, UserOperationV07},
+        user_operation::{UserOperationV07, hash::get_user_operation_hash_v07},
     },
     alloy::{
         network::{EthereumWallet, TransactionBuilder7702},
         primitives::{
-            address, eip191_hash_message, fixed_bytes, Address, Bytes, B256,
-            U256,
+            Address, B256, Bytes, U256, address, eip191_hash_message,
+            fixed_bytes,
         },
         rlp::Encodable,
         rpc::types::Authorization,
         signers::{
-            local::{LocalSigner, PrivateKeySigner},
             SignerSync,
+            local::{LocalSigner, PrivateKeySigner},
         },
         sol_types::SolCall,
     },
@@ -82,6 +82,7 @@ async fn test_pimlico() {
 }
 
 #[tokio::test]
+#[cfg(feature = "test_local_bundler")]
 async fn test_local() {
     let provider =
         ProviderBuilder::new().on_http(LOCAL_RPC_URL.parse().unwrap());
@@ -96,6 +97,7 @@ async fn test_local() {
     .await
 }
 
+#[cfg(any(feature = "test_local_bundler", feature = "test_pimlico_api"))]
 async fn test_impl(
     provider: impl Provider + Clone,
     faucet: PrivateKeySigner,

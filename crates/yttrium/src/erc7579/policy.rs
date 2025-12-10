@@ -1,6 +1,6 @@
 use {
     super::smart_sessions::PolicyData,
-    alloy::primitives::{address, Address, Bytes},
+    alloy::primitives::{Address, Bytes, address},
 };
 
 // https://github.com/rhinestonewtf/module-sdk/blob/main/src/module/smart-sessions/policies/sudo-policy/constants.ts

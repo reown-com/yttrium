@@ -1,7 +1,7 @@
 use {
     super::module::{Module, ModuleType},
     alloy::{
-        primitives::{address, keccak256, Address, Bytes, FixedBytes, B256},
+        primitives::{Address, B256, Bytes, FixedBytes, address, keccak256},
         sol,
         sol_types::SolValue,
     },

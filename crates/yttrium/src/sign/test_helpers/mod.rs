@@ -1,6 +1,6 @@
 use {
     crate::sign::{
-        client::{generate_client_id_key, Client},
+        client::{Client, generate_client_id_key},
         client_types::{ConnectParams, Session, TransportType},
         protocol_types::{
             JsonRpcVersion, Metadata, ProposalNamespace, ProtocolRpcId,

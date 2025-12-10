@@ -1,6 +1,6 @@
 use {
     crate::user_operation::UserOperationV07,
-    alloy::primitives::{keccak256, B256},
+    alloy::primitives::{B256, keccak256},
 };
 
 pub fn get_hashed_init_code(user_operation: &UserOperationV07) -> B256 {
@@ -28,8 +28,7 @@ mod tests {
 
     #[test]
     fn test_get_hashed_init_code() {
-        let expected_hashed_init_code_hex =
-            "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470";
+        let expected_hashed_init_code_hex = "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470";
         let user_operation = UserOperationV07::mock();
         let hashed_init_code = get_hashed_init_code(&user_operation);
         assert_eq!(hashed_init_code.to_string(), expected_hashed_init_code_hex);

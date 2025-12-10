@@ -1,5 +1,5 @@
 use {
-    alloy::primitives::{Address, Bytes, B256},
+    alloy::primitives::{Address, B256, Bytes},
     alloy_provider::{ProviderBuilder, RootProvider},
 };
 

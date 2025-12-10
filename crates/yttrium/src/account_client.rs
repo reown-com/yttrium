@@ -5,6 +5,7 @@ use {
             pimlico::paymaster::client::PaymasterClient,
         },
         call::{
+            Call,
             send::{
                 do_send_transactions, prepare_send_transaction,
                 safe_test::{
@@ -12,19 +13,18 @@ use {
                     PreparedSendTransaction,
                 },
             },
-            Call,
         },
         config::Config,
         smart_accounts::{
             account_address::AccountAddress,
             safe::{
-                prepare_sign, sign, sign_step_3, Owners, PreparedSignature,
-                SignOutputEnum, SignStep3Params,
+                Owners, PreparedSignature, SignOutputEnum, SignStep3Params,
+                prepare_sign, sign, sign_step_3,
             },
         },
     },
     alloy::{
-        primitives::{Bytes, B256, U256, U64},
+        primitives::{B256, Bytes, U64, U256},
         providers::ProviderBuilder,
         rpc::types::UserOperationReceipt,
     },

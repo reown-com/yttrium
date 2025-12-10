@@ -10,10 +10,10 @@ use {
     },
     tracing::Event,
     tracing_subscriber::{
+        Layer,
         layer::{Context, SubscriberExt},
         registry::LookupSpan,
         util::SubscriberInitExt,
-        Layer,
     },
     yttrium::sign::{client::get_relay_url, test_helpers::test_sign_impl},
 };
