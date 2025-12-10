@@ -27,3 +27,7 @@ pub mod headers {
     pub const API_KEY: &str = "x-api-key";
     pub const IDEMPOTENCY_KEY: &str = "idempotency-key";
 }
+
+pub mod endpoints {
+    pub const GATEWAY: &str = "/v1/gateway";
+}

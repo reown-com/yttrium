@@ -5,6 +5,7 @@ use pay_api::{
         },
         get_payment::{GetPaymentParams, GetPaymentResponse},
     },
+    endpoints,
     envelope::{ErrorResponse, GatewayRequest, GatewayResponse},
 };
 
@@ -51,7 +52,7 @@ impl WalletConnectPay {
             GatewayRequest::GetPayment(GetPaymentParams { payment_id, accounts });
         let response = self
             .http_client
-            .post(format!("{}/v1/gateway", self.base_url))
+            .post(format!("{}{}", self.base_url, endpoints::GATEWAY))
             .json(&request)
             .send()
             .await?
@@ -76,7 +77,7 @@ impl WalletConnectPay {
         });
         let response = self
             .http_client
-            .post(format!("{}/v1/gateway", self.base_url))
+            .post(format!("{}{}", self.base_url, endpoints::GATEWAY))
             .json(&request)
             .send()
             .await?
