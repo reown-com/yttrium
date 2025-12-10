@@ -41,15 +41,14 @@ impl GetSenderAddress {
     }
 }
 
-pub async fn get_sender_address_v07<P, T, N>(
+pub async fn get_sender_address_v07<P, N>(
     provider: &P,
     factory: Address,
     factory_data: Bytes,
     entrypoint: super::EntryPointAddress,
 ) -> eyre::Result<AccountAddress>
 where
-    T: alloy::contract::private::Transport + ::core::clone::Clone,
-    P: alloy::contract::private::Provider<T, N>,
+    P: alloy::contract::private::Provider<N>,
     N: alloy::contract::private::Network,
 {
     let init_code: Bytes = {
@@ -107,10 +106,10 @@ where
                         error_resp_data_bytes_bytes.clone()
                     );
 
-                    let decoded_data = SenderAddressResult::abi_decode(
-                        &error_resp_data_bytes_bytes,
-                        true,
-                    )?;
+                    let decoded_data =
+                        SenderAddressResult::abi_decode_validate(
+                            &error_resp_data_bytes_bytes,
+                        )?;
 
                     let addr = decoded_data.sender;
 

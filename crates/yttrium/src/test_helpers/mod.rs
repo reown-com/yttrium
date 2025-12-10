@@ -1,22 +1,22 @@
-#[cfg(feature = "solana")]
-use solana_sdk::{
-    derivation_path::DerivationPath,
-    signature::{generate_seed_from_seed_phrase_and_passphrase, Keypair},
-    signer::{SeedDerivable, Signer},
-};
 use {
     alloy::{
         network::{EthereumWallet, TransactionBuilder},
         primitives::{
-            keccak256,
+            Address, U256, keccak256,
             utils::{ParseUnits, Unit},
-            Address, U256,
         },
         rpc::types::TransactionRequest,
         signers::{k256::ecdsa::SigningKey, local::LocalSigner},
     },
-    alloy_provider::{ext::AnvilApi, Provider, ProviderBuilder},
+    alloy_provider::{Provider, ProviderBuilder, ext::AnvilApi},
     std::time::Duration,
+};
+#[cfg(feature = "solana")]
+use {
+    solana_derivation_path::DerivationPath, solana_keypair::Keypair,
+    solana_seed_derivable::SeedDerivable,
+    solana_seed_phrase::generate_seed_from_seed_phrase_and_passphrase,
+    solana_signer::Signer,
 };
 
 pub fn private_faucet() -> LocalSigner<SigningKey> {
@@ -32,7 +32,7 @@ pub const BRIDGE_ACCOUNT_SOLANA_1: &str = "bridge_5";
 pub const BRIDGE_ACCOUNT_SOLANA_2: u32 = 1;
 
 pub fn use_account(name: Option<&str>) -> LocalSigner<SigningKey> {
-    use alloy::signers::local::{coins_bip39::English, MnemonicBuilder};
+    use alloy::signers::local::{MnemonicBuilder, coins_bip39::English};
     let mut builder = MnemonicBuilder::<English>::default().phrase(
         std::env::var("FAUCET_MNEMONIC")
             .expect("You've not set the FAUCET_MNEMONIC environment variable"),
@@ -178,13 +178,15 @@ async fn use_faucet_unlimited(
     }
 
     if amount > faucet_balance {
-        panic!("not enough funds in faucet. Needed to send {amount} but only had {faucet_balance} available. Please add more funds to the faucet at {chain_id}:{faucet_address}");
+        panic!(
+            "not enough funds in faucet. Needed to send {amount} but only had {faucet_balance} available. Please add more funds to the faucet at {chain_id}:{faucet_address}"
+        );
     }
     let txn = TransactionRequest::default().with_to(to).with_value(amount);
     println!("sending txn: {txn:?}");
     let txn_sent = ProviderBuilder::new()
         .wallet(EthereumWallet::new(faucet.clone()))
-        .on_provider(provider)
+        .connect_provider(provider)
         .send_transaction(txn.clone())
         .await
         .unwrap()

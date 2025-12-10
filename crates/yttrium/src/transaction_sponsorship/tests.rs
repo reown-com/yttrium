@@ -1,3 +1,4 @@
+#[cfg(any(feature = "test_local_bundler", feature = "test_pimlico_api"))]
 use {
     crate::{
         call::Call,
@@ -12,8 +13,8 @@ use {
         primitives::{Bytes, U256},
         providers::ProviderBuilder,
         signers::{
-            local::{LocalSigner, PrivateKeySigner},
             SignerSync,
+            local::{LocalSigner, PrivateKeySigner},
         },
     },
     alloy_provider::Provider,
@@ -55,11 +56,12 @@ async fn happy_path_pimlico() {
 }
 
 #[tokio::test]
+#[cfg(feature = "test_local_bundler")]
 async fn happy_path_local() {
     let chain_id = format!(
         "eip155:{}",
         ProviderBuilder::new()
-            .on_http(LOCAL_RPC_URL.parse().unwrap())
+            .connect_http(LOCAL_RPC_URL.parse().unwrap())
             .get_chain_id()
             .await
             .unwrap()
@@ -87,6 +89,7 @@ async fn happy_path_local() {
     happy_path_impl(chain_id, client, None).await
 }
 
+#[cfg(any(feature = "test_local_bundler", feature = "test_pimlico_api"))]
 async fn happy_path_impl(
     chain_id: String,
     client: GasAbstractionClient,

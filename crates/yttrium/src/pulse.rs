@@ -61,7 +61,9 @@ pub fn pulse(
                 } else {
                     match response.text().await {
                         Ok(text) => {
-                            tracing::warn!("execute() analytics request failed: {status} {text}");
+                            tracing::warn!(
+                                "execute() analytics request failed: {status} {text}"
+                            );
                         }
                         Err(e) => {
                             tracing::warn!(

@@ -2,7 +2,7 @@ use {
     super::module::{Module, ModuleType},
     crate::smart_accounts::safe::Owners,
     alloy::{
-        primitives::{address, bytes, Address, Bytes, U256},
+        primitives::{Address, Bytes, U256, address, bytes},
         sol_types::SolValue,
     },
 };
@@ -36,8 +36,9 @@ pub fn get_ownable_validator_signature(signatures: Vec<Bytes>) -> Bytes {
 
 pub fn get_ownable_validator_mock_signature(owners: &Owners) -> Bytes {
     // https://github.com/rhinestonewtf/module-sdk/blob/4b4174fad195a16977a3a989e63f85b46c71bbfe/src/module/ownable-validator/usage.ts#L208
-    const MOCK_SIGNATURE: Bytes =
-      bytes!("e8b94748580ca0b4993c9a1b86b5be851bfc076ff5ce3a1ff65bf16392acfcb800f9b4f1aef1555c7fce5599fffb17e7c635502154a0333ba21f3ae491839af51c");
+    const MOCK_SIGNATURE: Bytes = bytes!(
+        "e8b94748580ca0b4993c9a1b86b5be851bfc076ff5ce3a1ff65bf16392acfcb800f9b4f1aef1555c7fce5599fffb17e7c635502154a0333ba21f3ae491839af51c"
+    );
     get_ownable_validator_signature(
         (0..owners.threshold).map(|_| MOCK_SIGNATURE).collect(),
     )

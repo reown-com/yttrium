@@ -3,7 +3,7 @@ use wasm_bindgen::prelude::*;
 use {
     super::Transaction,
     crate::{call::Call, chain_abstraction::amount::Amount},
-    alloy::primitives::{utils::Unit, Address, U256},
+    alloy::primitives::{Address, U256, utils::Unit},
     core::fmt,
     relay_rpc::domain::ProjectId,
     serde::{Deserialize, Serialize},
@@ -12,7 +12,7 @@ use {
 #[cfg(feature = "solana")]
 use {
     crate::chain_abstraction::solana,
-    solana_sdk::transaction::VersionedTransaction,
+    solana_transaction::versioned::VersionedTransaction,
 };
 
 pub const ROUTE_ENDPOINT_PATH: &str = "/v2/ca/orchestrator/route";

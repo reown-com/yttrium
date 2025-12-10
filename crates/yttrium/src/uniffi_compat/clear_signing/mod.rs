@@ -1,6 +1,6 @@
 use crate::clear_signing::{
-    format as format_without_value, format_typed_data, format_with_value,
     DisplayModel, Eip712Error, EngineError, TypedData,
+    format as format_without_value, format_typed_data, format_with_value,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error, uniffi::Enum)]

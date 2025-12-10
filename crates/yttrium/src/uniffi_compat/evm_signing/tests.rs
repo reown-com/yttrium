@@ -1,5 +1,5 @@
 use {
-    crate::uniffi_compat::evm_signing::{sign_typed_data, EvmSigningError},
+    crate::uniffi_compat::evm_signing::{EvmSigningError, sign_typed_data},
     alloy::signers::local::PrivateKeySigner,
     std::str::FromStr,
 };

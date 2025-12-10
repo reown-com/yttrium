@@ -358,14 +358,20 @@ async fn connect(
                         let id = payload.id();
                         match payload {
                             Payload::Request(request) => {
-                                tracing::warn!("unexpected message request in connect() function: {:?}", request);
+                                tracing::warn!(
+                                    "unexpected message request in connect() function: {:?}",
+                                    request
+                                );
                             }
                             Payload::Response(response) => {
                                 if id == MessageId::new(message_id.get()) {
                                     // success, no-op
                                     break;
                                 } else {
-                                    tracing::warn!("unexpected message response in connect() function: {:?}", response);
+                                    tracing::warn!(
+                                        "unexpected message response in connect() function: {:?}",
+                                        response
+                                    );
                                 }
                             }
                         }
@@ -389,7 +395,7 @@ async fn connect(
     #[cfg(target_arch = "wasm32")]
     {
         use {
-            wasm_bindgen::{prelude::Closure, JsCast},
+            wasm_bindgen::{JsCast, prelude::Closure},
             web_sys::{CloseEvent, Event, MessageEvent},
         };
 
@@ -566,14 +572,20 @@ async fn connect(
                         let id = payload.id();
                         match payload {
                             Payload::Request(request) => {
-                                tracing::debug!("ignoring unexpected message request in batch subscribe connection: {:?}", request);
+                                tracing::debug!(
+                                    "ignoring unexpected message request in batch subscribe connection: {:?}",
+                                    request
+                                );
                             }
                             Payload::Response(response) => {
                                 if id == MessageId::new(message_id.get()) {
                                     // success, no-op
                                     break;
                                 } else {
-                                    tracing::debug!("ignoring unexpected message response in batch subscribe connection: {:?}", response);
+                                    tracing::debug!(
+                                        "ignoring unexpected message response in batch subscribe connection: {:?}",
+                                        response
+                                    );
                                 }
                             }
                         }
@@ -1052,7 +1064,9 @@ pub async fn connect_loop_state_machine(
                         }
                         ConnectError::InvalidAuth => ConnectionState::Poisoned,
                         ConnectError::ShouldNeverHappen(reason) => {
-                            tracing::error!("ConnectSubscribe should never happen: {reason}");
+                            tracing::error!(
+                                "ConnectSubscribe should never happen: {reason}"
+                            );
                             ConnectionState::Backoff(backoff_state)
                         }
                     },
@@ -1161,10 +1175,7 @@ pub async fn connect_loop_state_machine(
                 };
 
                 // Handle MaybeVerifiedRequest
-                let next_state = if let MaybeVerifiedRequest::Unverified(
-                    params,
-                ) = request
-                {
+                if let MaybeVerifiedRequest::Unverified(params) = request {
                     // Prepare the message first (allocates ID)
                     let prepared = prepare_websocket_message(
                         NextMessageId::new(MIN_RPC_ID),
@@ -1217,7 +1228,9 @@ pub async fn connect_loop_state_machine(
                                     ConnectionState::Poisoned
                                 }
                                 ConnectError::ShouldNeverHappen(reason) => {
-                                    tracing::error!("ConnectRequest should never happen: {reason}");
+                                    tracing::error!(
+                                        "ConnectRequest should never happen: {reason}"
+                                    );
                                     ConnectionState::Idle
                                 }
                             }
@@ -1316,7 +1329,9 @@ pub async fn connect_loop_state_machine(
                                     ConnectionState::Poisoned
                                 }
                                 ConnectError::ShouldNeverHappen(reason) => {
-                                    tracing::error!("ConnectRequest should never happen: {reason}");
+                                    tracing::error!(
+                                        "ConnectRequest should never happen: {reason}"
+                                    );
                                     ConnectionState::Idle
                                 }
                             }
@@ -1328,8 +1343,7 @@ pub async fn connect_loop_state_machine(
                         "Unexpected request type in ConnectRequest handler"
                     );
                     ConnectionState::Idle
-                };
-                next_state
+                }
             }
             ConnectionState::AwaitingConnectRequestResponse(
                 sent_message_id,
@@ -1529,7 +1543,10 @@ pub async fn connect_loop_state_machine(
 
                 match send_prepared_message(&ws, &prepared) {
                     Ok(()) => {
-                        tracing::debug!("Sent verified request with attestation, message_id={}", prepared.sent_message_id);
+                        tracing::debug!(
+                            "Sent verified request with attestation, message_id={}",
+                            prepared.sent_message_id
+                        );
                         ConnectionState::AwaitingConnectRequestResponse(
                             prepared.sent_message_id,
                             prepared.next_message_id,
@@ -1830,15 +1847,20 @@ pub async fn connect_loop_state_machine(
                 let params = callback(attestation);
 
                 // Prepare and send the request with attestation
-                let prepared =
-                    prepare_websocket_message(message_id, params.clone())
-                        .expect(
-                        "Failed to serialize Params - this should never happen",
-                    );
+                let prepared = prepare_websocket_message(
+                    message_id,
+                    params.clone(),
+                )
+                .expect(
+                    "Failed to serialize Params - this should never happen",
+                );
 
                 match send_prepared_message(&ws, &prepared) {
                     Ok(()) => {
-                        tracing::debug!("Sent verified request with attestation, message_id={}", prepared.sent_message_id);
+                        tracing::debug!(
+                            "Sent verified request with attestation, message_id={}",
+                            prepared.sent_message_id
+                        );
                         ConnectionState::AwaitingRequestResponse(
                             prepared.sent_message_id,
                             prepared.next_message_id,

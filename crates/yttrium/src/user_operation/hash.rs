@@ -1,9 +1,9 @@
 use {
     crate::user_operation::{
-        user_operation_hash::UserOperationHash, UserOperationV07,
+        UserOperationV07, user_operation_hash::UserOperationHash,
     },
     alloy::{
-        primitives::{keccak256, Address, Bytes, B256, U256},
+        primitives::{Address, B256, Bytes, U256, keccak256},
         sol_types::SolValue,
     },
 };
@@ -38,8 +38,7 @@ mod tests {
 
     #[test]
     fn test_get_user_operation_hash_v07() {
-        let expected_hash =
-            "0xa1ea19d934f05fc2d725f2be8452ad7e2f29d9747674045ea366a320b782411d";
+        let expected_hash = "0xa1ea19d934f05fc2d725f2be8452ad7e2f29d9747674045ea366a320b782411d";
         let user_operation = UserOperationV07::mock();
         let entry_point = "0x0000000071727De22E5E9d8BAf0edAc6f37da032"
             .parse::<Address>()

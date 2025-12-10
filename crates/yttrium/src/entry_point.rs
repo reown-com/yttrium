@@ -1,7 +1,7 @@
 use {
     crate::chain::ChainId,
     alloy::{
-        primitives::{address, Address},
+        primitives::{Address, address},
         sol,
     },
 };

@@ -1,159 +1,91 @@
-use {
-    pay_api::{
-        methods, ConfirmPaymentParams, ConfirmPaymentResponse, ConfirmResult,
-        CreatePaymentParams, CreatePaymentResponse, GetPaymentParams, GetPaymentResponse,
+use pay_api::{
+    bodies::{
+        confirm_payment::{
+            ConfirmPaymentParams, ConfirmPaymentResponse, ConfirmResult,
+        },
+        get_payment::{GetPaymentParams, GetPaymentResponse},
     },
-    serde::{Deserialize, Serialize},
+    endpoints,
+    envelope::{ErrorResponse, GatewayRequest, GatewayResponse},
 };
 
 #[derive(Debug, thiserror::Error)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Error))]
 pub enum PayError {
     #[error("HTTP error: {0}")]
-    Http(#[from] reqwest::Error),
+    Http(String),
     #[error("API error: {code} - {message}")]
     Api { code: String, message: String },
 }
 
-#[derive(Debug, Serialize)]
-struct ApiRequest<P> {
-    method: String,
-    params: P,
+impl From<reqwest::Error> for PayError {
+    fn from(e: reqwest::Error) -> Self {
+        Self::Http(e.to_string())
+    }
 }
 
-#[derive(Debug, Deserialize)]
-#[serde(tag = "status", rename_all = "lowercase")]
-enum ApiResponse<T> {
-    Success { data: T },
-    Error { error: ApiError },
-}
-
-#[derive(Debug, Deserialize)]
-struct ApiError {
-    code: String,
-    message: String,
-}
-
-impl From<ApiError> for PayError {
-    fn from(e: ApiError) -> Self {
+impl From<ErrorResponse> for PayError {
+    fn from(e: ErrorResponse) -> Self {
         Self::Api { code: e.code, message: e.message }
     }
 }
 
+#[cfg_attr(feature = "uniffi", derive(uniffi::Object))]
 pub struct WalletConnectPay {
     http_client: reqwest::Client,
     base_url: String,
 }
 
+#[cfg_attr(feature = "uniffi", uniffi::export(async_runtime = "tokio"))]
 impl WalletConnectPay {
+    #[cfg_attr(feature = "uniffi", uniffi::constructor)]
     pub fn new(base_url: String) -> Self {
-        Self {
-            http_client: reqwest::Client::new(),
-            base_url,
-        }
+        Self { http_client: reqwest::Client::new(), base_url }
     }
 
-    /// 
-    /// called by PSP/POS device, so not used from uniffi_compat
-    /// 
-    pub async fn create_payment(
-        &self,
-        amount: String,
-        currency: String,
-        reference_id: String,
-    ) -> Result<CreatePaymentResponse, PayError> {
-        let request = ApiRequest {
-            method: methods::CREATE_PAYMENT.to_owned(),
-            params: CreatePaymentParams { amount, currency, reference_id },
-        };
-        let response = self
-            .http_client
-            .post(format!("{}/v1/gateway", self.base_url))
-            .json(&request)
-            .send()
-            .await?
-            .json::<ApiResponse<CreatePaymentResponse>>()
-            .await?;
-        match response {
-            ApiResponse::Success { data } => Ok(data),
-            ApiResponse::Error { error } => Err(error.into()),
-        }
-    }
-    
-    /// 
-    /// called by Wallet upon scanning, so used from uniffi_compat
-    ///
     pub async fn get_payment(
         &self,
         payment_id: String,
         accounts: Vec<String>,
     ) -> Result<GetPaymentResponse, PayError> {
-        let request = ApiRequest {
-            method: methods::GET_PAYMENT.to_owned(),
-            params: GetPaymentParams { payment_id, accounts },
-        };
+        let request =
+            GatewayRequest::GetPayment(GetPaymentParams { payment_id, accounts });
         let response = self
             .http_client
-            .post(format!("{}/v1/gateway", self.base_url))
+            .post(format!("{}{}", self.base_url, endpoints::GATEWAY))
             .json(&request)
             .send()
             .await?
-            .json::<ApiResponse<GetPaymentResponse>>()
+            .json::<GatewayResponse<GetPaymentResponse>>()
             .await?;
         match response {
-            ApiResponse::Success { data } => Ok(data),
-            ApiResponse::Error { error } => Err(error.into()),
+            GatewayResponse::Success { data } => Ok(data),
+            GatewayResponse::Error { error } => Err(error.into()),
         }
     }
 
-    ///
-    /// called by Wallet when action is buildPaymentRequest, so used from uniffi_compat
-    ///
-    pub async fn build_payment(
-        &self,
-        option_id: String,
-    ) -> Result<BuildPaymentResponse, PayError> {
-        let request = ApiRequest {
-            method: methods::GET_PAYMENT.to_owned(),
-            params: BuildPaymentParams { option_id },
-        };
-        let response = self
-            .http_client
-            .post(format!("{}/v1/gateway", self.base_url))
-            .json(&request)
-            .send()
-            .await?
-            .json::<ApiResponse<BuildPaymentResponse>>()
-            .await?;
-        match response {
-            ApiResponse::Success { data } => Ok(data),
-            ApiResponse::Error { error } => Err(error.into()),
-        }
-    }
-    
-    /// 
-    /// called by Wallet, so used from uniffi_compat
-    ///
     pub async fn confirm_payment(
         &self,
         payment_id: String,
         option_id: String,
         results: Vec<ConfirmResult>,
     ) -> Result<ConfirmPaymentResponse, PayError> {
-        let request = ApiRequest {
-            method: methods::CONFIRM_PAYMENT.to_owned(),
-            params: ConfirmPaymentParams { payment_id, option_id, results },
-        };
+        let request = GatewayRequest::ConfirmPayment(ConfirmPaymentParams {
+            payment_id,
+            option_id,
+            results,
+        });
         let response = self
             .http_client
-            .post(format!("{}/v1/gateway", self.base_url))
+            .post(format!("{}{}", self.base_url, endpoints::GATEWAY))
             .json(&request)
             .send()
             .await?
-            .json::<ApiResponse<ConfirmPaymentResponse>>()
+            .json::<GatewayResponse<ConfirmPaymentResponse>>()
             .await?;
         match response {
-            ApiResponse::Success { data } => Ok(data),
-            ApiResponse::Error { error } => Err(error.into()),
+            GatewayResponse::Success { data } => Ok(data),
+            GatewayResponse::Error { error } => Err(error.into()),
         }
     }
 }

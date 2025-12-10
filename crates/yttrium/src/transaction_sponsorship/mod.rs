@@ -21,19 +21,19 @@ use {
         smart_accounts::{
             nonce::get_nonce_with_key,
             safe::{
-                get_call_data, AddSafe7579Contract, Owners, SetupContract,
-                SAFE_4337_MODULE_ADDRESS, SAFE_ERC_7579_LAUNCHPAD_ADDRESS,
-                SAFE_L2_SINGLETON_1_4_1,
+                AddSafe7579Contract, Owners, SAFE_4337_MODULE_ADDRESS,
+                SAFE_ERC_7579_LAUNCHPAD_ADDRESS, SAFE_L2_SINGLETON_1_4_1,
+                SetupContract, get_call_data,
             },
         },
         test_helpers::anvil_faucet,
-        user_operation::{hash::get_user_operation_hash_v07, UserOperationV07},
+        user_operation::{UserOperationV07, hash::get_user_operation_hash_v07},
     },
     alloy::{
         hex::FromHex,
         network::{EthereumWallet, TransactionBuilder7702},
         primitives::{
-            eip191_hash_message, Address, Bytes, PrimitiveSignature, B256, U256,
+            Address, B256, Bytes, Signature, U256, eip191_hash_message,
         },
         rpc::types::{Authorization, UserOperationReceipt},
         signers::local::{LocalSigner, PrivateKeySigner},
@@ -382,8 +382,9 @@ impl Client {
             anvil_faucet(&provider).await
         };
         let sponsor_wallet = EthereumWallet::new(sponsor);
-        let sponsor_provider =
-            ProviderBuilder::new().wallet(sponsor_wallet).on_provider(provider);
+        let sponsor_provider = ProviderBuilder::new()
+            .wallet(sponsor_wallet)
+            .connect_provider(provider);
 
         let safe_owners = Owners {
             threshold: 1,
@@ -460,7 +461,7 @@ impl Client {
     // TODO check if receipt is actually OK, return error result if not (with the receipt still)
     pub async fn send(
         &self,
-        signature: PrimitiveSignature,
+        signature: Signature,
         params: SendParams,
     ) -> Result<UserOperationReceipt, SendError> {
         let bundler_client =
@@ -518,7 +519,7 @@ pub struct PreparedGasAbstractionAuthorization {
 pub struct SignedAuthorization {
     // FIXME cannot pass this through FFI like this
     pub auth: Authorization,
-    pub signature: PrimitiveSignature,
+    pub signature: Signature,
 }
 
 #[cfg_attr(feature = "uniffi", derive(uniffi::Record))]

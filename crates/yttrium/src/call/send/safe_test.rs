@@ -11,16 +11,16 @@ use {
         call::Call,
         chain::ChainId,
         config::Config,
-        entry_point::{EntryPointVersion, ENTRYPOINT_ADDRESS_V07},
+        entry_point::{ENTRYPOINT_ADDRESS_V07, EntryPointVersion},
         smart_accounts::{
             account_address::AccountAddress,
             nonce::get_nonce,
             safe::{
-                factory_data, get_account_address, get_call_data,
-                get_call_data_with_try, init_data, user_operation_to_safe_op,
-                Owners, Safe7579Launchpad, SafeOp, DUMMY_SIGNATURE,
-                SAFE_4337_MODULE_ADDRESS, SAFE_ERC_7579_LAUNCHPAD_ADDRESS,
-                SAFE_PROXY_FACTORY_1_4_1, SAFE_SINGLETON_1_4_1,
+                DUMMY_SIGNATURE, Owners, SAFE_4337_MODULE_ADDRESS,
+                SAFE_ERC_7579_LAUNCHPAD_ADDRESS, SAFE_PROXY_FACTORY_1_4_1,
+                SAFE_SINGLETON_1_4_1, Safe7579Launchpad, SafeOp, factory_data,
+                get_account_address, get_call_data, get_call_data_with_try,
+                init_data, user_operation_to_safe_op,
             },
         },
         user_operation::{Authorization, UserOperationV07},
@@ -28,12 +28,12 @@ use {
     alloy::{
         dyn_abi::{DynSolValue, Eip712Domain},
         primitives::{
-            aliases::U48, Address, Bytes, PrimitiveSignature, Uint, B256, U160,
-            U256, U64,
+            Address, B256, Bytes, Signature, U64, U160, U256, Uint,
+            aliases::U48,
         },
         providers::Provider,
         rpc::types::UserOperationReceipt,
-        signers::{k256::ecdsa::SigningKey, local::LocalSigner, SignerSync},
+        signers::{SignerSync, k256::ecdsa::SigningKey, local::LocalSigner},
         sol_types::{SolCall, SolStruct},
     },
     alloy_provider::ProviderBuilder,
@@ -81,7 +81,7 @@ pub async fn get_address(
 ) -> eyre::Result<AccountAddress> {
     let rpc_url = config.endpoints.rpc.base_url;
     let rpc_url: reqwest::Url = rpc_url.parse()?;
-    let provider = ProviderBuilder::new().on_http(rpc_url);
+    let provider = ProviderBuilder::new().connect_http(rpc_url);
 
     let owners = Owners { owners: vec![owner_address.into()], threshold: 1 };
 
@@ -182,8 +182,8 @@ pub async fn prepare_send_transactions(
         config.endpoints.bundler.base_url.parse()?,
     ));
 
-    let provider =
-        ProviderBuilder::new().on_http(config.endpoints.rpc.base_url.parse()?);
+    let provider = ProviderBuilder::new()
+        .connect_http(config.endpoints.rpc.base_url.parse()?);
 
     let paymaster_client = PaymasterClient::new(BundlerConfig::new(
         config.endpoints.paymaster.base_url.parse()?,
@@ -366,7 +366,7 @@ pub async fn prepare_send_transactions_inner(
 #[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
 pub struct OwnerSignature {
     pub owner: Address,
-    pub signature: PrimitiveSignature,
+    pub signature: Signature,
 }
 
 pub async fn encode_send_transactions(
@@ -414,8 +414,8 @@ pub async fn do_send_transactions(
 ) -> eyre::Result<Bytes> {
     let user_op = encode_send_transactions(signatures, params).await?;
 
-    let provider =
-        ProviderBuilder::new().on_http(config.endpoints.rpc.base_url.parse()?);
+    let provider = ProviderBuilder::new()
+        .connect_http(config.endpoints.rpc.base_url.parse()?);
     let chain_id = provider.get_chain_id().await?;
     let chain = crate::chain::Chain::new(
         ChainId::new_eip155(chain_id),
@@ -437,32 +437,37 @@ pub async fn do_send_transactions(
 
 #[cfg(test)]
 mod tests {
+    #[cfg(any(
+        feature = "test_local_bundler",
+        feature = "test_pimlico_api"
+    ))]
     use {
         super::*,
         crate::{
             call::Call,
             chain::ChainId,
             smart_accounts::safe::{
-                prepare_sign, sign, sign_step_3, PreparedSignature,
-                SignOutputEnum,
+                PreparedSignature, SignOutputEnum, prepare_sign, sign,
+                sign_step_3,
             },
             test_helpers::{self, use_faucet},
         },
         alloy::{
             network::{TransactionBuilder, TransactionBuilder7702},
-            primitives::{eip191_hash_message, fixed_bytes, Bytes, U160, U64},
-            providers::{ext::AnvilApi, PendingTransactionConfig},
+            primitives::{Bytes, U64, U160, eip191_hash_message, fixed_bytes},
+            providers::{PendingTransactionConfig, ext::AnvilApi},
             rpc::types::TransactionRequest,
             sol,
         },
     };
 
+    #[cfg(any(feature = "test_local_bundler", feature = "test_pimlico_api"))]
     async fn test_send_transaction(
         config: Config,
         faucet: LocalSigner<SigningKey>,
     ) -> eyre::Result<()> {
         let provider = ProviderBuilder::new()
-            .on_http(config.endpoints.rpc.base_url.parse()?);
+            .connect_http(config.endpoints.rpc.base_url.parse()?);
 
         let destination = LocalSigner::random();
         let balance = provider.get_balance(destination.address()).await?;
@@ -518,15 +523,17 @@ mod tests {
         Ok(())
     }
 
+    #[cfg(feature = "test_local_bundler")]
     async fn anvil_faucet(config: Config) -> LocalSigner<SigningKey> {
         test_helpers::anvil_faucet(
             &ProviderBuilder::new()
-                .on_http(config.endpoints.rpc.base_url.parse().unwrap()),
+                .connect_http(config.endpoints.rpc.base_url.parse().unwrap()),
         )
         .await
     }
 
     #[tokio::test]
+    #[cfg(feature = "test_local_bundler")]
     async fn test_send_transaction_local() {
         let config = Config::local();
         let faucet = anvil_faucet(config.clone()).await;
@@ -543,6 +550,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg(feature = "test_local_bundler")]
     async fn test_send_transaction_first_reverted_local() {
         let config = Config::local();
         let faucet = anvil_faucet(config.clone()).await;
@@ -560,12 +568,13 @@ mod tests {
         test_send_transaction_first_reverted(config, faucet).await;
     }
 
+    #[cfg(any(feature = "test_local_bundler", feature = "test_pimlico_api"))]
     async fn test_send_transaction_first_reverted(
         config: Config,
         faucet: LocalSigner<SigningKey>,
     ) {
         let provider = ProviderBuilder::new()
-            .on_http(config.endpoints.rpc.base_url.parse().unwrap());
+            .connect_http(config.endpoints.rpc.base_url.parse().unwrap());
 
         let destination = LocalSigner::random();
         let balance =
@@ -597,11 +606,13 @@ mod tests {
         // The UserOp is successful, but the transaction actually failed. See
         // note above near `Safe7579Launchpad::setupSafe`
         assert!(receipt.success);
-        assert!(!provider
-            .get_code_at(sender_address.into())
-            .await
-            .unwrap()
-            .is_empty());
+        assert!(
+            !provider
+                .get_code_at(sender_address.into())
+                .await
+                .unwrap()
+                .is_empty()
+        );
         assert_eq!(
             provider
                 .get_storage_at(sender_address.into(), Uint::from(0))
@@ -646,10 +657,11 @@ mod tests {
 
     #[tokio::test]
     #[ignore]
+    #[cfg(feature = "test_local_bundler")]
     async fn test_send_transaction_reverted() {
         let config = Config::local();
         let provider = ProviderBuilder::new()
-            .on_http(config.endpoints.rpc.base_url.parse().unwrap());
+            .connect_http(config.endpoints.rpc.base_url.parse().unwrap());
 
         let destination = LocalSigner::random();
         let balance =
@@ -725,11 +737,12 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg(feature = "test_local_bundler")]
     async fn test_send_transaction_just_deploy() -> eyre::Result<()> {
         let config = Config::local();
 
         let provider = ProviderBuilder::new()
-            .on_http(config.endpoints.rpc.base_url.parse()?);
+            .connect_http(config.endpoints.rpc.base_url.parse()?);
 
         let owner = LocalSigner::random();
         let sender_address = get_account_address(
@@ -737,11 +750,13 @@ mod tests {
             Owners { owners: vec![owner.address()], threshold: 1 },
         )
         .await;
-        assert!(provider
-            .get_code_at(sender_address.into())
-            .await
-            .unwrap()
-            .is_empty());
+        assert!(
+            provider
+                .get_code_at(sender_address.into())
+                .await
+                .unwrap()
+                .is_empty()
+        );
 
         let transaction = vec![];
 
@@ -755,22 +770,25 @@ mod tests {
         .await?;
         assert!(receipt.success);
 
-        assert!(!provider
-            .get_code_at(sender_address.into())
-            .await
-            .unwrap()
-            .is_empty());
+        assert!(
+            !provider
+                .get_code_at(sender_address.into())
+                .await
+                .unwrap()
+                .is_empty()
+        );
 
         Ok(())
     }
 
     #[tokio::test]
+    #[cfg(feature = "test_local_bundler")]
     async fn test_send_transaction_batch() -> eyre::Result<()> {
         let config = Config::local();
         let faucet = anvil_faucet(config.clone()).await;
 
         let provider = ProviderBuilder::new()
-            .on_http(config.endpoints.rpc.base_url.parse()?);
+            .connect_http(config.endpoints.rpc.base_url.parse()?);
 
         let destination1 = LocalSigner::random();
         let destination2 = LocalSigner::random();
@@ -826,10 +844,11 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg(feature = "test_local_bundler")]
     async fn test_sign_message_deployed() {
         let config = Config::local();
         let provider = ProviderBuilder::new()
-            .on_http(config.endpoints.rpc.base_url.parse().unwrap());
+            .connect_http(config.endpoints.rpc.base_url.parse().unwrap());
 
         let owner = LocalSigner::random();
         let owner_address = owner.address();
@@ -848,11 +867,13 @@ mod tests {
         .await
         .unwrap();
         assert!(receipt.success);
-        assert!(!provider
-            .get_code_at(sender_address.into())
-            .await
-            .unwrap()
-            .is_empty());
+        assert!(
+            !provider
+                .get_code_at(sender_address.into())
+                .await
+                .unwrap()
+                .is_empty()
+        );
 
         let message = "test message";
         let message_hash = eip191_hash_message(message);
@@ -906,24 +927,27 @@ mod tests {
             .call()
             .await
             .unwrap();
-        assert_eq!(magic_value.magicValue, fixed_bytes!("1626ba7e"));
+        assert_eq!(magic_value.0, fixed_bytes!("1626ba7e"));
 
-        assert!(erc6492::verify_signature(
-            signature,
-            sender_address.into(),
-            message_hash,
-            &provider
-        )
-        .await
-        .unwrap()
-        .is_valid());
+        assert!(
+            erc6492::verify_signature(
+                signature,
+                sender_address.into(),
+                message_hash,
+                &provider
+            )
+            .await
+            .unwrap()
+            .is_valid()
+        );
     }
 
     #[tokio::test]
+    #[cfg(feature = "test_local_bundler")]
     async fn test_sign_message_not_deployed() {
         let config = Config::local();
         let provider = ProviderBuilder::new()
-            .on_http(config.endpoints.rpc.base_url.parse().unwrap());
+            .connect_http(config.endpoints.rpc.base_url.parse().unwrap());
 
         let owner = LocalSigner::random();
         let owner_address = owner.address();
@@ -932,11 +956,13 @@ mod tests {
         let sender_address =
             get_account_address(provider.clone(), owners.clone()).await;
 
-        assert!(provider
-            .get_code_at(sender_address.into())
-            .await
-            .unwrap()
-            .is_empty());
+        assert!(
+            provider
+                .get_code_at(sender_address.into())
+                .await
+                .unwrap()
+                .is_empty()
+        );
 
         let message = "test message";
         let message_hash = eip191_hash_message(message);
@@ -978,34 +1004,41 @@ mod tests {
             }
         };
 
-        assert!(provider
-            .get_code_at(sender_address.into())
+        assert!(
+            provider
+                .get_code_at(sender_address.into())
+                .await
+                .unwrap()
+                .is_empty()
+        );
+
+        assert!(
+            erc6492::verify_signature(
+                signature,
+                sender_address.into(),
+                message_hash,
+                &provider
+            )
             .await
             .unwrap()
-            .is_empty());
+            .is_valid()
+        );
 
-        assert!(erc6492::verify_signature(
-            signature,
-            sender_address.into(),
-            message_hash,
-            &provider
-        )
-        .await
-        .unwrap()
-        .is_valid());
-
-        assert!(provider
-            .get_code_at(sender_address.into())
-            .await
-            .unwrap()
-            .is_empty());
+        assert!(
+            provider
+                .get_code_at(sender_address.into())
+                .await
+                .unwrap()
+                .is_empty()
+        );
     }
 
     #[tokio::test]
+    #[cfg(feature = "test_local_bundler")]
     async fn test_sign_message_partial_deployed() {
         let config = Config::local();
         let provider = ProviderBuilder::new()
-            .on_http(config.endpoints.rpc.base_url.parse().unwrap());
+            .connect_http(config.endpoints.rpc.base_url.parse().unwrap());
 
         let owner = LocalSigner::random();
         let owner_address = owner.address();
@@ -1032,11 +1065,13 @@ mod tests {
         .await
         .unwrap();
         assert!(receipt.success);
-        assert!(!provider
-            .get_code_at(sender_address.into())
-            .await
-            .unwrap()
-            .is_empty());
+        assert!(
+            !provider
+                .get_code_at(sender_address.into())
+                .await
+                .unwrap()
+                .is_empty()
+        );
         assert_eq!(
             provider
                 .get_storage_at(sender_address.into(), Uint::from(0))
@@ -1097,17 +1132,19 @@ mod tests {
             .call()
             .await
             .unwrap();
-        assert_eq!(magic_value.magicValue, fixed_bytes!("1626ba7e"));
+        assert_eq!(magic_value.0, fixed_bytes!("1626ba7e"));
 
-        assert!(erc6492::verify_signature(
-            signature,
-            sender_address.into(),
-            message_hash,
-            &provider
-        )
-        .await
-        .unwrap()
-        .is_valid());
+        assert!(
+            erc6492::verify_signature(
+                signature,
+                sender_address.into(),
+                message_hash,
+                &provider
+            )
+            .await
+            .unwrap()
+            .is_valid()
+        );
 
         let balance =
             provider.get_balance(destination.address()).await.unwrap();
@@ -1146,10 +1183,11 @@ mod tests {
 
     #[tokio::test]
     #[ignore]
+    #[cfg(feature = "test_local_bundler")]
     async fn test_send_transaction_7702() -> eyre::Result<()> {
         let config = Config::local();
         let provider = ProviderBuilder::new()
-            .on_http(config.endpoints.rpc.base_url.parse()?);
+            .connect_http(config.endpoints.rpc.base_url.parse()?);
 
         let destination = LocalSigner::random();
         let balance = provider.get_balance(destination.address()).await?;
@@ -1238,10 +1276,11 @@ mod tests {
 
     #[tokio::test]
     #[ignore]
+    #[cfg(feature = "test_local_bundler")]
     async fn test_send_transaction_7702_vanilla_bundler() -> eyre::Result<()> {
         let config = Config::local();
         let provider = ProviderBuilder::new()
-            .on_http(config.endpoints.rpc.base_url.parse()?);
+            .connect_http(config.endpoints.rpc.base_url.parse()?);
 
         let destination = LocalSigner::random();
         let balance = provider.get_balance(destination.address()).await?;

@@ -28,7 +28,7 @@ impl From<B256> for UserOperationHash {
 
 impl From<UserOperationHash> for B256 {
     fn from(value: UserOperationHash) -> Self {
-        B256::from_slice(&value.0 .0)
+        B256::from_slice(&value.0.0)
     }
 }
 
@@ -48,12 +48,12 @@ impl FromStr for UserOperationHash {
 impl UserOperationHash {
     #[inline]
     pub const fn as_fixed_bytes(&self) -> &[u8; 32] {
-        &self.0 .0
+        &self.0.0
     }
 
     #[inline]
     pub fn as_bytes_mut(&mut self) -> &mut [u8] {
-        &mut self.0 .0
+        &mut self.0.0
     }
 
     #[inline]

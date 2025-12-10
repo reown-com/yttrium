@@ -3,7 +3,7 @@ use {
         storage::{Storage, StorageError},
         utils::{DecryptedHash, EncryptedHash},
     },
-    jsonwebtoken::{jwk::Jwk, Algorithm, DecodingKey, Validation},
+    jsonwebtoken::{Algorithm, DecodingKey, Validation, jwk::Jwk},
     serde::{Deserialize, Serialize},
     std::sync::Arc,
     tracing::Instrument,
@@ -144,7 +144,9 @@ async fn decode_attestation_into_verify_context(
     let decoding_key = match DecodingKey::from_jwk(public_key) {
         Ok(decoding_key) => decoding_key,
         Err(e) => {
-            tracing::error!("decode_attestation_into_verify_context: DecodingKey::from_jwk: {e}");
+            tracing::error!(
+                "decode_attestation_into_verify_context: DecodingKey::from_jwk: {e}"
+            );
             return VerifyContext {
                 origin: None,
                 validation: VerifyValidation::Unknown,
@@ -160,7 +162,9 @@ async fn decode_attestation_into_verify_context(
         Ok(token_data) => token_data.claims,
         Err(e) => {
             if e.kind() == &jsonwebtoken::errors::ErrorKind::InvalidSignature {
-                tracing::debug!("decode_attestation_into_verify_context: invalid signature, fetching latest key");
+                tracing::debug!(
+                    "decode_attestation_into_verify_context: invalid signature, fetching latest key"
+                );
                 let public_key = match get_latest_public_key(
                     verify_server_url,
                     http_client,
@@ -171,7 +175,9 @@ async fn decode_attestation_into_verify_context(
                 {
                     Ok(public_key) => public_key,
                     Err(e) => {
-                        tracing::error!("decode_attestation_into_verify_context: get_latest_public_key: {e}");
+                        tracing::error!(
+                            "decode_attestation_into_verify_context: get_latest_public_key: {e}"
+                        );
                         return VerifyContext {
                             origin: None,
                             validation: VerifyValidation::Unknown,
@@ -182,7 +188,9 @@ async fn decode_attestation_into_verify_context(
                 let decoding_key = match DecodingKey::from_jwk(&public_key) {
                     Ok(decoding_key) => decoding_key,
                     Err(e) => {
-                        tracing::error!("decode_attestation_into_verify_context: DecodingKey::from_jwk: {e}");
+                        tracing::error!(
+                            "decode_attestation_into_verify_context: DecodingKey::from_jwk: {e}"
+                        );
                         return VerifyContext {
                             origin: None,
                             validation: VerifyValidation::Unknown,
@@ -197,7 +205,9 @@ async fn decode_attestation_into_verify_context(
                 ) {
                     Ok(token_data) => token_data.claims,
                     Err(e) => {
-                        tracing::error!("decode_attestation_into_verify_context: decode attestation (2): {e}");
+                        tracing::error!(
+                            "decode_attestation_into_verify_context: decode attestation (2): {e}"
+                        );
                         return VerifyContext {
                             origin: None,
                             validation: VerifyValidation::Unknown,
@@ -206,7 +216,9 @@ async fn decode_attestation_into_verify_context(
                     }
                 }
             } else {
-                tracing::error!("decode_attestation_into_verify_context: decode attestation (not invalid signature): {e}");
+                tracing::error!(
+                    "decode_attestation_into_verify_context: decode attestation (not invalid signature): {e}"
+                );
                 return VerifyContext {
                     origin: None,
                     validation: VerifyValidation::Unknown,
@@ -219,7 +231,9 @@ async fn decode_attestation_into_verify_context(
     let app_origin = match Url::parse(app_metadata_url) {
         Ok(url) => url.origin().ascii_serialization(),
         Err(e) => {
-            tracing::error!("decode_attestation_into_verify_context: parse app metadata url: {e}");
+            tracing::error!(
+                "decode_attestation_into_verify_context: parse app metadata url: {e}"
+            );
             return VerifyContext {
                 origin: None,
                 validation: VerifyValidation::Unknown,
@@ -242,7 +256,9 @@ async fn decode_attestation_into_verify_context(
     }
 
     if !attestation.is_verified {
-        tracing::debug!("decode_attestation_into_verify_context: attestation is not verified");
+        tracing::debug!(
+            "decode_attestation_into_verify_context: attestation is not verified"
+        );
         return VerifyContext {
             origin: None,
             validation: VerifyValidation::Unknown,
@@ -252,10 +268,14 @@ async fn decode_attestation_into_verify_context(
 
     VerifyContext {
         validation: if attestation.origin == app_origin {
-            tracing::debug!("decode_attestation_into_verify_context: attestation origin is valid");
+            tracing::debug!(
+                "decode_attestation_into_verify_context: attestation origin is valid"
+            );
             VerifyValidation::Valid
         } else {
-            tracing::debug!("decode_attestation_into_verify_context: attestation origin is invalid");
+            tracing::debug!(
+                "decode_attestation_into_verify_context: attestation origin is invalid"
+            );
             VerifyValidation::Invalid
         },
         origin: Some(attestation.origin),
@@ -451,8 +471,8 @@ mod tests {
         relay_rpc::domain::Topic,
         sha2::Digest,
         wiremock::{
-            matchers::{method, path},
             Mock, MockServer, ResponseTemplate,
+            matchers::{method, path},
         },
     };
 

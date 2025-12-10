@@ -478,11 +478,7 @@ impl ArgumentValue {
     }
 
     pub fn as_uint(&self) -> Option<&BigUint> {
-        if let ArgumentValue::Uint(value) = self {
-            Some(value)
-        } else {
-            None
-        }
+        if let ArgumentValue::Uint(value) = self { Some(value) } else { None }
     }
 
     pub fn as_address(&self) -> Option<&[u8; 20]> {

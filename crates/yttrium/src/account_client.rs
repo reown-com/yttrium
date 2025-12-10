@@ -5,6 +5,7 @@ use {
             pimlico::paymaster::client::PaymasterClient,
         },
         call::{
+            Call,
             send::{
                 do_send_transactions, prepare_send_transaction,
                 safe_test::{
@@ -12,19 +13,18 @@ use {
                     PreparedSendTransaction,
                 },
             },
-            Call,
         },
         config::Config,
         smart_accounts::{
             account_address::AccountAddress,
             safe::{
-                prepare_sign, sign, sign_step_3, Owners, PreparedSignature,
-                SignOutputEnum, SignStep3Params,
+                Owners, PreparedSignature, SignOutputEnum, SignStep3Params,
+                prepare_sign, sign, sign_step_3,
             },
         },
     },
     alloy::{
-        primitives::{Bytes, B256, U256, U64},
+        primitives::{B256, Bytes, U64, U256},
         providers::ProviderBuilder,
         rpc::types::UserOperationReceipt,
     },
@@ -70,7 +70,7 @@ impl AccountClient {
         // TODO refactor class to create Provider on AccountClient
         // initialization instead of lazily
         let provider = ProviderBuilder::new()
-            .on_http(self.config.endpoints.rpc.base_url.parse().unwrap());
+            .connect_http(self.config.endpoints.rpc.base_url.parse().unwrap());
 
         sign(
             Owners { owners: vec![self.owner.into()], threshold: 1 },

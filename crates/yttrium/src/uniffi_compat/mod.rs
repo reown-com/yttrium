@@ -41,13 +41,12 @@ use {
     crate::chain_abstraction::solana::{
         self, SolanaKeypair, SolanaPubkey, SolanaSignature,
     },
-    solana_sdk::{
-        bs58,
-        derivation_path::DerivationPath,
-        signature::generate_seed_from_seed_phrase_and_passphrase,
-        signer::{SeedDerivable, Signer},
-        transaction::VersionedTransaction,
-    },
+    solana_derivation_path::DerivationPath,
+    solana_sdk::bs58,
+    solana_seed_derivable::SeedDerivable,
+    solana_seed_phrase::generate_seed_from_seed_phrase_and_passphrase,
+    solana_signer::Signer,
+    solana_transaction::versioned::VersionedTransaction,
 };
 #[cfg(feature = "sign_client")]
 use {
@@ -59,8 +58,8 @@ use {
         contract::Error as AlloyError,
         dyn_abi::Eip712Domain,
         primitives::{
-            aliases::U48, Address, Bytes, PrimitiveSignature, Uint, B256, U128,
-            U256, U64, U8,
+            Address, B256, Bytes, Signature as PrimitiveSignature, U8, U64,
+            U128, U256, Uint, aliases::U48,
         },
         rpc::types::{Authorization, TransactionReceipt, UserOperationReceipt},
         signers::local::PrivateKeySigner,
@@ -444,7 +443,7 @@ uniffi::custom_type!(StatusCode, u16, {
 mod tests {
     use {
         super::*,
-        alloy::primitives::{address, bytes, U32},
+        alloy::primitives::{U32, address, bytes},
     };
 
     #[test]
@@ -498,11 +497,16 @@ mod tests {
     #[cfg(feature = "solana")]
     #[test]
     fn test_solana_signature_lower() {
-        let ffi_u64 = solana_sdk::signature::Signature::from([0xab; 64]);
+        let ffi_u64 = solana_signature::Signature::from([0xab; 64]);
         let u = ::uniffi::FfiConverter::<crate::UniFfiTag>::lower(ffi_u64);
         let s: String =
             ::uniffi::FfiConverter::<crate::UniFfiTag>::try_lift(u).unwrap();
-        assert_eq!(s, format!("4S55ApgNWn8YKQL5J2uuxtfZrYXQZqBs8BUJTqGv3us4cAefggxxMLavbor7u47x4BfUhDRkfFBpW2rJTU6YMxux"));
+        assert_eq!(
+            s,
+            format!(
+                "4S55ApgNWn8YKQL5J2uuxtfZrYXQZqBs8BUJTqGv3us4cAefggxxMLavbor7u47x4BfUhDRkfFBpW2rJTU6YMxux"
+            )
+        );
     }
 
     #[test]

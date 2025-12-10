@@ -4,44 +4,39 @@ use {
         smart_accounts::account_address::AccountAddress,
     },
     alloy::{
-        contract::{
-            private::{Network, Provider, Transport},
-            Error,
-        },
-        primitives::{aliases::U192, U256},
+        contract::{Error, private::Network},
+        primitives::{U256, aliases::U192},
+        providers::Provider,
     },
-    core::clone::Clone,
 };
 
-pub async fn get_nonce<P, T, N>(
+pub async fn get_nonce<P, N>(
     provider: &P,
     address: AccountAddress,
     entry_point_address: &EntryPointAddress,
 ) -> Result<U256, Error>
 where
-    T: Transport + Clone,
-    P: Provider<T, N>,
+    P: Provider<N>,
     N: Network,
 {
     get_nonce_with_key(provider, address, entry_point_address, U192::ZERO).await
 }
 
-pub async fn get_nonce_with_key<P, T, N>(
+pub async fn get_nonce_with_key<P, N>(
     provider: &P,
     address: AccountAddress,
     entry_point_address: &EntryPointAddress,
     key: U192,
 ) -> Result<U256, Error>
 where
-    T: Transport + Clone,
-    P: Provider<T, N>,
+    P: Provider<N>,
     N: Network,
 {
     let entry_point_instance =
         EntryPoint::new(entry_point_address.to_address(), provider);
 
-    let get_nonce_call =
+    let nonce =
         entry_point_instance.getNonce(address.to_address(), key).call().await?;
 
-    Ok(get_nonce_call.nonce)
+    Ok(nonce)
 }

@@ -1,7 +1,8 @@
 use {
     crate::{
         sign::{
-            client::{generate_client_id_key, Client},
+            IncomingSessionMessage,
+            client::{Client, generate_client_id_key},
             client_errors::{
                 ApproveError, ConnectError, DisconnectError, EmitError,
                 ExtendError, PairError, RejectError, RequestError,
@@ -11,7 +12,6 @@ use {
             protocol_types::{
                 Metadata, ProtocolRpcId, SessionRequest, SettleNamespace,
             },
-            IncomingSessionMessage,
         },
         uniffi_compat::sign::{
             ffi_types::{
@@ -116,7 +116,11 @@ impl SignClient {
                 while let Some((topic, message)) = rx.recv().await {
                     match message {
                         IncomingSessionMessage::SessionRequest(request, _) => {
-                            tracing::debug!("Received session request - Topic: {:?}, SessionRequest: {:?}", topic, request);
+                            tracing::debug!(
+                                "Received session request - Topic: {:?}, SessionRequest: {:?}",
+                                topic,
+                                request
+                            );
                             let session_request_ffi: SessionRequestJsonRpcFfi =
                                 request.into();
                             listener
@@ -171,7 +175,9 @@ impl SignClient {
                 tracing::info!("Session request listener stopped");
             });
         } else {
-            tracing::warn!("Session request listener already started or receiver not available");
+            tracing::warn!(
+                "Session request listener already started or receiver not available"
+            );
         }
     }
 

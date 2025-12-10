@@ -1,6 +1,6 @@
 use {
     crate::user_operation::UserOperationV07,
-    alloy::primitives::{keccak256, Bytes, B256},
+    alloy::primitives::{B256, Bytes, keccak256},
 };
 
 pub fn get_data(user_operation: &UserOperationV07) -> Bytes {

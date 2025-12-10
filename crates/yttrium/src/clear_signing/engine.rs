@@ -3,10 +3,10 @@
 use {
     super::{
         descriptor::{
+            ArgumentValue, DecodedArguments, DescriptorError, DisplayField,
+            DisplayFormat, EffectiveField, TokenLookupError, TokenLookupKey,
             build_descriptor, decode_arguments, determine_token_key,
-            native_token_key, resolve_effective_field, ArgumentValue,
-            DecodedArguments, DescriptorError, DisplayField, DisplayFormat,
-            EffectiveField, TokenLookupError, TokenLookupKey,
+            native_token_key, resolve_effective_field,
         },
         resolver::ResolvedCall,
         token_registry::TokenMeta,
@@ -14,7 +14,7 @@ use {
     num_bigint::BigUint,
     std::collections::HashMap,
     thiserror::Error,
-    time::{macros::format_description, OffsetDateTime},
+    time::{OffsetDateTime, macros::format_description},
     tiny_keccak::{Hasher, Keccak},
 };
 
@@ -476,11 +476,7 @@ fn token_amount_message(
     } else {
         parse_biguint(threshold_spec)?
     };
-    if amount >= &threshold {
-        Some(message.to_string())
-    } else {
-        None
-    }
+    if amount >= &threshold { Some(message.to_string()) } else { None }
 }
 
 fn lookup_token_meta(

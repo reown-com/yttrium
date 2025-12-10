@@ -2,7 +2,7 @@ use {
     super::error::L1DataFeeError,
     alloy::{
         network::TransactionBuilder,
-        primitives::{address, Address, U256},
+        primitives::{Address, U256, address},
         rlp::Encodable,
         rpc::types::TransactionRequest,
         sol,
@@ -38,7 +38,7 @@ pub async fn get_l1_data_fee(
     // println!("l1_data_fee txn: {:?}", txn);
     // println!("l1_data_fee txn hash: {}", hex::encode(keccak256(&buf)));
     let current_l1_fee = match oracle.getL1Fee(buf.into()).call().await {
-        Ok(fee) => fee._0,
+        Ok(fee) => fee,
         Err(e) => {
             // TODO check if this error comes from the contract not existing,
             // because that means it's a chain w/o an L2 data fee

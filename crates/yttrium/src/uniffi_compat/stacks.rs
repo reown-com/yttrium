@@ -1,13 +1,13 @@
 use {
     crate::{
         blockchain_api::BLOCKCHAIN_API_URL_PROD,
-        provider_pool::{network, ProviderPool},
+        provider_pool::{ProviderPool, network},
         pulse::PulseMetadata,
     },
     clarity::Error as ClarityError,
     rand::{
-        rngs::{OsRng, StdRng},
         SeedableRng,
+        rngs::{OsRng, StdRng},
     },
     relay_rpc::domain::ProjectId,
     reqwest::Client as ReqwestClient,
@@ -21,7 +21,7 @@ use {
         wallet::{Error as StacksWalletError, StacksWallet},
     },
     stacks_secp256k1::{
-        ecdsa::Signature as StacksSignature, hashes::sha256, Message, Secp256k1,
+        Message, Secp256k1, ecdsa::Signature as StacksSignature, hashes::sha256,
     },
     url::Url,
 };
@@ -94,7 +94,7 @@ fn stacks_get_address(
             _ => {
                 return Err(StacksGetAddressError::InvalidVersion(
                     version.to_string(),
-                ))
+                ));
             }
         })
         .map_err(StacksGetAddressError::GetAddress)
@@ -213,7 +213,7 @@ fn sign_transaction(
         _ => {
             return Err(StacksSignTransactionError::InvalidNetwork(
                 network.to_string(),
-            ))
+            ));
         }
     };
 
@@ -349,7 +349,10 @@ impl StacksClient {
             Ok(result) => result,
             Err(e) => {
                 // Use fallback fee rate of 1 if transfer_fees fails
-                tracing::warn!("Failed to fetch transfer fee rate: {}. Using fallback value of 1 fee rate / byte.", e);
+                tracing::warn!(
+                    "Failed to fetch transfer fee rate: {}. Using fallback value of 1 fee rate / byte.",
+                    e
+                );
                 1
             }
         };

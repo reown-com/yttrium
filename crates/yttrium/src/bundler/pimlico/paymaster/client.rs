@@ -84,11 +84,11 @@ impl PaymasterClient {
 mod tests {
     use {super::*, alloy::primitives::Address, eyre::ensure};
 
-    pub async fn setup_sponsor_user_operation_v07_paymaster_mock(
-    ) -> eyre::Result<PaymasterClient> {
+    pub async fn setup_sponsor_user_operation_v07_paymaster_mock()
+    -> eyre::Result<PaymasterClient> {
         use wiremock::{
-            matchers::{method, path},
             Mock, MockServer, ResponseTemplate,
+            matchers::{method, path},
         };
 
         let mock_server = MockServer::start().await;

@@ -1,20 +1,20 @@
 use {
     super::{
         api::{
+            Transaction,
             fungible_price::{
-                PriceRequestBody, PriceResponseBody,
                 FUNGIBLE_PRICE_ENDPOINT_PATH, NATIVE_TOKEN_ADDRESS,
+                PriceRequestBody, PriceResponseBody,
             },
             prepare::{
                 CallOrCalls, PrepareRequest, PrepareRequestTransaction,
                 PrepareResponse, PrepareResponseAvailable,
-                PrepareResponseSuccess, RouteQueryParams, ROUTE_ENDPOINT_PATH,
+                PrepareResponseSuccess, ROUTE_ENDPOINT_PATH, RouteQueryParams,
             },
             status::{
-                StatusQueryParams, StatusResponse, StatusResponseCompleted,
-                STATUS_ENDPOINT_PATH,
+                STATUS_ENDPOINT_PATH, StatusQueryParams, StatusResponse,
+                StatusResponseCompleted,
             },
-            Transaction,
         },
         currency::Currency,
         error::{
@@ -22,7 +22,7 @@ use {
             PrepareDetailedResponse, PrepareDetailedResponseSuccess,
             PrepareError, StatusError, WaitForSuccessError,
         },
-        send_transaction::{send_transaction, TransactionAnalytics},
+        send_transaction::{TransactionAnalytics, send_transaction},
         ui_fields::{RouteSig, UiFields},
     },
     crate::{
@@ -32,23 +32,23 @@ use {
             api::{fungible_price::PriceQueryParams, prepare::Transactions},
             error::UiFieldsError,
             l1_data_fee::get_l1_data_fee,
-            pulse::{pulse, PULSE_SDK_TYPE},
+            pulse::{PULSE_SDK_TYPE, pulse},
             ui_fields::{self, EstimatedRouteTransaction, Route},
         },
         erc20::ERC20,
         provider_pool::ProviderPool,
         pulse::PulseMetadata,
         serde::{duration_millis, option_duration_millis, systemtime_millis},
-        time::{sleep, Duration, Instant, SystemTime},
+        time::{Duration, Instant, SystemTime, sleep},
         wallet_service_api::{GetAssetsParams, GetAssetsResult},
     },
     alloy::{
         network::TransactionBuilder,
-        primitives::{Address, PrimitiveSignature, B256, U256, U64},
+        primitives::{Address, B256, Signature, U64, U256},
         rpc::types::{TransactionReceipt, TransactionRequest},
         transports::TransportResult,
     },
-    alloy_provider::{utils::Eip1559Estimation, Provider},
+    alloy_provider::{Provider, utils::Eip1559Estimation},
     relay_rpc::domain::ProjectId,
     reqwest::Client as ReqwestClient,
     serde::{Deserialize, Serialize},
@@ -58,7 +58,7 @@ use {
 #[cfg(feature = "solana")]
 use {
     crate::chain_abstraction::solana,
-    solana_sdk::transaction::VersionedTransaction,
+    solana_transaction::versioned::VersionedTransaction,
 };
 
 #[derive(Clone)]
@@ -264,7 +264,7 @@ impl Client {
                 self.provider_pool
                     .get_provider(chain_id)
                     .await
-                    .estimate_eip1559_fees(None)
+                    .estimate_eip1559_fees()
                     .await
                     .map_err(UiFieldsError::Eip1559Estimation)
                     .map(|estimate| (chain_id, estimate))
@@ -536,7 +536,7 @@ impl Client {
         &self,
         ui_fields: UiFields,
         route_txn_sigs: Vec<RouteSig>,
-        initial_txn_sig: PrimitiveSignature,
+        initial_txn_sig: Signature,
     ) -> Result<ExecuteDetails, ExecuteError> {
         assert_eq!(
             ui_fields.route.len(),
@@ -558,7 +558,10 @@ impl Client {
                             )
                             .unwrap();
                         let expected_address = txn.transaction.from;
-                        assert_eq!(address, expected_address, "invalid route signature at index {route_index}:eip155:{index}. Expected recovered address to be {expected_address} but got {address} instead");
+                        assert_eq!(
+                            address, expected_address,
+                            "invalid route signature at index {route_index}:eip155:{index}. Expected recovered address to be {expected_address} but got {address} instead"
+                        );
                     }
                 }
                 #[cfg(feature = "solana")]
@@ -567,13 +570,19 @@ impl Client {
                         route.iter().zip(route_sig.iter()).enumerate()
                     {
                         assert!(
-                            sig.verify(txn.transaction.from.as_array(), txn.transaction_hash_to_sign.as_ref()),
-                            "invalid route signature at index {route_index}:solana:{index}. Signature is invalid");
+                            sig.verify(
+                                txn.transaction.from.as_array(),
+                                txn.transaction_hash_to_sign.as_ref()
+                            ),
+                            "invalid route signature at index {route_index}:solana:{index}. Signature is invalid"
+                        );
                     }
                 }
                 #[allow(unreachable_patterns)]
                 _ => {
-                    panic!("mis-matched route signature type for route transaction type at index {route_index}");
+                    panic!(
+                        "mis-matched route signature type for route transaction type at index {route_index}"
+                    );
                 }
             }
         }
@@ -585,7 +594,10 @@ impl Client {
                 )
                 .unwrap();
             let expected_address = ui_fields.initial.transaction.from;
-            assert_eq!(address, expected_address, "invalid initial txn signature. Expected recovered address to be {expected_address} but got {address} instead");
+            assert_eq!(
+                address, expected_address,
+                "invalid initial txn signature. Expected recovered address to be {expected_address} but got {address} instead"
+            );
         }
 
         let result = self
@@ -616,7 +628,7 @@ impl Client {
         &self,
         ui_fields: UiFields,
         route_txn_sigs: Vec<RouteSig>,
-        initial_txn_sig: PrimitiveSignature,
+        initial_txn_sig: Signature,
     ) -> Result<
         (ExecuteDetails, ExecuteAnalytics),
         (ExecuteError, ExecuteAnalytics),
@@ -712,7 +724,9 @@ impl Client {
                 }
                 #[allow(unreachable_patterns)]
                 _ => {
-                    panic!("mis-matched route transaction type for route signature type at index {route_index}");
+                    panic!(
+                        "mis-matched route transaction type for route signature type at index {route_index}"
+                    );
                 }
             }
         }
@@ -808,7 +822,7 @@ impl Client {
         let provider = self.provider_pool.get_provider(chain_id).await;
         let erc20 = ERC20::new(token, provider);
         let balance = erc20.balanceOf(owner).call().await?;
-        Ok(balance.balance)
+        Ok(balance)
     }
 
     pub async fn get_wallet_assets(

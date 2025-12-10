@@ -158,7 +158,7 @@ impl ProviderPool {
 
             let provider = ProviderBuilder::new()
                 .disable_recommended_fillers()
-                .on_client({
+                .connect_client({
                     self.get_rpc_client(
                         #[cfg(feature = "chain_abstraction_client")]
                         tracing,

@@ -9,8 +9,8 @@ use {
         traits::{EncodeDecodeBase64, KeyPair},
     },
     rand::{
-        rngs::{OsRng, StdRng},
         SeedableRng,
+        rngs::{OsRng, StdRng},
     },
     relay_rpc::domain::ProjectId,
     reqwest::Client as ReqwestClient,
@@ -148,7 +148,9 @@ pub enum SuiSignTransactionError {
     #[error("Failed to get coins for gas payment: {0}")]
     GetCoinsForGas(sui_sdk::error::Error),
 
-    #[error("No coins available for gas payment. The address {0} has no SUI coins available. Please fund the account first.")]
+    #[error(
+        "No coins available for gas payment. The address {0} has no SUI coins available. Please fund the account first."
+    )]
     NoCoinsAvailableForGas(SuiAddress),
 }
 
@@ -548,7 +550,9 @@ mod tests {
         println!("Match: {}", address.to_string() == tx_sender);
 
         if address.to_string() != tx_sender {
-            println!("❌ MISMATCH: The keypair doesn't match the transaction sender!");
+            println!(
+                "❌ MISMATCH: The keypair doesn't match the transaction sender!"
+            );
             println!(
                 "This is why you're getting the MisMatchedSenderAddress error."
             );
