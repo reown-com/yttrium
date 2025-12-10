@@ -132,6 +132,35 @@ install_variant_sources() {
     cp "${bindings_dir}/uniffi/uniffi_yttrium/uniffi_yttrium.kt" "$kotlin_base/"
     cp "${bindings_dir}/uniffi/yttrium/yttrium.kt" "$kotlin_base/"
 
+    # Add @Serializable annotations and import for all data classes
+    for kt_file in "$kotlin_base"/*.kt; do
+        if [ -f "$kt_file" ]; then
+            # Add import if not present (add after kotlinx.coroutines imports)
+            if ! grep -q "import kotlinx.serialization.Serializable" "$kt_file"; then
+                if command -v perl >/dev/null 2>&1; then
+                    perl -i -pe 'if (/^import kotlinx\.coroutines/ && !$added) { 
+                                     print "import kotlinx.serialization.Serializable\n"; 
+                                     $added = 1; 
+                                 }' "$kt_file"
+                fi
+                # Fallback: add after last import line
+                if ! grep -q "import kotlinx.serialization.Serializable" "$kt_file"; then
+                    last_import_line=$(grep -n "^import " "$kt_file" | tail -1 | cut -d: -f1)
+                    if [ -n "$last_import_line" ]; then
+                        sed -i '' "${last_import_line}a\\
+import kotlinx.serialization.Serializable
+" "$kt_file"
+                    fi
+                fi
+            fi
+            # Add @Serializable annotation before data class and sealed class declarations (only if not already present)
+            # Use awk to check previous line and add @Serializable only if needed
+            awk 'prev ~ /^@Serializable$/ && (/^data class / || /^sealed class /) { print; next } 
+                 (/^data class / || /^sealed class /) && prev !~ /^@Serializable$/ { print "@Serializable" } 
+                 { prev=$0; print }' "$kt_file" > "$kt_file.tmp" && mv "$kt_file.tmp" "$kt_file"
+        fi
+    done
+
     if [ "$variant" = "utils" ]; then
         # Change generated Kotlin package names and library name to avoid class duplication when both AARs are added
         

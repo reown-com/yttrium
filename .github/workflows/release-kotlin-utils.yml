@@ -59,6 +59,30 @@ jobs:
             --language kotlin \
             --out-dir yttrium/kotlin-utils-bindings
           
+          # Add @Serializable annotations and import for all data classes and sealed classes
+          find yttrium/kotlin-utils-bindings -type f -name "*.kt" | while read kt_file; do
+            # Add import if not present (add after kotlinx.coroutines imports)
+            if ! grep -q "import kotlinx.serialization.Serializable" "$kt_file"; then
+              if command -v perl >/dev/null 2>&1; then
+                perl -i -pe 'if (/^import kotlinx\.coroutines/ && !$added) { 
+                                 print "import kotlinx.serialization.Serializable\n"; 
+                                 $added = 1; 
+                             }' "$kt_file"
+              fi
+              # Fallback: add after last import line
+              if ! grep -q "import kotlinx.serialization.Serializable" "$kt_file"; then
+                last_import_line=$(grep -n "^import " "$kt_file" | tail -1 | cut -d: -f1)
+                if [ -n "$last_import_line" ]; then
+                  awk -v line="$last_import_line" 'NR==line {print; print "import kotlinx.serialization.Serializable"; next} 1' "$kt_file" > "$kt_file.tmp" && mv "$kt_file.tmp" "$kt_file"
+                fi
+              fi
+            fi
+            # Add @Serializable annotation before data class and sealed class declarations
+            awk 'prev ~ /^@Serializable$/ && (/^data class / || /^sealed class /) { print; next } 
+                 (/^data class / || /^sealed class /) && prev !~ /^@Serializable$/ { print "@Serializable" } 
+                 { prev=$0; print }' "$kt_file" > "$kt_file.tmp" && mv "$kt_file.tmp" "$kt_file"
+          done
+          
           # Rename packages and imports for utils variant
           find yttrium/kotlin-utils-bindings -type f -name "*.kt" -exec perl -i -pe '
             s/^package uniffi\.yttrium$/package uniffi.yttrium_utils/;
