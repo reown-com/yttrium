@@ -52,7 +52,7 @@ Creates a new payment intent.
   },
   "expiresAt": 1733126400,
   "pollInMs": 1000,
-  "gatewayUrl": "https://pay.walletconnect.com/v1/gateway"
+  "gatewayUrl": "https://pay.walletconnect.com/wcp_payment_7XJkF2nPqR9vL5mT3hYwZ6aB4cD8eG1j"
 }
 ```
 
