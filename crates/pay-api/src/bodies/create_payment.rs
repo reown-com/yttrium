@@ -25,4 +25,5 @@ pub struct CreatePaymentResponse {
     pub amount: Amount,
     pub expires_at: u64,
     pub poll_in_ms: u64,
+    pub gateway_url: String,
 }
