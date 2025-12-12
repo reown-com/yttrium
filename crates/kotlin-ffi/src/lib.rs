@@ -9,6 +9,8 @@ use alloy::primitives::Bytes as FFIBytes;
 #[allow(unused_imports)]
 #[allow(clippy::single_component_path_imports)]
 use yttrium;
+#[cfg(feature = "pay")]
+use pay_api;
 #[cfg(any(
     feature = "chain_abstraction_client",
     feature = "account_client"
