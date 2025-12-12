@@ -457,6 +457,22 @@ fileprivate struct FfiConverterUInt64: FfiConverterPrimitive {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterInt64: FfiConverterPrimitive {
+    typealias FfiType = Int64
+    typealias SwiftType = Int64
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Int64 {
+        return try lift(readInt(&buf))
+    }
+
+    public static func write(_ value: Int64, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterString: FfiConverter {
     typealias SwiftType = String
     typealias FfiType = RustBuffer
@@ -681,7 +697,7 @@ public func FfiConverterTypeLogger_lower(_ value: Logger) -> UInt64 {
 
 public protocol WalletConnectPayProtocol: AnyObject, Sendable {
     
-    func getPayment(paymentId: String, accounts: [String]?) async throws 
+    func createPayment(referenceId: String, amountUnit: String, amountValue: String) async throws  -> CreatePaymentResponseFfi
     
 }
 open class WalletConnectPay: WalletConnectPayProtocol, @unchecked Sendable {
@@ -723,11 +739,10 @@ open class WalletConnectPay: WalletConnectPayProtocol, @unchecked Sendable {
     public func uniffiCloneHandle() -> UInt64 {
         return try! rustCall { uniffi_yttrium_fn_clone_walletconnectpay(self.handle, $0) }
     }
-public convenience init(projectId: ProjectId, baseUrl: String) {
+public convenience init(baseUrl: String) {
     let handle =
         try! rustCall() {
     uniffi_yttrium_fn_constructor_walletconnectpay_new(
-        FfiConverterTypeProjectId_lower(projectId),
         FfiConverterString.lower(baseUrl),$0
     )
 }
@@ -741,19 +756,19 @@ public convenience init(projectId: ProjectId, baseUrl: String) {
     
 
     
-open func getPayment(paymentId: String, accounts: [String]?)async throws   {
+open func createPayment(referenceId: String, amountUnit: String, amountValue: String)async throws  -> CreatePaymentResponseFfi  {
     return
         try  await uniffiRustCallAsync(
             rustFutureFunc: {
-                uniffi_yttrium_fn_method_walletconnectpay_get_payment(
+                uniffi_yttrium_fn_method_walletconnectpay_create_payment(
                     self.uniffiCloneHandle(),
-                    FfiConverterString.lower(paymentId),FfiConverterOptionSequenceString.lower(accounts)
+                    FfiConverterString.lower(referenceId),FfiConverterString.lower(amountUnit),FfiConverterString.lower(amountValue)
                 )
             },
-            pollFunc: ffi_yttrium_rust_future_poll_void,
-            completeFunc: ffi_yttrium_rust_future_complete_void,
-            freeFunc: ffi_yttrium_rust_future_free_void,
-            liftFunc: { $0 },
+            pollFunc: ffi_yttrium_rust_future_poll_rust_buffer,
+            completeFunc: ffi_yttrium_rust_future_complete_rust_buffer,
+            freeFunc: ffi_yttrium_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeCreatePaymentResponseFfi_lift,
             errorHandler: FfiConverterTypePayError_lift
         )
 }
@@ -806,7 +821,127 @@ public func FfiConverterTypeWalletConnectPay_lower(_ value: WalletConnectPay) ->
 
 
 
-public struct FfiAuthorization: Equatable, Hashable {
+public struct AmountFfi: Equatable, Hashable, Codable {
+    public var unit: String
+    public var value: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(unit: String, value: String) {
+        self.unit = unit
+        self.value = value
+    }
+
+    
+}
+
+#if compiler(>=6)
+extension AmountFfi: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeAmountFfi: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> AmountFfi {
+        return
+            try AmountFfi(
+                unit: FfiConverterString.read(from: &buf), 
+                value: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: AmountFfi, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.unit, into: &buf)
+        FfiConverterString.write(value.value, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeAmountFfi_lift(_ buf: RustBuffer) throws -> AmountFfi {
+    return try FfiConverterTypeAmountFfi.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeAmountFfi_lower(_ value: AmountFfi) -> RustBuffer {
+    return FfiConverterTypeAmountFfi.lower(value)
+}
+
+
+public struct CreatePaymentResponseFfi: Equatable, Hashable, Codable {
+    public var paymentId: String
+    public var status: String
+    public var amount: AmountFfi
+    public var expiresAt: Int64
+    public var pollInMs: Int64
+    public var gatewayUrl: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(paymentId: String, status: String, amount: AmountFfi, expiresAt: Int64, pollInMs: Int64, gatewayUrl: String) {
+        self.paymentId = paymentId
+        self.status = status
+        self.amount = amount
+        self.expiresAt = expiresAt
+        self.pollInMs = pollInMs
+        self.gatewayUrl = gatewayUrl
+    }
+
+    
+}
+
+#if compiler(>=6)
+extension CreatePaymentResponseFfi: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeCreatePaymentResponseFfi: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> CreatePaymentResponseFfi {
+        return
+            try CreatePaymentResponseFfi(
+                paymentId: FfiConverterString.read(from: &buf), 
+                status: FfiConverterString.read(from: &buf), 
+                amount: FfiConverterTypeAmountFfi.read(from: &buf), 
+                expiresAt: FfiConverterInt64.read(from: &buf), 
+                pollInMs: FfiConverterInt64.read(from: &buf), 
+                gatewayUrl: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: CreatePaymentResponseFfi, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.paymentId, into: &buf)
+        FfiConverterString.write(value.status, into: &buf)
+        FfiConverterTypeAmountFfi.write(value.amount, into: &buf)
+        FfiConverterInt64.write(value.expiresAt, into: &buf)
+        FfiConverterInt64.write(value.pollInMs, into: &buf)
+        FfiConverterString.write(value.gatewayUrl, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCreatePaymentResponseFfi_lift(_ buf: RustBuffer) throws -> CreatePaymentResponseFfi {
+    return try FfiConverterTypeCreatePaymentResponseFfi.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCreatePaymentResponseFfi_lower(_ value: CreatePaymentResponseFfi) -> RustBuffer {
+    return FfiConverterTypeCreatePaymentResponseFfi.lower(value)
+}
+
+
+public struct FfiAuthorization: Equatable, Hashable, Codable {
     /**
      * The chain ID of the authorization.
      */
@@ -880,13 +1015,13 @@ public func FfiConverterTypeFfiAuthorization_lower(_ value: FfiAuthorization) ->
 }
 
 
-public enum PayError: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
+public enum PayError: Swift.Error, Equatable, Hashable, Codable, Foundation.LocalizedError {
 
     
     
     case Http(String
     )
-    case Api(code: String, message: String
+    case Api(String
     )
 
     
@@ -919,8 +1054,7 @@ public struct FfiConverterTypePayError: FfiConverterRustBuffer {
             try FfiConverterString.read(from: &buf)
             )
         case 2: return .Api(
-            code: try FfiConverterString.read(from: &buf), 
-            message: try FfiConverterString.read(from: &buf)
+            try FfiConverterString.read(from: &buf)
             )
 
          default: throw UniffiInternalError.unexpectedEnumCase
@@ -939,10 +1073,9 @@ public struct FfiConverterTypePayError: FfiConverterRustBuffer {
             FfiConverterString.write(v1, into: &buf)
             
         
-        case let .Api(code,message):
+        case let .Api(v1):
             writeInt(&buf, Int32(2))
-            FfiConverterString.write(code, into: &buf)
-            FfiConverterString.write(message, into: &buf)
+            FfiConverterString.write(v1, into: &buf)
             
         }
     }
@@ -964,7 +1097,7 @@ public func FfiConverterTypePayError_lower(_ value: PayError) -> RustBuffer {
 }
 
 
-public enum SolanaDeriveKeypairFromMnemonicError: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
+public enum SolanaDeriveKeypairFromMnemonicError: Swift.Error, Equatable, Hashable, Codable, Foundation.LocalizedError {
 
     
     
@@ -1043,55 +1176,6 @@ public func FfiConverterTypeSolanaDeriveKeypairFromMnemonicError_lift(_ buf: Rus
 #endif
 public func FfiConverterTypeSolanaDeriveKeypairFromMnemonicError_lower(_ value: SolanaDeriveKeypairFromMnemonicError) -> RustBuffer {
     return FfiConverterTypeSolanaDeriveKeypairFromMnemonicError.lower(value)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-fileprivate struct FfiConverterOptionSequenceString: FfiConverterRustBuffer {
-    typealias SwiftType = [String]?
-
-    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
-        guard let value = value else {
-            writeInt(&buf, Int8(0))
-            return
-        }
-        writeInt(&buf, Int8(1))
-        FfiConverterSequenceString.write(value, into: &buf)
-    }
-
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
-        switch try readInt(&buf) as Int8 {
-        case 0: return nil
-        case 1: return try FfiConverterSequenceString.read(from: &buf)
-        default: throw UniffiInternalError.unexpectedOptionalTag
-        }
-    }
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-fileprivate struct FfiConverterSequenceString: FfiConverterRustBuffer {
-    typealias SwiftType = [String]
-
-    public static func write(_ value: [String], into buf: inout [UInt8]) {
-        let len = Int32(value.count)
-        writeInt(&buf, len)
-        for item in value {
-            FfiConverterString.write(item, into: &buf)
-        }
-    }
-
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [String] {
-        let len: Int32 = try readInt(&buf)
-        var seq = [String]()
-        seq.reserveCapacity(Int(len))
-        for _ in 0 ..< len {
-            seq.append(try FfiConverterString.read(from: &buf))
-        }
-        return seq
-    }
 }
 
 
@@ -2269,10 +2353,10 @@ private let initializationResult: InitializationResult = {
     if (uniffi_yttrium_checksum_method_logger_log() != 540) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_yttrium_checksum_method_walletconnectpay_get_payment() != 6943) {
+    if (uniffi_yttrium_checksum_method_walletconnectpay_create_payment() != 8792) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_yttrium_checksum_constructor_walletconnectpay_new() != 16921) {
+    if (uniffi_yttrium_checksum_constructor_walletconnectpay_new() != 14457) {
         return InitializationResult.apiChecksumMismatch
     }
 

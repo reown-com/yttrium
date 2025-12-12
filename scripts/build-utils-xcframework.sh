@@ -100,6 +100,7 @@ generate_ffi() {
   cargo run -p yttrium --no-default-features --features=$FEATURES,uniffi/cli --bin uniffi-bindgen generate \
     --library target/aarch64-apple-ios/uniffi-release-swift/lib$PACKAGE_NAME.dylib \
     --language swift \
+    --config crates/yttrium/uniffi.toml \
     --out-dir target/uniffi-xcframework-staging-utils
 }
 
