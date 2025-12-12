@@ -48,6 +48,10 @@ serial_test = { version = "3.2.0", default-features = false }
 
 uniffi_build = { version = "0.30.0", default-features = false }
 uniffi = { version = "0.30.0", default-features = false, features = ["tokio"] }
+
+# API client generation
+progenitor = { version = "0.9.1", default-features = false, features = ["macro"] }
+progenitor-client = { version = "0.9.1", default-features = false }
 uniffi_macros = { version = "0.30.0", default-features = false }
 
 wasm-bindgen = "0.2"
