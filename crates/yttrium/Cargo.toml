@@ -285,8 +285,13 @@ aws-config = { version = "1.1.7", features = ["behavior-version-latest"], option
 aws-sdk-cloudwatch = { version = "1.91.0", optional = true }
 
 # Pay
-progenitor = { workspace = true }
 progenitor-client = { version = "0.9.1", optional = true }
+
+[build-dependencies]
+progenitor = { workspace = true }
+serde_json = { workspace = true, features = ["std"] }
+prettyplease = "0.2"
+syn = "2"
 
 [dev-dependencies]
 # mocking
