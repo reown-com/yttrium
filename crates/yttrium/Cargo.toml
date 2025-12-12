@@ -32,7 +32,6 @@ uniffi = [
     "reqwest/default-tls",
     "native",
     "dep:tracing-subscriber",
-    "pay-api?/uniffi",
 ]
 native = [
     "dep:tokio-tungstenite",
@@ -121,7 +120,7 @@ sign_canary = [
 ]
 clear_signing = []
 evm_signing = ["chain_abstraction_client"]
-pay = ["dep:pay-api"]
+pay = ["dep:progenitor-client"]
 
 # Features enabling test coverage
 test_full = [
@@ -286,7 +285,8 @@ aws-config = { version = "1.1.7", features = ["behavior-version-latest"], option
 aws-sdk-cloudwatch = { version = "1.91.0", optional = true }
 
 # Pay
-pay-api = { path = "../pay-api", optional = true }
+progenitor = { workspace = true }
+progenitor-client = { version = "0.9.1", optional = true }
 
 [dev-dependencies]
 # mocking
