@@ -120,7 +120,7 @@ sign_canary = [
 ]
 clear_signing = []
 evm_signing = ["chain_abstraction_client"]
-pay = ["dep:progenitor-client"]
+pay = ["dep:progenitor-client", "uniffi"]
 
 # Features enabling test coverage
 test_full = [
