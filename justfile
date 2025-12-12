@@ -96,6 +96,14 @@ kotlin:
   # cargo ndk -t armeabi-v7a -t arm64-v8a build -p kotlin-ffi --profile=uniffi-release --features=uniffi/cli
   ./build-kotlin.sh
 
+# Regenerates the Pay API client from openapi.json
+# To update: 1) Replace crates/yttrium/src/pay/openapi.json with new spec
+#            2) Run this command
+# TODO: Add curl to fetch openapi.json from remote endpoint
+update-pay-client:
+  cargo build -p yttrium --features pay
+  @echo "Generated: crates/yttrium/src/pay/generated.rs"
+
 wallet:
   # TODO: why not `cargo leptos watch`?
   cd crates/rust-sample-wallet && trunk serve

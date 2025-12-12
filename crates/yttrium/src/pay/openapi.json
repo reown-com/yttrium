@@ -1,0 +1,112 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "WalletConnect Pay API",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/v1/merchant/payment": {
+      "post": {
+        "tags": ["Merchant"],
+        "operationId": "create_payment",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePayment"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Payment created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatePaymentResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Amount": {
+        "type": "object",
+        "required": ["unit", "value"],
+        "properties": {
+          "unit": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
+          }
+        }
+      },
+      "CreatePayment": {
+        "type": "object",
+        "required": ["referenceId", "amount"],
+        "properties": {
+          "amount": {
+            "$ref": "#/components/schemas/Amount"
+          },
+          "referenceId": {
+            "type": "string"
+          }
+        }
+      },
+      "CreatePaymentResponse": {
+        "type": "object",
+        "required": ["paymentId", "status", "amount", "expiresAt", "pollInMs", "gatewayUrl"],
+        "properties": {
+          "amount": {
+            "$ref": "#/components/schemas/Amount"
+          },
+          "expiresAt": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "gatewayUrl": {
+            "type": "string"
+          },
+          "paymentId": {
+            "type": "string"
+          },
+          "pollInMs": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "status": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "API Key": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-Api-Key"
+      }
+    }
+  },
+  "security": [
+    {
+      "API Key": []
+    }
+  ],
+  "tags": [
+    {
+      "name": "Merchant",
+      "description": "Merchant-facing API"
+    }
+  ]
+}
+
