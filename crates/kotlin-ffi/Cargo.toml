@@ -18,7 +18,7 @@ sui = ["yttrium/sui"]
 stacks = ["yttrium/stacks"]
 ton = ["yttrium/ton"]
 eip155 = ["yttrium/eip155"]
-pay = ["yttrium/pay"]
+pay = ["yttrium/pay", "dep:pay-api", "pay-api/uniffi"]
 
 android = ["yttrium/android"]
 ios = ["yttrium/ios"]
@@ -29,6 +29,7 @@ uniffi_build.workspace = true
 [dependencies]
 yttrium = { path = "../yttrium", default-features = false, features = ["uniffi"] }
 uniffi = { workspace = true, features = ["tokio", "cli"] }
+pay-api = { path = "../pay-api", optional = true }
 openssl = { version = "0.10", features = ["vendored"] }
 openssl-sys = { version = "0.9.103", features = ["vendored"] }
 relay_rpc.workspace = true

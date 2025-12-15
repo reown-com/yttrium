@@ -6868,6 +6868,7 @@ dependencies = [
  "log",
  "openssl",
  "openssl-sys",
+ "pay-api",
  "relay_rpc",
  "reqwest",
  "serde",
