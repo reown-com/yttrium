@@ -18,6 +18,7 @@ sui = ["yttrium/sui"]
 stacks = ["yttrium/stacks"]
 ton = ["yttrium/ton"]
 eip155 = ["yttrium/eip155"]
+pay = ["yttrium/pay"]
 
 android = ["yttrium/android"]
 ios = ["yttrium/ios"]
