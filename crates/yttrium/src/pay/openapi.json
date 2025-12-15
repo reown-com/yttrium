@@ -2,13 +2,216 @@
   "openapi": "3.0.3",
   "info": {
     "title": "WalletConnect Pay API",
-    "version": "0.1.0"
+    "description": "API for the WalletConnect Pay service",
+    "contact": {
+      "name": "WalletConnect",
+      "url": "https://walletconnect.com"
+    },
+    "license": {
+      "name": ""
+    },
+    "version": "0.0.0"
   },
+  "servers": [
+    {
+      "url": "https://api.pay.walletconnect.com"
+    }
+  ],
   "paths": {
+    "/v1/gateway/payment/{id}": {
+      "get": {
+        "tags": [
+          "Gateway"
+        ],
+        "summary": "Gets a payment by its ID with only basic information to display to the user to start the flow",
+        "operationId": "get_payment_handler",
+        "parameters": [
+          {
+            "name": "Api-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Sdk-Name",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Sdk-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Sdk-Platform",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Payment ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment status retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetPaymentResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Payment not found"
+          }
+        }
+      }
+    },
+    "/v1/gateway/payment/{id}/options": {
+      "post": {
+        "tags": [
+          "Gateway"
+        ],
+        "summary": "Gets payment options for a payment",
+        "operationId": "get_payment_options_handler",
+        "parameters": [
+          {
+            "name": "Api-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Sdk-Name",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Sdk-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Sdk-Platform",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Payment ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GetPaymentOptionsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Payment options retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetPaymentOptionsResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Payment not found"
+          }
+        }
+      }
+    },
     "/v1/merchant/payment": {
       "post": {
-        "tags": ["Merchant"],
-        "operationId": "create_payment",
+        "tags": [
+          "Merchant"
+        ],
+        "summary": "Create a new payment",
+        "description": "Creates a new payment with the provided payment details.",
+        "operationId": "create_payment_handler",
+        "parameters": [
+          {
+            "name": "Api-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Merchant-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Sdk-Name",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Sdk-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Sdk-Platform",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -21,7 +224,7 @@
         },
         "responses": {
           "201": {
-            "description": "Payment created successfully",
+            "description": "Payment created successfull",
             "content": {
               "application/json": {
                 "schema": {
@@ -32,37 +235,215 @@
           }
         }
       }
+    },
+    "/v1/merchant/payment/{id}/status": {
+      "get": {
+        "tags": [
+          "Merchant"
+        ],
+        "summary": "Get the payment status",
+        "description": "Retrieves the status of a payment by its ID. Returns a polling delay to wait before checking the status again.",
+        "operationId": "get_payment_status_handler",
+        "parameters": [
+          {
+            "name": "Api-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Merchant-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Sdk-Name",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Sdk-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Sdk-Platform",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Payment ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment status retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetPaymentStatusResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Payment not found"
+          }
+        }
+      }
     }
   },
   "components": {
     "schemas": {
       "Amount": {
         "type": "object",
-        "required": ["unit", "value"],
+        "required": [
+          "unit",
+          "value"
+        ],
         "properties": {
           "unit": {
-            "type": "string"
+            "type": "string",
+            "description": "Currency unit, prefixed with \"iso4217/\""
           },
           "value": {
-            "type": "string"
+            "type": "string",
+            "description": "Amount value, in the currency unit's minor units"
           }
+        },
+        "example": {
+          "unit": "iso4217/USD",
+          "value": "100"
         }
       },
       "CreatePayment": {
         "type": "object",
-        "required": ["referenceId", "amount"],
+        "required": [
+          "referenceId",
+          "amount"
+        ],
         "properties": {
           "amount": {
-            "$ref": "#/components/schemas/Amount"
+            "$ref": "#/components/schemas/Amount",
+            "description": "Amount to be paid"
           },
           "referenceId": {
-            "type": "string"
+            "type": "string",
+            "description": "Merchant/PSP order ID"
           }
+        },
+        "example": {
+          "amount": {
+            "unit": "iso4217/USD",
+            "value": "100"
+          },
+          "referenceId": "ORDER-123"
         }
       },
       "CreatePaymentResponse": {
         "type": "object",
-        "required": ["paymentId", "status", "amount", "expiresAt", "pollInMs", "gatewayUrl"],
+        "required": [
+          "paymentId",
+          "status",
+          "expiresAt",
+          "isFinal",
+          "gatewayUrl"
+        ],
+        "properties": {
+          "expiresAt": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Payment expiration timestamp, in seconds since epoch",
+            "minimum": 0
+          },
+          "gatewayUrl": {
+            "type": "string",
+            "description": "Gateway URL to redirect the user to for payment"
+          },
+          "isFinal": {
+            "type": "boolean",
+            "description": "Whether the payment is in a final state or no longer requires polling"
+          },
+          "paymentId": {
+            "type": "string",
+            "description": "Payment ID"
+          },
+          "pollInMs": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true,
+            "description": "Time to poll for payment status, in milliseconds. Not present if the payment is in a final state.",
+            "minimum": 0
+          },
+          "status": {
+            "type": "string",
+            "description": "Payment status"
+          }
+        },
+        "example": {
+          "expiresAt": 1718236800,
+          "gatewayUrl": "https://api.pay.walletconnect.com/pay_123",
+          "isFinal": false,
+          "paymentId": "pay_123",
+          "pollInMs": 1000,
+          "status": "requires_action"
+        }
+      },
+      "GetPaymentOptionsRequest": {
+        "type": "object",
+        "required": [
+          "accounts"
+        ],
+        "properties": {
+          "accounts": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "refresh": {
+            "type": "array",
+            "nullable": true,
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "example": {
+          "accounts": [
+            "eip155:8453:0x123"
+          ],
+          "refresh": null
+        }
+      },
+      "GetPaymentOptionsResponse": {
+        "type": "object",
+        "required": [
+          "status",
+          "amount",
+          "expiresAt",
+          "options"
+        ],
         "properties": {
           "amount": {
             "$ref": "#/components/schemas/Amount"
@@ -72,20 +453,278 @@
             "format": "int64",
             "minimum": 0
           },
-          "gatewayUrl": {
-            "type": "string"
-          },
-          "paymentId": {
-            "type": "string"
-          },
-          "pollInMs": {
-            "type": "integer",
-            "format": "int64",
-            "minimum": 0
+          "options": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PaymentOption"
+            }
           },
           "status": {
             "type": "string"
           }
+        },
+        "example": {
+          "amount": {
+            "unit": "iso4217/USD",
+            "value": "100"
+          },
+          "expiresAt": 1718236800,
+          "options": [
+            {
+              "display": {
+                "assetName": "USD Coin",
+                "assetSymbol": "USDC",
+                "decimals": 6,
+                "iconUrl": "https://assets.walletconnect.com/usdc.png",
+                "networkName": "Base"
+              },
+              "etaSeconds": 5,
+              "id": "opt_123",
+              "requiredActions": [
+                {
+                  "data": {
+                    "chainId": "eip155:8453",
+                    "method": "eth_signTypedData_v4",
+                    "params": [
+                      "0x123"
+                    ]
+                  },
+                  "type": "walletRpc"
+                }
+              ],
+              "unit": "caip19/eip155:8453/erc20:0xUSDC...",
+              "value": "1000"
+            }
+          ],
+          "status": "requires_action"
+        }
+      },
+      "GetPaymentResponse": {
+        "type": "object",
+        "required": [
+          "status",
+          "amount",
+          "expiresAt"
+        ],
+        "properties": {
+          "amount": {
+            "$ref": "#/components/schemas/Amount",
+            "description": "Amount to be paid"
+          },
+          "expiresAt": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Payment expiration timestamp, in seconds since epoch",
+            "minimum": 0
+          },
+          "status": {
+            "type": "string",
+            "description": "Payment status"
+          }
+        },
+        "example": {
+          "amount": {
+            "unit": "iso4217/USD",
+            "value": "100"
+          },
+          "expiresAt": 1718236800,
+          "status": "requires_action"
+        }
+      },
+      "GetPaymentStatusResponse": {
+        "type": "object",
+        "required": [
+          "amount",
+          "status",
+          "isFinal"
+        ],
+        "properties": {
+          "amount": {
+            "$ref": "#/components/schemas/Amount",
+            "description": "Amount to be paid"
+          },
+          "isFinal": {
+            "type": "boolean",
+            "description": "Whether the payment is in a final state or no longer requires polling"
+          },
+          "pollInMs": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true,
+            "description": "Time to poll for payment status, in milliseconds. Not present if the payment is in a final state.",
+            "minimum": 0
+          },
+          "status": {
+            "type": "string",
+            "description": "Payment status"
+          }
+        },
+        "example": {
+          "amount": {
+            "unit": "iso4217/USD",
+            "value": "100"
+          },
+          "isFinal": false,
+          "pollInMs": 1000,
+          "status": "requires_action"
+        }
+      },
+      "PaymentOption": {
+        "type": "object",
+        "required": [
+          "id",
+          "unit",
+          "value",
+          "display",
+          "etaSeconds",
+          "requiredActions"
+        ],
+        "properties": {
+          "display": {
+            "$ref": "#/components/schemas/PaymentOptionDisplay"
+          },
+          "etaSeconds": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "id": {
+            "type": "string"
+          },
+          "requiredActions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RequiredAction"
+            }
+          },
+          "unit": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
+          }
+        },
+        "example": {
+          "display": {
+            "assetName": "USD Coin",
+            "assetSymbol": "USDC",
+            "decimals": 6,
+            "iconUrl": "https://assets.walletconnect.com/usdc.png",
+            "networkName": "Base"
+          },
+          "etaSeconds": 5,
+          "id": "opt_123",
+          "requiredActions": [
+            {
+              "data": {
+                "chainId": "eip155:8453",
+                "method": "eth_signTypedData_v4",
+                "params": [
+                  "0x123"
+                ]
+              },
+              "type": "walletRpc"
+            }
+          ],
+          "unit": "caip19/eip155:8453/erc20:0xUSDC...",
+          "value": "1000"
+        }
+      },
+      "PaymentOptionDisplay": {
+        "type": "object",
+        "required": [
+          "assetSymbol",
+          "assetName",
+          "networkName",
+          "decimals",
+          "iconUrl"
+        ],
+        "properties": {
+          "assetName": {
+            "type": "string"
+          },
+          "assetSymbol": {
+            "type": "string"
+          },
+          "decimals": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "iconUrl": {
+            "type": "string"
+          },
+          "networkName": {
+            "type": "string"
+          }
+        },
+        "example": {
+          "assetName": "USD Coin",
+          "assetSymbol": "USDC",
+          "decimals": 6,
+          "iconUrl": "https://assets.walletconnect.com/usdc.png",
+          "networkName": "Base"
+        }
+      },
+      "RequiredAction": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "data",
+              "type"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/WalletRpcAction"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "walletRpc"
+                ]
+              }
+            }
+          }
+        ],
+        "example": {
+          "data": {
+            "chainId": "eip155:8453",
+            "method": "eth_signTypedData_v4",
+            "params": [
+              "0x123"
+            ]
+          },
+          "type": "walletRpc"
+        }
+      },
+      "WalletRpcAction": {
+        "type": "object",
+        "required": [
+          "chainId",
+          "method",
+          "params"
+        ],
+        "properties": {
+          "chainId": {
+            "type": "string"
+          },
+          "method": {
+            "type": "string"
+          },
+          "params": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "example": {
+          "chainId": "eip155:8453",
+          "method": "eth_signTypedData_v4",
+          "params": [
+            "0x123"
+          ]
         }
       }
     },
@@ -106,7 +745,10 @@
     {
       "name": "Merchant",
       "description": "Merchant-facing API"
+    },
+    {
+      "name": "Gateway",
+      "description": "Gateway API"
     }
   ]
 }
-
