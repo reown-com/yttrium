@@ -162,6 +162,89 @@
         }
       }
     },
+    "/v1/gateway/payment/{id}/confirm": {
+      "post": {
+        "tags": [
+          "Gateway"
+        ],
+        "summary": "Confirm a payment with transaction results",
+        "operationId": "confirm_payment_handler",
+        "parameters": [
+          {
+            "name": "Api-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Sdk-Name",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Sdk-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Sdk-Platform",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Payment ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfirmPaymentRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Payment confirmed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfirmPaymentResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "404": {
+            "description": "Payment not found"
+          },
+          "410": {
+            "description": "Payment or route expired"
+          }
+        }
+      }
+    },
     "/v1/merchant/payment": {
       "post": {
         "tags": [
@@ -436,15 +519,185 @@
           "refresh": null
         }
       },
+      "ConfirmPaymentRequest": {
+        "type": "object",
+        "required": [
+          "optionId",
+          "result"
+        ],
+        "properties": {
+          "optionId": {
+            "type": "string",
+            "description": "Selected payment option ID"
+          },
+          "result": {
+            "$ref": "#/components/schemas/PaymentResultBody"
+          },
+          "kycData": {
+            "$ref": "#/components/schemas/KycData",
+            "nullable": true
+          }
+        }
+      },
+      "ConfirmPaymentResponse": {
+        "type": "object",
+        "required": [
+          "paymentId",
+          "status"
+        ],
+        "properties": {
+          "paymentId": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "completed",
+              "failed",
+              "expired"
+            ]
+          }
+        }
+      },
+      "PaymentResultBody": {
+        "type": "object",
+        "required": [
+          "rpcMethod",
+          "rpcResult",
+          "chainId"
+        ],
+        "properties": {
+          "rpcMethod": {
+            "type": "string",
+            "description": "RPC method used (e.g. 'eth_signTypedData_v4')"
+          },
+          "rpcResult": {
+            "type": "string",
+            "description": "Result from wallet RPC call (e.g. signature)"
+          },
+          "chainId": {
+            "type": "string",
+            "description": "Chain ID (e.g. 'eip155:8453')"
+          }
+        }
+      },
+      "KycData": {
+        "type": "object",
+        "properties": {
+          "firstName": {
+            "type": "string",
+            "nullable": true
+          },
+          "lastName": {
+            "type": "string",
+            "nullable": true
+          },
+          "extra": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "nullable": true
+          }
+        }
+      },
+      "CollectDataAction": {
+        "type": "object",
+        "required": [
+          "schema"
+        ],
+        "properties": {
+          "schema": {
+            "$ref": "#/components/schemas/CollectDataSchema"
+          }
+        }
+      },
+      "CollectDataSchema": {
+        "type": "object",
+        "required": [
+          "fields"
+        ],
+        "properties": {
+          "fields": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CollectDataSchemaField"
+            }
+          }
+        }
+      },
+      "CollectDataSchemaField": {
+        "type": "object",
+        "required": [
+          "name",
+          "type",
+          "required"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Field name (e.g. 'firstName', 'dob')"
+          },
+          "type": {
+            "type": "string",
+            "description": "Field type (e.g. 'string', 'date')"
+          },
+          "required": {
+            "type": "boolean",
+            "description": "Whether this field is required"
+          }
+        }
+      },
+      "DataCaptureField": {
+        "type": "object",
+        "required": [
+          "label",
+          "required"
+        ],
+        "properties": {
+          "label": {
+            "type": "string",
+            "description": "Field label (e.g. 'First name')"
+          },
+          "required": {
+            "type": "boolean",
+            "description": "Whether this field is required"
+          }
+        }
+      },
+      "DataCaptureRequirements": {
+        "type": "object",
+        "required": [
+          "required",
+          "fields"
+        ],
+        "properties": {
+          "required": {
+            "type": "boolean",
+            "description": "Whether data capture is required"
+          },
+          "fields": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DataCaptureField"
+            }
+          }
+        }
+      },
       "GetPaymentOptionsResponse": {
         "type": "object",
         "required": [
+          "paymentId",
           "status",
           "amount",
           "expiresAt",
           "options"
         ],
         "properties": {
+          "paymentId": {
+            "type": "string",
+            "description": "Payment ID"
+          },
           "amount": {
             "$ref": "#/components/schemas/Amount"
           },
@@ -461,6 +714,10 @@
           },
           "status": {
             "type": "string"
+          },
+          "dataCaptureRequirements": {
+            "$ref": "#/components/schemas/DataCaptureRequirements",
+            "nullable": true
           }
         },
         "example": {
@@ -572,6 +829,7 @@
       "PaymentOption": {
         "type": "object",
         "required": [
+          "paymentId",
           "id",
           "unit",
           "value",
@@ -580,6 +838,10 @@
           "requiredActions"
         ],
         "properties": {
+          "paymentId": {
+            "type": "string",
+            "description": "Payment ID this option belongs to"
+          },
           "display": {
             "$ref": "#/components/schemas/PaymentOptionDisplay"
           },
@@ -636,6 +898,7 @@
           "assetSymbol",
           "assetName",
           "networkName",
+          "networkShort",
           "decimals",
           "iconUrl"
         ],
@@ -656,6 +919,9 @@
           },
           "networkName": {
             "type": "string"
+          },
+          "networkShort": {
+            "type": "string"
           }
         },
         "example": {
@@ -663,7 +929,8 @@
           "assetSymbol": "USDC",
           "decimals": 6,
           "iconUrl": "https://assets.walletconnect.com/usdc.png",
-          "networkName": "Base"
+          "networkName": "Base",
+          "networkShort": "BASE"
         }
       },
       "RequiredAction": {
@@ -681,7 +948,25 @@
               "type": {
                 "type": "string",
                 "enum": [
-                  "walletRpc"
+                  "wallet_rpc"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "data",
+              "type"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/CollectDataAction"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "collect-data"
                 ]
               }
             }
@@ -695,7 +980,7 @@
               "0x123"
             ]
           },
-          "type": "walletRpc"
+          "type": "wallet_rpc"
         }
       },
       "WalletRpcAction": {
