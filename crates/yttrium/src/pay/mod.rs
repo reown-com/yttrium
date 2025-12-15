@@ -108,7 +108,7 @@ pub struct PaymentResult {
 
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
-pub struct KycData {
+pub struct InformationCapture {
     pub first_name: Option<String>,
     pub last_name: Option<String>,
     pub extra: Option<std::collections::HashMap<String, String>>,
@@ -612,6 +612,7 @@ impl WalletConnectPay {
             )
         })?;
 
+        // TODO: Call buildPaymentRequest endpoint when option is not found in cache
         let cached_option = cache
             .iter()
             .find(|o| o.option_id == option_id && o.payment_id == payment_id)
@@ -642,7 +643,7 @@ impl WalletConnectPay {
         &self,
         request: PaymentRequest,
         result: PaymentResult,
-        kyc_data: Option<KycData>,
+        kyc_data: Option<InformationCapture>,
     ) -> Result<ConfirmPaymentResponse, ConfirmPaymentError> {
         // Check if collect-data was required (scoped to drop lock before await)
         {
