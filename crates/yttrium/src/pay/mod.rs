@@ -40,6 +40,8 @@ pub enum GetPaymentOptionsError {
     ComplianceFailed(String),
     #[error("HTTP error: {0}")]
     Http(String),
+    #[error("Internal error: {0}")]
+    InternalError(String),
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -53,6 +55,8 @@ pub enum GetPaymentRequestError {
     InvalidAccount(String),
     #[error("HTTP error: {0}")]
     Http(String),
+    #[error("Internal error: {0}")]
+    InternalError(String),
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -72,6 +76,8 @@ pub enum ConfirmPaymentError {
     CollectDataRequired,
     #[error("HTTP error: {0}")]
     Http(String),
+    #[error("Internal error: {0}")]
+    InternalError(String),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -135,13 +141,17 @@ where
     F: Fn() -> Fut,
     Fut: std::future::Future<Output = Result<T, progenitor_client::Error<E>>>,
 {
+    use rand::Rng;
     let mut attempt = 0;
     loop {
         match f().await {
             Ok(v) => return Ok(v),
             Err(e) if is_server_error(&e) && attempt < MAX_RETRIES => {
                 attempt += 1;
-                let backoff = INITIAL_BACKOFF_MS * 2u64.pow(attempt - 1);
+                let base_backoff = INITIAL_BACKOFF_MS
+                    .saturating_mul(2u64.saturating_pow(attempt - 1));
+                let jitter = rand::thread_rng().gen_range(0..=base_backoff / 2);
+                let backoff = base_backoff + jitter;
                 tokio::time::sleep(std::time::Duration::from_millis(backoff))
                     .await;
             }
@@ -575,25 +585,27 @@ impl WalletConnectPay {
         let api_response = response.into_inner();
 
         // Cache the options with their required actions
-        {
-            let cached: Vec<CachedPaymentOption> = api_response
-                .options
-                .iter()
-                .map(|o| CachedPaymentOption {
-                    payment_id: o.payment_id.clone(),
-                    option_id: o.id.clone(),
-                    required_actions: o
-                        .required_actions
-                        .iter()
-                        .cloned()
-                        .map(Into::into)
-                        .collect(),
-                })
-                .collect();
-            if let Ok(mut cache) = self.cached_options.write() {
-                *cache = cached;
-            }
-        }
+        let cached: Vec<CachedPaymentOption> = api_response
+            .options
+            .iter()
+            .map(|o| CachedPaymentOption {
+                payment_id: o.payment_id.clone(),
+                option_id: o.id.clone(),
+                required_actions: o
+                    .required_actions
+                    .iter()
+                    .cloned()
+                    .map(Into::into)
+                    .collect(),
+            })
+            .collect();
+        let mut cache = self.cached_options.write().map_err(|e| {
+            GetPaymentOptionsError::InternalError(format!(
+                "Cache lock poisoned: {}",
+                e
+            ))
+        })?;
+        *cache = cached;
 
         Ok(api_response.into())
     }
@@ -606,10 +618,11 @@ impl WalletConnectPay {
         payment_id: String,
         _account: String,
     ) -> Result<Vec<PaymentRequest>, GetPaymentRequestError> {
-        let cache = self.cached_options.read().map_err(|_| {
-            GetPaymentRequestError::OptionNotFound(
-                "Failed to read cache".to_string(),
-            )
+        let cache = self.cached_options.read().map_err(|e| {
+            GetPaymentRequestError::InternalError(format!(
+                "Cache lock poisoned: {}",
+                e
+            ))
         })?;
 
         // TODO: Call buildPaymentRequest endpoint when option is not found in cache
@@ -647,10 +660,11 @@ impl WalletConnectPay {
     ) -> Result<ConfirmPaymentResponse, ConfirmPaymentError> {
         // Check if collect-data was required (scoped to drop lock before await)
         {
-            let cache = self.cached_options.read().map_err(|_| {
-                ConfirmPaymentError::InvalidOption(
-                    "Failed to read cache".to_string(),
-                )
+            let cache = self.cached_options.read().map_err(|e| {
+                ConfirmPaymentError::InternalError(format!(
+                    "Cache lock poisoned: {}",
+                    e
+                ))
             })?;
 
             let cached_option = cache.iter().find(|o| {
