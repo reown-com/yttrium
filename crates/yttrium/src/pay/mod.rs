@@ -80,7 +80,7 @@ pub enum ConfirmPaymentError {
     InternalError(String),
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Enum))]
 pub enum PaymentStatus {
     Completed,
@@ -120,8 +120,9 @@ pub struct InformationCapture {
     pub extra: Option<std::collections::HashMap<String, String>>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
+#[serde(rename_all = "camelCase")]
 pub struct ConfirmPaymentResponse {
     pub payment_id: String,
     pub status: PaymentStatus,
@@ -171,7 +172,7 @@ pub struct SdkConfig {
     pub sdk_platform: String,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
 pub struct PayAmount {
     pub unit: String,
@@ -246,8 +247,9 @@ impl From<types::GetPaymentStatusResponse> for GetPaymentStatusResponse {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
+#[serde(rename_all = "camelCase")]
 pub struct PaymentOptionDisplay {
     pub asset_symbol: String,
     pub asset_name: String,
@@ -270,8 +272,9 @@ impl From<types::PaymentOptionDisplay> for PaymentOptionDisplay {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
+#[serde(rename_all = "camelCase")]
 pub struct WalletRpcAction {
     pub chain_id: String,
     pub method: String,
@@ -284,8 +287,9 @@ impl From<types::WalletRpcAction> for WalletRpcAction {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
+#[serde(rename_all = "camelCase")]
 pub struct CollectDataSchemaField {
     pub name: String,
     pub field_type: String,
@@ -298,7 +302,7 @@ impl From<types::CollectDataSchemaField> for CollectDataSchemaField {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
 pub struct CollectDataSchema {
     pub fields: Vec<CollectDataSchemaField>,
@@ -310,7 +314,7 @@ impl From<types::CollectDataSchema> for CollectDataSchema {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
 pub struct CollectDataAction {
     pub schema: CollectDataSchema,
@@ -322,8 +326,9 @@ impl From<types::CollectDataAction> for CollectDataAction {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Enum))]
+#[serde(rename_all = "camelCase")]
 pub enum RequiredAction {
     WalletRpc { data: WalletRpcAction },
     CollectData { data: CollectDataAction },
@@ -342,16 +347,18 @@ impl From<types::RequiredAction> for RequiredAction {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
+#[serde(rename_all = "camelCase")]
 pub struct PaymentRequest {
     pub payment_id: String,
     pub option_id: String,
     pub action: RequiredAction,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
+#[serde(rename_all = "camelCase")]
 pub struct PaymentOption {
     pub payment_id: String,
     pub option_id: String,
@@ -372,7 +379,7 @@ impl From<types::PaymentOption> for PaymentOption {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
 pub struct DataCaptureField {
     pub label: String,
@@ -385,7 +392,7 @@ impl From<types::DataCaptureField> for DataCaptureField {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
 pub struct DataCaptureRequirements {
     pub required: bool,
@@ -401,8 +408,9 @@ impl From<types::DataCaptureRequirements> for DataCaptureRequirements {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
+#[serde(rename_all = "camelCase")]
 pub struct PaymentSession {
     pub payment_id: String,
     pub amount: PayAmount,
@@ -769,6 +777,237 @@ fn map_confirm_payment_error<T: std::fmt::Debug>(
         Some(422) => ConfirmPaymentError::InvalidSignature(msg),
         Some(409) => ConfirmPaymentError::RouteExpired(msg),
         _ => ConfirmPaymentError::Http(msg),
+    }
+}
+
+// ==================== JSON Wrapper Client ====================
+
+#[derive(Debug, thiserror::Error)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Error))]
+pub enum PayJsonError {
+    #[error("JSON parse error: {0}")]
+    JsonParse(String),
+    #[error("JSON serialize error: {0}")]
+    JsonSerialize(String),
+    #[error("Payment options error: {0}")]
+    PaymentOptions(String),
+    #[error("Payment request error: {0}")]
+    PaymentRequest(String),
+    #[error("Confirm payment error: {0}")]
+    ConfirmPayment(String),
+}
+
+#[derive(Debug, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct GetPaymentOptionsRequest {
+    payment_link: String,
+    accounts: Vec<String>,
+}
+
+#[derive(Debug, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct GetRequiredPaymentActionsRequest {
+    option_id: String,
+    payment_id: String,
+    account: String,
+}
+
+#[derive(Debug, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ConfirmPaymentJsonRequest {
+    request: PaymentRequestJson,
+    result: PaymentResultJson,
+    kyc_data: Option<InformationCaptureJson>,
+}
+
+#[derive(Debug, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct PaymentRequestJson {
+    payment_id: String,
+    option_id: String,
+    action: RequiredActionJson,
+}
+
+#[derive(Debug, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[serde(tag = "type", content = "data")]
+enum RequiredActionJson {
+    #[serde(rename = "wallet_rpc")]
+    WalletRpc {
+        #[serde(rename = "chainId")]
+        chain_id: String,
+        method: String,
+        params: Vec<String>,
+    },
+    #[serde(rename = "collect-data")]
+    CollectData { schema: CollectDataSchemaJson },
+}
+
+#[derive(Debug, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CollectDataSchemaJson {
+    fields: Vec<CollectDataFieldJson>,
+}
+
+#[derive(Debug, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CollectDataFieldJson {
+    name: String,
+    #[serde(rename = "type")]
+    field_type: String,
+    required: bool,
+}
+
+#[derive(Debug, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct PaymentResultJson {
+    rpc_method: String,
+    rpc_result: String,
+    chain_id: String,
+}
+
+#[derive(Debug, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct InformationCaptureJson {
+    first_name: Option<String>,
+    last_name: Option<String>,
+    extra: Option<std::collections::HashMap<String, String>>,
+}
+
+impl From<RequiredActionJson> for RequiredAction {
+    fn from(json: RequiredActionJson) -> Self {
+        match json {
+            RequiredActionJson::WalletRpc { chain_id, method, params } => {
+                RequiredAction::WalletRpc {
+                    data: WalletRpcAction { chain_id, method, params },
+                }
+            }
+            RequiredActionJson::CollectData { schema } => {
+                RequiredAction::CollectData {
+                    data: CollectDataAction {
+                        schema: CollectDataSchema {
+                            fields: schema
+                                .fields
+                                .into_iter()
+                                .map(|f| CollectDataSchemaField {
+                                    name: f.name,
+                                    field_type: f.field_type,
+                                    required: f.required,
+                                })
+                                .collect(),
+                        },
+                    },
+                }
+            }
+        }
+    }
+}
+
+impl From<PaymentResultJson> for PaymentResult {
+    fn from(json: PaymentResultJson) -> Self {
+        PaymentResult {
+            rpc_method: json.rpc_method,
+            rpc_result: json.rpc_result,
+            chain_id: json.chain_id,
+        }
+    }
+}
+
+impl From<InformationCaptureJson> for InformationCapture {
+    fn from(json: InformationCaptureJson) -> Self {
+        InformationCapture {
+            first_name: json.first_name,
+            last_name: json.last_name,
+            extra: json.extra,
+        }
+    }
+}
+
+/// JSON wrapper for WalletConnectPay client
+/// Accepts JSON strings as input, deserializes, calls underlying methods, and returns JSON strings
+#[cfg_attr(feature = "uniffi", derive(uniffi::Object))]
+pub struct WalletConnectPayJson {
+    client: WalletConnectPay,
+}
+
+#[cfg_attr(feature = "uniffi", uniffi::export(async_runtime = "tokio"))]
+impl WalletConnectPayJson {
+    #[cfg_attr(feature = "uniffi", uniffi::constructor)]
+    pub fn new(base_url: String, config: SdkConfig) -> Self {
+        Self { client: WalletConnectPay::new(base_url, config) }
+    }
+
+    /// Simple test method to verify bindings are loaded correctly
+    pub fn sum(&self, a: i64, b: i64) -> i64 {
+        self.client.sum(a, b)
+    }
+
+    /// Get payment options for a payment link
+    /// Input JSON: { "paymentLink": "string", "accounts": ["string"] }
+    /// Returns JSON PaymentSession or error
+    pub async fn get_payment_options(
+        &self,
+        request_json: String,
+    ) -> Result<String, PayJsonError> {
+        let req: GetPaymentOptionsRequest = serde_json::from_str(&request_json)
+            .map_err(|e| PayJsonError::JsonParse(e.to_string()))?;
+        let result = self
+            .client
+            .get_payment_options(req.payment_link, req.accounts)
+            .await
+            .map_err(|e| PayJsonError::PaymentOptions(e.to_string()))?;
+        serde_json::to_string(&result)
+            .map_err(|e| PayJsonError::JsonSerialize(e.to_string()))
+    }
+
+    /// Get required payment actions for a selected option
+    /// Input JSON: { "optionId": "string", "paymentId": "string", "account": "string" }
+    /// Returns JSON array of PaymentRequest or error
+    pub fn get_required_payment_actions(
+        &self,
+        request_json: String,
+    ) -> Result<String, PayJsonError> {
+        let req: GetRequiredPaymentActionsRequest =
+            serde_json::from_str(&request_json)
+                .map_err(|e| PayJsonError::JsonParse(e.to_string()))?;
+        let result = self
+            .client
+            .get_required_payment_actions(
+                req.option_id,
+                req.payment_id,
+                req.account,
+            )
+            .map_err(|e| PayJsonError::PaymentRequest(e.to_string()))?;
+        serde_json::to_string(&result)
+            .map_err(|e| PayJsonError::JsonSerialize(e.to_string()))
+    }
+
+    /// Confirm a payment with wallet RPC results
+    /// Input JSON: { "request": PaymentRequest, "result": PaymentResult, "kycData": InformationCapture? }
+    /// Returns JSON ConfirmPaymentResponse or error
+    pub async fn confirm_payment(
+        &self,
+        request_json: String,
+    ) -> Result<String, PayJsonError> {
+        let req: ConfirmPaymentJsonRequest =
+            serde_json::from_str(&request_json)
+                .map_err(|e| PayJsonError::JsonParse(e.to_string()))?;
+        let payment_request = PaymentRequest {
+            payment_id: req.request.payment_id,
+            option_id: req.request.option_id,
+            action: req.request.action.into(),
+        };
+        let result = self
+            .client
+            .confirm_payment(
+                payment_request,
+                req.result.into(),
+                req.kyc_data.map(Into::into),
+            )
+            .await
+            .map_err(|e| PayJsonError::ConfirmPayment(e.to_string()))?;
+        serde_json::to_string(&result)
+            .map_err(|e| PayJsonError::JsonSerialize(e.to_string()))
     }
 }
 
@@ -1252,5 +1491,248 @@ mod tests {
             response,
             Err(ConfirmPaymentError::CollectDataRequired)
         ));
+    }
+
+    // ==================== JSON Client Tests ====================
+
+    #[tokio::test]
+    async fn test_json_get_payment_options_success() {
+        let mock_server = MockServer::start().await;
+
+        let mock_response = serde_json::json!({
+            "paymentId": "pay_json_123",
+            "status": "requires_action",
+            "amount": {
+                "unit": "iso4217/USD",
+                "value": "500"
+            },
+            "expiresAt": 1718236800,
+            "options": [{
+                "paymentId": "pay_json_123",
+                "id": "opt_json_1",
+                "unit": "caip19/eip155:8453/erc20:0xUSDC",
+                "value": "500000",
+                "display": {
+                    "assetSymbol": "USDC",
+                    "assetName": "USD Coin",
+                    "networkName": "Base",
+                    "networkShort": "BASE",
+                    "decimals": 6,
+                    "iconUrl": "https://example.com/usdc.png"
+                },
+                "etaSeconds": 5,
+                "requiredActions": [{
+                    "type": "wallet_rpc",
+                    "data": {
+                        "chainId": "eip155:8453",
+                        "method": "eth_sendTransaction",
+                        "params": ["0x123"]
+                    }
+                }]
+            }],
+            "dataCaptureRequirements": null
+        });
+
+        Mock::given(method("POST"))
+            .and(path("/v1/gateway/payment/pay_json_123/options"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(&mock_response),
+            )
+            .mount(&mock_server)
+            .await;
+
+        let client =
+            WalletConnectPayJson::new(mock_server.uri(), test_config());
+
+        let request_json = r#"{"paymentLink": "https://pay.example.com/pay_json_123", "accounts": ["eip155:8453:0xabc"]}"#;
+        let result = client.get_payment_options(request_json.to_string()).await;
+
+        assert!(result.is_ok());
+        let response_json = result.unwrap();
+        let parsed: serde_json::Value =
+            serde_json::from_str(&response_json).unwrap();
+        assert_eq!(parsed["paymentId"], "pay_json_123");
+        assert_eq!(parsed["amount"]["value"], "500");
+        assert_eq!(parsed["options"][0]["optionId"], "opt_json_1");
+    }
+
+    #[tokio::test]
+    async fn test_json_get_payment_options_invalid_json() {
+        let mock_server = MockServer::start().await;
+        let client =
+            WalletConnectPayJson::new(mock_server.uri(), test_config());
+
+        let result =
+            client.get_payment_options("not valid json".to_string()).await;
+
+        assert!(matches!(result, Err(PayJsonError::JsonParse(_))));
+    }
+
+    #[tokio::test]
+    async fn test_json_get_required_payment_actions_success() {
+        let mock_server = MockServer::start().await;
+
+        let mock_response = serde_json::json!({
+            "paymentId": "pay_json_456",
+            "status": "requires_action",
+            "amount": { "unit": "iso4217/USD", "value": "100" },
+            "expiresAt": 1718236800,
+            "options": [{
+                "paymentId": "pay_json_456",
+                "id": "opt_json_2",
+                "unit": "caip19/eip155:1/erc20:0xDAI",
+                "value": "100000000000000000000",
+                "display": {
+                    "assetSymbol": "DAI",
+                    "assetName": "Dai Stablecoin",
+                    "networkName": "Ethereum",
+                    "networkShort": "ETH",
+                    "decimals": 18,
+                    "iconUrl": "https://example.com/dai.png"
+                },
+                "etaSeconds": 10,
+                "requiredActions": [{
+                    "type": "wallet_rpc",
+                    "data": {
+                        "chainId": "eip155:1",
+                        "method": "eth_signTypedData_v4",
+                        "params": ["0xwallet", "{\"types\":{}}"]
+                    }
+                }]
+            }],
+            "dataCaptureRequirements": null
+        });
+
+        Mock::given(method("POST"))
+            .and(path("/v1/gateway/payment/pay_json_456/options"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(&mock_response),
+            )
+            .mount(&mock_server)
+            .await;
+
+        let client =
+            WalletConnectPayJson::new(mock_server.uri(), test_config());
+
+        // First populate cache
+        let options_req = r#"{"paymentLink": "pay_json_456", "accounts": ["eip155:1:0x123"]}"#;
+        client.get_payment_options(options_req.to_string()).await.unwrap();
+
+        // Now get required actions
+        let actions_req = r#"{"optionId": "opt_json_2", "paymentId": "pay_json_456", "account": "eip155:1:0x123"}"#;
+        let result =
+            client.get_required_payment_actions(actions_req.to_string());
+
+        assert!(result.is_ok());
+        let response_json = result.unwrap();
+        let parsed: serde_json::Value =
+            serde_json::from_str(&response_json).unwrap();
+        assert!(parsed.is_array());
+        assert_eq!(parsed[0]["paymentId"], "pay_json_456");
+        assert_eq!(parsed[0]["optionId"], "opt_json_2");
+    }
+
+    #[tokio::test]
+    async fn test_json_confirm_payment_success() {
+        let mock_server = MockServer::start().await;
+
+        let options_response = serde_json::json!({
+            "paymentId": "pay_json_789",
+            "status": "requires_action",
+            "amount": { "unit": "iso4217/USD", "value": "50" },
+            "expiresAt": 1718236800,
+            "options": [{
+                "paymentId": "pay_json_789",
+                "id": "opt_json_3",
+                "unit": "caip19/eip155:8453/erc20:0xUSDC",
+                "value": "50000",
+                "display": {
+                    "assetSymbol": "USDC",
+                    "assetName": "USD Coin",
+                    "networkName": "Base",
+                    "networkShort": "BASE",
+                    "decimals": 6,
+                    "iconUrl": "https://example.com/usdc.png"
+                },
+                "etaSeconds": 5,
+                "requiredActions": [{
+                    "type": "wallet_rpc",
+                    "data": {
+                        "chainId": "eip155:8453",
+                        "method": "eth_sendTransaction",
+                        "params": ["0x123"]
+                    }
+                }]
+            }],
+            "dataCaptureRequirements": null
+        });
+
+        let confirm_response = serde_json::json!({
+            "paymentId": "pay_json_789",
+            "status": "completed"
+        });
+
+        Mock::given(method("POST"))
+            .and(path("/v1/gateway/payment/pay_json_789/options"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(&options_response),
+            )
+            .mount(&mock_server)
+            .await;
+
+        Mock::given(method("POST"))
+            .and(path("/v1/gateway/payment/pay_json_789/confirm"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(&confirm_response),
+            )
+            .mount(&mock_server)
+            .await;
+
+        let client =
+            WalletConnectPayJson::new(mock_server.uri(), test_config());
+
+        // Populate cache first
+        let options_req = r#"{"paymentLink": "pay_json_789", "accounts": ["eip155:8453:0xabc"]}"#;
+        client.get_payment_options(options_req.to_string()).await.unwrap();
+
+        let confirm_req = r#"{
+            "request": {
+                "paymentId": "pay_json_789",
+                "optionId": "opt_json_3",
+                "action": {
+                    "type": "wallet_rpc",
+                    "data": {
+                        "chainId": "eip155:8453",
+                        "method": "eth_sendTransaction",
+                        "params": ["0x123"]
+                    }
+                }
+            },
+            "result": {
+                "rpcMethod": "eth_sendTransaction",
+                "rpcResult": "0xtxhash",
+                "chainId": "eip155:8453"
+            },
+            "kycData": null
+        }"#;
+
+        let result = client.confirm_payment(confirm_req.to_string()).await;
+
+        assert!(result.is_ok(), "Expected Ok but got: {:?}", result);
+        let response_json = result.unwrap();
+        let parsed: serde_json::Value =
+            serde_json::from_str(&response_json).unwrap();
+        assert_eq!(parsed["paymentId"], "pay_json_789");
+        assert_eq!(parsed["status"], "Completed");
+    }
+
+    #[test]
+    fn test_json_sum() {
+        let client = WalletConnectPayJson::new(
+            "https://example.com".to_string(),
+            test_config(),
+        );
+        assert_eq!(client.sum(10, 20), 30);
+        assert_eq!(client.sum(-5, 15), 10);
     }
 }
