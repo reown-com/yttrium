@@ -104,16 +104,18 @@ impl From<types::ConfirmPaymentResponseStatus> for PaymentStatus {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Deserialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
+#[serde(rename_all = "camelCase")]
 pub struct PaymentResult {
     pub rpc_method: String,
     pub rpc_result: String,
     pub chain_id: String,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Deserialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
+#[serde(rename_all = "camelCase")]
 pub struct InformationCapture {
     pub first_name: Option<String>,
     pub last_name: Option<String>,
@@ -272,7 +274,7 @@ impl From<types::PaymentOptionDisplay> for PaymentOptionDisplay {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
 #[serde(rename_all = "camelCase")]
 pub struct WalletRpcAction {
@@ -287,11 +289,12 @@ impl From<types::WalletRpcAction> for WalletRpcAction {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
 #[serde(rename_all = "camelCase")]
 pub struct CollectDataSchemaField {
     pub name: String,
+    #[serde(rename = "type")]
     pub field_type: String,
     pub required: bool,
 }
@@ -302,7 +305,7 @@ impl From<types::CollectDataSchemaField> for CollectDataSchemaField {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
 pub struct CollectDataSchema {
     pub fields: Vec<CollectDataSchemaField>,
@@ -314,7 +317,7 @@ impl From<types::CollectDataSchema> for CollectDataSchema {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
 pub struct CollectDataAction {
     pub schema: CollectDataSchema,
@@ -334,6 +337,28 @@ pub enum RequiredAction {
     CollectData { data: CollectDataAction },
 }
 
+// Custom Deserialize for RequiredAction to handle flat JSON structure
+impl<'de> serde::Deserialize<'de> for RequiredAction {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        #[derive(serde::Deserialize)]
+        #[serde(tag = "type", content = "data", rename_all = "snake_case")]
+        enum Helper {
+            WalletRpc(WalletRpcAction),
+            #[serde(rename = "collect-data")]
+            CollectData(CollectDataAction),
+        }
+
+        let helper = Helper::deserialize(deserializer)?;
+        Ok(match helper {
+            Helper::WalletRpc(data) => RequiredAction::WalletRpc { data },
+            Helper::CollectData(data) => RequiredAction::CollectData { data },
+        })
+    }
+}
+
 impl From<types::RequiredAction> for RequiredAction {
     fn from(a: types::RequiredAction) -> Self {
         match a {
@@ -347,7 +372,7 @@ impl From<types::RequiredAction> for RequiredAction {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
 #[serde(rename_all = "camelCase")]
 pub struct PaymentRequest {
@@ -815,112 +840,9 @@ struct GetRequiredPaymentActionsRequest {
 #[derive(Debug, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct ConfirmPaymentJsonRequest {
-    request: PaymentRequestJson,
-    result: PaymentResultJson,
-    kyc_data: Option<InformationCaptureJson>,
-}
-
-#[derive(Debug, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct PaymentRequestJson {
-    payment_id: String,
-    option_id: String,
-    action: RequiredActionJson,
-}
-
-#[derive(Debug, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-#[serde(tag = "type", content = "data")]
-enum RequiredActionJson {
-    #[serde(rename = "wallet_rpc")]
-    WalletRpc {
-        #[serde(rename = "chainId")]
-        chain_id: String,
-        method: String,
-        params: Vec<String>,
-    },
-    #[serde(rename = "collect-data")]
-    CollectData { schema: CollectDataSchemaJson },
-}
-
-#[derive(Debug, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct CollectDataSchemaJson {
-    fields: Vec<CollectDataFieldJson>,
-}
-
-#[derive(Debug, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct CollectDataFieldJson {
-    name: String,
-    #[serde(rename = "type")]
-    field_type: String,
-    required: bool,
-}
-
-#[derive(Debug, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct PaymentResultJson {
-    rpc_method: String,
-    rpc_result: String,
-    chain_id: String,
-}
-
-#[derive(Debug, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct InformationCaptureJson {
-    first_name: Option<String>,
-    last_name: Option<String>,
-    extra: Option<std::collections::HashMap<String, String>>,
-}
-
-impl From<RequiredActionJson> for RequiredAction {
-    fn from(json: RequiredActionJson) -> Self {
-        match json {
-            RequiredActionJson::WalletRpc { chain_id, method, params } => {
-                RequiredAction::WalletRpc {
-                    data: WalletRpcAction { chain_id, method, params },
-                }
-            }
-            RequiredActionJson::CollectData { schema } => {
-                RequiredAction::CollectData {
-                    data: CollectDataAction {
-                        schema: CollectDataSchema {
-                            fields: schema
-                                .fields
-                                .into_iter()
-                                .map(|f| CollectDataSchemaField {
-                                    name: f.name,
-                                    field_type: f.field_type,
-                                    required: f.required,
-                                })
-                                .collect(),
-                        },
-                    },
-                }
-            }
-        }
-    }
-}
-
-impl From<PaymentResultJson> for PaymentResult {
-    fn from(json: PaymentResultJson) -> Self {
-        PaymentResult {
-            rpc_method: json.rpc_method,
-            rpc_result: json.rpc_result,
-            chain_id: json.chain_id,
-        }
-    }
-}
-
-impl From<InformationCaptureJson> for InformationCapture {
-    fn from(json: InformationCaptureJson) -> Self {
-        InformationCapture {
-            first_name: json.first_name,
-            last_name: json.last_name,
-            extra: json.extra,
-        }
-    }
+    request: PaymentRequest,
+    result: PaymentResult,
+    kyc_data: Option<InformationCapture>,
 }
 
 /// JSON wrapper for WalletConnectPay client
@@ -992,18 +914,9 @@ impl WalletConnectPayJson {
         let req: ConfirmPaymentJsonRequest =
             serde_json::from_str(&request_json)
                 .map_err(|e| PayJsonError::JsonParse(e.to_string()))?;
-        let payment_request = PaymentRequest {
-            payment_id: req.request.payment_id,
-            option_id: req.request.option_id,
-            action: req.request.action.into(),
-        };
         let result = self
             .client
-            .confirm_payment(
-                payment_request,
-                req.result.into(),
-                req.kyc_data.map(Into::into),
-            )
+            .confirm_payment(req.request, req.result, req.kyc_data)
             .await
             .map_err(|e| PayJsonError::ConfirmPayment(e.to_string()))?;
         serde_json::to_string(&result)
