@@ -63,7 +63,6 @@ fn test_create_payment_response_success() {
         data: CreatePaymentResponse {
             payment_id: "pay_123".to_string(),
             status: "requires_action".to_string(),
-            gateway_url: "https://walletconnect.com/pay".to_string(),
             amount: Amount {
                 unit: "iso4217/USD".to_string(),
                 value: "1000".to_string(),
