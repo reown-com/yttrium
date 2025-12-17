@@ -97,3 +97,14 @@ pub extern "C" fn Java_com_yttrium_utils_YttriumUtilsKt_initializeTls(
 ) {
     rustls_platform_verifier::android::init_hosted(&mut env, context).unwrap();
 }
+
+// Android JNI initialization for rustls-platform-verifier (wcpay variant)
+#[cfg(all(target_os = "android", feature = "android"))]
+#[unsafe(no_mangle)]
+pub extern "C" fn Java_com_yttrium_wcpay_YttriumWcpayKt_initializeTls(
+    mut env: jni::JNIEnv,
+    _class: jni::objects::JClass,
+    context: jni::objects::JObject,
+) {
+    rustls_platform_verifier::android::init_hosted(&mut env, context).unwrap();
+}
