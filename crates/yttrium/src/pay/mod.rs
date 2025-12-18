@@ -148,6 +148,7 @@ where
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
+#[serde(rename_all = "camelCase")]
 pub struct SdkConfig {
     pub api_key: String,
     pub sdk_name: String,
@@ -255,33 +256,34 @@ impl From<types::Build> for BuildAction {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Enum))]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", tag = "type", content = "data")]
 pub enum RequiredAction {
     WalletRpc { data: WalletRpcAction },
     Build { data: BuildAction },
 }
 
-impl<'de> serde::Deserialize<'de> for RequiredAction {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        #[derive(serde::Deserialize)]
-        #[serde(tag = "type", content = "data", rename_all = "camelCase")]
-        enum Helper {
-            WalletRpc(WalletRpcAction),
-            Build(BuildAction),
-        }
+// Shouldn't be needed if we add serde::Deserialize, tag and content to the enum definition
+// impl<'de> serde::Deserialize<'de> for RequiredAction {
+//     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+//     where
+//         D: serde::Deserializer<'de>,
+//     {
+//         #[derive(serde::Deserialize)]
+//         #[serde(tag = "type", content = "data", rename_all = "camelCase")]
+//         enum Helper {
+//             WalletRpc(WalletRpcAction),
+//             Build(BuildAction),
+//         }
 
-        let helper = Helper::deserialize(deserializer)?;
-        Ok(match helper {
-            Helper::WalletRpc(data) => RequiredAction::WalletRpc { data },
-            Helper::Build(data) => RequiredAction::Build { data },
-        })
-    }
-}
+//         let helper = Helper::deserialize(deserializer)?;
+//         Ok(match helper {
+//             Helper::WalletRpc(data) => RequiredAction::WalletRpc { data },
+//             Helper::Build(data) => RequiredAction::Build { data },
+//         })
+//     }
+// }
 
 impl From<types::RequiredAction> for RequiredAction {
     fn from(a: types::RequiredAction) -> Self {
@@ -376,11 +378,6 @@ impl WalletConnectPay {
     pub fn new(base_url: String, config: SdkConfig) -> Self {
         let client = Client::new(&base_url);
         Self { client, config, cached_options: RwLock::new(Vec::new()) }
-    }
-
-    /// Simple test method to verify bindings are loaded correctly
-    pub fn sum(&self, a: i64, b: i64) -> i64 {
-        a + b
     }
 
     /// Get basic payment information
@@ -666,11 +663,6 @@ impl WalletConnectPayJson {
         Ok(Self { client: WalletConnectPay::new(base_url, config) })
     }
 
-    /// Simple test method to verify bindings are loaded correctly
-    pub fn sum(&self, a: i64, b: i64) -> i64 {
-        self.client.sum(a, b)
-    }
-
     /// Get payment options for a payment link
     /// Input JSON: { "paymentLink": "string", "accounts": ["string"] }
     /// Returns JSON PaymentOptionsResponse or error
@@ -685,6 +677,28 @@ impl WalletConnectPayJson {
             .get_payment_options(req.payment_link, req.accounts)
             .await
             .map_err(|e| PayJsonError::PaymentOptions(e.to_string()))?;
+
+        // let mock_result = PaymentOptionsResponse {
+        //     options: vec![PaymentOption {
+        //         id: "opt_1".to_string(),
+        //         amount: PayAmount {
+        //             unit: "caip19/eip155:8453/erc20:0xUSDC".to_string(),
+        //             value: "1000000".to_string(),
+        //             display: AmountDisplay {
+        //                 asset_symbol: "USDC".to_string(),
+        //                 asset_name: "USD Coin".to_string(),
+        //                 decimals: 6,
+        //                 icon_url: Some(
+        //                     "https://example.com/usdc.png".to_string(),
+        //                 ),
+        //                 network_name: Some("Base".to_string()),
+        //             },
+        //         },
+        //         eta_seconds: 5,
+        //         required_actions: vec![],
+        //     }],
+        // };
+
         serde_json::to_string(&result)
             .map_err(|e| PayJsonError::JsonSerialize(e.to_string()))
     }
@@ -703,6 +717,23 @@ impl WalletConnectPayJson {
             .client
             .get_required_payment_actions(req.option_id)
             .map_err(|e| PayJsonError::PaymentRequest(e.to_string()))?;
+
+        // let mock_result = vec![
+        //     RequiredAction::Build {
+        //         data: BuildAction { data: "{}".to_string() },
+        //     },
+        //     RequiredAction::WalletRpc {
+        //         data: WalletRpcAction {
+        //             chain_id: "eip155:8453".to_string(),
+        //             method: "eth_signTypedData_v4".to_string(),
+        //             params: vec![
+        //                 "0xabc".to_string(),
+        //                 "{\"typed\":\"data\"}".to_string(),
+        //             ],
+        //         },
+        //     },
+        // ];
+
         serde_json::to_string(&result)
             .map_err(|e| PayJsonError::JsonSerialize(e.to_string()))
     }
@@ -722,6 +753,19 @@ impl WalletConnectPayJson {
             .confirm_payment(req.payment_id, req.max_poll_ms)
             .await
             .map_err(|e| PayJsonError::ConfirmPayment(e.to_string()))?;
+
+        // let mock_result_success = ConfirmPaymentResponse {
+        //     status: PaymentStatus::Succeeded,
+        //     is_final: true,
+        //     poll_in_ms: None,
+        // };
+
+        // let mock_result_processing = ConfirmPaymentResponse {
+        //     status: PaymentStatus::Processing,
+        //     is_final: false,
+        //     poll_in_ms: Some(1000),
+        // };
+
         serde_json::to_string(&result)
             .map_err(|e| PayJsonError::JsonSerialize(e.to_string()))
     }
@@ -1036,7 +1080,7 @@ mod tests {
     // ==================== JSON Client Tests ====================
 
     fn test_config_json() -> String {
-        r#"{"api_key":"test-api-key","sdk_name":"test-sdk","sdk_version":"1.0.0","sdk_platform":"test"}"#.to_string()
+        r#"{"apiKey":"test-api-key","sdkName":"test-sdk","sdkVersion":"1.0.0","sdkPlatform":"test"}"#.to_string()
     }
 
     #[tokio::test]
@@ -1089,6 +1133,9 @@ mod tests {
         let parsed: serde_json::Value =
             serde_json::from_str(&response_json).unwrap();
         assert_eq!(parsed["options"][0]["id"], "opt_json_1");
+        assert_eq!(parsed["options"][0]["amount"]["value"], "500000");
+        assert_eq!(parsed["options"][0]["etaSeconds"], 5);
+        assert_eq!(parsed["options"][0]["requiredActions"].as_array().unwrap().len(), 1);
     }
 
     #[tokio::test]
@@ -1158,7 +1205,12 @@ mod tests {
         let parsed: serde_json::Value =
             serde_json::from_str(&response_json).unwrap();
         assert!(parsed.is_array());
-        assert!(parsed[0].is_object());
+        assert_eq!(parsed.as_array().unwrap().len(), 1);
+        assert_eq!(parsed[0]["type"], "walletRpc");
+        assert_eq!(parsed[0]["data"]["chainId"], "eip155:1");
+        assert_eq!(parsed[0]["data"]["method"], "eth_signTypedData_v4");
+        assert_eq!(parsed[0]["data"]["params"][0], "0xwallet");
+        assert_eq!(parsed[0]["data"]["params"][1], "{\"types\":{}}");
     }
 
     #[tokio::test]
@@ -1192,17 +1244,7 @@ mod tests {
             serde_json::from_str(&response_json).unwrap();
         assert_eq!(parsed["status"], "Succeeded");
         assert_eq!(parsed["isFinal"], true);
-    }
-
-    #[test]
-    fn test_json_sum() {
-        let client = WalletConnectPayJson::new(
-            "https://example.com".to_string(),
-            test_config_json(),
-        )
-        .unwrap();
-        assert_eq!(client.sum(10, 20), 30);
-        assert_eq!(client.sum(-5, 15), 10);
+        assert!(parsed["pollInMs"].is_null());
     }
 
     #[test]
