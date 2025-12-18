@@ -98,11 +98,17 @@ android {
             // Unique namespace for utils artifact
             namespace "com.reown.yttrium.utils.uniffi"
         }
+        wcpay {
+            dimension "artifact"
+            // Unique namespace for wcpay artifact
+            namespace "com.reown.yttrium.wcpay.uniffi"
+        }
     }
 
     publishing {
         singleVariant("yttriumRelease")
         singleVariant("utilsRelease")
+        singleVariant("wcpayRelease")
     }
 
     sourceSets {
@@ -127,6 +133,14 @@ android {
             ]
             jniLibs.srcDirs += ["${project.buildDir}/generated/utils/jniLibs"]
         }
+        wcpay {
+            // Include static flavor sources and generated bindings
+            kotlin.srcDirs += [
+                "${project.projectDir}/src/wcpay/kotlin",
+                "${project.buildDir}/generated/wcpay/kotlin"
+            ]
+            jniLibs.srcDirs += ["${project.buildDir}/generated/wcpay/jniLibs"]
+        }
     }
 
     buildTypes {
@@ -139,6 +153,7 @@ android {
      packagingOptions {
         doNotStrip "*/libuniffi_yttrium.so"
         doNotStrip "*/libuniffi_yttrium_utils.so"
+        doNotStrip "*/libuniffi_yttrium_wcpay.so"
     }
 
     compileOptions {
@@ -157,6 +172,7 @@ android {
     packagingOptions {
         doNotStrip "*/libuniffi_yttrium.so"
         doNotStrip "*/libuniffi_yttrium_utils.so"
+        doNotStrip "*/libuniffi_yttrium_wcpay.so"
         // Add 16 KB alignment for native libraries
         jniLibs {
             useLegacyPackaging = false
@@ -265,6 +281,47 @@ publishing {
                 }
             }
         }
+
+        register("yttriumWcpayRelease", MavenPublication) {
+            groupId = 'com.github.reown-com'
+            artifactId = 'yttrium-wcpay'
+            version = publicationVersion
+
+            pom {
+                name.set("Yttrium WCPay")
+                description.set("WalletConnectPay SDK bindings for Android.")
+                url.set("https://github.com/reown-com/Yttrium")
+                scm {
+                    connection.set("scm:git:git://github.com:reown-com/yttrium.git")
+                    developerConnection.set("scm:git:ssh://github.com:reown-com/yttrium.git")
+                    url.set("https://github.com/reown-com/Yttrium")
+                }
+                withXml { xml ->
+                    // Ensure JNA dependency uses AAR variant only (exclude JAR)
+                    def dependenciesNode = xml.asNode().get('dependencies')[0]
+                    if (dependenciesNode != null) {
+                        dependenciesNode.dependency.each { dep ->
+                            if (dep.groupId[0].text() == 'net.java.dev.jna' && dep.artifactId[0].text() == 'jna') {
+                                // Set or replace classifier
+                                def classifierNodes = dep.classifier
+                                if (classifierNodes && !classifierNodes.isEmpty()) {
+                                    classifierNodes[0].value = 'android'
+                                } else {
+                                    dep.appendNode('classifier', 'android')
+                                }
+                                // Set or replace type
+                                def typeNodes = dep.type
+                                if (typeNodes && !typeNodes.isEmpty()) {
+                                    typeNodes[0].value = 'aar'
+                                } else {
+                                    dep.appendNode('type', 'aar')
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -279,6 +336,11 @@ components.all { component ->
             from(component)
         }
     }
+    if (component.name == "wcpayRelease") {
+        publishing.publications.named("yttriumWcpayRelease", MavenPublication).configure {
+            from(component)
+        }
+    }
 }
 
 tasks.matching { it.name == "publishYttriumReleasePublicationToMavenLocal" }.configureEach {
@@ -287,4 +349,8 @@ tasks.matching { it.name == "publishYttriumReleasePublicationToMavenLocal" }.con
 
 tasks.matching { it.name == "publishYttriumUtilsReleasePublicationToMavenLocal" }.configureEach {
     dependsOn("assembleUtilsRelease")
+}
+
+tasks.matching { it.name == "publishYttriumWcpayReleasePublicationToMavenLocal" }.configureEach {
+    dependsOn("assembleWcpayRelease")
 }
