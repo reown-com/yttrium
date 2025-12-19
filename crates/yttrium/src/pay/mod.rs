@@ -270,27 +270,6 @@ pub enum RequiredAction {
     Build(BuildAction),
 }
 
-// Shouldn't be needed if we add serde::Deserialize, tag and content to the enum definition
-// impl<'de> serde::Deserialize<'de> for RequiredAction {
-//     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-//     where
-//         D: serde::Deserializer<'de>,
-//     {
-//         #[derive(serde::Deserialize)]
-//         #[serde(tag = "type", content = "data", rename_all = "camelCase")]
-//         enum Helper {
-//             WalletRpc(WalletRpcAction),
-//             Build(BuildAction),
-//         }
-
-//         let helper = Helper::deserialize(deserializer)?;
-//         Ok(match helper {
-//             Helper::WalletRpc(data) => RequiredAction::WalletRpc { data },
-//             Helper::Build(data) => RequiredAction::Build { data },
-//         })
-//     }
-// }
-
 impl From<types::RequiredAction> for RequiredAction {
     fn from(a: types::RequiredAction) -> Self {
         match a {
