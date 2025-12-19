@@ -14,12 +14,15 @@ env:
   RUST_MSRV: 1.90.0
 
 jobs:
-
   rust_RUST_MSRV:
     name: Rust MSRV - build & lint
     runs-on: [self-hosted, aws-ecs-16cpu-64mem-40disk-60m]
     timeout-minutes: 60
     steps:
+      - name: Free disk space
+        run: |
+          rm -rf /tmp/* 2>/dev/null || true
+          rm -rf ~/.cargo/registry/cache 2>/dev/null || true
       - uses: actions/checkout@v4
         with:
           submodules: recursive
@@ -30,27 +33,39 @@ jobs:
       - run: rustup install ${{ env.RUST_MSRV }} -c clippy -t wasm32-unknown-unknown && rustup default ${{ env.RUST_MSRV }}
       - run: rustup toolchain install nightly -c rustfmt
       - uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
       - uses: extractions/setup-just@v2
-      # - run: echo ${{ vars.REOWN_PROJECT_ID }} > crates/rust-sample-wallet/.project-id
-      # - run: cargo clippy --workspace --all-features --all-targets -- -D warnings
-      # - run: cargo clippy -p yttrium --all-targets -- -D warnings # `-p yttrium` to avoid feature unification; kotlin-ffi enables uniffi feature and we want to test without that
       - run: just clippy
-      - run: rm -rf target/
-      - run: cargo build --jobs=1 --workspace --all-features --all-targets
+      - run: cargo build --workspace --all-features --all-targets
       - run: cargo build -p yttrium --features=wasm --lib --target wasm32-unknown-unknown
-      - run: cargo install cargo-udeps --locked
+      - name: Install cargo-udeps (cached)
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-udeps
       - run: just _rust_ci
+      - name: Cleanup to free disk space
+        if: always()
+        run: |
+          cargo clean --release 2>/dev/null || true
+          rm -rf target/debug/deps target/debug/build 2>/dev/null || true
 
   rust_RUST_MSRV_test:
     name: Rust MSRV - test
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc 2>/dev/null || true
+          docker system prune -af 2>/dev/null || true
       - uses: actions/checkout@v4
         with:
           submodules: recursive
       - run: rustup install ${{ env.RUST_MSRV }} -c clippy && rustup default ${{ env.RUST_MSRV }}
       - uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
       - run: rustup toolchain install nightly -c rustfmt
       - run: rustup target add wasm32-unknown-unknown
       - uses: extractions/setup-just@v2
@@ -62,7 +77,6 @@ jobs:
         timeout-minutes: 5
       - run: while ! curl localhost:3000/ping; do sleep 1; done
         timeout-minutes: 5
-      # - run: echo ${{ vars.REOWN_PROJECT_ID }} > crates/rust-sample-wallet/.project-id
       - run: RUST_BACKTRACE=1 RUST_LOG=yttrium=trace cargo test --features=full,test_depends_on_env_REOWN_PROJECT_ID --lib --bins
         env:
           REOWN_PROJECT_ID: ${{ vars.REOWN_PROJECT_ID }}
@@ -75,12 +89,22 @@ jobs:
       - run: docker logs forked_state-mock-paymaster-1
         working-directory: test/scripts/forked_state
         if: failure()
+      - name: Cleanup
+        if: always()
+        run: |
+          docker compose down -v 2>/dev/null || true
+          docker system prune -af 2>/dev/null || true
+        working-directory: test/scripts/forked_state
 
   rust_stable:
     name: Rust stable - build & lint
     runs-on: [self-hosted, aws-ecs-16cpu-64mem-40disk-60m]
     timeout-minutes: 60
     steps:
+      - name: Free disk space
+        run: |
+          rm -rf /tmp/* 2>/dev/null || true
+          rm -rf ~/.cargo/registry/cache 2>/dev/null || true
       - uses: actions/checkout@v4
         with:
           submodules: recursive
@@ -90,29 +114,40 @@ jobs:
           echo "$HOME/.cargo/bin" >> $GITHUB_PATH
       - run: rustup install stable -c clippy -t wasm32-unknown-unknown && rustup default stable
       - run: rustup toolchain install nightly -c rustfmt
-      # == below is a duplicate of the pinned job above. Keep them in-sync. ==
       - uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
       - uses: extractions/setup-just@v2
-      # - run: echo ${{ vars.REOWN_PROJECT_ID }} > crates/rust-sample-wallet/.project-id
-      # - run: cargo clippy --workspace --all-features --all-targets -- -D warnings
-      # - run: cargo clippy -p yttrium --all-targets -- -D warnings # `-p yttrium` to avoid feature unification; kotlin-ffi enables uniffi feature and we want to test without that
       - run: just clippy
-      - run: cargo build --jobs=1 --workspace --all-features --all-targets
+      - run: cargo build --workspace --all-features --all-targets
       - run: cargo build -p yttrium --features=wasm --lib --target wasm32-unknown-unknown
-      - run: cargo install cargo-udeps --locked
+      - name: Install cargo-udeps (cached)
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-udeps
       - run: just _rust_ci
+      - name: Cleanup to free disk space
+        if: always()
+        run: |
+          cargo clean --release 2>/dev/null || true
+          rm -rf target/debug/deps target/debug/build 2>/dev/null || true
 
   rust_stable_test:
     name: Rust stable - test
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc 2>/dev/null || true
+          docker system prune -af 2>/dev/null || true
       - uses: actions/checkout@v4
         with:
           submodules: recursive
       - run: rustup update stable && rustup default stable
-      # == below is a duplicate of the pinned job above. Keep them in-sync. ==
       - uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
       - run: rustup toolchain install nightly -c rustfmt
       - run: rustup target add wasm32-unknown-unknown
       - uses: extractions/setup-just@v2
@@ -124,7 +159,6 @@ jobs:
         timeout-minutes: 5
       - run: while ! curl localhost:3000/ping; do sleep 1; done
         timeout-minutes: 5
-      # - run: echo ${{ vars.REOWN_PROJECT_ID }} > crates/rust-sample-wallet/.project-id
       - run: RUST_BACKTRACE=1 RUST_LOG=yttrium=trace cargo test --features=full,test_depends_on_env_REOWN_PROJECT_ID --lib --bins
         env:
           REOWN_PROJECT_ID: ${{ vars.REOWN_PROJECT_ID }}
@@ -137,6 +171,12 @@ jobs:
       - run: docker logs forked_state-mock-paymaster-1
         working-directory: test/scripts/forked_state
         if: failure()
+      - name: Cleanup
+        if: always()
+        run: |
+          docker compose down -v 2>/dev/null || true
+          docker system prune -af 2>/dev/null || true
+        working-directory: test/scripts/forked_state
 
   build_swift_and_test:
     name: Swift Package - latest
@@ -146,6 +186,10 @@ jobs:
         config:
           - debug
     steps:
+      - name: Free disk space
+        run: |
+          rm -rf ~/Library/Developer/Xcode/DerivedData/* 2>/dev/null || true
+          rm -rf ~/.cargo/registry/cache 2>/dev/null || true
       - uses: actions/checkout@v4
         with:
           submodules: recursive
@@ -153,6 +197,8 @@ jobs:
         uses: mozilla-actions/sccache-action@v0.0.4
       - run: rustup update ${{ env.RUST_MSRV }} && rustup default ${{ env.RUST_MSRV }}
       - uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
       - name: Select Xcode 15.4
         run: sudo xcode-select -s /Applications/Xcode.app
 
@@ -160,83 +206,73 @@ jobs:
       - run: make build-xcframework
       - run: make build-utils-xcframework
 
-      # Don't think we actually need this check, since bindings will be updated during release
-      # - run: git diff crates/ffi
-      # - run: if [ -n "$(git diff crates/ffi)" ]; then exit 1; fi
-
       # Test that it compiles
       - name: Build ${{ matrix.config }}
         run: make CONFIG=${{ matrix.config }} build-swift-apple-platforms
 
+      - name: Cleanup
+        if: always()
+        run: |
+          cargo clean 2>/dev/null || true
+          rm -rf ~/Library/Developer/Xcode/DerivedData/* 2>/dev/null || true
 
   build-kotlin:
     runs-on: [self-hosted, aws-ecs-8cpu-32mem-55disk-45m]
 
     steps:
-      - uses: actions/checkout@v3
-
+      - name: Free disk space
+        run: |
+          rm -rf /tmp/* 2>/dev/null || true
+          rm -rf ~/.cargo/registry/cache 2>/dev/null || true
+          docker system prune -af 2>/dev/null || true
+      - uses: actions/checkout@v4
       - name: Install Android NDK
         id: setup-ndk
         uses: nttld/setup-ndk@v1
         with:
           ndk-version: r27c
 
-      - name: Install Rust toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: ${{ env.RUST_MSRV }}
-          target: aarch64-linux-android
-          override: true
-          components: rust-src
-      - name: Install Rust toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: ${{ env.RUST_MSRV }}
-          target: armv7-linux-androideabi
-          override: true
-          components: rust-src
-      - name: Install Rust toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: ${{ env.RUST_MSRV }}
-          target: x86_64-linux-android
-          override: true
-          components: rust-src
-      - uses: Swatinem/rust-cache@v2
+      - name: Install Rust toolchain with all Android targets
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain ${{ env.RUST_MSRV }}
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+          rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android
 
-      - name: Set up Java 11
-        uses: actions/setup-java@v3
+      - uses: Swatinem/rust-cache@v2
         with:
-          distribution: "temurin"
-          java-version: "11"
+          cache-on-failure: true
 
       - name: Set up Java 17
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           distribution: "temurin"
           java-version: "17"
 
       - name: Set up Android SDK
-        uses: android-actions/setup-android@v2
+        uses: android-actions/setup-android@v3
         with:
           api-level: 35
           build-tools: 35.0.0
-          ndk-version: 28.2.13676358
 
-      - name: Install cargo-ndk
-        run: |
-          # --locked to bypass this pipeline error: https://github.com/reown-com/yttrium/actions/runs/12717232881/job/35453267940?pr=110
-          cargo install cargo-ndk --locked
+      - name: Install cargo-ndk (cached)
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-ndk
 
       - name: Build Rust library
-        run: |
-          ./generate_kotlin_locally.sh
+        run: ./generate_kotlin_locally.sh
         env:
           ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
 
+      - name: Cleanup to free disk space
+        if: always()
+        run: |
+          cargo clean 2>/dev/null || true
+          rm -rf target/ 2>/dev/null || true
+
   merge_check:
     name: Merge Check
-    needs: [ rust_RUST_MSRV, build_swift_and_test, build-kotlin ]
+    needs: [rust_RUST_MSRV, build_swift_and_test, build-kotlin]
     if: ${{ always() && !cancelled() && !failure() }}
     runs-on: ubuntu-latest
     steps:
