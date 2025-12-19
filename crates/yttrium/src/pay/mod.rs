@@ -147,7 +147,9 @@ pub enum PaymentStatus {
 impl From<types::PaymentStatus> for PaymentStatus {
     fn from(s: types::PaymentStatus) -> Self {
         match s {
-            types::PaymentStatus::RequiresAction => PaymentStatus::RequiresAction,
+            types::PaymentStatus::RequiresAction => {
+                PaymentStatus::RequiresAction
+            }
             types::PaymentStatus::Processing => PaymentStatus::Processing,
             types::PaymentStatus::Succeeded => PaymentStatus::Succeeded,
             types::PaymentStatus::Failed => PaymentStatus::Failed,
