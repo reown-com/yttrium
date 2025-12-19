@@ -25,6 +25,7 @@ struct GetPaymentOptionsRequestJson {
 #[derive(Debug, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct GetRequiredPaymentActionsRequestJson {
+    payment_id: String,
     option_id: String,
 }
 
@@ -93,9 +94,9 @@ impl WalletConnectPayJson {
     }
 
     /// Get required payment actions for a selected option
-    /// Input JSON: { "optionId": "string" }
+    /// Input JSON: { "paymentId": "string", "optionId": "string" }
     /// Returns JSON array of RequiredAction or error
-    pub fn get_required_payment_actions(
+    pub async fn get_required_payment_actions(
         &self,
         request_json: String,
     ) -> Result<String, PayJsonError> {
@@ -104,21 +105,9 @@ impl WalletConnectPayJson {
                 .map_err(|e| PayJsonError::JsonParse(e.to_string()))?;
         let result = self
             .client
-            .get_required_payment_actions(req.option_id)
+            .get_required_payment_actions(req.payment_id, req.option_id)
+            .await
             .map_err(|e| PayJsonError::PaymentRequest(e.to_string()))?;
-
-        // let _mock_result = vec![
-        //     RequiredAction::Build(BuildAction { data: "{}".to_string() }),
-        //     RequiredAction::WalletRpc(WalletRpcAction {
-        //         chain_id: "eip155:8453".to_string(),
-        //         method: "eth_signTypedData_v4".to_string(),
-        //         params: vec![
-        //             "0xabc".to_string(),
-        //             "{\"typed\":\"data\"}".to_string(),
-        //         ],
-        //     }),
-        // ];
-
         serde_json::to_string(&result)
             .map_err(|e| PayJsonError::JsonSerialize(e.to_string()))
     }
@@ -298,12 +287,12 @@ mod tests {
         let options_req = r#"{"paymentLink": "pay_json_456", "accounts": ["eip155:1:0x123"]}"#;
         client.get_payment_options(options_req.to_string()).await.unwrap();
 
-        let actions_req = r#"{"optionId": "opt_json_2"}"#;
-        let result =
-            client.get_required_payment_actions(actions_req.to_string());
-
-        assert!(result.is_ok());
-        let response_json = result.unwrap();
+        let actions_req =
+            r#"{"paymentId": "pay_json_456", "optionId": "opt_json_2"}"#;
+        let response_json = client
+            .get_required_payment_actions(actions_req.to_string())
+            .await
+            .unwrap();
         let parsed: serde_json::Value =
             serde_json::from_str(&response_json).unwrap();
         assert!(parsed.is_array());

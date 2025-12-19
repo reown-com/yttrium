@@ -67,6 +67,8 @@ pub enum GetPaymentRequestError {
     InvalidAccount(String),
     #[error("HTTP error: {0}")]
     Http(String),
+    #[error("Fetch error: {0}")]
+    FetchError(String),
     #[error("Internal error: {0}")]
     InternalError(String),
 }
@@ -254,21 +256,6 @@ impl WalletConnectPay {
         Self { client, config, cached_options: RwLock::new(Vec::new()) }
     }
 
-    /// Get basic payment information
-    pub async fn get_payment(
-        &self,
-        payment_id: String,
-    ) -> Result<GetPaymentResponse, PayError> {
-        let response = with_retry(|| async {
-            with_sdk_config!(self.client.gateway_get_payment(), &self.config)
-                .id(&payment_id)
-                .send()
-                .await
-        })
-        .await?;
-        Ok(response.into_inner())
-    }
-
     /// Get payment options for given accounts
     /// Also caches the options for use by get_required_payment_actions
     pub async fn get_payment_options(
@@ -319,33 +306,44 @@ impl WalletConnectPay {
     }
 
     /// Get required payment actions for a selected option
-    /// Returns the list of actions from the cached options (must call get_payment_options first)
-    pub fn get_required_payment_actions(
+    /// Returns cached actions if available, otherwise calls fetch to get them
+    pub async fn get_required_payment_actions(
         &self,
+        payment_id: String,
         option_id: String,
     ) -> Result<Vec<RequiredAction>, GetPaymentRequestError> {
-        let cache = self.cached_options.read().map_err(|e| {
+        {
+            let cache = self.cached_options.read().map_err(|e| {
+                GetPaymentRequestError::InternalError(format!(
+                    "Cache lock poisoned: {}",
+                    e
+                ))
+            })?;
+            if let Some(cached_option) =
+                cache.iter().find(|o| o.option_id == option_id)
+            {
+                return Ok(cached_option.required_actions.clone());
+            }
+        }
+        let fetch_response = self
+            .fetch(payment_id, option_id.clone(), "{}".to_string())
+            .await
+            .map_err(|e| GetPaymentRequestError::FetchError(e.to_string()))?;
+        let mut cache = self.cached_options.write().map_err(|e| {
             GetPaymentRequestError::InternalError(format!(
                 "Cache lock poisoned: {}",
                 e
             ))
         })?;
-
-        let cached_option = cache
-            .iter()
-            .find(|o| o.option_id == option_id)
-            .ok_or_else(|| {
-                GetPaymentRequestError::OptionNotFound(format!(
-                    "Option {} not found in cache. Call get_payment_options first.",
-                    option_id
-                ))
-            })?;
-
-        Ok(cached_option.required_actions.clone())
+        cache.push(CachedPaymentOption {
+            option_id,
+            required_actions: fetch_response.required_actions.clone(),
+        });
+        Ok(fetch_response.required_actions)
     }
 
     /// Fetch an action for a payment option
-    pub async fn fetch(
+    async fn fetch(
         &self,
         payment_id: String,
         option_id: String,
@@ -667,9 +665,14 @@ mod tests {
             .unwrap();
         assert_eq!(response.options.len(), 1);
 
-        let result = client.get_required_payment_actions("opt_1".to_string());
-        assert!(result.is_ok());
-        let actions = result.unwrap();
+        // Test with cached option
+        let actions = client
+            .get_required_payment_actions(
+                "pay_123".to_string(),
+                "opt_1".to_string(),
+            )
+            .await
+            .unwrap();
         assert_eq!(actions.len(), 2);
         assert!(matches!(actions[0], RequiredAction::Build(_)));
         assert!(matches!(actions[1], RequiredAction::WalletRpc(_)));
@@ -680,48 +683,59 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_get_required_payment_actions_option_not_found() {
+    async fn test_get_required_payment_actions_fetches_when_not_cached() {
         let mock_server = MockServer::start().await;
 
-        let mock_response = serde_json::json!({
-            "options": []
+        let fetch_response = serde_json::json!({
+            "requiredActions": [{
+                "type": "walletRpc",
+                "data": {
+                    "chainId": "eip155:1",
+                    "method": "eth_sendTransaction",
+                    "params": ["0x123"]
+                }
+            }]
         });
 
         Mock::given(method("POST"))
-            .and(path("/v1/gateway/payment/pay_123/options"))
+            .and(path("/v1/gateway/payment/pay_456/fetch"))
             .respond_with(
-                ResponseTemplate::new(200).set_body_json(&mock_response),
+                ResponseTemplate::new(200).set_body_json(&fetch_response),
             )
             .mount(&mock_server)
             .await;
 
         let client = WalletConnectPay::new(test_config(mock_server.uri()));
-        client
-            .get_payment_options(
-                "pay_123".to_string(),
-                vec!["eip155:8453:0x123".to_string()],
+        // Call without populating cache first - should call fetch
+        let actions = client
+            .get_required_payment_actions(
+                "pay_456".to_string(),
+                "opt_new".to_string(),
             )
             .await
             .unwrap();
-
-        let result =
-            client.get_required_payment_actions("opt_nonexistent".to_string());
-        assert!(matches!(
-            result,
-            Err(GetPaymentRequestError::OptionNotFound(_))
-        ));
+        assert_eq!(actions.len(), 1);
+        assert!(matches!(actions[0], RequiredAction::WalletRpc(_)));
     }
 
-    #[test]
-    fn test_get_required_payment_actions_without_cache() {
-        let client = WalletConnectPay::new(test_config(
-            "https://example.com".to_string(),
-        ));
-        let result = client.get_required_payment_actions("opt_1".to_string());
-        assert!(matches!(
-            result,
-            Err(GetPaymentRequestError::OptionNotFound(_))
-        ));
+    #[tokio::test]
+    async fn test_get_required_payment_actions_fetch_error() {
+        let mock_server = MockServer::start().await;
+
+        Mock::given(method("POST"))
+            .and(path("/v1/gateway/payment/pay_789/fetch"))
+            .respond_with(ResponseTemplate::new(500))
+            .mount(&mock_server)
+            .await;
+
+        let client = WalletConnectPay::new(test_config(mock_server.uri()));
+        let result = client
+            .get_required_payment_actions(
+                "pay_789".to_string(),
+                "opt_missing".to_string(),
+            )
+            .await;
+        assert!(matches!(result, Err(GetPaymentRequestError::FetchError(_))));
     }
 
     #[tokio::test]
