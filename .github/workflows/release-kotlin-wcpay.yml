@@ -1,0 +1,191 @@
+name: Build and Release Yttrium Kotlin WCPay
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release (e.g. 0.0.1)"
+        required: true
+env:
+  CARGO_TERM_COLOR: always
+  VERSION: ${{ github.event.inputs.version || '0.0.1' }}
+  TARGET_BRANCH: ${{ github.ref_name }}
+permissions:
+  contents: write
+jobs:
+  build-kotlin-wcpay-artifacts:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target: [aarch64-linux-android, armv7-linux-androideabi, x86_64-linux-android]
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: ${{ matrix.target }}
+          override: true
+          components: rust-src
+      - name: Set up Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: "temurin"
+          java-version: "17"
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v2
+        with:
+          api-level: 35
+          build-tools: 35.0.0
+          ndk-version: 28.2.13676358
+      - name: Install cargo-ndk
+        run: |
+          cargo install cargo-ndk --locked
+      - name: Build Rust library (wcpay feature set)
+        run: |
+          cargo ndk -t ${{ matrix.target }} build \
+            --profile=uniffi-release-kotlin \
+            --no-default-features \
+            --features=android,pay,uniffi/cli
+      - name: Generate Kotlin wcpay bindings (once, on aarch64 only)
+        if: ${{ matrix.target == 'aarch64-linux-android' }}
+        run: |
+          rm -rf yttrium/kotlin-wcpay-bindings
+          cargo run \
+            --no-default-features \
+            --features=android,pay,uniffi/cli \
+            -p kotlin-ffi \
+            --bin uniffi-bindgen generate \
+            --library target/${{ matrix.target }}/uniffi-release-kotlin/libuniffi_yttrium.so \
+            --language kotlin \
+            --out-dir yttrium/kotlin-wcpay-bindings
+          
+          # Rename packages and imports for wcpay variant
+          find yttrium/kotlin-wcpay-bindings -type f -name "*.kt" -exec perl -i -pe '
+            s/^package uniffi\.yttrium$/package uniffi.yttrium_wcpay/;
+            s/^import uniffi\.yttrium\./import uniffi.yttrium_wcpay./g;
+            s/^package uniffi\.uniffi_yttrium$/package uniffi.uniffi_yttrium_wcpay/;
+            s/^import uniffi\.uniffi_yttrium\./import uniffi.uniffi_yttrium_wcpay./g;
+            s/\buniffi\.yttrium\./uniffi.yttrium_wcpay./g;
+            s/\buniffi\.uniffi_yttrium\./uniffi.uniffi_yttrium_wcpay./g;
+            s/return "uniffi_yttrium"/return "uniffi_yttrium_wcpay"/g;
+          ' {} \;
+      - name: Strip binaries
+        run: |
+            LATEST_NDK=$(ls -1 $ANDROID_HOME/ndk/ | sort -V | tail -1)
+            echo "Using NDK version: $LATEST_NDK"
+            
+            NDK_PATH="$ANDROID_HOME/ndk/$LATEST_NDK"
+            if [ -f "$NDK_PATH/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip" ]; then
+                echo "Found llvm-strip at: $NDK_PATH/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip"
+                $NDK_PATH/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip target/${{ matrix.target }}/uniffi-release-kotlin/libuniffi_yttrium.so
+            else
+                echo "Warning: Could not find llvm-strip, skipping strip step"
+                echo "Available NDK versions:"
+                ls -la $ANDROID_HOME/ndk/ || echo "No NDK directory found"
+                echo "Looking for llvm-strip in common locations:"
+                find $ANDROID_HOME/ndk -name "llvm-strip" 2>/dev/null || echo "No llvm-strip found"
+            fi
+      - name: Prepare local artifacts folder
+        run: |
+          declare -A abi_map
+          abi_map[aarch64-linux-android]="arm64-v8a"
+          abi_map[armv7-linux-androideabi]="armeabi-v7a"
+          abi_map[x86_64-linux-android]="x86_64"
+
+          abi_name=${abi_map[${{ matrix.target }}]}
+
+          if [ -z "$abi_name" ]; then
+            echo "Unknown ABI for target ${{ matrix.target }}"
+            exit 1
+          fi
+
+          mkdir -p yttrium/libs/$abi_name
+          cp target/${{ matrix.target }}/uniffi-release-kotlin/libuniffi_yttrium.so yttrium/libs/$abi_name/libuniffi_yttrium_wcpay.so
+
+      - name: Upload artifact (unique name per target)
+        uses: actions/upload-artifact@v4
+        with:
+          name: wcpay-artifacts-${{ matrix.target }}
+          path: yttrium/
+
+  combine-wcpay-artifacts:
+    needs: build-kotlin-wcpay-artifacts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Download aarch64 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: wcpay-artifacts-aarch64-linux-android
+          path: combined/aarch64
+      - name: Download armv7 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: wcpay-artifacts-armv7-linux-androideabi
+          path: combined/armv7
+      - name: Download x86_64 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: wcpay-artifacts-x86_64-linux-android
+          path: combined/x86_64
+      - name: Merge wcpay artifacts
+        run: |
+          mkdir -p merged/yttrium/libs
+
+          cp -r combined/aarch64/libs/arm64-v8a merged/yttrium/libs/
+          cp -r combined/armv7/libs/armeabi-v7a merged/yttrium/libs/
+          cp -r combined/x86_64/libs/x86_64 merged/yttrium/libs/
+
+          if [ -d combined/aarch64/kotlin-wcpay-bindings ]; then
+            cp -r combined/aarch64/kotlin-wcpay-bindings merged/yttrium/
+          fi
+      - name: Upload single combined artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wcpay-artifacts
+          path: merged/yttrium/
+
+  create-wcpay-release:
+    needs: combine-wcpay-artifacts
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      - name: Download single final artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: wcpay-artifacts
+          path: yttrium/
+      - name: Create wcpay artifacts zip
+        run: |
+          echo "Creating zip from yttrium directory..."
+          ls -R yttrium/
+          zip -r kotlin-wcpay-artifacts.zip yttrium/
+          echo "Zip created, verifying..."
+          ls -lh kotlin-wcpay-artifacts.zip
+          unzip -t kotlin-wcpay-artifacts.zip
+          echo "Zip verification successful"
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: kotlin-wcpay-${{ env.VERSION }}
+          release_name: "Yttrium Kotlin WCPay ${{ env.VERSION }}"
+          body: |
+            Kotlin WCPay release version ${{ env.VERSION }}
+
+            **Branch:** ${{ env.TARGET_BRANCH }}
+          draft: false
+          prerelease: false
+      - name: Upload Release Assets
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: kotlin-wcpay-artifacts.zip
+          asset_name: kotlin-wcpay-artifacts.zip
+          asset_content_type: application/zip
+
