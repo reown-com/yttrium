@@ -10,11 +10,6 @@ pub mod json;
 
 #[cfg(feature = "uniffi")]
 pub use json::{PayJsonError, WalletConnectPayJson};
-// Re-export generated types that don't need wrappers
-pub use types::{
-    ConfirmPaymentResponse, GetPaymentResponse, GetPaymentStatusResponse,
-    PaymentStatus,
-};
 
 #[derive(Debug, thiserror::Error)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Error))]
@@ -139,6 +134,49 @@ pub struct SdkConfig {
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Enum))]
+#[serde(rename_all = "snake_case")]
+pub enum PaymentStatus {
+    RequiresAction,
+    Processing,
+    Succeeded,
+    Failed,
+    Expired,
+}
+
+impl From<types::PaymentStatus> for PaymentStatus {
+    fn from(s: types::PaymentStatus) -> Self {
+        match s {
+            types::PaymentStatus::RequiresAction => PaymentStatus::RequiresAction,
+            types::PaymentStatus::Processing => PaymentStatus::Processing,
+            types::PaymentStatus::Succeeded => PaymentStatus::Succeeded,
+            types::PaymentStatus::Failed => PaymentStatus::Failed,
+            types::PaymentStatus::Expired => PaymentStatus::Expired,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
+#[serde(rename_all = "camelCase")]
+pub struct ConfirmPaymentResult {
+    pub status: PaymentStatus,
+    pub is_final: bool,
+    pub poll_in_ms: Option<i64>,
+}
+
+impl From<types::ConfirmPaymentResponse> for ConfirmPaymentResult {
+    fn from(r: types::ConfirmPaymentResponse) -> Self {
+        Self {
+            status: r.status.into(),
+            is_final: r.is_final,
+            poll_in_ms: r.poll_in_ms,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
 pub struct BuildAction {
     pub data: String,
 }
@@ -150,9 +188,25 @@ impl From<types::Build> for BuildAction {
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
+#[serde(rename_all = "camelCase")]
+pub struct WalletRpcAction {
+    pub chain_id: String,
+    pub method: String,
+    pub params: Vec<String>,
+}
+
+impl From<types::WalletRpcAction> for WalletRpcAction {
+    fn from(a: types::WalletRpcAction) -> Self {
+        Self { chain_id: a.chain_id, method: a.method, params: a.params }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Enum))]
 #[serde(rename_all = "camelCase", tag = "type", content = "data")]
 pub enum RequiredAction {
-    WalletRpc(types::WalletRpcAction),
+    WalletRpc(WalletRpcAction),
     Build(BuildAction),
 }
 
@@ -160,7 +214,7 @@ impl From<types::RequiredAction> for RequiredAction {
     fn from(a: types::RequiredAction) -> Self {
         match a {
             types::RequiredAction::WalletRpc(data) => {
-                RequiredAction::WalletRpc(data)
+                RequiredAction::WalletRpc(data.into())
             }
             types::RequiredAction::Build(data) => {
                 RequiredAction::Build(data.into())
@@ -170,10 +224,49 @@ impl From<types::RequiredAction> for RequiredAction {
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
+#[serde(rename_all = "camelCase")]
+pub struct AmountDisplay {
+    pub asset_symbol: String,
+    pub asset_name: String,
+    pub decimals: i64,
+    pub icon_url: Option<String>,
+    pub network_name: Option<String>,
+}
+
+impl From<types::AmountDisplay> for AmountDisplay {
+    fn from(d: types::AmountDisplay) -> Self {
+        Self {
+            asset_symbol: d.asset_symbol,
+            asset_name: d.asset_name,
+            decimals: d.decimals,
+            icon_url: d.icon_url,
+            network_name: d.network_name,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
+#[serde(rename_all = "camelCase")]
+pub struct PayAmount {
+    pub unit: String,
+    pub value: String,
+    pub display: AmountDisplay,
+}
+
+impl From<types::Amount> for PayAmount {
+    fn from(a: types::Amount) -> Self {
+        Self { unit: a.unit, value: a.value, display: a.display.into() }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
 #[serde(rename_all = "camelCase")]
 pub struct PaymentOption {
     pub id: String,
-    pub amount: types::Amount,
+    pub amount: PayAmount,
     pub eta_seconds: i64,
     pub required_actions: Vec<RequiredAction>,
 }
@@ -182,7 +275,7 @@ impl From<types::PaymentOption> for PaymentOption {
     fn from(o: types::PaymentOption) -> Self {
         Self {
             id: o.id,
-            amount: o.amount,
+            amount: o.amount.into(),
             eta_seconds: o.eta_seconds,
             required_actions: o
                 .required_actions
@@ -194,6 +287,7 @@ impl From<types::PaymentOption> for PaymentOption {
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
 #[serde(rename_all = "camelCase")]
 pub struct PaymentOptionsResponse {
     pub options: Vec<PaymentOption>,
@@ -206,6 +300,7 @@ impl From<types::GetPaymentOptionsResponse> for PaymentOptionsResponse {
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
 #[serde(rename_all = "camelCase")]
 pub struct FetchResponse {
     pub required_actions: Vec<RequiredAction>,
@@ -244,13 +339,16 @@ struct CachedPaymentOption {
     required_actions: Vec<RequiredAction>,
 }
 
+#[cfg_attr(feature = "uniffi", derive(uniffi::Object))]
 pub struct WalletConnectPay {
     client: Client,
     config: SdkConfig,
     cached_options: RwLock<Vec<CachedPaymentOption>>,
 }
 
+#[cfg_attr(feature = "uniffi", uniffi::export(async_runtime = "tokio"))]
 impl WalletConnectPay {
+    #[cfg_attr(feature = "uniffi", uniffi::constructor)]
     pub fn new(config: SdkConfig) -> Self {
         let client = Client::new(&config.base_url);
         Self { client, config, cached_options: RwLock::new(Vec::new()) }
@@ -342,7 +440,49 @@ impl WalletConnectPay {
         Ok(fetch_response.required_actions)
     }
 
-    /// Fetch an action for a payment option
+    /// Confirm a payment
+    /// Polls for final status if the initial response is not final
+    pub async fn confirm_payment(
+        &self,
+        payment_id: String,
+        max_poll_ms: Option<i64>,
+    ) -> Result<ConfirmPaymentResult, ConfirmPaymentError> {
+        let body = types::ConfirmPaymentRequest(serde_json::Map::new());
+        let mut req = with_sdk_config!(
+            self.client.confirm_payment_handler(),
+            &self.config
+        )
+        .id(&payment_id)
+        .body(body.clone());
+        if let Some(ms) = max_poll_ms {
+            req = req.max_poll_ms(ms);
+        }
+        let response = with_retry(|| async { req.clone().send().await })
+            .await
+            .map_err(map_confirm_payment_error)?;
+        let mut result: ConfirmPaymentResult = response.into_inner().into();
+        while !result.is_final {
+            let poll_ms = result.poll_in_ms.unwrap_or(1000);
+            tokio::time::sleep(std::time::Duration::from_millis(
+                poll_ms as u64,
+            ))
+            .await;
+            let status = self
+                .get_gateway_payment_status(payment_id.clone(), max_poll_ms)
+                .await
+                .map_err(|e| ConfirmPaymentError::Http(e.to_string()))?;
+            result = ConfirmPaymentResult {
+                status: status.status.into(),
+                is_final: status.is_final,
+                poll_in_ms: status.poll_in_ms,
+            };
+        }
+        Ok(result)
+    }
+}
+
+// Private methods (not exported via uniffi)
+impl WalletConnectPay {
     async fn fetch(
         &self,
         payment_id: String,
@@ -363,12 +503,11 @@ impl WalletConnectPay {
         Ok(response.into_inner().into())
     }
 
-    /// Get gateway payment status (for polling)
     async fn get_gateway_payment_status(
         &self,
         payment_id: String,
         max_poll_ms: Option<i64>,
-    ) -> Result<GetPaymentStatusResponse, PayError> {
+    ) -> Result<types::GetPaymentStatusResponse, PayError> {
         let mut req = with_sdk_config!(
             self.client.gateway_get_payment_status(),
             &self.config
@@ -380,46 +519,6 @@ impl WalletConnectPay {
         let response =
             with_retry(|| async { req.clone().send().await }).await?;
         Ok(response.into_inner())
-    }
-
-    /// Confirm a payment
-    /// Polls for final status if the initial response is not final
-    pub async fn confirm_payment(
-        &self,
-        payment_id: String,
-        max_poll_ms: Option<i64>,
-    ) -> Result<ConfirmPaymentResponse, ConfirmPaymentError> {
-        let body = types::ConfirmPaymentRequest(serde_json::Map::new());
-        let mut req = with_sdk_config!(
-            self.client.confirm_payment_handler(),
-            &self.config
-        )
-        .id(&payment_id)
-        .body(body.clone());
-        if let Some(ms) = max_poll_ms {
-            req = req.max_poll_ms(ms);
-        }
-        let response = with_retry(|| async { req.clone().send().await })
-            .await
-            .map_err(map_confirm_payment_error)?;
-        let mut result = response.into_inner();
-        while !result.is_final {
-            let poll_ms = result.poll_in_ms.unwrap_or(1000);
-            tokio::time::sleep(std::time::Duration::from_millis(
-                poll_ms as u64,
-            ))
-            .await;
-            let status = self
-                .get_gateway_payment_status(payment_id.clone(), max_poll_ms)
-                .await
-                .map_err(|e| ConfirmPaymentError::Http(e.to_string()))?;
-            result = ConfirmPaymentResponse {
-                status: status.status,
-                is_final: status.is_final,
-                poll_in_ms: status.poll_in_ms,
-            };
-        }
-        Ok(result)
     }
 }
 
