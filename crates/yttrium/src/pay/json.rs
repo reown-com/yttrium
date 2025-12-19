@@ -163,12 +163,13 @@ mod tests {
             sdk_name: "test-sdk".to_string(),
             sdk_version: "1.0.0".to_string(),
             sdk_platform: "test".to_string(),
+            bundle_id: "com.test.app".to_string(),
         }
     }
 
     fn test_config_json(base_url: &str) -> String {
         format!(
-            r#"{{"baseUrl":"{}","apiKey":"test-api-key","sdkName":"test-sdk","sdkVersion":"1.0.0","sdkPlatform":"test"}}"#,
+            r#"{{"baseUrl":"{}","apiKey":"test-api-key","sdkName":"test-sdk","sdkVersion":"1.0.0","sdkPlatform":"test","bundleId":"com.test.app"}}"#,
             base_url
         )
     }
@@ -346,5 +347,74 @@ mod tests {
         let parsed_config: SdkConfig =
             serde_json::from_str(&config_json).unwrap();
         assert_eq!(parsed_config, expected_config);
+    }
+
+    #[tokio::test]
+    async fn test_json_get_payment_options_empty_payment_link() {
+        let mock_server = MockServer::start().await;
+        let client =
+            WalletConnectPayJson::new(test_config_json(&mock_server.uri()))
+                .unwrap();
+        let request_json =
+            r#"{"paymentLink": "", "accounts": ["eip155:1:0x123"]}"#;
+        let result = client.get_payment_options(request_json.to_string()).await;
+        assert!(matches!(result, Err(PayJsonError::PaymentOptions(_))));
+    }
+
+    #[tokio::test]
+    async fn test_json_get_payment_options_empty_accounts() {
+        let mock_server = MockServer::start().await;
+        let client =
+            WalletConnectPayJson::new(test_config_json(&mock_server.uri()))
+                .unwrap();
+        let request_json = r#"{"paymentLink": "pay_123", "accounts": []}"#;
+        let result = client.get_payment_options(request_json.to_string()).await;
+        assert!(matches!(result, Err(PayJsonError::PaymentOptions(_))));
+    }
+
+    #[tokio::test]
+    async fn test_json_confirm_payment_empty_payment_id() {
+        let mock_server = MockServer::start().await;
+        let client =
+            WalletConnectPayJson::new(test_config_json(&mock_server.uri()))
+                .unwrap();
+        let request_json = r#"{"paymentId": "", "maxPollMs": null}"#;
+        let result = client.confirm_payment(request_json.to_string()).await;
+        assert!(matches!(result, Err(PayJsonError::ConfirmPayment(_))));
+    }
+
+    #[tokio::test]
+    async fn test_json_confirm_payment_negative_poll_ms() {
+        let mock_server = MockServer::start().await;
+        let client =
+            WalletConnectPayJson::new(test_config_json(&mock_server.uri()))
+                .unwrap();
+        let request_json = r#"{"paymentId": "pay_123", "maxPollMs": -1000}"#;
+        let result = client.confirm_payment(request_json.to_string()).await;
+        assert!(matches!(result, Err(PayJsonError::ConfirmPayment(_))));
+    }
+
+    #[tokio::test]
+    async fn test_json_get_required_payment_actions_empty_payment_id() {
+        let mock_server = MockServer::start().await;
+        let client =
+            WalletConnectPayJson::new(test_config_json(&mock_server.uri()))
+                .unwrap();
+        let request_json = r#"{"paymentId": "", "optionId": "opt_1"}"#;
+        let result =
+            client.get_required_payment_actions(request_json.to_string()).await;
+        assert!(matches!(result, Err(PayJsonError::PaymentRequest(_))));
+    }
+
+    #[tokio::test]
+    async fn test_json_get_required_payment_actions_empty_option_id() {
+        let mock_server = MockServer::start().await;
+        let client =
+            WalletConnectPayJson::new(test_config_json(&mock_server.uri()))
+                .unwrap();
+        let request_json = r#"{"paymentId": "pay_123", "optionId": ""}"#;
+        let result =
+            client.get_required_payment_actions(request_json.to_string()).await;
+        assert!(matches!(result, Err(PayJsonError::PaymentRequest(_))));
     }
 }
