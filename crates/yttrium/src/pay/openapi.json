@@ -653,8 +653,40 @@
                 "chainId": "eip155:8453",
                 "method": "eth_signTypedData_v4",
                 "params": [
-                  "0x16c7Ea50908f2b706608BE4Bb99E651f9f57167d",
-                  "af29591adebd1377c686b2f4f94f78c8e2768ae60cf582cf50d5fd3a0d495a01"
+                  "0x0000000000000000000000000000000000000000",
+                  {
+                    "domain": {
+                      "chainId": "0x2105",
+                      "name": "USD Coin",
+                      "verifyingContract": "0x0000000000000000000000000000000000000000",
+                      "version": "2"
+                    },
+                    "message": {
+                      "from": "0x0000000000000000000000000000000000000000",
+                      "nonce": "0x0000000000000000000000000000000000000000000000000000000000000000",
+                      "to": "0x0000000000000000000000000000000000000000",
+                      "validAfter": "0x0",
+                      "validBefore": "0x0",
+                      "value": "0x0"
+                    },
+                    "primaryType": "TransferWithAuthorization",
+                    "types": {
+                      "EIP712Domain": [
+                        { "name": "name", "type": "string" },
+                        { "name": "version", "type": "string" },
+                        { "name": "chainId", "type": "uint256" },
+                        { "name": "verifyingContract", "type": "address" }
+                      ],
+                      "TransferWithAuthorization": [
+                        { "name": "from", "type": "address" },
+                        { "name": "to", "type": "address" },
+                        { "name": "value", "type": "uint256" },
+                        { "name": "validAfter", "type": "uint256" },
+                        { "name": "validBefore", "type": "uint256" },
+                        { "name": "nonce", "type": "bytes32" }
+                      ]
+                    }
+                  }
                 ]
               },
               "type": "walletRpc"
@@ -724,8 +756,40 @@
                     "chainId": "eip155:8453",
                     "method": "eth_signTypedData_v4",
                     "params": [
-                      "0x16c7Ea50908f2b706608BE4Bb99E651f9f57167d",
-                      "af29591adebd1377c686b2f4f94f78c8e2768ae60cf582cf50d5fd3a0d495a01"
+                      "0x0000000000000000000000000000000000000000",
+                      {
+                        "domain": {
+                          "chainId": "0x2105",
+                          "name": "USD Coin",
+                          "verifyingContract": "0x0000000000000000000000000000000000000000",
+                          "version": "2"
+                        },
+                        "message": {
+                          "from": "0x0000000000000000000000000000000000000000",
+                          "nonce": "0x0000000000000000000000000000000000000000000000000000000000000000",
+                          "to": "0x0000000000000000000000000000000000000000",
+                          "validAfter": "0x0",
+                          "validBefore": "0x0",
+                          "value": "0x0"
+                        },
+                        "primaryType": "TransferWithAuthorization",
+                        "types": {
+                          "EIP712Domain": [
+                            { "name": "name", "type": "string" },
+                            { "name": "version", "type": "string" },
+                            { "name": "chainId", "type": "uint256" },
+                            { "name": "verifyingContract", "type": "address" }
+                          ],
+                          "TransferWithAuthorization": [
+                            { "name": "from", "type": "address" },
+                            { "name": "to", "type": "address" },
+                            { "name": "value", "type": "uint256" },
+                            { "name": "validAfter", "type": "uint256" },
+                            { "name": "validBefore", "type": "uint256" },
+                            { "name": "nonce", "type": "bytes32" }
+                          ]
+                        }
+                      }
                     ]
                   },
                   "type": "walletRpc"
@@ -740,7 +804,8 @@
         "required": [
           "status",
           "amount",
-          "expiresAt"
+          "expiresAt",
+          "merchant"
         ],
         "properties": {
           "amount": {
@@ -752,6 +817,10 @@
             "format": "int64",
             "description": "Payment expiration timestamp, in seconds since epoch",
             "minimum": 0
+          },
+          "merchant": {
+            "$ref": "#/components/schemas/MerchantInfo",
+            "description": "Merchant information"
           },
           "status": {
             "$ref": "#/components/schemas/PaymentStatus",
@@ -771,6 +840,10 @@
             "value": "1000000"
           },
           "expiresAt": 1718236800,
+          "merchant": {
+            "iconUrl": "https://example.com/icon.png",
+            "name": "Merchant"
+          },
           "status": "requires_action"
         }
       },
@@ -801,6 +874,27 @@
           "isFinal": false,
           "pollInMs": 1000,
           "status": "requires_action"
+        }
+      },
+      "MerchantInfo": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "iconUrl": {
+            "type": "string",
+            "nullable": true,
+            "description": "Merchant icon URL"
+          },
+          "name": {
+            "type": "string",
+            "description": "Merchant name"
+          }
+        },
+        "example": {
+          "iconUrl": "https://example.com/icon.png",
+          "name": "Merchant"
         }
       },
       "PaymentOption": {
@@ -854,8 +948,40 @@
                 "chainId": "eip155:8453",
                 "method": "eth_signTypedData_v4",
                 "params": [
-                  "0x16c7Ea50908f2b706608BE4Bb99E651f9f57167d",
-                  "af29591adebd1377c686b2f4f94f78c8e2768ae60cf582cf50d5fd3a0d495a01"
+                  "0x0000000000000000000000000000000000000000",
+                  {
+                    "domain": {
+                      "chainId": "0x2105",
+                      "name": "USD Coin",
+                      "verifyingContract": "0x0000000000000000000000000000000000000000",
+                      "version": "2"
+                    },
+                    "message": {
+                      "from": "0x0000000000000000000000000000000000000000",
+                      "nonce": "0x0000000000000000000000000000000000000000000000000000000000000000",
+                      "to": "0x0000000000000000000000000000000000000000",
+                      "validAfter": "0x0",
+                      "validBefore": "0x0",
+                      "value": "0x0"
+                    },
+                    "primaryType": "TransferWithAuthorization",
+                    "types": {
+                      "EIP712Domain": [
+                        { "name": "name", "type": "string" },
+                        { "name": "version", "type": "string" },
+                        { "name": "chainId", "type": "uint256" },
+                        { "name": "verifyingContract", "type": "address" }
+                      ],
+                      "TransferWithAuthorization": [
+                        { "name": "from", "type": "address" },
+                        { "name": "to", "type": "address" },
+                        { "name": "value", "type": "uint256" },
+                        { "name": "validAfter", "type": "uint256" },
+                        { "name": "validBefore", "type": "uint256" },
+                        { "name": "nonce", "type": "bytes32" }
+                      ]
+                    }
+                  }
                 ]
               },
               "type": "walletRpc"
@@ -922,40 +1048,159 @@
             "chainId": "eip155:8453",
             "method": "eth_signTypedData_v4",
             "params": [
-              "0x16c7Ea50908f2b706608BE4Bb99E651f9f57167d",
-              "af29591adebd1377c686b2f4f94f78c8e2768ae60cf582cf50d5fd3a0d495a01"
+              "0x0000000000000000000000000000000000000000",
+              {
+                "domain": {
+                  "chainId": "0x2105",
+                  "name": "USD Coin",
+                  "verifyingContract": "0x0000000000000000000000000000000000000000",
+                  "version": "2"
+                },
+                "message": {
+                  "from": "0x0000000000000000000000000000000000000000",
+                  "nonce": "0x0000000000000000000000000000000000000000000000000000000000000000",
+                  "to": "0x0000000000000000000000000000000000000000",
+                  "validAfter": "0x0",
+                  "validBefore": "0x0",
+                  "value": "0x0"
+                },
+                "primaryType": "TransferWithAuthorization",
+                "types": {
+                  "EIP712Domain": [
+                    { "name": "name", "type": "string" },
+                    { "name": "version", "type": "string" },
+                    { "name": "chainId", "type": "uint256" },
+                    { "name": "verifyingContract", "type": "address" }
+                  ],
+                  "TransferWithAuthorization": [
+                    { "name": "from", "type": "address" },
+                    { "name": "to", "type": "address" },
+                    { "name": "value", "type": "uint256" },
+                    { "name": "validAfter", "type": "uint256" },
+                    { "name": "validBefore", "type": "uint256" },
+                    { "name": "nonce", "type": "bytes32" }
+                  ]
+                }
+              }
             ]
           },
           "type": "walletRpc"
         }
       },
-      "WalletRpcAction": {
+      "SignTypedDataAction": {
         "type": "object",
         "required": [
           "chainId",
-          "method",
           "params"
         ],
         "properties": {
           "chainId": {
             "type": "string"
           },
-          "method": {
-            "type": "string"
-          },
-          "params": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          }
+          "params": {}
         },
+        "example": {
+          "chainId": "eip155:8453",
+          "params": [
+            "0x0000000000000000000000000000000000000000",
+            {
+              "domain": {
+                "chainId": "0x2105",
+                "name": "USD Coin",
+                "verifyingContract": "0x0000000000000000000000000000000000000000",
+                "version": "2"
+              },
+              "message": {
+                "from": "0x0000000000000000000000000000000000000000",
+                "nonce": "0x0000000000000000000000000000000000000000000000000000000000000000",
+                "to": "0x0000000000000000000000000000000000000000",
+                "validAfter": "0x0",
+                "validBefore": "0x0",
+                "value": "0x0"
+              },
+              "primaryType": "TransferWithAuthorization",
+              "types": {
+                "EIP712Domain": [
+                  { "name": "name", "type": "string" },
+                  { "name": "version", "type": "string" },
+                  { "name": "chainId", "type": "uint256" },
+                  { "name": "verifyingContract", "type": "address" }
+                ],
+                "TransferWithAuthorization": [
+                  { "name": "from", "type": "address" },
+                  { "name": "to", "type": "address" },
+                  { "name": "value", "type": "uint256" },
+                  { "name": "validAfter", "type": "uint256" },
+                  { "name": "validBefore", "type": "uint256" },
+                  { "name": "nonce", "type": "bytes32" }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "WalletRpcAction": {
+        "oneOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SignTypedDataAction"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "method"
+                ],
+                "properties": {
+                  "method": {
+                    "type": "string",
+                    "enum": [
+                      "eth_signTypedData_v4"
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        ],
         "example": {
           "chainId": "eip155:8453",
           "method": "eth_signTypedData_v4",
           "params": [
-            "0x16c7Ea50908f2b706608BE4Bb99E651f9f57167d",
-            "af29591adebd1377c686b2f4f94f78c8e2768ae60cf582cf50d5fd3a0d495a01"
+            "0x0000000000000000000000000000000000000000",
+            {
+              "domain": {
+                "chainId": "0x2105",
+                "name": "USD Coin",
+                "verifyingContract": "0x0000000000000000000000000000000000000000",
+                "version": "2"
+              },
+              "message": {
+                "from": "0x0000000000000000000000000000000000000000",
+                "nonce": "0x0000000000000000000000000000000000000000000000000000000000000000",
+                "to": "0x0000000000000000000000000000000000000000",
+                "validAfter": "0x0",
+                "validBefore": "0x0",
+                "value": "0x0"
+              },
+              "primaryType": "TransferWithAuthorization",
+              "types": {
+                "EIP712Domain": [
+                  { "name": "name", "type": "string" },
+                  { "name": "version", "type": "string" },
+                  { "name": "chainId", "type": "uint256" },
+                  { "name": "verifyingContract", "type": "address" }
+                ],
+                "TransferWithAuthorization": [
+                  { "name": "from", "type": "address" },
+                  { "name": "to", "type": "address" },
+                  { "name": "value", "type": "uint256" },
+                  { "name": "validAfter", "type": "uint256" },
+                  { "name": "validBefore", "type": "uint256" },
+                  { "name": "nonce", "type": "bytes32" }
+                ]
+              }
+            }
           ]
         }
       }
