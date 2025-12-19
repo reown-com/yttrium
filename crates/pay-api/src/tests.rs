@@ -69,6 +69,7 @@ fn test_create_payment_response_success() {
             },
             expires_at: 1733000000,
             poll_in_ms: 1000,
+            gateway_url: "https://walletconnect.com/pay".to_string(),
         },
     };
     let expected = serde_json::json!({
