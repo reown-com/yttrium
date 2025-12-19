@@ -70,7 +70,6 @@ fn test_create_payment_response_success() {
             },
             expires_at: 1733000000,
             poll_in_ms: 1000,
-            gateway_url: "https://pay.walletconnect.com/wcp_payment_7XJkF2nPqR9vL5mT3hYwZ6aB4cD8eG1j".to_string(),
         },
     };
     let expected = serde_json::json!({
