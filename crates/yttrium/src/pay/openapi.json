@@ -503,7 +503,32 @@
       },
       "ConfirmPaymentRequest": {
         "type": "object",
-        "example": {}
+        "required": [
+          "optionId",
+          "results"
+        ],
+        "properties": {
+          "optionId": {
+            "type": "string",
+            "description": "ID of the option to confirm"
+          },
+          "results": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConfirmPaymentResult"
+            }
+          }
+        },
+        "example": {
+          "optionId": "opt_123",
+          "results": [
+            {
+              "signature": {
+                "value": "0x123"
+              }
+            }
+          ]
+        }
       },
       "ConfirmPaymentResponse": {
         "type": "object",
@@ -529,15 +554,44 @@
           }
         },
         "example": {
-          "isFinal": false,
-          "pollInMs": 1000,
-          "status": "requires_action"
+          "isFinal": true,
+          "pollInMs": null,
+          "status": "succeeded"
+        }
+      },
+      "ConfirmPaymentResult": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "signature"
+            ],
+            "properties": {
+              "signature": {
+                "type": "object",
+                "required": [
+                  "value"
+                ],
+                "properties": {
+                  "value": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        ],
+        "example": {
+          "signature": {
+            "value": "0x123"
+          }
         }
       },
       "ErrorCode": {
         "type": "string",
         "description": "Standard error codes for API responses.\n\nType-safe error codes that serialize to snake_case (following Stripe's convention).\nThis prevents typos like \"invlaid_params\" from reaching production.",
         "enum": [
+          "rate_limited",
           "invalid_params",
           "params_validation",
           "payment_not_found",
