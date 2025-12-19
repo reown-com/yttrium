@@ -2,6 +2,7 @@ progenitor::generate_api!(
     spec = "src/pay/openapi.json",
     interface = Builder,
     tags = Separate,
+    derives = [PartialEq],
 );
 
 #[cfg(feature = "uniffi")]
@@ -9,6 +10,11 @@ pub mod json;
 
 #[cfg(feature = "uniffi")]
 pub use json::{PayJsonError, WalletConnectPayJson};
+// Re-export generated types that don't need wrappers
+pub use types::{
+    ConfirmPaymentResponse, GetPaymentResponse, GetPaymentStatusResponse,
+    PaymentStatus,
+};
 
 #[derive(Debug, thiserror::Error)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Error))]
@@ -84,39 +90,6 @@ pub enum ConfirmPaymentError {
     InternalError(String),
 }
 
-#[derive(Debug, Clone, PartialEq, serde::Serialize)]
-#[cfg_attr(feature = "uniffi", derive(uniffi::Enum))]
-pub enum PaymentStatus {
-    RequiresAction,
-    Processing,
-    Succeeded,
-    Failed,
-    Expired,
-}
-
-impl From<types::PaymentStatus> for PaymentStatus {
-    fn from(s: types::PaymentStatus) -> Self {
-        match s {
-            types::PaymentStatus::RequiresAction => {
-                PaymentStatus::RequiresAction
-            }
-            types::PaymentStatus::Processing => PaymentStatus::Processing,
-            types::PaymentStatus::Succeeded => PaymentStatus::Succeeded,
-            types::PaymentStatus::Failed => PaymentStatus::Failed,
-            types::PaymentStatus::Expired => PaymentStatus::Expired,
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, serde::Serialize)]
-#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
-#[serde(rename_all = "camelCase")]
-pub struct ConfirmPaymentResponse {
-    pub status: PaymentStatus,
-    pub is_final: bool,
-    pub poll_in_ms: Option<i64>,
-}
-
 const MAX_RETRIES: u32 = 3;
 const INITIAL_BACKOFF_MS: u64 = 100;
 
@@ -150,108 +123,20 @@ where
     }
 }
 
-// ==================== UniFFI-compatible types ====================
+// ==================== Types ====================
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
 #[serde(rename_all = "camelCase")]
 pub struct SdkConfig {
+    pub base_url: String,
     pub api_key: String,
     pub sdk_name: String,
     pub sdk_version: String,
     pub sdk_platform: String,
 }
 
-#[derive(Debug, Clone, PartialEq, serde::Serialize)]
-#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
-pub struct PayAmount {
-    pub unit: String,
-    pub value: String,
-    pub display: AmountDisplay,
-}
-
-impl From<types::Amount> for PayAmount {
-    fn from(a: types::Amount) -> Self {
-        Self { unit: a.unit, value: a.value, display: a.display.into() }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
-pub struct GetPaymentResponse {
-    pub status: PaymentStatus,
-    pub amount: PayAmount,
-    pub expires_at: i64,
-}
-
-impl From<types::GetPaymentResponse> for GetPaymentResponse {
-    fn from(r: types::GetPaymentResponse) -> Self {
-        Self {
-            status: r.status.into(),
-            amount: r.amount.into(),
-            expires_at: r.expires_at,
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
-pub struct GetPaymentStatusResponse {
-    pub status: PaymentStatus,
-    pub is_final: bool,
-    pub poll_in_ms: Option<i64>,
-}
-
-impl From<types::GetPaymentStatusResponse> for GetPaymentStatusResponse {
-    fn from(r: types::GetPaymentStatusResponse) -> Self {
-        Self {
-            status: r.status.into(),
-            is_final: r.is_final,
-            poll_in_ms: r.poll_in_ms,
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, serde::Serialize)]
-#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
-#[serde(rename_all = "camelCase")]
-pub struct AmountDisplay {
-    pub asset_symbol: String,
-    pub asset_name: String,
-    pub decimals: i32,
-    pub icon_url: Option<String>,
-    pub network_name: Option<String>,
-}
-
-impl From<types::AmountDisplay> for AmountDisplay {
-    fn from(d: types::AmountDisplay) -> Self {
-        Self {
-            asset_symbol: d.asset_symbol,
-            asset_name: d.asset_name,
-            decimals: d.decimals.try_into().unwrap_or_default(),
-            icon_url: d.icon_url,
-            network_name: d.network_name,
-        }
-    }
-}
-
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
-#[serde(rename_all = "camelCase")]
-pub struct WalletRpcAction {
-    pub chain_id: String,
-    pub method: String,
-    pub params: Vec<String>,
-}
-
-impl From<types::WalletRpcAction> for WalletRpcAction {
-    fn from(a: types::WalletRpcAction) -> Self {
-        Self { chain_id: a.chain_id, method: a.method, params: a.params }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
 pub struct BuildAction {
     pub data: String,
 }
@@ -263,10 +148,9 @@ impl From<types::Build> for BuildAction {
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-#[cfg_attr(feature = "uniffi", derive(uniffi::Enum))]
 #[serde(rename_all = "camelCase", tag = "type", content = "data")]
 pub enum RequiredAction {
-    WalletRpc(WalletRpcAction),
+    WalletRpc(types::WalletRpcAction),
     Build(BuildAction),
 }
 
@@ -274,7 +158,7 @@ impl From<types::RequiredAction> for RequiredAction {
     fn from(a: types::RequiredAction) -> Self {
         match a {
             types::RequiredAction::WalletRpc(data) => {
-                RequiredAction::WalletRpc(data.into())
+                RequiredAction::WalletRpc(data)
             }
             types::RequiredAction::Build(data) => {
                 RequiredAction::Build(data.into())
@@ -284,11 +168,10 @@ impl From<types::RequiredAction> for RequiredAction {
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize)]
-#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
 #[serde(rename_all = "camelCase")]
 pub struct PaymentOption {
     pub id: String,
-    pub amount: PayAmount,
+    pub amount: types::Amount,
     pub eta_seconds: i64,
     pub required_actions: Vec<RequiredAction>,
 }
@@ -297,7 +180,7 @@ impl From<types::PaymentOption> for PaymentOption {
     fn from(o: types::PaymentOption) -> Self {
         Self {
             id: o.id,
-            amount: o.amount.into(),
+            amount: o.amount,
             eta_seconds: o.eta_seconds,
             required_actions: o
                 .required_actions
@@ -309,7 +192,6 @@ impl From<types::PaymentOption> for PaymentOption {
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize)]
-#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
 #[serde(rename_all = "camelCase")]
 pub struct PaymentOptionsResponse {
     pub options: Vec<PaymentOption>,
@@ -322,7 +204,6 @@ impl From<types::GetPaymentOptionsResponse> for PaymentOptionsResponse {
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize)]
-#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
 #[serde(rename_all = "camelCase")]
 pub struct FetchResponse {
     pub required_actions: Vec<RequiredAction>,
@@ -344,24 +225,32 @@ impl From<types::FetchResponse> for FetchResponse {
 
 use std::sync::RwLock;
 
+/// Applies common SDK config headers to any progenitor-generated request builder
+macro_rules! with_sdk_config {
+    ($builder:expr, $config:expr) => {
+        $builder
+            .api_key(&$config.api_key)
+            .sdk_name(&$config.sdk_name)
+            .sdk_version(&$config.sdk_version)
+            .sdk_platform(&$config.sdk_platform)
+    };
+}
+
 #[derive(Debug, Clone)]
 struct CachedPaymentOption {
     option_id: String,
     required_actions: Vec<RequiredAction>,
 }
 
-#[cfg_attr(feature = "uniffi", derive(uniffi::Object))]
 pub struct WalletConnectPay {
     client: Client,
     config: SdkConfig,
     cached_options: RwLock<Vec<CachedPaymentOption>>,
 }
 
-#[cfg_attr(feature = "uniffi", uniffi::export(async_runtime = "tokio"))]
 impl WalletConnectPay {
-    #[cfg_attr(feature = "uniffi", uniffi::constructor)]
-    pub fn new(base_url: String, config: SdkConfig) -> Self {
-        let client = Client::new(&base_url);
+    pub fn new(config: SdkConfig) -> Self {
+        let client = Client::new(&config.base_url);
         Self { client, config, cached_options: RwLock::new(Vec::new()) }
     }
 
@@ -371,18 +260,13 @@ impl WalletConnectPay {
         payment_id: String,
     ) -> Result<GetPaymentResponse, PayError> {
         let response = with_retry(|| async {
-            self.client
-                .gateway_get_payment()
-                .api_key(&self.config.api_key)
-                .sdk_name(&self.config.sdk_name)
-                .sdk_version(&self.config.sdk_version)
-                .sdk_platform(&self.config.sdk_platform)
+            with_sdk_config!(self.client.gateway_get_payment(), &self.config)
                 .id(&payment_id)
                 .send()
                 .await
         })
         .await?;
-        Ok(response.into_inner().into())
+        Ok(response.into_inner())
     }
 
     /// Get payment options for given accounts
@@ -395,16 +279,14 @@ impl WalletConnectPay {
         let payment_id = extract_payment_id(&payment_link);
         let body = types::GetPaymentOptionsRequest { accounts, refresh: None };
         let response = with_retry(|| async {
-            self.client
-                .gateway_get_payment_options()
-                .api_key(&self.config.api_key)
-                .sdk_name(&self.config.sdk_name)
-                .sdk_version(&self.config.sdk_version)
-                .sdk_platform(&self.config.sdk_platform)
-                .id(&payment_id)
-                .body(body.clone())
-                .send()
-                .await
+            with_sdk_config!(
+                self.client.gateway_get_payment_options(),
+                &self.config
+            )
+            .id(&payment_id)
+            .body(body.clone())
+            .send()
+            .await
         })
         .await
         .map_err(map_payment_options_error)?;
@@ -473,12 +355,7 @@ impl WalletConnectPay {
             serde_json::from_str(&data).unwrap_or(serde_json::Value::Null);
         let body = types::FetchRequest { option_id, data: data_value };
         let response = with_retry(|| async {
-            self.client
-                .fetch_handler()
-                .api_key(&self.config.api_key)
-                .sdk_name(&self.config.sdk_name)
-                .sdk_version(&self.config.sdk_version)
-                .sdk_platform(&self.config.sdk_platform)
+            with_sdk_config!(self.client.fetch_handler(), &self.config)
                 .id(&payment_id)
                 .body(body.clone())
                 .send()
@@ -489,25 +366,22 @@ impl WalletConnectPay {
     }
 
     /// Get gateway payment status (for polling)
-    pub async fn get_gateway_payment_status(
+    async fn get_gateway_payment_status(
         &self,
         payment_id: String,
         max_poll_ms: Option<i64>,
     ) -> Result<GetPaymentStatusResponse, PayError> {
-        let mut req = self
-            .client
-            .gateway_get_payment_status()
-            .api_key(&self.config.api_key)
-            .sdk_name(&self.config.sdk_name)
-            .sdk_version(&self.config.sdk_version)
-            .sdk_platform(&self.config.sdk_platform)
-            .id(&payment_id);
+        let mut req = with_sdk_config!(
+            self.client.gateway_get_payment_status(),
+            &self.config
+        )
+        .id(&payment_id);
         if let Some(ms) = max_poll_ms {
             req = req.max_poll_ms(ms);
         }
         let response =
             with_retry(|| async { req.clone().send().await }).await?;
-        Ok(response.into_inner().into())
+        Ok(response.into_inner())
     }
 
     /// Confirm a payment
@@ -517,27 +391,19 @@ impl WalletConnectPay {
         max_poll_ms: Option<i64>,
     ) -> Result<ConfirmPaymentResponse, ConfirmPaymentError> {
         let body = types::ConfirmPaymentRequest(serde_json::Map::new());
-        let mut req = self
-            .client
-            .confirm_payment_handler()
-            .api_key(&self.config.api_key)
-            .sdk_name(&self.config.sdk_name)
-            .sdk_version(&self.config.sdk_version)
-            .sdk_platform(&self.config.sdk_platform)
-            .id(&payment_id)
-            .body(body.clone());
+        let mut req = with_sdk_config!(
+            self.client.confirm_payment_handler(),
+            &self.config
+        )
+        .id(&payment_id)
+        .body(body.clone());
         if let Some(ms) = max_poll_ms {
             req = req.max_poll_ms(ms);
         }
         let response = with_retry(|| async { req.clone().send().await })
             .await
             .map_err(map_confirm_payment_error)?;
-        let resp = response.into_inner();
-        Ok(ConfirmPaymentResponse {
-            status: resp.status.into(),
-            is_final: resp.is_final,
-            poll_in_ms: resp.poll_in_ms,
-        })
+        Ok(response.into_inner())
     }
 }
 
@@ -597,12 +463,13 @@ mod tests {
         super::*,
         wiremock::{
             Mock, MockServer, ResponseTemplate,
-            matchers::{method, path},
+            matchers::{header, method, path},
         },
     };
 
-    fn test_config() -> SdkConfig {
+    fn test_config(base_url: String) -> SdkConfig {
         SdkConfig {
+            base_url,
             api_key: "test-api-key".to_string(),
             sdk_name: "test-sdk".to_string(),
             sdk_version: "1.0.0".to_string(),
@@ -643,7 +510,7 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let client = WalletConnectPay::new(mock_server.uri(), test_config());
+        let client = WalletConnectPay::new(test_config(mock_server.uri()));
         let result = client
             .get_payment_options(
                 "https://pay.walletconnect.com/pay_123".to_string(),
@@ -675,7 +542,7 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let client = WalletConnectPay::new(mock_server.uri(), test_config());
+        let client = WalletConnectPay::new(test_config(mock_server.uri()));
         let result = client
             .get_payment_options(
                 "pay_notfound".to_string(),
@@ -699,7 +566,7 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let client = WalletConnectPay::new(mock_server.uri(), test_config());
+        let client = WalletConnectPay::new(test_config(mock_server.uri()));
         let result = client
             .get_payment_options(
                 "pay_expired".to_string(),
@@ -772,7 +639,7 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let client = WalletConnectPay::new(mock_server.uri(), test_config());
+        let client = WalletConnectPay::new(test_config(mock_server.uri()));
         let response = client
             .get_payment_options(
                 "pay_123".to_string(),
@@ -810,7 +677,7 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let client = WalletConnectPay::new(mock_server.uri(), test_config());
+        let client = WalletConnectPay::new(test_config(mock_server.uri()));
         client
             .get_payment_options(
                 "pay_123".to_string(),
@@ -829,10 +696,9 @@ mod tests {
 
     #[test]
     fn test_get_required_payment_actions_without_cache() {
-        let client = WalletConnectPay::new(
+        let client = WalletConnectPay::new(test_config(
             "https://example.com".to_string(),
-            test_config(),
-        );
+        ));
         let result = client.get_required_payment_actions("opt_1".to_string());
         assert!(matches!(
             result,
@@ -858,7 +724,7 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let client = WalletConnectPay::new(mock_server.uri(), test_config());
+        let client = WalletConnectPay::new(test_config(mock_server.uri()));
         let response =
             client.confirm_payment("pay_123".to_string(), None).await;
 
@@ -886,7 +752,7 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let client = WalletConnectPay::new(mock_server.uri(), test_config());
+        let client = WalletConnectPay::new(test_config(mock_server.uri()));
         let response =
             client.confirm_payment("pay_123".to_string(), Some(5000)).await;
 
@@ -895,5 +761,75 @@ mod tests {
         assert_eq!(resp.status, PaymentStatus::Processing);
         assert!(!resp.is_final);
         assert_eq!(resp.poll_in_ms, Some(1000));
+    }
+
+    #[tokio::test]
+    async fn test_sdk_headers_are_set() {
+        let mock_server = MockServer::start().await;
+
+        let mock_response = serde_json::json!({
+            "options": []
+        });
+
+        Mock::given(method("POST"))
+            .and(path("/v1/gateway/payment/pay_headers/options"))
+            .and(header("Api-Key", "test-api-key"))
+            .and(header("Sdk-Name", "test-sdk"))
+            .and(header("Sdk-Version", "1.0.0"))
+            .and(header("Sdk-Platform", "test"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(&mock_response),
+            )
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        let client = WalletConnectPay::new(test_config(mock_server.uri()));
+        let result = client
+            .get_payment_options(
+                "pay_headers".to_string(),
+                vec!["eip155:1:0x123".to_string()],
+            )
+            .await;
+
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_custom_sdk_config_headers() {
+        let mock_server = MockServer::start().await;
+
+        let mock_response = serde_json::json!({
+            "status": "succeeded",
+            "isFinal": true,
+            "pollInMs": null
+        });
+
+        let custom_config = SdkConfig {
+            base_url: mock_server.uri(),
+            api_key: "my-custom-api-key".to_string(),
+            sdk_name: "my-app".to_string(),
+            sdk_version: "2.5.0".to_string(),
+            sdk_platform: "ios".to_string(),
+        };
+
+        Mock::given(method("POST"))
+            .and(path("/v1/gateway/payment/pay_custom/confirm"))
+            .and(header("Api-Key", "my-custom-api-key"))
+            .and(header("Sdk-Name", "my-app"))
+            .and(header("Sdk-Version", "2.5.0"))
+            .and(header("Sdk-Platform", "ios"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(&mock_response),
+            )
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        let client = WalletConnectPay::new(custom_config);
+        let result =
+            client.confirm_payment("pay_custom".to_string(), None).await;
+
+        assert!(result.is_ok());
     }
 }

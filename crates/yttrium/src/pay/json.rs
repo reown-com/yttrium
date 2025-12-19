@@ -45,14 +45,10 @@ pub struct WalletConnectPayJson {
 #[cfg_attr(feature = "uniffi", uniffi::export(async_runtime = "tokio"))]
 impl WalletConnectPayJson {
     #[cfg_attr(feature = "uniffi", uniffi::constructor)]
-    pub fn new(
-        base_url: String,
-        sdk_config: String,
-    ) -> Result<Self, PayJsonError> {
+    pub fn new(sdk_config: String) -> Result<Self, PayJsonError> {
         let config: SdkConfig = serde_json::from_str(&sdk_config)
             .map_err(|e| PayJsonError::JsonParse(e.to_string()))?;
-
-        Ok(Self { client: WalletConnectPay::new(base_url, config) })
+        Ok(Self { client: WalletConnectPay::new(config) })
     }
 
     /// Get payment options for a payment link
@@ -171,8 +167,9 @@ mod tests {
         },
     };
 
-    fn test_config() -> SdkConfig {
+    fn test_config(base_url: String) -> SdkConfig {
         SdkConfig {
+            base_url,
             api_key: "test-api-key".to_string(),
             sdk_name: "test-sdk".to_string(),
             sdk_version: "1.0.0".to_string(),
@@ -180,8 +177,11 @@ mod tests {
         }
     }
 
-    fn test_config_json() -> String {
-        r#"{"apiKey":"test-api-key","sdkName":"test-sdk","sdkVersion":"1.0.0","sdkPlatform":"test"}"#.to_string()
+    fn test_config_json(base_url: &str) -> String {
+        format!(
+            r#"{{"baseUrl":"{}","apiKey":"test-api-key","sdkName":"test-sdk","sdkVersion":"1.0.0","sdkPlatform":"test"}}"#,
+            base_url
+        )
     }
 
     #[tokio::test]
@@ -223,7 +223,7 @@ mod tests {
             .await;
 
         let client =
-            WalletConnectPayJson::new(mock_server.uri(), test_config_json())
+            WalletConnectPayJson::new(test_config_json(&mock_server.uri()))
                 .unwrap();
 
         let request_json = r#"{"paymentLink": "https://pay.example.com/pay_json_123", "accounts": ["eip155:8453:0xabc"]}"#;
@@ -244,7 +244,7 @@ mod tests {
     async fn test_json_get_payment_options_invalid_json() {
         let mock_server = MockServer::start().await;
         let client =
-            WalletConnectPayJson::new(mock_server.uri(), test_config_json())
+            WalletConnectPayJson::new(test_config_json(&mock_server.uri()))
                 .unwrap();
 
         let result =
@@ -292,7 +292,7 @@ mod tests {
             .await;
 
         let client =
-            WalletConnectPayJson::new(mock_server.uri(), test_config_json())
+            WalletConnectPayJson::new(test_config_json(&mock_server.uri()))
                 .unwrap();
 
         let options_req = r#"{"paymentLink": "pay_json_456", "accounts": ["eip155:1:0x123"]}"#;
@@ -334,7 +334,7 @@ mod tests {
             .await;
 
         let client =
-            WalletConnectPayJson::new(mock_server.uri(), test_config_json())
+            WalletConnectPayJson::new(test_config_json(&mock_server.uri()))
                 .unwrap();
 
         let confirm_req = r#"{"paymentId": "pay_json_789", "maxPollMs": null}"#;
@@ -344,15 +344,16 @@ mod tests {
         let response_json = result.unwrap();
         let parsed: serde_json::Value =
             serde_json::from_str(&response_json).unwrap();
-        assert_eq!(parsed["status"], "Succeeded");
+        assert_eq!(parsed["status"], "succeeded");
         assert_eq!(parsed["isFinal"], true);
         assert!(parsed["pollInMs"].is_null());
     }
 
     #[test]
     fn test_json_config_mapping() {
-        let config_json = test_config_json();
-        let expected_config = test_config();
+        let base_url = "https://api.example.com";
+        let config_json = test_config_json(base_url);
+        let expected_config = test_config(base_url.to_string());
         let parsed_config: SdkConfig =
             serde_json::from_str(&config_json).unwrap();
         assert_eq!(parsed_config, expected_config);
