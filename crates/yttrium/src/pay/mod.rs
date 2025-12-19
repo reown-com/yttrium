@@ -385,6 +385,7 @@ impl WalletConnectPay {
     }
 
     /// Confirm a payment
+    /// Polls for final status if the initial response is not final
     pub async fn confirm_payment(
         &self,
         payment_id: String,
@@ -403,7 +404,24 @@ impl WalletConnectPay {
         let response = with_retry(|| async { req.clone().send().await })
             .await
             .map_err(map_confirm_payment_error)?;
-        Ok(response.into_inner())
+        let mut result = response.into_inner();
+        while !result.is_final {
+            let poll_ms = result.poll_in_ms.unwrap_or(1000);
+            tokio::time::sleep(std::time::Duration::from_millis(
+                poll_ms as u64,
+            ))
+            .await;
+            let status = self
+                .get_gateway_payment_status(payment_id.clone(), max_poll_ms)
+                .await
+                .map_err(|e| ConfirmPaymentError::Http(e.to_string()))?;
+            result = ConfirmPaymentResponse {
+                status: status.status,
+                is_final: status.is_final,
+                poll_in_ms: status.poll_in_ms,
+            };
+        }
+        Ok(result)
     }
 }
 
@@ -735,19 +753,30 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_confirm_payment_processing() {
+    async fn test_confirm_payment_polls_until_final() {
         let mock_server = MockServer::start().await;
 
         let confirm_response = serde_json::json!({
             "status": "processing",
             "isFinal": false,
-            "pollInMs": 1000
+            "pollInMs": 10
+        });
+        let status_response = serde_json::json!({
+            "status": "succeeded",
+            "isFinal": true
         });
 
         Mock::given(method("POST"))
             .and(path("/v1/gateway/payment/pay_123/confirm"))
             .respond_with(
                 ResponseTemplate::new(200).set_body_json(&confirm_response),
+            )
+            .mount(&mock_server)
+            .await;
+        Mock::given(method("GET"))
+            .and(path("/v1/gateway/payment/pay_123/status"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(&status_response),
             )
             .mount(&mock_server)
             .await;
@@ -758,9 +787,8 @@ mod tests {
 
         assert!(response.is_ok());
         let resp = response.unwrap();
-        assert_eq!(resp.status, PaymentStatus::Processing);
-        assert!(!resp.is_final);
-        assert_eq!(resp.poll_in_ms, Some(1000));
+        assert_eq!(resp.status, PaymentStatus::Succeeded);
+        assert!(resp.is_final);
     }
 
     #[tokio::test]
