@@ -5,6 +5,8 @@ progenitor::generate_api!(
     derives = [PartialEq],
 );
 
+mod error_reporting;
+
 #[cfg(feature = "uniffi")]
 pub mod json;
 
@@ -131,6 +133,8 @@ pub struct SdkConfig {
     pub sdk_name: String,
     pub sdk_version: String,
     pub sdk_platform: String,
+    /// Bundle ID for error reporting (e.g., "com.example.myapp")
+    pub bundle_id: String,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -344,6 +348,7 @@ struct CachedPaymentOption {
 #[cfg_attr(feature = "uniffi", derive(uniffi::Object))]
 pub struct WalletConnectPay {
     client: Client,
+    http_client: reqwest::Client,
     config: SdkConfig,
     cached_options: RwLock<Vec<CachedPaymentOption>>,
 }
@@ -352,8 +357,27 @@ pub struct WalletConnectPay {
 impl WalletConnectPay {
     #[cfg_attr(feature = "uniffi", uniffi::constructor)]
     pub fn new(config: SdkConfig) -> Self {
+        // Install global panic hook for crash reporting (only first call has effect)
+        error_reporting::install_panic_hook(config.bundle_id.clone());
+
         let client = Client::new(&config.base_url);
-        Self { client, config, cached_options: RwLock::new(Vec::new()) }
+        let http_client = reqwest::Client::new();
+        Self {
+            client,
+            http_client,
+            config,
+            cached_options: RwLock::new(Vec::new()),
+        }
+    }
+
+    fn report_error(&self, error_type: &str, topic: &str, trace: &str) {
+        error_reporting::report_error(
+            &self.http_client,
+            &self.config.bundle_id,
+            error_type,
+            topic,
+            trace,
+        );
     }
 
     /// Get payment options for given accounts
@@ -363,6 +387,30 @@ impl WalletConnectPay {
         payment_link: String,
         accounts: Vec<String>,
     ) -> Result<PaymentOptionsResponse, GetPaymentOptionsError> {
+        // Validate inputs
+        if payment_link.trim().is_empty() {
+            let err = GetPaymentOptionsError::InvalidRequest(
+                "payment_link cannot be empty".into(),
+            );
+            self.report_error(
+                &error_reporting::error_type_name(&err),
+                "",
+                &err.to_string(),
+            );
+            return Err(err);
+        }
+        if accounts.is_empty() {
+            let err = GetPaymentOptionsError::InvalidRequest(
+                "accounts cannot be empty".into(),
+            );
+            self.report_error(
+                &error_reporting::error_type_name(&err),
+                "",
+                &err.to_string(),
+            );
+            return Err(err);
+        }
+
         let payment_id = extract_payment_id(&payment_link);
         let body = types::GetPaymentOptionsRequest { accounts, refresh: None };
         let response = with_retry(|| async {
@@ -376,7 +424,15 @@ impl WalletConnectPay {
             .await
         })
         .await
-        .map_err(map_payment_options_error)?;
+        .map_err(|e| {
+            let err = map_payment_options_error(e);
+            self.report_error(
+                &error_reporting::error_type_name(&err),
+                &payment_id,
+                &err.to_string(),
+            );
+            err
+        })?;
 
         let api_response = response.into_inner();
 
@@ -412,12 +468,42 @@ impl WalletConnectPay {
         payment_id: String,
         option_id: String,
     ) -> Result<Vec<RequiredAction>, GetPaymentRequestError> {
+        // Validate inputs
+        if payment_id.trim().is_empty() {
+            let err = GetPaymentRequestError::InvalidAccount(
+                "payment_id cannot be empty".into(),
+            );
+            self.report_error(
+                &error_reporting::error_type_name(&err),
+                "",
+                &err.to_string(),
+            );
+            return Err(err);
+        }
+        if option_id.trim().is_empty() {
+            let err = GetPaymentRequestError::OptionNotFound(
+                "option_id cannot be empty".into(),
+            );
+            self.report_error(
+                &error_reporting::error_type_name(&err),
+                &payment_id,
+                &err.to_string(),
+            );
+            return Err(err);
+        }
+
         {
             let cache = self.cached_options.read().map_err(|e| {
-                GetPaymentRequestError::InternalError(format!(
+                let err = GetPaymentRequestError::InternalError(format!(
                     "Cache lock poisoned: {}",
                     e
-                ))
+                ));
+                self.report_error(
+                    &error_reporting::error_type_name(&err),
+                    &payment_id,
+                    &err.to_string(),
+                );
+                err
             })?;
             if let Some(cached_option) =
                 cache.iter().find(|o| o.option_id == option_id)
@@ -426,14 +512,28 @@ impl WalletConnectPay {
             }
         }
         let fetch_response = self
-            .fetch(payment_id, option_id.clone(), "{}".to_string())
+            .fetch(payment_id.clone(), option_id.clone(), "{}".to_string())
             .await
-            .map_err(|e| GetPaymentRequestError::FetchError(e.to_string()))?;
+            .map_err(|e| {
+                let err = GetPaymentRequestError::FetchError(e.to_string());
+                self.report_error(
+                    &error_reporting::error_type_name(&err),
+                    &payment_id,
+                    &err.to_string(),
+                );
+                err
+            })?;
         let mut cache = self.cached_options.write().map_err(|e| {
-            GetPaymentRequestError::InternalError(format!(
+            let err = GetPaymentRequestError::InternalError(format!(
                 "Cache lock poisoned: {}",
                 e
-            ))
+            ));
+            self.report_error(
+                &error_reporting::error_type_name(&err),
+                &payment_id,
+                &err.to_string(),
+            );
+            err
         })?;
         cache.push(CachedPaymentOption {
             option_id,
@@ -449,6 +549,32 @@ impl WalletConnectPay {
         payment_id: String,
         max_poll_ms: Option<i64>,
     ) -> Result<ConfirmPaymentResult, ConfirmPaymentError> {
+        // Validate inputs
+        if payment_id.trim().is_empty() {
+            let err = ConfirmPaymentError::PaymentNotFound(
+                "payment_id cannot be empty".into(),
+            );
+            self.report_error(
+                &error_reporting::error_type_name(&err),
+                "",
+                &err.to_string(),
+            );
+            return Err(err);
+        }
+        if let Some(ms) = max_poll_ms {
+            if ms < 0 {
+                let err = ConfirmPaymentError::InvalidOption(
+                    "max_poll_ms cannot be negative".into(),
+                );
+                self.report_error(
+                    &error_reporting::error_type_name(&err),
+                    &payment_id,
+                    &err.to_string(),
+                );
+                return Err(err);
+            }
+        }
+
         let body = types::ConfirmPaymentRequest(serde_json::Map::new());
         let mut req = with_sdk_config!(
             self.client.confirm_payment_handler(),
@@ -461,7 +587,15 @@ impl WalletConnectPay {
         }
         let response = with_retry(|| async { req.clone().send().await })
             .await
-            .map_err(map_confirm_payment_error)?;
+            .map_err(|e| {
+                let err = map_confirm_payment_error(e);
+                self.report_error(
+                    &error_reporting::error_type_name(&err),
+                    &payment_id,
+                    &err.to_string(),
+                );
+                err
+            })?;
         let mut result: ConfirmPaymentResult = response.into_inner().into();
         while !result.is_final {
             let poll_ms = result.poll_in_ms.unwrap_or(1000);
@@ -472,7 +606,15 @@ impl WalletConnectPay {
             let status = self
                 .get_gateway_payment_status(payment_id.clone(), max_poll_ms)
                 .await
-                .map_err(|e| ConfirmPaymentError::Http(e.to_string()))?;
+                .map_err(|e| {
+                    let err = ConfirmPaymentError::Http(e.to_string());
+                    self.report_error(
+                        &error_reporting::error_type_name(&err),
+                        &payment_id,
+                        &err.to_string(),
+                    );
+                    err
+                })?;
             result = ConfirmPaymentResult {
                 status: status.status.into(),
                 is_final: status.is_final,
@@ -591,6 +733,7 @@ mod tests {
             sdk_name: "test-sdk".to_string(),
             sdk_version: "1.0.0".to_string(),
             sdk_platform: "test".to_string(),
+            bundle_id: "com.test.app".to_string(),
         }
     }
 
@@ -954,6 +1097,7 @@ mod tests {
             sdk_name: "my-app".to_string(),
             sdk_version: "2.5.0".to_string(),
             sdk_platform: "ios".to_string(),
+            bundle_id: "com.myapp.ios".to_string(),
         };
 
         Mock::given(method("POST"))
@@ -974,5 +1118,82 @@ mod tests {
             client.confirm_payment("pay_custom".to_string(), None).await;
 
         assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_get_payment_options_empty_payment_link() {
+        let mock_server = MockServer::start().await;
+        let client = WalletConnectPay::new(test_config(mock_server.uri()));
+        let result = client
+            .get_payment_options(
+                "".to_string(),
+                vec!["eip155:1:0x123".to_string()],
+            )
+            .await;
+        assert!(matches!(
+            result,
+            Err(GetPaymentOptionsError::InvalidRequest(msg)) if msg.contains("payment_link")
+        ));
+    }
+
+    #[tokio::test]
+    async fn test_get_payment_options_empty_accounts() {
+        let mock_server = MockServer::start().await;
+        let client = WalletConnectPay::new(test_config(mock_server.uri()));
+        let result =
+            client.get_payment_options("pay_123".to_string(), vec![]).await;
+        assert!(matches!(
+            result,
+            Err(GetPaymentOptionsError::InvalidRequest(msg)) if msg.contains("accounts")
+        ));
+    }
+
+    #[tokio::test]
+    async fn test_confirm_payment_empty_payment_id() {
+        let mock_server = MockServer::start().await;
+        let client = WalletConnectPay::new(test_config(mock_server.uri()));
+        let result = client.confirm_payment("".to_string(), None).await;
+        assert!(matches!(
+            result,
+            Err(ConfirmPaymentError::PaymentNotFound(msg)) if msg.contains("payment_id")
+        ));
+    }
+
+    #[tokio::test]
+    async fn test_confirm_payment_negative_poll_ms() {
+        let mock_server = MockServer::start().await;
+        let client = WalletConnectPay::new(test_config(mock_server.uri()));
+        let result =
+            client.confirm_payment("pay_123".to_string(), Some(-1000)).await;
+        assert!(matches!(
+            result,
+            Err(ConfirmPaymentError::InvalidOption(msg)) if msg.contains("negative")
+        ));
+    }
+
+    #[tokio::test]
+    async fn test_get_required_payment_actions_empty_payment_id() {
+        let mock_server = MockServer::start().await;
+        let client = WalletConnectPay::new(test_config(mock_server.uri()));
+        let result = client
+            .get_required_payment_actions("".to_string(), "opt_1".to_string())
+            .await;
+        assert!(matches!(
+            result,
+            Err(GetPaymentRequestError::InvalidAccount(msg)) if msg.contains("payment_id")
+        ));
+    }
+
+    #[tokio::test]
+    async fn test_get_required_payment_actions_empty_option_id() {
+        let mock_server = MockServer::start().await;
+        let client = WalletConnectPay::new(test_config(mock_server.uri()));
+        let result = client
+            .get_required_payment_actions("pay_123".to_string(), "".to_string())
+            .await;
+        assert!(matches!(
+            result,
+            Err(GetPaymentRequestError::OptionNotFound(msg)) if msg.contains("option_id")
+        ));
     }
 }
