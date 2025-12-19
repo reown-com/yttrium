@@ -16,6 +16,7 @@ echo "Using ANDROID_NDK_HOME: $ANDROID_NDK_HOME"
 
 ACCOUNT_FEATURES="android,erc6492_client,pay,uniffi/cli"
 UTILS_FEATURES="android,chain_abstraction_client,solana,stacks,sui,ton,eip155,uniffi/cli"
+WCPAY_FEATURES="android,pay,uniffi/cli"
 PROFILE="uniffi-release-kotlin"
 OUTPUT_ROOT="build/kotlin-artifacts"
 GEN_ROOT="crates/kotlin-ffi/android/build/generated"
@@ -37,6 +38,7 @@ cleanup() {
     rm -rf "$OUTPUT_ROOT"
     rm -rf yttrium/kotlin-bindings
     rm -rf yttrium/kotlin-utils-bindings
+    rm -rf yttrium/kotlin-wcpay-bindings
     
     # Remove generated sources and JNI libs (ensures fresh stripped binaries are used)
     rm -rf "$GEN_ROOT"
@@ -116,6 +118,9 @@ install_variant_sources() {
     if [ "$variant" = "utils" ]; then
         library_name="libuniffi_yttrium_utils.so"
         system_library="uniffi_yttrium_utils"
+    elif [ "$variant" = "wcpay" ]; then
+        library_name="libuniffi_yttrium_wcpay.so"
+        system_library="uniffi_yttrium_wcpay"
     fi
 
     rm -rf "$jni_base" "$kotlin_base" "$wrapper_base"
@@ -163,6 +168,40 @@ install_variant_sources() {
             sed -i '' 's/uniffi\.uniffi_yttrium\([^_]\)/uniffi.uniffi_yttrium_utils\1/g' "$kotlin_base/yttrium.kt" || true
             sed -i '' 's/uniffi\.uniffi_yttrium$/uniffi.uniffi_yttrium_utils/g' "$kotlin_base/yttrium.kt" || true
             sed -i '' 's/return "uniffi_yttrium"/return "uniffi_yttrium_utils"/g' "$kotlin_base/yttrium.kt" || true
+        fi
+    fi
+
+    if [ "$variant" = "wcpay" ]; then
+        # Change generated Kotlin package names and library name for wcpay variant
+        
+        # Process uniffi_yttrium.kt:
+        # 1. Change package: uniffi.uniffi_yttrium -> uniffi.uniffi_yttrium_wcpay
+        # 2. Change imports: uniffi.yttrium -> uniffi.yttrium_wcpay
+        # 3. Change library name: "uniffi_yttrium" -> "uniffi_yttrium_wcpay"
+        if command -v perl >/dev/null 2>&1; then
+            perl -0pi -e 's/\bpackage\s+uniffi\.uniffi_yttrium\b/package uniffi.uniffi_yttrium_wcpay/g' "$kotlin_base/uniffi_yttrium.kt"
+            perl -0pi -e 's/\buniffi\.yttrium(?!_wcpay)\b/uniffi.yttrium_wcpay/g' "$kotlin_base/uniffi_yttrium.kt"
+            perl -0pi -e 's/return "uniffi_yttrium"/return "uniffi_yttrium_wcpay"/g' "$kotlin_base/uniffi_yttrium.kt"
+        else
+            sed -i '' 's/^package uniffi\.uniffi_yttrium$/package uniffi.uniffi_yttrium_wcpay/' "$kotlin_base/uniffi_yttrium.kt" || true
+            sed -i '' 's/uniffi\.yttrium\([^_]\)/uniffi.yttrium_wcpay\1/g' "$kotlin_base/uniffi_yttrium.kt" || true
+            sed -i '' 's/uniffi\.yttrium$/uniffi.yttrium_wcpay/g' "$kotlin_base/uniffi_yttrium.kt" || true
+            sed -i '' 's/return "uniffi_yttrium"/return "uniffi_yttrium_wcpay"/g' "$kotlin_base/uniffi_yttrium.kt" || true
+        fi
+
+        # Process yttrium.kt:
+        # 1. Change package: uniffi.yttrium -> uniffi.yttrium_wcpay
+        # 2. Change imports: uniffi.uniffi_yttrium -> uniffi.uniffi_yttrium_wcpay
+        # 3. Change library name: "uniffi_yttrium" -> "uniffi_yttrium_wcpay"
+        if command -v perl >/dev/null 2>&1; then
+            perl -0pi -e 's/\bpackage\s+uniffi\.yttrium\b/package uniffi.yttrium_wcpay/g' "$kotlin_base/yttrium.kt"
+            perl -0pi -e 's/\buniffi\.uniffi_yttrium(?!_wcpay)\b/uniffi.uniffi_yttrium_wcpay/g' "$kotlin_base/yttrium.kt"
+            perl -0pi -e 's/return "uniffi_yttrium"/return "uniffi_yttrium_wcpay"/g' "$kotlin_base/yttrium.kt"
+        else
+            sed -i '' 's/^package uniffi\.yttrium$/package uniffi.yttrium_wcpay/' "$kotlin_base/yttrium.kt" || true
+            sed -i '' 's/uniffi\.uniffi_yttrium\([^_]\)/uniffi.uniffi_yttrium_wcpay\1/g' "$kotlin_base/yttrium.kt" || true
+            sed -i '' 's/uniffi\.uniffi_yttrium$/uniffi.uniffi_yttrium_wcpay/g' "$kotlin_base/yttrium.kt" || true
+            sed -i '' 's/return "uniffi_yttrium"/return "uniffi_yttrium_wcpay"/g' "$kotlin_base/yttrium.kt" || true
         fi
     fi
 }
@@ -240,6 +279,56 @@ build_utils_variant() {
     install_variant_sources "utils" "yttrium/kotlin-utils-bindings"
 }
 
+build_wcpay_variant() {
+    echo "Building wcpay variant (pay only)..."
+    cargo ndk -t armv7-linux-androideabi -t aarch64-linux-android -t x86_64-linux-android build \
+        --profile="$PROFILE" \
+        --no-default-features \
+        --features="$WCPAY_FEATURES" \
+        -p kotlin-ffi
+
+    cargo run \
+        --no-default-features \
+        --features="$WCPAY_FEATURES" \
+        -p kotlin-ffi \
+        --bin uniffi-bindgen generate \
+        --library "target/aarch64-linux-android/${PROFILE}/libuniffi_yttrium.so" \
+        --language kotlin \
+        --out-dir yttrium/kotlin-wcpay-bindings
+
+    mkdir -p "$OUTPUT_ROOT"
+    
+    # Find llvm-strip once for all targets
+    local strip_bin=""
+    if [ -n "$ANDROID_NDK_HOME" ]; then
+        if [ -f "$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip" ]; then
+            strip_bin="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip"
+        elif [ -f "$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-strip" ]; then
+            strip_bin="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-strip"
+        else
+            strip_bin=$(find "$ANDROID_NDK_HOME" -name "llvm-strip" -print -quit 2>/dev/null || true)
+        fi
+    fi
+    
+    for target in "${TARGETS[@]}"; do
+        local abi
+        abi="$(abi_name "$target")"
+        local src="target/${target}/${PROFILE}/libuniffi_yttrium.so"
+        
+        # Strip the binary before copying
+        if [ -n "$strip_bin" ]; then
+            echo "Stripping $src with $strip_bin"
+            "$strip_bin" "$src"
+        fi
+        
+        mkdir -p "$OUTPUT_ROOT/libs/${abi}"
+        cp "$src" "$OUTPUT_ROOT/libs/${abi}/libuniffi_yttrium_wcpay.so"
+    done
+
+    copy_bindings yttrium/kotlin-wcpay-bindings "$OUTPUT_ROOT/kotlin-wcpay-bindings"
+    install_variant_sources "wcpay" "yttrium/kotlin-wcpay-bindings"
+}
+
 strip_binaries() {
     if [ -z "$ANDROID_NDK_HOME" ]; then
         echo "Warning: ANDROID_NDK_HOME not set, skipping strip step"
@@ -270,10 +359,14 @@ strip_binaries() {
         "$GEN_ROOT/yttrium/jniLibs/armeabi-v7a/libuniffi_yttrium.so"
         "$GEN_ROOT/utils/jniLibs/arm64-v8a/libuniffi_yttrium_utils.so"
         "$GEN_ROOT/utils/jniLibs/armeabi-v7a/libuniffi_yttrium_utils.so"
+        "$GEN_ROOT/wcpay/jniLibs/arm64-v8a/libuniffi_yttrium_wcpay.so"
+        "$GEN_ROOT/wcpay/jniLibs/armeabi-v7a/libuniffi_yttrium_wcpay.so"
         "$OUTPUT_ROOT/libs/arm64-v8a/libuniffi_yttrium.so"
         "$OUTPUT_ROOT/libs/armeabi-v7a/libuniffi_yttrium.so"
         "$OUTPUT_ROOT/libs/arm64-v8a/libuniffi_yttrium_utils.so"
         "$OUTPUT_ROOT/libs/armeabi-v7a/libuniffi_yttrium_utils.so"
+        "$OUTPUT_ROOT/libs/arm64-v8a/libuniffi_yttrium_wcpay.so"
+        "$OUTPUT_ROOT/libs/armeabi-v7a/libuniffi_yttrium_wcpay.so"
     )
 
     for lib in "${libs_to_strip[@]}"; do
@@ -287,6 +380,7 @@ strip_binaries() {
 cleanup
 build_account_variant
 build_utils_variant
+build_wcpay_variant
 strip_binaries
 
 echo "Kotlin artifacts generated under $OUTPUT_ROOT"
@@ -294,5 +388,7 @@ echo "Kotlin artifacts generated under $OUTPUT_ROOT"
 ./gradlew \
   assembleYttriumRelease \
   assembleUtilsRelease \
+  assembleWcpayRelease \
   publishYttriumReleasePublicationToMavenLocal \
-  publishYttriumUtilsReleasePublicationToMavenLocal
+  publishYttriumUtilsReleasePublicationToMavenLocal \
+  publishYttriumWcpayReleasePublicationToMavenLocal

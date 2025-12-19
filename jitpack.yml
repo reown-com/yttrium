@@ -32,15 +32,22 @@ before_install:
       ALL_TAGS=$(git tag --points-at HEAD 2>/dev/null || echo "")
       echo "Tags at HEAD: $ALL_TAGS"
       
-      # Try to find kotlin-utils-* tag first (for utils variant)
-      UTILS_TAG=$(echo "$ALL_TAGS" | grep "^kotlin-utils-" | head -1)
-      if [ -n "$UTILS_TAG" ]; then
-        RELEASE_TAG="$UTILS_TAG"
-        echo "Found utils tag: $RELEASE_TAG"
+      # Try to find kotlin-wcpay-* tag first (for wcpay variant)
+      WCPAY_TAG=$(echo "$ALL_TAGS" | grep "^kotlin-wcpay-" | head -1)
+      if [ -n "$WCPAY_TAG" ]; then
+        RELEASE_TAG="$WCPAY_TAG"
+        echo "Found wcpay tag: $RELEASE_TAG"
       else
-        # Otherwise use any tag (for base variant)
-        RELEASE_TAG=$(echo "$ALL_TAGS" | head -1)
-        echo "Found base tag: $RELEASE_TAG"
+        # Try to find kotlin-utils-* tag (for utils variant)
+        UTILS_TAG=$(echo "$ALL_TAGS" | grep "^kotlin-utils-" | head -1)
+        if [ -n "$UTILS_TAG" ]; then
+          RELEASE_TAG="$UTILS_TAG"
+          echo "Found utils tag: $RELEASE_TAG"
+        else
+          # Otherwise use any tag (for base variant)
+          RELEASE_TAG=$(echo "$ALL_TAGS" | head -1)
+          echo "Found base tag: $RELEASE_TAG"
+        fi
       fi
       
       if [ -z "$RELEASE_TAG" ]; then
@@ -64,7 +71,12 @@ before_install:
     # Determine which release to download
     # For tags like "0.9.55", download kotlin-artifacts.zip (yttrium)
     # For tags like "kotlin-utils-0.9.55", download kotlin-utils-artifacts.zip (yttrium-utils)
-    if [[ "$RELEASE_TAG" == kotlin-utils-* ]]; then
+    # For tags like "kotlin-wcpay-0.9.55", download kotlin-wcpay-artifacts.zip (yttrium-wcpay)
+    if [[ "$RELEASE_TAG" == kotlin-wcpay-* ]]; then
+      ARTIFACT_NAME="kotlin-wcpay-artifacts.zip"
+      FLAVOR="wcpay"
+      echo "Building yttrium-wcpay variant from tag: $RELEASE_TAG"
+    elif [[ "$RELEASE_TAG" == kotlin-utils-* ]]; then
       ARTIFACT_NAME="kotlin-utils-artifacts.zip"
       FLAVOR="utils"
       echo "Building yttrium-utils variant from tag: $RELEASE_TAG"
@@ -105,7 +117,7 @@ before_install:
       
       echo "Yttrium artifacts placed in build directories"
       ls -R crates/kotlin-ffi/android/build/generated/yttrium/
-    else
+    elif [ "$FLAVOR" = "utils" ]; then
       # For utils variant
       mkdir -p crates/kotlin-ffi/android/build/generated/utils/jniLibs
       mkdir -p crates/kotlin-ffi/android/build/generated/utils/kotlin
@@ -122,6 +134,23 @@ before_install:
       
       echo "Yttrium-utils artifacts placed in build directories"
       ls -R crates/kotlin-ffi/android/build/generated/utils/
+    else
+      # For wcpay variant
+      mkdir -p crates/kotlin-ffi/android/build/generated/wcpay/jniLibs
+      mkdir -p crates/kotlin-ffi/android/build/generated/wcpay/kotlin
+      
+      # Copy native libraries
+      if [ -d "yttrium/libs" ]; then
+        cp -r yttrium/libs/* crates/kotlin-ffi/android/build/generated/wcpay/jniLibs/
+      fi
+      
+      # Copy Kotlin bindings
+      if [ -d "yttrium/kotlin-wcpay-bindings" ]; then
+        cp -r yttrium/kotlin-wcpay-bindings/* crates/kotlin-ffi/android/build/generated/wcpay/kotlin/
+      fi
+      
+      echo "Yttrium-wcpay artifacts placed in build directories"
+      ls -R crates/kotlin-ffi/android/build/generated/wcpay/
     fi
 
 # Install command - build the appropriate flavor
@@ -136,13 +165,18 @@ install:
       # JitPack sets VERSION to the requested tag/version
       RELEASE_TAG="$VERSION"
     else
-      # Fallback: Get all tags for current commit and prefer kotlin-utils-* tags
+      # Fallback: Get all tags for current commit, prefer kotlin-wcpay-* then kotlin-utils-* tags
       ALL_TAGS=$(git tag --points-at HEAD 2>/dev/null || echo "")
-      UTILS_TAG=$(echo "$ALL_TAGS" | grep "^kotlin-utils-" | head -1)
-      if [ -n "$UTILS_TAG" ]; then
-        RELEASE_TAG="$UTILS_TAG"
+      WCPAY_TAG=$(echo "$ALL_TAGS" | grep "^kotlin-wcpay-" | head -1)
+      if [ -n "$WCPAY_TAG" ]; then
+        RELEASE_TAG="$WCPAY_TAG"
       else
-        RELEASE_TAG=$(echo "$ALL_TAGS" | head -1)
+        UTILS_TAG=$(echo "$ALL_TAGS" | grep "^kotlin-utils-" | head -1)
+        if [ -n "$UTILS_TAG" ]; then
+          RELEASE_TAG="$UTILS_TAG"
+        else
+          RELEASE_TAG=$(echo "$ALL_TAGS" | head -1)
+        fi
       fi
       
       if [ -z "$RELEASE_TAG" ]; then
@@ -154,7 +188,12 @@ install:
     echo "Building from tag: $RELEASE_TAG"
     
     # Determine which publication to build based on the tag
-    if [[ "$RELEASE_TAG" == kotlin-utils-* ]]; then
+    if [[ "$RELEASE_TAG" == kotlin-wcpay-* ]]; then
+      # Extract version from tag (e.g., kotlin-wcpay-0.9.55 -> 0.9.55)
+      VERSION="${RELEASE_TAG#kotlin-wcpay-}"
+      echo "Building yttrium-wcpay with version: $VERSION"
+      ./gradlew assembleWcpayRelease publishYttriumWcpayReleasePublicationToMavenLocal -Pversion="$VERSION"
+    elif [[ "$RELEASE_TAG" == kotlin-utils-* ]]; then
       # Extract version from tag (e.g., kotlin-utils-0.9.55 -> 0.9.55)
       VERSION="${RELEASE_TAG#kotlin-utils-}"
       echo "Building yttrium-utils with version: $VERSION"
