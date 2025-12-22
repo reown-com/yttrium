@@ -1,0 +1,60 @@
+name: "Forked State Docker Compose"
+description: "Manage Docker Compose lifecycle for forked_state tests"
+
+inputs:
+  action:
+    description: "Action to perform: start, logs, or cleanup"
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Start Docker Compose
+      if: inputs.action == 'start'
+      shell: bash
+      working-directory: test/scripts/forked_state
+      run: docker compose up -d
+
+    - name: Wait for Anvil
+      if: inputs.action == 'start'
+      shell: bash
+      run: while ! curl localhost:8545/health; do sleep 1; done
+      timeout-minutes: 5
+
+    - name: Wait for Alto
+      if: inputs.action == 'start'
+      shell: bash
+      run: while ! curl localhost:4337/health; do sleep 1; done
+      timeout-minutes: 5
+
+    - name: Wait for Mock Paymaster
+      if: inputs.action == 'start'
+      shell: bash
+      run: while ! curl localhost:3000/ping; do sleep 1; done
+      timeout-minutes: 5
+
+    - name: Show Anvil logs
+      if: inputs.action == 'logs'
+      shell: bash
+      working-directory: test/scripts/forked_state
+      run: docker logs forked_state-anvil-1
+
+    - name: Show Alto logs
+      if: inputs.action == 'logs'
+      shell: bash
+      working-directory: test/scripts/forked_state
+      run: docker logs forked_state-alto-1
+
+    - name: Show Mock Paymaster logs
+      if: inputs.action == 'logs'
+      shell: bash
+      working-directory: test/scripts/forked_state
+      run: docker logs forked_state-mock-paymaster-1
+
+    - name: Docker Compose cleanup
+      if: inputs.action == 'cleanup'
+      shell: bash
+      working-directory: test/scripts/forked_state
+      run: |
+        docker compose down -v 2>/dev/null || true
+        docker system prune -af 2>/dev/null || true
