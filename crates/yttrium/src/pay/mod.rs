@@ -161,13 +161,13 @@ impl From<types::PaymentStatus> for PaymentStatus {
 #[derive(Debug, Clone, PartialEq, serde::Serialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
 #[serde(rename_all = "camelCase")]
-pub struct ConfirmPaymentResult {
+pub struct ConfirmPaymentResultResponse {
     pub status: PaymentStatus,
     pub is_final: bool,
     pub poll_in_ms: Option<i64>,
 }
 
-impl From<types::ConfirmPaymentResponse> for ConfirmPaymentResult {
+impl From<types::ConfirmPaymentResponse> for ConfirmPaymentResultResponse {
     fn from(r: types::ConfirmPaymentResponse) -> Self {
         Self {
             status: r.status.into(),
@@ -175,6 +175,20 @@ impl From<types::ConfirmPaymentResponse> for ConfirmPaymentResult {
             poll_in_ms: r.poll_in_ms,
         }
     }
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
+#[serde(rename_all = "camelCase")]
+pub struct SignatureValue {
+    pub value: String,
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
+#[serde(rename_all = "camelCase")]
+pub struct SignatureResult {
+    pub signature: SignatureValue,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -195,12 +209,16 @@ impl From<types::Build> for BuildAction {
 pub struct WalletRpcAction {
     pub chain_id: String,
     pub method: String,
-    pub params: Vec<String>,
+    pub params: String,
 }
 
 impl From<types::WalletRpcAction> for WalletRpcAction {
     fn from(a: types::WalletRpcAction) -> Self {
-        Self { chain_id: a.chain_id, method: a.method, params: a.params }
+        Self {
+            chain_id: a.chain_id,
+            method: a.method.to_string(),
+            params: serde_json::to_string(&a.params).unwrap_or_default(),
+        }
     }
 }
 
@@ -447,9 +465,18 @@ impl WalletConnectPay {
     pub async fn confirm_payment(
         &self,
         payment_id: String,
+        option_id: String,
+        results: Vec<SignatureResult>,
         max_poll_ms: Option<i64>,
-    ) -> Result<ConfirmPaymentResult, ConfirmPaymentError> {
-        let body = types::ConfirmPaymentRequest(serde_json::Map::new());
+    ) -> Result<ConfirmPaymentResultResponse, ConfirmPaymentError> {
+        let api_results: Vec<types::ConfirmPaymentResult> = results
+            .into_iter()
+            .map(|r| types::ConfirmPaymentResult::Signature {
+                value: r.signature.value,
+            })
+            .collect();
+        let body =
+            types::ConfirmPaymentRequest { option_id, results: api_results };
         let mut req = with_sdk_config!(
             self.client.confirm_payment_handler(),
             &self.config
@@ -462,7 +489,8 @@ impl WalletConnectPay {
         let response = with_retry(|| async { req.clone().send().await })
             .await
             .map_err(map_confirm_payment_error)?;
-        let mut result: ConfirmPaymentResult = response.into_inner().into();
+        let mut result: ConfirmPaymentResultResponse =
+            response.into_inner().into();
         while !result.is_final {
             let poll_ms = result.poll_in_ms.unwrap_or(1000);
             tokio::time::sleep(std::time::Duration::from_millis(
@@ -473,7 +501,7 @@ impl WalletConnectPay {
                 .get_gateway_payment_status(payment_id.clone(), max_poll_ms)
                 .await
                 .map_err(|e| ConfirmPaymentError::Http(e.to_string()))?;
-            result = ConfirmPaymentResult {
+            result = ConfirmPaymentResultResponse {
                 status: status.status.into(),
                 is_final: status.is_final,
                 poll_in_ms: status.poll_in_ms,
@@ -792,8 +820,8 @@ mod tests {
                 "type": "walletRpc",
                 "data": {
                     "chainId": "eip155:1",
-                    "method": "eth_sendTransaction",
-                    "params": ["0x123"]
+                    "method": "eth_signTypedData_v4",
+                    "params": ["0x123", {"types": {}}]
                 }
             }]
         });
@@ -858,8 +886,17 @@ mod tests {
             .await;
 
         let client = WalletConnectPay::new(test_config(mock_server.uri()));
-        let response =
-            client.confirm_payment("pay_123".to_string(), None).await;
+        let results = vec![SignatureResult {
+            signature: SignatureValue { value: "0x123".to_string() },
+        }];
+        let response = client
+            .confirm_payment(
+                "pay_123".to_string(),
+                "opt_1".to_string(),
+                results,
+                None,
+            )
+            .await;
 
         assert!(response.is_ok());
         let resp = response.unwrap();
@@ -897,8 +934,17 @@ mod tests {
             .await;
 
         let client = WalletConnectPay::new(test_config(mock_server.uri()));
-        let response =
-            client.confirm_payment("pay_123".to_string(), Some(5000)).await;
+        let results = vec![SignatureResult {
+            signature: SignatureValue { value: "0x123".to_string() },
+        }];
+        let response = client
+            .confirm_payment(
+                "pay_123".to_string(),
+                "opt_1".to_string(),
+                results,
+                Some(5000),
+            )
+            .await;
 
         assert!(response.is_ok());
         let resp = response.unwrap();
@@ -970,8 +1016,17 @@ mod tests {
             .await;
 
         let client = WalletConnectPay::new(custom_config);
-        let result =
-            client.confirm_payment("pay_custom".to_string(), None).await;
+        let results = vec![SignatureResult {
+            signature: SignatureValue { value: "0x123".to_string() },
+        }];
+        let result = client
+            .confirm_payment(
+                "pay_custom".to_string(),
+                "opt_1".to_string(),
+                results,
+                None,
+            )
+            .await;
 
         assert!(result.is_ok());
     }
