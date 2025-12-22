@@ -18,20 +18,17 @@ runs:
     - name: Wait for Anvil
       if: inputs.action == 'start'
       shell: bash
-      run: while ! curl localhost:8545/health; do sleep 1; done
-      timeout-minutes: 5
+      run: timeout 300 bash -c 'while ! curl -s localhost:8545/health; do sleep 1; done'
 
     - name: Wait for Alto
       if: inputs.action == 'start'
       shell: bash
-      run: while ! curl localhost:4337/health; do sleep 1; done
-      timeout-minutes: 5
+      run: timeout 300 bash -c 'while ! curl -s localhost:4337/health; do sleep 1; done'
 
     - name: Wait for Mock Paymaster
       if: inputs.action == 'start'
       shell: bash
-      run: while ! curl localhost:3000/ping; do sleep 1; done
-      timeout-minutes: 5
+      run: timeout 300 bash -c 'while ! curl -s localhost:3000/ping; do sleep 1; done'
 
     - name: Show Anvil logs
       if: inputs.action == 'logs'
