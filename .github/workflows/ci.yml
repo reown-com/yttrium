@@ -192,17 +192,20 @@ jobs:
         with:
           cache-on-failure: true
 
-      - name: Set up Java 11
+      - name: Set up Java 17 (for Android SDK tools)
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Set up Java 11 (for Gradle build)
         uses: actions/setup-java@v4
         with:
           distribution: "temurin"
           java-version: "11"
-
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-        with:
-          api-level: 35
-          build-tools: 35.0.0
 
       - name: Install cargo-ndk (cached)
         uses: taiki-e/install-action@v2
