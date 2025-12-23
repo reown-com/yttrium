@@ -188,10 +188,6 @@ jobs:
           rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android
           echo "$HOME/.cargo/bin" >> $GITHUB_PATH
 
-      - uses: Swatinem/rust-cache@v2
-        with:
-          cache-on-failure: true
-
       - name: Set up Java 11 and 17
         uses: actions/setup-java@v4
         with:
