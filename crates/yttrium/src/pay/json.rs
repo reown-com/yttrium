@@ -20,6 +20,8 @@ pub enum PayJsonError {
 struct GetPaymentOptionsRequestJson {
     payment_link: String,
     accounts: Vec<String>,
+    #[serde(default)]
+    include_payment_info: bool,
 }
 
 #[derive(Debug, serde::Deserialize)]
@@ -67,7 +69,7 @@ impl WalletConnectPayJson {
     }
 
     /// Get payment options for a payment link
-    /// Input JSON: { "paymentLink": "string", "accounts": ["string"] }
+    /// Input JSON: { "paymentLink": "string", "accounts": ["string"], "includePaymentInfo": bool? }
     /// Returns JSON PaymentOptionsResponse or error
     pub async fn get_payment_options(
         &self,
@@ -78,7 +80,11 @@ impl WalletConnectPayJson {
                 .map_err(|e| PayJsonError::JsonParse(e.to_string()))?;
         let result = self
             .client
-            .get_payment_options(req.payment_link, req.accounts)
+            .get_payment_options(
+                req.payment_link,
+                req.accounts,
+                req.include_payment_info,
+            )
             .await
             .map_err(|e| PayJsonError::PaymentOptions(e.to_string()))?;
 

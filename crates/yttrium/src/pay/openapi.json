@@ -303,6 +303,16 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "includePaymentInfo",
+            "in": "query",
+            "description": "Whether to include payment information in the response",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "nullable": true
+            }
           }
         ],
         "requestBody": {
@@ -727,6 +737,11 @@
           "options"
         ],
         "properties": {
+          "info": {
+            "$ref": "#/components/schemas/GetPaymentResponse",
+            "nullable": true,
+            "description": "Payment information (included if includePaymentInfo=true)"
+          },
           "options": {
             "type": "array",
             "items": {
@@ -735,6 +750,25 @@
           }
         },
         "example": {
+          "info": {
+            "amount": {
+              "display": {
+                "assetName": "USD Coin",
+                "assetSymbol": "USDC",
+                "decimals": 6,
+                "iconUrl": "https://assets.walletconnect.com/usdc.png",
+                "networkName": "Base"
+              },
+              "unit": "caip19/eip155:8453/erc20:0xUSDC...",
+              "value": "1000000"
+            },
+            "expiresAt": 1718236800,
+            "merchant": {
+              "iconUrl": "https://example.com/icon.png",
+              "name": "Merchant"
+            },
+            "status": "requires_action"
+          },
           "options": [
             {
               "amount": {

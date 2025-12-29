@@ -309,13 +309,52 @@ impl From<types::PaymentOption> for PaymentOption {
 #[derive(Debug, Clone, PartialEq, serde::Serialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
 #[serde(rename_all = "camelCase")]
+pub struct MerchantInfo {
+    pub name: String,
+    pub icon_url: Option<String>,
+}
+
+impl From<types::MerchantInfo> for MerchantInfo {
+    fn from(m: types::MerchantInfo) -> Self {
+        Self { name: m.name, icon_url: m.icon_url }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
+#[serde(rename_all = "camelCase")]
+pub struct PaymentInfo {
+    pub status: PaymentStatus,
+    pub amount: PayAmount,
+    pub expires_at: i64,
+    pub merchant: MerchantInfo,
+}
+
+impl From<types::GetPaymentResponse> for PaymentInfo {
+    fn from(r: types::GetPaymentResponse) -> Self {
+        Self {
+            status: r.status.into(),
+            amount: r.amount.into(),
+            expires_at: r.expires_at,
+            merchant: r.merchant.into(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
+#[serde(rename_all = "camelCase")]
 pub struct PaymentOptionsResponse {
+    pub info: Option<PaymentInfo>,
     pub options: Vec<PaymentOption>,
 }
 
 impl From<types::GetPaymentOptionsResponse> for PaymentOptionsResponse {
     fn from(r: types::GetPaymentOptionsResponse) -> Self {
-        Self { options: r.options.into_iter().map(Into::into).collect() }
+        Self {
+            info: r.info.map(Into::into),
+            options: r.options.into_iter().map(Into::into).collect(),
+        }
     }
 }
 
@@ -380,6 +419,7 @@ impl WalletConnectPay {
         &self,
         payment_link: String,
         accounts: Vec<String>,
+        include_payment_info: bool,
     ) -> Result<PaymentOptionsResponse, GetPaymentOptionsError> {
         let payment_id = extract_payment_id(&payment_link);
         let body = types::GetPaymentOptionsRequest { accounts, refresh: None };
@@ -389,6 +429,7 @@ impl WalletConnectPay {
                 &self.config
             )
             .id(&payment_id)
+            .include_payment_info(include_payment_info)
             .body(body.clone())
             .send()
             .await
@@ -660,6 +701,7 @@ mod tests {
             .get_payment_options(
                 "https://pay.walletconnect.com/pay_123".to_string(),
                 vec!["eip155:8453:0x123".to_string()],
+                false,
             )
             .await;
 
@@ -692,6 +734,7 @@ mod tests {
             .get_payment_options(
                 "pay_notfound".to_string(),
                 vec!["eip155:8453:0x123".to_string()],
+                false,
             )
             .await;
 
@@ -716,6 +759,7 @@ mod tests {
             .get_payment_options(
                 "pay_expired".to_string(),
                 vec!["eip155:8453:0x123".to_string()],
+                false,
             )
             .await;
 
@@ -789,6 +833,7 @@ mod tests {
             .get_payment_options(
                 "pay_123".to_string(),
                 vec!["eip155:8453:0x123".to_string()],
+                false,
             )
             .await
             .unwrap();
@@ -978,6 +1023,7 @@ mod tests {
             .get_payment_options(
                 "pay_headers".to_string(),
                 vec!["eip155:1:0x123".to_string()],
+                false,
             )
             .await;
 
