@@ -440,8 +440,8 @@ impl WalletConnectPay {
                 .map(|o| o.required_actions.clone())
         };
         let raw_actions = match raw_actions {
-            Some(actions) => actions,
-            None => {
+            Some(actions) if !actions.is_empty() => actions,
+            _ => {
                 let fetched = self
                     .fetch(&payment_id, &option_id, serde_json::Value::Null)
                     .await
@@ -454,10 +454,16 @@ impl WalletConnectPay {
                         e
                     ))
                 })?;
-                cache.push(CachedPaymentOption {
-                    option_id: option_id.clone(),
-                    required_actions: fetched.clone(),
-                });
+                if let Some(cached) =
+                    cache.iter_mut().find(|o| o.option_id == option_id)
+                {
+                    cached.required_actions = fetched.clone();
+                } else {
+                    cache.push(CachedPaymentOption {
+                        option_id: option_id.clone(),
+                        required_actions: fetched.clone(),
+                    });
+                }
                 fetched
             }
         };
