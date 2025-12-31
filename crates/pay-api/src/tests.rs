@@ -77,14 +77,13 @@ fn test_create_payment_response_success() {
         "data": {
             "paymentId": "pay_123",
             "status": "requires_action",
-            "gatewayUrl": "https://walletconnect.com/pay",
+            "gatewayUrl": "https://pay.walletconnect.com/wcp_payment_7XJkF2nPqR9vL5mT3hYwZ6aB4cD8eG1j",
             "amount": {
                 "unit": "iso4217/USD",
                 "value": "1000",
             },
             "expiresAt": 1733000000,
             "pollInMs": 1000,
-            "gatewayUrl": "https://pay.walletconnect.com/wcp_payment_7XJkF2nPqR9vL5mT3hYwZ6aB4cD8eG1j",
         },
     });
     assert_eq!(serde_json::to_value(input).unwrap(), expected);
