@@ -1,9 +1,22 @@
-progenitor::generate_api!(
-    spec = "src/pay/openapi.json",
-    interface = Builder,
-    tags = Separate,
-    derives = [PartialEq],
-);
+mod production {
+    progenitor::generate_api!(
+        spec = "src/pay/openapi.json",
+        interface = Builder,
+        tags = Separate,
+        derives = [PartialEq],
+    );
+}
+use production::ClientGatewayExt as ProductionGatewayExt;
+
+mod staging {
+    progenitor::generate_api!(
+        spec = "src/pay/openapi-staging.json",
+        interface = Builder,
+        tags = Separate,
+        derives = [PartialEq],
+    );
+}
+use staging::ClientGatewayExt as StagingGatewayExt;
 
 #[cfg(feature = "uniffi")]
 pub mod json;
@@ -120,6 +133,24 @@ where
     }
 }
 
+// ==================== Environment ====================
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PayEnvironment {
+    Production,
+    Staging,
+}
+
+impl PayEnvironment {
+    pub fn from_base_url(url: &str) -> Self {
+        if url.contains("staging") {
+            PayEnvironment::Staging
+        } else {
+            PayEnvironment::Production
+        }
+    }
+}
+
 // ==================== Types ====================
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -144,16 +175,38 @@ pub enum PaymentStatus {
     Expired,
 }
 
-impl From<types::PaymentStatus> for PaymentStatus {
-    fn from(s: types::PaymentStatus) -> Self {
+impl From<production::types::PaymentStatus> for PaymentStatus {
+    fn from(s: production::types::PaymentStatus) -> Self {
         match s {
-            types::PaymentStatus::RequiresAction => {
+            production::types::PaymentStatus::RequiresAction => {
                 PaymentStatus::RequiresAction
             }
-            types::PaymentStatus::Processing => PaymentStatus::Processing,
-            types::PaymentStatus::Succeeded => PaymentStatus::Succeeded,
-            types::PaymentStatus::Failed => PaymentStatus::Failed,
-            types::PaymentStatus::Expired => PaymentStatus::Expired,
+            production::types::PaymentStatus::Processing => {
+                PaymentStatus::Processing
+            }
+            production::types::PaymentStatus::Succeeded => {
+                PaymentStatus::Succeeded
+            }
+            production::types::PaymentStatus::Failed => PaymentStatus::Failed,
+            production::types::PaymentStatus::Expired => PaymentStatus::Expired,
+        }
+    }
+}
+
+impl From<staging::types::PaymentStatus> for PaymentStatus {
+    fn from(s: staging::types::PaymentStatus) -> Self {
+        match s {
+            staging::types::PaymentStatus::RequiresAction => {
+                PaymentStatus::RequiresAction
+            }
+            staging::types::PaymentStatus::Processing => {
+                PaymentStatus::Processing
+            }
+            staging::types::PaymentStatus::Succeeded => {
+                PaymentStatus::Succeeded
+            }
+            staging::types::PaymentStatus::Failed => PaymentStatus::Failed,
+            staging::types::PaymentStatus::Expired => PaymentStatus::Expired,
         }
     }
 }
@@ -167,8 +220,22 @@ pub struct ConfirmPaymentResultResponse {
     pub poll_in_ms: Option<i64>,
 }
 
-impl From<types::ConfirmPaymentResponse> for ConfirmPaymentResultResponse {
-    fn from(r: types::ConfirmPaymentResponse) -> Self {
+impl From<production::types::ConfirmPaymentResponse>
+    for ConfirmPaymentResultResponse
+{
+    fn from(r: production::types::ConfirmPaymentResponse) -> Self {
+        Self {
+            status: r.status.into(),
+            is_final: r.is_final,
+            poll_in_ms: r.poll_in_ms,
+        }
+    }
+}
+
+impl From<staging::types::ConfirmPaymentResponse>
+    for ConfirmPaymentResultResponse
+{
+    fn from(r: staging::types::ConfirmPaymentResponse) -> Self {
         Self {
             status: r.status.into(),
             is_final: r.is_final,
@@ -200,8 +267,18 @@ pub struct WalletRpcAction {
     pub params: String,
 }
 
-impl From<types::WalletRpcAction> for WalletRpcAction {
-    fn from(a: types::WalletRpcAction) -> Self {
+impl From<production::types::WalletRpcAction> for WalletRpcAction {
+    fn from(a: production::types::WalletRpcAction) -> Self {
+        Self {
+            chain_id: a.chain_id,
+            method: a.method.to_string(),
+            params: serde_json::to_string(&a.params).unwrap_or_default(),
+        }
+    }
+}
+
+impl From<staging::types::WalletRpcAction> for WalletRpcAction {
+    fn from(a: staging::types::WalletRpcAction) -> Self {
         Self {
             chain_id: a.chain_id,
             method: a.method.to_string(),
@@ -228,8 +305,20 @@ pub struct AmountDisplay {
     pub network_name: Option<String>,
 }
 
-impl From<types::AmountDisplay> for AmountDisplay {
-    fn from(d: types::AmountDisplay) -> Self {
+impl From<production::types::AmountDisplay> for AmountDisplay {
+    fn from(d: production::types::AmountDisplay) -> Self {
+        Self {
+            asset_symbol: d.asset_symbol,
+            asset_name: d.asset_name,
+            decimals: d.decimals,
+            icon_url: d.icon_url,
+            network_name: d.network_name,
+        }
+    }
+}
+
+impl From<staging::types::AmountDisplay> for AmountDisplay {
+    fn from(d: staging::types::AmountDisplay) -> Self {
         Self {
             asset_symbol: d.asset_symbol,
             asset_name: d.asset_name,
@@ -249,8 +338,14 @@ pub struct PayAmount {
     pub display: AmountDisplay,
 }
 
-impl From<types::Amount> for PayAmount {
-    fn from(a: types::Amount) -> Self {
+impl From<production::types::Amount> for PayAmount {
+    fn from(a: production::types::Amount) -> Self {
+        Self { unit: a.unit, value: a.value, display: a.display.into() }
+    }
+}
+
+impl From<staging::types::Amount> for PayAmount {
+    fn from(a: staging::types::Amount) -> Self {
         Self { unit: a.unit, value: a.value, display: a.display.into() }
     }
 }
@@ -265,8 +360,8 @@ pub struct PaymentOption {
     pub required_actions: Vec<RequiredAction>,
 }
 
-impl From<types::PaymentOption> for PaymentOption {
-    fn from(o: types::PaymentOption) -> Self {
+impl From<production::types::PaymentOption> for PaymentOption {
+    fn from(o: production::types::PaymentOption) -> Self {
         Self {
             id: o.id,
             amount: o.amount.into(),
@@ -275,10 +370,31 @@ impl From<types::PaymentOption> for PaymentOption {
                 .required_actions
                 .into_iter()
                 .filter_map(|a| match a {
-                    types::RequiredAction::WalletRpc(data) => {
+                    production::types::RequiredAction::WalletRpc(data) => {
                         Some(RequiredAction::WalletRpc(data.into()))
                     }
-                    types::RequiredAction::Build(_) => None,
+                    production::types::RequiredAction::Build(_) => None,
+                })
+                .collect(),
+        }
+    }
+}
+
+impl From<staging::types::PaymentOption> for PaymentOption {
+    fn from(o: staging::types::PaymentOption) -> Self {
+        Self {
+            id: o.id,
+            amount: o.amount.into(),
+            eta_seconds: o.eta_s,
+            required_actions: o
+                .actions
+                .into_iter()
+                .filter_map(|a| match a {
+                    staging::types::Action::WalletRpc(data) => {
+                        Some(RequiredAction::WalletRpc(data.into()))
+                    }
+                    staging::types::Action::CollectData(_) => None,
+                    staging::types::Action::Build(_) => None,
                 })
                 .collect(),
         }
@@ -293,8 +409,14 @@ pub struct MerchantInfo {
     pub icon_url: Option<String>,
 }
 
-impl From<types::MerchantInfo> for MerchantInfo {
-    fn from(m: types::MerchantInfo) -> Self {
+impl From<production::types::MerchantInfo> for MerchantInfo {
+    fn from(m: production::types::MerchantInfo) -> Self {
+        Self { name: m.name, icon_url: m.icon_url }
+    }
+}
+
+impl From<staging::types::MerchantInfo> for MerchantInfo {
+    fn from(m: staging::types::MerchantInfo) -> Self {
         Self { name: m.name, icon_url: m.icon_url }
     }
 }
@@ -309,8 +431,19 @@ pub struct PaymentInfo {
     pub merchant: MerchantInfo,
 }
 
-impl From<types::GetPaymentResponse> for PaymentInfo {
-    fn from(r: types::GetPaymentResponse) -> Self {
+impl From<production::types::GetPaymentResponse> for PaymentInfo {
+    fn from(r: production::types::GetPaymentResponse) -> Self {
+        Self {
+            status: r.status.into(),
+            amount: r.amount.into(),
+            expires_at: r.expires_at,
+            merchant: r.merchant.into(),
+        }
+    }
+}
+
+impl From<staging::types::GetPaymentResponse> for PaymentInfo {
+    fn from(r: staging::types::GetPaymentResponse) -> Self {
         Self {
             status: r.status.into(),
             amount: r.amount.into(),
@@ -328,8 +461,10 @@ pub struct PaymentOptionsResponse {
     pub options: Vec<PaymentOption>,
 }
 
-impl From<types::GetPaymentOptionsResponse> for PaymentOptionsResponse {
-    fn from(r: types::GetPaymentOptionsResponse) -> Self {
+impl From<production::types::GetPaymentOptionsResponse>
+    for PaymentOptionsResponse
+{
+    fn from(r: production::types::GetPaymentOptionsResponse) -> Self {
         Self {
             info: r.info.map(Into::into),
             options: r.options.into_iter().map(Into::into).collect(),
@@ -337,30 +472,43 @@ impl From<types::GetPaymentOptionsResponse> for PaymentOptionsResponse {
     }
 }
 
-// ==================== Client ====================
+impl From<staging::types::GetPaymentOptionsResponse>
+    for PaymentOptionsResponse
+{
+    fn from(r: staging::types::GetPaymentOptionsResponse) -> Self {
+        Self {
+            info: r.info.map(Into::into),
+            options: r.options.into_iter().map(Into::into).collect(),
+        }
+    }
+}
 
-use std::sync::RwLock;
+// ==================== Cached Options ====================
 
-/// Applies common SDK config headers to any progenitor-generated request builder
-macro_rules! with_sdk_config {
-    ($builder:expr, $config:expr) => {
-        $builder
-            .api_key(&$config.api_key)
-            .sdk_name(&$config.sdk_name)
-            .sdk_version(&$config.sdk_version)
-            .sdk_platform(&$config.sdk_platform)
-    };
+#[derive(Debug, Clone)]
+enum CachedRequiredAction {
+    Production(production::types::RequiredAction),
+    Staging(staging::types::Action),
 }
 
 #[derive(Debug, Clone)]
 struct CachedPaymentOption {
     option_id: String,
-    required_actions: Vec<types::RequiredAction>,
+    required_actions: Vec<CachedRequiredAction>,
+}
+
+// ==================== Client ====================
+
+use std::sync::RwLock;
+
+enum PayClient {
+    Production(production::Client),
+    Staging(staging::Client),
 }
 
 #[cfg_attr(feature = "uniffi", derive(uniffi::Object))]
 pub struct WalletConnectPay {
-    client: Client,
+    client: PayClient,
     config: SdkConfig,
     cached_options: RwLock<Vec<CachedPaymentOption>>,
 }
@@ -369,12 +517,18 @@ pub struct WalletConnectPay {
 impl WalletConnectPay {
     #[cfg_attr(feature = "uniffi", uniffi::constructor)]
     pub fn new(config: SdkConfig) -> Self {
-        let client = Client::new(&config.base_url);
+        let env = PayEnvironment::from_base_url(&config.base_url);
+        let client = match env {
+            PayEnvironment::Production => {
+                PayClient::Production(production::Client::new(&config.base_url))
+            }
+            PayEnvironment::Staging => {
+                PayClient::Staging(staging::Client::new(&config.base_url))
+            }
+        };
         Self { client, config, cached_options: RwLock::new(Vec::new()) }
     }
 
-    /// Get payment options for given accounts
-    /// Also caches the options for use by get_required_payment_actions
     pub async fn get_payment_options(
         &self,
         payment_link: String,
@@ -382,46 +536,28 @@ impl WalletConnectPay {
         include_payment_info: bool,
     ) -> Result<PaymentOptionsResponse, GetPaymentOptionsError> {
         let payment_id = extract_payment_id(&payment_link);
-        let body = types::GetPaymentOptionsRequest { accounts, refresh: None };
-        let response = with_retry(|| async {
-            with_sdk_config!(
-                self.client.gateway_get_payment_options(),
-                &self.config
-            )
-            .id(&payment_id)
-            .include_payment_info(include_payment_info)
-            .body(body.clone())
-            .send()
-            .await
-        })
-        .await
-        .map_err(map_payment_options_error)?;
-
-        let api_response = response.into_inner();
-
-        // Cache the options with their raw required actions
-        let cached: Vec<CachedPaymentOption> = api_response
-            .options
-            .iter()
-            .map(|o| CachedPaymentOption {
-                option_id: o.id.clone(),
-                required_actions: o.required_actions.clone(),
-            })
-            .collect();
-        let mut cache = self.cached_options.write().map_err(|e| {
-            GetPaymentOptionsError::InternalError(format!(
-                "Cache lock poisoned: {}",
-                e
-            ))
-        })?;
-        *cache = cached;
-
-        Ok(api_response.into())
+        match &self.client {
+            PayClient::Production(client) => {
+                self.get_payment_options_production(
+                    client,
+                    payment_id,
+                    accounts,
+                    include_payment_info,
+                )
+                .await
+            }
+            PayClient::Staging(client) => {
+                self.get_payment_options_staging(
+                    client,
+                    payment_id,
+                    accounts,
+                    include_payment_info,
+                )
+                .await
+            }
+        }
     }
 
-    /// Get required payment actions for a selected option
-    /// Returns cached actions if available, otherwise calls fetch to get them
-    /// BuildAction types are automatically resolved by calling the fetch endpoint
     pub async fn get_required_payment_actions(
         &self,
         payment_id: String,
@@ -470,8 +606,6 @@ impl WalletConnectPay {
         self.resolve_actions(&payment_id, &option_id, raw_actions).await
     }
 
-    /// Confirm a payment
-    /// Polls for final status if the initial response is not final
     pub async fn confirm_payment(
         &self,
         payment_id: String,
@@ -479,20 +613,159 @@ impl WalletConnectPay {
         results: Vec<SignatureResult>,
         max_poll_ms: Option<i64>,
     ) -> Result<ConfirmPaymentResultResponse, ConfirmPaymentError> {
-        let api_results: Vec<types::ConfirmPaymentResult> = results
+        match &self.client {
+            PayClient::Production(client) => {
+                self.confirm_payment_production(
+                    client,
+                    payment_id,
+                    option_id,
+                    results,
+                    max_poll_ms,
+                )
+                .await
+            }
+            PayClient::Staging(client) => {
+                self.confirm_payment_staging(
+                    client,
+                    payment_id,
+                    option_id,
+                    results,
+                    max_poll_ms,
+                )
+                .await
+            }
+        }
+    }
+}
+
+// Private methods
+impl WalletConnectPay {
+    async fn get_payment_options_production(
+        &self,
+        client: &production::Client,
+        payment_id: String,
+        accounts: Vec<String>,
+        include_payment_info: bool,
+    ) -> Result<PaymentOptionsResponse, GetPaymentOptionsError> {
+        let body = production::types::GetPaymentOptionsRequest {
+            accounts,
+            refresh: None,
+        };
+        let response = with_retry(|| async {
+            client
+                .gateway_get_payment_options()
+                .api_key(&self.config.api_key)
+                .sdk_name(&self.config.sdk_name)
+                .sdk_version(&self.config.sdk_version)
+                .sdk_platform(&self.config.sdk_platform)
+                .id(&payment_id)
+                .include_payment_info(include_payment_info)
+                .body(body.clone())
+                .send()
+                .await
+        })
+        .await
+        .map_err(map_payment_options_error)?;
+        let api_response = response.into_inner();
+        let cached: Vec<CachedPaymentOption> = api_response
+            .options
+            .iter()
+            .map(|o| CachedPaymentOption {
+                option_id: o.id.clone(),
+                required_actions: o
+                    .required_actions
+                    .iter()
+                    .cloned()
+                    .map(CachedRequiredAction::Production)
+                    .collect(),
+            })
+            .collect();
+        let mut cache = self.cached_options.write().map_err(|e| {
+            GetPaymentOptionsError::InternalError(format!(
+                "Cache lock poisoned: {}",
+                e
+            ))
+        })?;
+        *cache = cached;
+        Ok(api_response.into())
+    }
+
+    async fn get_payment_options_staging(
+        &self,
+        client: &staging::Client,
+        payment_id: String,
+        accounts: Vec<String>,
+        include_payment_info: bool,
+    ) -> Result<PaymentOptionsResponse, GetPaymentOptionsError> {
+        let body = staging::types::GetPaymentOptionsRequest {
+            accounts,
+            refresh: None,
+        };
+        let response = with_retry(|| async {
+            client
+                .gateway_get_payment_options()
+                .api_key(&self.config.api_key)
+                .sdk_name(&self.config.sdk_name)
+                .sdk_version(&self.config.sdk_version)
+                .sdk_platform(&self.config.sdk_platform)
+                .id(&payment_id)
+                .include_payment_info(include_payment_info)
+                .body(body.clone())
+                .send()
+                .await
+        })
+        .await
+        .map_err(map_payment_options_error)?;
+        let api_response = response.into_inner();
+        let cached: Vec<CachedPaymentOption> = api_response
+            .options
+            .iter()
+            .map(|o| CachedPaymentOption {
+                option_id: o.id.clone(),
+                required_actions: o
+                    .actions
+                    .iter()
+                    .cloned()
+                    .map(CachedRequiredAction::Staging)
+                    .collect(),
+            })
+            .collect();
+        let mut cache = self.cached_options.write().map_err(|e| {
+            GetPaymentOptionsError::InternalError(format!(
+                "Cache lock poisoned: {}",
+                e
+            ))
+        })?;
+        *cache = cached;
+        Ok(api_response.into())
+    }
+
+    async fn confirm_payment_production(
+        &self,
+        client: &production::Client,
+        payment_id: String,
+        option_id: String,
+        results: Vec<SignatureResult>,
+        max_poll_ms: Option<i64>,
+    ) -> Result<ConfirmPaymentResultResponse, ConfirmPaymentError> {
+        let api_results: Vec<production::types::ConfirmPaymentResult> = results
             .into_iter()
-            .map(|r| types::ConfirmPaymentResult::Signature {
+            .map(|r| production::types::ConfirmPaymentResult::Signature {
                 value: r.signature.value,
             })
             .collect();
-        let body =
-            types::ConfirmPaymentRequest { option_id, results: api_results };
-        let mut req = with_sdk_config!(
-            self.client.confirm_payment_handler(),
-            &self.config
-        )
-        .id(&payment_id)
-        .body(body.clone());
+        let body = production::types::ConfirmPaymentRequest {
+            option_id,
+            results: api_results,
+        };
+        let mut req = client
+            .confirm_payment_handler()
+            .api_key(&self.config.api_key)
+            .sdk_name(&self.config.sdk_name)
+            .sdk_version(&self.config.sdk_version)
+            .sdk_platform(&self.config.sdk_platform)
+            .id(&payment_id)
+            .body(body.clone());
         if let Some(ms) = max_poll_ms {
             req = req.max_poll_ms(ms);
         }
@@ -508,7 +781,11 @@ impl WalletConnectPay {
             ))
             .await;
             let status = self
-                .get_gateway_payment_status(payment_id.clone(), max_poll_ms)
+                .get_gateway_payment_status_production(
+                    client,
+                    &payment_id,
+                    max_poll_ms,
+                )
                 .await
                 .map_err(|e| ConfirmPaymentError::Http(e.to_string()))?;
             result = ConfirmPaymentResultResponse {
@@ -519,23 +796,81 @@ impl WalletConnectPay {
         }
         Ok(result)
     }
-}
 
-// Private methods (not exported via uniffi)
-impl WalletConnectPay {
+    async fn confirm_payment_staging(
+        &self,
+        client: &staging::Client,
+        payment_id: String,
+        option_id: String,
+        results: Vec<SignatureResult>,
+        max_poll_ms: Option<i64>,
+    ) -> Result<ConfirmPaymentResultResponse, ConfirmPaymentError> {
+        let api_results: Vec<staging::types::ConfirmPaymentResult> = results
+            .into_iter()
+            .map(|r| staging::types::ConfirmPaymentResult::Signature {
+                value: r.signature.value,
+            })
+            .collect();
+        let body = staging::types::ConfirmPaymentRequest {
+            option_id,
+            results: api_results,
+        };
+        let mut req = client
+            .confirm_payment_handler()
+            .api_key(&self.config.api_key)
+            .sdk_name(&self.config.sdk_name)
+            .sdk_version(&self.config.sdk_version)
+            .sdk_platform(&self.config.sdk_platform)
+            .id(&payment_id)
+            .body(body.clone());
+        if let Some(ms) = max_poll_ms {
+            req = req.max_poll_ms(ms);
+        }
+        let response = with_retry(|| async { req.clone().send().await })
+            .await
+            .map_err(map_confirm_payment_error)?;
+        let mut result: ConfirmPaymentResultResponse =
+            response.into_inner().into();
+        while !result.is_final {
+            let poll_ms = result.poll_in_ms.unwrap_or(1000);
+            tokio::time::sleep(std::time::Duration::from_millis(
+                poll_ms as u64,
+            ))
+            .await;
+            let status = self
+                .get_gateway_payment_status_staging(
+                    client,
+                    &payment_id,
+                    max_poll_ms,
+                )
+                .await
+                .map_err(|e| ConfirmPaymentError::Http(e.to_string()))?;
+            result = ConfirmPaymentResultResponse {
+                status: status.status.into(),
+                is_final: status.is_final,
+                poll_in_ms: status.poll_in_ms,
+            };
+        }
+        Ok(result)
+    }
+
     async fn resolve_actions(
         &self,
         payment_id: &str,
         option_id: &str,
-        actions: Vec<types::RequiredAction>,
+        actions: Vec<CachedRequiredAction>,
     ) -> Result<Vec<RequiredAction>, GetPaymentRequestError> {
         let mut result = Vec::new();
         for action in actions {
             match action {
-                types::RequiredAction::WalletRpc(data) => {
+                CachedRequiredAction::Production(
+                    production::types::RequiredAction::WalletRpc(data),
+                ) => {
                     result.push(RequiredAction::WalletRpc(data.into()));
                 }
-                types::RequiredAction::Build(build) => {
+                CachedRequiredAction::Production(
+                    production::types::RequiredAction::Build(build),
+                ) => {
                     let resolved = self
                         .fetch(payment_id, option_id, build.data)
                         .await
@@ -543,8 +878,35 @@ impl WalletConnectPay {
                             GetPaymentRequestError::FetchError(e.to_string())
                         })?;
                     for resolved_action in resolved {
-                        if let types::RequiredAction::WalletRpc(data) =
-                            resolved_action
+                        if let CachedRequiredAction::Production(
+                            production::types::RequiredAction::WalletRpc(data),
+                        ) = resolved_action
+                        {
+                            result.push(RequiredAction::WalletRpc(data.into()));
+                        }
+                    }
+                }
+                CachedRequiredAction::Staging(
+                    staging::types::Action::WalletRpc(data),
+                ) => {
+                    result.push(RequiredAction::WalletRpc(data.into()));
+                }
+                CachedRequiredAction::Staging(
+                    staging::types::Action::CollectData(_),
+                ) => {}
+                CachedRequiredAction::Staging(
+                    staging::types::Action::Build(build),
+                ) => {
+                    let resolved = self
+                        .fetch(payment_id, option_id, build.data)
+                        .await
+                        .map_err(|e| {
+                            GetPaymentRequestError::FetchError(e.to_string())
+                        })?;
+                    for resolved_action in resolved {
+                        if let CachedRequiredAction::Staging(
+                            staging::types::Action::WalletRpc(data),
+                        ) = resolved_action
                         {
                             result.push(RequiredAction::WalletRpc(data.into()));
                         }
@@ -560,30 +922,95 @@ impl WalletConnectPay {
         payment_id: &str,
         option_id: &str,
         data: serde_json::Value,
-    ) -> Result<Vec<types::RequiredAction>, PayError> {
-        let body =
-            types::FetchRequest { option_id: option_id.to_string(), data };
-        let response = with_retry(|| async {
-            with_sdk_config!(self.client.fetch_handler(), &self.config)
-                .id(payment_id)
-                .body(body.clone())
-                .send()
-                .await
-        })
-        .await?;
-        Ok(response.into_inner().required_actions)
+    ) -> Result<Vec<CachedRequiredAction>, PayError> {
+        match &self.client {
+            PayClient::Production(client) => {
+                let body = production::types::FetchRequest {
+                    option_id: option_id.to_string(),
+                    data,
+                };
+                let response = with_retry(|| async {
+                    client
+                        .fetch_handler()
+                        .api_key(&self.config.api_key)
+                        .sdk_name(&self.config.sdk_name)
+                        .sdk_version(&self.config.sdk_version)
+                        .sdk_platform(&self.config.sdk_platform)
+                        .id(payment_id)
+                        .body(body.clone())
+                        .send()
+                        .await
+                })
+                .await?;
+                Ok(response
+                    .into_inner()
+                    .required_actions
+                    .into_iter()
+                    .map(CachedRequiredAction::Production)
+                    .collect())
+            }
+            PayClient::Staging(client) => {
+                let body = staging::types::FetchRequest {
+                    option_id: option_id.to_string(),
+                    data,
+                };
+                let response = with_retry(|| async {
+                    client
+                        .fetch_handler()
+                        .api_key(&self.config.api_key)
+                        .sdk_name(&self.config.sdk_name)
+                        .sdk_version(&self.config.sdk_version)
+                        .sdk_platform(&self.config.sdk_platform)
+                        .id(payment_id)
+                        .body(body.clone())
+                        .send()
+                        .await
+                })
+                .await?;
+                Ok(response
+                    .into_inner()
+                    .actions
+                    .into_iter()
+                    .map(CachedRequiredAction::Staging)
+                    .collect())
+            }
+        }
     }
 
-    async fn get_gateway_payment_status(
+    async fn get_gateway_payment_status_production(
         &self,
-        payment_id: String,
+        client: &production::Client,
+        payment_id: &str,
         max_poll_ms: Option<i64>,
-    ) -> Result<types::GetPaymentStatusResponse, PayError> {
-        let mut req = with_sdk_config!(
-            self.client.gateway_get_payment_status(),
-            &self.config
-        )
-        .id(&payment_id);
+    ) -> Result<production::types::GetPaymentStatusResponse, PayError> {
+        let mut req = client
+            .gateway_get_payment_status()
+            .api_key(&self.config.api_key)
+            .sdk_name(&self.config.sdk_name)
+            .sdk_version(&self.config.sdk_version)
+            .sdk_platform(&self.config.sdk_platform)
+            .id(payment_id);
+        if let Some(ms) = max_poll_ms {
+            req = req.max_poll_ms(ms);
+        }
+        let response =
+            with_retry(|| async { req.clone().send().await }).await?;
+        Ok(response.into_inner())
+    }
+
+    async fn get_gateway_payment_status_staging(
+        &self,
+        client: &staging::Client,
+        payment_id: &str,
+        max_poll_ms: Option<i64>,
+    ) -> Result<staging::types::GetPaymentStatusResponse, PayError> {
+        let mut req = client
+            .gateway_get_payment_status()
+            .api_key(&self.config.api_key)
+            .sdk_name(&self.config.sdk_name)
+            .sdk_version(&self.config.sdk_version)
+            .sdk_platform(&self.config.sdk_platform)
+            .id(payment_id);
         if let Some(ms) = max_poll_ms {
             req = req.max_poll_ms(ms);
         }
@@ -663,31 +1090,49 @@ mod tests {
         }
     }
 
+    #[test]
+    fn test_environment_detection() {
+        assert_eq!(
+            PayEnvironment::from_base_url("https://api.pay.walletconnect.com"),
+            PayEnvironment::Production
+        );
+        assert_eq!(
+            PayEnvironment::from_base_url(
+                "https://staging.api.pay.walletconnect.com"
+            ),
+            PayEnvironment::Staging
+        );
+        assert_eq!(
+            PayEnvironment::from_base_url("https://staging-pay.example.com"),
+            PayEnvironment::Staging
+        );
+        assert_eq!(
+            PayEnvironment::from_base_url("http://localhost:8080"),
+            PayEnvironment::Production
+        );
+    }
+
     #[tokio::test]
     async fn test_get_payment_options_success() {
         let mock_server = MockServer::start().await;
-
         let mock_response = serde_json::json!({
-            "options": [
-                {
-                    "id": "opt_1",
-                    "amount": {
-                        "unit": "caip19/eip155:8453/erc20:0xUSDC",
-                        "value": "1000000",
-                        "display": {
-                            "assetSymbol": "USDC",
-                            "assetName": "USD Coin",
-                            "decimals": 6,
-                            "iconUrl": "https://example.com/usdc.png",
-                            "networkName": "Base"
-                        }
-                    },
-                    "etaSeconds": 5,
-                    "requiredActions": []
-                }
-            ]
+            "options": [{
+                "id": "opt_1",
+                "amount": {
+                    "unit": "caip19/eip155:8453/erc20:0xUSDC",
+                    "value": "1000000",
+                    "display": {
+                        "assetSymbol": "USDC",
+                        "assetName": "USD Coin",
+                        "decimals": 6,
+                        "iconUrl": "https://example.com/usdc.png",
+                        "networkName": "Base"
+                    }
+                },
+                "etaSeconds": 5,
+                "requiredActions": []
+            }]
         });
-
         Mock::given(method("POST"))
             .and(path("/v1/gateway/payment/pay_123/options"))
             .respond_with(
@@ -695,7 +1140,6 @@ mod tests {
             )
             .mount(&mock_server)
             .await;
-
         let client = WalletConnectPay::new(test_config(mock_server.uri()));
         let result = client
             .get_payment_options(
@@ -704,7 +1148,6 @@ mod tests {
                 false,
             )
             .await;
-
         assert!(result.is_ok());
         let response = result.unwrap();
         assert_eq!(response.options.len(), 1);
@@ -722,13 +1165,11 @@ mod tests {
     #[tokio::test]
     async fn test_get_payment_options_not_found() {
         let mock_server = MockServer::start().await;
-
         Mock::given(method("POST"))
             .and(path("/v1/gateway/payment/pay_notfound/options"))
             .respond_with(ResponseTemplate::new(404))
             .mount(&mock_server)
             .await;
-
         let client = WalletConnectPay::new(test_config(mock_server.uri()));
         let result = client
             .get_payment_options(
@@ -737,7 +1178,6 @@ mod tests {
                 false,
             )
             .await;
-
         assert!(matches!(
             result,
             Err(GetPaymentOptionsError::PaymentNotFound(_))
@@ -747,13 +1187,11 @@ mod tests {
     #[tokio::test]
     async fn test_get_payment_options_expired() {
         let mock_server = MockServer::start().await;
-
         Mock::given(method("POST"))
             .and(path("/v1/gateway/payment/pay_expired/options"))
             .respond_with(ResponseTemplate::new(410))
             .mount(&mock_server)
             .await;
-
         let client = WalletConnectPay::new(test_config(mock_server.uri()));
         let result = client
             .get_payment_options(
@@ -762,7 +1200,6 @@ mod tests {
                 false,
             )
             .await;
-
         assert!(matches!(
             result,
             Err(GetPaymentOptionsError::PaymentExpired(_))
@@ -785,37 +1222,31 @@ mod tests {
     #[tokio::test]
     async fn test_get_required_payment_actions_success() {
         let mock_server = MockServer::start().await;
-
         let mock_response = serde_json::json!({
-            "options": [
-                {
-                    "id": "opt_1",
-                    "amount": {
-                        "unit": "caip19/eip155:8453/erc20:0xUSDC",
-                        "value": "1000000",
-                        "display": {
-                            "assetSymbol": "USDC",
-                            "assetName": "USD Coin",
-                            "decimals": 6,
-                            "iconUrl": "https://example.com/usdc.png",
-                            "networkName": "Base"
-                        }
-                    },
-                    "etaSeconds": 5,
-                    "requiredActions": [
-                        {
-                            "type": "walletRpc",
-                            "data": {
-                                "chainId": "eip155:8453",
-                                "method": "eth_signTypedData_v4",
-                                "params": ["0xabc", "{\"typed\":\"data\"}"]
-                            }
-                        }
-                    ]
-                }
-            ]
+            "options": [{
+                "id": "opt_1",
+                "amount": {
+                    "unit": "caip19/eip155:8453/erc20:0xUSDC",
+                    "value": "1000000",
+                    "display": {
+                        "assetSymbol": "USDC",
+                        "assetName": "USD Coin",
+                        "decimals": 6,
+                        "iconUrl": "https://example.com/usdc.png",
+                        "networkName": "Base"
+                    }
+                },
+                "etaSeconds": 5,
+                "requiredActions": [{
+                    "type": "walletRpc",
+                    "data": {
+                        "chainId": "eip155:8453",
+                        "method": "eth_signTypedData_v4",
+                        "params": ["0xabc", "{\"typed\":\"data\"}"]
+                    }
+                }]
+            }]
         });
-
         Mock::given(method("POST"))
             .and(path("/v1/gateway/payment/pay_123/options"))
             .respond_with(
@@ -823,7 +1254,6 @@ mod tests {
             )
             .mount(&mock_server)
             .await;
-
         let client = WalletConnectPay::new(test_config(mock_server.uri()));
         let response = client
             .get_payment_options(
@@ -834,7 +1264,6 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(response.options.len(), 1);
-
         let actions = client
             .get_required_payment_actions(
                 "pay_123".to_string(),
@@ -851,33 +1280,27 @@ mod tests {
     #[tokio::test]
     async fn test_get_required_payment_actions_resolves_build() {
         let mock_server = MockServer::start().await;
-
         let mock_response = serde_json::json!({
-            "options": [
-                {
-                    "id": "opt_1",
-                    "amount": {
-                        "unit": "caip19/eip155:8453/erc20:0xUSDC",
-                        "value": "1000000",
-                        "display": {
-                            "assetSymbol": "USDC",
-                            "assetName": "USD Coin",
-                            "decimals": 6,
-                            "iconUrl": "https://example.com/usdc.png",
-                            "networkName": "Base"
-                        }
-                    },
-                    "etaSeconds": 5,
-                    "requiredActions": [
-                        {
-                            "type": "build",
-                            "data": { "data": {"some": "data"} }
-                        }
-                    ]
-                }
-            ]
+            "options": [{
+                "id": "opt_1",
+                "amount": {
+                    "unit": "caip19/eip155:8453/erc20:0xUSDC",
+                    "value": "1000000",
+                    "display": {
+                        "assetSymbol": "USDC",
+                        "assetName": "USD Coin",
+                        "decimals": 6,
+                        "iconUrl": "https://example.com/usdc.png",
+                        "networkName": "Base"
+                    }
+                },
+                "etaSeconds": 5,
+                "requiredActions": [{
+                    "type": "build",
+                    "data": { "data": {"some": "data"} }
+                }]
+            }]
         });
-
         let fetch_response = serde_json::json!({
             "requiredActions": [{
                 "type": "walletRpc",
@@ -888,7 +1311,6 @@ mod tests {
                 }
             }]
         });
-
         Mock::given(method("POST"))
             .and(path("/v1/gateway/payment/pay_123/options"))
             .respond_with(
@@ -896,7 +1318,6 @@ mod tests {
             )
             .mount(&mock_server)
             .await;
-
         Mock::given(method("POST"))
             .and(path("/v1/gateway/payment/pay_123/fetch"))
             .respond_with(
@@ -904,7 +1325,6 @@ mod tests {
             )
             .mount(&mock_server)
             .await;
-
         let client = WalletConnectPay::new(test_config(mock_server.uri()));
         client
             .get_payment_options(
@@ -914,7 +1334,6 @@ mod tests {
             )
             .await
             .unwrap();
-
         let actions = client
             .get_required_payment_actions(
                 "pay_123".to_string(),
@@ -931,7 +1350,6 @@ mod tests {
     #[tokio::test]
     async fn test_get_required_payment_actions_fetches_when_not_cached() {
         let mock_server = MockServer::start().await;
-
         let fetch_response = serde_json::json!({
             "requiredActions": [{
                 "type": "walletRpc",
@@ -942,7 +1360,6 @@ mod tests {
                 }
             }]
         });
-
         Mock::given(method("POST"))
             .and(path("/v1/gateway/payment/pay_456/fetch"))
             .respond_with(
@@ -950,9 +1367,7 @@ mod tests {
             )
             .mount(&mock_server)
             .await;
-
         let client = WalletConnectPay::new(test_config(mock_server.uri()));
-        // Call without populating cache first - should call fetch
         let actions = client
             .get_required_payment_actions(
                 "pay_456".to_string(),
@@ -967,13 +1382,11 @@ mod tests {
     #[tokio::test]
     async fn test_get_required_payment_actions_fetch_error() {
         let mock_server = MockServer::start().await;
-
         Mock::given(method("POST"))
             .and(path("/v1/gateway/payment/pay_789/fetch"))
             .respond_with(ResponseTemplate::new(500))
             .mount(&mock_server)
             .await;
-
         let client = WalletConnectPay::new(test_config(mock_server.uri()));
         let result = client
             .get_required_payment_actions(
@@ -987,13 +1400,11 @@ mod tests {
     #[tokio::test]
     async fn test_confirm_payment_success() {
         let mock_server = MockServer::start().await;
-
         let confirm_response = serde_json::json!({
             "status": "succeeded",
             "isFinal": true,
             "pollInMs": null
         });
-
         Mock::given(method("POST"))
             .and(path("/v1/gateway/payment/pay_123/confirm"))
             .respond_with(
@@ -1001,7 +1412,6 @@ mod tests {
             )
             .mount(&mock_server)
             .await;
-
         let client = WalletConnectPay::new(test_config(mock_server.uri()));
         let results = vec![SignatureResult {
             signature: SignatureValue { value: "0x123".to_string() },
@@ -1014,7 +1424,6 @@ mod tests {
                 None,
             )
             .await;
-
         assert!(response.is_ok());
         let resp = response.unwrap();
         assert_eq!(resp.status, PaymentStatus::Succeeded);
@@ -1024,7 +1433,6 @@ mod tests {
     #[tokio::test]
     async fn test_confirm_payment_polls_until_final() {
         let mock_server = MockServer::start().await;
-
         let confirm_response = serde_json::json!({
             "status": "processing",
             "isFinal": false,
@@ -1034,7 +1442,6 @@ mod tests {
             "status": "succeeded",
             "isFinal": true
         });
-
         Mock::given(method("POST"))
             .and(path("/v1/gateway/payment/pay_123/confirm"))
             .respond_with(
@@ -1049,7 +1456,6 @@ mod tests {
             )
             .mount(&mock_server)
             .await;
-
         let client = WalletConnectPay::new(test_config(mock_server.uri()));
         let results = vec![SignatureResult {
             signature: SignatureValue { value: "0x123".to_string() },
@@ -1062,7 +1468,6 @@ mod tests {
                 Some(5000),
             )
             .await;
-
         assert!(response.is_ok());
         let resp = response.unwrap();
         assert_eq!(resp.status, PaymentStatus::Succeeded);
@@ -1072,11 +1477,7 @@ mod tests {
     #[tokio::test]
     async fn test_sdk_headers_are_set() {
         let mock_server = MockServer::start().await;
-
-        let mock_response = serde_json::json!({
-            "options": []
-        });
-
+        let mock_response = serde_json::json!({ "options": [] });
         Mock::given(method("POST"))
             .and(path("/v1/gateway/payment/pay_headers/options"))
             .and(header("Api-Key", "test-api-key"))
@@ -1089,7 +1490,6 @@ mod tests {
             .expect(1)
             .mount(&mock_server)
             .await;
-
         let client = WalletConnectPay::new(test_config(mock_server.uri()));
         let result = client
             .get_payment_options(
@@ -1098,20 +1498,17 @@ mod tests {
                 false,
             )
             .await;
-
         assert!(result.is_ok());
     }
 
     #[tokio::test]
     async fn test_custom_sdk_config_headers() {
         let mock_server = MockServer::start().await;
-
         let mock_response = serde_json::json!({
             "status": "succeeded",
             "isFinal": true,
             "pollInMs": null
         });
-
         let custom_config = SdkConfig {
             base_url: mock_server.uri(),
             api_key: "my-custom-api-key".to_string(),
@@ -1119,7 +1516,6 @@ mod tests {
             sdk_version: "2.5.0".to_string(),
             sdk_platform: "ios".to_string(),
         };
-
         Mock::given(method("POST"))
             .and(path("/v1/gateway/payment/pay_custom/confirm"))
             .and(header("Api-Key", "my-custom-api-key"))
@@ -1132,7 +1528,6 @@ mod tests {
             .expect(1)
             .mount(&mock_server)
             .await;
-
         let client = WalletConnectPay::new(custom_config);
         let results = vec![SignatureResult {
             signature: SignatureValue { value: "0x123".to_string() },
@@ -1145,7 +1540,6 @@ mod tests {
                 None,
             )
             .await;
-
         assert!(result.is_ok());
     }
 }

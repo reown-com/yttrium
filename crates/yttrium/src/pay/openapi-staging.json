@@ -1,0 +1,772 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "WalletConnect Pay API",
+    "description": "API for the WalletConnect Pay service (Staging)",
+    "contact": {
+      "name": "WalletConnect",
+      "url": "https://walletconnect.com"
+    },
+    "license": {
+      "name": ""
+    },
+    "version": "0.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://staging.api.pay.walletconnect.com"
+    }
+  ],
+  "paths": {
+    "/v1/gateway/payment/{id}": {
+      "get": {
+        "tags": ["Gateway"],
+        "summary": "Get a payment",
+        "description": "This endpoint returns only basic information to display to the user to begin the payment flow.",
+        "operationId": "gatewayGetPayment",
+        "parameters": [
+          {
+            "name": "Api-Key",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "Sdk-Name",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "Sdk-Version",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "Sdk-Platform",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Payment ID",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment status retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/GetPaymentResponse" }
+              }
+            }
+          },
+          "404": { "description": "Payment not found" }
+        }
+      }
+    },
+    "/v1/gateway/payment/{id}/confirm": {
+      "post": {
+        "tags": ["Gateway"],
+        "summary": "Confirm a payment",
+        "description": "This endpoint confirms a payment and submits it to the blockchain for processing.",
+        "operationId": "confirm_payment_handler",
+        "parameters": [
+          {
+            "name": "Api-Key",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "Sdk-Name",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "Sdk-Version",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "Sdk-Platform",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Payment ID",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "maxPollMs",
+            "in": "query",
+            "description": "Maximum time to long-poll for payment status, in milliseconds.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 0,
+              "nullable": true
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ConfirmPaymentRequest" }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Payment confirmed successfully",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ConfirmPaymentResponse" }
+              }
+            }
+          },
+          "404": { "description": "Payment not found" }
+        }
+      }
+    },
+    "/v1/gateway/payment/{id}/fetch": {
+      "post": {
+        "tags": ["Gateway"],
+        "summary": "Fetches an action",
+        "description": "This endpoint fetches an action for a payment.",
+        "operationId": "fetch_handler",
+        "parameters": [
+          {
+            "name": "Api-Key",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "Sdk-Name",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "Sdk-Version",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "Sdk-Platform",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Payment ID",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/FetchRequest" }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Action built successfully",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/FetchResponse" }
+              }
+            }
+          },
+          "404": { "description": "Payment not found" }
+        }
+      }
+    },
+    "/v1/gateway/payment/{id}/options": {
+      "post": {
+        "tags": ["Gateway"],
+        "summary": "Get payment options",
+        "description": "This endpoint takes a list of accounts and returns a list of options that can be used to complete the payment.",
+        "operationId": "gatewayGetPaymentOptions",
+        "parameters": [
+          {
+            "name": "Api-Key",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "Sdk-Name",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "Sdk-Version",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "Sdk-Platform",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Payment ID",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "includePaymentInfo",
+            "in": "query",
+            "description": "Whether to include payment information in the response",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "nullable": true
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/GetPaymentOptionsRequest" }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Payment options retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/GetPaymentOptionsResponse" }
+              }
+            }
+          },
+          "404": { "description": "Payment not found" }
+        }
+      }
+    },
+    "/v1/gateway/payment/{id}/status": {
+      "get": {
+        "tags": ["Gateway"],
+        "summary": "Get the payment status",
+        "description": "Retrieves the status of a payment by its ID. Returns a polling delay to wait before checking the status again.",
+        "operationId": "gatewayGetPaymentStatus",
+        "parameters": [
+          {
+            "name": "Api-Key",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "Sdk-Name",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "Sdk-Version",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "Sdk-Platform",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Payment ID",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "maxPollMs",
+            "in": "query",
+            "description": "Maximum time to long-poll for payment status, in milliseconds.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 0,
+              "nullable": true
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment status retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/GetPaymentStatusResponse" }
+              }
+            }
+          },
+          "404": { "description": "Payment not found" }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Amount": {
+        "type": "object",
+        "required": ["unit", "value", "display"],
+        "properties": {
+          "display": {
+            "$ref": "#/components/schemas/AmountDisplay",
+            "description": "Display information for the amount"
+          },
+          "unit": {
+            "type": "string",
+            "description": "Currency unit, prefixed with either \"iso4217/\" or \"caip19/\""
+          },
+          "value": {
+            "type": "string",
+            "description": "Amount value, in the currency unit's minor units"
+          }
+        }
+      },
+      "AmountDisplay": {
+        "type": "object",
+        "required": ["assetSymbol", "assetName", "decimals"],
+        "properties": {
+          "assetName": {
+            "type": "string",
+            "description": "Full name of the asset"
+          },
+          "assetSymbol": {
+            "type": "string",
+            "description": "Ticker/symbol of the asset"
+          },
+          "decimals": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Number of minor decimals of the asset",
+            "minimum": 0
+          },
+          "iconUrl": {
+            "type": "string",
+            "nullable": true,
+            "description": "URL of the icon of the asset (if token)"
+          },
+          "networkName": {
+            "type": "string",
+            "nullable": true,
+            "description": "Name of the network of the asset (if token)"
+          }
+        }
+      },
+      "Action": {
+        "oneOf": [
+          {
+            "type": "object",
+            "description": "An action that requires collecting data from the user",
+            "required": ["data", "type"],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/CollectDataAction",
+                "description": "An action that requires collecting data from the user"
+              },
+              "type": {
+                "type": "string",
+                "enum": ["collectData"]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "An action that requires a wallet RPC call to complete",
+            "required": ["data", "type"],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/WalletRpcAction",
+                "description": "An action that requires a wallet RPC call to complete"
+              },
+              "type": {
+                "type": "string",
+                "enum": ["walletRpc"]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "An action that requires building to complete",
+            "required": ["data", "type"],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/Build",
+                "description": "An action that requires building to complete"
+              },
+              "type": {
+                "type": "string",
+                "enum": ["build"]
+              }
+            }
+          }
+        ]
+      },
+      "Build": {
+        "type": "object",
+        "required": ["data"],
+        "properties": {
+          "data": {}
+        }
+      },
+      "CollectDataAction": {
+        "type": "object",
+        "required": ["fields"],
+        "properties": {
+          "fields": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CollectDataField"
+            }
+          }
+        }
+      },
+      "CollectDataField": {
+        "type": "object",
+        "required": ["id", "name", "type", "required"],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "required": {
+            "type": "boolean"
+          },
+          "type": {
+            "type": "string"
+          }
+        }
+      },
+      "ConfirmPaymentRequest": {
+        "type": "object",
+        "required": ["optionId", "results"],
+        "properties": {
+          "optionId": {
+            "type": "string",
+            "description": "ID of the option to confirm"
+          },
+          "results": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConfirmPaymentResult"
+            }
+          }
+        }
+      },
+      "ConfirmPaymentResponse": {
+        "type": "object",
+        "required": ["status", "isFinal"],
+        "properties": {
+          "isFinal": {
+            "type": "boolean",
+            "description": "True if the payment is in a final state and no longer requires polling"
+          },
+          "pollInMs": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true,
+            "description": "Time to poll for payment status, in milliseconds. Not present if the payment is in a final state.",
+            "minimum": 0
+          },
+          "status": {
+            "$ref": "#/components/schemas/PaymentStatus",
+            "description": "Payment status"
+          }
+        }
+      },
+      "ConfirmPaymentResult": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": ["signature"],
+            "properties": {
+              "signature": {
+                "type": "object",
+                "required": ["value"],
+                "properties": {
+                  "value": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "ErrorCode": {
+        "type": "string",
+        "description": "Standard error codes for API responses.",
+        "enum": [
+          "rate_limited",
+          "invalid_params",
+          "params_validation",
+          "payment_not_found",
+          "internal_error",
+          "invalid_api_key",
+          "unauthorized",
+          "forbidden",
+          "invalid_state",
+          "missing_api_key",
+          "missing_merchant_api_key",
+          "missing_merchant_id",
+          "missing_sdk_name",
+          "missing_sdk_version",
+          "missing_sdk_platform",
+          "header_not_ascii",
+          "not_sandbox_api_key",
+          "merchant_not_found",
+          "merchant_exists",
+          "api_key_not_found"
+        ]
+      },
+      "FetchRequest": {
+        "type": "object",
+        "required": ["optionId", "data"],
+        "properties": {
+          "data": {
+            "description": "Extra data to be passed"
+          },
+          "optionId": {
+            "type": "string",
+            "description": "ID of the option to build an action for"
+          }
+        }
+      },
+      "FetchResponse": {
+        "type": "object",
+        "required": ["actions"],
+        "properties": {
+          "actions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Action"
+            }
+          }
+        }
+      },
+      "GetPaymentOptionsRequest": {
+        "type": "object",
+        "required": ["accounts"],
+        "properties": {
+          "accounts": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "refresh": {
+            "type": "array",
+            "nullable": true,
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "GetPaymentOptionsResponse": {
+        "type": "object",
+        "required": ["options"],
+        "properties": {
+          "info": {
+            "$ref": "#/components/schemas/GetPaymentResponse",
+            "nullable": true,
+            "description": "Payment information (included if includePaymentInfo=true)"
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PaymentOption"
+            }
+          }
+        }
+      },
+      "GetPaymentResponse": {
+        "type": "object",
+        "required": ["status", "amount", "expiresAt", "merchant"],
+        "properties": {
+          "amount": {
+            "$ref": "#/components/schemas/Amount",
+            "description": "Amount to be paid"
+          },
+          "expiresAt": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Payment expiration timestamp, in seconds since epoch",
+            "minimum": 0
+          },
+          "merchant": {
+            "$ref": "#/components/schemas/MerchantInfo",
+            "description": "Merchant information"
+          },
+          "status": {
+            "$ref": "#/components/schemas/PaymentStatus",
+            "description": "Payment status"
+          }
+        }
+      },
+      "GetPaymentStatusResponse": {
+        "type": "object",
+        "required": ["status", "isFinal"],
+        "properties": {
+          "isFinal": {
+            "type": "boolean",
+            "description": "True if the payment is in a final state and no longer requires polling"
+          },
+          "pollInMs": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true,
+            "description": "Time to poll for payment status, in milliseconds. Not present if the payment is in a final state.",
+            "minimum": 0
+          },
+          "status": {
+            "$ref": "#/components/schemas/PaymentStatus",
+            "description": "Payment status"
+          }
+        }
+      },
+      "MerchantInfo": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "iconUrl": {
+            "type": "string",
+            "nullable": true,
+            "description": "Merchant icon URL"
+          },
+          "name": {
+            "type": "string",
+            "description": "Merchant name"
+          }
+        }
+      },
+      "PaymentOption": {
+        "type": "object",
+        "required": ["id", "amount", "etaS", "actions"],
+        "properties": {
+          "amount": {
+            "$ref": "#/components/schemas/Amount",
+            "description": "The option's token and amount"
+          },
+          "etaS": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Estimated time to complete the option, in seconds",
+            "minimum": 0
+          },
+          "id": {
+            "type": "string",
+            "description": "ID of the option to be used to refer to it in other requests. May be up to 2^16 characters."
+          },
+          "actions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Action"
+            },
+            "description": "Actions required to complete the option"
+          }
+        }
+      },
+      "PaymentStatus": {
+        "type": "string",
+        "description": "Payment status representing the lifecycle of a payment.",
+        "enum": [
+          "requires_action",
+          "processing",
+          "succeeded",
+          "failed",
+          "expired"
+        ]
+      },
+      "SignTypedDataAction": {
+        "type": "object",
+        "required": ["chainId", "params"],
+        "properties": {
+          "chainId": {
+            "type": "string"
+          },
+          "params": {}
+        }
+      },
+      "WalletRpcAction": {
+        "oneOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SignTypedDataAction"
+              },
+              {
+                "type": "object",
+                "required": ["method"],
+                "properties": {
+                  "method": {
+                    "type": "string",
+                    "enum": ["eth_signTypedData_v4"]
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "securitySchemes": {
+      "API Key": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "Api-Key"
+      },
+      "Internal Api Key": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "Api-Key"
+      }
+    }
+  },
+  "security": [
+    { "API Key": [] },
+    { "Internal Api Key": [] }
+  ],
+  "tags": [
+    {
+      "name": "Gateway",
+      "description": "Gateway API for wallets to fulfill payments"
+    }
+  ]
+}
