@@ -458,17 +458,9 @@ impl From<types::GetPaymentResponse> for PaymentInfo {
 #[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
 #[serde(rename_all = "camelCase")]
 pub struct PaymentOptionsResponse {
+    pub payment_id: String,
     pub info: Option<PaymentInfo>,
     pub options: Vec<PaymentOption>,
-}
-
-impl From<types::GetPaymentOptionsResponse> for PaymentOptionsResponse {
-    fn from(r: types::GetPaymentOptionsResponse) -> Self {
-        Self {
-            info: r.info.map(Into::into),
-            options: r.options.into_iter().map(Into::into).collect(),
-        }
-    }
 }
 
 // ==================== Client ====================
@@ -550,7 +542,11 @@ impl WalletConnectPay {
         })?;
         *cache = cached;
 
-        Ok(api_response.into())
+        Ok(PaymentOptionsResponse {
+            payment_id,
+            info: api_response.info.map(Into::into),
+            options: api_response.options.into_iter().map(Into::into).collect(),
+        })
     }
 
     /// Get required payment actions for a selected option
@@ -735,7 +731,14 @@ impl WalletConnectPay {
 fn extract_payment_id(
     payment_link: &str,
 ) -> Result<String, GetPaymentOptionsError> {
-    let id = payment_link.rsplit('/').next().unwrap_or(payment_link);
+    let id = if let Some(query) = payment_link.split('?').nth(1) {
+        query
+            .split('&')
+            .find_map(|param| param.strip_prefix("pid="))
+            .unwrap_or("")
+    } else {
+        payment_link.rsplit('/').next().unwrap_or("")
+    };
     if id.is_empty() {
         return Err(GetPaymentOptionsError::InvalidRequest(
             "payment_link cannot be empty".to_string(),
