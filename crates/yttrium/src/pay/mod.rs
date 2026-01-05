@@ -484,11 +484,28 @@ struct CachedPaymentOption {
     actions: Vec<types::Action>,
 }
 
+use std::sync::atomic::{AtomicBool, Ordering};
+
 #[cfg_attr(feature = "uniffi", derive(uniffi::Object))]
 pub struct WalletConnectPay {
     client: Client,
     config: SdkConfig,
     cached_options: RwLock<Vec<CachedPaymentOption>>,
+    debug_enabled: AtomicBool,
+}
+
+impl WalletConnectPay {
+    fn log(&self, message: &str) {
+        if self.debug_enabled.load(Ordering::Relaxed) {
+            println!("[WalletConnectPay] {}", message);
+        }
+    }
+
+    fn log_error(&self, context: &str, error: &impl std::fmt::Debug) {
+        if self.debug_enabled.load(Ordering::Relaxed) {
+            println!("[WalletConnectPay] ERROR {}: {:?}", context, error);
+        }
+    }
 }
 
 #[cfg_attr(feature = "uniffi", uniffi::export(async_runtime = "tokio"))]
@@ -496,7 +513,20 @@ impl WalletConnectPay {
     #[cfg_attr(feature = "uniffi", uniffi::constructor)]
     pub fn new(config: SdkConfig) -> Self {
         let client = Client::new(&config.base_url);
-        Self { client, config, cached_options: RwLock::new(Vec::new()) }
+        Self {
+            client,
+            config,
+            cached_options: RwLock::new(Vec::new()),
+            debug_enabled: AtomicBool::new(false),
+        }
+    }
+
+    /// Enable debug logging (prints to stdout)
+    pub fn debug(&self, enabled: bool) {
+        self.debug_enabled.store(enabled, Ordering::Relaxed);
+        if enabled {
+            println!("[WalletConnectPay] Debug logging enabled");
+        }
     }
 
     /// Get payment options for given accounts
@@ -507,8 +537,15 @@ impl WalletConnectPay {
         accounts: Vec<String>,
         include_payment_info: bool,
     ) -> Result<PaymentOptionsResponse, GetPaymentOptionsError> {
+        self.log(&format!(
+            "get_payment_options: payment_link={}, accounts={:?}, include_payment_info={}",
+            payment_link, accounts, include_payment_info
+        ));
         let payment_id = extract_payment_id(&payment_link)?;
-        let body = types::GetPaymentOptionsRequest { accounts, refresh: None };
+        let body = types::GetPaymentOptionsRequest {
+            accounts: accounts.clone(),
+            refresh: None,
+        };
         let response = with_retry(|| async {
             with_sdk_config!(
                 self.client.gateway_get_payment_options(),
@@ -521,9 +558,16 @@ impl WalletConnectPay {
             .await
         })
         .await
-        .map_err(map_payment_options_error)?;
+        .map_err(|e| {
+            self.log_error("get_payment_options", &e);
+            map_payment_options_error(e)
+        })?;
 
         let api_response = response.into_inner();
+        self.log(&format!(
+            "get_payment_options: success, {} options",
+            api_response.options.len()
+        ));
 
         // Cache the options with their raw actions
         let cached: Vec<CachedPaymentOption> = api_response
@@ -557,8 +601,13 @@ impl WalletConnectPay {
         payment_id: String,
         option_id: String,
     ) -> Result<Vec<Action>, GetPaymentRequestError> {
+        self.log(&format!(
+            "get_required_payment_actions: payment_id={}, option_id={}",
+            payment_id, option_id
+        ));
         let raw_actions = {
             let cache = self.cached_options.read().map_err(|e| {
+                self.log_error("get_required_payment_actions cache read", &e);
                 GetPaymentRequestError::InternalError(format!(
                     "Cache lock poisoned: {}",
                     e
@@ -570,12 +619,20 @@ impl WalletConnectPay {
                 .map(|o| o.actions.clone())
         };
         let raw_actions = match raw_actions {
-            Some(actions) if !actions.is_empty() => actions,
+            Some(actions) if !actions.is_empty() => {
+                self.log("get_required_payment_actions: using cached actions");
+                actions
+            }
             _ => {
+                self.log("get_required_payment_actions: fetching actions");
                 let fetched = self
                     .fetch(&payment_id, &option_id, String::new())
                     .await
                     .map_err(|e| {
+                        self.log_error(
+                            "get_required_payment_actions fetch",
+                            &e,
+                        );
                         GetPaymentRequestError::FetchError(e.to_string())
                     })?;
                 let mut cache = self.cached_options.write().map_err(|e| {
@@ -597,7 +654,16 @@ impl WalletConnectPay {
                 fetched
             }
         };
-        self.resolve_actions(&payment_id, &option_id, raw_actions).await
+        let result =
+            self.resolve_actions(&payment_id, &option_id, raw_actions).await;
+        match &result {
+            Ok(actions) => self.log(&format!(
+                "get_required_payment_actions: success, {} actions",
+                actions.len()
+            )),
+            Err(e) => self.log_error("get_required_payment_actions", e),
+        }
+        result
     }
 
     /// Confirm a payment
@@ -609,12 +675,20 @@ impl WalletConnectPay {
         results: Vec<ConfirmPaymentResultItem>,
         max_poll_ms: Option<i64>,
     ) -> Result<ConfirmPaymentResultResponse, ConfirmPaymentError> {
+        self.log(&format!(
+            "confirm_payment: payment_id={}, option_id={}, results_count={}",
+            payment_id,
+            option_id,
+            results.len()
+        ));
         let api_results: Vec<types::ConfirmPaymentResult> = results
             .into_iter()
             .map(try_into_confirm_result)
             .collect::<Result<_, _>>()?;
-        let body =
-            types::ConfirmPaymentRequest { option_id, results: api_results };
+        let body = types::ConfirmPaymentRequest {
+            option_id: option_id.clone(),
+            results: api_results,
+        };
         let mut req = with_sdk_config!(
             self.client.confirm_payment_handler(),
             &self.config
@@ -626,11 +700,19 @@ impl WalletConnectPay {
         }
         let response = with_retry(|| async { req.clone().send().await })
             .await
-            .map_err(map_confirm_payment_error)?;
+            .map_err(|e| {
+                self.log_error("confirm_payment", &e);
+                map_confirm_payment_error(e)
+            })?;
         let mut result: ConfirmPaymentResultResponse =
             response.into_inner().into();
+        self.log(&format!(
+            "confirm_payment: initial status={:?}, is_final={}",
+            result.status, result.is_final
+        ));
         while !result.is_final {
             let poll_ms = result.poll_in_ms.unwrap_or(1000);
+            self.log(&format!("confirm_payment: polling in {}ms", poll_ms));
             tokio::time::sleep(std::time::Duration::from_millis(
                 poll_ms as u64,
             ))
@@ -638,13 +720,24 @@ impl WalletConnectPay {
             let status = self
                 .get_gateway_payment_status(payment_id.clone(), max_poll_ms)
                 .await
-                .map_err(|e| ConfirmPaymentError::Http(e.to_string()))?;
+                .map_err(|e| {
+                    self.log_error("confirm_payment poll", &e);
+                    ConfirmPaymentError::Http(e.to_string())
+                })?;
             result = ConfirmPaymentResultResponse {
                 status: status.status.into(),
                 is_final: status.is_final,
                 poll_in_ms: status.poll_in_ms,
             };
+            self.log(&format!(
+                "confirm_payment: polled status={:?}, is_final={}",
+                result.status, result.is_final
+            ));
         }
+        self.log(&format!(
+            "confirm_payment: complete, final status={:?}",
+            result.status
+        ));
         Ok(result)
     }
 }
