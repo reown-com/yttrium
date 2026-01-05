@@ -87,8 +87,6 @@ pub enum ConfirmPaymentError {
     InternalError(String),
     #[error("Unsupported RPC method: {0}")]
     UnsupportedMethod(String),
-    #[error("Unsupported RPC method: {0}")]
-    UnsupportedMethod(String),
 }
 
 const MAX_RETRIES: u32 = 3;
