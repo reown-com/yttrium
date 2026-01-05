@@ -194,7 +194,10 @@ impl From<types::WalletRpcAction> for WalletRpcAction {
             chain_id: a.chain_id,
             method: a.method.to_string(),
             params: serde_json::to_string(&a.params).unwrap_or_else(|e| {
-                tracing::error!("Failed to serialize WalletRpcAction params: {}", e);
+                tracing::error!(
+                    "Failed to serialize WalletRpcAction params: {}",
+                    e
+                );
                 "[]".to_string()
             }),
         }
@@ -309,7 +312,7 @@ fn try_into_confirm_result(
                 _ => {
                     return Err(ConfirmPaymentError::UnsupportedMethod(
                         data.method,
-                    ))
+                    ));
                 }
             };
             Ok(types::ConfirmPaymentResult::WalletRpc(result))
@@ -916,7 +919,8 @@ mod tests {
     #[tokio::test]
     async fn test_extract_payment_id() {
         assert_eq!(
-            extract_payment_id("https://pay.walletconnect.com/pay_123").unwrap(),
+            extract_payment_id("https://pay.walletconnect.com/pay_123")
+                .unwrap(),
             "pay_123"
         );
         assert_eq!(extract_payment_id("pay_456").unwrap(), "pay_456");
@@ -981,7 +985,10 @@ mod tests {
         assert_eq!(response.options.len(), 1);
 
         let actions = client
-            .get_required_payment_actions("pay_123".to_string(), "opt_1".to_string())
+            .get_required_payment_actions(
+                "pay_123".to_string(),
+                "opt_1".to_string(),
+            )
             .await
             .unwrap();
         assert_eq!(actions.len(), 1);
@@ -1060,7 +1067,10 @@ mod tests {
             .unwrap();
 
         let actions = client
-            .get_required_payment_actions("pay_123".to_string(), "opt_1".to_string())
+            .get_required_payment_actions(
+                "pay_123".to_string(),
+                "opt_1".to_string(),
+            )
             .await
             .unwrap();
         assert_eq!(actions.len(), 1);
@@ -1097,7 +1107,10 @@ mod tests {
         let client = WalletConnectPay::new(test_config(mock_server.uri()));
         // Call without populating cache first - should call fetch
         let actions = client
-            .get_required_payment_actions("pay_456".to_string(), "opt_new".to_string())
+            .get_required_payment_actions(
+                "pay_456".to_string(),
+                "opt_new".to_string(),
+            )
             .await
             .unwrap();
         assert_eq!(actions.len(), 1);
@@ -1116,7 +1129,10 @@ mod tests {
 
         let client = WalletConnectPay::new(test_config(mock_server.uri()));
         let result = client
-            .get_required_payment_actions("pay_789".to_string(), "opt_missing".to_string())
+            .get_required_payment_actions(
+                "pay_789".to_string(),
+                "opt_missing".to_string(),
+            )
             .await;
         assert!(matches!(result, Err(GetPaymentRequestError::FetchError(_))));
     }
@@ -1140,12 +1156,11 @@ mod tests {
             .await;
 
         let client = WalletConnectPay::new(test_config(mock_server.uri()));
-        let results = vec![ConfirmPaymentResultItem::WalletRpc(
-            WalletRpcResultData {
+        let results =
+            vec![ConfirmPaymentResultItem::WalletRpc(WalletRpcResultData {
                 method: "eth_signTypedData_v4".to_string(),
                 data: vec!["0x123".to_string()],
-            },
-        )];
+            })];
         let response = client
             .confirm_payment(
                 "pay_123".to_string(),
@@ -1191,12 +1206,11 @@ mod tests {
             .await;
 
         let client = WalletConnectPay::new(test_config(mock_server.uri()));
-        let results = vec![ConfirmPaymentResultItem::WalletRpc(
-            WalletRpcResultData {
+        let results =
+            vec![ConfirmPaymentResultItem::WalletRpc(WalletRpcResultData {
                 method: "eth_signTypedData_v4".to_string(),
                 data: vec!["0x123".to_string()],
-            },
-        )];
+            })];
         let response = client
             .confirm_payment(
                 "pay_123".to_string(),
@@ -1277,12 +1291,11 @@ mod tests {
             .await;
 
         let client = WalletConnectPay::new(custom_config);
-        let results = vec![ConfirmPaymentResultItem::WalletRpc(
-            WalletRpcResultData {
+        let results =
+            vec![ConfirmPaymentResultItem::WalletRpc(WalletRpcResultData {
                 method: "eth_signTypedData_v4".to_string(),
                 data: vec!["0x123".to_string()],
-            },
-        )];
+            })];
         let result = client
             .confirm_payment(
                 "pay_custom".to_string(),

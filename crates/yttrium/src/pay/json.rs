@@ -353,8 +353,10 @@ mod tests {
 
         let actions_req =
             r#"{"paymentId": "pay_json_456", "optionId": "opt_json_2"}"#;
-        let response_json =
-            client.get_required_payment_actions(actions_req.to_string()).await.unwrap();
+        let response_json = client
+            .get_required_payment_actions(actions_req.to_string())
+            .await
+            .unwrap();
         let parsed: serde_json::Value =
             serde_json::from_str(&response_json).unwrap();
         assert!(parsed.is_array());
