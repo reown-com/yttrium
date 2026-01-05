@@ -85,6 +85,8 @@ pub enum ConfirmPaymentError {
     Http(String),
     #[error("Internal error: {0}")]
     InternalError(String),
+    #[error("Unsupported RPC method: {0}")]
+    UnsupportedMethod(String),
 }
 
 const MAX_RETRIES: u32 = 3;
@@ -191,7 +193,10 @@ impl From<types::WalletRpcAction> for WalletRpcAction {
         Self {
             chain_id: a.chain_id,
             method: a.method.to_string(),
-            params: serde_json::to_string(&a.params).unwrap_or_default(),
+            params: serde_json::to_string(&a.params).unwrap_or_else(|e| {
+                tracing::error!("Failed to serialize WalletRpcAction params: {}", e);
+                "[]".to_string()
+            }),
         }
     }
 }
@@ -292,21 +297,29 @@ pub enum ConfirmPaymentResultItem {
     CollectData(CollectDataResultData),
 }
 
-impl From<ConfirmPaymentResultItem> for types::ConfirmPaymentResult {
-    fn from(r: ConfirmPaymentResultItem) -> Self {
-        match r {
-            ConfirmPaymentResultItem::WalletRpc(data) => {
-                types::ConfirmPaymentResult::WalletRpc(
-                    types::WalletRpcResult::EthSignTypedDataV4(data.data),
-                )
-            }
-            ConfirmPaymentResultItem::CollectData(data) => {
-                types::ConfirmPaymentResult::CollectData(
-                    types::CollectDataResult {
-                        fields: data.fields.into_iter().map(Into::into).collect(),
-                    },
-                )
-            }
+fn try_into_confirm_result(
+    r: ConfirmPaymentResultItem,
+) -> Result<types::ConfirmPaymentResult, ConfirmPaymentError> {
+    match r {
+        ConfirmPaymentResultItem::WalletRpc(data) => {
+            let result = match data.method.as_str() {
+                "eth_signTypedData_v4" => {
+                    types::WalletRpcResult::EthSignTypedDataV4(data.data)
+                }
+                _ => {
+                    return Err(ConfirmPaymentError::UnsupportedMethod(
+                        data.method,
+                    ))
+                }
+            };
+            Ok(types::ConfirmPaymentResult::WalletRpc(result))
+        }
+        ConfirmPaymentResultItem::CollectData(data) => {
+            Ok(types::ConfirmPaymentResult::CollectData(
+                types::CollectDataResult {
+                    fields: data.fields.into_iter().map(Into::into).collect(),
+                },
+            ))
         }
     }
 }
@@ -499,7 +512,7 @@ impl WalletConnectPay {
         accounts: Vec<String>,
         include_payment_info: bool,
     ) -> Result<PaymentOptionsResponse, GetPaymentOptionsError> {
-        let payment_id = extract_payment_id(&payment_link);
+        let payment_id = extract_payment_id(&payment_link)?;
         let body = types::GetPaymentOptionsRequest { accounts, refresh: None };
         let response = with_retry(|| async {
             with_sdk_config!(
@@ -597,8 +610,10 @@ impl WalletConnectPay {
         results: Vec<ConfirmPaymentResultItem>,
         max_poll_ms: Option<i64>,
     ) -> Result<ConfirmPaymentResultResponse, ConfirmPaymentError> {
-        let api_results: Vec<types::ConfirmPaymentResult> =
-            results.into_iter().map(Into::into).collect();
+        let api_results: Vec<types::ConfirmPaymentResult> = results
+            .into_iter()
+            .map(try_into_confirm_result)
+            .collect::<Result<_, _>>()?;
         let body =
             types::ConfirmPaymentRequest { option_id, results: api_results };
         let mut req = with_sdk_config!(
@@ -714,8 +729,16 @@ impl WalletConnectPay {
     }
 }
 
-fn extract_payment_id(payment_link: &str) -> String {
-    payment_link.rsplit('/').next().unwrap_or(payment_link).to_string()
+fn extract_payment_id(
+    payment_link: &str,
+) -> Result<String, GetPaymentOptionsError> {
+    let id = payment_link.rsplit('/').next().unwrap_or(payment_link);
+    if id.is_empty() {
+        return Err(GetPaymentOptionsError::InvalidRequest(
+            "payment_link cannot be empty".to_string(),
+        ));
+    }
+    Ok(id.to_string())
 }
 
 fn map_payment_options_error<T: std::fmt::Debug>(
@@ -893,14 +916,15 @@ mod tests {
     #[tokio::test]
     async fn test_extract_payment_id() {
         assert_eq!(
-            extract_payment_id("https://pay.walletconnect.com/pay_123"),
+            extract_payment_id("https://pay.walletconnect.com/pay_123").unwrap(),
             "pay_123"
         );
-        assert_eq!(extract_payment_id("pay_456"), "pay_456");
+        assert_eq!(extract_payment_id("pay_456").unwrap(), "pay_456");
         assert_eq!(
-            extract_payment_id("https://example.com/path/to/pay_789"),
+            extract_payment_id("https://example.com/path/to/pay_789").unwrap(),
             "pay_789"
         );
+        assert!(extract_payment_id("").is_err());
     }
 
     #[tokio::test]

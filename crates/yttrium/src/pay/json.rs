@@ -96,6 +96,16 @@ impl WalletConnectPayJson {
         let req: GetPaymentOptionsRequestJson =
             serde_json::from_str(&request_json)
                 .map_err(|e| PayJsonError::JsonParse(e.to_string()))?;
+        if req.payment_link.is_empty() {
+            return Err(PayJsonError::JsonParse(
+                "payment_link cannot be empty".to_string(),
+            ));
+        }
+        if req.accounts.is_empty() {
+            return Err(PayJsonError::JsonParse(
+                "accounts cannot be empty".to_string(),
+            ));
+        }
         let result = self
             .client
             .get_payment_options(
@@ -116,8 +126,19 @@ impl WalletConnectPayJson {
         &self,
         request_json: String,
     ) -> Result<String, PayJsonError> {
-        let req: GetRequiredPaymentActionsRequestJson = serde_json::from_str(&request_json)
-            .map_err(|e| PayJsonError::JsonParse(e.to_string()))?;
+        let req: GetRequiredPaymentActionsRequestJson =
+            serde_json::from_str(&request_json)
+                .map_err(|e| PayJsonError::JsonParse(e.to_string()))?;
+        if req.payment_id.is_empty() {
+            return Err(PayJsonError::JsonParse(
+                "payment_id cannot be empty".to_string(),
+            ));
+        }
+        if req.option_id.is_empty() {
+            return Err(PayJsonError::JsonParse(
+                "option_id cannot be empty".to_string(),
+            ));
+        }
         let result = self
             .client
             .get_required_payment_actions(req.payment_id, req.option_id)
@@ -137,6 +158,16 @@ impl WalletConnectPayJson {
         let req: ConfirmPaymentJsonRequestJson =
             serde_json::from_str(&request_json)
                 .map_err(|e| PayJsonError::JsonParse(e.to_string()))?;
+        if req.payment_id.is_empty() {
+            return Err(PayJsonError::JsonParse(
+                "payment_id cannot be empty".to_string(),
+            ));
+        }
+        if req.option_id.is_empty() {
+            return Err(PayJsonError::JsonParse(
+                "option_id cannot be empty".to_string(),
+            ));
+        }
         let results: Vec<ConfirmPaymentResultItem> = req
             .results
             .into_iter()
