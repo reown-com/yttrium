@@ -866,15 +866,21 @@ fn map_payment_options_error<T: std::fmt::Debug>(
 fn map_confirm_payment_error<T: std::fmt::Debug>(
     e: progenitor_client::Error<T>,
 ) -> ConfirmPaymentError {
-    let msg = format!("{:?}", e);
-    let status = match &e {
+    // Try to extract response body for better error messages
+    let (msg, status) = match &e {
         progenitor_client::Error::ErrorResponse(resp) => {
-            Some(resp.status().as_u16())
+            (format!("{:?}", e), Some(resp.status().as_u16()))
         }
         progenitor_client::Error::UnexpectedResponse(resp) => {
-            Some(resp.status().as_u16())
+            // Log the status and any available body info
+            let status = resp.status().as_u16();
+            let msg = format!(
+                "Status: {}, Response: {:?}",
+                status, e
+            );
+            (msg, Some(status))
         }
-        _ => None,
+        _ => (format!("{:?}", e), None),
     };
     match status {
         Some(404) => ConfirmPaymentError::PaymentNotFound(msg),
