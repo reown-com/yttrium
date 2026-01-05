@@ -191,6 +191,7 @@ mod tests {
     fn test_config(base_url: String) -> SdkConfig {
         SdkConfig {
             base_url,
+            project_id: "test-project-id".to_string(),
             api_key: "test-api-key".to_string(),
             sdk_name: "test-sdk".to_string(),
             sdk_version: "1.0.0".to_string(),
@@ -201,7 +202,7 @@ mod tests {
 
     fn test_config_json(base_url: &str) -> String {
         format!(
-            r#"{{"baseUrl":"{}","apiKey":"test-api-key","sdkName":"test-sdk","sdkVersion":"1.0.0","sdkPlatform":"test","bundleId":"com.test.app"}}"#,
+            r#"{{"baseUrl":"{}","projectId":"test-project-id","apiKey":"test-api-key","sdkName":"test-sdk","sdkVersion":"1.0.0","sdkPlatform":"test","bundleId":"com.test.app"}}"#,
             base_url
         )
     }
@@ -413,7 +414,7 @@ mod tests {
         let client =
             WalletConnectPayJson::new(test_config_json(&mock_server.uri()))
                 .unwrap();
-        let request_json = r#"{"paymentId": "", "maxPollMs": null}"#;
+        let request_json = r#"{"paymentId": "", "optionId": "opt_1", "results": [], "maxPollMs": null}"#;
         let result = client.confirm_payment(request_json.to_string()).await;
         assert!(matches!(result, Err(PayJsonError::ConfirmPayment(_))));
     }
@@ -424,7 +425,7 @@ mod tests {
         let client =
             WalletConnectPayJson::new(test_config_json(&mock_server.uri()))
                 .unwrap();
-        let request_json = r#"{"paymentId": "pay_123", "maxPollMs": -1000}"#;
+        let request_json = r#"{"paymentId": "pay_123", "optionId": "opt_1", "results": [], "maxPollMs": -1000}"#;
         let result = client.confirm_payment(request_json.to_string()).await;
         assert!(matches!(result, Err(PayJsonError::ConfirmPayment(_))));
     }
