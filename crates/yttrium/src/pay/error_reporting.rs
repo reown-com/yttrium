@@ -302,9 +302,7 @@ pub(crate) fn report_error(
     crate::spawn::spawn(fut);
 
     #[cfg(test)]
-    {
-        let _ = fut; // Don't send in tests
-    }
+    drop(fut); // Don't send in tests
 }
 
 /// Helper to get error type name from an error enum
