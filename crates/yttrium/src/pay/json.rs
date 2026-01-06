@@ -415,9 +415,10 @@ mod tests {
         let client =
             WalletConnectPayJson::new(test_config_json(&mock_server.uri()))
                 .unwrap();
+        // Invalid JSON: "results" should be "signatures"
         let request_json = r#"{"paymentId": "pay_123", "optionId": "opt_1", "results": [], "maxPollMs": -1000}"#;
         let result = client.confirm_payment(request_json.to_string()).await;
-        assert!(matches!(result, Err(PayJsonError::ConfirmPayment(_))));
+        assert!(matches!(result, Err(PayJsonError::JsonParse(_))));
     }
 
     #[tokio::test]
