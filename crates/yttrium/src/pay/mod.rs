@@ -500,6 +500,14 @@ pub struct WalletConnectPay {
 impl WalletConnectPay {
     #[cfg_attr(feature = "uniffi", uniffi::constructor)]
     pub fn new(config: SdkConfig) -> Self {
+        // Install global panic hook for error reporting (no-op if already installed)
+        error_reporting::install_panic_hook(
+            config.bundle_id.clone(),
+            config.project_id.clone(),
+            config.sdk_name.clone(),
+            config.sdk_version.clone(),
+        );
+
         let client = Client::new(&config.base_url);
         let error_http_client = reqwest::Client::builder()
             .user_agent(format!("{}/{}", config.sdk_name, config.sdk_version))
