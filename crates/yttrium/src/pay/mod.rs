@@ -503,8 +503,12 @@ impl WalletConnectPay {
         let client = Client::new(&config.base_url);
         let error_http_client = reqwest::Client::builder()
             .user_agent(format!("{}/{}", config.sdk_name, config.sdk_version))
+            .timeout(std::time::Duration::from_secs(5))
             .build()
-            .unwrap_or_default();
+            .unwrap_or_else(|e| {
+                tracing::warn!("Failed to build error HTTP client: {}", e);
+                reqwest::Client::new()
+            });
         Self {
             client,
             config,
@@ -552,14 +556,10 @@ impl WalletConnectPay {
                 actions: o.actions.clone(),
             })
             .collect();
-        let mut cache = self.cached_options.write().map_err(|e| {
-            let err = GetPaymentOptionsError::InternalError(format!(
-                "Cache lock poisoned: {}",
-                e
-            ));
-            self.report_error(&err, &payment_id);
-            err
-        })?;
+        let mut cache = self
+            .cached_options
+            .write()
+            .expect("Cache lock poisoned - indicates a bug");
         *cache = cached;
 
         Ok(PaymentOptionsResponse {
@@ -578,14 +578,10 @@ impl WalletConnectPay {
         option_id: String,
     ) -> Result<Vec<Action>, GetPaymentRequestError> {
         let raw_actions = {
-            let cache = self.cached_options.read().map_err(|e| {
-                let err = GetPaymentRequestError::InternalError(format!(
-                    "Cache lock poisoned: {}",
-                    e
-                ));
-                self.report_error(&err, &payment_id);
-                err
-            })?;
+            let cache = self
+                .cached_options
+                .read()
+                .expect("Cache lock poisoned - indicates a bug");
             cache
                 .iter()
                 .find(|o| o.option_id == option_id)
@@ -603,14 +599,10 @@ impl WalletConnectPay {
                         self.report_error(&err, &payment_id);
                         err
                     })?;
-                let mut cache = self.cached_options.write().map_err(|e| {
-                    let err = GetPaymentRequestError::InternalError(format!(
-                        "Cache lock poisoned: {}",
-                        e
-                    ));
-                    self.report_error(&err, &payment_id);
-                    err
-                })?;
+                let mut cache = self
+                    .cached_options
+                    .write()
+                    .expect("Cache lock poisoned - indicates a bug");
                 if let Some(cached) =
                     cache.iter_mut().find(|o| o.option_id == option_id)
                 {

@@ -1,16 +1,37 @@
 use {
     reqwest::Client as HttpClient,
     serde::Serialize,
-    std::time::{SystemTime, UNIX_EPOCH},
+    std::{
+        sync::atomic::{AtomicU64, Ordering},
+        time::{SystemTime, UNIX_EPOCH},
+    },
     uuid::Uuid,
 };
 
 const PULSE_BASE_URL: &str = "https://pulse.walletconnect.org/e";
+const MAX_TRACE_LENGTH: usize = 500;
+const MIN_REPORT_INTERVAL_MS: u64 = 1000; // Rate limit: max 1 report per second
+
+static LAST_REPORT_MS: AtomicU64 = AtomicU64::new(0);
+
+/// URL-encode a string for use in query parameters
+fn url_encode(s: &str) -> String {
+    s.chars()
+        .map(|c| match c {
+            'A'..='Z' | 'a'..='z' | '0'..='9' | '-' | '_' | '.' | '~' => {
+                c.to_string()
+            }
+            _ => format!("%{:02X}", c as u8),
+        })
+        .collect()
+}
 
 fn build_pulse_url(project_id: &str, sdk_version: &str) -> String {
     format!(
         "{}?projectId={}&st=pay_sdk&sv={}",
-        PULSE_BASE_URL, project_id, sdk_version
+        PULSE_BASE_URL,
+        url_encode(project_id),
+        url_encode(sdk_version)
     )
 }
 
@@ -48,19 +69,34 @@ pub(crate) fn report_error(
     payment_id: &str,
     trace: &str,
 ) {
+    // Rate limiting: skip if reported too recently
+    let now_ms = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0);
+    let last = LAST_REPORT_MS.load(Ordering::Relaxed);
+    if now_ms.saturating_sub(last) < MIN_REPORT_INTERVAL_MS {
+        return;
+    }
+    LAST_REPORT_MS.store(now_ms, Ordering::Relaxed);
+
+    // Truncate trace to limit data exposure
+    let sanitized_trace = if trace.len() > MAX_TRACE_LENGTH {
+        format!("{}...[truncated]", &trace[..MAX_TRACE_LENGTH])
+    } else {
+        trace.to_string()
+    };
+
     let event = ErrorEvent {
         event_id: Uuid::new_v4().to_string(),
         bundle_id: bundle_id.to_string(),
-        timestamp: SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .map(|d| d.as_millis() as u64)
-            .unwrap_or(0),
+        timestamp: now_ms,
         props: ErrorProps {
             event: "error",
             error_type: error_type.to_string(),
             properties: ErrorProperties {
                 topic: payment_id.to_string(),
-                trace: trace.to_string(),
+                trace: sanitized_trace,
             },
         },
     };
@@ -69,24 +105,40 @@ pub(crate) fn report_error(
     let user_agent = format!("{}/{}", sdk_name, sdk_version);
     let client = http_client.clone();
     crate::spawn::spawn(async move {
-        let _ = client
+        if let Err(e) = client
             .post(&url)
             .header("User-Agent", user_agent)
             .json(&event)
             .send()
-            .await;
+            .await
+        {
+            tracing::debug!("Error reporting failed: {}", e);
+        }
     });
 }
 
-/// Helper to get error type name from an error enum
+/// Helper to get error type name from an error enum.
+/// Handles tuple variants, struct variants, unit variants, and qualified paths.
 pub(crate) fn error_type_name<E: std::fmt::Debug>(error: &E) -> String {
     let debug = format!("{:?}", error);
-    debug.split('(').next().unwrap_or("Unknown").to_string()
+    let raw_name = debug
+        .split(|c: char| c == '(' || c == '{' || c.is_whitespace())
+        .next()
+        .unwrap_or("Unknown");
+    raw_name.rsplit("::").next().unwrap_or(raw_name).to_string()
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_url_encode() {
+        assert_eq!(url_encode("simple"), "simple");
+        assert_eq!(url_encode("with space"), "with%20space");
+        assert_eq!(url_encode("a&b=c"), "a%26b%3Dc");
+        assert_eq!(url_encode("test?query"), "test%3Fquery");
+    }
 
     #[test]
     fn test_build_pulse_url() {
@@ -98,7 +150,14 @@ mod tests {
     }
 
     #[test]
-    fn test_error_type_name() {
+    fn test_build_pulse_url_with_special_chars() {
+        let url = build_pulse_url("id&evil=1", "v1.0 beta");
+        assert!(url.contains("projectId=id%26evil%3D1"));
+        assert!(url.contains("sv=v1.0%20beta"));
+    }
+
+    #[test]
+    fn test_error_type_name_tuple_variant() {
         #[derive(Debug)]
         #[allow(dead_code)]
         enum TestError {
@@ -113,6 +172,36 @@ mod tests {
         assert_eq!(
             error_type_name(&TestError::InvalidRequest("msg".to_string())),
             "InvalidRequest"
+        );
+    }
+
+    #[test]
+    fn test_error_type_name_unit_variant() {
+        #[derive(Debug)]
+        #[allow(dead_code)]
+        enum TestError {
+            Timeout,
+            NetworkError,
+        }
+
+        assert_eq!(error_type_name(&TestError::Timeout), "Timeout");
+        assert_eq!(error_type_name(&TestError::NetworkError), "NetworkError");
+    }
+
+    #[test]
+    fn test_error_type_name_struct_variant() {
+        #[derive(Debug)]
+        #[allow(dead_code)]
+        enum TestError {
+            Custom { code: u32, message: String },
+        }
+
+        assert_eq!(
+            error_type_name(&TestError::Custom {
+                code: 1,
+                message: "test".to_string()
+            }),
+            "Custom"
         );
     }
 
