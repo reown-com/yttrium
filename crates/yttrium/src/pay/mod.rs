@@ -11,6 +11,19 @@ pub mod json;
 #[cfg(feature = "uniffi")]
 pub use json::{PayJsonError, WalletConnectPayJson};
 
+// Logging helpers - use tracing which routes to registered logger
+macro_rules! pay_debug {
+    ($($arg:tt)*) => {
+        tracing::debug!($($arg)*)
+    };
+}
+
+macro_rules! pay_error {
+    ($($arg:tt)*) => {
+        tracing::error!($($arg)*)
+    };
+}
+
 #[derive(Debug, thiserror::Error)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Error))]
 pub enum PayError {
@@ -194,7 +207,7 @@ impl From<types::WalletRpcAction> for WalletRpcAction {
             chain_id: a.chain_id,
             method: a.method.to_string(),
             params: serde_json::to_string(&a.params).unwrap_or_else(|e| {
-                tracing::error!(
+                pay_error!(
                     "Failed to serialize WalletRpcAction params: {}",
                     e
                 );
@@ -507,7 +520,7 @@ impl WalletConnectPay {
         accounts: Vec<String>,
         include_payment_info: bool,
     ) -> Result<PaymentOptionsResponse, GetPaymentOptionsError> {
-        tracing::debug!(
+        pay_debug!(
             "get_payment_options: payment_link={}, accounts={:?}, include_payment_info={}",
             payment_link,
             accounts,
@@ -531,12 +544,12 @@ impl WalletConnectPay {
         })
         .await
         .map_err(|e| {
-            tracing::error!("get_payment_options: {:?}", e);
+            pay_error!("get_payment_options: {:?}", e);
             map_payment_options_error(e)
         })?;
 
         let api_response = response.into_inner();
-        tracing::debug!(
+        pay_debug!(
             "get_payment_options: success, {} options",
             api_response.options.len()
         );
@@ -573,14 +586,14 @@ impl WalletConnectPay {
         payment_id: String,
         option_id: String,
     ) -> Result<Vec<Action>, GetPaymentRequestError> {
-        tracing::debug!(
+        pay_debug!(
             "get_required_payment_actions: payment_id={}, option_id={}",
             payment_id,
             option_id
         );
         let raw_actions = {
             let cache = self.cached_options.read().map_err(|e| {
-                tracing::error!(
+                pay_error!(
                     "get_required_payment_actions cache read: {:?}",
                     e
                 );
@@ -596,20 +609,20 @@ impl WalletConnectPay {
         };
         let raw_actions = match raw_actions {
             Some(actions) if !actions.is_empty() => {
-                tracing::debug!(
+                pay_debug!(
                     "get_required_payment_actions: using cached actions"
                 );
                 actions
             }
             _ => {
-                tracing::debug!(
+                pay_debug!(
                     "get_required_payment_actions: fetching actions"
                 );
                 let fetched = self
                     .fetch(&payment_id, &option_id, String::new())
                     .await
                     .map_err(|e| {
-                        tracing::error!(
+                        pay_error!(
                             "get_required_payment_actions fetch: {:?}",
                             e
                         );
@@ -637,11 +650,11 @@ impl WalletConnectPay {
         let result =
             self.resolve_actions(&payment_id, &option_id, raw_actions).await;
         match &result {
-            Ok(actions) => tracing::debug!(
+            Ok(actions) => pay_debug!(
                 "get_required_payment_actions: success, {} actions",
                 actions.len()
             ),
-            Err(e) => tracing::error!("get_required_payment_actions: {:?}", e),
+            Err(e) => pay_error!("get_required_payment_actions: {:?}", e),
         }
         result
     }
@@ -655,7 +668,7 @@ impl WalletConnectPay {
         results: Vec<ConfirmPaymentResultItem>,
         max_poll_ms: Option<i64>,
     ) -> Result<ConfirmPaymentResultResponse, ConfirmPaymentError> {
-        tracing::debug!(
+        pay_debug!(
             "confirm_payment: payment_id={}, option_id={}, results_count={}",
             payment_id,
             option_id,
@@ -681,19 +694,19 @@ impl WalletConnectPay {
         let response = with_retry(|| async { req.clone().send().await })
             .await
             .map_err(|e| {
-                tracing::error!("confirm_payment: {:?}", e);
+                pay_error!("confirm_payment: {:?}", e);
                 map_confirm_payment_error(e)
             })?;
         let mut result: ConfirmPaymentResultResponse =
             response.into_inner().into();
-        tracing::debug!(
+        pay_debug!(
             "confirm_payment: initial status={:?}, is_final={}",
             result.status,
             result.is_final
         );
         while !result.is_final {
             let poll_ms = result.poll_in_ms.unwrap_or(1000);
-            tracing::debug!("confirm_payment: polling in {}ms", poll_ms);
+            pay_debug!("confirm_payment: polling in {}ms", poll_ms);
             tokio::time::sleep(std::time::Duration::from_millis(
                 poll_ms as u64,
             ))
@@ -702,7 +715,7 @@ impl WalletConnectPay {
                 .get_gateway_payment_status(payment_id.clone(), max_poll_ms)
                 .await
                 .map_err(|e| {
-                    tracing::error!("confirm_payment poll: {:?}", e);
+                    pay_error!("confirm_payment poll: {:?}", e);
                     ConfirmPaymentError::Http(e.to_string())
                 })?;
             result = ConfirmPaymentResultResponse {
@@ -710,13 +723,13 @@ impl WalletConnectPay {
                 is_final: status.is_final,
                 poll_in_ms: status.poll_in_ms,
             };
-            tracing::debug!(
+            pay_debug!(
                 "confirm_payment: polled status={:?}, is_final={}",
                 result.status,
                 result.is_final
             );
         }
-        tracing::debug!(
+        pay_debug!(
             "confirm_payment: complete, final status={:?}",
             result.status
         );
