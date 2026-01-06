@@ -337,9 +337,7 @@ impl From<types::PaymentOption> for PaymentOption {
                     types::Action::WalletRpc(data) => {
                         Some(Action { wallet_rpc: data.into() })
                     }
-                    types::Action::CollectData(_) | types::Action::Build(_) => {
-                        None
-                    }
+                    types::Action::Build(_) => None,
                 })
                 .collect(),
         }
@@ -639,7 +637,6 @@ impl WalletConnectPay {
                         }
                     }
                 }
-                types::Action::CollectData(_) => {}
             }
         }
         Ok(result)

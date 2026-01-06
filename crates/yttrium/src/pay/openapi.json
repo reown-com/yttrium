@@ -651,24 +651,6 @@
                 ]
               }
             }
-          },
-          {
-            "type": "object",
-            "required": [
-              "data",
-              "type"
-            ],
-            "properties": {
-              "data": {
-                "$ref": "#/components/schemas/CollectData"
-              },
-              "type": {
-                "type": "string",
-                "enum": [
-                  "collectData"
-                ]
-              }
-            }
           }
         ],
         "example": {
@@ -1200,25 +1182,6 @@
               "actions": [
                 {
                   "data": {
-                    "fields": [
-                      {
-                        "id": "fullName",
-                        "name": "First name",
-                        "required": true,
-                        "type": "text"
-                      },
-                      {
-                        "id": "dob",
-                        "name": "Date of birth",
-                        "required": true,
-                        "type": "date"
-                      }
-                    ]
-                  },
-                  "type": "collectData"
-                },
-                {
-                  "data": {
                     "chain_id": "eip155:8453",
                     "method": "eth_signTypedData_v4",
                     "params": [
@@ -1387,25 +1350,6 @@
         },
         "example": {
           "actions": [
-            {
-              "data": {
-                "fields": [
-                  {
-                    "id": "fullName",
-                    "name": "First name",
-                    "required": true,
-                    "type": "text"
-                  },
-                  {
-                    "id": "dob",
-                    "name": "Date of birth",
-                    "required": true,
-                    "type": "date"
-                  }
-                ]
-              },
-              "type": "collectData"
-            },
             {
               "data": {
                 "chain_id": "eip155:8453",
