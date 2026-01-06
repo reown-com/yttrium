@@ -147,8 +147,8 @@ mod tests {
     async fn test_real_error_event() {
         use std::time::{SystemTime, UNIX_EPOCH};
 
-        let project_id =
-            std::env::var("PROJECT_ID").expect("PROJECT_ID environment variable must be set");
+        let project_id = std::env::var("PROJECT_ID")
+            .expect("PROJECT_ID environment variable must be set");
         let sdk_name = "pay_sdk";
         let sdk_version = "rust-0.1.0";
         let bundle_id = "com.test.yttrium";
@@ -172,7 +172,10 @@ mod tests {
 
         let url = build_pulse_url(&project_id, sdk_version);
         println!("Sending to URL: {}", url);
-        println!("Event JSON: {}", serde_json::to_string_pretty(&event).unwrap());
+        println!(
+            "Event JSON: {}",
+            serde_json::to_string_pretty(&event).unwrap()
+        );
 
         let client = HttpClient::builder()
             .user_agent(format!("{}/{}", sdk_name, sdk_version))
@@ -180,7 +183,11 @@ mod tests {
             .unwrap();
         let response = client.post(&url).json(&event).send().await;
 
-        assert!(response.is_ok(), "Failed to send error event: {:?}", response.err());
+        assert!(
+            response.is_ok(),
+            "Failed to send error event: {:?}",
+            response.err()
+        );
         let resp = response.unwrap();
         let status = resp.status();
         let body = resp.text().await.unwrap_or_default();
