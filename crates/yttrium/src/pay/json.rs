@@ -1,7 +1,4 @@
-use super::{
-    CollectDataFieldResult, CollectDataResultData, ConfirmPaymentResultItem,
-    SdkConfig, WalletConnectPay, WalletRpcResultData,
-};
+use super::{CollectDataFieldResult, SdkConfig, WalletConnectPay};
 
 #[derive(Debug, thiserror::Error)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Error))]
@@ -43,30 +40,12 @@ struct CollectDataFieldResultJson {
 
 #[derive(Debug, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct WalletRpcResultJson {
-    method: String,
-    data: Vec<String>,
-}
-
-#[derive(Debug, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct CollectDataResultJson {
-    fields: Vec<CollectDataFieldResultJson>,
-}
-
-#[derive(Debug, serde::Deserialize)]
-#[serde(rename_all = "camelCase", tag = "type", content = "data")]
-enum ConfirmPaymentResultItemJson {
-    WalletRpc(WalletRpcResultJson),
-    CollectData(CollectDataResultJson),
-}
-
-#[derive(Debug, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
 struct ConfirmPaymentJsonRequestJson {
     payment_id: String,
     option_id: String,
-    results: Vec<ConfirmPaymentResultItemJson>,
+    signatures: Vec<String>,
+    #[serde(default)]
+    collected_data: Option<Vec<CollectDataFieldResultJson>>,
     max_poll_ms: Option<i64>,
 }
 
@@ -149,7 +128,7 @@ impl WalletConnectPayJson {
     }
 
     /// Confirm a payment
-    /// Input JSON: { "paymentId": "string", "optionId": "string", "results": [...], "maxPollMs": number? }
+    /// Input JSON: { "paymentId": "string", "optionId": "string", "signatures": ["string"], "collectedData": [{"id": "string", "value": "string"}]?, "maxPollMs": number? }
     /// Returns JSON ConfirmPaymentResponse or error
     pub async fn confirm_payment(
         &self,
@@ -168,38 +147,19 @@ impl WalletConnectPayJson {
                 "option_id cannot be empty".to_string(),
             ));
         }
-        let results: Vec<ConfirmPaymentResultItem> = req
-            .results
-            .into_iter()
-            .map(|r| match r {
-                ConfirmPaymentResultItemJson::WalletRpc(data) => {
-                    ConfirmPaymentResultItem::WalletRpc(WalletRpcResultData {
-                        method: data.method,
-                        data: data.data,
-                    })
-                }
-                ConfirmPaymentResultItemJson::CollectData(data) => {
-                    ConfirmPaymentResultItem::CollectData(
-                        CollectDataResultData {
-                            fields: data
-                                .fields
-                                .into_iter()
-                                .map(|f| CollectDataFieldResult {
-                                    id: f.id,
-                                    value: f.value,
-                                })
-                                .collect(),
-                        },
-                    )
-                }
-            })
-            .collect();
+        let collected_data = req.collected_data.map(|fields| {
+            fields
+                .into_iter()
+                .map(|f| CollectDataFieldResult { id: f.id, value: f.value })
+                .collect()
+        });
         let result = self
             .client
             .confirm_payment(
                 req.payment_id,
                 req.option_id,
-                results,
+                req.signatures,
+                collected_data,
                 req.max_poll_ms,
             )
             .await
@@ -261,7 +221,7 @@ mod tests {
                 "actions": [{
                     "type": "walletRpc",
                     "data": {
-                        "chainId": "eip155:8453",
+                        "chain_id": "eip155:8453",
                         "method": "eth_signTypedData_v4",
                         "params": ["0x123", {"types": {}}]
                     }
@@ -330,7 +290,7 @@ mod tests {
                 "actions": [{
                     "type": "walletRpc",
                     "data": {
-                        "chainId": "eip155:1",
+                        "chain_id": "eip155:1",
                         "method": "eth_signTypedData_v4",
                         "params": ["0xwallet", {"types": {}}]
                     }
@@ -363,11 +323,9 @@ mod tests {
             serde_json::from_str(&response_json).unwrap();
         assert!(parsed.is_array());
         assert_eq!(parsed.as_array().unwrap().len(), 1);
-        assert_eq!(parsed[0]["type"], "walletRpc");
-        assert_eq!(parsed[0]["data"]["chainId"], "eip155:1");
-        assert_eq!(parsed[0]["data"]["method"], "eth_signTypedData_v4");
-        // params is now a JSON string containing the array
-        let params_str = parsed[0]["data"]["params"].as_str().unwrap();
+        assert_eq!(parsed[0]["walletRpc"]["chainId"], "eip155:1");
+        assert_eq!(parsed[0]["walletRpc"]["method"], "eth_signTypedData_v4");
+        let params_str = parsed[0]["walletRpc"]["params"].as_str().unwrap();
         let params: serde_json::Value =
             serde_json::from_str(params_str).unwrap();
         assert_eq!(params[0], "0xwallet");
@@ -395,7 +353,7 @@ mod tests {
             WalletConnectPayJson::new(test_config_json(&mock_server.uri()))
                 .unwrap();
 
-        let confirm_req = r#"{"paymentId": "pay_json_789", "optionId": "opt_1", "results": [{"type": "walletRpc", "data": {"method": "eth_signTypedData_v4", "data": ["0x123"]}}], "maxPollMs": null}"#;
+        let confirm_req = r#"{"paymentId": "pay_json_789", "optionId": "opt_1", "signatures": ["0x123"]}"#;
         let result = client.confirm_payment(confirm_req.to_string()).await;
 
         assert!(result.is_ok(), "Expected Ok but got: {:?}", result);
@@ -457,9 +415,10 @@ mod tests {
         let client =
             WalletConnectPayJson::new(test_config_json(&mock_server.uri()))
                 .unwrap();
+        // Invalid JSON: "results" should be "signatures"
         let request_json = r#"{"paymentId": "pay_123", "optionId": "opt_1", "results": [], "maxPollMs": -1000}"#;
         let result = client.confirm_payment(request_json.to_string()).await;
-        assert!(matches!(result, Err(PayJsonError::ConfirmPayment(_))));
+        assert!(matches!(result, Err(PayJsonError::JsonParse(_))));
     }
 
     #[tokio::test]
