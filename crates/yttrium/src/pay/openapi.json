@@ -80,8 +80,45 @@
               }
             }
           },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
           "404": {
-            "description": "Payment not found"
+            "description": "Payment not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -170,8 +207,45 @@
               }
             }
           },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
           "404": {
-            "description": "Payment not found"
+            "description": "Payment not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -248,8 +322,45 @@
               }
             }
           },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
           "404": {
-            "description": "Payment not found"
+            "description": "Payment not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -336,8 +447,45 @@
               }
             }
           },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
           "404": {
-            "description": "Payment not found"
+            "description": "Payment not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -416,8 +564,45 @@
               }
             }
           },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
           "404": {
-            "description": "Payment not found"
+            "description": "Payment not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -466,65 +651,15 @@
                 ]
               }
             }
-          },
-          {
-            "type": "object",
-            "required": [
-              "data",
-              "type"
-            ],
-            "properties": {
-              "data": {
-                "$ref": "#/components/schemas/CollectData"
-              },
-              "type": {
-                "type": "string",
-                "enum": [
-                  "collectData"
-                ]
-              }
-            }
           }
         ],
         "example": {
           "data": {
-            "chainId": "eip155:8453",
+            "chain_id": "eip155:8453",
             "method": "eth_signTypedData_v4",
             "params": [
               "0x0000000000000000000000000000000000000000",
-              {
-                "domain": {
-                  "chainId": "0x2105",
-                  "name": "USD Coin",
-                  "verifyingContract": "0x0000000000000000000000000000000000000000",
-                  "version": "2"
-                },
-                "message": {
-                  "from": "0x0000000000000000000000000000000000000000",
-                  "nonce": "0x0000000000000000000000000000000000000000000000000000000000000000",
-                  "to": "0x0000000000000000000000000000000000000000",
-                  "validAfter": "0x0",
-                  "validBefore": "0x0",
-                  "value": "0x0"
-                },
-                "primaryType": "TransferWithAuthorization",
-                "types": {
-                  "EIP712Domain": [
-                    { "name": "name", "type": "string" },
-                    { "name": "version", "type": "string" },
-                    { "name": "chainId", "type": "uint256" },
-                    { "name": "verifyingContract", "type": "address" }
-                  ],
-                  "TransferWithAuthorization": [
-                    { "name": "from", "type": "address" },
-                    { "name": "to", "type": "address" },
-                    { "name": "value", "type": "uint256" },
-                    { "name": "validAfter", "type": "uint256" },
-                    { "name": "validBefore", "type": "uint256" },
-                    { "name": "nonce", "type": "bytes32" }
-                  ]
-                }
-              }
+              "{\"domain\":{\"name\":\"USD Coin\",\"version\":\"2\",\"chainId\":\"0x2105\",\"verifyingContract\":\"0x0000000000000000000000000000000000000000\"},\"types\":{\"EIP712Domain\":[{\"type\":\"string\",\"name\":\"name\"},{\"type\":\"string\",\"name\":\"version\"},{\"type\":\"uint256\",\"name\":\"chainId\"},{\"type\":\"address\",\"name\":\"verifyingContract\"}],\"TransferWithAuthorization\":[{\"type\":\"address\",\"name\":\"from\"},{\"type\":\"address\",\"name\":\"to\"},{\"type\":\"uint256\",\"name\":\"value\"},{\"type\":\"uint256\",\"name\":\"validAfter\"},{\"type\":\"uint256\",\"name\":\"validBefore\"},{\"type\":\"bytes32\",\"name\":\"nonce\"}]},\"primaryType\":\"TransferWithAuthorization\",\"message\":{\"from\":\"0x0000000000000000000000000000000000000000\",\"nonce\":\"0x0000000000000000000000000000000000000000000000000000000000000000\",\"to\":\"0x0000000000000000000000000000000000000000\",\"validAfter\":\"0x0\",\"validBefore\":\"0x0\",\"value\":\"0x0\"}}"
             ]
           },
           "type": "walletRpc"
@@ -661,7 +796,7 @@
         "example": {
           "fields": [
             {
-              "id": "firstName",
+              "id": "fullName",
               "name": "First name",
               "required": true,
               "type": "text"
@@ -702,7 +837,7 @@
           }
         },
         "example": {
-          "id": "firstName",
+          "id": "fullName",
           "name": "First name",
           "required": true,
           "type": "text"
@@ -723,7 +858,7 @@
           }
         },
         "example": {
-          "id": "firstName",
+          "id": "fullName",
           "value": "John"
         }
       },
@@ -750,8 +885,12 @@
         "example": {
           "fields": [
             {
-              "id": "firstName",
-              "value": "John"
+              "id": "fullName",
+              "value": "John Smith"
+            },
+            {
+              "id": "dob",
+              "value": "1990-01-01"
             }
           ]
         }
@@ -763,6 +902,10 @@
           "results"
         ],
         "properties": {
+          "collectedData": {
+            "$ref": "#/components/schemas/CollectDataResult",
+            "nullable": true
+          },
           "optionId": {
             "type": "string",
             "description": "ID of the option to confirm"
@@ -775,30 +918,22 @@
           }
         },
         "example": {
+          "collectedData": {
+            "fields": [
+              {
+                "id": "fullName",
+                "value": "John Smith"
+              },
+              {
+                "id": "dob",
+                "value": "1990-01-01"
+              }
+            ]
+          },
           "optionId": "opt_123",
           "results": [
             {
-              "data": {
-                "fields": [
-                  {
-                    "id": "firstName",
-                    "value": "John"
-                  },
-                  {
-                    "id": "dob",
-                    "value": "1990-01-01"
-                  }
-                ]
-              },
-              "type": "collectData"
-            },
-            {
-              "data": {
-                "data": [
-                  "0x123"
-                ],
-                "method": "eth_signTypedData_v4"
-              },
+              "data": ["0x123"],
               "type": "walletRpc"
             }
           ]
@@ -843,7 +978,8 @@
             ],
             "properties": {
               "data": {
-                "$ref": "#/components/schemas/WalletRpcResult"
+                "type": "array",
+                "items": {}
               },
               "type": {
                 "type": "string",
@@ -852,39 +988,16 @@
                 ]
               }
             }
-          },
-          {
-            "type": "object",
-            "required": [
-              "data",
-              "type"
-            ],
-            "properties": {
-              "data": {
-                "$ref": "#/components/schemas/CollectDataResult"
-              },
-              "type": {
-                "type": "string",
-                "enum": [
-                  "collectData"
-                ]
-              }
-            }
           }
         ],
         "example": {
-          "data": {
-            "data": [
-              "0x123"
-            ],
-            "method": "eth_signTypedData_v4"
-          },
+          "data": ["0x123"],
           "type": "walletRpc"
         }
       },
       "ErrorCode": {
         "type": "string",
-        "description": "Standard error codes for API responses.\n\nType-safe error codes that serialize to snake_case (following Stripe's convention).\nThis prevents typos like \"invlaid_params\" from reaching production.",
+        "description": "Standard error codes for API responses.\n\nThis prevents typos like \"invlaid_params\" from reaching production.",
         "enum": [
           "rate_limited",
           "invalid_params",
@@ -907,6 +1020,22 @@
           "merchant_exists",
           "api_key_not_found"
         ]
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "description": "Standard error response structure for API errors.",
+        "required": [
+          "code",
+          "message"
+        ],
+        "properties": {
+          "code": {
+            "$ref": "#/components/schemas/ErrorCode"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
       },
       "FetchRequest": {
         "type": "object",
@@ -946,43 +1075,11 @@
           "actions": [
             {
               "data": {
-                "chainId": "eip155:8453",
+                "chain_id": "eip155:8453",
                 "method": "eth_signTypedData_v4",
                 "params": [
                   "0x0000000000000000000000000000000000000000",
-                  {
-                    "domain": {
-                      "chainId": "0x2105",
-                      "name": "USD Coin",
-                      "verifyingContract": "0x0000000000000000000000000000000000000000",
-                      "version": "2"
-                    },
-                    "message": {
-                      "from": "0x0000000000000000000000000000000000000000",
-                      "nonce": "0x0000000000000000000000000000000000000000000000000000000000000000",
-                      "to": "0x0000000000000000000000000000000000000000",
-                      "validAfter": "0x0",
-                      "validBefore": "0x0",
-                      "value": "0x0"
-                    },
-                    "primaryType": "TransferWithAuthorization",
-                    "types": {
-                      "EIP712Domain": [
-                        { "name": "name", "type": "string" },
-                        { "name": "version", "type": "string" },
-                        { "name": "chainId", "type": "uint256" },
-                        { "name": "verifyingContract", "type": "address" }
-                      ],
-                      "TransferWithAuthorization": [
-                        { "name": "from", "type": "address" },
-                        { "name": "to", "type": "address" },
-                        { "name": "value", "type": "uint256" },
-                        { "name": "validAfter", "type": "uint256" },
-                        { "name": "validBefore", "type": "uint256" },
-                        { "name": "nonce", "type": "bytes32" }
-                      ]
-                    }
-                  }
+                  "{\"domain\":{\"name\":\"USD Coin\",\"version\":\"2\",\"chainId\":\"0x2105\",\"verifyingContract\":\"0x0000000000000000000000000000000000000000\"},\"types\":{\"EIP712Domain\":[{\"type\":\"string\",\"name\":\"name\"},{\"type\":\"string\",\"name\":\"version\"},{\"type\":\"uint256\",\"name\":\"chainId\"},{\"type\":\"address\",\"name\":\"verifyingContract\"}],\"TransferWithAuthorization\":[{\"type\":\"address\",\"name\":\"from\"},{\"type\":\"address\",\"name\":\"to\"},{\"type\":\"uint256\",\"name\":\"value\"},{\"type\":\"uint256\",\"name\":\"validAfter\"},{\"type\":\"uint256\",\"name\":\"validBefore\"},{\"type\":\"bytes32\",\"name\":\"nonce\"}]},\"primaryType\":\"TransferWithAuthorization\",\"message\":{\"from\":\"0x0000000000000000000000000000000000000000\",\"nonce\":\"0x0000000000000000000000000000000000000000000000000000000000000000\",\"to\":\"0x0000000000000000000000000000000000000000\",\"validAfter\":\"0x0\",\"validBefore\":\"0x0\",\"value\":\"0x0\"}}"
                 ]
               },
               "type": "walletRpc"
@@ -1023,6 +1120,10 @@
           "options"
         ],
         "properties": {
+          "collectData": {
+            "$ref": "#/components/schemas/CollectData",
+            "nullable": true
+          },
           "info": {
             "$ref": "#/components/schemas/GetPaymentResponse",
             "nullable": true,
@@ -1036,6 +1137,22 @@
           }
         },
         "example": {
+          "collectData": {
+            "fields": [
+              {
+                "id": "fullName",
+                "name": "First name",
+                "required": true,
+                "type": "text"
+              },
+              {
+                "id": "dob",
+                "name": "Date of birth",
+                "required": true,
+                "type": "date"
+              }
+            ]
+          },
           "info": {
             "amount": {
               "display": {
@@ -1065,62 +1182,11 @@
               "actions": [
                 {
                   "data": {
-                    "fields": [
-                      {
-                        "id": "firstName",
-                        "name": "First name",
-                        "required": true,
-                        "type": "text"
-                      },
-                      {
-                        "id": "dob",
-                        "name": "Date of birth",
-                        "required": true,
-                        "type": "date"
-                      }
-                    ]
-                  },
-                  "type": "collectData"
-                },
-                {
-                  "data": {
-                    "chainId": "eip155:8453",
+                    "chain_id": "eip155:8453",
                     "method": "eth_signTypedData_v4",
                     "params": [
                       "0x0000000000000000000000000000000000000000",
-                      {
-                        "domain": {
-                          "chainId": "0x2105",
-                          "name": "USD Coin",
-                          "verifyingContract": "0x0000000000000000000000000000000000000000",
-                          "version": "2"
-                        },
-                        "message": {
-                          "from": "0x0000000000000000000000000000000000000000",
-                          "nonce": "0x0000000000000000000000000000000000000000000000000000000000000000",
-                          "to": "0x0000000000000000000000000000000000000000",
-                          "validAfter": "0x0",
-                          "validBefore": "0x0",
-                          "value": "0x0"
-                        },
-                        "primaryType": "TransferWithAuthorization",
-                        "types": {
-                          "EIP712Domain": [
-                            { "name": "name", "type": "string" },
-                            { "name": "version", "type": "string" },
-                            { "name": "chainId", "type": "uint256" },
-                            { "name": "verifyingContract", "type": "address" }
-                          ],
-                          "TransferWithAuthorization": [
-                            { "name": "from", "type": "address" },
-                            { "name": "to", "type": "address" },
-                            { "name": "value", "type": "uint256" },
-                            { "name": "validAfter", "type": "uint256" },
-                            { "name": "validBefore", "type": "uint256" },
-                            { "name": "nonce", "type": "bytes32" }
-                          ]
-                        }
-                      }
+                      "{\"domain\":{\"name\":\"USD Coin\",\"version\":\"2\",\"chainId\":\"0x2105\",\"verifyingContract\":\"0x0000000000000000000000000000000000000000\"},\"types\":{\"EIP712Domain\":[{\"type\":\"string\",\"name\":\"name\"},{\"type\":\"string\",\"name\":\"version\"},{\"type\":\"uint256\",\"name\":\"chainId\"},{\"type\":\"address\",\"name\":\"verifyingContract\"}],\"TransferWithAuthorization\":[{\"type\":\"address\",\"name\":\"from\"},{\"type\":\"address\",\"name\":\"to\"},{\"type\":\"uint256\",\"name\":\"value\"},{\"type\":\"uint256\",\"name\":\"validAfter\"},{\"type\":\"uint256\",\"name\":\"validBefore\"},{\"type\":\"bytes32\",\"name\":\"nonce\"}]},\"primaryType\":\"TransferWithAuthorization\",\"message\":{\"from\":\"0x0000000000000000000000000000000000000000\",\"nonce\":\"0x0000000000000000000000000000000000000000000000000000000000000000\",\"to\":\"0x0000000000000000000000000000000000000000\",\"validAfter\":\"0x0\",\"validBefore\":\"0x0\",\"value\":\"0x0\"}}"
                     ]
                   },
                   "type": "walletRpc"
@@ -1286,62 +1352,11 @@
           "actions": [
             {
               "data": {
-                "fields": [
-                  {
-                    "id": "firstName",
-                    "name": "First name",
-                    "required": true,
-                    "type": "text"
-                  },
-                  {
-                    "id": "dob",
-                    "name": "Date of birth",
-                    "required": true,
-                    "type": "date"
-                  }
-                ]
-              },
-              "type": "collectData"
-            },
-            {
-              "data": {
-                "chainId": "eip155:8453",
+                "chain_id": "eip155:8453",
                 "method": "eth_signTypedData_v4",
                 "params": [
                   "0x0000000000000000000000000000000000000000",
-                  {
-                    "domain": {
-                      "chainId": "0x2105",
-                      "name": "USD Coin",
-                      "verifyingContract": "0x0000000000000000000000000000000000000000",
-                      "version": "2"
-                    },
-                    "message": {
-                      "from": "0x0000000000000000000000000000000000000000",
-                      "nonce": "0x0000000000000000000000000000000000000000000000000000000000000000",
-                      "to": "0x0000000000000000000000000000000000000000",
-                      "validAfter": "0x0",
-                      "validBefore": "0x0",
-                      "value": "0x0"
-                    },
-                    "primaryType": "TransferWithAuthorization",
-                    "types": {
-                      "EIP712Domain": [
-                        { "name": "name", "type": "string" },
-                        { "name": "version", "type": "string" },
-                        { "name": "chainId", "type": "uint256" },
-                        { "name": "verifyingContract", "type": "address" }
-                      ],
-                      "TransferWithAuthorization": [
-                        { "name": "from", "type": "address" },
-                        { "name": "to", "type": "address" },
-                        { "name": "value", "type": "uint256" },
-                        { "name": "validAfter", "type": "uint256" },
-                        { "name": "validBefore", "type": "uint256" },
-                        { "name": "nonce", "type": "bytes32" }
-                      ]
-                    }
-                  }
+                  "{\"domain\":{\"name\":\"USD Coin\",\"version\":\"2\",\"chainId\":\"0x2105\",\"verifyingContract\":\"0x0000000000000000000000000000000000000000\"},\"types\":{\"EIP712Domain\":[{\"type\":\"string\",\"name\":\"name\"},{\"type\":\"string\",\"name\":\"version\"},{\"type\":\"uint256\",\"name\":\"chainId\"},{\"type\":\"address\",\"name\":\"verifyingContract\"}],\"TransferWithAuthorization\":[{\"type\":\"address\",\"name\":\"from\"},{\"type\":\"address\",\"name\":\"to\"},{\"type\":\"uint256\",\"name\":\"value\"},{\"type\":\"uint256\",\"name\":\"validAfter\"},{\"type\":\"uint256\",\"name\":\"validBefore\"},{\"type\":\"bytes32\",\"name\":\"nonce\"}]},\"primaryType\":\"TransferWithAuthorization\",\"message\":{\"from\":\"0x0000000000000000000000000000000000000000\",\"nonce\":\"0x0000000000000000000000000000000000000000000000000000000000000000\",\"to\":\"0x0000000000000000000000000000000000000000\",\"validAfter\":\"0x0\",\"validBefore\":\"0x0\",\"value\":\"0x0\"}}"
                 ]
               },
               "type": "walletRpc"
@@ -1373,152 +1388,32 @@
           "expired"
         ]
       },
-      "SignTypedDataAction": {
+      "WalletRpcAction": {
         "type": "object",
         "required": [
-          "chainId",
+          "chain_id",
+          "method",
           "params"
         ],
         "properties": {
-          "chainId": {
+          "chain_id": {
             "type": "string"
           },
-          "params": {}
+          "method": {
+            "type": "string"
+          },
+          "params": {
+            "type": "array",
+            "items": {}
+          }
         },
         "example": {
-          "chainId": "eip155:8453",
-          "params": [
-            "0x0000000000000000000000000000000000000000",
-            {
-              "domain": {
-                "chainId": "0x2105",
-                "name": "USD Coin",
-                "verifyingContract": "0x0000000000000000000000000000000000000000",
-                "version": "2"
-              },
-              "message": {
-                "from": "0x0000000000000000000000000000000000000000",
-                "nonce": "0x0000000000000000000000000000000000000000000000000000000000000000",
-                "to": "0x0000000000000000000000000000000000000000",
-                "validAfter": "0x0",
-                "validBefore": "0x0",
-                "value": "0x0"
-              },
-              "primaryType": "TransferWithAuthorization",
-              "types": {
-                "EIP712Domain": [
-                  { "name": "name", "type": "string" },
-                  { "name": "version", "type": "string" },
-                  { "name": "chainId", "type": "uint256" },
-                  { "name": "verifyingContract", "type": "address" }
-                ],
-                "TransferWithAuthorization": [
-                  { "name": "from", "type": "address" },
-                  { "name": "to", "type": "address" },
-                  { "name": "value", "type": "uint256" },
-                  { "name": "validAfter", "type": "uint256" },
-                  { "name": "validBefore", "type": "uint256" },
-                  { "name": "nonce", "type": "bytes32" }
-                ]
-              }
-            }
-          ]
-        }
-      },
-      "WalletRpcAction": {
-        "oneOf": [
-          {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/SignTypedDataAction"
-              },
-              {
-                "type": "object",
-                "required": [
-                  "method"
-                ],
-                "properties": {
-                  "method": {
-                    "type": "string",
-                    "enum": [
-                      "eth_signTypedData_v4"
-                    ]
-                  }
-                }
-              }
-            ]
-          }
-        ],
-        "example": {
-          "chainId": "eip155:8453",
+          "chain_id": "eip155:8453",
           "method": "eth_signTypedData_v4",
           "params": [
             "0x0000000000000000000000000000000000000000",
-            {
-              "domain": {
-                "chainId": "0x2105",
-                "name": "USD Coin",
-                "verifyingContract": "0x0000000000000000000000000000000000000000",
-                "version": "2"
-              },
-              "message": {
-                "from": "0x0000000000000000000000000000000000000000",
-                "nonce": "0x0000000000000000000000000000000000000000000000000000000000000000",
-                "to": "0x0000000000000000000000000000000000000000",
-                "validAfter": "0x0",
-                "validBefore": "0x0",
-                "value": "0x0"
-              },
-              "primaryType": "TransferWithAuthorization",
-              "types": {
-                "EIP712Domain": [
-                  { "name": "name", "type": "string" },
-                  { "name": "version", "type": "string" },
-                  { "name": "chainId", "type": "uint256" },
-                  { "name": "verifyingContract", "type": "address" }
-                ],
-                "TransferWithAuthorization": [
-                  { "name": "from", "type": "address" },
-                  { "name": "to", "type": "address" },
-                  { "name": "value", "type": "uint256" },
-                  { "name": "validAfter", "type": "uint256" },
-                  { "name": "validBefore", "type": "uint256" },
-                  { "name": "nonce", "type": "bytes32" }
-                ]
-              }
-            }
+            "{\"domain\":{\"name\":\"USD Coin\",\"version\":\"2\",\"chainId\":\"0x2105\",\"verifyingContract\":\"0x0000000000000000000000000000000000000000\"},\"types\":{\"EIP712Domain\":[{\"type\":\"string\",\"name\":\"name\"},{\"type\":\"string\",\"name\":\"version\"},{\"type\":\"uint256\",\"name\":\"chainId\"},{\"type\":\"address\",\"name\":\"verifyingContract\"}],\"TransferWithAuthorization\":[{\"type\":\"address\",\"name\":\"from\"},{\"type\":\"address\",\"name\":\"to\"},{\"type\":\"uint256\",\"name\":\"value\"},{\"type\":\"uint256\",\"name\":\"validAfter\"},{\"type\":\"uint256\",\"name\":\"validBefore\"},{\"type\":\"bytes32\",\"name\":\"nonce\"}]},\"primaryType\":\"TransferWithAuthorization\",\"message\":{\"from\":\"0x0000000000000000000000000000000000000000\",\"nonce\":\"0x0000000000000000000000000000000000000000000000000000000000000000\",\"to\":\"0x0000000000000000000000000000000000000000\",\"validAfter\":\"0x0\",\"validBefore\":\"0x0\",\"value\":\"0x0\"}}"
           ]
-        }
-      },
-      "WalletRpcResult": {
-        "oneOf": [
-          {
-            "type": "object",
-            "required": [
-              "data",
-              "method"
-            ],
-            "properties": {
-              "data": {
-                "type": "array",
-                "items": {
-                  "type": "string"
-                }
-              },
-              "method": {
-                "type": "string",
-                "enum": [
-                  "eth_signTypedData_v4"
-                ]
-              }
-            }
-          }
-        ],
-        "example": {
-          "data": [
-            "0x123"
-          ],
-          "method": "eth_signTypedData_v4"
         }
       }
     },
