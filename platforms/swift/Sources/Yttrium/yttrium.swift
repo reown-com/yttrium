@@ -728,11 +728,6 @@ public protocol WalletConnectPayProtocol: AnyObject, Sendable {
     func confirmPayment(paymentId: String, optionId: String, results: [ConfirmPaymentResultItem], maxPollMs: Int64?) async throws  -> ConfirmPaymentResultResponse
     
     /**
-     * Enable debug logging (prints to stdout)
-     */
-    func debug(enabled: Bool) 
-    
-    /**
      * Get payment options for given accounts
      * Also caches the options for use by get_actions
      */
@@ -821,17 +816,6 @@ open func confirmPayment(paymentId: String, optionId: String, results: [ConfirmP
             liftFunc: FfiConverterTypeConfirmPaymentResultResponse_lift,
             errorHandler: FfiConverterTypeConfirmPaymentError_lift
         )
-}
-    
-    /**
-     * Enable debug logging (prints to stdout)
-     */
-open func debug(enabled: Bool)  {try! rustCall() {
-    uniffi_yttrium_fn_method_walletconnectpay_debug(
-            self.uniffiCloneHandle(),
-        FfiConverterBool.lower(enabled),$0
-    )
-}
 }
     
     /**
@@ -4459,9 +4443,6 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_yttrium_checksum_method_walletconnectpay_confirm_payment() != 31398) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_yttrium_checksum_method_walletconnectpay_debug() != 11270) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_yttrium_checksum_method_walletconnectpay_get_payment_options() != 45817) {
