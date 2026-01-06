@@ -9,10 +9,29 @@ use {
     uuid::Uuid,
 };
 
+#[cfg(test)]
+use std::sync::Mutex;
+
 const PULSE_BASE_URL: &str = "https://pulse.walletconnect.org/e";
 
 static PANIC_CONFIG: OnceLock<PanicConfig> = OnceLock::new();
 static PANIC_SENDER: OnceLock<mpsc::Sender<PanicEvent>> = OnceLock::new();
+
+/// Captured panic events for testing (only populated in test builds)
+#[cfg(test)]
+static CAPTURED_PANIC_EVENTS: OnceLock<Mutex<Vec<CapturedPanicEvent>>> = OnceLock::new();
+
+/// A captured panic event for test verification
+#[cfg(test)]
+#[derive(Debug, Clone)]
+pub struct CapturedPanicEvent {
+    pub bundle_id: String,
+    pub project_id: String,
+    pub sdk_name: String,
+    pub sdk_version: String,
+    pub message: String,
+    pub location: String,
+}
 
 struct PanicConfig {
     bundle_id: String,
@@ -80,14 +99,79 @@ pub fn install_panic_hook(
     }
 }
 
+/// Test version: installs a panic hook that captures events for verification.
+/// Use `get_captured_panic_events()` to retrieve captured events in tests.
 #[cfg(test)]
 pub fn install_panic_hook(
-    _bundle_id: String,
-    _project_id: String,
-    _sdk_name: String,
-    _sdk_version: String,
+    bundle_id: String,
+    project_id: String,
+    sdk_name: String,
+    sdk_version: String,
 ) {
-    // No-op in tests
+    // Initialize storage and config
+    let _ = CAPTURED_PANIC_EVENTS.get_or_init(|| Mutex::new(Vec::new()));
+    if PANIC_CONFIG
+        .set(PanicConfig {
+            bundle_id: bundle_id.clone(),
+            project_id: project_id.clone(),
+            sdk_name: sdk_name.clone(),
+            sdk_version: sdk_version.clone(),
+        })
+        .is_ok()
+    {
+        let previous_hook = std::panic::take_hook();
+        std::panic::set_hook(Box::new(move |panic_info| {
+            // Capture panic info for test verification
+            let message = if let Some(s) = panic_info.payload().downcast_ref::<&str>() {
+                s.to_string()
+            } else if let Some(s) = panic_info.payload().downcast_ref::<String>() {
+                s.clone()
+            } else {
+                "Unknown panic".to_string()
+            };
+
+            let location = panic_info
+                .location()
+                .map(|loc| format!("{}:{}:{}", loc.file(), loc.line(), loc.column()))
+                .unwrap_or_else(|| "unknown location".to_string());
+
+            if let Some(storage) = CAPTURED_PANIC_EVENTS.get() {
+                if let Ok(mut events) = storage.lock() {
+                    events.push(CapturedPanicEvent {
+                        bundle_id: bundle_id.clone(),
+                        project_id: project_id.clone(),
+                        sdk_name: sdk_name.clone(),
+                        sdk_version: sdk_version.clone(),
+                        message,
+                        location,
+                    });
+                }
+            }
+
+            previous_hook(panic_info);
+        }));
+    }
+}
+
+/// Get captured panic events (test only).
+/// Returns a clone of all captured events.
+#[cfg(test)]
+pub fn get_captured_panic_events() -> Vec<CapturedPanicEvent> {
+    CAPTURED_PANIC_EVENTS
+        .get()
+        .and_then(|storage| storage.lock().ok())
+        .map(|events| events.clone())
+        .unwrap_or_default()
+}
+
+/// Clear captured panic events (test only).
+#[cfg(test)]
+pub fn clear_captured_panic_events() {
+    if let Some(storage) = CAPTURED_PANIC_EVENTS.get() {
+        if let Ok(mut events) = storage.lock() {
+            events.clear();
+        }
+    }
 }
 
 fn report_panic(panic_info: &PanicHookInfo<'_>) {
@@ -340,5 +424,46 @@ mod tests {
             body
         );
         println!("Success! Response: {}", body);
+    }
+
+    #[test]
+    fn test_panic_hook_captures_event() {
+        // Clear any previous events
+        clear_captured_panic_events();
+
+        // Install panic hook
+        install_panic_hook(
+            "com.test.panic".to_string(),
+            "test-project-id".to_string(),
+            "test-sdk".to_string(),
+            "1.0.0".to_string(),
+        );
+
+        // Trigger a panic in catch_unwind
+        let result = std::panic::catch_unwind(|| {
+            panic!("Test panic message for hook verification");
+        });
+
+        assert!(result.is_err(), "Panic should have been caught");
+
+        // Verify the panic was captured
+        let events = get_captured_panic_events();
+        assert!(!events.is_empty(), "Panic event should have been captured");
+
+        let event = &events[events.len() - 1]; // Get the last event
+        assert_eq!(event.bundle_id, "com.test.panic");
+        assert_eq!(event.project_id, "test-project-id");
+        assert_eq!(event.sdk_name, "test-sdk");
+        assert_eq!(event.sdk_version, "1.0.0");
+        assert!(
+            event.message.contains("Test panic message"),
+            "Message should contain panic text: {}",
+            event.message
+        );
+        assert!(
+            event.location.contains("error_reporting.rs"),
+            "Location should contain file name: {}",
+            event.location
+        );
     }
 }
