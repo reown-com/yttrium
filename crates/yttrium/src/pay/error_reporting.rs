@@ -20,10 +20,10 @@ struct PanicConfig {
     sdk_version: String,
 }
 
-fn build_pulse_url(project_id: &str, sdk_name: &str, sdk_version: &str) -> String {
+fn build_pulse_url(project_id: &str, sdk_version: &str) -> String {
     format!(
-        "{}?projectId={}&st={}&sv={}",
-        PULSE_BASE_URL, project_id, sdk_name, sdk_version
+        "{}?projectId={}&st=pay_sdk&sv={}",
+        PULSE_BASE_URL, project_id, sdk_version
     )
 }
 
@@ -87,8 +87,7 @@ fn report_panic(panic_info: &PanicHookInfo<'_>) {
         },
     };
 
-    let url =
-        build_pulse_url(&config.project_id, &config.sdk_name, &config.sdk_version);
+    let url = build_pulse_url(&config.project_id, &config.sdk_version);
     let user_agent = format!("{}/{}", config.sdk_name, config.sdk_version);
 
     // Use a new thread with its own tokio runtime since we're in a panic hook
@@ -165,7 +164,7 @@ pub(crate) fn report_error(
         },
     };
 
-    let url = build_pulse_url(project_id, sdk_name, sdk_version);
+    let url = build_pulse_url(project_id, sdk_version);
     let user_agent = format!("{}/{}", sdk_name, sdk_version);
     let client = http_client.clone();
     let fut = async move {
@@ -211,11 +210,7 @@ mod tests {
 
     #[test]
     fn test_build_pulse_url() {
-        let url = build_pulse_url(
-            "123",
-            "pay_sdk",
-            "rust-0.1.0",
-        );
+        let url = build_pulse_url("123", "rust-0.1.0");
         assert_eq!(
             url,
             "https://pulse.walletconnect.org/e?projectId=123&st=pay_sdk&sv=rust-0.1.0"
@@ -291,7 +286,7 @@ mod tests {
             },
         };
 
-        let url = build_pulse_url(&project_id, sdk_name, sdk_version);
+        let url = build_pulse_url(&project_id, sdk_version);
         println!("Sending to URL: {}", url);
         println!("Event JSON: {}", serde_json::to_string_pretty(&event).unwrap());
 

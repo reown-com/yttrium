@@ -493,6 +493,7 @@ pub struct WalletConnectPay {
     client: Client,
     config: SdkConfig,
     cached_options: RwLock<Vec<CachedPaymentOption>>,
+    error_http_client: reqwest::Client,
 }
 
 #[cfg_attr(feature = "uniffi", uniffi::export(async_runtime = "tokio"))]
@@ -500,7 +501,16 @@ impl WalletConnectPay {
     #[cfg_attr(feature = "uniffi", uniffi::constructor)]
     pub fn new(config: SdkConfig) -> Self {
         let client = Client::new(&config.base_url);
-        Self { client, config, cached_options: RwLock::new(Vec::new()) }
+        let error_http_client = reqwest::Client::builder()
+            .user_agent(format!("{}/{}", config.sdk_name, config.sdk_version))
+            .build()
+            .unwrap_or_default();
+        Self {
+            client,
+            config,
+            cached_options: RwLock::new(Vec::new()),
+            error_http_client,
+        }
     }
 
     /// Get payment options for given accounts
@@ -525,7 +535,11 @@ impl WalletConnectPay {
             .await
         })
         .await
-        .map_err(map_payment_options_error)?;
+        .map_err(|e| {
+            let err = map_payment_options_error(e);
+            self.report_error(&err, &payment_id);
+            err
+        })?;
 
         let api_response = response.into_inner();
 
@@ -539,10 +553,12 @@ impl WalletConnectPay {
             })
             .collect();
         let mut cache = self.cached_options.write().map_err(|e| {
-            GetPaymentOptionsError::InternalError(format!(
+            let err = GetPaymentOptionsError::InternalError(format!(
                 "Cache lock poisoned: {}",
                 e
-            ))
+            ));
+            self.report_error(&err, &payment_id);
+            err
         })?;
         *cache = cached;
 
@@ -563,10 +579,12 @@ impl WalletConnectPay {
     ) -> Result<Vec<Action>, GetPaymentRequestError> {
         let raw_actions = {
             let cache = self.cached_options.read().map_err(|e| {
-                GetPaymentRequestError::InternalError(format!(
+                let err = GetPaymentRequestError::InternalError(format!(
                     "Cache lock poisoned: {}",
                     e
-                ))
+                ));
+                self.report_error(&err, &payment_id);
+                err
             })?;
             cache
                 .iter()
@@ -580,13 +598,18 @@ impl WalletConnectPay {
                     .fetch(&payment_id, &option_id, String::new())
                     .await
                     .map_err(|e| {
-                        GetPaymentRequestError::FetchError(e.to_string())
+                        let err =
+                            GetPaymentRequestError::FetchError(e.to_string());
+                        self.report_error(&err, &payment_id);
+                        err
                     })?;
                 let mut cache = self.cached_options.write().map_err(|e| {
-                    GetPaymentRequestError::InternalError(format!(
+                    let err = GetPaymentRequestError::InternalError(format!(
                         "Cache lock poisoned: {}",
                         e
-                    ))
+                    ));
+                    self.report_error(&err, &payment_id);
+                    err
                 })?;
                 if let Some(cached) =
                     cache.iter_mut().find(|o| o.option_id == option_id)
@@ -601,7 +624,12 @@ impl WalletConnectPay {
                 fetched
             }
         };
-        self.resolve_actions(&payment_id, &option_id, raw_actions).await
+        self.resolve_actions(&payment_id, &option_id, raw_actions)
+            .await
+            .map_err(|e| {
+                self.report_error(&e, &payment_id);
+                e
+            })
     }
 
     /// Confirm a payment
@@ -616,7 +644,11 @@ impl WalletConnectPay {
         let api_results: Vec<types::ConfirmPaymentResult> = results
             .into_iter()
             .map(try_into_confirm_result)
-            .collect::<Result<_, _>>()?;
+            .collect::<Result<_, _>>()
+            .map_err(|e| {
+                self.report_error(&e, &payment_id);
+                e
+            })?;
         let body =
             types::ConfirmPaymentRequest { option_id, results: api_results };
         let mut req = with_sdk_config!(
@@ -630,7 +662,11 @@ impl WalletConnectPay {
         }
         let response = with_retry(|| async { req.clone().send().await })
             .await
-            .map_err(map_confirm_payment_error)?;
+            .map_err(|e| {
+                let err = map_confirm_payment_error(e);
+                self.report_error(&err, &payment_id);
+                err
+            })?;
         let mut result: ConfirmPaymentResultResponse =
             response.into_inner().into();
         while !result.is_final {
@@ -642,7 +678,11 @@ impl WalletConnectPay {
             let status = self
                 .get_gateway_payment_status(payment_id.clone(), max_poll_ms)
                 .await
-                .map_err(|e| ConfirmPaymentError::Http(e.to_string()))?;
+                .map_err(|e| {
+                    let err = ConfirmPaymentError::Http(e.to_string());
+                    self.report_error(&err, &payment_id);
+                    err
+                })?;
             result = ConfirmPaymentResultResponse {
                 status: status.status.into(),
                 is_final: status.is_final,
@@ -655,6 +695,19 @@ impl WalletConnectPay {
 
 // Private methods (not exported via uniffi)
 impl WalletConnectPay {
+    fn report_error<E: std::fmt::Debug>(&self, error: &E, topic: &str) {
+        error_reporting::report_error(
+            &self.error_http_client,
+            &self.config.bundle_id,
+            &self.config.project_id,
+            &self.config.sdk_name,
+            &self.config.sdk_version,
+            &error_reporting::error_type_name(error),
+            topic,
+            &format!("{:?}", error),
+        );
+    }
+
     async fn resolve_actions(
         &self,
         payment_id: &str,

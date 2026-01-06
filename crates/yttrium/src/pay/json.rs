@@ -426,7 +426,7 @@ mod tests {
         let request_json =
             r#"{"paymentLink": "", "accounts": ["eip155:1:0x123"]}"#;
         let result = client.get_payment_options(request_json.to_string()).await;
-        assert!(matches!(result, Err(PayJsonError::PaymentOptions(_))));
+        assert!(matches!(result, Err(PayJsonError::JsonParse(_))));
     }
 
     #[tokio::test]
@@ -437,7 +437,7 @@ mod tests {
                 .unwrap();
         let request_json = r#"{"paymentLink": "pay_123", "accounts": []}"#;
         let result = client.get_payment_options(request_json.to_string()).await;
-        assert!(matches!(result, Err(PayJsonError::PaymentOptions(_))));
+        assert!(matches!(result, Err(PayJsonError::JsonParse(_))));
     }
 
     #[tokio::test]
@@ -448,7 +448,7 @@ mod tests {
                 .unwrap();
         let request_json = r#"{"paymentId": "", "optionId": "opt_1", "results": [], "maxPollMs": null}"#;
         let result = client.confirm_payment(request_json.to_string()).await;
-        assert!(matches!(result, Err(PayJsonError::ConfirmPayment(_))));
+        assert!(matches!(result, Err(PayJsonError::JsonParse(_))));
     }
 
     #[tokio::test]
@@ -471,7 +471,7 @@ mod tests {
         let request_json = r#"{"paymentId": "", "optionId": "opt_1"}"#;
         let result =
             client.get_required_payment_actions(request_json.to_string()).await;
-        assert!(matches!(result, Err(PayJsonError::PaymentRequest(_))));
+        assert!(matches!(result, Err(PayJsonError::JsonParse(_))));
     }
 
     #[tokio::test]
@@ -483,6 +483,6 @@ mod tests {
         let request_json = r#"{"paymentId": "pay_123", "optionId": ""}"#;
         let result =
             client.get_required_payment_actions(request_json.to_string()).await;
-        assert!(matches!(result, Err(PayJsonError::PaymentRequest(_))));
+        assert!(matches!(result, Err(PayJsonError::JsonParse(_))));
     }
 }
