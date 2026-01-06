@@ -321,11 +321,9 @@ mod tests {
             serde_json::from_str(&response_json).unwrap();
         assert!(parsed.is_array());
         assert_eq!(parsed.as_array().unwrap().len(), 1);
-        assert_eq!(parsed[0]["type"], "walletRpc");
-        assert_eq!(parsed[0]["data"]["chainId"], "eip155:1"); // chainId in SDK output (camelCase)
-        assert_eq!(parsed[0]["data"]["method"], "eth_signTypedData_v4");
-        // params is now a JSON string containing the array
-        let params_str = parsed[0]["data"]["params"].as_str().unwrap();
+        assert_eq!(parsed[0]["walletRpc"]["chainId"], "eip155:1");
+        assert_eq!(parsed[0]["walletRpc"]["method"], "eth_signTypedData_v4");
+        let params_str = parsed[0]["walletRpc"]["params"].as_str().unwrap();
         let params: serde_json::Value =
             serde_json::from_str(params_str).unwrap();
         assert_eq!(params[0], "0xwallet");

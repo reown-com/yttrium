@@ -256,11 +256,10 @@ impl From<types::CollectData> for CollectDataAction {
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-#[cfg_attr(feature = "uniffi", derive(uniffi::Enum))]
-#[serde(rename_all = "camelCase", tag = "type", content = "data")]
-pub enum Action {
-    WalletRpc(WalletRpcAction),
-    CollectData(CollectDataAction),
+#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
+#[serde(rename_all = "camelCase")]
+pub struct Action {
+    pub wallet_rpc: WalletRpcAction,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -336,12 +335,11 @@ impl From<types::PaymentOption> for PaymentOption {
                 .into_iter()
                 .filter_map(|a| match a {
                     types::Action::WalletRpc(data) => {
-                        Some(Action::WalletRpc(data.into()))
+                        Some(Action { wallet_rpc: data.into() })
                     }
-                    types::Action::CollectData(data) => {
-                        Some(Action::CollectData(data.into()))
+                    types::Action::CollectData(_) | types::Action::Build(_) => {
+                        None
                     }
-                    types::Action::Build(_) => None,
                 })
                 .collect(),
         }
@@ -625,10 +623,7 @@ impl WalletConnectPay {
         for action in actions {
             match action {
                 types::Action::WalletRpc(data) => {
-                    result.push(Action::WalletRpc(data.into()));
-                }
-                types::Action::CollectData(data) => {
-                    result.push(Action::CollectData(data.into()));
+                    result.push(Action { wallet_rpc: data.into() });
                 }
                 types::Action::Build(build) => {
                     let resolved = self
@@ -638,17 +633,13 @@ impl WalletConnectPay {
                             GetPaymentRequestError::FetchError(e.to_string())
                         })?;
                     for resolved_action in resolved {
-                        match resolved_action {
-                            types::Action::WalletRpc(data) => {
-                                result.push(Action::WalletRpc(data.into()));
-                            }
-                            types::Action::CollectData(data) => {
-                                result.push(Action::CollectData(data.into()));
-                            }
-                            types::Action::Build(_) => {}
+                        if let types::Action::WalletRpc(data) = resolved_action
+                        {
+                            result.push(Action { wallet_rpc: data.into() });
                         }
                     }
                 }
+                types::Action::CollectData(_) => {}
             }
         }
         Ok(result)
@@ -970,11 +961,8 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(actions.len(), 1);
-        let Action::WalletRpc(data) = &actions[0] else {
-            panic!("Expected WalletRpc action");
-        };
-        assert_eq!(data.chain_id, "eip155:8453");
-        assert_eq!(data.method, "eth_signTypedData_v4");
+        assert_eq!(actions[0].wallet_rpc.chain_id, "eip155:8453");
+        assert_eq!(actions[0].wallet_rpc.method, "eth_signTypedData_v4");
     }
 
     #[tokio::test]
@@ -1052,11 +1040,8 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(actions.len(), 1);
-        let Action::WalletRpc(data) = &actions[0] else {
-            panic!("Expected WalletRpc action");
-        };
-        assert_eq!(data.chain_id, "eip155:8453");
-        assert!(data.params.contains("resolved"));
+        assert_eq!(actions[0].wallet_rpc.chain_id, "eip155:8453");
+        assert!(actions[0].wallet_rpc.params.contains("resolved"));
     }
 
     #[tokio::test]
@@ -1092,7 +1077,7 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(actions.len(), 1);
-        assert!(matches!(actions[0], Action::WalletRpc(_)));
+        assert_eq!(actions[0].wallet_rpc.chain_id, "eip155:1");
     }
 
     #[tokio::test]
@@ -1269,48 +1254,27 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_collect_data_action() {
+    async fn test_collect_data_response() {
         let mock_server = MockServer::start().await;
-
         let mock_response = serde_json::json!({
-            "options": [
-                {
-                    "id": "opt_1",
-                    "amount": {
-                        "unit": "caip19/eip155:8453/erc20:0xUSDC",
-                        "value": "1000000",
-                        "display": {
-                            "assetSymbol": "USDC",
-                            "assetName": "USD Coin",
-                            "decimals": 6
-                        }
+            "options": [],
+            "collectData": {
+                "fields": [
+                    {
+                        "type": "text",
+                        "id": "firstName",
+                        "name": "First Name",
+                        "required": true
                     },
-                    "etaS": 5,
-                    "actions": [
-                        {
-                            "type": "collectData",
-                            "data": {
-                                "fields": [
-                                    {
-                                        "type": "text",
-                                        "id": "firstName",
-                                        "name": "First Name",
-                                        "required": true
-                                    },
-                                    {
-                                        "type": "date",
-                                        "id": "dob",
-                                        "name": "Date of Birth",
-                                        "required": false
-                                    }
-                                ]
-                            }
-                        }
-                    ]
-                }
-            ]
+                    {
+                        "type": "date",
+                        "id": "dob",
+                        "name": "Date of Birth",
+                        "required": false
+                    }
+                ]
+            }
         });
-
         Mock::given(method("POST"))
             .and(path("/v1/gateway/payment/pay_123/options"))
             .respond_with(
@@ -1329,12 +1293,7 @@ mod tests {
             .await
             .unwrap();
 
-        assert_eq!(response.options.len(), 1);
-        assert_eq!(response.options[0].actions.len(), 1);
-
-        let Action::CollectData(data) = &response.options[0].actions[0] else {
-            panic!("Expected CollectData action");
-        };
+        let data = response.collect_data.expect("Expected collect_data");
         assert_eq!(data.fields.len(), 2);
         assert_eq!(data.fields[0].id, "firstName");
         assert_eq!(data.fields[0].field_type, CollectDataFieldType::Text);
