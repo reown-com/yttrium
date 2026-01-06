@@ -693,7 +693,7 @@ impl WalletConnectPay {
 
 // Private methods (not exported via uniffi)
 impl WalletConnectPay {
-    fn report_error<E: std::fmt::Debug>(&self, error: &E, topic: &str) {
+    fn report_error<E: std::fmt::Debug>(&self, error: &E, payment_id: &str) {
         error_reporting::report_error(
             &self.error_http_client,
             &self.config.bundle_id,
@@ -701,7 +701,7 @@ impl WalletConnectPay {
             &self.config.sdk_name,
             &self.config.sdk_version,
             &error_reporting::error_type_name(error),
-            topic,
+            payment_id,
             &format!("{:?}", error),
         );
     }

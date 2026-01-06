@@ -45,7 +45,7 @@ pub(crate) fn report_error(
     sdk_name: &str,
     sdk_version: &str,
     error_type: &str,
-    topic: &str,
+    payment_id: &str,
     trace: &str,
 ) {
     let event = ErrorEvent {
@@ -59,7 +59,7 @@ pub(crate) fn report_error(
             event: "error",
             error_type: error_type.to_string(),
             properties: ErrorProperties {
-                topic: topic.to_string(),
+                topic: payment_id.to_string(),
                 trace: trace.to_string(),
             },
         },
