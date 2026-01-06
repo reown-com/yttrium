@@ -3,7 +3,7 @@ use {
     serde::Serialize,
     std::{
         panic::PanicHookInfo,
-        sync::OnceLock,
+        sync::{mpsc, OnceLock},
         time::{SystemTime, UNIX_EPOCH},
     },
     uuid::Uuid,
@@ -12,12 +12,19 @@ use {
 const PULSE_BASE_URL: &str = "https://pulse.walletconnect.org/e";
 
 static PANIC_CONFIG: OnceLock<PanicConfig> = OnceLock::new();
+static PANIC_SENDER: OnceLock<mpsc::Sender<PanicEvent>> = OnceLock::new();
 
 struct PanicConfig {
     bundle_id: String,
     project_id: String,
     sdk_name: String,
     sdk_version: String,
+}
+
+struct PanicEvent {
+    event: ErrorEvent,
+    url: String,
+    user_agent: String,
 }
 
 fn build_pulse_url(project_id: &str, sdk_version: &str) -> String {
@@ -30,6 +37,8 @@ fn build_pulse_url(project_id: &str, sdk_version: &str) -> String {
 /// Install a global panic hook that reports panics to the pulse endpoint.
 /// Should be called once during initialization (e.g., in WalletConnectPay::new).
 /// Only the first call will have effect; subsequent calls are ignored.
+/// Spawns a single background thread to handle panic reports via a bounded channel.
+#[cfg(not(test))]
 pub fn install_panic_hook(
     bundle_id: String,
     project_id: String,
@@ -40,6 +49,29 @@ pub fn install_panic_hook(
         .set(PanicConfig { bundle_id, project_id, sdk_name, sdk_version })
         .is_ok()
     {
+        // Create a bounded channel to prevent unbounded memory growth
+        let (sender, receiver) = mpsc::channel::<PanicEvent>();
+        let _ = PANIC_SENDER.set(sender);
+
+        // Spawn a single background thread to process panic events
+        std::thread::spawn(move || {
+            if let Ok(rt) =
+                tokio::runtime::Builder::new_current_thread().enable_all().build()
+            {
+                rt.block_on(async {
+                    let client = HttpClient::new();
+                    while let Ok(panic_event) = receiver.recv() {
+                        let _ = client
+                            .post(&panic_event.url)
+                            .header("User-Agent", &panic_event.user_agent)
+                            .json(&panic_event.event)
+                            .send()
+                            .await;
+                    }
+                });
+            }
+        });
+
         let previous_hook = std::panic::take_hook();
         std::panic::set_hook(Box::new(move |panic_info| {
             report_panic(panic_info);
@@ -48,8 +80,21 @@ pub fn install_panic_hook(
     }
 }
 
+#[cfg(test)]
+pub fn install_panic_hook(
+    _bundle_id: String,
+    _project_id: String,
+    _sdk_name: String,
+    _sdk_version: String,
+) {
+    // No-op in tests
+}
+
 fn report_panic(panic_info: &PanicHookInfo<'_>) {
     let Some(config) = PANIC_CONFIG.get() else {
+        return;
+    };
+    let Some(sender) = PANIC_SENDER.get() else {
         return;
     };
 
@@ -90,28 +135,8 @@ fn report_panic(panic_info: &PanicHookInfo<'_>) {
     let url = build_pulse_url(&config.project_id, &config.sdk_version);
     let user_agent = format!("{}/{}", config.sdk_name, config.sdk_version);
 
-    // Use a new thread with its own tokio runtime since we're in a panic hook
-    #[cfg(not(test))]
-    std::thread::spawn(move || {
-        if let Ok(rt) =
-            tokio::runtime::Builder::new_current_thread().enable_all().build()
-        {
-            rt.block_on(async {
-                let client = HttpClient::new();
-                let _ = client
-                    .post(&url)
-                    .header("User-Agent", user_agent)
-                    .json(&event)
-                    .send()
-                    .await;
-            });
-        }
-    });
-
-    #[cfg(test)]
-    {
-        let _ = event; // Don't send in tests
-    }
+    // Send event to the background thread via channel (non-blocking)
+    let _ = sender.send(PanicEvent { event, url, user_agent });
 }
 
 #[derive(Debug, Serialize)]
