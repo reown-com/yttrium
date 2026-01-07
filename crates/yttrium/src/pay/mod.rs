@@ -14,6 +14,19 @@ pub mod json;
 #[cfg(feature = "uniffi")]
 pub use json::{PayJsonError, WalletConnectPayJson};
 
+// Logging helpers - use tracing which routes to registered logger
+macro_rules! pay_debug {
+    ($($arg:tt)*) => {
+        tracing::debug!($($arg)*)
+    };
+}
+
+macro_rules! pay_error {
+    ($($arg:tt)*) => {
+        tracing::error!($($arg)*)
+    };
+}
+
 #[derive(Debug, thiserror::Error)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Error))]
 pub enum PayError {
@@ -199,10 +212,7 @@ impl From<types::WalletRpcAction> for WalletRpcAction {
             chain_id: a.chain_id,
             method: a.method.to_string(),
             params: serde_json::to_string(&a.params).unwrap_or_else(|e| {
-                tracing::error!(
-                    "Failed to serialize WalletRpcAction params: {}",
-                    e
-                );
+                pay_error!("Failed to serialize WalletRpcAction params: {}", e);
                 "[]".to_string()
             }),
         }
@@ -475,6 +485,12 @@ impl WalletConnectPay {
         accounts: Vec<String>,
         include_payment_info: bool,
     ) -> Result<PaymentOptionsResponse, GetPaymentOptionsError> {
+        pay_debug!(
+            "get_payment_options: payment_link={}, accounts={:?}, include_payment_info={}",
+            payment_link,
+            accounts,
+            include_payment_info
+        );
         let payment_id = extract_payment_id(&payment_link)?;
 
         // Register payment environment for observability routing
@@ -485,7 +501,10 @@ impl WalletConnectPay {
             &payment_id,
         );
 
-        let body = types::GetPaymentOptionsRequest { accounts, refresh: None };
+        let body = types::GetPaymentOptionsRequest {
+            accounts: accounts.clone(),
+            refresh: None,
+        };
         let response = with_retry(|| async {
             with_sdk_config!(
                 self.client.gateway_get_payment_options(),
@@ -499,6 +518,7 @@ impl WalletConnectPay {
         })
         .await
         .map_err(|e| {
+            pay_error!("get_payment_options: {:?}", e);
             let err = map_payment_options_error(e);
             self.report_error(&err, &payment_id);
             self.send_trace(
@@ -509,6 +529,10 @@ impl WalletConnectPay {
         })?;
 
         let api_response = response.into_inner();
+        pay_debug!(
+            "get_payment_options: success, {} options",
+            api_response.options.len()
+        );
 
         // Cache the options with their raw actions
         let cached: Vec<CachedPaymentOption> = api_response
@@ -545,6 +569,11 @@ impl WalletConnectPay {
         payment_id: String,
         option_id: String,
     ) -> Result<Vec<Action>, GetPaymentRequestError> {
+        pay_debug!(
+            "get_required_payment_actions: payment_id={}, option_id={}",
+            payment_id,
+            option_id
+        );
         self.send_trace(
             observability::TraceEvent::RequiredActionsRequested,
             &payment_id,
@@ -561,12 +590,22 @@ impl WalletConnectPay {
                 .map(|o| o.actions.clone())
         };
         let raw_actions = match raw_actions {
-            Some(actions) if !actions.is_empty() => actions,
+            Some(actions) if !actions.is_empty() => {
+                pay_debug!(
+                    "get_required_payment_actions: using cached actions"
+                );
+                actions
+            }
             _ => {
+                pay_debug!("get_required_payment_actions: fetching actions");
                 let fetched = self
                     .fetch(&payment_id, &option_id, String::new())
                     .await
                     .map_err(|e| {
+                        pay_error!(
+                            "get_required_payment_actions fetch: {:?}",
+                            e
+                        );
                         let err =
                             GetPaymentRequestError::FetchError(e.to_string());
                         self.report_error(&err, &payment_id);
@@ -593,22 +632,29 @@ impl WalletConnectPay {
                 fetched
             }
         };
-        let result = self
-            .resolve_actions(&payment_id, &option_id, raw_actions)
-            .await
-            .inspect_err(|e| {
+        let result =
+            self.resolve_actions(&payment_id, &option_id, raw_actions).await;
+        match &result {
+            Ok(actions) => {
+                pay_debug!(
+                    "get_required_payment_actions: success, {} actions",
+                    actions.len()
+                );
+                self.send_trace(
+                    observability::TraceEvent::RequiredActionsReceived,
+                    &payment_id,
+                );
+            }
+            Err(e) => {
+                pay_error!("get_required_payment_actions: {:?}", e);
                 self.report_error(e, &payment_id);
                 self.send_trace(
                     observability::TraceEvent::RequiredActionsFailed,
                     &payment_id,
                 );
-            })?;
-
-        self.send_trace(
-            observability::TraceEvent::RequiredActionsReceived,
-            &payment_id,
-        );
-        Ok(result)
+            }
+        }
+        result
     }
 
     /// Confirm a payment with wallet RPC signatures
@@ -621,6 +667,12 @@ impl WalletConnectPay {
         collected_data: Option<Vec<CollectDataFieldResult>>,
         max_poll_ms: Option<i64>,
     ) -> Result<ConfirmPaymentResultResponse, ConfirmPaymentError> {
+        pay_debug!(
+            "confirm_payment: payment_id={}, option_id={}, signatures_count={}",
+            payment_id,
+            option_id,
+            signatures.len()
+        );
         self.send_trace(
             observability::TraceEvent::ConfirmPaymentCalled,
             &payment_id,
@@ -656,6 +708,7 @@ impl WalletConnectPay {
         let response = with_retry(|| async { req.clone().send().await })
             .await
             .map_err(|e| {
+                pay_error!("confirm_payment: {:?}", e);
                 let err = map_confirm_payment_error(e);
                 self.report_error(&err, &payment_id);
                 self.send_trace(
@@ -666,8 +719,14 @@ impl WalletConnectPay {
             })?;
         let mut result: ConfirmPaymentResultResponse =
             response.into_inner().into();
+        pay_debug!(
+            "confirm_payment: initial status={:?}, is_final={}",
+            result.status,
+            result.is_final
+        );
         while !result.is_final {
             let poll_ms = result.poll_in_ms.unwrap_or(1000);
+            pay_debug!("confirm_payment: polling in {}ms", poll_ms);
             tokio::time::sleep(std::time::Duration::from_millis(
                 poll_ms as u64,
             ))
@@ -676,6 +735,7 @@ impl WalletConnectPay {
                 .get_gateway_payment_status(payment_id.clone(), max_poll_ms)
                 .await
                 .map_err(|e| {
+                    pay_error!("confirm_payment poll: {:?}", e);
                     let err = ConfirmPaymentError::Http(e.to_string());
                     self.report_error(&err, &payment_id);
                     self.send_trace(
@@ -689,8 +749,16 @@ impl WalletConnectPay {
                 is_final: status.is_final,
                 poll_in_ms: status.poll_in_ms,
             };
+            pay_debug!(
+                "confirm_payment: polled status={:?}, is_final={}",
+                result.status,
+                result.is_final
+            );
         }
-
+        pay_debug!(
+            "confirm_payment: complete, final status={:?}",
+            result.status
+        );
         self.send_trace(
             observability::TraceEvent::ConfirmPaymentSucceeded,
             &payment_id,
@@ -842,15 +910,18 @@ fn map_payment_options_error<T: std::fmt::Debug>(
 fn map_confirm_payment_error<T: std::fmt::Debug>(
     e: progenitor_client::Error<T>,
 ) -> ConfirmPaymentError {
-    let msg = format!("{:?}", e);
-    let status = match &e {
+    // Try to extract response body for better error messages
+    let (msg, status) = match &e {
         progenitor_client::Error::ErrorResponse(resp) => {
-            Some(resp.status().as_u16())
+            (format!("{:?}", e), Some(resp.status().as_u16()))
         }
         progenitor_client::Error::UnexpectedResponse(resp) => {
-            Some(resp.status().as_u16())
+            // Log the status and any available body info
+            let status = resp.status().as_u16();
+            let msg = format!("Status: {}, Response: {:?}", status, e);
+            (msg, Some(status))
         }
-        _ => None,
+        _ => (format!("{:?}", e), None),
     };
     match status {
         Some(404) => ConfirmPaymentError::PaymentNotFound(msg),
