@@ -476,6 +476,10 @@ impl WalletConnectPay {
         include_payment_info: bool,
     ) -> Result<PaymentOptionsResponse, GetPaymentOptionsError> {
         let payment_id = extract_payment_id(&payment_link)?;
+
+        // Register payment environment for observability routing
+        observability::set_payment_env(&payment_id, &payment_link);
+
         self.send_trace(
             observability::TraceEvent::PaymentOptionsRequested,
             &payment_id,
@@ -541,6 +545,11 @@ impl WalletConnectPay {
         payment_id: String,
         option_id: String,
     ) -> Result<Vec<Action>, GetPaymentRequestError> {
+        self.send_trace(
+            observability::TraceEvent::RequiredActionsRequested,
+            &payment_id,
+        );
+
         let raw_actions = {
             let cache = self
                 .cached_options
@@ -561,6 +570,10 @@ impl WalletConnectPay {
                         let err =
                             GetPaymentRequestError::FetchError(e.to_string());
                         self.report_error(&err, &payment_id);
+                        self.send_trace(
+                            observability::TraceEvent::RequiredActionsFailed,
+                            &payment_id,
+                        );
                         err
                     })?;
                 let mut cache = self
@@ -580,11 +593,22 @@ impl WalletConnectPay {
                 fetched
             }
         };
-        self.resolve_actions(&payment_id, &option_id, raw_actions)
+        let result = self
+            .resolve_actions(&payment_id, &option_id, raw_actions)
             .await
             .inspect_err(|e| {
                 self.report_error(e, &payment_id);
-            })
+                self.send_trace(
+                    observability::TraceEvent::RequiredActionsFailed,
+                    &payment_id,
+                );
+            })?;
+
+        self.send_trace(
+            observability::TraceEvent::RequiredActionsReceived,
+            &payment_id,
+        );
+        Ok(result)
     }
 
     /// Confirm a payment with wallet RPC signatures
@@ -697,6 +721,7 @@ impl WalletConnectPay {
             &self.config.project_id,
             &self.config.sdk_name,
             &self.config.sdk_version,
+            &self.config.sdk_platform,
             event,
             payment_id,
         );
