@@ -5,6 +5,8 @@ progenitor::generate_api!(
     derives = [PartialEq],
 );
 
+mod error_reporting;
+
 #[cfg(feature = "uniffi")]
 pub mod json;
 
@@ -41,6 +43,16 @@ impl<T: std::fmt::Debug> From<progenitor_client::Error<T>> for PayError {
     }
 }
 
+impl error_reporting::HasErrorType for PayError {
+    fn error_type(&self) -> &'static str {
+        match self {
+            Self::Http(_) => "Http",
+            Self::Api(_) => "Api",
+            Self::Timeout => "Timeout",
+        }
+    }
+}
+
 #[derive(Debug, thiserror::Error)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Error))]
 pub enum GetPaymentOptionsError {
@@ -64,6 +76,22 @@ pub enum GetPaymentOptionsError {
     InternalError(String),
 }
 
+impl error_reporting::HasErrorType for GetPaymentOptionsError {
+    fn error_type(&self) -> &'static str {
+        match self {
+            Self::PaymentExpired(_) => "PaymentExpired",
+            Self::PaymentNotFound(_) => "PaymentNotFound",
+            Self::InvalidRequest(_) => "InvalidRequest",
+            Self::OptionNotFound(_) => "OptionNotFound",
+            Self::PaymentNotReady(_) => "PaymentNotReady",
+            Self::InvalidAccount(_) => "InvalidAccount",
+            Self::ComplianceFailed(_) => "ComplianceFailed",
+            Self::Http(_) => "Http",
+            Self::InternalError(_) => "InternalError",
+        }
+    }
+}
+
 #[derive(Debug, thiserror::Error)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Error))]
 pub enum GetPaymentRequestError {
@@ -79,6 +107,19 @@ pub enum GetPaymentRequestError {
     FetchError(String),
     #[error("Internal error: {0}")]
     InternalError(String),
+}
+
+impl error_reporting::HasErrorType for GetPaymentRequestError {
+    fn error_type(&self) -> &'static str {
+        match self {
+            Self::OptionNotFound(_) => "OptionNotFound",
+            Self::PaymentNotFound(_) => "PaymentNotFound",
+            Self::InvalidAccount(_) => "InvalidAccount",
+            Self::Http(_) => "Http",
+            Self::FetchError(_) => "FetchError",
+            Self::InternalError(_) => "InternalError",
+        }
+    }
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -100,6 +141,21 @@ pub enum ConfirmPaymentError {
     InternalError(String),
     #[error("Unsupported RPC method: {0}")]
     UnsupportedMethod(String),
+}
+
+impl error_reporting::HasErrorType for ConfirmPaymentError {
+    fn error_type(&self) -> &'static str {
+        match self {
+            Self::PaymentNotFound(_) => "PaymentNotFound",
+            Self::PaymentExpired(_) => "PaymentExpired",
+            Self::InvalidOption(_) => "InvalidOption",
+            Self::InvalidSignature(_) => "InvalidSignature",
+            Self::RouteExpired(_) => "RouteExpired",
+            Self::Http(_) => "Http",
+            Self::InternalError(_) => "InternalError",
+            Self::UnsupportedMethod(_) => "UnsupportedMethod",
+        }
+    }
 }
 
 const MAX_RETRIES: u32 = 3;
@@ -142,10 +198,12 @@ where
 #[serde(rename_all = "camelCase")]
 pub struct SdkConfig {
     pub base_url: String,
+    pub project_id: String,
     pub api_key: String,
     pub sdk_name: String,
     pub sdk_version: String,
     pub sdk_platform: String,
+    pub bundle_id: String,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -446,6 +504,7 @@ pub struct WalletConnectPay {
     client: Client,
     config: SdkConfig,
     cached_options: RwLock<Vec<CachedPaymentOption>>,
+    error_http_client: reqwest::Client,
 }
 
 #[cfg_attr(feature = "uniffi", uniffi::export(async_runtime = "tokio"))]
@@ -453,7 +512,20 @@ impl WalletConnectPay {
     #[cfg_attr(feature = "uniffi", uniffi::constructor)]
     pub fn new(config: SdkConfig) -> Self {
         let client = Client::new(&config.base_url);
-        Self { client, config, cached_options: RwLock::new(Vec::new()) }
+        let error_http_client = reqwest::Client::builder()
+            .user_agent(format!("{}/{}", config.sdk_name, config.sdk_version))
+            .timeout(std::time::Duration::from_secs(5))
+            .build()
+            .unwrap_or_else(|e| {
+                tracing::warn!("Failed to build error HTTP client: {}", e);
+                reqwest::Client::new()
+            });
+        Self {
+            client,
+            config,
+            cached_options: RwLock::new(Vec::new()),
+            error_http_client,
+        }
     }
 
     /// Get payment options for given accounts
@@ -489,7 +561,9 @@ impl WalletConnectPay {
         .await
         .map_err(|e| {
             pay_error!("get_payment_options: {:?}", e);
-            map_payment_options_error(e)
+            let err = map_payment_options_error(e);
+            self.report_error(&err, &payment_id);
+            err
         })?;
 
         let api_response = response.into_inner();
@@ -507,12 +581,10 @@ impl WalletConnectPay {
                 actions: o.actions.clone(),
             })
             .collect();
-        let mut cache = self.cached_options.write().map_err(|e| {
-            GetPaymentOptionsError::InternalError(format!(
-                "Cache lock poisoned: {}",
-                e
-            ))
-        })?;
+        let mut cache = self
+            .cached_options
+            .write()
+            .expect("Cache lock poisoned - indicates a bug");
         *cache = cached;
 
         Ok(PaymentOptionsResponse {
@@ -537,13 +609,10 @@ impl WalletConnectPay {
             option_id
         );
         let raw_actions = {
-            let cache = self.cached_options.read().map_err(|e| {
-                pay_error!("get_required_payment_actions cache read: {:?}", e);
-                GetPaymentRequestError::InternalError(format!(
-                    "Cache lock poisoned: {}",
-                    e
-                ))
-            })?;
+            let cache = self
+                .cached_options
+                .read()
+                .expect("Cache lock poisoned - indicates a bug");
             cache
                 .iter()
                 .find(|o| o.option_id == option_id)
@@ -566,14 +635,15 @@ impl WalletConnectPay {
                             "get_required_payment_actions fetch: {:?}",
                             e
                         );
-                        GetPaymentRequestError::FetchError(e.to_string())
+                        let err =
+                            GetPaymentRequestError::FetchError(e.to_string());
+                        self.report_error(&err, &payment_id);
+                        err
                     })?;
-                let mut cache = self.cached_options.write().map_err(|e| {
-                    GetPaymentRequestError::InternalError(format!(
-                        "Cache lock poisoned: {}",
-                        e
-                    ))
-                })?;
+                let mut cache = self
+                    .cached_options
+                    .write()
+                    .expect("Cache lock poisoned - indicates a bug");
                 if let Some(cached) =
                     cache.iter_mut().find(|o| o.option_id == option_id)
                 {
@@ -594,7 +664,10 @@ impl WalletConnectPay {
                 "get_required_payment_actions: success, {} actions",
                 actions.len()
             ),
-            Err(e) => pay_error!("get_required_payment_actions: {:?}", e),
+            Err(e) => {
+                pay_error!("get_required_payment_actions: {:?}", e);
+                self.report_error(e, &payment_id);
+            }
         }
         result
     }
@@ -641,11 +714,14 @@ impl WalletConnectPay {
         if let Some(ms) = max_poll_ms {
             req = req.max_poll_ms(ms);
         }
+
         let response = with_retry(|| async { req.clone().send().await })
             .await
             .map_err(|e| {
                 pay_error!("confirm_payment: {:?}", e);
-                map_confirm_payment_error(e)
+                let err = map_confirm_payment_error(e);
+                self.report_error(&err, &payment_id);
+                err
             })?;
         let mut result: ConfirmPaymentResultResponse =
             response.into_inner().into();
@@ -666,7 +742,9 @@ impl WalletConnectPay {
                 .await
                 .map_err(|e| {
                     pay_error!("confirm_payment poll: {:?}", e);
-                    ConfirmPaymentError::Http(e.to_string())
+                    let err = ConfirmPaymentError::Http(e.to_string());
+                    self.report_error(&err, &payment_id);
+                    err
                 })?;
             result = ConfirmPaymentResultResponse {
                 status: status.status.into(),
@@ -689,6 +767,23 @@ impl WalletConnectPay {
 
 // Private methods (not exported via uniffi)
 impl WalletConnectPay {
+    fn report_error<E: std::fmt::Debug + error_reporting::HasErrorType>(
+        &self,
+        error: &E,
+        payment_id: &str,
+    ) {
+        error_reporting::report_error(
+            &self.error_http_client,
+            &self.config.bundle_id,
+            &self.config.project_id,
+            &self.config.sdk_name,
+            &self.config.sdk_version,
+            error_reporting::error_type_name(error),
+            payment_id,
+            &format!("{:?}", error),
+        );
+    }
+
     async fn resolve_actions(
         &self,
         payment_id: &str,
@@ -840,10 +935,12 @@ mod tests {
     fn test_config(base_url: String) -> SdkConfig {
         SdkConfig {
             base_url,
+            project_id: "test-project-id".to_string(),
             api_key: "test-api-key".to_string(),
             sdk_name: "test-sdk".to_string(),
             sdk_version: "1.0.0".to_string(),
             sdk_platform: "test".to_string(),
+            bundle_id: "com.test.app".to_string(),
         }
     }
 
@@ -1299,10 +1396,12 @@ mod tests {
 
         let custom_config = SdkConfig {
             base_url: mock_server.uri(),
+            project_id: "my-custom-project-id".to_string(),
             api_key: "my-custom-api-key".to_string(),
             sdk_name: "my-app".to_string(),
             sdk_version: "2.5.0".to_string(),
             sdk_platform: "ios".to_string(),
+            bundle_id: "com.custom.app".to_string(),
         };
 
         Mock::given(method("POST"))
