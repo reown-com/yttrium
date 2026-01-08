@@ -1865,19 +1865,23 @@ public func FfiConverterTypePaymentOptionsResponse_lower(_ value: PaymentOptions
 
 public struct SdkConfig: Equatable, Hashable {
     public var baseUrl: String
+    public var projectId: String
     public var apiKey: String
     public var sdkName: String
     public var sdkVersion: String
     public var sdkPlatform: String
+    public var bundleId: String
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(baseUrl: String, apiKey: String, sdkName: String, sdkVersion: String, sdkPlatform: String) {
+    public init(baseUrl: String, projectId: String, apiKey: String, sdkName: String, sdkVersion: String, sdkPlatform: String, bundleId: String) {
         self.baseUrl = baseUrl
+        self.projectId = projectId
         self.apiKey = apiKey
         self.sdkName = sdkName
         self.sdkVersion = sdkVersion
         self.sdkPlatform = sdkPlatform
+        self.bundleId = bundleId
     }
 
     
@@ -1895,19 +1899,23 @@ public struct FfiConverterTypeSdkConfig: FfiConverterRustBuffer {
         return
             try SdkConfig(
                 baseUrl: FfiConverterString.read(from: &buf), 
+                projectId: FfiConverterString.read(from: &buf), 
                 apiKey: FfiConverterString.read(from: &buf), 
                 sdkName: FfiConverterString.read(from: &buf), 
                 sdkVersion: FfiConverterString.read(from: &buf), 
-                sdkPlatform: FfiConverterString.read(from: &buf)
+                sdkPlatform: FfiConverterString.read(from: &buf), 
+                bundleId: FfiConverterString.read(from: &buf)
         )
     }
 
     public static func write(_ value: SdkConfig, into buf: inout [UInt8]) {
         FfiConverterString.write(value.baseUrl, into: &buf)
+        FfiConverterString.write(value.projectId, into: &buf)
         FfiConverterString.write(value.apiKey, into: &buf)
         FfiConverterString.write(value.sdkName, into: &buf)
         FfiConverterString.write(value.sdkVersion, into: &buf)
         FfiConverterString.write(value.sdkPlatform, into: &buf)
+        FfiConverterString.write(value.bundleId, into: &buf)
     }
 }
 
