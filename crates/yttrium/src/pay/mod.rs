@@ -44,6 +44,16 @@ impl<T: std::fmt::Debug> From<progenitor_client::Error<T>> for PayError {
     }
 }
 
+impl error_reporting::HasErrorType for PayError {
+    fn error_type(&self) -> &'static str {
+        match self {
+            Self::Http(_) => "Http",
+            Self::Api(_) => "Api",
+            Self::Timeout => "Timeout",
+        }
+    }
+}
+
 #[derive(Debug, thiserror::Error)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Error))]
 pub enum GetPaymentOptionsError {
@@ -67,6 +77,22 @@ pub enum GetPaymentOptionsError {
     InternalError(String),
 }
 
+impl error_reporting::HasErrorType for GetPaymentOptionsError {
+    fn error_type(&self) -> &'static str {
+        match self {
+            Self::PaymentExpired(_) => "PaymentExpired",
+            Self::PaymentNotFound(_) => "PaymentNotFound",
+            Self::InvalidRequest(_) => "InvalidRequest",
+            Self::OptionNotFound(_) => "OptionNotFound",
+            Self::PaymentNotReady(_) => "PaymentNotReady",
+            Self::InvalidAccount(_) => "InvalidAccount",
+            Self::ComplianceFailed(_) => "ComplianceFailed",
+            Self::Http(_) => "Http",
+            Self::InternalError(_) => "InternalError",
+        }
+    }
+}
+
 #[derive(Debug, thiserror::Error)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Error))]
 pub enum GetPaymentRequestError {
@@ -82,6 +108,19 @@ pub enum GetPaymentRequestError {
     FetchError(String),
     #[error("Internal error: {0}")]
     InternalError(String),
+}
+
+impl error_reporting::HasErrorType for GetPaymentRequestError {
+    fn error_type(&self) -> &'static str {
+        match self {
+            Self::OptionNotFound(_) => "OptionNotFound",
+            Self::PaymentNotFound(_) => "PaymentNotFound",
+            Self::InvalidAccount(_) => "InvalidAccount",
+            Self::Http(_) => "Http",
+            Self::FetchError(_) => "FetchError",
+            Self::InternalError(_) => "InternalError",
+        }
+    }
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -103,6 +142,21 @@ pub enum ConfirmPaymentError {
     InternalError(String),
     #[error("Unsupported RPC method: {0}")]
     UnsupportedMethod(String),
+}
+
+impl error_reporting::HasErrorType for ConfirmPaymentError {
+    fn error_type(&self) -> &'static str {
+        match self {
+            Self::PaymentNotFound(_) => "PaymentNotFound",
+            Self::PaymentExpired(_) => "PaymentExpired",
+            Self::InvalidOption(_) => "InvalidOption",
+            Self::InvalidSignature(_) => "InvalidSignature",
+            Self::RouteExpired(_) => "RouteExpired",
+            Self::Http(_) => "Http",
+            Self::InternalError(_) => "InternalError",
+            Self::UnsupportedMethod(_) => "UnsupportedMethod",
+        }
+    }
 }
 
 const MAX_RETRIES: u32 = 3;
@@ -769,14 +823,18 @@ impl WalletConnectPay {
 
 // Private methods (not exported via uniffi)
 impl WalletConnectPay {
-    fn report_error<E: std::fmt::Debug>(&self, error: &E, payment_id: &str) {
+    fn report_error<E: std::fmt::Debug + error_reporting::HasErrorType>(
+        &self,
+        error: &E,
+        payment_id: &str,
+    ) {
         error_reporting::report_error(
             &self.error_http_client,
             &self.config.bundle_id,
             &self.config.project_id,
             &self.config.sdk_name,
             &self.config.sdk_version,
-            &error_reporting::error_type_name(error),
+            error_reporting::error_type_name(error),
             payment_id,
             &format!("{:?}", error),
         );

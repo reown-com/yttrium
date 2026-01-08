@@ -117,15 +117,15 @@ pub(crate) fn report_error(
     });
 }
 
-/// Helper to get error type name from an error enum.
-/// Handles tuple variants, struct variants, unit variants, and qualified paths.
-pub(crate) fn error_type_name<E: std::fmt::Debug>(error: &E) -> String {
-    let debug = format!("{:?}", error);
-    let raw_name = debug
-        .split(|c: char| c == '(' || c == '{' || c.is_whitespace())
-        .next()
-        .unwrap_or("Unknown");
-    raw_name.rsplit("::").next().unwrap_or(raw_name).to_string()
+/// Trait for error types that provide a stable error type name for telemetry.
+/// This avoids parsing Debug output which is fragile and can break on renames.
+pub trait HasErrorType {
+    fn error_type(&self) -> &'static str;
+}
+
+/// Get the error type name from an error that implements HasErrorType.
+pub(crate) fn error_type_name<E: HasErrorType>(error: &E) -> &'static str {
+    error.error_type()
 }
 
 #[cfg(test)]
@@ -157,52 +157,30 @@ mod tests {
     }
 
     #[test]
-    fn test_error_type_name_tuple_variant() {
-        #[derive(Debug)]
+    fn test_error_type_name_with_trait() {
         #[allow(dead_code)]
         enum TestError {
             NotFound(String),
-            InvalidRequest(String),
+            Timeout,
+            Custom { code: u32 },
+        }
+
+        impl HasErrorType for TestError {
+            fn error_type(&self) -> &'static str {
+                match self {
+                    Self::NotFound(_) => "NotFound",
+                    Self::Timeout => "Timeout",
+                    Self::Custom { .. } => "Custom",
+                }
+            }
         }
 
         assert_eq!(
             error_type_name(&TestError::NotFound("test".to_string())),
             "NotFound"
         );
-        assert_eq!(
-            error_type_name(&TestError::InvalidRequest("msg".to_string())),
-            "InvalidRequest"
-        );
-    }
-
-    #[test]
-    fn test_error_type_name_unit_variant() {
-        #[derive(Debug)]
-        #[allow(dead_code)]
-        enum TestError {
-            Timeout,
-            NetworkError,
-        }
-
         assert_eq!(error_type_name(&TestError::Timeout), "Timeout");
-        assert_eq!(error_type_name(&TestError::NetworkError), "NetworkError");
-    }
-
-    #[test]
-    fn test_error_type_name_struct_variant() {
-        #[derive(Debug)]
-        #[allow(dead_code)]
-        enum TestError {
-            Custom { code: u32, message: String },
-        }
-
-        assert_eq!(
-            error_type_name(&TestError::Custom {
-                code: 1,
-                message: "test".to_string()
-            }),
-            "Custom"
-        );
+        assert_eq!(error_type_name(&TestError::Custom { code: 1 }), "Custom");
     }
 
     #[test]
