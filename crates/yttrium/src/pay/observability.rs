@@ -253,8 +253,8 @@ mod tests {
     #[tokio::test]
     async fn test_send_trace_retries_on_failure() {
         use wiremock::{
-            matchers::{method, path},
             Mock, MockServer, ResponseTemplate,
+            matchers::{method, path},
         };
 
         let mock_server = MockServer::start().await;
@@ -262,7 +262,9 @@ mod tests {
         // First call returns 500 (up_to 1 means it only matches once)
         Mock::given(method("POST"))
             .and(path("/event"))
-            .respond_with(ResponseTemplate::new(500).set_body_string("Server Error"))
+            .respond_with(
+                ResponseTemplate::new(500).set_body_string("Server Error"),
+            )
             .up_to_n_times(1)
             .mount(&mock_server)
             .await;
@@ -323,8 +325,8 @@ mod tests {
     #[tokio::test]
     async fn test_send_trace_gives_up_after_two_failures() {
         use wiremock::{
-            matchers::{method, path},
             Mock, MockServer, ResponseTemplate,
+            matchers::{method, path},
         };
 
         let mock_server = MockServer::start().await;
@@ -332,7 +334,9 @@ mod tests {
         // Both calls return 500
         Mock::given(method("POST"))
             .and(path("/event"))
-            .respond_with(ResponseTemplate::new(500).set_body_string("Server Error"))
+            .respond_with(
+                ResponseTemplate::new(500).set_body_string("Server Error"),
+            )
             .expect(2)
             .mount(&mock_server)
             .await;
