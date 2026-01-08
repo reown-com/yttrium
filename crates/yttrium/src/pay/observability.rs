@@ -98,40 +98,64 @@ pub(crate) fn send_trace(
     let event_type = event;
     let pid = payment_id.to_string();
     crate::spawn::spawn(async move {
-        match client
-            .post(&url)
-            .header("User-Agent", user_agent)
-            .json(&payload)
-            .send()
-            .await
-        {
-            Ok(resp) => {
-                let status = resp.status();
-                if status.is_success() {
-                    tracing::debug!(
-                        "Trace sent: {:?} for {} -> {}",
-                        event_type,
-                        pid,
-                        status
-                    );
-                } else {
+        // Try up to 2 attempts (initial + 1 retry)
+        for attempt in 1..=2 {
+            match client
+                .post(&url)
+                .header("User-Agent", &user_agent)
+                .json(&payload)
+                .send()
+                .await
+            {
+                Ok(resp) => {
+                    let status = resp.status();
+                    if status.is_success() {
+                        tracing::debug!(
+                            "Trace sent: {:?} for {} -> {}",
+                            event_type,
+                            pid,
+                            status
+                        );
+                        return;
+                    }
                     let body = resp.text().await.unwrap_or_default();
-                    tracing::warn!(
-                        "Trace failed: {:?} for {} -> {} - {}",
+                    if attempt == 2 {
+                        tracing::warn!(
+                            "Trace failed after retry: {:?} for {} -> {} - {}",
+                            event_type,
+                            pid,
+                            status,
+                            body
+                        );
+                    } else {
+                        tracing::debug!(
+                            "Trace attempt {} failed: {:?} for {} -> {} - {}, retrying...",
+                            attempt,
+                            event_type,
+                            pid,
+                            status,
+                            body
+                        );
+                    }
+                }
+                Err(e) => {
+                    if attempt == 2 {
+                        tracing::debug!(
+                            "Trace error after retry: {:?} for {} - {}",
+                            event_type,
+                            pid,
+                            e
+                        );
+                        return;
+                    }
+                    tracing::debug!(
+                        "Trace attempt {} error: {:?} for {} - {}, retrying...",
+                        attempt,
                         event_type,
                         pid,
-                        status,
-                        body
+                        e
                     );
                 }
-            }
-            Err(e) => {
-                tracing::debug!(
-                    "Trace error: {:?} for {} - {}",
-                    event_type,
-                    pid,
-                    e
-                );
             }
         }
     });
