@@ -43,7 +43,7 @@ jobs:
       - name: Build Rust library (wcpay feature set)
         run: |
           cargo ndk -t ${{ matrix.target }} build \
-            --profile=uniffi-release-kotlin \
+            --profile=uniffi-release-kotlin-wcpay \
             --no-default-features \
             --features=android,pay,uniffi/cli
       - name: Generate Kotlin wcpay bindings (once, on aarch64 only)
@@ -55,7 +55,7 @@ jobs:
             --features=android,pay,uniffi/cli \
             -p kotlin-ffi \
             --bin uniffi-bindgen generate \
-            --library target/${{ matrix.target }}/uniffi-release-kotlin/libuniffi_yttrium.so \
+            --library target/${{ matrix.target }}/uniffi-release-kotlin-wcpay/libuniffi_yttrium.so \
             --language kotlin \
             --out-dir yttrium/kotlin-wcpay-bindings
           
@@ -77,7 +77,7 @@ jobs:
             NDK_PATH="$ANDROID_HOME/ndk/$LATEST_NDK"
             if [ -f "$NDK_PATH/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip" ]; then
                 echo "Found llvm-strip at: $NDK_PATH/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip"
-                $NDK_PATH/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip target/${{ matrix.target }}/uniffi-release-kotlin/libuniffi_yttrium.so
+                $NDK_PATH/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip --strip-all target/${{ matrix.target }}/uniffi-release-kotlin-wcpay/libuniffi_yttrium.so
             else
                 echo "Warning: Could not find llvm-strip, skipping strip step"
                 echo "Available NDK versions:"
@@ -100,7 +100,7 @@ jobs:
           fi
 
           mkdir -p yttrium/libs/$abi_name
-          cp target/${{ matrix.target }}/uniffi-release-kotlin/libuniffi_yttrium.so yttrium/libs/$abi_name/libuniffi_yttrium_wcpay.so
+          cp target/${{ matrix.target }}/uniffi-release-kotlin-wcpay/libuniffi_yttrium.so yttrium/libs/$abi_name/libuniffi_yttrium_wcpay.so
 
       - name: Upload artifact (unique name per target)
         uses: actions/upload-artifact@v4
