@@ -6,6 +6,7 @@ progenitor::generate_api!(
 );
 
 mod error_reporting;
+mod observability;
 
 #[cfg(feature = "uniffi")]
 pub mod json;
@@ -520,12 +521,14 @@ impl WalletConnectPay {
                 tracing::warn!("Failed to build error HTTP client: {}", e);
                 reqwest::Client::new()
             });
-        Self {
+        let instance = Self {
             client,
             config,
             cached_options: RwLock::new(Vec::new()),
             error_http_client,
-        }
+        };
+        instance.send_trace(observability::TraceEvent::SdkInitialized, "init");
+        instance
     }
 
     /// Get payment options for given accounts
@@ -543,6 +546,15 @@ impl WalletConnectPay {
             include_payment_info
         );
         let payment_id = extract_payment_id(&payment_link)?;
+
+        // Register payment environment for observability routing
+        observability::set_payment_env(&payment_id, &payment_link);
+
+        self.send_trace(
+            observability::TraceEvent::PaymentOptionsRequested,
+            &payment_id,
+        );
+
         let body = types::GetPaymentOptionsRequest {
             accounts: accounts.clone(),
             refresh: None,
@@ -563,6 +575,10 @@ impl WalletConnectPay {
             pay_error!("get_payment_options: {:?}", e);
             let err = map_payment_options_error(e);
             self.report_error(&err, &payment_id);
+            self.send_trace(
+                observability::TraceEvent::PaymentOptionsFailed,
+                &payment_id,
+            );
             err
         })?;
 
@@ -587,6 +603,10 @@ impl WalletConnectPay {
             .expect("Cache lock poisoned - indicates a bug");
         *cache = cached;
 
+        self.send_trace(
+            observability::TraceEvent::PaymentOptionsReceived,
+            &payment_id,
+        );
         Ok(PaymentOptionsResponse {
             payment_id,
             info: api_response.info.map(Into::into),
@@ -608,6 +628,11 @@ impl WalletConnectPay {
             payment_id,
             option_id
         );
+        self.send_trace(
+            observability::TraceEvent::RequiredActionsRequested,
+            &payment_id,
+        );
+
         let raw_actions = {
             let cache = self
                 .cached_options
@@ -638,6 +663,10 @@ impl WalletConnectPay {
                         let err =
                             GetPaymentRequestError::FetchError(e.to_string());
                         self.report_error(&err, &payment_id);
+                        self.send_trace(
+                            observability::TraceEvent::RequiredActionsFailed,
+                            &payment_id,
+                        );
                         err
                     })?;
                 let mut cache = self
@@ -660,13 +689,23 @@ impl WalletConnectPay {
         let result =
             self.resolve_actions(&payment_id, &option_id, raw_actions).await;
         match &result {
-            Ok(actions) => pay_debug!(
-                "get_required_payment_actions: success, {} actions",
-                actions.len()
-            ),
+            Ok(actions) => {
+                pay_debug!(
+                    "get_required_payment_actions: success, {} actions",
+                    actions.len()
+                );
+                self.send_trace(
+                    observability::TraceEvent::RequiredActionsReceived,
+                    &payment_id,
+                );
+            }
             Err(e) => {
                 pay_error!("get_required_payment_actions: {:?}", e);
                 self.report_error(e, &payment_id);
+                self.send_trace(
+                    observability::TraceEvent::RequiredActionsFailed,
+                    &payment_id,
+                );
             }
         }
         result
@@ -688,6 +727,11 @@ impl WalletConnectPay {
             option_id,
             signatures.len()
         );
+        self.send_trace(
+            observability::TraceEvent::ConfirmPaymentCalled,
+            &payment_id,
+        );
+
         let api_results: Vec<types::ConfirmPaymentResult> = signatures
             .into_iter()
             .map(|sig| {
@@ -721,6 +765,10 @@ impl WalletConnectPay {
                 pay_error!("confirm_payment: {:?}", e);
                 let err = map_confirm_payment_error(e);
                 self.report_error(&err, &payment_id);
+                self.send_trace(
+                    observability::TraceEvent::ConfirmPaymentFailed,
+                    &payment_id,
+                );
                 err
             })?;
         let mut result: ConfirmPaymentResultResponse =
@@ -744,6 +792,10 @@ impl WalletConnectPay {
                     pay_error!("confirm_payment poll: {:?}", e);
                     let err = ConfirmPaymentError::Http(e.to_string());
                     self.report_error(&err, &payment_id);
+                    self.send_trace(
+                        observability::TraceEvent::ConfirmPaymentFailed,
+                        &payment_id,
+                    );
                     err
                 })?;
             result = ConfirmPaymentResultResponse {
@@ -760,6 +812,10 @@ impl WalletConnectPay {
         pay_debug!(
             "confirm_payment: complete, final status={:?}",
             result.status
+        );
+        self.send_trace(
+            observability::TraceEvent::ConfirmPaymentSucceeded,
+            &payment_id,
         );
         Ok(result)
     }
@@ -781,6 +837,19 @@ impl WalletConnectPay {
             error_reporting::error_type_name(error),
             payment_id,
             &format!("{:?}", error),
+        );
+    }
+
+    fn send_trace(&self, event: observability::TraceEvent, payment_id: &str) {
+        observability::send_trace(
+            &self.error_http_client,
+            &self.config.bundle_id,
+            &self.config.project_id,
+            &self.config.sdk_name,
+            &self.config.sdk_version,
+            &self.config.sdk_platform,
+            event,
+            payment_id,
         );
     }
 
