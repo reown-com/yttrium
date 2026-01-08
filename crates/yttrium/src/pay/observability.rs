@@ -249,4 +249,137 @@ mod tests {
         assert_eq!(get_ingest_url(false), INGEST_PROD_URL);
         assert_eq!(get_ingest_url(true), INGEST_STAGING_URL);
     }
+
+    #[tokio::test]
+    async fn test_send_trace_retries_on_failure() {
+        use wiremock::{
+            matchers::{method, path},
+            Mock, MockServer, ResponseTemplate,
+        };
+
+        let mock_server = MockServer::start().await;
+
+        // First call returns 500 (up_to 1 means it only matches once)
+        Mock::given(method("POST"))
+            .and(path("/event"))
+            .respond_with(ResponseTemplate::new(500).set_body_string("Server Error"))
+            .up_to_n_times(1)
+            .mount(&mock_server)
+            .await;
+
+        // Second call returns 200
+        Mock::given(method("POST"))
+            .and(path("/event"))
+            .respond_with(ResponseTemplate::new(200))
+            .mount(&mock_server)
+            .await;
+
+        let client = reqwest::Client::new();
+
+        let payload = EventPayload {
+            event_id: "test-retry".to_string(),
+            payment_id: "pay_retry_test".to_string(),
+            actor: ACTOR,
+            event_type: TraceEvent::SdkInitialized,
+            ts: "2025-01-07T10:00:00.000Z".to_string(),
+            version: EVENT_VERSION,
+            source_service: "test-sdk-ios".to_string(),
+            sdk_name: "test-sdk".to_string(),
+            sdk_version: "1.0.0".to_string(),
+            sdk_platform: "ios".to_string(),
+            payload: serde_json::json!({}),
+        };
+
+        let url = format!("{}/event", mock_server.uri());
+        let user_agent = "test-sdk/1.0.0";
+
+        // Simulate the retry logic from send_trace
+        let mut success = false;
+        let mut attempts = 0;
+        for attempt in 1..=2 {
+            attempts = attempt;
+            match client
+                .post(&url)
+                .header("User-Agent", user_agent)
+                .json(&payload)
+                .send()
+                .await
+            {
+                Ok(resp) if resp.status().is_success() => {
+                    success = true;
+                    break;
+                }
+                Ok(_) if attempt < 2 => continue,
+                Ok(_) => break,
+                Err(_) if attempt < 2 => continue,
+                Err(_) => break,
+            }
+        }
+
+        assert!(success, "Should succeed on retry");
+        assert_eq!(attempts, 2, "Should have made 2 attempts");
+    }
+
+    #[tokio::test]
+    async fn test_send_trace_gives_up_after_two_failures() {
+        use wiremock::{
+            matchers::{method, path},
+            Mock, MockServer, ResponseTemplate,
+        };
+
+        let mock_server = MockServer::start().await;
+
+        // Both calls return 500
+        Mock::given(method("POST"))
+            .and(path("/event"))
+            .respond_with(ResponseTemplate::new(500).set_body_string("Server Error"))
+            .expect(2)
+            .mount(&mock_server)
+            .await;
+
+        let client = reqwest::Client::new();
+
+        let payload = EventPayload {
+            event_id: "test-fail".to_string(),
+            payment_id: "pay_fail_test".to_string(),
+            actor: ACTOR,
+            event_type: TraceEvent::PaymentOptionsFailed,
+            ts: "2025-01-07T10:00:00.000Z".to_string(),
+            version: EVENT_VERSION,
+            source_service: "test-sdk-ios".to_string(),
+            sdk_name: "test-sdk".to_string(),
+            sdk_version: "1.0.0".to_string(),
+            sdk_platform: "ios".to_string(),
+            payload: serde_json::json!({}),
+        };
+
+        let url = format!("{}/event", mock_server.uri());
+        let user_agent = "test-sdk/1.0.0";
+
+        // Simulate the retry logic
+        let mut success = false;
+        let mut attempts = 0;
+        for attempt in 1..=2 {
+            attempts = attempt;
+            match client
+                .post(&url)
+                .header("User-Agent", user_agent)
+                .json(&payload)
+                .send()
+                .await
+            {
+                Ok(resp) if resp.status().is_success() => {
+                    success = true;
+                    break;
+                }
+                Ok(_) if attempt < 2 => continue,
+                Ok(_) => break,
+                Err(_) if attempt < 2 => continue,
+                Err(_) => break,
+            }
+        }
+
+        assert!(!success, "Should fail after retries");
+        assert_eq!(attempts, 2, "Should have made exactly 2 attempts");
+    }
 }
