@@ -110,6 +110,10 @@ pub enum EvmSigningError {
     Broadcast(String),
     #[error("invalid typed data: {0}")]
     InvalidTypedData(String),
+    #[error("invalid address: {0}")]
+    InvalidAddress(String),
+    #[error("failed to fetch balance: {0}")]
+    BalanceFetch(String),
 }
 
 #[cfg(test)]
