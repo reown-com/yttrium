@@ -6,5 +6,11 @@ rustflags = '--cfg getrandom_backend="wasm_js"'
 # These flags help reduce binary size by removing dead code
 # Note: We don't use -Wl,--strip-all here as we manually strip with llvm-strip --strip-all after build
 # to preserve UniFFI bindings during the build process
-# Using RUSTFLAGS environment variable approach instead of config.toml to avoid linker conflicts
-# The --gc-sections flag is already included by Rust's default linker settings for release builds
+[target.aarch64-linux-android]
+rustflags = ["-C", "link-arg=-Wl,--gc-sections"]
+
+[target.armv7-linux-androideabi]
+rustflags = ["-C", "link-arg=-Wl,--gc-sections"]
+
+[target.x86_64-linux-android]
+rustflags = ["-C", "link-arg=-Wl,--gc-sections"]
