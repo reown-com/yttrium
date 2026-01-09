@@ -31,6 +31,7 @@ Utilities/InstalledSwiftPMConfiguration/config.json
 /kotlin-bindings
 /yttrium/kotlin-bindings
 /yttrium/kotlin-utils-bindings
+/yttrium/kotlin-wcpay-bindings
 .gradle
 /crates/kotlin-ffi/android/build
 
