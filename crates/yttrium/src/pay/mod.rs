@@ -481,7 +481,7 @@ pub struct PaymentOptionsResponse {
 
 // ==================== Client ====================
 
-use std::sync::RwLock;
+use std::sync::{OnceLock, RwLock};
 
 /// Applies common SDK config headers to any progenitor-generated request builder
 macro_rules! with_sdk_config {
@@ -502,33 +502,59 @@ struct CachedPaymentOption {
 
 #[cfg_attr(feature = "uniffi", derive(uniffi::Object))]
 pub struct WalletConnectPay {
-    client: Client,
+    /// Lazily initialized API client (requires Tokio runtime)
+    client: OnceLock<Client>,
     config: SdkConfig,
     cached_options: RwLock<Vec<CachedPaymentOption>>,
-    error_http_client: reqwest::Client,
+    /// Lazily initialized HTTP client for error reporting (requires Tokio runtime)
+    error_http_client: OnceLock<reqwest::Client>,
+    /// Tracks if SdkInitialized event was sent (done on first API call, not constructor)
+    initialized_event_sent: OnceLock<()>,
+}
+
+impl WalletConnectPay {
+    fn client(&self) -> &Client {
+        self.client.get_or_init(|| Client::new(&self.config.base_url))
+    }
+
+    fn error_http_client(&self) -> &reqwest::Client {
+        self.error_http_client.get_or_init(|| {
+            reqwest::Client::builder()
+                .user_agent(format!(
+                    "{}/{}",
+                    self.config.sdk_name, self.config.sdk_version
+                ))
+                .timeout(std::time::Duration::from_secs(5))
+                .build()
+                .unwrap_or_else(|e| {
+                    tracing::warn!("Failed to build error HTTP client: {}", e);
+                    reqwest::Client::new()
+                })
+        })
+    }
+
+    /// Send the SdkInitialized trace event once on first API call.
+    /// This is done lazily because the constructor cannot create HTTP clients
+    /// (reqwest requires a Tokio runtime, which isn't available when UniFFI
+    /// calls the constructor from Android's non-Tokio thread).
+    fn send_initialized_event_once(&self) {
+        self.initialized_event_sent.get_or_init(|| {
+            self.send_trace(observability::TraceEvent::SdkInitialized, "init");
+        });
+    }
 }
 
 #[cfg_attr(feature = "uniffi", uniffi::export(async_runtime = "tokio"))]
 impl WalletConnectPay {
     #[cfg_attr(feature = "uniffi", uniffi::constructor)]
     pub fn new(config: SdkConfig) -> Self {
-        let client = Client::new(&config.base_url);
-        let error_http_client = reqwest::Client::builder()
-            .user_agent(format!("{}/{}", config.sdk_name, config.sdk_version))
-            .timeout(std::time::Duration::from_secs(5))
-            .build()
-            .unwrap_or_else(|e| {
-                tracing::warn!("Failed to build error HTTP client: {}", e);
-                reqwest::Client::new()
-            });
-        let instance = Self {
-            client,
+        Self {
+            client: OnceLock::new(),
             config,
             cached_options: RwLock::new(Vec::new()),
-            error_http_client,
-        };
-        instance.send_trace(observability::TraceEvent::SdkInitialized, "init");
-        instance
+            error_http_client: OnceLock::new(),
+            initialized_event_sent: OnceLock::new(),
+        }
     }
 
     /// Get payment options for given accounts
@@ -545,6 +571,7 @@ impl WalletConnectPay {
             accounts,
             include_payment_info
         );
+        self.send_initialized_event_once();
         let payment_id = extract_payment_id(&payment_link)?;
 
         // Register payment environment for observability routing
@@ -561,7 +588,7 @@ impl WalletConnectPay {
         };
         let response = with_retry(|| async {
             with_sdk_config!(
-                self.client.gateway_get_payment_options(),
+                self.client().gateway_get_payment_options(),
                 &self.config
             )
             .id(&payment_id)
@@ -628,6 +655,7 @@ impl WalletConnectPay {
             payment_id,
             option_id
         );
+        self.send_initialized_event_once();
         self.send_trace(
             observability::TraceEvent::RequiredActionsRequested,
             &payment_id,
@@ -727,6 +755,7 @@ impl WalletConnectPay {
             option_id,
             signatures.len()
         );
+        self.send_initialized_event_once();
         self.send_trace(
             observability::TraceEvent::ConfirmPaymentCalled,
             &payment_id,
@@ -750,7 +779,7 @@ impl WalletConnectPay {
             collected_data: api_collected_data,
         };
         let mut req = with_sdk_config!(
-            self.client.confirm_payment_handler(),
+            self.client().confirm_payment_handler(),
             &self.config
         )
         .id(&payment_id)
@@ -829,7 +858,7 @@ impl WalletConnectPay {
         payment_id: &str,
     ) {
         error_reporting::report_error(
-            &self.error_http_client,
+            self.error_http_client(),
             &self.config.bundle_id,
             &self.config.project_id,
             &self.config.sdk_name,
@@ -842,7 +871,7 @@ impl WalletConnectPay {
 
     fn send_trace(&self, event: observability::TraceEvent, payment_id: &str) {
         observability::send_trace(
-            &self.error_http_client,
+            self.error_http_client(),
             &self.config.bundle_id,
             &self.config.project_id,
             &self.config.sdk_name,
@@ -893,7 +922,7 @@ impl WalletConnectPay {
         let body =
             types::FetchRequest { option_id: option_id.to_string(), data };
         let response = with_retry(|| async {
-            with_sdk_config!(self.client.fetch_handler(), &self.config)
+            with_sdk_config!(self.client().fetch_handler(), &self.config)
                 .id(payment_id)
                 .body(body.clone())
                 .send()
@@ -909,7 +938,7 @@ impl WalletConnectPay {
         max_poll_ms: Option<i64>,
     ) -> Result<types::GetPaymentStatusResponse, PayError> {
         let mut req = with_sdk_config!(
-            self.client.gateway_get_payment_status(),
+            self.client().gateway_get_payment_status(),
             &self.config
         )
         .id(&payment_id);
