@@ -233,6 +233,7 @@ jobs:
           ./generate_kotlin_locally.sh
         env:
           ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
+          RUSTFLAGS: "-C link-arg=-Wl,--gc-sections"
 
   merge_check:
     name: Merge Check
