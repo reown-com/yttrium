@@ -21,13 +21,16 @@ eip155 = ["yttrium/eip155"]
 pay = ["yttrium/pay", "dep:pay-api", "pay-api/uniffi"]
 
 android = ["yttrium/android"]
+# Android with base uniffi only (no websocket) - for minimal builds like wcpay
+android_base = ["yttrium/android_base"]
 ios = ["yttrium/ios"]
 
 [build-dependencies]
 uniffi_build.workspace = true
 
 [dependencies]
-yttrium = { path = "../yttrium", default-features = false, features = ["uniffi"] }
+# Use uniffi_base by default; features that need native (websocket) can enable yttrium/native
+yttrium = { path = "../yttrium", default-features = false, features = ["uniffi_base"] }
 uniffi = { workspace = true, features = ["tokio", "cli"] }
 pay-api = { path = "../pay-api", optional = true }
 openssl = { version = "0.10", features = ["vendored"] }

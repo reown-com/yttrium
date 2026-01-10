@@ -1,6 +1,6 @@
-#[cfg(feature = "uniffi")]
+#[cfg(any(feature = "uniffi", feature = "uniffi_derive"))]
 uniffi::setup_scaffolding!();
-#[cfg(feature = "uniffi")]
+#[cfg(any(feature = "uniffi", feature = "uniffi_derive"))]
 pub mod uniffi_compat;
 
 #[cfg(feature = "wasm")]

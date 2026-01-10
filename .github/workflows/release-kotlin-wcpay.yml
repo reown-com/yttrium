@@ -9,6 +9,7 @@ env:
   CARGO_TERM_COLOR: always
   VERSION: ${{ github.event.inputs.version || '0.0.1' }}
   TARGET_BRANCH: ${{ github.ref_name }}
+  RUSTFLAGS: "-C link-arg=-Wl,--gc-sections"
 permissions:
   contents: write
 jobs:
@@ -45,14 +46,14 @@ jobs:
           cargo ndk -t ${{ matrix.target }} build \
             --profile=uniffi-release-kotlin-wcpay \
             --no-default-features \
-            --features=android,pay,uniffi/cli
+            --features=android_base,pay,uniffi/cli
       - name: Generate Kotlin wcpay bindings (once, on aarch64 only)
         if: ${{ matrix.target == 'aarch64-linux-android' }}
         run: |
           rm -rf yttrium/kotlin-wcpay-bindings
           cargo run \
             --no-default-features \
-            --features=android,pay,uniffi/cli \
+            --features=android_base,pay,uniffi/cli \
             -p kotlin-ffi \
             --bin uniffi-bindgen generate \
             --library target/${{ matrix.target }}/uniffi-release-kotlin-wcpay/libuniffi_yttrium.so \

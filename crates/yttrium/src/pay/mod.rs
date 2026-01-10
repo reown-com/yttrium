@@ -28,7 +28,7 @@ macro_rules! pay_error {
 }
 
 #[derive(Debug, thiserror::Error)]
-#[cfg_attr(feature = "uniffi", derive(uniffi::Error))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi::Error))]
 pub enum PayError {
     #[error("HTTP error: {0}")]
     Http(String),
@@ -55,7 +55,7 @@ impl error_reporting::HasErrorType for PayError {
 }
 
 #[derive(Debug, thiserror::Error)]
-#[cfg_attr(feature = "uniffi", derive(uniffi::Error))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi::Error))]
 pub enum GetPaymentOptionsError {
     #[error("Payment expired: {0}")]
     PaymentExpired(String),
@@ -94,7 +94,7 @@ impl error_reporting::HasErrorType for GetPaymentOptionsError {
 }
 
 #[derive(Debug, thiserror::Error)]
-#[cfg_attr(feature = "uniffi", derive(uniffi::Error))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi::Error))]
 pub enum GetPaymentRequestError {
     #[error("Option not found: {0}")]
     OptionNotFound(String),
@@ -124,7 +124,7 @@ impl error_reporting::HasErrorType for GetPaymentRequestError {
 }
 
 #[derive(Debug, thiserror::Error)]
-#[cfg_attr(feature = "uniffi", derive(uniffi::Error))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi::Error))]
 pub enum ConfirmPaymentError {
     #[error("Payment not found: {0}")]
     PaymentNotFound(String),
@@ -195,7 +195,7 @@ where
 // ==================== Types ====================
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi::Record))]
 #[serde(rename_all = "camelCase")]
 pub struct SdkConfig {
     pub base_url: String,
@@ -208,7 +208,7 @@ pub struct SdkConfig {
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-#[cfg_attr(feature = "uniffi", derive(uniffi::Enum))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi::Enum))]
 #[serde(rename_all = "snake_case")]
 pub enum PaymentStatus {
     RequiresAction,
@@ -233,7 +233,7 @@ impl From<types::PaymentStatus> for PaymentStatus {
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize)]
-#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi::Record))]
 #[serde(rename_all = "camelCase")]
 pub struct ConfirmPaymentResultResponse {
     pub status: PaymentStatus,
@@ -252,7 +252,7 @@ impl From<types::ConfirmPaymentResponse> for ConfirmPaymentResultResponse {
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi::Record))]
 #[serde(rename_all = "camelCase")]
 pub struct WalletRpcAction {
     pub chain_id: String,
@@ -274,7 +274,7 @@ impl From<types::WalletRpcAction> for WalletRpcAction {
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-#[cfg_attr(feature = "uniffi", derive(uniffi::Enum))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi::Enum))]
 #[serde(rename_all = "snake_case")]
 pub enum CollectDataFieldType {
     Text,
@@ -291,7 +291,7 @@ impl From<types::CollectDataFieldType> for CollectDataFieldType {
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi::Record))]
 #[serde(rename_all = "camelCase")]
 pub struct CollectDataField {
     pub id: String,
@@ -312,7 +312,7 @@ impl From<types::CollectDataField> for CollectDataField {
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi::Record))]
 #[serde(rename_all = "camelCase")]
 pub struct CollectDataAction {
     pub fields: Vec<CollectDataField>,
@@ -325,14 +325,14 @@ impl From<types::CollectData> for CollectDataAction {
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi::Record))]
 #[serde(rename_all = "camelCase")]
 pub struct Action {
     pub wallet_rpc: WalletRpcAction,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi::Record))]
 #[serde(rename_all = "camelCase")]
 pub struct CollectDataFieldResult {
     pub id: String,
@@ -346,7 +346,7 @@ impl From<CollectDataFieldResult> for types::CollectDataFieldResult {
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize)]
-#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi::Record))]
 #[serde(rename_all = "camelCase")]
 pub struct AmountDisplay {
     pub asset_symbol: String,
@@ -369,7 +369,7 @@ impl From<types::AmountDisplay> for AmountDisplay {
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize)]
-#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi::Record))]
 #[serde(rename_all = "camelCase")]
 pub struct PayAmount {
     pub unit: String,
@@ -384,7 +384,7 @@ impl From<types::Amount> for PayAmount {
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize)]
-#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi::Record))]
 #[serde(rename_all = "camelCase")]
 pub struct PaymentOption {
     pub id: String,
@@ -414,7 +414,7 @@ impl From<types::PaymentOption> for PaymentOption {
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize)]
-#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi::Record))]
 #[serde(rename_all = "camelCase")]
 pub struct MerchantInfo {
     pub name: String,
@@ -428,7 +428,7 @@ impl From<types::MerchantInfo> for MerchantInfo {
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize)]
-#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi::Record))]
 #[serde(rename_all = "camelCase")]
 pub struct BuyerInfo {
     pub account_caip10: String,
@@ -447,7 +447,7 @@ impl From<types::BuyerInfo> for BuyerInfo {
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize)]
-#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi::Record))]
 #[serde(rename_all = "camelCase")]
 pub struct PaymentInfo {
     pub status: PaymentStatus,
@@ -470,7 +470,7 @@ impl From<types::GetPaymentResponse> for PaymentInfo {
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize)]
-#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi::Record))]
 #[serde(rename_all = "camelCase")]
 pub struct PaymentOptionsResponse {
     pub payment_id: String,
@@ -500,7 +500,7 @@ struct CachedPaymentOption {
     actions: Vec<types::Action>,
 }
 
-#[cfg_attr(feature = "uniffi", derive(uniffi::Object))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi::Object))]
 pub struct WalletConnectPay {
     /// Lazily initialized API client (requires Tokio runtime)
     client: OnceLock<Client>,
@@ -544,9 +544,9 @@ impl WalletConnectPay {
     }
 }
 
-#[cfg_attr(feature = "uniffi", uniffi::export(async_runtime = "tokio"))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), uniffi::export(async_runtime = "tokio"))]
 impl WalletConnectPay {
-    #[cfg_attr(feature = "uniffi", uniffi::constructor)]
+    #[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), uniffi::constructor)]
     pub fn new(config: SdkConfig) -> Self {
         Self {
             client: OnceLock::new(),

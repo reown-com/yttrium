@@ -9,6 +9,17 @@ use alloy::primitives::Bytes as FFIBytes;
 #[allow(unused_imports)]
 #[allow(clippy::single_component_path_imports)]
 use yttrium;
+
+// Re-export pay types for uniffi binding generation
+#[cfg(feature = "pay")]
+pub use yttrium::pay::{
+    Action, AmountDisplay, BuyerInfo, CollectDataAction, CollectDataField,
+    CollectDataFieldResult, CollectDataFieldType, ConfirmPaymentError,
+    ConfirmPaymentResultResponse, GetPaymentOptionsError, GetPaymentRequestError,
+    MerchantInfo, PayAmount, PayError, PaymentInfo, PaymentOption,
+    PaymentOptionsResponse, PaymentStatus, SdkConfig, WalletConnectPay,
+    WalletRpcAction,
+};
 #[cfg(any(
     feature = "chain_abstraction_client",
     feature = "account_client"

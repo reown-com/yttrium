@@ -14,9 +14,17 @@ fi
 
 echo "Using ANDROID_NDK_HOME: $ANDROID_NDK_HOME"
 
+# Link-time optimization flag for dead code elimination (Android targets only)
+# Note: --gc-sections is a GNU ld flag, doesn't work on macOS host builds
+# Set target-specific rustflags for Android targets
+export CARGO_TARGET_AARCH64_LINUX_ANDROID_RUSTFLAGS="-C link-arg=-Wl,--gc-sections"
+export CARGO_TARGET_ARMV7_LINUX_ANDROIDEABI_RUSTFLAGS="-C link-arg=-Wl,--gc-sections"
+export CARGO_TARGET_X86_64_LINUX_ANDROID_RUSTFLAGS="-C link-arg=-Wl,--gc-sections"
+
 ACCOUNT_FEATURES="android,erc6492_client,pay,uniffi/cli"
 UTILS_FEATURES="android,chain_abstraction_client,solana,stacks,sui,ton,eip155,uniffi/cli"
-WCPAY_FEATURES="android,pay,uniffi/cli"
+# Use android_base for wcpay to avoid pulling in websocket dependencies
+WCPAY_FEATURES="android_base,pay,uniffi/cli"
 PROFILE="uniffi-release-kotlin"
 WCPAY_PROFILE="uniffi-release-kotlin-wcpay"
 OUTPUT_ROOT="build/kotlin-artifacts"
@@ -138,7 +146,10 @@ install_variant_sources() {
 
     mkdir -p "$kotlin_base"
     cp "${bindings_dir}/uniffi/uniffi_yttrium/uniffi_yttrium.kt" "$kotlin_base/"
-    cp "${bindings_dir}/uniffi/yttrium/yttrium.kt" "$kotlin_base/"
+    # yttrium.kt may not exist for minimal builds (e.g., wcpay)
+    if [ -f "${bindings_dir}/uniffi/yttrium/yttrium.kt" ]; then
+        cp "${bindings_dir}/uniffi/yttrium/yttrium.kt" "$kotlin_base/"
+    fi
 
     if [ "$variant" = "utils" ]; then
         # Change generated Kotlin package names and library name to avoid class duplication when both AARs are added
@@ -192,19 +203,21 @@ install_variant_sources() {
             sed -i '' 's/return "uniffi_yttrium"/return "uniffi_yttrium_wcpay"/g' "$kotlin_base/uniffi_yttrium.kt" || true
         fi
 
-        # Process yttrium.kt:
+        # Process yttrium.kt (if it exists - minimal builds may not have it):
         # 1. Change package: uniffi.yttrium -> uniffi.yttrium_wcpay
         # 2. Change imports: uniffi.uniffi_yttrium -> uniffi.uniffi_yttrium_wcpay
         # 3. Change library name: "uniffi_yttrium" -> "uniffi_yttrium_wcpay"
-        if command -v perl >/dev/null 2>&1; then
-            perl -0pi -e 's/\bpackage\s+uniffi\.yttrium\b/package uniffi.yttrium_wcpay/g' "$kotlin_base/yttrium.kt"
-            perl -0pi -e 's/\buniffi\.uniffi_yttrium(?!_wcpay)\b/uniffi.uniffi_yttrium_wcpay/g' "$kotlin_base/yttrium.kt"
-            perl -0pi -e 's/return "uniffi_yttrium"/return "uniffi_yttrium_wcpay"/g' "$kotlin_base/yttrium.kt"
-        else
-            sed -i '' 's/^package uniffi\.yttrium$/package uniffi.yttrium_wcpay/' "$kotlin_base/yttrium.kt" || true
-            sed -i '' 's/uniffi\.uniffi_yttrium\([^_]\)/uniffi.uniffi_yttrium_wcpay\1/g' "$kotlin_base/yttrium.kt" || true
-            sed -i '' 's/uniffi\.uniffi_yttrium$/uniffi.uniffi_yttrium_wcpay/g' "$kotlin_base/yttrium.kt" || true
-            sed -i '' 's/return "uniffi_yttrium"/return "uniffi_yttrium_wcpay"/g' "$kotlin_base/yttrium.kt" || true
+        if [ -f "$kotlin_base/yttrium.kt" ]; then
+            if command -v perl >/dev/null 2>&1; then
+                perl -0pi -e 's/\bpackage\s+uniffi\.yttrium\b/package uniffi.yttrium_wcpay/g' "$kotlin_base/yttrium.kt"
+                perl -0pi -e 's/\buniffi\.uniffi_yttrium(?!_wcpay)\b/uniffi.uniffi_yttrium_wcpay/g' "$kotlin_base/yttrium.kt"
+                perl -0pi -e 's/return "uniffi_yttrium"/return "uniffi_yttrium_wcpay"/g' "$kotlin_base/yttrium.kt"
+            else
+                sed -i '' 's/^package uniffi\.yttrium$/package uniffi.yttrium_wcpay/' "$kotlin_base/yttrium.kt" || true
+                sed -i '' 's/uniffi\.uniffi_yttrium\([^_]\)/uniffi.uniffi_yttrium_wcpay\1/g' "$kotlin_base/yttrium.kt" || true
+                sed -i '' 's/uniffi\.uniffi_yttrium$/uniffi.uniffi_yttrium_wcpay/g' "$kotlin_base/yttrium.kt" || true
+                sed -i '' 's/return "uniffi_yttrium"/return "uniffi_yttrium_wcpay"/g' "$kotlin_base/yttrium.kt" || true
+            fi
         fi
     fi
 }

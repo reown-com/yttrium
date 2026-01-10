@@ -1,7 +1,7 @@
 use super::{CollectDataFieldResult, SdkConfig, WalletConnectPay};
 
 #[derive(Debug, thiserror::Error)]
-#[cfg_attr(feature = "uniffi", derive(uniffi::Error))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi::Error))]
 pub enum PayJsonError {
     #[error("JSON parse error: {0}")]
     JsonParse(String),
@@ -51,14 +51,14 @@ struct ConfirmPaymentJsonRequestJson {
 
 /// JSON wrapper for WalletConnectPay client
 /// Accepts JSON strings as input, deserializes, calls underlying methods, and returns JSON strings
-#[cfg_attr(feature = "uniffi", derive(uniffi::Object))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi::Object))]
 pub struct WalletConnectPayJson {
     client: WalletConnectPay,
 }
 
-#[cfg_attr(feature = "uniffi", uniffi::export(async_runtime = "tokio"))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), uniffi::export(async_runtime = "tokio"))]
 impl WalletConnectPayJson {
-    #[cfg_attr(feature = "uniffi", uniffi::constructor)]
+    #[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), uniffi::constructor)]
     pub fn new(sdk_config: String) -> Result<Self, PayJsonError> {
         let config: SdkConfig = serde_json::from_str(&sdk_config)
             .map_err(|e| PayJsonError::JsonParse(e.to_string()))?;
