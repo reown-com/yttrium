@@ -1,12 +1,14 @@
 name: Build and Release All Kotlin Artifacts
 on:
-  push:
-    branches:
-      - improve_size_reduction
+ workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release (e.g. 0.9.100)"
+        required: true
 
 env:
   CARGO_TERM_COLOR: always
-  VERSION: 0.9.119 
+  VERSION: ${{ github.event.inputs.version || '0.0.1' }}
   TARGET_BRANCH: ${{ github.ref_name }}
 
 permissions:
