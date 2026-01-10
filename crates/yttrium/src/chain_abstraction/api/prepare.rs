@@ -167,7 +167,7 @@ impl FromStr for Eip155OrSolanaAddress {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi_macros::Record))]
 #[cfg_attr(
     feature = "wasm",
     derive(tsify_next::Tsify),
@@ -184,7 +184,7 @@ pub struct PrepareResponseMetadata {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi_macros::Record))]
 #[cfg_attr(
     feature = "wasm",
     derive(tsify_next::Tsify),
@@ -210,7 +210,7 @@ impl InitialTransactionMetadata {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi_macros::Record))]
 #[cfg_attr(
     feature = "wasm",
     derive(tsify_next::Tsify),
@@ -260,7 +260,7 @@ impl FundingMetadata {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi_macros::Record))]
 #[cfg_attr(
     feature = "wasm",
     derive(tsify_next::Tsify),
@@ -275,7 +275,7 @@ pub struct PrepareResponseAvailable {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Enum))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi_macros::Enum))]
 #[cfg_attr(
     feature = "wasm",
     derive(tsify_next::Tsify),
@@ -326,7 +326,7 @@ impl Transactions {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi_macros::Record))]
 #[cfg_attr(
     feature = "wasm",
     derive(tsify_next::Tsify),
@@ -341,7 +341,7 @@ pub struct SolanaTransaction {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi_macros::Record))]
 #[cfg_attr(
     feature = "wasm",
     derive(tsify_next::Tsify),
@@ -354,7 +354,7 @@ pub struct PrepareResponseNotRequired {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Enum))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi_macros::Enum))]
 #[cfg_attr(
     feature = "wasm",
     derive(tsify_next::Tsify),
@@ -378,7 +378,7 @@ impl PrepareResponseSuccess {
 /// Bridging check error response that should be returned as a normal HTTP 200
 /// response
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi_macros::Record))]
 #[cfg_attr(
     feature = "wasm",
     derive(tsify_next::Tsify),
@@ -391,7 +391,7 @@ pub struct PrepareResponseError {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Enum))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi_macros::Enum))]
 #[cfg_attr(
     feature = "wasm",
     derive(tsify_next::Tsify),
@@ -410,7 +410,7 @@ pub enum BridgingError {
 
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Enum))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi_macros::Enum))]
 #[cfg_attr(
     feature = "wasm",
     derive(tsify_next::Tsify),

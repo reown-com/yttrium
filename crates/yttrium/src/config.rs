@@ -9,7 +9,7 @@ pub const LOCAL_PAYMASTER_URL: &str = "http://localhost:3000";
     feature = "wasm",
     wasm_bindgen::prelude::wasm_bindgen(getter_with_clone)
 )]
-#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi_macros::Record))]
 pub struct Config {
     pub endpoints: Endpoints,
 }
@@ -29,7 +29,7 @@ impl Config {
     feature = "wasm",
     wasm_bindgen::prelude::wasm_bindgen(getter_with_clone)
 )]
-#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi_macros::Record))]
 pub struct Endpoints {
     pub rpc: Endpoint,
     pub bundler: Endpoint,
@@ -105,7 +105,7 @@ impl Endpoints {
     feature = "wasm",
     wasm_bindgen::prelude::wasm_bindgen(getter_with_clone)
 )]
-#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi_macros::Record))]
 pub struct Endpoint {
     pub base_url: String,
     pub api_key: String,

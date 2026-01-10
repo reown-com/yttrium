@@ -16,7 +16,7 @@ pub mod prepare;
 pub mod status;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi_macros::Record))]
 #[cfg_attr(
     feature = "wasm",
     derive(tsify_next::Tsify),
@@ -37,7 +37,7 @@ pub struct Transaction {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi_macros::Record))]
 #[cfg_attr(
     feature = "wasm",
     derive(tsify_next::Tsify),

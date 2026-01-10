@@ -18,7 +18,7 @@ pub struct StatusQueryParams {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi_macros::Record))]
 #[cfg_attr(
     feature = "wasm",
     derive(tsify_next::Tsify),
@@ -32,7 +32,7 @@ pub struct StatusResponsePendingObject {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi_macros::Record))]
 #[cfg_attr(
     feature = "wasm",
     derive(tsify_next::Tsify),
@@ -44,7 +44,7 @@ pub struct StatusResponseCompleted {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi_macros::Record))]
 #[cfg_attr(
     feature = "wasm",
     derive(tsify_next::Tsify),
@@ -57,7 +57,7 @@ pub struct StatusResponseError {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Enum))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi_macros::Enum))]
 #[cfg_attr(
     feature = "wasm",
     derive(tsify_next::Tsify),

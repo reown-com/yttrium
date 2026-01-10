@@ -30,7 +30,7 @@ use {
     },
 };
 
-#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Object))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi_macros::Object))]
 pub struct AccountClient {
     owner: AccountAddress,
     chain_id: u64,

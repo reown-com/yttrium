@@ -48,14 +48,14 @@ pub struct Session {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
-#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Enum))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi_macros::Enum))]
 pub enum TransportType {
     Relay,
     LinkMode,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi_macros::Record))]
 pub struct ConnectParams {
     pub optional_namespaces: ProposalNamespaces,
     pub session_properties: Option<HashMap<String, String>>,
@@ -63,14 +63,14 @@ pub struct ConnectParams {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi_macros::Record))]
 pub struct ConnectResult {
     pub topic: Topic,
     pub uri: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi_macros::Record))]
 pub struct PairingInfo {
     pub topic: Topic,
     pub uri: String,
@@ -83,7 +83,7 @@ pub struct PairingInfo {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Enum))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi_macros::Enum))]
 pub enum RejectionReason {
     UserRejected,
     UnsupportedChains,

@@ -62,16 +62,16 @@ mod tests;
 // docs: https://github.com/reown-com/reown-docs/pull/201
 
 #[derive(Clone)]
-#[cfg_attr(feature = "uniffi", derive(uniffi::Object))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi::Object))]
 pub struct Client {
     provider_pool: ProviderPool,
     bundler_url: Url,
     paymaster_url: Url,
 }
 
-#[cfg_attr(feature = "uniffi", uniffi::export(async_runtime = "tokio"))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), uniffi::export(async_runtime = "tokio"))]
 impl Client {
-    #[cfg_attr(feature = "uniffi", uniffi::constructor)]
+    #[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), uniffi::constructor)]
     pub fn new(project_id: ProjectId, pulse_metadata: PulseMetadata) -> Self {
         let bundler_url = BLOCKCHAIN_API_URL_PROD
             .parse::<Url>()
@@ -488,7 +488,7 @@ impl Client {
 }
 
 #[allow(clippy::large_enum_variant)]
-#[cfg_attr(feature = "uniffi", derive(uniffi::Enum))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi::Enum))]
 pub enum PreparedGasAbstraction {
     DeploymentRequired {
         auth: PreparedGasAbstractionAuthorization,
@@ -500,7 +500,7 @@ pub enum PreparedGasAbstraction {
 }
 
 #[derive(Clone)]
-#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi::Record))]
 pub struct PrepareDeployParams {
     pub chain_id: String,
     pub from: Address,
@@ -508,21 +508,21 @@ pub struct PrepareDeployParams {
 }
 
 #[derive(Clone)]
-#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi::Record))]
 pub struct PreparedGasAbstractionAuthorization {
     pub auth: Authorization,
     pub hash: B256,
 }
 
 #[derive(Clone)]
-#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi::Record))]
 pub struct SignedAuthorization {
     // FIXME cannot pass this through FFI like this
     pub auth: Authorization,
     pub signature: Signature,
 }
 
-#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi::Record))]
 pub struct PreparedSend {
     pub message: Bytes,
     pub hash: B256,
@@ -530,7 +530,7 @@ pub struct PreparedSend {
     pub fees: PreparedSendFees,
 }
 
-#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi::Record))]
 pub struct PreparedSendFees {
     pub gas_fee: U256,
     pub local_total: Amount,
@@ -538,7 +538,7 @@ pub struct PreparedSendFees {
 }
 
 #[derive(Clone)]
-#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi::Record))]
 pub struct SendParams {
     pub user_op: UserOperationV07,
 }

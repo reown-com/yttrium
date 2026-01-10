@@ -23,7 +23,7 @@ use {
 };
 
 #[derive(Debug, Serialize, Deserialize)]
-#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi_macros::Record))]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(
     feature = "wasm",
@@ -41,7 +41,7 @@ pub struct UiFields {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Enum))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi_macros::Enum))]
 #[cfg_attr(
     feature = "wasm",
     derive(tsify_next::Tsify),
@@ -92,7 +92,7 @@ impl Route {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi_macros::Record))]
 #[cfg_attr(
     feature = "wasm",
     derive(tsify_next::Tsify),
@@ -106,7 +106,7 @@ pub struct TxnDetails {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi_macros::Record))]
 #[cfg_attr(
     feature = "wasm",
     derive(tsify_next::Tsify),
@@ -119,7 +119,7 @@ pub struct TransactionFee {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi_macros::Record))]
 #[cfg_attr(
     feature = "wasm",
     derive(tsify_next::Tsify),
@@ -333,7 +333,7 @@ pub fn ui_fields(
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Enum))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi_macros::Enum))]
 #[cfg_attr(
     feature = "wasm",
     derive(tsify_next::Tsify),

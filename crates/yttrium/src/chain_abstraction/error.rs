@@ -40,7 +40,7 @@ pub enum PrepareError {
 }
 
 #[derive(thiserror::Error, Debug)]
-#[cfg_attr(feature = "uniffi", derive(uniffi::Error))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi::Error))]
 #[cfg_attr(feature = "wasm", derive(derive_jserror::JsError))]
 pub enum StatusError {
     /// Retryable error
@@ -104,7 +104,7 @@ pub enum PrepareDetailedError {
 // TODO this response type shouldn't be in `error` module
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug, Serialize, Deserialize)]
-#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Enum))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi_macros::Enum))]
 #[cfg_attr(
     feature = "wasm",
     derive(tsify_next::Tsify),
@@ -118,7 +118,7 @@ pub enum PrepareDetailedResponse {
 
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug, Serialize, Deserialize)]
-#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Enum))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi_macros::Enum))]
 #[cfg_attr(
     feature = "wasm",
     derive(tsify_next::Tsify),
@@ -151,7 +151,7 @@ impl PrepareDetailedResponse {
 }
 
 #[derive(thiserror::Error, Debug)]
-#[cfg_attr(feature = "uniffi", derive(uniffi::Error))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi::Error))]
 #[cfg_attr(feature = "wasm", derive(derive_jserror::JsError))]
 pub enum WaitForSuccessError {
     #[error("Status: {0}")]
@@ -166,14 +166,14 @@ pub enum WaitForSuccessError {
 }
 
 #[derive(thiserror::Error, Debug)]
-#[cfg_attr(feature = "uniffi", derive(uniffi::Error))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi::Error))]
 pub enum ExecuteError {
     #[error("Execute Error: orchestration_id:{orchestration_id} - {reason}")]
     WithOrchestrationId { orchestration_id: String, reason: ExecuteErrorReason },
 }
 
 #[derive(Debug, Error)]
-#[cfg_attr(feature = "uniffi", derive(uniffi::Error))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi::Error))]
 pub enum ExecuteErrorReason {
     #[error("Route: {0}")]
     Route(SendTransactionError),
@@ -184,7 +184,7 @@ pub enum ExecuteErrorReason {
 }
 
 #[derive(Debug, Error)]
-#[cfg_attr(feature = "uniffi", derive(uniffi::Error))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi::Error))]
 pub enum SendTransactionError {
     #[error("Rpc: {0}")]
     Rpc(RpcError<TransportErrorKind>),

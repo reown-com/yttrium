@@ -66,7 +66,7 @@ pub struct Proposal {
 pub type ProposalNamespaces = HashMap<String, ProposalNamespace>;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi_macros::Record))]
 pub struct ProposalNamespace {
     pub chains: Vec<String>,
     pub methods: Vec<String>,
@@ -74,7 +74,7 @@ pub struct ProposalNamespace {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi_macros::Record))]
 pub struct Relay {
     pub protocol: String,
 }
@@ -181,7 +181,7 @@ pub struct SimpleJsonRpcBoolResponse {
     pub result: bool,
 }
 
-#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi_macros::Record))]
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct SettleNamespace {
     pub accounts: Vec<String>,
@@ -199,7 +199,7 @@ pub struct Controller {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
-#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi_macros::Record))]
 pub struct Metadata {
     pub name: String,
     pub description: String,
@@ -211,7 +211,7 @@ pub struct Metadata {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
-#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi_macros::Record))]
 pub struct Redirect {
     pub native: Option<String>,
     pub universal: Option<String>,
@@ -259,7 +259,7 @@ pub enum SessionRequestJsonRpcResponse {
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi_macros::Record))]
 pub struct SessionDeleteJsonRpc {
     pub id: ProtocolRpcId,
     pub jsonrpc: JsonRpcVersion,
@@ -269,7 +269,7 @@ pub struct SessionDeleteJsonRpc {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
-#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi_macros::Record))]
 pub struct SessionDelete {
     pub code: u64,
     pub message: String,

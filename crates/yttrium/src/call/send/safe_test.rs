@@ -155,7 +155,7 @@ pub async fn send_transactions(
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi::Record))]
 pub struct PreparedSendTransaction {
     pub safe_op: SafeOp,
     pub domain: Eip712Domain,
@@ -164,7 +164,7 @@ pub struct PreparedSendTransaction {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi::Record))]
 pub struct DoSendTransactionParams {
     pub user_op: UserOperationV07,
     pub valid_after: U48,
@@ -363,7 +363,7 @@ pub async fn prepare_send_transactions_inner(
 }
 
 #[derive(Clone)]
-#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi::Record))]
 pub struct OwnerSignature {
     pub owner: Address,
     pub signature: Signature,

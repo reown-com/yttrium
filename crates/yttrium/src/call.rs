@@ -6,7 +6,7 @@ use {
 pub mod send;
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi::Record))]
 #[cfg_attr(
     feature = "wasm",
     derive(tsify_next::Tsify),

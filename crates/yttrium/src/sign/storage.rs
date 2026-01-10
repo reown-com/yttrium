@@ -74,7 +74,7 @@ pub trait Storage: Send + Sync {
     ) -> Result<bool, StorageError>;
 }
 
-#[cfg_attr(feature = "uniffi", derive(uniffi::Error))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi::Error))]
 #[derive(Debug, thiserror::Error)]
 pub enum StorageError {
     #[error("Runtime: {0}")]

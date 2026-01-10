@@ -105,7 +105,7 @@ sol! {
 
 sol!(
     #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
-    #[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
+    #[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi::Record))]
     struct SafeOp {
         address safe;
         uint256 nonce;
@@ -385,7 +385,7 @@ pub fn prepare_sign(
 }
 
 #[allow(clippy::large_enum_variant)]
-#[cfg_attr(feature = "uniffi", derive(uniffi::Enum))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi::Enum))]
 pub enum SignOutputEnum {
     Signature(Bytes),
     // renamed to `Object` to avoid conflicts: https://github.com/mozilla/uniffi-rs/issues/2402
@@ -393,14 +393,14 @@ pub enum SignOutputEnum {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi::Record))]
 pub struct SignOutputObject {
     pub to_sign: SignOutputToSign,
     pub sign_step_3_params: SignStep3Params,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi::Record))]
 pub struct SignOutputToSign {
     pub hash: B256,
     pub safe_op: SafeOp,
@@ -408,7 +408,7 @@ pub struct SignOutputToSign {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi::Record))]
 pub struct SignStep3Params {
     pub signature: Bytes,
     pub do_send_transaction_params: DoSendTransactionParams,

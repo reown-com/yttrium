@@ -29,7 +29,7 @@ fn parse_hex_or_decimal(s: &str) -> Option<u64> {
 
 /// Parameters required to sign and broadcast an EVM transaction.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi_macros::Record))]
 #[serde(rename_all = "camelCase")]
 pub struct SignAndSendParams {
     /// CAIP-2 chain identifier (e.g. `eip155:10`).
@@ -60,7 +60,7 @@ pub struct SignAndSendParams {
 
 /// Result of signing and broadcasting a transaction.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi_macros::Record))]
 #[serde(rename_all = "camelCase")]
 pub struct SignAndSendResult {
     pub transaction_hash: B256,
@@ -73,7 +73,7 @@ pub struct SignAndSendResult {
 
 /// ERC-3009 authorization with signature components for TransferWithAuthorization.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi_macros::Record))]
 #[serde(rename_all = "camelCase")]
 pub struct Erc3009Authorization {
     pub from: String,
@@ -88,7 +88,7 @@ pub struct Erc3009Authorization {
 }
 
 #[derive(Debug, Error)]
-#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Error))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi_macros::Error))]
 pub enum EvmSigningError {
     #[error("unsupported chain identifier format: {0}")]
     UnsupportedChainId(String),

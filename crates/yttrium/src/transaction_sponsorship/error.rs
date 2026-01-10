@@ -8,7 +8,7 @@ use {
 };
 
 #[derive(Debug, Error)]
-#[cfg_attr(feature = "uniffi", derive(uniffi::Error))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi::Error))]
 pub enum PrepareError {
     #[error("Checking account code: {0}")]
     CheckingAccountCode(RpcError<TransportErrorKind>),
@@ -22,7 +22,7 @@ pub enum PrepareError {
 
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug, Error)]
-#[cfg_attr(feature = "uniffi", derive(uniffi::Error))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi::Error))]
 pub enum PrepareDeployError {
     #[error("Sending delegation transaction: {0}")]
     SendingDelegationTransaction(contract::Error),
@@ -40,7 +40,7 @@ pub enum PrepareDeployError {
 }
 
 #[derive(Debug, Error)]
-#[cfg_attr(feature = "uniffi", derive(uniffi::Error))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi::Error))]
 pub enum CreateSponsoredUserOpError {
     #[error("Getting nonce: {0}")]
     GettingNonce(contract::Error),
@@ -53,7 +53,7 @@ pub enum CreateSponsoredUserOpError {
 }
 
 #[derive(Debug, Error)]
-#[cfg_attr(feature = "uniffi", derive(uniffi::Error))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi::Error))]
 pub enum SendError {
     #[error("Checking account code: {0}")]
     SendingUserOperation(eyre::Report),

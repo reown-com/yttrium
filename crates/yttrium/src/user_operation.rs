@@ -57,7 +57,7 @@ pub struct Authorization {
     Deserialize,
 )]
 #[serde(rename_all = "camelCase")]
-#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi::Record))]
 pub struct UserOperationV07 {
     #[serde(serialize_with = "as_checksum_addr")]
     pub sender: AccountAddress,

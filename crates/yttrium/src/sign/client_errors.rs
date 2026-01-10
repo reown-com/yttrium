@@ -1,7 +1,7 @@
 use crate::sign::storage::StorageError;
 
 #[derive(Debug, thiserror::Error, Clone)]
-#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Error))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi_macros::Error))]
 #[error("Sign request error: {0}")]
 pub enum RequestError {
     #[error("Internal: {0}")]
@@ -26,7 +26,7 @@ pub enum RequestError {
 }
 
 #[derive(Debug, thiserror::Error)]
-#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Error))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi_macros::Error))]
 #[error("Sign next error: {0}")]
 pub enum NextError {
     #[error("Internal: {0}")]
@@ -34,7 +34,7 @@ pub enum NextError {
 }
 
 #[derive(Debug, thiserror::Error)]
-#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Error))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi_macros::Error))]
 #[error("Sign pair error: {0}")]
 pub enum PairError {
     #[error("Get public key: {0}")]
@@ -51,7 +51,7 @@ pub enum PairError {
 }
 
 #[derive(Debug, thiserror::Error)]
-#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Error))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi_macros::Error))]
 #[error("Sign approve error: {0}")]
 pub enum ApproveError {
     #[error("Request error: {0}")]
@@ -65,7 +65,7 @@ pub enum ApproveError {
 }
 
 #[derive(Debug, thiserror::Error)]
-#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Error))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi_macros::Error))]
 #[error("Sign reject error: {0}")]
 pub enum RejectError {
     #[error("Request error: {0}")]
@@ -79,7 +79,7 @@ pub enum RejectError {
 }
 
 #[derive(Debug, thiserror::Error)]
-#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Error))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi_macros::Error))]
 #[error("Sign respond error: {0}")]
 pub enum RespondError {
     #[error("Storage: {0}")]
@@ -96,7 +96,7 @@ pub enum RespondError {
 }
 
 #[derive(Debug, thiserror::Error)]
-#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Error))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi_macros::Error))]
 #[error("Sign disconnect error: {0}")]
 pub enum DisconnectError {
     #[error("Storage: {0}")]
@@ -110,7 +110,7 @@ pub enum DisconnectError {
 }
 
 #[derive(Debug, thiserror::Error)]
-#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Error))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi_macros::Error))]
 #[error("Sign emit error: {0}")]
 pub enum EmitError {
     #[error("Storage: {0}")]
@@ -127,7 +127,7 @@ pub enum EmitError {
 }
 
 #[derive(Debug, thiserror::Error)]
-#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Error))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi_macros::Error))]
 #[error("Sign connect error: {0}")]
 pub enum ConnectError {
     #[error("Request error: {0}")]
@@ -141,7 +141,7 @@ pub enum ConnectError {
 }
 
 #[derive(Debug, thiserror::Error)]
-#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Error))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi_macros::Error))]
 #[error("Sign extend error: {0}")]
 pub enum ExtendError {
     #[error("Storage: {0}")]
@@ -161,7 +161,7 @@ pub enum ExtendError {
 }
 
 #[derive(Debug, thiserror::Error)]
-#[cfg_attr(feature = "uniffi", derive(uniffi_macros::Error))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi_macros::Error))]
 #[error("Sign update error: {0}")]
 pub enum UpdateError {
     #[error("Storage: {0}")]

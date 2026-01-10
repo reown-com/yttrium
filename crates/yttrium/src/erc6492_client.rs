@@ -3,13 +3,13 @@ use {
     alloy_provider::{ProviderBuilder, RootProvider},
 };
 
-#[cfg_attr(feature = "uniffi", derive(uniffi::Object))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi::Object))]
 pub struct Erc6492Client {
     provider: RootProvider,
 }
 
 #[derive(Debug, thiserror::Error)]
-#[cfg_attr(feature = "uniffi", derive(uniffi::Error))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi::Error))]
 pub enum Erc6492Error {
     // TODO we can remove this stringification of the error when https://mozilla.github.io/uniffi-rs/next/udl/remote_ext_types.html#remote-types is available
     #[error("RpcError: {0}")]
@@ -17,9 +17,9 @@ pub enum Erc6492Error {
 }
 
 // TODO use universal version: https://linear.app/reown/issue/RES-142/universal-provider-router
-#[cfg_attr(feature = "uniffi", uniffi::export(async_runtime = "tokio"))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), uniffi::export(async_runtime = "tokio"))]
 impl Erc6492Client {
-    #[cfg_attr(feature = "uniffi", uniffi::constructor)]
+    #[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), uniffi::constructor)]
     pub fn new(rpc_url: String) -> Self {
         let url = rpc_url.parse().expect("Invalid RPC URL");
         let provider = ProviderBuilder::new()

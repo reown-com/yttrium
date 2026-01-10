@@ -19,7 +19,7 @@ use {
 };
 
 /// Minimal display item for the clear signing preview.
-#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi::Record))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DisplayItem {
     pub label: String,
@@ -27,7 +27,7 @@ pub struct DisplayItem {
 }
 
 /// Display model produced by the clear signing engine.
-#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi::Record))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DisplayModel {
     pub intent: String,
@@ -44,7 +44,7 @@ struct FormatRender {
 }
 
 /// Raw fallback preview details.
-#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
+#[cfg_attr(any(feature = "uniffi", feature = "uniffi_derive"), derive(uniffi::Record))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RawPreview {
     pub selector: String,
