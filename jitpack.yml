@@ -37,7 +37,7 @@ before_install:
         echo "1. First create a GitHub release by running the workflow:"
         echo "   https://github.com/reown-com/yttrium/actions"
         echo "2. Then use the tag version in your dependency:"
-        echo "   implementation 'com.github.reown-com.yttrium:yttrium:0.9.82'"
+        echo "   implementation 'com.github.reown-com:yttrium:0.9.82'"
         echo ""
         echo "Available releases: https://github.com/reown-com/yttrium/releases"
         exit 1
