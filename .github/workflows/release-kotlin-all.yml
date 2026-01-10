@@ -1,0 +1,441 @@
+name: Build and Release All Kotlin Artifacts
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release (e.g. 0.9.100)"
+        required: true
+
+env:
+  CARGO_TERM_COLOR: always
+  VERSION: ${{ github.event.inputs.version || '0.0.1' }}
+  TARGET_BRANCH: ${{ github.ref_name }}
+
+permissions:
+  contents: write
+
+jobs:
+  # ============================================
+  # BUILD YTTRIUM (base)
+  # ============================================
+  build-yttrium:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target: [aarch64-linux-android, armv7-linux-androideabi, x86_64-linux-android]
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: ${{ matrix.target }}
+          override: true
+          components: rust-src
+      - name: Set up Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: "temurin"
+          java-version: "17"
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v2
+        with:
+          api-level: 35
+          build-tools: 35.0.0
+          ndk-version: 28.2.13676358
+      - name: Install cargo-ndk
+        run: cargo install cargo-ndk --locked
+      - name: Build Rust library
+        run: |
+          cargo ndk -t ${{ matrix.target }} build \
+            --profile=uniffi-release-kotlin \
+            --no-default-features \
+            --features=android,erc6492_client,pay,uniffi/cli
+      - name: Generate Kotlin bindings (aarch64 only)
+        if: matrix.target == 'aarch64-linux-android'
+        run: |
+          rm -rf yttrium/kotlin-bindings
+          cargo run \
+            --no-default-features \
+            --features=android,erc6492_client,pay,uniffi/cli \
+            -p kotlin-ffi \
+            --bin uniffi-bindgen generate \
+            --library target/${{ matrix.target }}/uniffi-release-kotlin/libuniffi_yttrium.so \
+            --language kotlin \
+            --out-dir yttrium/kotlin-bindings
+      - name: Strip binaries
+        run: |
+          LATEST_NDK=$(ls -1 $ANDROID_HOME/ndk/ | sort -V | tail -1)
+          NDK_PATH="$ANDROID_HOME/ndk/$LATEST_NDK"
+          if [ -f "$NDK_PATH/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip" ]; then
+            $NDK_PATH/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip \
+              target/${{ matrix.target }}/uniffi-release-kotlin/libuniffi_yttrium.so
+          fi
+      - name: Prepare artifacts
+        run: |
+          declare -A abi_map
+          abi_map[aarch64-linux-android]="arm64-v8a"
+          abi_map[armv7-linux-androideabi]="armeabi-v7a"
+          abi_map[x86_64-linux-android]="x86_64"
+          abi_name=${abi_map[${{ matrix.target }}]}
+          mkdir -p yttrium/libs/$abi_name
+          cp target/${{ matrix.target }}/uniffi-release-kotlin/libuniffi_yttrium.so yttrium/libs/$abi_name/
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: yttrium-${{ matrix.target }}
+          path: yttrium/
+
+  # ============================================
+  # BUILD YTTRIUM-UTILS
+  # ============================================
+  build-yttrium-utils:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target: [aarch64-linux-android, armv7-linux-androideabi, x86_64-linux-android]
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: ${{ matrix.target }}
+          override: true
+          components: rust-src
+      - name: Set up Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: "temurin"
+          java-version: "17"
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v2
+        with:
+          api-level: 35
+          build-tools: 35.0.0
+          ndk-version: 28.2.13676358
+      - name: Install cargo-ndk
+        run: cargo install cargo-ndk --locked
+      - name: Build Rust library
+        run: |
+          cargo ndk -t ${{ matrix.target }} build \
+            --profile=uniffi-release-kotlin \
+            --no-default-features \
+            --features=android,chain_abstraction_client,solana,stacks,sui,ton,eip155,uniffi/cli
+      - name: Generate Kotlin bindings (aarch64 only)
+        if: matrix.target == 'aarch64-linux-android'
+        run: |
+          rm -rf yttrium/kotlin-utils-bindings
+          cargo run \
+            --no-default-features \
+            --features=android,chain_abstraction_client,solana,stacks,sui,ton,eip155,uniffi/cli \
+            -p kotlin-ffi \
+            --bin uniffi-bindgen generate \
+            --library target/${{ matrix.target }}/uniffi-release-kotlin/libuniffi_yttrium.so \
+            --language kotlin \
+            --out-dir yttrium/kotlin-utils-bindings
+
+          # Rename packages for utils variant
+          find yttrium/kotlin-utils-bindings -type f -name "*.kt" -exec perl -i -pe '
+            s/^package uniffi\.yttrium$/package uniffi.yttrium_utils/;
+            s/^import uniffi\.yttrium\./import uniffi.yttrium_utils./g;
+            s/^package uniffi\.uniffi_yttrium$/package uniffi.uniffi_yttrium_utils/;
+            s/^import uniffi\.uniffi_yttrium\./import uniffi.uniffi_yttrium_utils./g;
+            s/\buniffi\.yttrium\./uniffi.yttrium_utils./g;
+            s/\buniffi\.uniffi_yttrium\./uniffi.uniffi_yttrium_utils./g;
+            s/return "uniffi_yttrium"/return "uniffi_yttrium_utils"/g;
+          ' {} \;
+      - name: Strip binaries
+        run: |
+          LATEST_NDK=$(ls -1 $ANDROID_HOME/ndk/ | sort -V | tail -1)
+          NDK_PATH="$ANDROID_HOME/ndk/$LATEST_NDK"
+          if [ -f "$NDK_PATH/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip" ]; then
+            $NDK_PATH/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip --strip-all \
+              target/${{ matrix.target }}/uniffi-release-kotlin/libuniffi_yttrium.so
+          fi
+      - name: Prepare artifacts
+        run: |
+          declare -A abi_map
+          abi_map[aarch64-linux-android]="arm64-v8a"
+          abi_map[armv7-linux-androideabi]="armeabi-v7a"
+          abi_map[x86_64-linux-android]="x86_64"
+          abi_name=${abi_map[${{ matrix.target }}]}
+          mkdir -p yttrium/libs/$abi_name
+          cp target/${{ matrix.target }}/uniffi-release-kotlin/libuniffi_yttrium.so yttrium/libs/$abi_name/libuniffi_yttrium_utils.so
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: yttrium-utils-${{ matrix.target }}
+          path: yttrium/
+
+  # ============================================
+  # BUILD YTTRIUM-WCPAY
+  # ============================================
+  build-yttrium-wcpay:
+    runs-on: ubuntu-latest
+    env:
+      RUSTFLAGS: "-C link-arg=-Wl,--gc-sections"
+    strategy:
+      matrix:
+        target: [aarch64-linux-android, armv7-linux-androideabi, x86_64-linux-android]
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: ${{ matrix.target }}
+          override: true
+          components: rust-src
+      - name: Set up Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: "temurin"
+          java-version: "17"
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v2
+        with:
+          api-level: 35
+          build-tools: 35.0.0
+          ndk-version: 28.2.13676358
+      - name: Install cargo-ndk
+        run: cargo install cargo-ndk --locked
+      - name: Build Rust library
+        run: |
+          cargo ndk -t ${{ matrix.target }} build \
+            --profile=uniffi-release-kotlin-wcpay \
+            --no-default-features \
+            --features=android,pay,uniffi/cli
+      - name: Generate Kotlin bindings (aarch64 only)
+        if: matrix.target == 'aarch64-linux-android'
+        run: |
+          rm -rf yttrium/kotlin-wcpay-bindings
+          cargo run \
+            --no-default-features \
+            --features=android,pay,uniffi/cli \
+            -p kotlin-ffi \
+            --bin uniffi-bindgen generate \
+            --library target/${{ matrix.target }}/uniffi-release-kotlin-wcpay/libuniffi_yttrium.so \
+            --language kotlin \
+            --out-dir yttrium/kotlin-wcpay-bindings
+
+          # Rename packages for wcpay variant
+          find yttrium/kotlin-wcpay-bindings -type f -name "*.kt" -exec perl -i -pe '
+            s/^package uniffi\.yttrium$/package uniffi.yttrium_wcpay/;
+            s/^import uniffi\.yttrium\./import uniffi.yttrium_wcpay./g;
+            s/^package uniffi\.uniffi_yttrium$/package uniffi.uniffi_yttrium_wcpay/;
+            s/^import uniffi\.uniffi_yttrium\./import uniffi.uniffi_yttrium_wcpay./g;
+            s/\buniffi\.yttrium\./uniffi.yttrium_wcpay./g;
+            s/\buniffi\.uniffi_yttrium\./uniffi.uniffi_yttrium_wcpay./g;
+            s/return "uniffi_yttrium"/return "uniffi_yttrium_wcpay"/g;
+          ' {} \;
+      - name: Strip binaries
+        run: |
+          LATEST_NDK=$(ls -1 $ANDROID_HOME/ndk/ | sort -V | tail -1)
+          NDK_PATH="$ANDROID_HOME/ndk/$LATEST_NDK"
+          if [ -f "$NDK_PATH/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip" ]; then
+            $NDK_PATH/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip --strip-all \
+              target/${{ matrix.target }}/uniffi-release-kotlin-wcpay/libuniffi_yttrium.so
+          fi
+      - name: Prepare artifacts
+        run: |
+          declare -A abi_map
+          abi_map[aarch64-linux-android]="arm64-v8a"
+          abi_map[armv7-linux-androideabi]="armeabi-v7a"
+          abi_map[x86_64-linux-android]="x86_64"
+          abi_name=${abi_map[${{ matrix.target }}]}
+          mkdir -p yttrium/libs/$abi_name
+          cp target/${{ matrix.target }}/uniffi-release-kotlin-wcpay/libuniffi_yttrium.so yttrium/libs/$abi_name/libuniffi_yttrium_wcpay.so
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: yttrium-wcpay-${{ matrix.target }}
+          path: yttrium/
+
+  # ============================================
+  # COMBINE ALL ARTIFACTS
+  # ============================================
+  combine-artifacts:
+    needs: [build-yttrium, build-yttrium-utils, build-yttrium-wcpay]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      # Download yttrium artifacts
+      - name: Download yttrium aarch64
+        uses: actions/download-artifact@v4
+        with:
+          name: yttrium-aarch64-linux-android
+          path: yttrium/aarch64
+      - name: Download yttrium armv7
+        uses: actions/download-artifact@v4
+        with:
+          name: yttrium-armv7-linux-androideabi
+          path: yttrium/armv7
+      - name: Download yttrium x86_64
+        uses: actions/download-artifact@v4
+        with:
+          name: yttrium-x86_64-linux-android
+          path: yttrium/x86_64
+
+      # Download yttrium-utils artifacts
+      - name: Download yttrium-utils aarch64
+        uses: actions/download-artifact@v4
+        with:
+          name: yttrium-utils-aarch64-linux-android
+          path: yttrium-utils/aarch64
+      - name: Download yttrium-utils armv7
+        uses: actions/download-artifact@v4
+        with:
+          name: yttrium-utils-armv7-linux-androideabi
+          path: yttrium-utils/armv7
+      - name: Download yttrium-utils x86_64
+        uses: actions/download-artifact@v4
+        with:
+          name: yttrium-utils-x86_64-linux-android
+          path: yttrium-utils/x86_64
+
+      # Download yttrium-wcpay artifacts
+      - name: Download yttrium-wcpay aarch64
+        uses: actions/download-artifact@v4
+        with:
+          name: yttrium-wcpay-aarch64-linux-android
+          path: yttrium-wcpay/aarch64
+      - name: Download yttrium-wcpay armv7
+        uses: actions/download-artifact@v4
+        with:
+          name: yttrium-wcpay-armv7-linux-androideabi
+          path: yttrium-wcpay/armv7
+      - name: Download yttrium-wcpay x86_64
+        uses: actions/download-artifact@v4
+        with:
+          name: yttrium-wcpay-x86_64-linux-android
+          path: yttrium-wcpay/x86_64
+
+      # Merge yttrium
+      - name: Merge yttrium artifacts
+        run: |
+          mkdir -p merged-yttrium/yttrium/libs
+          cp -r yttrium/aarch64/libs/arm64-v8a merged-yttrium/yttrium/libs/
+          cp -r yttrium/armv7/libs/armeabi-v7a merged-yttrium/yttrium/libs/
+          cp -r yttrium/x86_64/libs/x86_64 merged-yttrium/yttrium/libs/
+          [ -d yttrium/aarch64/kotlin-bindings ] && cp -r yttrium/aarch64/kotlin-bindings merged-yttrium/yttrium/
+
+      # Merge yttrium-utils
+      - name: Merge yttrium-utils artifacts
+        run: |
+          mkdir -p merged-utils/yttrium/libs
+          cp -r yttrium-utils/aarch64/libs/arm64-v8a merged-utils/yttrium/libs/
+          cp -r yttrium-utils/armv7/libs/armeabi-v7a merged-utils/yttrium/libs/
+          cp -r yttrium-utils/x86_64/libs/x86_64 merged-utils/yttrium/libs/
+          [ -d yttrium-utils/aarch64/kotlin-utils-bindings ] && cp -r yttrium-utils/aarch64/kotlin-utils-bindings merged-utils/yttrium/
+
+      # Merge yttrium-wcpay
+      - name: Merge yttrium-wcpay artifacts
+        run: |
+          mkdir -p merged-wcpay/yttrium/libs
+          cp -r yttrium-wcpay/aarch64/libs/arm64-v8a merged-wcpay/yttrium/libs/
+          cp -r yttrium-wcpay/armv7/libs/armeabi-v7a merged-wcpay/yttrium/libs/
+          cp -r yttrium-wcpay/x86_64/libs/x86_64 merged-wcpay/yttrium/libs/
+          [ -d yttrium-wcpay/aarch64/kotlin-wcpay-bindings ] && cp -r yttrium-wcpay/aarch64/kotlin-wcpay-bindings merged-wcpay/yttrium/
+
+      # Create zips
+      - name: Create artifact zips
+        run: |
+          cd merged-yttrium && zip -r ../kotlin-artifacts.zip yttrium/ && cd ..
+          cd merged-utils && zip -r ../kotlin-utils-artifacts.zip yttrium/ && cd ..
+          cd merged-wcpay && zip -r ../kotlin-wcpay-artifacts.zip yttrium/ && cd ..
+
+          echo "Created artifacts:"
+          ls -lh *.zip
+
+      - name: Upload combined artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: all-kotlin-artifacts
+          path: |
+            kotlin-artifacts.zip
+            kotlin-utils-artifacts.zip
+            kotlin-wcpay-artifacts.zip
+
+  # ============================================
+  # CREATE GITHUB RELEASE
+  # ============================================
+  create-release:
+    needs: combine-artifacts
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: all-kotlin-artifacts
+          path: artifacts/
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ env.VERSION }}
+          release_name: "Yttrium Kotlin ${{ env.VERSION }}"
+          body: |
+            Release version ${{ env.VERSION }}
+
+            **Branch:** ${{ env.TARGET_BRANCH }}
+
+            ## Maven Artifacts
+
+            After this release, the following artifacts are available via JitPack:
+
+            ```groovy
+            repositories {
+                maven { url 'https://jitpack.io' }
+            }
+
+            dependencies {
+                // Base library
+                implementation 'com.github.reown-com:yttrium:${{ env.VERSION }}'
+
+                // Utils (multi-chain support)
+                implementation 'com.github.reown-com:yttrium-utils:${{ env.VERSION }}'
+
+                // WCPay (payment flows)
+                implementation 'com.github.reown-com:yttrium-wcpay:${{ env.VERSION }}'
+            }
+            ```
+          draft: false
+          prerelease: false
+
+      - name: Upload yttrium artifact
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: artifacts/kotlin-artifacts.zip
+          asset_name: kotlin-artifacts.zip
+          asset_content_type: application/zip
+
+      - name: Upload yttrium-utils artifact
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: artifacts/kotlin-utils-artifacts.zip
+          asset_name: kotlin-utils-artifacts.zip
+          asset_content_type: application/zip
+
+      - name: Upload yttrium-wcpay artifact
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: artifacts/kotlin-wcpay-artifacts.zip
+          asset_name: kotlin-wcpay-artifacts.zip
+          asset_content_type: application/zip
