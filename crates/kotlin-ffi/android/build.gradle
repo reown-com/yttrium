@@ -1,39 +1,3 @@
-import groovy.json.JsonSlurper
-
-apply plugin: 'com.android.library'
-apply plugin: 'org.jetbrains.kotlin.android'
-apply plugin: 'maven-publish'
-
-// String findRustlsPlatformVerifierProject() {
-//     try {
-//         def projectRoot = new File(project.projectDir, "../../..")
-//         def yttriumCargoToml = new File(projectRoot, "crates/yttrium/Cargo.toml")
-        
-//         def dependencyText = providers.exec {
-//             it.workingDir = projectRoot
-//             commandLine("cargo", "metadata", "--format-version", "1", "--filter-platform", "aarch64-linux-android", "--manifest-path", yttriumCargoToml.absolutePath, "--features", "android")
-//         }.standardOutput.asText.get()
-
-//         def dependencyJson = new JsonSlurper().parseText(dependencyText)
-//         def verifierPackage = dependencyJson.packages.find { it.name == "rustls-platform-verifier-android" }
-        
-//         if (verifierPackage != null) {
-//             def manifestPath = file(verifierPackage.manifest_path)
-//             def mavenPath = new File(manifestPath.parentFile, "maven")
-//             if (mavenPath.exists()) {
-//                 println("Found rustls-platform-verifier maven directory at: ${mavenPath.absolutePath}")
-//                 return mavenPath.absolutePath
-//             } else {
-//                 println("rustls-platform-verifier maven directory not found at: ${mavenPath.absolutePath}")
-//             }
-//         } else {
-//             println("rustls-platform-verifier-android package not found in cargo metadata")
-//         }
-//     } catch (Exception e) {
-//         println("Could not locate rustls-platform-verifier maven repository: ${e.message}")
-//     }
-// }
-
 buildscript {
     repositories {
         google()
@@ -45,312 +9,78 @@ buildscript {
     }
 }
 
-repositories {
-    google()
-    mavenCentral()
-    // maven {
-    //     url = findRustlsPlatformVerifierProject()
-    //     metadataSources.artifact()
-    // }
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
 }
 
-// Note: JNA is declared with @aar notation to prefer AAR variant
-// POM modifications below ensure only AAR variant is published
-// Consumers may need to exclude JAR variant if duplicate class errors occur
+// Shared configuration for all modules
+subprojects {
+    apply plugin: 'com.android.library'
+    apply plugin: 'org.jetbrains.kotlin.android'
+    apply plugin: 'maven-publish'
 
-android {
-    // namespace is set per-flavor below to avoid BuildConfig clashes
+    android {
+        compileSdkVersion 35
 
-    compileSdkVersion 35
+        defaultConfig {
+            minSdkVersion 21
+            targetSdkVersion 35
 
-    defaultConfig {
-        minSdkVersion 21
-        targetSdkVersion 35
-        
-        // Enable 16 KB page size support
-        externalNativeBuild {
-            cmake {
-                arguments "-DANDROID_PAGE_SIZE_16KB=ON"
+            // Enable 16 KB page size support
+            externalNativeBuild {
+                cmake {
+                    arguments "-DANDROID_PAGE_SIZE_16KB=ON"
+                }
+            }
+        }
+
+        buildFeatures {
+            buildConfig = false
+        }
+
+        lintOptions {
+            abortOnError false
+            checkReleaseBuilds false
+        }
+
+        buildTypes {
+            release {
+                minifyEnabled false
+                proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), '../proguard-rules.pro'
+            }
+        }
+
+        compileOptions {
+            sourceCompatibility = JavaVersion.VERSION_11
+            targetCompatibility = JavaVersion.VERSION_11
+        }
+
+        kotlinOptions {
+            jvmTarget = "11"
+        }
+
+        ndkVersion "26.1.10909125"
+
+        packagingOptions {
+            jniLibs {
+                useLegacyPackaging = false
             }
         }
     }
-    
-    buildFeatures {
-        // Avoid BuildConfig class collisions across flavors in published AARs
-        buildConfig = false
-    }
 
-    lintOptions {
-        abortOnError false
-        checkReleaseBuilds false
-    }
-
-    flavorDimensions "artifact"
-
-    productFlavors {
-        yttrium {
-            dimension "artifact"
-            // Unique namespace for base artifact to avoid BuildConfig clashes
-            namespace "com.reown.yttrium.uniffi"
-        }
-        utils {
-            dimension "artifact"
-            // Unique namespace for utils artifact
-            namespace "com.reown.yttrium.utils.uniffi"
-        }
-        wcpay {
-            dimension "artifact"
-            // Unique namespace for wcpay artifact
-            namespace "com.reown.yttrium.wcpay.uniffi"
+    java {
+        toolchain {
+            languageVersion.set(JavaLanguageVersion.of(11))
         }
     }
 
-    publishing {
-        singleVariant("yttriumRelease")
-        singleVariant("utilsRelease")
-        singleVariant("wcpayRelease")
-    }
-
-    sourceSets {
-        main {
-            java.srcDirs = []
-            kotlin.srcDirs = []
-            jniLibs.srcDirs = []
-        }
-        yttrium {
-            // Include static flavor sources and generated bindings
-            kotlin.srcDirs += [
-                "${project.projectDir}/src/yttrium/kotlin",
-                "${project.buildDir}/generated/yttrium/kotlin"
-            ]
-            jniLibs.srcDirs += ["${project.buildDir}/generated/yttrium/jniLibs"]
-        }
-        utils {
-            // Include static flavor sources and generated bindings
-            kotlin.srcDirs += [
-                "${project.projectDir}/src/utils/kotlin",
-                "${project.buildDir}/generated/utils/kotlin"
-            ]
-            jniLibs.srcDirs += ["${project.buildDir}/generated/utils/jniLibs"]
-        }
-        wcpay {
-            // Include static flavor sources and generated bindings
-            kotlin.srcDirs += [
-                "${project.projectDir}/src/wcpay/kotlin",
-                "${project.buildDir}/generated/wcpay/kotlin"
-            ]
-            jniLibs.srcDirs += ["${project.buildDir}/generated/wcpay/jniLibs"]
-        }
-    }
-
-    buildTypes {
-        release {
-            minifyEnabled false
-            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-        }
-    }
-
-     packagingOptions {
-        doNotStrip "*/libuniffi_yttrium.so"
-        doNotStrip "*/libuniffi_yttrium_utils.so"
-        doNotStrip "*/libuniffi_yttrium_wcpay.so"
-    }
-
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
-    }
-
-    kotlinOptions {
-        jvmTarget = "11"
-    }
-    
-    // NDK build configuration for 16 KB page size support
-    ndkVersion "26.1.10909125"
-    
-    // Ensure proper alignment for 16 KB page sizes
-    packagingOptions {
-        doNotStrip "*/libuniffi_yttrium.so"
-        doNotStrip "*/libuniffi_yttrium_utils.so"
-        doNotStrip "*/libuniffi_yttrium_wcpay.so"
-        // Add 16 KB alignment for native libraries
-        jniLibs {
-            useLegacyPackaging = false
-        }
-    }
-
-    dependencies { 
-        // implementation 'rustls:rustls-platform-verifier:0.1.1'
-        // Use 'api' for JNA so it's exposed to consumers
-        // Use @aar notation to prefer AAR variant, but consumers may need to exclude JAR variant
+    dependencies {
         api 'net.java.dev.jna:jna:5.17.0@aar'
         implementation 'androidx.core:core-ktx:1.10.1'
         implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.1'
         implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.1'
     }
-}
-
-java {
-    toolchain {
-        languageVersion.set(JavaLanguageVersion.of(11))
-    }
-}
-
-def publicationVersion = project.hasProperty("version") ? project.getProperty("version") : "0.0.1"
-
-publishing {
-    publications {
-        register("yttriumRelease", MavenPublication) {
-            groupId = 'com.github.reown-com'
-            artifactId = 'yttrium'
-            version = publicationVersion
-
-            pom {
-                name.set("Yttrium")
-                description.set("An Android library for Yttrium.")
-                url.set("https://github.com/reown-com/Yttrium")
-                scm {
-                    connection.set("scm:git:git://github.com:reown-com/yttrium.git")
-                    developerConnection.set("scm:git:ssh://github.com:reown-com/yttrium.git")
-                    url.set("https://github.com/reown-com/yttrium")
-                }
-                withXml { xml ->
-                    // Ensure JNA dependency uses AAR variant only (exclude JAR)
-                    def dependenciesNode = xml.asNode().get('dependencies')[0]
-                    if (dependenciesNode != null) {
-                        dependenciesNode.dependency.each { dep ->
-                            if (dep.groupId[0].text() == 'net.java.dev.jna' && dep.artifactId[0].text() == 'jna') {
-                                // Set or replace classifier
-                                def classifierNodes = dep.classifier
-                                if (classifierNodes && !classifierNodes.isEmpty()) {
-                                    classifierNodes[0].value = 'android'
-                                } else {
-                                    dep.appendNode('classifier', 'android')
-                                }
-                                // Set or replace type
-                                def typeNodes = dep.type
-                                if (typeNodes && !typeNodes.isEmpty()) {
-                                    typeNodes[0].value = 'aar'
-                                } else {
-                                    dep.appendNode('type', 'aar')
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        register("yttriumUtilsRelease", MavenPublication) {
-            groupId = 'com.github.reown-com'
-            artifactId = 'yttrium-utils'
-            version = publicationVersion
-
-            pom {
-                name.set("Yttrium Utils")
-                description.set("Yttrium utils bindings for Android.")
-                url.set("https://github.com/reown-com/Yttrium")
-                scm {
-                    connection.set("scm:git:git://github.com:reown-com/yttrium.git")
-                    developerConnection.set("scm:git:ssh://github.com:reown-com/yttrium.git")
-                    url.set("https://github.com/reown-com/Yttrium")
-                }
-                withXml { xml ->
-                    // Ensure JNA dependency uses AAR variant only (exclude JAR)
-                    def dependenciesNode = xml.asNode().get('dependencies')[0]
-                    if (dependenciesNode != null) {
-                        dependenciesNode.dependency.each { dep ->
-                            if (dep.groupId[0].text() == 'net.java.dev.jna' && dep.artifactId[0].text() == 'jna') {
-                                // Set or replace classifier
-                                def classifierNodes = dep.classifier
-                                if (classifierNodes && !classifierNodes.isEmpty()) {
-                                    classifierNodes[0].value = 'android'
-                                } else {
-                                    dep.appendNode('classifier', 'android')
-                                }
-                                // Set or replace type
-                                def typeNodes = dep.type
-                                if (typeNodes && !typeNodes.isEmpty()) {
-                                    typeNodes[0].value = 'aar'
-                                } else {
-                                    dep.appendNode('type', 'aar')
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        register("yttriumWcpayRelease", MavenPublication) {
-            groupId = 'com.github.reown-com'
-            artifactId = 'yttrium-wcpay'
-            version = publicationVersion
-
-            pom {
-                name.set("Yttrium WCPay")
-                description.set("WalletConnectPay SDK bindings for Android.")
-                url.set("https://github.com/reown-com/Yttrium")
-                scm {
-                    connection.set("scm:git:git://github.com:reown-com/yttrium.git")
-                    developerConnection.set("scm:git:ssh://github.com:reown-com/yttrium.git")
-                    url.set("https://github.com/reown-com/Yttrium")
-                }
-                withXml { xml ->
-                    // Ensure JNA dependency uses AAR variant only (exclude JAR)
-                    def dependenciesNode = xml.asNode().get('dependencies')[0]
-                    if (dependenciesNode != null) {
-                        dependenciesNode.dependency.each { dep ->
-                            if (dep.groupId[0].text() == 'net.java.dev.jna' && dep.artifactId[0].text() == 'jna') {
-                                // Set or replace classifier
-                                def classifierNodes = dep.classifier
-                                if (classifierNodes && !classifierNodes.isEmpty()) {
-                                    classifierNodes[0].value = 'android'
-                                } else {
-                                    dep.appendNode('classifier', 'android')
-                                }
-                                // Set or replace type
-                                def typeNodes = dep.type
-                                if (typeNodes && !typeNodes.isEmpty()) {
-                                    typeNodes[0].value = 'aar'
-                                } else {
-                                    dep.appendNode('type', 'aar')
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-components.all { component ->
-    if (component.name == "yttriumRelease") {
-        publishing.publications.named("yttriumRelease", MavenPublication).configure {
-            from(component)
-        }
-    }
-    if (component.name == "utilsRelease") {
-        publishing.publications.named("yttriumUtilsRelease", MavenPublication).configure {
-            from(component)
-        }
-    }
-    if (component.name == "wcpayRelease") {
-        publishing.publications.named("yttriumWcpayRelease", MavenPublication).configure {
-            from(component)
-        }
-    }
-}
-
-tasks.matching { it.name == "publishYttriumReleasePublicationToMavenLocal" }.configureEach {
-    dependsOn("assembleYttriumRelease")
-}
-
-tasks.matching { it.name == "publishYttriumUtilsReleasePublicationToMavenLocal" }.configureEach {
-    dependsOn("assembleUtilsRelease")
-}
-
-tasks.matching { it.name == "publishYttriumWcpayReleasePublicationToMavenLocal" }.configureEach {
-    dependsOn("assembleWcpayRelease")
 }

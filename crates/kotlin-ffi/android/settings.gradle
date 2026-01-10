@@ -1,0 +1,5 @@
+rootProject.name = 'yttrium'
+
+include ':yttrium'
+include ':yttrium-utils'
+include ':yttrium-wcpay'
