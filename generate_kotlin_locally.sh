@@ -14,6 +14,12 @@ fi
 
 echo "Using ANDROID_NDK_HOME: $ANDROID_NDK_HOME"
 
+# Link-time optimization flag for dead code elimination (Android targets only)
+# Using target-specific RUSTFLAGS avoids conflicts with macOS host builds
+export CARGO_TARGET_AARCH64_LINUX_ANDROID_RUSTFLAGS="-C link-arg=-Wl,--gc-sections"
+export CARGO_TARGET_ARMV7_LINUX_ANDROIDEABI_RUSTFLAGS="-C link-arg=-Wl,--gc-sections"
+export CARGO_TARGET_X86_64_LINUX_ANDROID_RUSTFLAGS="-C link-arg=-Wl,--gc-sections"
+
 ACCOUNT_FEATURES="android,erc6492_client,pay,uniffi/cli"
 UTILS_FEATURES="android,chain_abstraction_client,solana,stacks,sui,ton,eip155,uniffi/cli"
 WCPAY_FEATURES="android,pay,uniffi/cli"
