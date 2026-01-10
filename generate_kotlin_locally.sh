@@ -53,12 +53,17 @@ cleanup() {
     # Remove entire Gradle build directory to prevent cached unstripped binaries
     rm -rf crates/kotlin-ffi/android/build
 
+    # Remove module build directories
+    rm -rf crates/kotlin-ffi/android/yttrium/build
+    rm -rf crates/kotlin-ffi/android/yttrium-utils/build
+    rm -rf crates/kotlin-ffi/android/yttrium-wcpay/build
+
     # Purge any legacy sources/libs in src/main to avoid mixing with generated flavor inputs
     rm -rf crates/kotlin-ffi/android/src/main/jniLibs/arm64-v8a
     rm -rf crates/kotlin-ffi/android/src/main/jniLibs/armeabi-v7a
     rm -rf crates/kotlin-ffi/android/src/main/jniLibs/x86_64
     rm -rf crates/kotlin-ffi/android/src/main/kotlin/com/reown/yttrium
-    
+
     echo "Cleanup complete"
 }
 
@@ -395,10 +400,11 @@ strip_binaries
 
 echo "Kotlin artifacts generated under $OUTPUT_ROOT"
 
+cd crates/kotlin-ffi/android
 ./gradlew \
-  assembleYttriumRelease \
-  assembleUtilsRelease \
-  assembleWcpayRelease \
-  publishYttriumReleasePublicationToMavenLocal \
-  publishYttriumUtilsReleasePublicationToMavenLocal \
-  publishYttriumWcpayReleasePublicationToMavenLocal
+  :yttrium:assembleRelease \
+  :yttrium-utils:assembleRelease \
+  :yttrium-wcpay:assembleRelease \
+  :yttrium:publishReleasePublicationToMavenLocal \
+  :yttrium-utils:publishReleasePublicationToMavenLocal \
+  :yttrium-wcpay:publishReleasePublicationToMavenLocal
