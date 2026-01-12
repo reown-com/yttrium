@@ -9,7 +9,10 @@ env:
   CARGO_TERM_COLOR: always
   VERSION: ${{ github.event.inputs.version || '0.0.1' }}
   TARGET_BRANCH: ${{ github.ref_name }}
-  RUSTFLAGS: "-C link-arg=-Wl,--gc-sections"
+  # Use target-specific RUSTFLAGS to avoid affecting host builds
+  CARGO_TARGET_AARCH64_LINUX_ANDROID_RUSTFLAGS: "-C link-arg=-Wl,--gc-sections"
+  CARGO_TARGET_ARMV7_LINUX_ANDROIDEABI_RUSTFLAGS: "-C link-arg=-Wl,--gc-sections"
+  CARGO_TARGET_X86_64_LINUX_ANDROID_RUSTFLAGS: "-C link-arg=-Wl,--gc-sections"
 permissions:
   contents: write
 jobs:

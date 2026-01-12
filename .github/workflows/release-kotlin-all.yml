@@ -21,7 +21,10 @@ jobs:
   build-yttrium:
     runs-on: ubuntu-latest
     env:
-      RUSTFLAGS: "-C link-arg=-Wl,--gc-sections"
+      # Use target-specific RUSTFLAGS to avoid affecting host builds
+      CARGO_TARGET_AARCH64_LINUX_ANDROID_RUSTFLAGS: "-C link-arg=-Wl,--gc-sections"
+      CARGO_TARGET_ARMV7_LINUX_ANDROIDEABI_RUSTFLAGS: "-C link-arg=-Wl,--gc-sections"
+      CARGO_TARGET_X86_64_LINUX_ANDROID_RUSTFLAGS: "-C link-arg=-Wl,--gc-sections"
     strategy:
       matrix:
         target: [aarch64-linux-android, armv7-linux-androideabi, x86_64-linux-android]
@@ -95,7 +98,10 @@ jobs:
   build-yttrium-utils:
     runs-on: ubuntu-latest
     env:
-      RUSTFLAGS: "-C link-arg=-Wl,--gc-sections"
+      # Use target-specific RUSTFLAGS to avoid affecting host builds
+      CARGO_TARGET_AARCH64_LINUX_ANDROID_RUSTFLAGS: "-C link-arg=-Wl,--gc-sections"
+      CARGO_TARGET_ARMV7_LINUX_ANDROIDEABI_RUSTFLAGS: "-C link-arg=-Wl,--gc-sections"
+      CARGO_TARGET_X86_64_LINUX_ANDROID_RUSTFLAGS: "-C link-arg=-Wl,--gc-sections"
     strategy:
       matrix:
         target: [aarch64-linux-android, armv7-linux-androideabi, x86_64-linux-android]
@@ -180,7 +186,10 @@ jobs:
   build-yttrium-wcpay:
     runs-on: ubuntu-latest
     env:
-      RUSTFLAGS: "-C link-arg=-Wl,--gc-sections"
+      # Use target-specific RUSTFLAGS to avoid affecting host builds
+      CARGO_TARGET_AARCH64_LINUX_ANDROID_RUSTFLAGS: "-C link-arg=-Wl,--gc-sections"
+      CARGO_TARGET_ARMV7_LINUX_ANDROIDEABI_RUSTFLAGS: "-C link-arg=-Wl,--gc-sections"
+      CARGO_TARGET_X86_64_LINUX_ANDROID_RUSTFLAGS: "-C link-arg=-Wl,--gc-sections"
     strategy:
       matrix:
         target: [aarch64-linux-android, armv7-linux-androideabi, x86_64-linux-android]
