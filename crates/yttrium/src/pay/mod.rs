@@ -40,7 +40,16 @@ pub enum PayError {
 
 impl<T: std::fmt::Debug> From<progenitor_client::Error<T>> for PayError {
     fn from(e: progenitor_client::Error<T>) -> Self {
-        Self::Api(format!("{:?}", e))
+        match e {
+            progenitor_client::Error::CommunicationError(err) => {
+                Self::Http(format!("Network error: {}", err))
+            }
+            progenitor_client::Error::InvalidRequest(msg) => Self::Api(msg),
+            progenitor_client::Error::InvalidResponsePayload(_, err) => {
+                Self::Api(format!("Invalid response: {}", err))
+            }
+            other => Self::Api(other.to_string()),
+        }
     }
 }
 
@@ -971,52 +980,67 @@ fn extract_payment_id(
     Ok(id.to_string())
 }
 
-fn map_payment_options_error<T: std::fmt::Debug>(
-    e: progenitor_client::Error<T>,
+fn map_payment_options_error(
+    e: progenitor_client::Error<types::ErrorResponse>,
 ) -> GetPaymentOptionsError {
-    let msg = format!("{:?}", e);
-    let status = match &e {
+    match e {
         progenitor_client::Error::ErrorResponse(resp) => {
-            Some(resp.status().as_u16())
+            let status = resp.status().as_u16();
+            let msg = resp.into_inner().message;
+            match status {
+                404 => GetPaymentOptionsError::PaymentNotFound(msg),
+                400 => GetPaymentOptionsError::InvalidRequest(msg),
+                410 => GetPaymentOptionsError::PaymentExpired(msg),
+                422 => GetPaymentOptionsError::InvalidAccount(msg),
+                451 => GetPaymentOptionsError::ComplianceFailed(msg),
+                _ => GetPaymentOptionsError::Http(msg),
+            }
         }
         progenitor_client::Error::UnexpectedResponse(resp) => {
-            Some(resp.status().as_u16())
+            let status = resp.status().as_u16();
+            let msg = format!("Unexpected response (HTTP {})", status);
+            match status {
+                404 => GetPaymentOptionsError::PaymentNotFound(msg),
+                400 => GetPaymentOptionsError::InvalidRequest(msg),
+                410 => GetPaymentOptionsError::PaymentExpired(msg),
+                422 => GetPaymentOptionsError::InvalidAccount(msg),
+                451 => GetPaymentOptionsError::ComplianceFailed(msg),
+                _ => GetPaymentOptionsError::Http(msg),
+            }
         }
-        _ => None,
-    };
-    match status {
-        Some(404) => GetPaymentOptionsError::PaymentNotFound(msg),
-        Some(400) => GetPaymentOptionsError::InvalidRequest(msg),
-        Some(410) => GetPaymentOptionsError::PaymentExpired(msg),
-        Some(422) => GetPaymentOptionsError::InvalidAccount(msg),
-        Some(451) => GetPaymentOptionsError::ComplianceFailed(msg),
-        _ => GetPaymentOptionsError::Http(msg),
+        other => GetPaymentOptionsError::Http(other.to_string()),
     }
 }
 
-fn map_confirm_payment_error<T: std::fmt::Debug>(
-    e: progenitor_client::Error<T>,
+fn map_confirm_payment_error(
+    e: progenitor_client::Error<types::ErrorResponse>,
 ) -> ConfirmPaymentError {
-    // Try to extract response body for better error messages
-    let (msg, status) = match &e {
+    match e {
         progenitor_client::Error::ErrorResponse(resp) => {
-            (format!("{:?}", e), Some(resp.status().as_u16()))
+            let status = resp.status().as_u16();
+            let msg = resp.into_inner().message;
+            match status {
+                404 => ConfirmPaymentError::PaymentNotFound(msg),
+                410 => ConfirmPaymentError::PaymentExpired(msg),
+                400 => ConfirmPaymentError::InvalidOption(msg),
+                422 => ConfirmPaymentError::InvalidSignature(msg),
+                409 => ConfirmPaymentError::RouteExpired(msg),
+                _ => ConfirmPaymentError::Http(msg),
+            }
         }
         progenitor_client::Error::UnexpectedResponse(resp) => {
-            // Log the status and any available body info
             let status = resp.status().as_u16();
-            let msg = format!("Status: {}, Response: {:?}", status, e);
-            (msg, Some(status))
+            let msg = format!("Unexpected response (HTTP {})", status);
+            match status {
+                404 => ConfirmPaymentError::PaymentNotFound(msg),
+                410 => ConfirmPaymentError::PaymentExpired(msg),
+                400 => ConfirmPaymentError::InvalidOption(msg),
+                422 => ConfirmPaymentError::InvalidSignature(msg),
+                409 => ConfirmPaymentError::RouteExpired(msg),
+                _ => ConfirmPaymentError::Http(msg),
+            }
         }
-        _ => (format!("{:?}", e), None),
-    };
-    match status {
-        Some(404) => ConfirmPaymentError::PaymentNotFound(msg),
-        Some(410) => ConfirmPaymentError::PaymentExpired(msg),
-        Some(400) => ConfirmPaymentError::InvalidOption(msg),
-        Some(422) => ConfirmPaymentError::InvalidSignature(msg),
-        Some(409) => ConfirmPaymentError::RouteExpired(msg),
-        _ => ConfirmPaymentError::Http(msg),
+        other => ConfirmPaymentError::Http(other.to_string()),
     }
 }
 
