@@ -986,7 +986,7 @@ fn map_payment_options_error(
     match e {
         progenitor_client::Error::ErrorResponse(resp) => {
             let status = resp.status().as_u16();
-            let msg = resp.into_inner().message;
+            let msg = format!("{}: {}", status, resp.into_inner().message);
             match status {
                 404 => GetPaymentOptionsError::PaymentNotFound(msg),
                 400 => GetPaymentOptionsError::InvalidRequest(msg),
@@ -998,7 +998,7 @@ fn map_payment_options_error(
         }
         progenitor_client::Error::UnexpectedResponse(resp) => {
             let status = resp.status().as_u16();
-            let msg = format!("Unexpected response (HTTP {})", status);
+            let msg = format!("{}: Unexpected response", status);
             match status {
                 404 => GetPaymentOptionsError::PaymentNotFound(msg),
                 400 => GetPaymentOptionsError::InvalidRequest(msg),
@@ -1018,7 +1018,7 @@ fn map_confirm_payment_error(
     match e {
         progenitor_client::Error::ErrorResponse(resp) => {
             let status = resp.status().as_u16();
-            let msg = resp.into_inner().message;
+            let msg = format!("{}: {}", status, resp.into_inner().message);
             match status {
                 404 => ConfirmPaymentError::PaymentNotFound(msg),
                 410 => ConfirmPaymentError::PaymentExpired(msg),
@@ -1030,7 +1030,7 @@ fn map_confirm_payment_error(
         }
         progenitor_client::Error::UnexpectedResponse(resp) => {
             let status = resp.status().as_u16();
-            let msg = format!("Unexpected response (HTTP {})", status);
+            let msg = format!("{}: Unexpected response", status);
             match status {
                 404 => ConfirmPaymentError::PaymentNotFound(msg),
                 410 => ConfirmPaymentError::PaymentExpired(msg),
