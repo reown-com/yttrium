@@ -39,6 +39,7 @@ build_baseline() {
     mkdir -p "$build_path"
 
     echo "  Archiving baseline..." >&2
+    local build_log="$build_path/build.log"
     xcodebuild archive \
         -project "$TEST_APP_DIR/YttriumSizeTest.xcodeproj" \
         -scheme YttriumSizeTest \
@@ -50,7 +51,8 @@ build_baseline() {
         CODE_SIGNING_ALLOWED=NO \
         ENABLE_BITCODE=NO \
         SKIP_INSTALL=NO \
-        2>&1 | grep -E "(error:|BUILD)" >&2 || true
+        > "$build_log" 2>&1 || { grep -E "error:" "$build_log" >&2; return 1; }
+    grep -E "(BUILD)" "$build_log" >&2 || true
 
     if [ ! -d "$archive_path" ]; then
         echo "ERROR: Baseline archive failed" >&2
@@ -58,13 +60,16 @@ build_baseline() {
     fi
 
     echo "  Exporting IPA..." >&2
+    local export_log="$build_path/export.log"
     xcodebuild -exportArchive \
         -archivePath "$archive_path" \
         -exportPath "$build_path" \
         -exportOptionsPlist "$TEST_APP_DIR/export-options.plist" \
-        2>&1 | grep -E "(error:|EXPORT)" >&2 || true
+        > "$export_log" 2>&1 || { grep -E "error:" "$export_log" >&2 || true; }
+    grep -E "(EXPORT)" "$export_log" >&2 || true
 
-    local exported_ipa=$(find "$build_path" -name "*.ipa" -type f 2>/dev/null | head -1)
+    local exported_ipa
+    exported_ipa=$(find "$build_path" -name "*.ipa" -type f 2>/dev/null | head -1)
     if [ -n "$exported_ipa" ]; then
         mv "$exported_ipa" "$ipa_path"
     fi
@@ -443,8 +448,10 @@ create_yttrium_project() {
 }
 PBXPROJ_EOF
 
-    # Replace placeholder with actual path
-    sed -i '' "s|YTTRIUM_PATH_PLACEHOLDER|$PROJECT_ROOT|g" "$project_dir/project.pbxproj"
+    # Replace placeholder with actual path (escape special characters for sed)
+    local escaped_path
+    escaped_path=$(printf '%s\n' "$PROJECT_ROOT" | sed 's/[&/\]/\\&/g')
+    sed -i '' "s|YTTRIUM_PATH_PLACEHOLDER|$escaped_path|g" "$project_dir/project.pbxproj"
 }
 
 # Build app with Yttrium linked
@@ -496,12 +503,15 @@ SWIFT_EOF
     create_yttrium_project "$project_path"
 
     echo "  Resolving Swift packages..." >&2
+    local resolve_log="$build_path/resolve.log"
     xcodebuild -resolvePackageDependencies \
         -project "$project_path/YttriumSizeTest.xcodeproj" \
         -clonedSourcePackagesDirPath "$build_path/SourcePackages" \
-        2>&1 | grep -E "(error:|Resolved)" >&2 || true
+        > "$resolve_log" 2>&1 || { grep -E "error:" "$resolve_log" >&2; return 1; }
+    grep -E "(Resolved)" "$resolve_log" >&2 || true
 
     echo "  Archiving with Yttrium..." >&2
+    local build_log="$build_path/build.log"
     xcodebuild archive \
         -project "$project_path/YttriumSizeTest.xcodeproj" \
         -scheme YttriumSizeTest \
@@ -514,7 +524,8 @@ SWIFT_EOF
         CODE_SIGNING_ALLOWED=NO \
         ENABLE_BITCODE=NO \
         SKIP_INSTALL=NO \
-        2>&1 | grep -E "(error:|warning:|BUILD)" >&2 || true
+        > "$build_log" 2>&1 || { grep -E "error:" "$build_log" >&2; return 1; }
+    grep -E "(BUILD)" "$build_log" >&2 || true
 
     if [ ! -d "$archive_path" ]; then
         echo "ERROR: Yttrium archive failed" >&2
@@ -522,13 +533,16 @@ SWIFT_EOF
     fi
 
     echo "  Exporting IPA..." >&2
+    local export_log="$build_path/export.log"
     xcodebuild -exportArchive \
         -archivePath "$archive_path" \
         -exportPath "$build_path" \
         -exportOptionsPlist "$project_path/export-options.plist" \
-        2>&1 | grep -E "(error:|EXPORT)" >&2 || true
+        > "$export_log" 2>&1 || { grep -E "error:" "$export_log" >&2 || true; }
+    grep -E "(EXPORT)" "$export_log" >&2 || true
 
-    local exported_ipa=$(find "$build_path" -name "*.ipa" -type f 2>/dev/null | head -1)
+    local exported_ipa
+    exported_ipa=$(find "$build_path" -name "*.ipa" -type f 2>/dev/null | head -1)
     if [ -n "$exported_ipa" ]; then
         mv "$exported_ipa" "$ipa_path"
     fi

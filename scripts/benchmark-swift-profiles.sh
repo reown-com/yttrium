@@ -50,7 +50,7 @@ build_ios_targets() {
         --no-default-features \
         --features=$FEATURES \
         --target aarch64-apple-ios \
-        -p $PACKAGE_NAME 2>/dev/null
+        -p $PACKAGE_NAME
 
     unset CC_aarch64_apple_ios AR_aarch64_apple_ios CARGO_TARGET_AARCH64_APPLE_IOS_LINKER
     unset IPHONEOS_DEPLOYMENT_TARGET CFLAGS_aarch64_apple_ios RUSTFLAGS
@@ -69,7 +69,7 @@ build_ios_targets() {
         --no-default-features \
         --features=$FEATURES \
         --target x86_64-apple-ios \
-        -p $PACKAGE_NAME 2>/dev/null
+        -p $PACKAGE_NAME
 
     unset CC_x86_64_apple_ios AR_x86_64_apple_ios CARGO_TARGET_X86_64_APPLE_IOS_LINKER
     unset IPHONEOS_DEPLOYMENT_TARGET CFLAGS_x86_64_apple_ios RUSTFLAGS
@@ -88,7 +88,7 @@ build_ios_targets() {
         --no-default-features \
         --features=$FEATURES \
         --target aarch64-apple-ios-sim \
-        -p $PACKAGE_NAME 2>/dev/null
+        -p $PACKAGE_NAME
 
     unset CC_aarch64_apple_ios_sim AR_aarch64_apple_ios_sim CARGO_TARGET_AARCH64_APPLE_IOS_SIM_LINKER
     unset IPHONEOS_DEPLOYMENT_TARGET CFLAGS_aarch64_apple_ios_sim RUSTFLAGS
@@ -130,6 +130,9 @@ echo "=== Testing Production Swift Profile ==="
 measure_profile "uniffi-release-swift"
 
 # Test nightly builds with build-std optimizations (requires nightly toolchain)
+NIGHTLY_LOG="benchmark-nightly-failures.log"
+: > "$NIGHTLY_LOG"  # Clear log file
+
 if rustup run nightly rustc --version >/dev/null 2>&1; then
     echo "=== Testing Nightly Profiles with build-std ==="
 
@@ -146,7 +149,7 @@ if rustup run nightly rustc --version >/dev/null 2>&1; then
         export CFLAGS_aarch64_apple_ios="-miphoneos-version-min=13.0"
         export RUSTFLAGS="-C linker=$CC_aarch64_apple_ios -C link-arg=-miphoneos-version-min=13.0"
 
-        cargo +nightly build \
+        if ! cargo +nightly build \
             -Z build-std=std,panic_abort \
             -Z build-std-features="optimize_for_size" \
             --lib --profile=$profile \
@@ -154,7 +157,9 @@ if rustup run nightly rustc --version >/dev/null 2>&1; then
             --features=$FEATURES \
             --target aarch64-apple-ios \
             --target-dir="target/nightly-stdopt" \
-            -p $PACKAGE_NAME 2>/dev/null || echo "  (nightly build failed, skipping)"
+            -p $PACKAGE_NAME 2>> "$NIGHTLY_LOG"; then
+            echo "  (nightly build failed, see $NIGHTLY_LOG for details)"
+        fi
 
         unset CC_aarch64_apple_ios AR_aarch64_apple_ios CARGO_TARGET_AARCH64_APPLE_IOS_LINKER
         unset IPHONEOS_DEPLOYMENT_TARGET CFLAGS_aarch64_apple_ios RUSTFLAGS
@@ -180,7 +185,7 @@ if rustup run nightly rustc --version >/dev/null 2>&1; then
         export CFLAGS_aarch64_apple_ios="-miphoneos-version-min=13.0"
         export RUSTFLAGS="-C linker=$CC_aarch64_apple_ios -C link-arg=-miphoneos-version-min=13.0 -Zlocation-detail=none -Zfmt-debug=none"
 
-        cargo +nightly build \
+        if ! cargo +nightly build \
             -Z build-std=std,panic_abort \
             -Z build-std-features="optimize_for_size" \
             --lib --profile=$profile \
@@ -188,7 +193,9 @@ if rustup run nightly rustc --version >/dev/null 2>&1; then
             --features=$FEATURES \
             --target aarch64-apple-ios \
             --target-dir="target/nightly-stdopt-extra" \
-            -p $PACKAGE_NAME 2>/dev/null || echo "  (nightly build failed, skipping)"
+            -p $PACKAGE_NAME 2>> "$NIGHTLY_LOG"; then
+            echo "  (nightly build failed, see $NIGHTLY_LOG for details)"
+        fi
 
         unset CC_aarch64_apple_ios AR_aarch64_apple_ios CARGO_TARGET_AARCH64_APPLE_IOS_LINKER
         unset IPHONEOS_DEPLOYMENT_TARGET CFLAGS_aarch64_apple_ios RUSTFLAGS

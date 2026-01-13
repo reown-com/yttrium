@@ -88,7 +88,7 @@ else
 fi
 
 echo "" >> "$RESULTS_FILE"
-echo "Total .a size (all archs): $(format_size $total_size) ($total_size bytes)" >> "$RESULTS_FILE"
+echo "Total .a size (all archs): $(format_size "$total_size") ($total_size bytes)" >> "$RESULTS_FILE"
 echo "Number of architectures: $arch_count" >> "$RESULTS_FILE"
 echo "" >> "$RESULTS_FILE"
 
@@ -97,7 +97,7 @@ fat_lib="target/ios-simulator-fat/$PROFILE/libyttrium.a"
 if [ -f "$fat_lib" ]; then
     fat_size=$(get_file_size "$fat_lib")
     echo "=== Fat Simulator Library (x86_64 + arm64) ===" >> "$RESULTS_FILE"
-    echo "  Fat lib: $(format_size $fat_size) ($fat_size bytes)" >> "$RESULTS_FILE"
+    echo "  Fat lib: $(format_size "$fat_size") ($fat_size bytes)" >> "$RESULTS_FILE"
     echo "" >> "$RESULTS_FILE"
 fi
 
@@ -112,7 +112,7 @@ if [ -d "$xcframework_dir" ]; then
         xcframework_size=$(du -sb "$xcframework_dir" | cut -f1)
     fi
     echo "=== XCFramework Size ===" >> "$RESULTS_FILE"
-    echo "  XCFramework: $(format_size $xcframework_size) ($xcframework_size bytes)" >> "$RESULTS_FILE"
+    echo "  XCFramework: $(format_size "$xcframework_size") ($xcframework_size bytes)" >> "$RESULTS_FILE"
     echo "" >> "$RESULTS_FILE"
 
     # List contents
@@ -123,7 +123,7 @@ if [ -d "$xcframework_dir" ]; then
             lib_file="$slice_dir/libyttrium.a"
             if [ -f "$lib_file" ]; then
                 slice_size=$(get_file_size "$lib_file")
-                echo "    $slice_name: $(format_size $slice_size)" >> "$RESULTS_FILE"
+                echo "    $slice_name: $(format_size "$slice_size")" >> "$RESULTS_FILE"
             fi
         fi
     done
