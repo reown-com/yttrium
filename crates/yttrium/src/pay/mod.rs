@@ -52,9 +52,9 @@ impl From<progenitor_client::Error<types::ErrorResponse>> for PayError {
             progenitor_client::Error::InvalidResponsePayload(_, err) => {
                 Self::Api(format!("Invalid response: {}", err))
             }
-            progenitor_client::Error::UnexpectedResponse(resp) => {
-                Self::Api(format!("{}: Unexpected response", resp.status().as_u16()))
-            }
+            progenitor_client::Error::UnexpectedResponse(resp) => Self::Api(
+                format!("{}: Unexpected response", resp.status().as_u16()),
+            ),
             other => Self::Api(other.to_string()),
         }
     }
