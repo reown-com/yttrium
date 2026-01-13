@@ -1,0 +1,68 @@
+android {
+    namespace "com.reown.yttrium.uniffi"
+
+    sourceSets {
+        main {
+            kotlin.srcDirs = [
+                "${project.projectDir}/src/main/kotlin",
+                "${rootProject.buildDir}/generated/yttrium/kotlin"
+            ]
+            jniLibs.srcDirs = ["${rootProject.buildDir}/generated/yttrium/jniLibs"]
+        }
+    }
+
+    packagingOptions {
+        doNotStrip "*/libuniffi_yttrium.so"
+    }
+
+    publishing {
+        singleVariant("release")
+    }
+}
+
+def publicationVersion = project.hasProperty("version") ? project.getProperty("version") : "0.0.1"
+
+afterEvaluate {
+    publishing {
+        publications {
+            release(MavenPublication) {
+                from components.release
+                groupId = 'com.github.reown-com'
+                artifactId = 'yttrium'
+                version = publicationVersion
+
+                pom {
+                    name.set("Yttrium")
+                    description.set("An Android library for Yttrium.")
+                    url.set("https://github.com/reown-com/yttrium")
+                    scm {
+                        connection.set("scm:git:git://github.com:reown-com/yttrium.git")
+                        developerConnection.set("scm:git:ssh://github.com:reown-com/yttrium.git")
+                        url.set("https://github.com/reown-com/yttrium")
+                    }
+                    withXml { xml ->
+                        def dependenciesNode = xml.asNode().get('dependencies')[0]
+                        if (dependenciesNode != null) {
+                            dependenciesNode.dependency.each { dep ->
+                                if (dep.groupId[0].text() == 'net.java.dev.jna' && dep.artifactId[0].text() == 'jna') {
+                                    def classifierNodes = dep.classifier
+                                    if (classifierNodes && !classifierNodes.isEmpty()) {
+                                        classifierNodes[0].value = 'android'
+                                    } else {
+                                        dep.appendNode('classifier', 'android')
+                                    }
+                                    def typeNodes = dep.type
+                                    if (typeNodes && !typeNodes.isEmpty()) {
+                                        typeNodes[0].value = 'aar'
+                                    } else {
+                                        dep.appendNode('type', 'aar')
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
