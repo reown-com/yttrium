@@ -38,15 +38,22 @@ pub enum PayError {
     Timeout,
 }
 
-impl<T: std::fmt::Debug> From<progenitor_client::Error<T>> for PayError {
-    fn from(e: progenitor_client::Error<T>) -> Self {
+impl From<progenitor_client::Error<types::ErrorResponse>> for PayError {
+    fn from(e: progenitor_client::Error<types::ErrorResponse>) -> Self {
         match e {
+            progenitor_client::Error::ErrorResponse(resp) => {
+                let status = resp.status().as_u16();
+                Self::Api(format!("{}: {}", status, resp.into_inner().message))
+            }
             progenitor_client::Error::CommunicationError(err) => {
                 Self::Http(format!("Network error: {}", err))
             }
             progenitor_client::Error::InvalidRequest(msg) => Self::Api(msg),
             progenitor_client::Error::InvalidResponsePayload(_, err) => {
                 Self::Api(format!("Invalid response: {}", err))
+            }
+            progenitor_client::Error::UnexpectedResponse(resp) => {
+                Self::Api(format!("{}: Unexpected response", resp.status().as_u16()))
             }
             other => Self::Api(other.to_string()),
         }
