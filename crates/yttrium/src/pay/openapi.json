@@ -692,7 +692,8 @@
             "assetSymbol": "USDC",
             "decimals": 6,
             "iconUrl": "https://assets.walletconnect.com/usdc.png",
-            "networkName": "Base"
+            "networkName": "Base",
+            "networkIconUrl": "https://assets.walletconnect.com/base.png"
           },
           "unit": "caip19/eip155:8453/erc20:0xUSDC...",
           "value": "1000000"
@@ -729,6 +730,11 @@
             "type": "string",
             "nullable": true,
             "description": "Name of the network of the asset (if token)"
+          },
+          "networkIconUrl": {
+            "type": "string",
+            "nullable": true,
+            "description": "URL of the icon of the asset's network"
           }
         },
         "example": {
@@ -736,7 +742,8 @@
           "assetSymbol": "USDC",
           "decimals": 6,
           "iconUrl": "https://assets.walletconnect.com/usdc.png",
-          "networkName": "Base"
+          "networkName": "Base",
+          "networkIconUrl": "https://assets.walletconnect.com/base.png"
         }
       },
       "Build": {
@@ -1160,7 +1167,8 @@
                 "assetSymbol": "USDC",
                 "decimals": 6,
                 "iconUrl": "https://assets.walletconnect.com/usdc.png",
-                "networkName": "Base"
+                "networkName": "Base",
+                "networkIconUrl": "https://assets.walletconnect.com/base.png"
               },
               "unit": "caip19/eip155:8453/erc20:0xUSDC...",
               "value": "1000000"
@@ -1198,7 +1206,8 @@
                   "assetSymbol": "USDC",
                   "decimals": 6,
                   "iconUrl": "https://assets.walletconnect.com/usdc.png",
-                  "networkName": "Base"
+                  "networkName": "Base",
+                  "networkIconUrl": "https://assets.walletconnect.com/base.png"
                 },
                 "unit": "caip19/eip155:8453/erc20:0xUSDC...",
                 "value": "1000000"
@@ -1249,7 +1258,8 @@
               "assetSymbol": "USDC",
               "decimals": 6,
               "iconUrl": "https://assets.walletconnect.com/usdc.png",
-              "networkName": "Base"
+              "networkName": "Base",
+              "networkIconUrl": "https://assets.walletconnect.com/base.png"
             },
             "unit": "caip19/eip155:8453/erc20:0xUSDC...",
             "value": "1000000"
@@ -1368,7 +1378,8 @@
               "assetSymbol": "USDC",
               "decimals": 6,
               "iconUrl": "https://assets.walletconnect.com/usdc.png",
-              "networkName": "Base"
+              "networkName": "Base",
+              "networkIconUrl": "https://assets.walletconnect.com/base.png"
             },
             "unit": "caip19/eip155:8453/erc20:0xUSDC...",
             "value": "1000000"
