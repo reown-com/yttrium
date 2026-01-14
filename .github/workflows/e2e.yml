@@ -51,5 +51,6 @@ jobs:
         env:
           REOWN_PROJECT_ID: ${{ vars.REOWN_PROJECT_ID }}
           TEST_WALLET_PRIVATE_KEY: ${{ secrets.TEST_WALLET_PRIVATE_KEY }}
+          MERCHANT_API_KEY: ${{ secrets.MERCHANT_API_KEY }}
           RUST_BACKTRACE: 1
           RUST_LOG: yttrium=trace

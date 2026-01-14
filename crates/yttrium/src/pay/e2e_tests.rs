@@ -40,9 +40,16 @@ struct CreatePaymentResponse {
 }
 
 const POS_API_BASE_URL: &str = "https://api.pay.walletconnect.com";
-const MERCHANT_ID: &str = "gancho-test-collectdata";
-const MERCHANT_API_KEY: &str = "wcp_merchant_1abtcETOqkiPL83kwWsZabB2HPRJCkui";
 const TEST_ADDRESS: &str = "0xEb52dc9cCE17f1F0Ab0606d846dce183B449033C";
+
+fn get_merchant_api_key() -> String {
+    std::env::var("MERCHANT_API_KEY")
+        .expect("MERCHANT_API_KEY environment variable must be set")
+}
+
+fn get_merchant_id() -> String {
+    std::env::var("MERCHANT_ID").unwrap_or_else(|_| "gancho-test-collectdata".to_string())
+}
 const CHAIN_BASE: &str = "eip155:8453";
 const CHAIN_POLYGON: &str = "eip155:137";
 
@@ -90,8 +97,8 @@ impl PosApiClient {
         let response = self
             .http_client
             .post(format!("{}/v1/merchant/payment", POS_API_BASE_URL))
-            .header("Api-Key", MERCHANT_API_KEY)
-            .header("Merchant-Id", MERCHANT_ID)
+            .header("Api-Key", get_merchant_api_key())
+            .header("Merchant-Id", get_merchant_id())
             .header("Sdk-Name", "yttrium-e2e-test")
             .header("Sdk-Version", env!("CARGO_PKG_VERSION"))
             .header("Sdk-Platform", "rust-tests")
@@ -185,7 +192,7 @@ fn test_sdk_config() -> SdkConfig {
         base_url: POS_API_BASE_URL.to_string(),
         project_id: std::env::var("REOWN_PROJECT_ID")
             .unwrap_or_else(|_| "test-project".to_string()),
-        api_key: MERCHANT_API_KEY.to_string(),
+        api_key: get_merchant_api_key(),
         sdk_name: "yttrium-e2e-test".to_string(),
         sdk_version: env!("CARGO_PKG_VERSION").to_string(),
         sdk_platform: "rust-tests".to_string(),
