@@ -34,3 +34,22 @@ jobs:
           FAUCET_REQUEST_API_KEY: ${{ secrets.FAUCET_REQUEST_API_KEY }}
           RUST_BACKTRACE: 1
           RUST_LOG: yttrium=trace
+
+  pay-e2e:
+    name: Pay E2E
+    runs-on: ubuntu-latest
+    concurrency:
+      group: yttrium-pay-e2e
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Run sccache-cache
+        uses: mozilla-actions/sccache-action@v0.0.4
+      - run: rustup update stable && rustup default stable
+      - run: cargo test -p yttrium --features=test_pay_api pay::e2e_tests -- --nocapture
+        env:
+          REOWN_PROJECT_ID: ${{ vars.REOWN_PROJECT_ID }}
+          TEST_WALLET_PRIVATE_KEY: ${{ secrets.TEST_WALLET_PRIVATE_KEY }}
+          RUST_BACKTRACE: 1
+          RUST_LOG: yttrium=trace
