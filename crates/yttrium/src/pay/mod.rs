@@ -986,9 +986,7 @@ fn extract_payment_id(
     }
 
     fn extract_pid_from_link(link: &str) -> Option<String> {
-        let mut parts = link.splitn(2, '?');
-        let _path = parts.next();
-        if let Some(query) = parts.next() {
+        if let Some((_, query)) = link.split_once('?') {
             if let Some(id) = extract_pid_from_query(query) {
                 return Some(id);
             }
@@ -1013,9 +1011,7 @@ fn extract_payment_id(
     }
 
     fn try_extract_from_wc_uri(uri: &str) -> Option<String> {
-        let mut parts = uri.splitn(2, '?');
-        let _path = parts.next();
-        let query = parts.next()?;
+        let (_, query) = uri.split_once('?')?;
         let pay_link = extract_pay_param_value(query)?;
         extract_pid_from_link(&pay_link)
     }
