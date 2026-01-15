@@ -970,21 +970,83 @@ impl WalletConnectPay {
 fn extract_payment_id(
     payment_link: &str,
 ) -> Result<String, GetPaymentOptionsError> {
-    let id = if let Some(query) = payment_link.split('?').nth(1) {
-        query
-            .split('&')
-            .find_map(|param| param.strip_prefix("pid="))
-            .unwrap_or("")
-    } else {
-        payment_link.rsplit('/').next().unwrap_or("")
-    };
-    if id.is_empty() {
-        return Err(GetPaymentOptionsError::InvalidRequest(format!(
-            "unsupported payment link format: '{}'",
-            payment_link
-        )));
+    fn url_decode(s: &str) -> String {
+        urlencoding::decode(s)
+            .map(|c| c.into_owned())
+            .unwrap_or_else(|_| s.to_string())
     }
-    Ok(id.to_string())
+
+    fn extract_pid_from_query(query: &str) -> Option<String> {
+        query.split('&').find_map(|param| {
+            param
+                .strip_prefix("pid=")
+                .filter(|id| !id.is_empty())
+                .map(String::from)
+        })
+    }
+
+    fn extract_pid_from_link(link: &str) -> Option<String> {
+        let mut parts = link.splitn(2, '?');
+        let _path = parts.next();
+        if let Some(query) = parts.next() {
+            if let Some(id) = extract_pid_from_query(query) {
+                return Some(id);
+            }
+        }
+        let last_segment = link.rsplit('/').next().unwrap_or("");
+        if !last_segment.is_empty()
+            && !last_segment.contains('?')
+            && !last_segment.contains('%')
+        {
+            return Some(last_segment.to_string());
+        }
+        None
+    }
+
+    fn extract_pay_param_value(query: &str) -> Option<String> {
+        for param in query.split('&') {
+            if let Some(value) = param.strip_prefix("pay=") {
+                return Some(url_decode(value));
+            }
+        }
+        None
+    }
+
+    fn try_extract_from_wc_uri(uri: &str) -> Option<String> {
+        let mut parts = uri.splitn(2, '?');
+        let _path = parts.next();
+        let query = parts.next()?;
+        let pay_link = extract_pay_param_value(query)?;
+        let decoded_pay = url_decode(&pay_link);
+        extract_pid_from_link(&decoded_pay)
+    }
+
+    let decoded = url_decode(payment_link);
+
+    if decoded.starts_with("wc:") {
+        if let Some(id) = try_extract_from_wc_uri(&decoded) {
+            return Ok(id);
+        }
+    }
+
+    if payment_link.starts_with("wc:") {
+        if let Some(id) = try_extract_from_wc_uri(payment_link) {
+            return Ok(id);
+        }
+    }
+
+    if let Some(id) = extract_pid_from_link(&decoded) {
+        return Ok(id);
+    }
+
+    if let Some(id) = extract_pid_from_link(payment_link) {
+        return Ok(id);
+    }
+
+    Err(GetPaymentOptionsError::InvalidRequest(format!(
+        "unsupported payment link format: '{}'",
+        payment_link
+    )))
 }
 
 fn map_payment_options_error(
@@ -1202,6 +1264,38 @@ mod tests {
             "pay_789"
         );
         assert!(extract_payment_id("").is_err());
+    }
+
+    #[tokio::test]
+    async fn test_extract_payment_id_with_pid_query_param() {
+        assert_eq!(
+            extract_payment_id("https://pay.walletconnect.com/?pid=pay_95a2ecc101KEYG1NH580DF2J04MBNRWE7V").unwrap(),
+            "pay_95a2ecc101KEYG1NH580DF2J04MBNRWE7V"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_extract_payment_id_url_encoded() {
+        assert_eq!(
+            extract_payment_id("https%3A%2F%2Fpay.walletconnect.com%2F%3Fpid%3Dpay_95a2ecc101KEYG1NH580DF2J04MBNRWE7V").unwrap(),
+            "pay_95a2ecc101KEYG1NH580DF2J04MBNRWE7V"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_extract_payment_id_wc_uri_with_pay_param() {
+        assert_eq!(
+            extract_payment_id("wc:abc123@2?relay-protocol=irn&symKey=xyz&pay=https%3A%2F%2Fpay.walletconnect.com%2F%3Fpid%3Dpay_03a2ecc101KEVQWPKPJ3TP47E1PBKSSV5Y").unwrap(),
+            "pay_03a2ecc101KEVQWPKPJ3TP47E1PBKSSV5Y"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_extract_payment_id_fully_encoded_wc_uri() {
+        assert_eq!(
+            extract_payment_id("wc%3Afe8314404caac9b487daca1bb3ba4076f1ef0a52794c6117bd944ed17c5b32a7%402%3FexpiryTimestamp%3D1768460398%26relay-protocol%3Dirn%26symKey%3Db614f88cbae08c993154c9c4c23cd538ca17600d0ee7666d52fb8494f6c98b70%26pay%3Dhttps%3A%2F%2Fpay.walletconnect.com%2F%3Fpid%3Dpay_95a2ecc101KEYG1NH580DF2J04MBNRWE7V").unwrap(),
+            "pay_95a2ecc101KEYG1NH580DF2J04MBNRWE7V"
+        );
     }
 
     #[tokio::test]

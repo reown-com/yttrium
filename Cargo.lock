@@ -16616,6 +16616,7 @@ dependencies = [
  "uniffi",
  "uniffi_macros",
  "url",
+ "urlencoding",
  "uuid",
  "wasm-bindgen",
  "wasm-bindgen-futures",
