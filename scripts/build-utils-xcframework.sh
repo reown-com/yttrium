@@ -12,9 +12,6 @@ swift_package_dir="platforms/swift/Sources/YttriumUtils"
 ORIG_FFI_MODULE_NAME="yttriumFFI"
 UTILS_FFI_MODULE_NAME="yttriumUtilsFFI"
 
-# Build-std flags to eliminate rust_eh_personality symbols that conflict with other Rust libraries
-BUILD_STD_FLAGS="-Z build-std=std,panic_abort -Z build-std-features=panic_immediate_abort"
-
 build_rust_libraries() {
   #### Building for aarch64-apple-ios (Physical Devices) ####
   echo "Building for aarch64-apple-ios..."
@@ -31,7 +28,8 @@ build_rust_libraries() {
   # Build with nightly and -Z build-std to eliminate rust_eh_personality symbols
   cargo +nightly build \
     --lib --profile=$PROFILE \
-    $BUILD_STD_FLAGS \
+    -Z build-std=std,panic_abort \
+    -Z unstable-options \
     --no-default-features \
     --features=$FEATURES \
     --target aarch64-apple-ios \
@@ -59,7 +57,8 @@ build_rust_libraries() {
 
   cargo +nightly build \
     --lib --profile=$PROFILE \
-    $BUILD_STD_FLAGS \
+    -Z build-std=std,panic_abort \
+    -Z unstable-options \
     --no-default-features \
     --features=$FEATURES \
     --target x86_64-apple-ios \
@@ -87,7 +86,8 @@ build_rust_libraries() {
 
   cargo +nightly build \
     --lib --profile=$PROFILE \
-    $BUILD_STD_FLAGS \
+    -Z build-std=std,panic_abort \
+    -Z unstable-options \
     --no-default-features \
     --features=$FEATURES \
     --target aarch64-apple-ios-sim \
@@ -104,7 +104,7 @@ build_rust_libraries() {
 
 generate_ffi() {
   echo "Generating framework module mapping and FFI bindings for Utils..."
-  cargo run -p yttrium --no-default-features --features=$FEATURES,uniffi/cli --bin uniffi-bindgen generate \
+  cargo +nightly run -p yttrium --no-default-features --features=$FEATURES,uniffi/cli --bin uniffi-bindgen generate \
     --library target/aarch64-apple-ios/$PROFILE/lib$PACKAGE_NAME.dylib \
     --language swift \
     --out-dir target/uniffi-xcframework-staging-utils
