@@ -16570,6 +16570,7 @@ dependencies = [
  "jsonwebtoken 9.3.1",
  "num-bigint 0.4.6",
  "p256",
+ "pay-api",
  "progenitor",
  "progenitor-client",
  "quinn",

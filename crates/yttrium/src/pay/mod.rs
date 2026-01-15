@@ -1109,6 +1109,10 @@ fn map_confirm_payment_error(
 }
 
 #[cfg(test)]
+#[cfg(feature = "test_pay_api")]
+mod e2e_tests;
+
+#[cfg(test)]
 mod tests {
     use {
         super::*,
