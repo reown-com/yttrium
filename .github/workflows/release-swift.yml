@@ -47,6 +47,11 @@ jobs:
           VERSION: ${{ env.VERSION }}
         run: |
           rustup update stable && rustup default stable
+          # Install nightly toolchain with rust-src for -Z build-std (eliminates rust_eh_personality symbols)
+          rustup toolchain install nightly --component rust-src
+          rustup target add aarch64-apple-ios --toolchain nightly
+          rustup target add x86_64-apple-ios --toolchain nightly
+          rustup target add aarch64-apple-ios-sim --toolchain nightly
           git submodule update --init --recursive
           make setup-thirdparty
 
