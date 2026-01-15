@@ -186,6 +186,18 @@ impl MyClient {
 - Tests in separate files when inline suffices
 - Verbose comments (code should be self-documenting)
 
+## Advanced Patterns
+
+See [REFERENCE.md](./REFERENCE.md) for:
+- Custom serde modules (duration_millis, etc.)
+- UniFFI custom type mappings
+- Platform-aware async spawning (native vs WASM)
+- Async trait with WASM support (`?Send`)
+- Thread-safe caching with `Arc<RwLock<_>>`
+- Serde enum patterns (tagged unions, rename_all_fields)
+- Feature flag organization in Cargo.toml
+- Constants module pattern
+
 ## Examples
 
 ### Example 1: New error type
