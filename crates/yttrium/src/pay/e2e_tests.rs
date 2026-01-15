@@ -40,7 +40,6 @@ struct CreatePaymentResponse {
 }
 
 const POS_API_BASE_URL: &str = "https://api.pay.walletconnect.com";
-const TEST_ADDRESS: &str = "0xEb52dc9cCE17f1F0Ab0606d846dce183B449033C";
 
 fn get_merchant_api_key() -> String {
     std::env::var("MERCHANT_API_KEY")
@@ -48,8 +47,13 @@ fn get_merchant_api_key() -> String {
 }
 
 fn get_merchant_id() -> String {
-    std::env::var("MERCHANT_ID")
-        .unwrap_or_else(|_| "gancho-test-collectdata".to_string())
+    std::env::var("MERCHANT_ID").unwrap_or_else(|_| "gancho-test-collectdata".to_string())
+}
+
+fn get_expected_test_address() -> Option<Address> {
+    std::env::var("TEST_WALLET_ADDRESS")
+        .ok()
+        .and_then(|addr| Address::from_str(&addr).ok())
 }
 const CHAIN_BASE: &str = "eip155:8453";
 const CHAIN_POLYGON: &str = "eip155:137";
@@ -78,7 +82,12 @@ struct PosApiClient {
 
 impl PosApiClient {
     fn new() -> Self {
-        Self { http_client: HttpClient::new() }
+        Self {
+            http_client: HttpClient::builder()
+                .timeout(std::time::Duration::from_secs(30))
+                .build()
+                .unwrap_or_else(|_| HttpClient::new()),
+        }
     }
 
     async fn create_payment(
@@ -138,12 +147,15 @@ impl TestWallet {
             .map_err(|e| PayTestError::InvalidPrivateKey(e.to_string()))?;
 
         let address = signer.address();
-        let expected = Address::from_str(TEST_ADDRESS).unwrap();
-        if address != expected {
-            return Err(PayTestError::AddressMismatch {
-                expected: expected.to_string(),
-                actual: address.to_string(),
-            });
+
+        // Optionally validate address if TEST_WALLET_ADDRESS env var is set
+        if let Some(expected) = get_expected_test_address() {
+            if address != expected {
+                return Err(PayTestError::AddressMismatch {
+                    expected: expected.to_string(),
+                    actual: address.to_string(),
+                });
+            }
         }
 
         Ok(Self { signer, address })
