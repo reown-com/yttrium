@@ -1017,8 +1017,7 @@ fn extract_payment_id(
         let _path = parts.next();
         let query = parts.next()?;
         let pay_link = extract_pay_param_value(query)?;
-        let decoded_pay = url_decode(&pay_link);
-        extract_pid_from_link(&decoded_pay)
+        extract_pid_from_link(&pay_link)
     }
 
     let decoded = url_decode(payment_link);
