@@ -47,7 +47,8 @@ fn get_merchant_api_key() -> String {
 }
 
 fn get_merchant_id() -> String {
-    std::env::var("MERCHANT_ID").unwrap_or_else(|_| "gancho-test-collectdata".to_string())
+    std::env::var("MERCHANT_ID")
+        .unwrap_or_else(|_| "gancho-test-collectdata".to_string())
 }
 
 fn get_expected_test_address() -> Option<Address> {
