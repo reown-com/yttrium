@@ -83,14 +83,19 @@ struct EventPayload {
     sdk_name: String,
     sdk_version: String,
     sdk_platform: String,
+    api_key: String,
+    client_id: String,
+    bundle_id: String,
     payload: serde_json::Value,
 }
 
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn send_trace(
     http_client: &HttpClient,
-    _bundle_id: &str,
+    bundle_id: &str,
     _project_id: &str,
+    api_key: &str,
+    client_id: &str,
     sdk_name: &str,
     sdk_version: &str,
     sdk_platform: &str,
@@ -109,6 +114,9 @@ pub(crate) fn send_trace(
         sdk_name: sdk_name.to_string(),
         sdk_version: sdk_version.to_string(),
         sdk_platform: sdk_platform.to_string(),
+        api_key: api_key.to_string(),
+        client_id: client_id.to_string(),
+        bundle_id: bundle_id.to_string(),
         payload: serde_json::json!({}),
     };
 
@@ -199,6 +207,9 @@ mod tests {
             sdk_name: "test-sdk".to_string(),
             sdk_version: "1.0.0".to_string(),
             sdk_platform: "ios".to_string(),
+            api_key: "test-api-key".to_string(),
+            client_id: "test-client-id".to_string(),
+            bundle_id: "com.test.app".to_string(),
             payload: serde_json::json!({}),
         };
 
@@ -212,6 +223,9 @@ mod tests {
         assert!(json.contains("\"sdk_name\":\"test-sdk\""));
         assert!(json.contains("\"sdk_version\":\"1.0.0\""));
         assert!(json.contains("\"sdk_platform\":\"ios\""));
+        assert!(json.contains("\"api_key\":\"test-api-key\""));
+        assert!(json.contains("\"client_id\":\"test-client-id\""));
+        assert!(json.contains("\"bundle_id\":\"com.test.app\""));
     }
 
     #[test]
@@ -354,6 +368,9 @@ mod tests {
             sdk_name: "test-sdk".to_string(),
             sdk_version: "1.0.0".to_string(),
             sdk_platform: "ios".to_string(),
+            api_key: "test-api-key".to_string(),
+            client_id: "test-client-id".to_string(),
+            bundle_id: "com.test.app".to_string(),
             payload: serde_json::json!({}),
         };
 
@@ -419,6 +436,9 @@ mod tests {
             sdk_name: "test-sdk".to_string(),
             sdk_version: "1.0.0".to_string(),
             sdk_platform: "ios".to_string(),
+            api_key: "test-api-key".to_string(),
+            client_id: "test-client-id".to_string(),
+            bundle_id: "com.test.app".to_string(),
             payload: serde_json::json!({}),
         };
 
