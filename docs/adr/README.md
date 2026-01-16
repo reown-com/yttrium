@@ -90,4 +90,4 @@ These rules are automatically checked:
 
 | ADR | Title | Status | Date |
 |-----|-------|--------|------|
-| | *No ADRs yet* | | |
+| [0001](0001-ios-xcframework-build-std-for-symbol-conflict-resolution.md) | Use -Z build-std for iOS XCFramework Builds to Eliminate Rust Symbol Conflicts | Accepted | 2026-01-15 |
