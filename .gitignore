@@ -40,4 +40,6 @@ benchmark-profile-output-sizes.csv
 benchmark*.csv
 benchmark/
 *.xcframework.zip
-.claude/
+.claude/*
+!.claude/commands/
+.claude/settings.local.json
