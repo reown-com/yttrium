@@ -36,6 +36,7 @@ jobs:
           cache-on-failure: true
       - uses: extractions/setup-just@v2
       - run: just clippy
+      - run: cargo build -p yttrium --features=wasm --lib --target wasm32-unknown-unknown
       - name: Install cargo-udeps (cached)
         uses: taiki-e/install-action@v2
         with:
@@ -97,6 +98,7 @@ jobs:
           cache-on-failure: true
       - uses: extractions/setup-just@v2
       - run: just clippy
+      - run: cargo build -p yttrium --features=wasm --lib --target wasm32-unknown-unknown
       - name: Install cargo-udeps (cached)
         uses: taiki-e/install-action@v2
         with:
