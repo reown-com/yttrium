@@ -290,6 +290,7 @@ aws-sdk-cloudwatch = { version = "1.91.0", optional = true }
 # Pay
 progenitor = { workspace = true }
 progenitor-client = { workspace = true, optional = true }
+urlencoding = "2.1"
 
 [dev-dependencies]
 pay-api = { path = "../pay-api" }

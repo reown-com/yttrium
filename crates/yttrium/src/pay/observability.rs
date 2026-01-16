@@ -14,9 +14,30 @@ static PAYMENT_ENVS: RwLock<Option<HashMap<String, bool>>> = RwLock::new(None);
 
 /// Registers a payment's environment (staging or production) based on the payment link
 pub(crate) fn set_payment_env(payment_id: &str, payment_link: &str) {
+    fn url_decode(s: &str) -> String {
+        urlencoding::decode(s)
+            .map(|c| c.into_owned())
+            .unwrap_or_else(|_| s.to_string())
+    }
+
+    fn extract_pay_url(link: &str) -> String {
+        let decoded = url_decode(link);
+        if decoded.starts_with("wc:") {
+            if let Some((_, query)) = decoded.split_once('?') {
+                for param in query.split('&') {
+                    if let Some(value) = param.strip_prefix("pay=") {
+                        return url_decode(value);
+                    }
+                }
+            }
+        }
+        decoded
+    }
+
+    let pay_url = extract_pay_url(payment_link);
     // Only production URLs match "://pay.walletconnect." exactly (no subdomain)
     // Everything else (staging., dev., etc.) routes to staging ingest
-    let is_prod = payment_link.contains("://pay.walletconnect.");
+    let is_prod = pay_url.contains("://pay.walletconnect.");
     let mut envs = PAYMENT_ENVS.write().expect("Payment envs lock poisoned");
     envs.get_or_insert_with(HashMap::new)
         .insert(payment_id.to_string(), !is_prod);
@@ -242,6 +263,50 @@ mod tests {
 
         // Unknown payment defaults to production (not staging)
         assert!(!is_staging_payment("pay_unknown"));
+    }
+
+    #[test]
+    fn test_set_payment_env_url_encoded() {
+        // URL-encoded production link
+        set_payment_env(
+            "pay_encoded_prod",
+            "https%3A%2F%2Fpay.walletconnect.com%2F%3Fpid%3Dpay_encoded_prod",
+        );
+        assert!(!is_staging_payment("pay_encoded_prod"));
+
+        // URL-encoded staging link
+        set_payment_env(
+            "pay_encoded_staging",
+            "https%3A%2F%2Fstaging.pay.walletconnect.com%2F%3Fpid%3Dpay_encoded_staging",
+        );
+        assert!(is_staging_payment("pay_encoded_staging"));
+    }
+
+    #[test]
+    fn test_set_payment_env_wc_uri() {
+        // WC URI with production pay link
+        set_payment_env(
+            "pay_wc_prod",
+            "wc:abc123@2?relay-protocol=irn&pay=https%3A%2F%2Fpay.walletconnect.com%2F%3Fpid%3Dpay_wc_prod",
+        );
+        assert!(!is_staging_payment("pay_wc_prod"));
+
+        // WC URI with staging pay link
+        set_payment_env(
+            "pay_wc_staging",
+            "wc:abc123@2?relay-protocol=irn&pay=https%3A%2F%2Fstaging.pay.walletconnect.com%2F%3Fpid%3Dpay_wc_staging",
+        );
+        assert!(is_staging_payment("pay_wc_staging"));
+    }
+
+    #[test]
+    fn test_set_payment_env_fully_encoded_wc_uri() {
+        // Fully URL-encoded WC URI with production pay link
+        set_payment_env(
+            "pay_full_encoded",
+            "wc%3Afe8314@2%3Fpay%3Dhttps%3A%2F%2Fpay.walletconnect.com%2F%3Fpid%3Dpay_full_encoded",
+        );
+        assert!(!is_staging_payment("pay_full_encoded"));
     }
 
     #[test]
