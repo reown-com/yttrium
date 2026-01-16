@@ -27,7 +27,14 @@ $ARGUMENTS - Optional branch name (defaults to current branch)
    - Identify all files changed and patterns introduced
 
 4. **Analyze for architectural decisions**:
-   Look for patterns that indicate architectural decisions:
+
+   **Sources to consider:**
+   - **Commit messages**: Often explain the reasoning behind changes
+   - **Current conversation**: Use context from the ongoing Claude conversation if relevant - this may contain discussion about alternatives, tradeoffs, and the reasoning behind the approach taken
+   - **Code changes**: The diff itself shows what was implemented
+   - **Related PR** (if exists): Check `gh pr list --head <branch>` for associated PR description
+
+   **Patterns that indicate architectural decisions:**
    - New dependencies added (Cargo.toml changes)
    - New module structure or reorganization
    - API design patterns introduced

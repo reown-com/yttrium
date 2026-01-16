@@ -23,7 +23,14 @@ $ARGUMENTS - Optional PR number (e.g., "123")
    - Identify files changed and the nature of changes
 
 3. **Analyze for architectural decisions**:
-   Look for patterns that indicate architectural decisions:
+
+   **Sources to consider:**
+   - **PR description**: Often contains the reasoning and context for changes
+   - **PR comments**: May have discussion about tradeoffs and alternatives
+   - **Current conversation**: Use context from the ongoing Claude conversation if relevant
+   - **Code changes**: The diff itself shows what was implemented
+
+   **Patterns that indicate architectural decisions:**
    - New dependencies added (Cargo.toml changes)
    - New module structure or reorganization
    - API design patterns introduced
