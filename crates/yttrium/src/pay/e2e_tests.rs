@@ -206,11 +206,11 @@ fn test_sdk_config() -> SdkConfig {
         base_url: POS_API_BASE_URL.to_string(),
         project_id: std::env::var("REOWN_PROJECT_ID")
             .unwrap_or_else(|_| "test-project".to_string()),
-        api_key: get_merchant_api_key(),
         sdk_name: "yttrium-e2e-test".to_string(),
         sdk_version: env!("CARGO_PKG_VERSION").to_string(),
         sdk_platform: "rust-tests".to_string(),
         bundle_id: "com.yttrium.e2e.tests".to_string(),
+        api_key: Some(get_merchant_api_key()),
         app_id: None,
         client_id: None,
     }
