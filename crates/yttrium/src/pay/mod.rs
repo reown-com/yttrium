@@ -553,9 +553,12 @@ impl WalletConnectPay {
     /// This is done lazily because the constructor cannot create HTTP clients
     /// (reqwest requires a Tokio runtime, which isn't available when UniFFI
     /// calls the constructor from Android's non-Tokio thread).
-    fn send_initialized_event_once(&self) {
+    fn send_initialized_event_once(&self, payment_id: &str) {
         self.initialized_event_sent.get_or_init(|| {
-            self.send_trace(observability::TraceEvent::SdkInitialized, "init");
+            self.send_trace(
+                observability::TraceEvent::SdkInitialized,
+                payment_id,
+            );
         });
     }
 }
@@ -587,8 +590,8 @@ impl WalletConnectPay {
             accounts,
             include_payment_info
         );
-        self.send_initialized_event_once();
         let payment_id = extract_payment_id(&payment_link)?;
+        self.send_initialized_event_once(&payment_id);
 
         // Register payment environment for observability routing
         observability::set_payment_env(&payment_id, &payment_link);
@@ -671,7 +674,7 @@ impl WalletConnectPay {
             payment_id,
             option_id
         );
-        self.send_initialized_event_once();
+        self.send_initialized_event_once(&payment_id);
         self.send_trace(
             observability::TraceEvent::RequiredActionsRequested,
             &payment_id,
@@ -771,7 +774,7 @@ impl WalletConnectPay {
             option_id,
             signatures.len()
         );
-        self.send_initialized_event_once();
+        self.send_initialized_event_once(&payment_id);
         self.send_trace(
             observability::TraceEvent::ConfirmPaymentCalled,
             &payment_id,
@@ -1700,5 +1703,50 @@ mod tests {
         assert_eq!(data.fields[1].id, "dob");
         assert_eq!(data.fields[1].field_type, CollectDataFieldType::Date);
         assert!(!data.fields[1].required);
+    }
+
+    #[tokio::test]
+    async fn test_initialized_event_sent_once_with_first_payment_id() {
+        let mock_server = MockServer::start().await;
+        let mock_response = serde_json::json!({
+            "options": []
+        });
+        Mock::given(method("POST"))
+            .and(path("/v1/gateway/payment/pay_first/options"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(&mock_response),
+            )
+            .mount(&mock_server)
+            .await;
+        Mock::given(method("POST"))
+            .and(path("/v1/gateway/payment/pay_second/options"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(&mock_response),
+            )
+            .mount(&mock_server)
+            .await;
+
+        let client = WalletConnectPay::new(test_config(mock_server.uri()));
+        assert!(client.initialized_event_sent.get().is_none());
+
+        client
+            .get_payment_options(
+                "pay_first".to_string(),
+                vec!["eip155:1:0x123".to_string()],
+                false,
+            )
+            .await
+            .unwrap();
+        assert!(client.initialized_event_sent.get().is_some());
+
+        client
+            .get_payment_options(
+                "pay_second".to_string(),
+                vec!["eip155:1:0x123".to_string()],
+                false,
+            )
+            .await
+            .unwrap();
+        assert!(client.initialized_event_sent.get().is_some());
     }
 }
