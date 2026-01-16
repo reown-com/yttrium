@@ -9,6 +9,10 @@ env:
   CARGO_TERM_COLOR: always
   VERSION: ${{ github.event.inputs.version || '0.0.1' }}
   TARGET_BRANCH: ${{ github.ref_name }}
+  # Use target-specific RUSTFLAGS to avoid affecting host builds
+  CARGO_TARGET_AARCH64_LINUX_ANDROID_RUSTFLAGS: "-C link-arg=-Wl,--gc-sections"
+  CARGO_TARGET_ARMV7_LINUX_ANDROIDEABI_RUSTFLAGS: "-C link-arg=-Wl,--gc-sections"
+  CARGO_TARGET_X86_64_LINUX_ANDROID_RUSTFLAGS: "-C link-arg=-Wl,--gc-sections"
 permissions:
   contents: write
 jobs:
@@ -45,7 +49,8 @@ jobs:
           cargo ndk -t ${{ matrix.target }} build \
             --profile=uniffi-release-kotlin-wcpay \
             --no-default-features \
-            --features=android,pay,uniffi/cli
+            --features=android,pay,uniffi/cli \
+            -p kotlin-ffi
       - name: Generate Kotlin wcpay bindings (once, on aarch64 only)
         if: ${{ matrix.target == 'aarch64-linux-android' }}
         run: |
