@@ -211,6 +211,7 @@ fn test_sdk_config() -> SdkConfig {
         sdk_version: env!("CARGO_PKG_VERSION").to_string(),
         sdk_platform: "rust-tests".to_string(),
         bundle_id: "com.yttrium.e2e.tests".to_string(),
+        client_id: None,
     }
 }
 

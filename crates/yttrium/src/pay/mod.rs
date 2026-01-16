@@ -221,6 +221,7 @@ pub struct SdkConfig {
     pub sdk_version: String,
     pub sdk_platform: String,
     pub bundle_id: String,
+    pub client_id: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -526,6 +527,8 @@ pub struct WalletConnectPay {
     error_http_client: OnceLock<reqwest::Client>,
     /// Tracks if SdkInitialized event was sent (done on first API call, not constructor)
     initialized_event_sent: OnceLock<()>,
+    /// Resolved client_id (from config or auto-generated UUID)
+    client_id: String,
 }
 
 impl WalletConnectPay {
@@ -564,12 +567,17 @@ impl WalletConnectPay {
 impl WalletConnectPay {
     #[cfg_attr(feature = "uniffi", uniffi::constructor)]
     pub fn new(config: SdkConfig) -> Self {
+        let client_id = config
+            .client_id
+            .clone()
+            .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
         Self {
             client: OnceLock::new(),
             config,
             cached_options: RwLock::new(Vec::new()),
             error_http_client: OnceLock::new(),
             initialized_event_sent: OnceLock::new(),
+            client_id,
         }
     }
 
@@ -890,6 +898,8 @@ impl WalletConnectPay {
             self.error_http_client(),
             &self.config.bundle_id,
             &self.config.project_id,
+            &self.config.api_key,
+            &self.client_id,
             &self.config.sdk_name,
             &self.config.sdk_version,
             &self.config.sdk_platform,
@@ -1131,6 +1141,7 @@ mod tests {
             sdk_version: "1.0.0".to_string(),
             sdk_platform: "test".to_string(),
             bundle_id: "com.test.app".to_string(),
+            client_id: None,
         }
     }
 
@@ -1624,6 +1635,7 @@ mod tests {
             sdk_version: "2.5.0".to_string(),
             sdk_platform: "ios".to_string(),
             bundle_id: "com.custom.app".to_string(),
+            client_id: Some("custom-client-id".to_string()),
         };
 
         Mock::given(method("POST"))

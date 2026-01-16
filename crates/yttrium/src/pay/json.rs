@@ -189,12 +189,13 @@ mod tests {
             sdk_version: "1.0.0".to_string(),
             sdk_platform: "test".to_string(),
             bundle_id: "com.test.app".to_string(),
+            client_id: None,
         }
     }
 
     fn test_config_json(base_url: &str) -> String {
         format!(
-            r#"{{"baseUrl":"{}","projectId":"test-project-id","apiKey":"test-api-key","sdkName":"test-sdk","sdkVersion":"1.0.0","sdkPlatform":"test","bundleId":"com.test.app"}}"#,
+            r#"{{"baseUrl":"{}","projectId":"test-project-id","apiKey":"test-api-key","sdkName":"test-sdk","sdkVersion":"1.0.0","sdkPlatform":"test","bundleId":"com.test.app","clientId":null}}"#,
             base_url
         )
     }
