@@ -14,10 +14,17 @@ fi
 
 echo "Using ANDROID_NDK_HOME: $ANDROID_NDK_HOME"
 
+# Link-time optimization flag for dead code elimination (Android targets only)
+# Using target-specific RUSTFLAGS avoids conflicts with macOS host builds
+export CARGO_TARGET_AARCH64_LINUX_ANDROID_RUSTFLAGS="-C link-arg=-Wl,--gc-sections"
+export CARGO_TARGET_ARMV7_LINUX_ANDROIDEABI_RUSTFLAGS="-C link-arg=-Wl,--gc-sections"
+export CARGO_TARGET_X86_64_LINUX_ANDROID_RUSTFLAGS="-C link-arg=-Wl,--gc-sections"
+
 ACCOUNT_FEATURES="android,erc6492_client,pay,uniffi/cli"
 UTILS_FEATURES="android,chain_abstraction_client,solana,stacks,sui,ton,eip155,uniffi/cli"
 WCPAY_FEATURES="android,pay,uniffi/cli"
 PROFILE="uniffi-release-kotlin"
+WCPAY_PROFILE="uniffi-release-kotlin-wcpay"
 OUTPUT_ROOT="build/kotlin-artifacts"
 GEN_ROOT="crates/kotlin-ffi/android/build/generated"
 TARGETS=("aarch64-linux-android" "armv7-linux-androideabi" "x86_64-linux-android")
@@ -46,12 +53,17 @@ cleanup() {
     # Remove entire Gradle build directory to prevent cached unstripped binaries
     rm -rf crates/kotlin-ffi/android/build
 
+    # Remove module build directories
+    rm -rf crates/kotlin-ffi/android/yttrium/build
+    rm -rf crates/kotlin-ffi/android/yttrium-utils/build
+    rm -rf crates/kotlin-ffi/android/yttrium-wcpay/build
+
     # Purge any legacy sources/libs in src/main to avoid mixing with generated flavor inputs
     rm -rf crates/kotlin-ffi/android/src/main/jniLibs/arm64-v8a
     rm -rf crates/kotlin-ffi/android/src/main/jniLibs/armeabi-v7a
     rm -rf crates/kotlin-ffi/android/src/main/jniLibs/x86_64
     rm -rf crates/kotlin-ffi/android/src/main/kotlin/com/reown/yttrium
-    
+
     echo "Cleanup complete"
 }
 
@@ -95,8 +107,8 @@ copy_library_variants() {
             fi
             
             if [ -n "$strip_bin" ]; then
-                echo "Stripping $src with $strip_bin"
-                "$strip_bin" "$src"
+                echo "Stripping $src with $strip_bin --strip-all"
+                "$strip_bin" --strip-all "$src"
             fi
         fi
         
@@ -114,6 +126,7 @@ install_variant_sources() {
     local wrapper_base="$GEN_ROOT/${variant}/kotlin/com/yttrium"
     local library_name="libuniffi_yttrium.so"
     local system_library="uniffi_yttrium"
+    local profile_to_use="$PROFILE"
 
     if [ "$variant" = "utils" ]; then
         library_name="libuniffi_yttrium_utils.so"
@@ -121,6 +134,7 @@ install_variant_sources() {
     elif [ "$variant" = "wcpay" ]; then
         library_name="libuniffi_yttrium_wcpay.so"
         system_library="uniffi_yttrium_wcpay"
+        profile_to_use="$WCPAY_PROFILE"
     fi
 
     rm -rf "$jni_base" "$kotlin_base" "$wrapper_base"
@@ -128,7 +142,7 @@ install_variant_sources() {
     for target in "${TARGETS[@]}"; do
         local abi
         abi="$(abi_name "$target")"
-        local src="target/${target}/${PROFILE}/libuniffi_yttrium.so"
+        local src="target/${target}/${profile_to_use}/libuniffi_yttrium.so"
         mkdir -p "$jni_base/${abi}"
         cp "$src" "$jni_base/${abi}/${library_name}"
     done
@@ -265,10 +279,10 @@ build_utils_variant() {
         abi="$(abi_name "$target")"
         local src="target/${target}/${PROFILE}/libuniffi_yttrium.so"
         
-        # Strip the binary before copying
+        # Strip the binary before copying (use --strip-all for maximum size reduction)
         if [ -n "$strip_bin" ]; then
-            echo "Stripping $src with $strip_bin"
-            "$strip_bin" "$src"
+            echo "Stripping $src with $strip_bin --strip-all"
+            "$strip_bin" --strip-all "$src"
         fi
         
         mkdir -p "$OUTPUT_ROOT/libs/${abi}"
@@ -280,9 +294,9 @@ build_utils_variant() {
 }
 
 build_wcpay_variant() {
-    echo "Building wcpay variant (pay only)..."
+    echo "Building wcpay variant (pay only) with optimized profile..."
     cargo ndk -t armv7-linux-androideabi -t aarch64-linux-android -t x86_64-linux-android build \
-        --profile="$PROFILE" \
+        --profile="$WCPAY_PROFILE" \
         --no-default-features \
         --features="$WCPAY_FEATURES" \
         -p kotlin-ffi
@@ -292,7 +306,7 @@ build_wcpay_variant() {
         --features="$WCPAY_FEATURES" \
         -p kotlin-ffi \
         --bin uniffi-bindgen generate \
-        --library "target/aarch64-linux-android/${PROFILE}/libuniffi_yttrium.so" \
+        --library "target/aarch64-linux-android/${WCPAY_PROFILE}/libuniffi_yttrium.so" \
         --language kotlin \
         --out-dir yttrium/kotlin-wcpay-bindings
 
@@ -313,12 +327,12 @@ build_wcpay_variant() {
     for target in "${TARGETS[@]}"; do
         local abi
         abi="$(abi_name "$target")"
-        local src="target/${target}/${PROFILE}/libuniffi_yttrium.so"
+        local src="target/${target}/${WCPAY_PROFILE}/libuniffi_yttrium.so"
         
-        # Strip the binary before copying
+        # Strip the binary before copying (use --strip-all for maximum size reduction)
         if [ -n "$strip_bin" ]; then
-            echo "Stripping $src with $strip_bin"
-            "$strip_bin" "$src"
+            echo "Stripping $src with $strip_bin --strip-all"
+            "$strip_bin" --strip-all "$src"
         fi
         
         mkdir -p "$OUTPUT_ROOT/libs/${abi}"
@@ -371,8 +385,9 @@ strip_binaries() {
 
     for lib in "${libs_to_strip[@]}"; do
         if [ -f "$lib" ]; then
-            # Full strip to minimize binary size (matching 0.9.55 release)
-            "$strip_bin" "$lib"
+            # Full strip to minimize binary size (use --strip-all for maximum reduction)
+            echo "Stripping $lib with --strip-all"
+            "$strip_bin" --strip-all "$lib"
         fi
     done
 }
@@ -385,10 +400,11 @@ strip_binaries
 
 echo "Kotlin artifacts generated under $OUTPUT_ROOT"
 
+cd crates/kotlin-ffi/android
 ./gradlew \
-  assembleYttriumRelease \
-  assembleUtilsRelease \
-  assembleWcpayRelease \
-  publishYttriumReleasePublicationToMavenLocal \
-  publishYttriumUtilsReleasePublicationToMavenLocal \
-  publishYttriumWcpayReleasePublicationToMavenLocal
+  :yttrium:assembleRelease \
+  :yttrium-utils:assembleRelease \
+  :yttrium-wcpay:assembleRelease \
+  :yttrium:publishReleasePublicationToMavenLocal \
+  :yttrium-utils:publishReleasePublicationToMavenLocal \
+  :yttrium-wcpay:publishReleasePublicationToMavenLocal

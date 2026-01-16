@@ -5,11 +5,27 @@ progenitor::generate_api!(
     derives = [PartialEq],
 );
 
+mod error_reporting;
+mod observability;
+
 #[cfg(feature = "uniffi")]
 pub mod json;
 
 #[cfg(feature = "uniffi")]
 pub use json::{PayJsonError, WalletConnectPayJson};
+
+// Logging helpers - use tracing which routes to registered logger
+macro_rules! pay_debug {
+    ($($arg:tt)*) => {
+        tracing::debug!($($arg)*)
+    };
+}
+
+macro_rules! pay_error {
+    ($($arg:tt)*) => {
+        tracing::error!($($arg)*)
+    };
+}
 
 #[derive(Debug, thiserror::Error)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Error))]
@@ -22,9 +38,35 @@ pub enum PayError {
     Timeout,
 }
 
-impl<T: std::fmt::Debug> From<progenitor_client::Error<T>> for PayError {
-    fn from(e: progenitor_client::Error<T>) -> Self {
-        Self::Api(format!("{:?}", e))
+impl From<progenitor_client::Error<types::ErrorResponse>> for PayError {
+    fn from(e: progenitor_client::Error<types::ErrorResponse>) -> Self {
+        match e {
+            progenitor_client::Error::ErrorResponse(resp) => {
+                let status = resp.status().as_u16();
+                Self::Api(format!("{}: {}", status, resp.into_inner().message))
+            }
+            progenitor_client::Error::CommunicationError(err) => {
+                Self::Http(format!("Network error: {}", err))
+            }
+            progenitor_client::Error::InvalidRequest(msg) => Self::Api(msg),
+            progenitor_client::Error::InvalidResponsePayload(_, err) => {
+                Self::Api(format!("Invalid response: {}", err))
+            }
+            progenitor_client::Error::UnexpectedResponse(resp) => Self::Api(
+                format!("{}: Unexpected response", resp.status().as_u16()),
+            ),
+            other => Self::Api(other.to_string()),
+        }
+    }
+}
+
+impl error_reporting::HasErrorType for PayError {
+    fn error_type(&self) -> &'static str {
+        match self {
+            Self::Http(_) => "Http",
+            Self::Api(_) => "Api",
+            Self::Timeout => "Timeout",
+        }
     }
 }
 
@@ -51,6 +93,22 @@ pub enum GetPaymentOptionsError {
     InternalError(String),
 }
 
+impl error_reporting::HasErrorType for GetPaymentOptionsError {
+    fn error_type(&self) -> &'static str {
+        match self {
+            Self::PaymentExpired(_) => "PaymentExpired",
+            Self::PaymentNotFound(_) => "PaymentNotFound",
+            Self::InvalidRequest(_) => "InvalidRequest",
+            Self::OptionNotFound(_) => "OptionNotFound",
+            Self::PaymentNotReady(_) => "PaymentNotReady",
+            Self::InvalidAccount(_) => "InvalidAccount",
+            Self::ComplianceFailed(_) => "ComplianceFailed",
+            Self::Http(_) => "Http",
+            Self::InternalError(_) => "InternalError",
+        }
+    }
+}
+
 #[derive(Debug, thiserror::Error)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Error))]
 pub enum GetPaymentRequestError {
@@ -66,6 +124,19 @@ pub enum GetPaymentRequestError {
     FetchError(String),
     #[error("Internal error: {0}")]
     InternalError(String),
+}
+
+impl error_reporting::HasErrorType for GetPaymentRequestError {
+    fn error_type(&self) -> &'static str {
+        match self {
+            Self::OptionNotFound(_) => "OptionNotFound",
+            Self::PaymentNotFound(_) => "PaymentNotFound",
+            Self::InvalidAccount(_) => "InvalidAccount",
+            Self::Http(_) => "Http",
+            Self::FetchError(_) => "FetchError",
+            Self::InternalError(_) => "InternalError",
+        }
+    }
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -85,6 +156,23 @@ pub enum ConfirmPaymentError {
     Http(String),
     #[error("Internal error: {0}")]
     InternalError(String),
+    #[error("Unsupported RPC method: {0}")]
+    UnsupportedMethod(String),
+}
+
+impl error_reporting::HasErrorType for ConfirmPaymentError {
+    fn error_type(&self) -> &'static str {
+        match self {
+            Self::PaymentNotFound(_) => "PaymentNotFound",
+            Self::PaymentExpired(_) => "PaymentExpired",
+            Self::InvalidOption(_) => "InvalidOption",
+            Self::InvalidSignature(_) => "InvalidSignature",
+            Self::RouteExpired(_) => "RouteExpired",
+            Self::Http(_) => "Http",
+            Self::InternalError(_) => "InternalError",
+            Self::UnsupportedMethod(_) => "UnsupportedMethod",
+        }
+    }
 }
 
 const MAX_RETRIES: u32 = 3;
@@ -127,10 +215,12 @@ where
 #[serde(rename_all = "camelCase")]
 pub struct SdkConfig {
     pub base_url: String,
+    pub project_id: String,
     pub api_key: String,
     pub sdk_name: String,
     pub sdk_version: String,
     pub sdk_platform: String,
+    pub bundle_id: String,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -180,32 +270,6 @@ impl From<types::ConfirmPaymentResponse> for ConfirmPaymentResultResponse {
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
 #[serde(rename_all = "camelCase")]
-pub struct SignatureValue {
-    pub value: String,
-}
-
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
-#[serde(rename_all = "camelCase")]
-pub struct SignatureResult {
-    pub signature: SignatureValue,
-}
-
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
-pub struct BuildAction {
-    pub data: String,
-}
-
-impl From<types::Build> for BuildAction {
-    fn from(b: types::Build) -> Self {
-        Self { data: serde_json::to_string(&b.data).unwrap_or_default() }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
-#[serde(rename_all = "camelCase")]
 pub struct WalletRpcAction {
     pub chain_id: String,
     pub method: String,
@@ -217,29 +281,83 @@ impl From<types::WalletRpcAction> for WalletRpcAction {
         Self {
             chain_id: a.chain_id,
             method: a.method.to_string(),
-            params: serde_json::to_string(&a.params).unwrap_or_default(),
+            params: serde_json::to_string(&a.params).unwrap_or_else(|e| {
+                pay_error!("Failed to serialize WalletRpcAction params: {}", e);
+                "[]".to_string()
+            }),
         }
     }
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Enum))]
-#[serde(rename_all = "camelCase", tag = "type", content = "data")]
-pub enum RequiredAction {
-    WalletRpc(WalletRpcAction),
-    Build(BuildAction),
+#[serde(rename_all = "snake_case")]
+pub enum CollectDataFieldType {
+    Text,
+    Date,
 }
 
-impl From<types::RequiredAction> for RequiredAction {
-    fn from(a: types::RequiredAction) -> Self {
-        match a {
-            types::RequiredAction::WalletRpc(data) => {
-                RequiredAction::WalletRpc(data.into())
-            }
-            types::RequiredAction::Build(data) => {
-                RequiredAction::Build(data.into())
-            }
+impl From<types::CollectDataFieldType> for CollectDataFieldType {
+    fn from(t: types::CollectDataFieldType) -> Self {
+        match t {
+            types::CollectDataFieldType::Text => CollectDataFieldType::Text,
+            types::CollectDataFieldType::Date => CollectDataFieldType::Date,
         }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
+#[serde(rename_all = "camelCase")]
+pub struct CollectDataField {
+    pub id: String,
+    pub name: String,
+    pub required: bool,
+    pub field_type: CollectDataFieldType,
+}
+
+impl From<types::CollectDataField> for CollectDataField {
+    fn from(f: types::CollectDataField) -> Self {
+        Self {
+            id: f.id,
+            name: f.name,
+            required: f.required,
+            field_type: f.type_.into(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
+#[serde(rename_all = "camelCase")]
+pub struct CollectDataAction {
+    pub fields: Vec<CollectDataField>,
+}
+
+impl From<types::CollectData> for CollectDataAction {
+    fn from(c: types::CollectData) -> Self {
+        Self { fields: c.fields.into_iter().map(Into::into).collect() }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
+#[serde(rename_all = "camelCase")]
+pub struct Action {
+    pub wallet_rpc: WalletRpcAction,
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
+#[serde(rename_all = "camelCase")]
+pub struct CollectDataFieldResult {
+    pub id: String,
+    pub value: String,
+}
+
+impl From<CollectDataFieldResult> for types::CollectDataFieldResult {
+    fn from(f: CollectDataFieldResult) -> Self {
+        types::CollectDataFieldResult { id: f.id, value: f.value }
     }
 }
 
@@ -287,8 +405,8 @@ impl From<types::Amount> for PayAmount {
 pub struct PaymentOption {
     pub id: String,
     pub amount: PayAmount,
-    pub eta_seconds: i64,
-    pub required_actions: Vec<RequiredAction>,
+    pub eta_s: i64,
+    pub actions: Vec<Action>,
 }
 
 impl From<types::PaymentOption> for PaymentOption {
@@ -296,12 +414,73 @@ impl From<types::PaymentOption> for PaymentOption {
         Self {
             id: o.id,
             amount: o.amount.into(),
-            eta_seconds: o.eta_seconds,
-            required_actions: o
-                .required_actions
+            eta_s: o.eta_s,
+            actions: o
+                .actions
                 .into_iter()
-                .map(Into::into)
+                .filter_map(|a| match a {
+                    types::Action::WalletRpc(data) => {
+                        Some(Action { wallet_rpc: data.into() })
+                    }
+                    types::Action::Build(_) => None,
+                })
                 .collect(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
+#[serde(rename_all = "camelCase")]
+pub struct MerchantInfo {
+    pub name: String,
+    pub icon_url: Option<String>,
+}
+
+impl From<types::MerchantInfo> for MerchantInfo {
+    fn from(m: types::MerchantInfo) -> Self {
+        Self { name: m.name, icon_url: m.icon_url }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
+#[serde(rename_all = "camelCase")]
+pub struct BuyerInfo {
+    pub account_caip10: String,
+    pub account_provider_name: String,
+    pub account_provider_icon: Option<String>,
+}
+
+impl From<types::BuyerInfo> for BuyerInfo {
+    fn from(b: types::BuyerInfo) -> Self {
+        Self {
+            account_caip10: b.account_caip10,
+            account_provider_name: b.account_provider_name,
+            account_provider_icon: b.account_provider_icon,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
+#[serde(rename_all = "camelCase")]
+pub struct PaymentInfo {
+    pub status: PaymentStatus,
+    pub amount: PayAmount,
+    pub expires_at: i64,
+    pub merchant: MerchantInfo,
+    pub buyer: Option<BuyerInfo>,
+}
+
+impl From<types::GetPaymentResponse> for PaymentInfo {
+    fn from(r: types::GetPaymentResponse) -> Self {
+        Self {
+            status: r.status.into(),
+            amount: r.amount.into(),
+            expires_at: r.expires_at,
+            merchant: r.merchant.into(),
+            buyer: r.buyer.map(Into::into),
         }
     }
 }
@@ -310,37 +489,15 @@ impl From<types::PaymentOption> for PaymentOption {
 #[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
 #[serde(rename_all = "camelCase")]
 pub struct PaymentOptionsResponse {
+    pub payment_id: String,
+    pub info: Option<PaymentInfo>,
     pub options: Vec<PaymentOption>,
-}
-
-impl From<types::GetPaymentOptionsResponse> for PaymentOptionsResponse {
-    fn from(r: types::GetPaymentOptionsResponse) -> Self {
-        Self { options: r.options.into_iter().map(Into::into).collect() }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, serde::Serialize)]
-#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
-#[serde(rename_all = "camelCase")]
-pub struct FetchResponse {
-    pub required_actions: Vec<RequiredAction>,
-}
-
-impl From<types::FetchResponse> for FetchResponse {
-    fn from(r: types::FetchResponse) -> Self {
-        Self {
-            required_actions: r
-                .required_actions
-                .into_iter()
-                .map(Into::into)
-                .collect(),
-        }
-    }
+    pub collect_data: Option<CollectDataAction>,
 }
 
 // ==================== Client ====================
 
-use std::sync::RwLock;
+use std::sync::{OnceLock, RwLock};
 
 /// Applies common SDK config headers to any progenitor-generated request builder
 macro_rules! with_sdk_config {
@@ -356,129 +513,292 @@ macro_rules! with_sdk_config {
 #[derive(Debug, Clone)]
 struct CachedPaymentOption {
     option_id: String,
-    required_actions: Vec<RequiredAction>,
+    actions: Vec<types::Action>,
 }
 
 #[cfg_attr(feature = "uniffi", derive(uniffi::Object))]
 pub struct WalletConnectPay {
-    client: Client,
+    /// Lazily initialized API client (requires Tokio runtime)
+    client: OnceLock<Client>,
     config: SdkConfig,
     cached_options: RwLock<Vec<CachedPaymentOption>>,
+    /// Lazily initialized HTTP client for error reporting (requires Tokio runtime)
+    error_http_client: OnceLock<reqwest::Client>,
+    /// Tracks if SdkInitialized event was sent (done on first API call, not constructor)
+    initialized_event_sent: OnceLock<()>,
+}
+
+impl WalletConnectPay {
+    fn client(&self) -> &Client {
+        self.client.get_or_init(|| Client::new(&self.config.base_url))
+    }
+
+    fn error_http_client(&self) -> &reqwest::Client {
+        self.error_http_client.get_or_init(|| {
+            reqwest::Client::builder()
+                .user_agent(format!(
+                    "{}/{}",
+                    self.config.sdk_name, self.config.sdk_version
+                ))
+                .timeout(std::time::Duration::from_secs(5))
+                .build()
+                .unwrap_or_else(|e| {
+                    tracing::warn!("Failed to build error HTTP client: {}", e);
+                    reqwest::Client::new()
+                })
+        })
+    }
+
+    /// Send the SdkInitialized trace event once on first API call.
+    /// This is done lazily because the constructor cannot create HTTP clients
+    /// (reqwest requires a Tokio runtime, which isn't available when UniFFI
+    /// calls the constructor from Android's non-Tokio thread).
+    fn send_initialized_event_once(&self, payment_id: &str) {
+        self.initialized_event_sent.get_or_init(|| {
+            self.send_trace(
+                observability::TraceEvent::SdkInitialized,
+                payment_id,
+            );
+        });
+    }
 }
 
 #[cfg_attr(feature = "uniffi", uniffi::export(async_runtime = "tokio"))]
 impl WalletConnectPay {
     #[cfg_attr(feature = "uniffi", uniffi::constructor)]
     pub fn new(config: SdkConfig) -> Self {
-        let client = Client::new(&config.base_url);
-        Self { client, config, cached_options: RwLock::new(Vec::new()) }
+        Self {
+            client: OnceLock::new(),
+            config,
+            cached_options: RwLock::new(Vec::new()),
+            error_http_client: OnceLock::new(),
+            initialized_event_sent: OnceLock::new(),
+        }
     }
 
     /// Get payment options for given accounts
-    /// Also caches the options for use by get_required_payment_actions
+    /// Also caches the options for use by get_actions
     pub async fn get_payment_options(
         &self,
         payment_link: String,
         accounts: Vec<String>,
+        include_payment_info: bool,
     ) -> Result<PaymentOptionsResponse, GetPaymentOptionsError> {
-        let payment_id = extract_payment_id(&payment_link);
-        let body = types::GetPaymentOptionsRequest { accounts, refresh: None };
+        pay_debug!(
+            "get_payment_options: payment_link={}, accounts={:?}, include_payment_info={}",
+            payment_link,
+            accounts,
+            include_payment_info
+        );
+        let payment_id = extract_payment_id(&payment_link)?;
+        self.send_initialized_event_once(&payment_id);
+
+        // Register payment environment for observability routing
+        observability::set_payment_env(&payment_id, &payment_link);
+
+        self.send_trace(
+            observability::TraceEvent::PaymentOptionsRequested,
+            &payment_id,
+        );
+
+        let body = types::GetPaymentOptionsRequest {
+            accounts: accounts.clone(),
+            refresh: None,
+        };
         let response = with_retry(|| async {
             with_sdk_config!(
-                self.client.gateway_get_payment_options(),
+                self.client().gateway_get_payment_options(),
                 &self.config
             )
             .id(&payment_id)
+            .include_payment_info(include_payment_info)
             .body(body.clone())
             .send()
             .await
         })
         .await
-        .map_err(map_payment_options_error)?;
+        .map_err(|e| {
+            pay_error!("get_payment_options: {:?}", e);
+            let err = map_payment_options_error(e);
+            self.report_error(&err, &payment_id);
+            self.send_trace(
+                observability::TraceEvent::PaymentOptionsFailed,
+                &payment_id,
+            );
+            err
+        })?;
 
         let api_response = response.into_inner();
+        pay_debug!(
+            "get_payment_options: success, {} options",
+            api_response.options.len()
+        );
 
-        // Cache the options with their required actions
+        // Cache the options with their raw actions
         let cached: Vec<CachedPaymentOption> = api_response
             .options
             .iter()
             .map(|o| CachedPaymentOption {
                 option_id: o.id.clone(),
-                required_actions: o
-                    .required_actions
-                    .iter()
-                    .cloned()
-                    .map(Into::into)
-                    .collect(),
+                actions: o.actions.clone(),
             })
             .collect();
-        let mut cache = self.cached_options.write().map_err(|e| {
-            GetPaymentOptionsError::InternalError(format!(
-                "Cache lock poisoned: {}",
-                e
-            ))
-        })?;
+        let mut cache = self
+            .cached_options
+            .write()
+            .expect("Cache lock poisoned - indicates a bug");
         *cache = cached;
 
-        Ok(api_response.into())
+        self.send_trace(
+            observability::TraceEvent::PaymentOptionsReceived,
+            &payment_id,
+        );
+        Ok(PaymentOptionsResponse {
+            payment_id,
+            info: api_response.info.map(Into::into),
+            options: api_response.options.into_iter().map(Into::into).collect(),
+            collect_data: api_response.collect_data.map(Into::into),
+        })
     }
 
     /// Get required payment actions for a selected option
     /// Returns cached actions if available, otherwise calls fetch to get them
+    /// Build action types are automatically resolved by calling the fetch endpoint
     pub async fn get_required_payment_actions(
         &self,
         payment_id: String,
         option_id: String,
-    ) -> Result<Vec<RequiredAction>, GetPaymentRequestError> {
-        {
-            let cache = self.cached_options.read().map_err(|e| {
-                GetPaymentRequestError::InternalError(format!(
-                    "Cache lock poisoned: {}",
-                    e
-                ))
-            })?;
-            if let Some(cached_option) =
-                cache.iter().find(|o| o.option_id == option_id)
-            {
-                return Ok(cached_option.required_actions.clone());
+    ) -> Result<Vec<Action>, GetPaymentRequestError> {
+        pay_debug!(
+            "get_required_payment_actions: payment_id={}, option_id={}",
+            payment_id,
+            option_id
+        );
+        self.send_initialized_event_once(&payment_id);
+        self.send_trace(
+            observability::TraceEvent::RequiredActionsRequested,
+            &payment_id,
+        );
+
+        let raw_actions = {
+            let cache = self
+                .cached_options
+                .read()
+                .expect("Cache lock poisoned - indicates a bug");
+            cache
+                .iter()
+                .find(|o| o.option_id == option_id)
+                .map(|o| o.actions.clone())
+        };
+        let raw_actions = match raw_actions {
+            Some(actions) if !actions.is_empty() => {
+                pay_debug!(
+                    "get_required_payment_actions: using cached actions"
+                );
+                actions
+            }
+            _ => {
+                pay_debug!("get_required_payment_actions: fetching actions");
+                let fetched = self
+                    .fetch(&payment_id, &option_id, String::new())
+                    .await
+                    .map_err(|e| {
+                        pay_error!(
+                            "get_required_payment_actions fetch: {:?}",
+                            e
+                        );
+                        let err =
+                            GetPaymentRequestError::FetchError(e.to_string());
+                        self.report_error(&err, &payment_id);
+                        self.send_trace(
+                            observability::TraceEvent::RequiredActionsFailed,
+                            &payment_id,
+                        );
+                        err
+                    })?;
+                let mut cache = self
+                    .cached_options
+                    .write()
+                    .expect("Cache lock poisoned - indicates a bug");
+                if let Some(cached) =
+                    cache.iter_mut().find(|o| o.option_id == option_id)
+                {
+                    cached.actions = fetched.clone();
+                } else {
+                    cache.push(CachedPaymentOption {
+                        option_id: option_id.clone(),
+                        actions: fetched.clone(),
+                    });
+                }
+                fetched
+            }
+        };
+        let result =
+            self.resolve_actions(&payment_id, &option_id, raw_actions).await;
+        match &result {
+            Ok(actions) => {
+                pay_debug!(
+                    "get_required_payment_actions: success, {} actions",
+                    actions.len()
+                );
+                self.send_trace(
+                    observability::TraceEvent::RequiredActionsReceived,
+                    &payment_id,
+                );
+            }
+            Err(e) => {
+                pay_error!("get_required_payment_actions: {:?}", e);
+                self.report_error(e, &payment_id);
+                self.send_trace(
+                    observability::TraceEvent::RequiredActionsFailed,
+                    &payment_id,
+                );
             }
         }
-        let fetch_response = self
-            .fetch(payment_id, option_id.clone(), "{}".to_string())
-            .await
-            .map_err(|e| GetPaymentRequestError::FetchError(e.to_string()))?;
-        let mut cache = self.cached_options.write().map_err(|e| {
-            GetPaymentRequestError::InternalError(format!(
-                "Cache lock poisoned: {}",
-                e
-            ))
-        })?;
-        cache.push(CachedPaymentOption {
-            option_id,
-            required_actions: fetch_response.required_actions.clone(),
-        });
-        Ok(fetch_response.required_actions)
+        result
     }
 
-    /// Confirm a payment
+    /// Confirm a payment with wallet RPC signatures
     /// Polls for final status if the initial response is not final
     pub async fn confirm_payment(
         &self,
         payment_id: String,
         option_id: String,
-        results: Vec<SignatureResult>,
+        signatures: Vec<String>,
+        collected_data: Option<Vec<CollectDataFieldResult>>,
         max_poll_ms: Option<i64>,
     ) -> Result<ConfirmPaymentResultResponse, ConfirmPaymentError> {
-        let api_results: Vec<types::ConfirmPaymentResult> = results
+        pay_debug!(
+            "confirm_payment: payment_id={}, option_id={}, signatures_count={}",
+            payment_id,
+            option_id,
+            signatures.len()
+        );
+        self.send_initialized_event_once(&payment_id);
+        self.send_trace(
+            observability::TraceEvent::ConfirmPaymentCalled,
+            &payment_id,
+        );
+
+        let api_results: Vec<types::ConfirmPaymentResult> = signatures
             .into_iter()
-            .map(|r| types::ConfirmPaymentResult::Signature {
-                value: r.signature.value,
+            .map(|sig| {
+                types::ConfirmPaymentResult::WalletRpc(vec![
+                    serde_json::Value::String(sig),
+                ])
             })
             .collect();
-        let body =
-            types::ConfirmPaymentRequest { option_id, results: api_results };
+        let api_collected_data =
+            collected_data.map(|fields| types::CollectDataResult {
+                fields: fields.into_iter().map(Into::into).collect(),
+            });
+        let body = types::ConfirmPaymentRequest {
+            option_id,
+            results: api_results,
+            collected_data: api_collected_data,
+        };
         let mut req = with_sdk_config!(
-            self.client.confirm_payment_handler(),
+            self.client().confirm_payment_handler(),
             &self.config
         )
         .id(&payment_id)
@@ -486,13 +806,29 @@ impl WalletConnectPay {
         if let Some(ms) = max_poll_ms {
             req = req.max_poll_ms(ms);
         }
+
         let response = with_retry(|| async { req.clone().send().await })
             .await
-            .map_err(map_confirm_payment_error)?;
+            .map_err(|e| {
+                pay_error!("confirm_payment: {:?}", e);
+                let err = map_confirm_payment_error(e);
+                self.report_error(&err, &payment_id);
+                self.send_trace(
+                    observability::TraceEvent::ConfirmPaymentFailed,
+                    &payment_id,
+                );
+                err
+            })?;
         let mut result: ConfirmPaymentResultResponse =
             response.into_inner().into();
+        pay_debug!(
+            "confirm_payment: initial status={:?}, is_final={}",
+            result.status,
+            result.is_final
+        );
         while !result.is_final {
             let poll_ms = result.poll_in_ms.unwrap_or(1000);
+            pay_debug!("confirm_payment: polling in {}ms", poll_ms);
             tokio::time::sleep(std::time::Duration::from_millis(
                 poll_ms as u64,
             ))
@@ -500,37 +836,119 @@ impl WalletConnectPay {
             let status = self
                 .get_gateway_payment_status(payment_id.clone(), max_poll_ms)
                 .await
-                .map_err(|e| ConfirmPaymentError::Http(e.to_string()))?;
+                .map_err(|e| {
+                    pay_error!("confirm_payment poll: {:?}", e);
+                    let err = ConfirmPaymentError::Http(e.to_string());
+                    self.report_error(&err, &payment_id);
+                    self.send_trace(
+                        observability::TraceEvent::ConfirmPaymentFailed,
+                        &payment_id,
+                    );
+                    err
+                })?;
             result = ConfirmPaymentResultResponse {
                 status: status.status.into(),
                 is_final: status.is_final,
                 poll_in_ms: status.poll_in_ms,
             };
+            pay_debug!(
+                "confirm_payment: polled status={:?}, is_final={}",
+                result.status,
+                result.is_final
+            );
         }
+        pay_debug!(
+            "confirm_payment: complete, final status={:?}",
+            result.status
+        );
+        self.send_trace(
+            observability::TraceEvent::ConfirmPaymentSucceeded,
+            &payment_id,
+        );
         Ok(result)
     }
 }
 
 // Private methods (not exported via uniffi)
 impl WalletConnectPay {
+    fn report_error<E: std::fmt::Debug + error_reporting::HasErrorType>(
+        &self,
+        error: &E,
+        payment_id: &str,
+    ) {
+        error_reporting::report_error(
+            self.error_http_client(),
+            &self.config.bundle_id,
+            &self.config.project_id,
+            &self.config.sdk_name,
+            &self.config.sdk_version,
+            error_reporting::error_type_name(error),
+            payment_id,
+            &format!("{:?}", error),
+        );
+    }
+
+    fn send_trace(&self, event: observability::TraceEvent, payment_id: &str) {
+        observability::send_trace(
+            self.error_http_client(),
+            &self.config.bundle_id,
+            &self.config.project_id,
+            &self.config.sdk_name,
+            &self.config.sdk_version,
+            &self.config.sdk_platform,
+            event,
+            payment_id,
+        );
+    }
+
+    async fn resolve_actions(
+        &self,
+        payment_id: &str,
+        option_id: &str,
+        actions: Vec<types::Action>,
+    ) -> Result<Vec<Action>, GetPaymentRequestError> {
+        let mut result = Vec::new();
+        for action in actions {
+            match action {
+                types::Action::WalletRpc(data) => {
+                    result.push(Action { wallet_rpc: data.into() });
+                }
+                types::Action::Build(build) => {
+                    let resolved = self
+                        .fetch(payment_id, option_id, build.data)
+                        .await
+                        .map_err(|e| {
+                            GetPaymentRequestError::FetchError(e.to_string())
+                        })?;
+                    for resolved_action in resolved {
+                        if let types::Action::WalletRpc(data) = resolved_action
+                        {
+                            result.push(Action { wallet_rpc: data.into() });
+                        }
+                    }
+                }
+            }
+        }
+        Ok(result)
+    }
+
     async fn fetch(
         &self,
-        payment_id: String,
-        option_id: String,
+        payment_id: &str,
+        option_id: &str,
         data: String,
-    ) -> Result<FetchResponse, PayError> {
-        let data_value: serde_json::Value =
-            serde_json::from_str(&data).unwrap_or(serde_json::Value::Null);
-        let body = types::FetchRequest { option_id, data: data_value };
+    ) -> Result<Vec<types::Action>, PayError> {
+        let body =
+            types::FetchRequest { option_id: option_id.to_string(), data };
         let response = with_retry(|| async {
-            with_sdk_config!(self.client.fetch_handler(), &self.config)
-                .id(&payment_id)
+            with_sdk_config!(self.client().fetch_handler(), &self.config)
+                .id(payment_id)
                 .body(body.clone())
                 .send()
                 .await
         })
         .await?;
-        Ok(response.into_inner().into())
+        Ok(response.into_inner().actions)
     }
 
     async fn get_gateway_payment_status(
@@ -539,7 +957,7 @@ impl WalletConnectPay {
         max_poll_ms: Option<i64>,
     ) -> Result<types::GetPaymentStatusResponse, PayError> {
         let mut req = with_sdk_config!(
-            self.client.gateway_get_payment_status(),
+            self.client().gateway_get_payment_status(),
             &self.config
         )
         .id(&payment_id);
@@ -552,55 +970,150 @@ impl WalletConnectPay {
     }
 }
 
-fn extract_payment_id(payment_link: &str) -> String {
-    payment_link.rsplit('/').next().unwrap_or(payment_link).to_string()
+fn extract_payment_id(
+    payment_link: &str,
+) -> Result<String, GetPaymentOptionsError> {
+    fn url_decode(s: &str) -> String {
+        urlencoding::decode(s)
+            .map(|c| c.into_owned())
+            .unwrap_or_else(|_| s.to_string())
+    }
+
+    fn extract_pid_from_query(query: &str) -> Option<String> {
+        query.split('&').find_map(|param| {
+            param
+                .strip_prefix("pid=")
+                .filter(|id| !id.is_empty())
+                .map(String::from)
+        })
+    }
+
+    fn extract_pid_from_link(link: &str) -> Option<String> {
+        if let Some((_, query)) = link.split_once('?') {
+            if let Some(id) = extract_pid_from_query(query) {
+                return Some(id);
+            }
+        }
+        let last_segment = link.rsplit('/').next().unwrap_or("");
+        if !last_segment.is_empty()
+            && !last_segment.contains('?')
+            && !last_segment.contains('%')
+        {
+            return Some(last_segment.to_string());
+        }
+        None
+    }
+
+    fn extract_pay_param_value(query: &str) -> Option<String> {
+        for param in query.split('&') {
+            if let Some(value) = param.strip_prefix("pay=") {
+                return Some(url_decode(value));
+            }
+        }
+        None
+    }
+
+    fn try_extract_from_wc_uri(uri: &str) -> Option<String> {
+        let (_, query) = uri.split_once('?')?;
+        let pay_link = extract_pay_param_value(query)?;
+        extract_pid_from_link(&pay_link)
+    }
+
+    let decoded = url_decode(payment_link);
+
+    if decoded.starts_with("wc:") {
+        if let Some(id) = try_extract_from_wc_uri(&decoded) {
+            return Ok(id);
+        }
+    }
+
+    if payment_link.starts_with("wc:") {
+        if let Some(id) = try_extract_from_wc_uri(payment_link) {
+            return Ok(id);
+        }
+    }
+
+    if let Some(id) = extract_pid_from_link(&decoded) {
+        return Ok(id);
+    }
+
+    if let Some(id) = extract_pid_from_link(payment_link) {
+        return Ok(id);
+    }
+
+    Err(GetPaymentOptionsError::InvalidRequest(format!(
+        "unsupported payment link format: '{}'",
+        payment_link
+    )))
 }
 
-fn map_payment_options_error<T: std::fmt::Debug>(
-    e: progenitor_client::Error<T>,
+fn map_payment_options_error(
+    e: progenitor_client::Error<types::ErrorResponse>,
 ) -> GetPaymentOptionsError {
-    let msg = format!("{:?}", e);
-    let status = match &e {
+    match e {
         progenitor_client::Error::ErrorResponse(resp) => {
-            Some(resp.status().as_u16())
+            let status = resp.status().as_u16();
+            let msg = format!("{}: {}", status, resp.into_inner().message);
+            match status {
+                404 => GetPaymentOptionsError::PaymentNotFound(msg),
+                400 => GetPaymentOptionsError::InvalidRequest(msg),
+                410 => GetPaymentOptionsError::PaymentExpired(msg),
+                422 => GetPaymentOptionsError::InvalidAccount(msg),
+                451 => GetPaymentOptionsError::ComplianceFailed(msg),
+                _ => GetPaymentOptionsError::Http(msg),
+            }
         }
         progenitor_client::Error::UnexpectedResponse(resp) => {
-            Some(resp.status().as_u16())
+            let status = resp.status().as_u16();
+            let msg = format!("{}: Unexpected response", status);
+            match status {
+                404 => GetPaymentOptionsError::PaymentNotFound(msg),
+                400 => GetPaymentOptionsError::InvalidRequest(msg),
+                410 => GetPaymentOptionsError::PaymentExpired(msg),
+                422 => GetPaymentOptionsError::InvalidAccount(msg),
+                451 => GetPaymentOptionsError::ComplianceFailed(msg),
+                _ => GetPaymentOptionsError::Http(msg),
+            }
         }
-        _ => None,
-    };
-    match status {
-        Some(404) => GetPaymentOptionsError::PaymentNotFound(msg),
-        Some(400) => GetPaymentOptionsError::InvalidRequest(msg),
-        Some(410) => GetPaymentOptionsError::PaymentExpired(msg),
-        Some(422) => GetPaymentOptionsError::InvalidAccount(msg),
-        Some(451) => GetPaymentOptionsError::ComplianceFailed(msg),
-        _ => GetPaymentOptionsError::Http(msg),
+        other => GetPaymentOptionsError::Http(other.to_string()),
     }
 }
 
-fn map_confirm_payment_error<T: std::fmt::Debug>(
-    e: progenitor_client::Error<T>,
+fn map_confirm_payment_error(
+    e: progenitor_client::Error<types::ErrorResponse>,
 ) -> ConfirmPaymentError {
-    let msg = format!("{:?}", e);
-    let status = match &e {
+    match e {
         progenitor_client::Error::ErrorResponse(resp) => {
-            Some(resp.status().as_u16())
+            let status = resp.status().as_u16();
+            let msg = format!("{}: {}", status, resp.into_inner().message);
+            match status {
+                404 => ConfirmPaymentError::PaymentNotFound(msg),
+                410 => ConfirmPaymentError::PaymentExpired(msg),
+                400 => ConfirmPaymentError::InvalidOption(msg),
+                422 => ConfirmPaymentError::InvalidSignature(msg),
+                409 => ConfirmPaymentError::RouteExpired(msg),
+                _ => ConfirmPaymentError::Http(msg),
+            }
         }
         progenitor_client::Error::UnexpectedResponse(resp) => {
-            Some(resp.status().as_u16())
+            let status = resp.status().as_u16();
+            let msg = format!("{}: Unexpected response", status);
+            match status {
+                404 => ConfirmPaymentError::PaymentNotFound(msg),
+                410 => ConfirmPaymentError::PaymentExpired(msg),
+                400 => ConfirmPaymentError::InvalidOption(msg),
+                422 => ConfirmPaymentError::InvalidSignature(msg),
+                409 => ConfirmPaymentError::RouteExpired(msg),
+                _ => ConfirmPaymentError::Http(msg),
+            }
         }
-        _ => None,
-    };
-    match status {
-        Some(404) => ConfirmPaymentError::PaymentNotFound(msg),
-        Some(410) => ConfirmPaymentError::PaymentExpired(msg),
-        Some(400) => ConfirmPaymentError::InvalidOption(msg),
-        Some(422) => ConfirmPaymentError::InvalidSignature(msg),
-        Some(409) => ConfirmPaymentError::RouteExpired(msg),
-        _ => ConfirmPaymentError::Http(msg),
+        other => ConfirmPaymentError::Http(other.to_string()),
     }
 }
+
+#[cfg(test)]
+#[cfg(feature = "test_pay_api")]
+mod e2e_tests;
 
 #[cfg(test)]
 mod tests {
@@ -615,10 +1128,12 @@ mod tests {
     fn test_config(base_url: String) -> SdkConfig {
         SdkConfig {
             base_url,
+            project_id: "test-project-id".to_string(),
             api_key: "test-api-key".to_string(),
             sdk_name: "test-sdk".to_string(),
             sdk_version: "1.0.0".to_string(),
             sdk_platform: "test".to_string(),
+            bundle_id: "com.test.app".to_string(),
         }
     }
 
@@ -641,8 +1156,8 @@ mod tests {
                             "networkName": "Base"
                         }
                     },
-                    "etaSeconds": 5,
-                    "requiredActions": []
+                    "etaS": 5,
+                    "actions": []
                 }
             ]
         });
@@ -660,6 +1175,7 @@ mod tests {
             .get_payment_options(
                 "https://pay.walletconnect.com/pay_123".to_string(),
                 vec!["eip155:8453:0x123".to_string()],
+                false,
             )
             .await;
 
@@ -680,10 +1196,15 @@ mod tests {
     #[tokio::test]
     async fn test_get_payment_options_not_found() {
         let mock_server = MockServer::start().await;
-
+        let error_response = serde_json::json!({
+            "code": "payment_not_found",
+            "message": "Payment not found"
+        });
         Mock::given(method("POST"))
             .and(path("/v1/gateway/payment/pay_notfound/options"))
-            .respond_with(ResponseTemplate::new(404))
+            .respond_with(
+                ResponseTemplate::new(404).set_body_json(&error_response),
+            )
             .mount(&mock_server)
             .await;
 
@@ -692,6 +1213,7 @@ mod tests {
             .get_payment_options(
                 "pay_notfound".to_string(),
                 vec!["eip155:8453:0x123".to_string()],
+                false,
             )
             .await;
 
@@ -704,10 +1226,15 @@ mod tests {
     #[tokio::test]
     async fn test_get_payment_options_expired() {
         let mock_server = MockServer::start().await;
-
+        let error_response = serde_json::json!({
+            "code": "invalid_state",
+            "message": "Payment expired"
+        });
         Mock::given(method("POST"))
             .and(path("/v1/gateway/payment/pay_expired/options"))
-            .respond_with(ResponseTemplate::new(410))
+            .respond_with(
+                ResponseTemplate::new(410).set_body_json(&error_response),
+            )
             .mount(&mock_server)
             .await;
 
@@ -716,6 +1243,7 @@ mod tests {
             .get_payment_options(
                 "pay_expired".to_string(),
                 vec!["eip155:8453:0x123".to_string()],
+                false,
             )
             .await;
 
@@ -728,13 +1256,47 @@ mod tests {
     #[tokio::test]
     async fn test_extract_payment_id() {
         assert_eq!(
-            extract_payment_id("https://pay.walletconnect.com/pay_123"),
+            extract_payment_id("https://pay.walletconnect.com/pay_123")
+                .unwrap(),
             "pay_123"
         );
-        assert_eq!(extract_payment_id("pay_456"), "pay_456");
+        assert_eq!(extract_payment_id("pay_456").unwrap(), "pay_456");
         assert_eq!(
-            extract_payment_id("https://example.com/path/to/pay_789"),
+            extract_payment_id("https://example.com/path/to/pay_789").unwrap(),
             "pay_789"
+        );
+        assert!(extract_payment_id("").is_err());
+    }
+
+    #[tokio::test]
+    async fn test_extract_payment_id_with_pid_query_param() {
+        assert_eq!(
+            extract_payment_id("https://pay.walletconnect.com/?pid=pay_95a2ecc101KEYG1NH580DF2J04MBNRWE7V").unwrap(),
+            "pay_95a2ecc101KEYG1NH580DF2J04MBNRWE7V"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_extract_payment_id_url_encoded() {
+        assert_eq!(
+            extract_payment_id("https%3A%2F%2Fpay.walletconnect.com%2F%3Fpid%3Dpay_95a2ecc101KEYG1NH580DF2J04MBNRWE7V").unwrap(),
+            "pay_95a2ecc101KEYG1NH580DF2J04MBNRWE7V"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_extract_payment_id_wc_uri_with_pay_param() {
+        assert_eq!(
+            extract_payment_id("wc:abc123@2?relay-protocol=irn&symKey=xyz&pay=https%3A%2F%2Fpay.walletconnect.com%2F%3Fpid%3Dpay_03a2ecc101KEVQWPKPJ3TP47E1PBKSSV5Y").unwrap(),
+            "pay_03a2ecc101KEVQWPKPJ3TP47E1PBKSSV5Y"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_extract_payment_id_fully_encoded_wc_uri() {
+        assert_eq!(
+            extract_payment_id("wc%3Afe8314404caac9b487daca1bb3ba4076f1ef0a52794c6117bd944ed17c5b32a7%402%3FexpiryTimestamp%3D1768460398%26relay-protocol%3Dirn%26symKey%3Db614f88cbae08c993154c9c4c23cd538ca17600d0ee7666d52fb8494f6c98b70%26pay%3Dhttps%3A%2F%2Fpay.walletconnect.com%2F%3Fpid%3Dpay_95a2ecc101KEYG1NH580DF2J04MBNRWE7V").unwrap(),
+            "pay_95a2ecc101KEYG1NH580DF2J04MBNRWE7V"
         );
     }
 
@@ -757,16 +1319,12 @@ mod tests {
                             "networkName": "Base"
                         }
                     },
-                    "etaSeconds": 5,
-                    "requiredActions": [
-                        {
-                            "type": "build",
-                            "data": { "data": {} }
-                        },
+                    "etaS": 5,
+                    "actions": [
                         {
                             "type": "walletRpc",
                             "data": {
-                                "chainId": "eip155:8453",
+                                "chain_id": "eip155:8453",
                                 "method": "eth_signTypedData_v4",
                                 "params": ["0xabc", "{\"typed\":\"data\"}"]
                             }
@@ -789,12 +1347,12 @@ mod tests {
             .get_payment_options(
                 "pay_123".to_string(),
                 vec!["eip155:8453:0x123".to_string()],
+                false,
             )
             .await
             .unwrap();
         assert_eq!(response.options.len(), 1);
 
-        // Test with cached option
         let actions = client
             .get_required_payment_actions(
                 "pay_123".to_string(),
@@ -802,13 +1360,88 @@ mod tests {
             )
             .await
             .unwrap();
-        assert_eq!(actions.len(), 2);
-        assert!(matches!(actions[0], RequiredAction::Build(_)));
-        assert!(matches!(actions[1], RequiredAction::WalletRpc(_)));
-        if let RequiredAction::WalletRpc(data) = &actions[1] {
-            assert_eq!(data.chain_id, "eip155:8453");
-            assert_eq!(data.method, "eth_signTypedData_v4");
-        }
+        assert_eq!(actions.len(), 1);
+        assert_eq!(actions[0].wallet_rpc.chain_id, "eip155:8453");
+        assert_eq!(actions[0].wallet_rpc.method, "eth_signTypedData_v4");
+    }
+
+    #[tokio::test]
+    async fn test_get_required_payment_actions_resolves_build() {
+        let mock_server = MockServer::start().await;
+
+        let mock_response = serde_json::json!({
+            "options": [
+                {
+                    "id": "opt_1",
+                    "amount": {
+                        "unit": "caip19/eip155:8453/erc20:0xUSDC",
+                        "value": "1000000",
+                        "display": {
+                            "assetSymbol": "USDC",
+                            "assetName": "USD Coin",
+                            "decimals": 6,
+                            "iconUrl": "https://example.com/usdc.png",
+                            "networkName": "Base"
+                        }
+                    },
+                    "etaS": 5,
+                    "actions": [
+                        {
+                            "type": "build",
+                            "data": { "data": "some_data" }
+                        }
+                    ]
+                }
+            ]
+        });
+
+        let fetch_response = serde_json::json!({
+            "actions": [{
+                "type": "walletRpc",
+                "data": {
+                    "chain_id": "eip155:8453",
+                    "method": "eth_signTypedData_v4",
+                    "params": ["0xresolved", {"resolved": "data"}]
+                }
+            }]
+        });
+
+        Mock::given(method("POST"))
+            .and(path("/v1/gateway/payment/pay_123/options"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(&mock_response),
+            )
+            .mount(&mock_server)
+            .await;
+
+        Mock::given(method("POST"))
+            .and(path("/v1/gateway/payment/pay_123/fetch"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(&fetch_response),
+            )
+            .mount(&mock_server)
+            .await;
+
+        let client = WalletConnectPay::new(test_config(mock_server.uri()));
+        client
+            .get_payment_options(
+                "pay_123".to_string(),
+                vec!["eip155:8453:0x123".to_string()],
+                false,
+            )
+            .await
+            .unwrap();
+
+        let actions = client
+            .get_required_payment_actions(
+                "pay_123".to_string(),
+                "opt_1".to_string(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(actions.len(), 1);
+        assert_eq!(actions[0].wallet_rpc.chain_id, "eip155:8453");
+        assert!(actions[0].wallet_rpc.params.contains("resolved"));
     }
 
     #[tokio::test]
@@ -816,10 +1449,10 @@ mod tests {
         let mock_server = MockServer::start().await;
 
         let fetch_response = serde_json::json!({
-            "requiredActions": [{
+            "actions": [{
                 "type": "walletRpc",
                 "data": {
-                    "chainId": "eip155:1",
+                    "chain_id": "eip155:1",
                     "method": "eth_signTypedData_v4",
                     "params": ["0x123", {"types": {}}]
                 }
@@ -844,7 +1477,7 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(actions.len(), 1);
-        assert!(matches!(actions[0], RequiredAction::WalletRpc(_)));
+        assert_eq!(actions[0].wallet_rpc.chain_id, "eip155:1");
     }
 
     #[tokio::test]
@@ -886,18 +1519,15 @@ mod tests {
             .await;
 
         let client = WalletConnectPay::new(test_config(mock_server.uri()));
-        let results = vec![SignatureResult {
-            signature: SignatureValue { value: "0x123".to_string() },
-        }];
         let response = client
             .confirm_payment(
                 "pay_123".to_string(),
                 "opt_1".to_string(),
-                results,
+                vec!["0x123".to_string()],
+                None,
                 None,
             )
             .await;
-
         assert!(response.is_ok());
         let resp = response.unwrap();
         assert_eq!(resp.status, PaymentStatus::Succeeded);
@@ -907,7 +1537,6 @@ mod tests {
     #[tokio::test]
     async fn test_confirm_payment_polls_until_final() {
         let mock_server = MockServer::start().await;
-
         let confirm_response = serde_json::json!({
             "status": "processing",
             "isFinal": false,
@@ -917,7 +1546,6 @@ mod tests {
             "status": "succeeded",
             "isFinal": true
         });
-
         Mock::given(method("POST"))
             .and(path("/v1/gateway/payment/pay_123/confirm"))
             .respond_with(
@@ -932,20 +1560,16 @@ mod tests {
             )
             .mount(&mock_server)
             .await;
-
         let client = WalletConnectPay::new(test_config(mock_server.uri()));
-        let results = vec![SignatureResult {
-            signature: SignatureValue { value: "0x123".to_string() },
-        }];
         let response = client
             .confirm_payment(
                 "pay_123".to_string(),
                 "opt_1".to_string(),
-                results,
+                vec!["0x123".to_string()],
+                None,
                 Some(5000),
             )
             .await;
-
         assert!(response.is_ok());
         let resp = response.unwrap();
         assert_eq!(resp.status, PaymentStatus::Succeeded);
@@ -978,6 +1602,7 @@ mod tests {
             .get_payment_options(
                 "pay_headers".to_string(),
                 vec!["eip155:1:0x123".to_string()],
+                false,
             )
             .await;
 
@@ -996,10 +1621,12 @@ mod tests {
 
         let custom_config = SdkConfig {
             base_url: mock_server.uri(),
+            project_id: "my-custom-project-id".to_string(),
             api_key: "my-custom-api-key".to_string(),
             sdk_name: "my-app".to_string(),
             sdk_version: "2.5.0".to_string(),
             sdk_platform: "ios".to_string(),
+            bundle_id: "com.custom.app".to_string(),
         };
 
         Mock::given(method("POST"))
@@ -1016,18 +1643,110 @@ mod tests {
             .await;
 
         let client = WalletConnectPay::new(custom_config);
-        let results = vec![SignatureResult {
-            signature: SignatureValue { value: "0x123".to_string() },
-        }];
         let result = client
             .confirm_payment(
                 "pay_custom".to_string(),
                 "opt_1".to_string(),
-                results,
+                vec!["0x123".to_string()],
+                None,
                 None,
             )
             .await;
-
         assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_collect_data_response() {
+        let mock_server = MockServer::start().await;
+        let mock_response = serde_json::json!({
+            "options": [],
+            "collectData": {
+                "fields": [
+                    {
+                        "type": "text",
+                        "id": "firstName",
+                        "name": "First Name",
+                        "required": true
+                    },
+                    {
+                        "type": "date",
+                        "id": "dob",
+                        "name": "Date of Birth",
+                        "required": false
+                    }
+                ]
+            }
+        });
+        Mock::given(method("POST"))
+            .and(path("/v1/gateway/payment/pay_123/options"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(&mock_response),
+            )
+            .mount(&mock_server)
+            .await;
+
+        let client = WalletConnectPay::new(test_config(mock_server.uri()));
+        let response = client
+            .get_payment_options(
+                "pay_123".to_string(),
+                vec!["eip155:8453:0x123".to_string()],
+                false,
+            )
+            .await
+            .unwrap();
+
+        let data = response.collect_data.expect("Expected collect_data");
+        assert_eq!(data.fields.len(), 2);
+        assert_eq!(data.fields[0].id, "firstName");
+        assert_eq!(data.fields[0].field_type, CollectDataFieldType::Text);
+        assert!(data.fields[0].required);
+        assert_eq!(data.fields[1].id, "dob");
+        assert_eq!(data.fields[1].field_type, CollectDataFieldType::Date);
+        assert!(!data.fields[1].required);
+    }
+
+    #[tokio::test]
+    async fn test_initialized_event_sent_once_with_first_payment_id() {
+        let mock_server = MockServer::start().await;
+        let mock_response = serde_json::json!({
+            "options": []
+        });
+        Mock::given(method("POST"))
+            .and(path("/v1/gateway/payment/pay_first/options"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(&mock_response),
+            )
+            .mount(&mock_server)
+            .await;
+        Mock::given(method("POST"))
+            .and(path("/v1/gateway/payment/pay_second/options"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(&mock_response),
+            )
+            .mount(&mock_server)
+            .await;
+
+        let client = WalletConnectPay::new(test_config(mock_server.uri()));
+        assert!(client.initialized_event_sent.get().is_none());
+
+        client
+            .get_payment_options(
+                "pay_first".to_string(),
+                vec!["eip155:1:0x123".to_string()],
+                false,
+            )
+            .await
+            .unwrap();
+        assert!(client.initialized_event_sent.get().is_some());
+
+        client
+            .get_payment_options(
+                "pay_second".to_string(),
+                vec!["eip155:1:0x123".to_string()],
+                false,
+            )
+            .await
+            .unwrap();
+        assert!(client.initialized_event_sent.get().is_some());
     }
 }

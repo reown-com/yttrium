@@ -582,6 +582,18 @@ fileprivate struct FfiConverterData: FfiConverterRustBuffer {
 
 public protocol EvmSigningClientProtocol: AnyObject, Sendable {
     
+    /**
+     * Get the native token balance (ETH, MATIC, etc.) for a wallet address.
+     * Returns the balance as a decimal string in wei.
+     */
+    func getNativeBalance(chainId: String, walletAddress: String) async throws  -> String
+    
+    /**
+     * Get the balance of an ERC20 token for a wallet address.
+     * Returns the balance as a decimal string (raw units, not formatted).
+     */
+    func getTokenBalance(chainId: String, contractAddress: String, walletAddress: String) async throws  -> String
+    
     func signAndSend(params: SignAndSendParams, signer: PrivateKeySigner) async throws  -> SignAndSendResult
     
     func signTypedData(jsonData: String, signer: PrivateKeySigner) throws  -> String
@@ -653,6 +665,48 @@ public static func withBlockchainApiUrl(projectId: ProjectId, pulseMetadata: Pul
 }
     
 
+    
+    /**
+     * Get the native token balance (ETH, MATIC, etc.) for a wallet address.
+     * Returns the balance as a decimal string in wei.
+     */
+open func getNativeBalance(chainId: String, walletAddress: String)async throws  -> String  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_yttrium_fn_method_evmsigningclient_get_native_balance(
+                    self.uniffiCloneHandle(),
+                    FfiConverterString.lower(chainId),FfiConverterString.lower(walletAddress)
+                )
+            },
+            pollFunc: ffi_yttrium_rust_future_poll_rust_buffer,
+            completeFunc: ffi_yttrium_rust_future_complete_rust_buffer,
+            freeFunc: ffi_yttrium_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterString.lift,
+            errorHandler: FfiConverterTypeEvmSigningError_lift
+        )
+}
+    
+    /**
+     * Get the balance of an ERC20 token for a wallet address.
+     * Returns the balance as a decimal string (raw units, not formatted).
+     */
+open func getTokenBalance(chainId: String, contractAddress: String, walletAddress: String)async throws  -> String  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_yttrium_fn_method_evmsigningclient_get_token_balance(
+                    self.uniffiCloneHandle(),
+                    FfiConverterString.lower(chainId),FfiConverterString.lower(contractAddress),FfiConverterString.lower(walletAddress)
+                )
+            },
+            pollFunc: ffi_yttrium_rust_future_poll_rust_buffer,
+            completeFunc: ffi_yttrium_rust_future_complete_rust_buffer,
+            freeFunc: ffi_yttrium_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterString.lift,
+            errorHandler: FfiConverterTypeEvmSigningError_lift
+        )
+}
     
 open func signAndSend(params: SignAndSendParams, signer: PrivateKeySigner)async throws  -> SignAndSendResult  {
     return
@@ -5517,6 +5571,10 @@ public enum EvmSigningError: Swift.Error, Equatable, Hashable, Foundation.Locali
     )
     case InvalidTypedData(String
     )
+    case InvalidAddress(String
+    )
+    case BalanceFetch(String
+    )
 
     
 
@@ -5571,6 +5629,12 @@ public struct FfiConverterTypeEvmSigningError: FfiConverterRustBuffer {
             try FfiConverterString.read(from: &buf)
             )
         case 10: return .InvalidTypedData(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 11: return .InvalidAddress(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 12: return .BalanceFetch(
             try FfiConverterString.read(from: &buf)
             )
 
@@ -5632,6 +5696,16 @@ public struct FfiConverterTypeEvmSigningError: FfiConverterRustBuffer {
         
         case let .InvalidTypedData(v1):
             writeInt(&buf, Int32(10))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .InvalidAddress(v1):
+            writeInt(&buf, Int32(11))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .BalanceFetch(v1):
+            writeInt(&buf, Int32(12))
             FfiConverterString.write(v1, into: &buf)
             
         }
@@ -10526,6 +10600,12 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_yttrium_checksum_func_sui_personal_sign() != 21640) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_method_evmsigningclient_get_native_balance() != 64681) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_method_evmsigningclient_get_token_balance() != 47048) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_yttrium_checksum_method_evmsigningclient_sign_and_send() != 30425) {

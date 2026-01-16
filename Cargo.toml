@@ -155,6 +155,9 @@ inherits = "profile8"
 [profile.uniffi-release-kotlin]
 inherits = "profile11"
 
+[profile.uniffi-release-kotlin-wcpay]
+inherits = "profile11-wcpay"
+
 [profile.uniffi-release-swift]
 inherits = "profile9"
 
@@ -266,6 +269,14 @@ opt-level = "z"
 codegen-units = 1
 lto = true
 panic = "abort"
+
+[profile.profile11-wcpay]
+inherits = "profile11"
+# Additional optimizations for wcpay variant
+# Explicitly disable debug symbols for maximum size reduction
+debug = false
+# Note: strip = true is not set here as it removes UniFFI bindings
+# Manual stripping with llvm-strip --strip-all is performed after build
 
 [profile.profile10-nostrip]
 inherits = "profile10"

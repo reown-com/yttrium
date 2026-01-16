@@ -17,6 +17,16 @@ use {
     thiserror::Error,
 };
 
+/// Parse a hex string (with or without 0x prefix) or decimal string to u64
+fn parse_hex_or_decimal(s: &str) -> Option<u64> {
+    let s = s.trim();
+    if s.starts_with("0x") || s.starts_with("0X") {
+        u64::from_str_radix(&s[2..], 16).ok()
+    } else {
+        s.parse::<u64>().ok()
+    }
+}
+
 /// Parameters required to sign and broadcast an EVM transaction.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
@@ -100,6 +110,10 @@ pub enum EvmSigningError {
     Broadcast(String),
     #[error("invalid typed data: {0}")]
     InvalidTypedData(String),
+    #[error("invalid address: {0}")]
+    InvalidAddress(String),
+    #[error("failed to fetch balance: {0}")]
+    BalanceFetch(String),
 }
 
 #[cfg(test)]
@@ -237,7 +251,16 @@ pub fn sign_typed_data(
 
     let valid_after = message
         .get("validAfter")
-        .and_then(|v| v.as_u64())
+        .and_then(|v| {
+            // Handle both u64 numbers and hex strings (e.g., "0x0")
+            if let Some(n) = v.as_u64() {
+                Some(n)
+            } else if let Some(s) = v.as_str() {
+                parse_hex_or_decimal(s)
+            } else {
+                None
+            }
+        })
         .ok_or_else(|| {
             EvmSigningError::InvalidTypedData(
                 "missing 'validAfter' in message".to_string(),
@@ -246,7 +269,16 @@ pub fn sign_typed_data(
 
     let valid_before = message
         .get("validBefore")
-        .and_then(|v| v.as_u64())
+        .and_then(|v| {
+            // Handle both u64 numbers and hex strings (e.g., "0x695d4882")
+            if let Some(n) = v.as_u64() {
+                Some(n)
+            } else if let Some(s) = v.as_str() {
+                parse_hex_or_decimal(s)
+            } else {
+                None
+            }
+        })
         .ok_or_else(|| {
             EvmSigningError::InvalidTypedData(
                 "missing 'validBefore' in message".to_string(),

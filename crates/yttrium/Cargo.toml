@@ -95,6 +95,7 @@ all_clients = [
     "chain_abstraction_client",
     "transaction_sponsorship_client",
     "sign_client",
+    "pay",
 ]
 account_client = []
 erc6492_client = []
@@ -132,6 +133,7 @@ test_local_bundler = []
 test_pimlico_api = []
 test_blockchain_api = []
 test_depends_on_env_REOWN_PROJECT_ID = []
+test_pay_api = ["pay"]
 test_sign = [
     "sign_client",
     "test_depends_on_env_REOWN_PROJECT_ID",
@@ -168,6 +170,7 @@ tower = { version = "0.5", features = ["util"] }
 getrandom2 = { package = "getrandom", version = "0.2", default-features = false }
 getrandom = { version = "0.3.1", default-features = false }
 
+chrono = { version = "0.4", default-features = false, features = ["std", "clock"] }
 uuid = { version = "1.13.1", default-features = false, features = [
     "v4",
     "serde",
@@ -287,8 +290,11 @@ aws-sdk-cloudwatch = { version = "1.91.0", optional = true }
 # Pay
 progenitor = { workspace = true }
 progenitor-client = { workspace = true, optional = true }
+urlencoding = "2.1"
 
 [dev-dependencies]
+pay-api = { path = "../pay-api" }
+
 # mocking
 wiremock = { version = "0.6.0", default-features = false }
 test-log = { version = "0.2.17", default-features = false, features = [
