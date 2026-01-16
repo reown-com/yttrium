@@ -163,8 +163,8 @@ inherits = "profile9"
 
 # Profile for iOS XCFramework builds with -Z build-std to eliminate rust_eh_personality symbols
 # This prevents duplicate symbol conflicts when other Rust libraries are present in the same iOS project
-# Use with: cargo +nightly build --profile=xcframework-release -Z build-std=std,panic_abort -Z build-std-features=panic_immediate_abort
-# The panic_immediate_abort feature completely eliminates all panic handling code
+# Use with: RUSTFLAGS="-Zunstable-options -Cpanic=immediate-abort" cargo +nightly build --profile=xcframework-release -Z build-std=std,panic_abort
+# The panic=immediate-abort strategy completely eliminates all panic handling code
 [profile.xcframework-release]
 inherits = "release-base"
 opt-level = 3
