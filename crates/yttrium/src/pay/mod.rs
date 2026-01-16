@@ -916,6 +916,7 @@ impl WalletConnectPay {
             &self.config.bundle_id,
             &self.config.project_id,
             self.config.api_key.as_deref().unwrap_or(""),
+            self.config.app_id.as_deref().unwrap_or(""),
             &self.client_id,
             &self.config.sdk_name,
             &self.config.sdk_version,
