@@ -161,6 +161,18 @@ inherits = "profile11-wcpay"
 [profile.uniffi-release-swift]
 inherits = "profile9"
 
+# Profile for iOS XCFramework builds with -Z build-std to eliminate rust_eh_personality symbols
+# This prevents duplicate symbol conflicts when other Rust libraries are present in the same iOS project
+# Use with: RUSTFLAGS="-Zunstable-options -Cpanic=immediate-abort" cargo +nightly build --profile=xcframework-release -Z build-std=std,panic_abort
+# The panic=immediate-abort strategy completely eliminates all panic handling code
+[profile.xcframework-release]
+inherits = "release-base"
+opt-level = 3
+codegen-units = 1
+lto = true
+strip = true
+panic = "abort"
+
 [profile.uniffi-release-iter1] # first iteration, changes opt-level to 3
 inherits = "release-base"
 debug = true

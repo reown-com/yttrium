@@ -5,7 +5,8 @@ set -u
 
 PACKAGE_NAME="yttrium"
 FEATURES="ios,pay"
-fat_simulator_lib_dir="target/ios-simulator-fat/uniffi-release-swift"
+PROFILE="xcframework-release"
+fat_simulator_lib_dir="target/ios-simulator-fat/$PROFILE"
 swift_package_dir="platforms/swift/Sources/Yttrium"
 
 build_rust_libraries() {
@@ -19,11 +20,14 @@ build_rust_libraries() {
   # Ensure all C/C++ code built by cc crate uses a consistent min iOS version
   export IPHONEOS_DEPLOYMENT_TARGET="13.0"
   export CFLAGS_aarch64_apple_ios="-miphoneos-version-min=13.0"
-  export RUSTFLAGS="-C linker=$CC_aarch64_apple_ios -C link-arg=-miphoneos-version-min=13.0"
+  # Use panic=immediate-abort via RUSTFLAGS to completely eliminate panic handling code
+  export RUSTFLAGS="-C linker=$CC_aarch64_apple_ios -C link-arg=-miphoneos-version-min=13.0 -Zunstable-options -Cpanic=immediate-abort"
 
-  # Build
-  cargo build \
-    --lib --profile=uniffi-release-swift \
+  # Build with nightly and -Z build-std to eliminate rust_eh_personality symbols
+  cargo +nightly build \
+    --lib --profile=$PROFILE \
+    -Z build-std=std,panic_abort \
+    -Z unstable-options \
     --no-default-features \
     --features=$FEATURES \
     --target aarch64-apple-ios \
@@ -47,10 +51,14 @@ build_rust_libraries() {
   # Ensure all C/C++ code built by cc crate uses a consistent min iOS Simulator version
   export IPHONEOS_DEPLOYMENT_TARGET="13.0"
   export CFLAGS_x86_64_apple_ios="-mios-simulator-version-min=13.0"
-  export RUSTFLAGS="-C linker=$CC_x86_64_apple_ios -C link-arg=-mios-simulator-version-min=13.0"
+  # Use panic=immediate-abort via RUSTFLAGS to completely eliminate panic handling code
+  export RUSTFLAGS="-C linker=$CC_x86_64_apple_ios -C link-arg=-mios-simulator-version-min=13.0 -Zunstable-options -Cpanic=immediate-abort"
 
-  cargo build \
-    --lib --profile=uniffi-release-swift \
+  # Build with nightly and -Z build-std to eliminate rust_eh_personality symbols
+  cargo +nightly build \
+    --lib --profile=$PROFILE \
+    -Z build-std=std,panic_abort \
+    -Z unstable-options \
     --no-default-features \
     --features=$FEATURES \
     --target x86_64-apple-ios \
@@ -74,10 +82,14 @@ build_rust_libraries() {
   # Ensure all C/C++ code built by cc crate uses a consistent min iOS Simulator version
   export IPHONEOS_DEPLOYMENT_TARGET="13.0"
   export CFLAGS_aarch64_apple_ios_sim="-mios-simulator-version-min=13.0"
-  export RUSTFLAGS="-C linker=$CC_aarch64_apple_ios_sim -C link-arg=-mios-simulator-version-min=13.0"
+  # Use panic=immediate-abort via RUSTFLAGS to completely eliminate panic handling code
+  export RUSTFLAGS="-C linker=$CC_aarch64_apple_ios_sim -C link-arg=-mios-simulator-version-min=13.0 -Zunstable-options -Cpanic=immediate-abort"
 
-  cargo build \
-    --lib --profile=uniffi-release-swift \
+  # Build with nightly and -Z build-std to eliminate rust_eh_personality symbols
+  cargo +nightly build \
+    --lib --profile=$PROFILE \
+    -Z build-std=std,panic_abort \
+    -Z unstable-options \
     --no-default-features \
     --features=$FEATURES \
     --target aarch64-apple-ios-sim \
@@ -94,8 +106,8 @@ build_rust_libraries() {
 
 generate_ffi() {
   echo "Generating framework module mapping and FFI bindings..."
-  cargo run -p yttrium --no-default-features --features=$FEATURES,uniffi/cli --bin uniffi-bindgen generate \
-    --library target/aarch64-apple-ios/uniffi-release-swift/lib$PACKAGE_NAME.dylib \
+  cargo +nightly run -p yttrium --no-default-features --features=$FEATURES,uniffi/cli --bin uniffi-bindgen generate \
+    --library target/aarch64-apple-ios/$PROFILE/lib$PACKAGE_NAME.dylib \
     --language swift \
     --out-dir target/uniffi-xcframework-staging
 }
@@ -139,7 +151,7 @@ build_xcframework() {
   fi
 
   xcodebuild -create-xcframework \
-      -library "target/aarch64-apple-ios/uniffi-release-swift/lib$1.a" -headers target/uniffi-xcframework-staging/device/Headers \
+      -library "target/aarch64-apple-ios/$PROFILE/lib$1.a" -headers target/uniffi-xcframework-staging/device/Headers \
       -library "$fat_simulator_lib_dir/lib$1.a" -headers target/uniffi-xcframework-staging/simulator/Headers \
       -output "target/ios/lib$1.xcframework"
 }
@@ -148,8 +160,8 @@ create_fat_simulator_lib() {
   echo "Creating a fat library for x86_64 and aarch64 simulators..."
   mkdir -p "$fat_simulator_lib_dir"
   lipo -create \
-      "target/x86_64-apple-ios/uniffi-release-swift/lib$1.a" \
-      "target/aarch64-apple-ios-sim/uniffi-release-swift/lib$1.a" \
+      "target/x86_64-apple-ios/$PROFILE/lib$1.a" \
+      "target/aarch64-apple-ios-sim/$PROFILE/lib$1.a" \
       -output "$fat_simulator_lib_dir/lib$1.a"
 }
 
@@ -162,10 +174,11 @@ copy_swift_sources() {
   cp target/uniffi-xcframework-staging/yttrium.swift platforms/swift/Sources/Yttrium/
 }
 
-# Add the necessary Rust targets
-rustup target add aarch64-apple-ios
-rustup target add x86_64-apple-ios
-rustup target add aarch64-apple-ios-sim
+# Add the nightly toolchain with rust-src component (required for -Z build-std)
+rustup toolchain install nightly --component rust-src
+rustup target add aarch64-apple-ios --toolchain nightly
+rustup target add x86_64-apple-ios --toolchain nightly
+rustup target add aarch64-apple-ios-sim --toolchain nightly
 
 # Execute the build steps
 build_rust_libraries
