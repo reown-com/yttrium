@@ -370,7 +370,6 @@ pub struct AmountDisplay {
     pub decimals: i64,
     pub icon_url: Option<String>,
     pub network_name: Option<String>,
-    pub network_icon_url: Option<String>,
 }
 
 impl From<types::AmountDisplay> for AmountDisplay {
@@ -381,7 +380,6 @@ impl From<types::AmountDisplay> for AmountDisplay {
             decimals: d.decimals,
             icon_url: d.icon_url,
             network_name: d.network_name,
-            network_icon_url: d.network_icon_url,
         }
     }
 }
@@ -612,7 +610,7 @@ impl WalletConnectPay {
                 self.client().gateway_get_payment_options(),
                 &self.config
             )
-            .id(&payment_id)
+            .id(types::PaymentId::from(payment_id.clone()))
             .include_payment_info(include_payment_info)
             .body(body.clone())
             .send()
@@ -803,7 +801,7 @@ impl WalletConnectPay {
             self.client().confirm_payment_handler(),
             &self.config
         )
-        .id(&payment_id)
+        .id(types::PaymentId::from(payment_id.clone()))
         .body(body.clone());
         if let Some(ms) = max_poll_ms {
             req = req.max_poll_ms(ms);
@@ -944,7 +942,7 @@ impl WalletConnectPay {
             types::FetchRequest { option_id: option_id.to_string(), data };
         let response = with_retry(|| async {
             with_sdk_config!(self.client().fetch_handler(), &self.config)
-                .id(payment_id)
+                .id(types::PaymentId::from(payment_id.to_string()))
                 .body(body.clone())
                 .send()
                 .await
@@ -962,7 +960,7 @@ impl WalletConnectPay {
             self.client().gateway_get_payment_status(),
             &self.config
         )
-        .id(&payment_id);
+        .id(types::PaymentId::from(payment_id.clone()));
         if let Some(ms) = max_poll_ms {
             req = req.max_poll_ms(ms);
         }
