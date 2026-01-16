@@ -1,0 +1,134 @@
+name: Validate PR Against ADRs
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - 'crates/**/*.rs'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+
+jobs:
+  validate-adr:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get changed files
+        id: changed
+        run: |
+          echo "Getting changed files..."
+          gh pr diff ${{ github.event.pull_request.number }} --name-only > changed_files.txt
+          echo "Changed files:"
+          cat changed_files.txt
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check for ADRs
+        id: check-adrs
+        run: |
+          if [ -d "docs/adr" ] && ls docs/adr/[0-9][0-9][0-9][0-9]-*.md 1> /dev/null 2>&1; then
+            echo "has_adrs=true" >> $GITHUB_OUTPUT
+            echo "Found ADR files"
+          else
+            echo "has_adrs=false" >> $GITHUB_OUTPUT
+            echo "No ADR files found, skipping validation"
+          fi
+
+      - name: Extract ADR validation rules
+        if: steps.check-adrs.outputs.has_adrs == 'true'
+        id: rules
+        run: |
+          echo "Extracting validation rules from accepted ADRs..."
+
+          # Create rules file
+          echo "rules:" > all_rules.yaml
+
+          for adr in docs/adr/[0-9][0-9][0-9][0-9]-*.md; do
+            if [ -f "$adr" ]; then
+              # Check if ADR is accepted
+              if grep -q "^## Status" "$adr" && grep -A1 "^## Status" "$adr" | grep -qi "accepted"; then
+                echo "Processing: $adr"
+
+                # Extract YAML rules block (between ```yaml and ```)
+                # Look for rules section specifically
+                awk '/^```yaml/,/^```/' "$adr" | grep -v '```' >> all_rules.yaml 2>/dev/null || true
+              fi
+            fi
+          done
+
+          echo "Extracted rules:"
+          cat all_rules.yaml
+
+      - name: Validate with Claude
+        if: steps.check-adrs.outputs.has_adrs == 'true'
+        uses: anthropics/claude-code-action@beta
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          model: claude-sonnet-4-20250514
+          prompt: |
+            You are an ADR compliance validator for the yttrium project.
+
+            ## Your Task
+            Check if PR #${{ github.event.pull_request.number }} changes comply with established Architecture Decision Records.
+
+            ## ADR Validation Rules
+            ```yaml
+            $(cat all_rules.yaml)
+            ```
+
+            ## Changed Files
+            ```
+            $(cat changed_files.txt)
+            ```
+
+            ## Instructions
+            1. For each ADR rule, check if any changed file matches the `applies_to` glob pattern
+            2. For matching files, search for the rule's `pattern` regex
+            3. Report violations based on the rule's `action` (warn vs error)
+
+            ## Analysis Steps
+            1. Read each changed file that matches rule patterns
+            2. Search for regex pattern violations
+            3. Note the specific line numbers and code snippets
+
+            ## Output Format
+            Provide your analysis as a clear report:
+
+            ### ADR Compliance Report
+
+            **PR:** #${{ github.event.pull_request.number }}
+
+            #### Rules Checked
+            - List each rule checked and files it applied to
+
+            #### Violations Found
+            For each violation:
+            - **Rule:** [rule-id] from ADR-XXXX
+            - **File:** path/to/file.rs:line
+            - **Severity:** warn/error
+            - **Issue:** Description of the violation
+            - **Suggestion:** How to fix
+
+            #### Summary
+            - Total rules checked: N
+            - Violations: X errors, Y warnings
+            - **Status:** PASS/FAIL (FAIL if any errors)
+
+            If no violations found, indicate the PR passes all ADR checks.
+
+            Be thorough but avoid false positives. Consider context - some patterns may have valid uses.
+          allowed_tools: Bash,Glob,Grep,Read
+          timeout_minutes: 10
+
+      - name: Skip notification
+        if: steps.check-adrs.outputs.has_adrs == 'false'
+        run: |
+          echo "::notice::No ADR files found in docs/adr/. ADR validation skipped."
