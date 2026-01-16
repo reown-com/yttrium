@@ -370,6 +370,7 @@ pub struct AmountDisplay {
     pub decimals: i64,
     pub icon_url: Option<String>,
     pub network_name: Option<String>,
+    pub network_icon_url: Option<String>,
 }
 
 impl From<types::AmountDisplay> for AmountDisplay {
@@ -380,6 +381,7 @@ impl From<types::AmountDisplay> for AmountDisplay {
             decimals: d.decimals,
             icon_url: d.icon_url,
             network_name: d.network_name,
+            network_icon_url: d.network_icon_url,
         }
     }
 }
@@ -504,9 +506,6 @@ macro_rules! with_sdk_config {
     ($builder:expr, $config:expr) => {
         $builder
             .api_key(&$config.api_key)
-            .sdk_name(&$config.sdk_name)
-            .sdk_version(&$config.sdk_version)
-            .sdk_platform(&$config.sdk_platform)
     };
 }
 

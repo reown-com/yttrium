@@ -36,30 +36,6 @@
             }
           },
           {
-            "name": "Sdk-Name",
-            "in": "header",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "Sdk-Version",
-            "in": "header",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "Sdk-Platform",
-            "in": "header",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
             "name": "id",
             "in": "path",
             "description": "Payment ID",
@@ -134,30 +110,6 @@
         "parameters": [
           {
             "name": "Api-Key",
-            "in": "header",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "Sdk-Name",
-            "in": "header",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "Sdk-Version",
-            "in": "header",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "Sdk-Platform",
             "in": "header",
             "required": true,
             "schema": {
@@ -268,30 +220,6 @@
             }
           },
           {
-            "name": "Sdk-Name",
-            "in": "header",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "Sdk-Version",
-            "in": "header",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "Sdk-Platform",
-            "in": "header",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
             "name": "id",
             "in": "path",
             "description": "Payment ID",
@@ -376,30 +304,6 @@
         "parameters": [
           {
             "name": "Api-Key",
-            "in": "header",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "Sdk-Name",
-            "in": "header",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "Sdk-Version",
-            "in": "header",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "Sdk-Platform",
             "in": "header",
             "required": true,
             "schema": {
@@ -508,30 +412,6 @@
             }
           },
           {
-            "name": "Sdk-Name",
-            "in": "header",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "Sdk-Version",
-            "in": "header",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "Sdk-Platform",
-            "in": "header",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
             "name": "id",
             "in": "path",
             "description": "Payment ID",
@@ -631,30 +511,6 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "name": "Sdk-Name",
-            "in": "header",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "Sdk-Version",
-            "in": "header",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "Sdk-Platform",
-            "in": "header",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "requestBody": {
@@ -730,30 +586,6 @@
           },
           {
             "name": "Merchant-Id",
-            "in": "header",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "Sdk-Name",
-            "in": "header",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "Sdk-Version",
-            "in": "header",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "Sdk-Platform",
             "in": "header",
             "required": true,
             "schema": {
@@ -921,6 +753,7 @@
             "assetSymbol": "USDC",
             "decimals": 6,
             "iconUrl": "https://assets.walletconnect.com/usdc.png",
+            "networkIconUrl": "https://assets.walletconnect.com/base.png",
             "networkName": "Base"
           },
           "unit": "caip19/eip155:8453/erc20:0xUSDC...",
@@ -954,6 +787,11 @@
             "description": "URL of the icon of the asset (if token)",
             "nullable": true
           },
+          "networkIconUrl": {
+            "type": "string",
+            "description": "URL of the icon of the network (if token)",
+            "nullable": true
+          },
           "networkName": {
             "type": "string",
             "description": "Name of the network of the asset (if token)",
@@ -965,6 +803,7 @@
           "assetSymbol": "USDC",
           "decimals": 6,
           "iconUrl": "https://assets.walletconnect.com/usdc.png",
+          "networkIconUrl": "https://assets.walletconnect.com/base.png",
           "networkName": "Base"
         }
       },
@@ -1153,8 +992,8 @@
         ],
         "properties": {
           "collectedData": {
-            "$ref": "#/components/schemas/CollectDataResult",
-            "nullable": true
+            "nullable": true,
+            "$ref": "#/components/schemas/CollectDataResult"
           },
           "optionId": {
             "type": "string",
@@ -1317,7 +1156,7 @@
           "expiresAt": 1718236800,
           "gatewayUrl": "https://api.pay.walletconnect.com/pay_123",
           "isFinal": false,
-          "paymentId": "pay_dca2ecc101KF0TJ1BPW34HNFJ467CGS9Y0",
+          "paymentId": "pay_a7a2ecc101KF215ET1TYXBBP538CACCVNP",
           "pollInMs": 1000,
           "status": "requires_action"
         }
@@ -1338,9 +1177,6 @@
           "missing_api_key",
           "missing_merchant_api_key",
           "missing_merchant_id",
-          "missing_sdk_name",
-          "missing_sdk_version",
-          "missing_sdk_platform",
           "header_not_ascii",
           "not_sandbox_api_key",
           "merchant_not_found",
@@ -1450,12 +1286,12 @@
         ],
         "properties": {
           "collectData": {
-            "$ref": "#/components/schemas/CollectData",
-            "nullable": true
+            "nullable": true,
+            "$ref": "#/components/schemas/CollectData"
           },
           "info": {
-            "$ref": "#/components/schemas/GetPaymentResponse",
-            "nullable": true
+            "nullable": true,
+            "$ref": "#/components/schemas/GetPaymentResponse"
           },
           "options": {
             "type": "array",
@@ -1488,6 +1324,7 @@
                 "assetSymbol": "USDC",
                 "decimals": 6,
                 "iconUrl": "https://assets.walletconnect.com/usdc.png",
+                "networkIconUrl": "https://assets.walletconnect.com/base.png",
                 "networkName": "Base"
               },
               "unit": "caip19/eip155:8453/erc20:0xUSDC...",
@@ -1507,6 +1344,7 @@
           },
           "options": [
             {
+              "account": "eip155:1:0x0000000000000000000000000000000000000000",
               "actions": [
                 {
                   "data": {
@@ -1526,6 +1364,7 @@
                   "assetSymbol": "USDC",
                   "decimals": 6,
                   "iconUrl": "https://assets.walletconnect.com/usdc.png",
+                  "networkIconUrl": "https://assets.walletconnect.com/base.png",
                   "networkName": "Base"
                 },
                 "unit": "caip19/eip155:8453/erc20:0xUSDC...",
@@ -1551,8 +1390,8 @@
             "description": "Amount to be paid"
           },
           "buyer": {
-            "$ref": "#/components/schemas/BuyerInfo",
-            "nullable": true
+            "nullable": true,
+            "$ref": "#/components/schemas/BuyerInfo"
           },
           "expiresAt": {
             "type": "integer",
@@ -1576,6 +1415,7 @@
               "assetSymbol": "USDC",
               "decimals": 6,
               "iconUrl": "https://assets.walletconnect.com/usdc.png",
+              "networkIconUrl": "https://assets.walletconnect.com/base.png",
               "networkName": "Base"
             },
             "unit": "caip19/eip155:8453/erc20:0xUSDC...",
@@ -1655,11 +1495,16 @@
         "type": "object",
         "required": [
           "id",
+          "account",
           "amount",
           "etaS",
           "actions"
         ],
         "properties": {
+          "account": {
+            "type": "string",
+            "description": "The account to use for the option"
+          },
           "actions": {
             "type": "array",
             "items": {
@@ -1683,6 +1528,7 @@
           }
         },
         "example": {
+          "account": "eip155:1:0x0000000000000000000000000000000000000000",
           "actions": [
             {
               "data": {
@@ -1702,6 +1548,7 @@
               "assetSymbol": "USDC",
               "decimals": 6,
               "iconUrl": "https://assets.walletconnect.com/usdc.png",
+              "networkIconUrl": "https://assets.walletconnect.com/base.png",
               "networkName": "Base"
             },
             "unit": "caip19/eip155:8453/erc20:0xUSDC...",
