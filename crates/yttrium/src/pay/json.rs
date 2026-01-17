@@ -184,18 +184,19 @@ mod tests {
         SdkConfig {
             base_url,
             project_id: "test-project-id".to_string(),
-            api_key: "test-api-key".to_string(),
             sdk_name: "test-sdk".to_string(),
             sdk_version: "1.0.0".to_string(),
             sdk_platform: "test".to_string(),
             bundle_id: "com.test.app".to_string(),
+            api_key: Some("test-api-key".to_string()),
+            app_id: None,
             client_id: None,
         }
     }
 
     fn test_config_json(base_url: &str) -> String {
         format!(
-            r#"{{"baseUrl":"{}","projectId":"test-project-id","apiKey":"test-api-key","sdkName":"test-sdk","sdkVersion":"1.0.0","sdkPlatform":"test","bundleId":"com.test.app","clientId":null}}"#,
+            r#"{{"baseUrl":"{}","projectId":"test-project-id","sdkName":"test-sdk","sdkVersion":"1.0.0","sdkPlatform":"test","bundleId":"com.test.app","apiKey":"test-api-key","appId":null,"clientId":null}}"#,
             base_url
         )
     }
@@ -207,6 +208,7 @@ mod tests {
         let mock_response = serde_json::json!({
             "options": [{
                 "id": "opt_json_1",
+                "account": "eip155:8453:0xabc",
                 "amount": {
                     "unit": "caip19/eip155:8453/erc20:0xUSDC",
                     "value": "500000",
@@ -276,6 +278,7 @@ mod tests {
         let mock_response = serde_json::json!({
             "options": [{
                 "id": "opt_json_2",
+                "account": "eip155:1:0x123",
                 "amount": {
                     "unit": "caip19/eip155:1/erc20:0xDAI",
                     "value": "100000000000000000000",

@@ -216,11 +216,12 @@ where
 pub struct SdkConfig {
     pub base_url: String,
     pub project_id: String,
-    pub api_key: String,
     pub sdk_name: String,
     pub sdk_version: String,
     pub sdk_platform: String,
     pub bundle_id: String,
+    pub api_key: Option<String>,
+    pub app_id: Option<String>,
     pub client_id: Option<String>,
 }
 
@@ -370,6 +371,7 @@ pub struct AmountDisplay {
     pub asset_name: String,
     pub decimals: i64,
     pub icon_url: Option<String>,
+    pub network_icon_url: Option<String>,
     pub network_name: Option<String>,
 }
 
@@ -380,6 +382,7 @@ impl From<types::AmountDisplay> for AmountDisplay {
             asset_name: d.asset_name,
             decimals: d.decimals,
             icon_url: d.icon_url,
+            network_icon_url: d.network_icon_url,
             network_name: d.network_name,
         }
     }
@@ -405,6 +408,7 @@ impl From<types::Amount> for PayAmount {
 #[serde(rename_all = "camelCase")]
 pub struct PaymentOption {
     pub id: String,
+    pub account: String,
     pub amount: PayAmount,
     pub eta_s: i64,
     pub actions: Vec<Action>,
@@ -414,6 +418,7 @@ impl From<types::PaymentOption> for PaymentOption {
     fn from(o: types::PaymentOption) -> Self {
         Self {
             id: o.id,
+            account: o.account,
             amount: o.amount.into(),
             eta_s: o.eta_s,
             actions: o
@@ -502,13 +507,22 @@ use std::sync::{OnceLock, RwLock};
 
 /// Applies common SDK config headers to any progenitor-generated request builder
 macro_rules! with_sdk_config {
-    ($builder:expr, $config:expr) => {
-        $builder
-            .api_key(&$config.api_key)
+    ($builder:expr, $config:expr) => {{
+        let mut builder = $builder
             .sdk_name(&$config.sdk_name)
             .sdk_version(&$config.sdk_version)
-            .sdk_platform(&$config.sdk_platform)
-    };
+            .sdk_platform(&$config.sdk_platform);
+        if let Some(ref api_key) = $config.api_key {
+            builder = builder.api_key(api_key);
+        }
+        if let Some(ref app_id) = $config.app_id {
+            builder = builder.app_id(app_id);
+        }
+        if let Some(ref client_id) = $config.client_id {
+            builder = builder.client_id(client_id);
+        }
+        builder
+    }};
 }
 
 #[derive(Debug, Clone)]
@@ -901,7 +915,8 @@ impl WalletConnectPay {
             self.error_http_client(),
             &self.config.bundle_id,
             &self.config.project_id,
-            &self.config.api_key,
+            self.config.api_key.as_deref().unwrap_or(""),
+            self.config.app_id.as_deref().unwrap_or(""),
             &self.client_id,
             &self.config.sdk_name,
             &self.config.sdk_version,
@@ -1139,11 +1154,12 @@ mod tests {
         SdkConfig {
             base_url,
             project_id: "test-project-id".to_string(),
-            api_key: "test-api-key".to_string(),
             sdk_name: "test-sdk".to_string(),
             sdk_version: "1.0.0".to_string(),
             sdk_platform: "test".to_string(),
             bundle_id: "com.test.app".to_string(),
+            api_key: Some("test-api-key".to_string()),
+            app_id: None,
             client_id: None,
         }
     }
@@ -1156,6 +1172,7 @@ mod tests {
             "options": [
                 {
                     "id": "opt_1",
+                    "account": "eip155:8453:0x123",
                     "amount": {
                         "unit": "caip19/eip155:8453/erc20:0xUSDC",
                         "value": "1000000",
@@ -1319,6 +1336,7 @@ mod tests {
             "options": [
                 {
                     "id": "opt_1",
+                    "account": "eip155:8453:0x123",
                     "amount": {
                         "unit": "caip19/eip155:8453/erc20:0xUSDC",
                         "value": "1000000",
@@ -1384,6 +1402,7 @@ mod tests {
             "options": [
                 {
                     "id": "opt_1",
+                    "account": "eip155:8453:0x123",
                     "amount": {
                         "unit": "caip19/eip155:8453/erc20:0xUSDC",
                         "value": "1000000",
@@ -1633,11 +1652,12 @@ mod tests {
         let custom_config = SdkConfig {
             base_url: mock_server.uri(),
             project_id: "my-custom-project-id".to_string(),
-            api_key: "my-custom-api-key".to_string(),
             sdk_name: "my-app".to_string(),
             sdk_version: "2.5.0".to_string(),
             sdk_platform: "ios".to_string(),
             bundle_id: "com.custom.app".to_string(),
+            api_key: Some("my-custom-api-key".to_string()),
+            app_id: Some("custom-app-id".to_string()),
             client_id: Some("custom-client-id".to_string()),
         };
 
