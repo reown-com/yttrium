@@ -45,6 +45,14 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
+      # 4b. Install nightly toolchain with rust-src for -Z build-std (eliminates rust_eh_personality symbols)
+      - name: Install Nightly Rust with iOS targets
+        run: |
+          rustup toolchain install nightly --component rust-src
+          rustup target add aarch64-apple-ios --toolchain nightly
+          rustup target add x86_64-apple-ios --toolchain nightly
+          rustup target add aarch64-apple-ios-sim --toolchain nightly
+
       # 5. Select Xcode
       - name: Select Xcode
         run: sudo xcode-select -switch /Applications/Xcode.app/Contents/Developer
