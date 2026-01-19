@@ -1,0 +1,39 @@
+name: "Free Disk Space"
+description: "Clean up disk space before CI jobs on ephemeral runners"
+
+inputs:
+  runner-type:
+    description: "Type of runner: self-hosted, ubuntu, macos, or self-hosted-kotlin"
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Free disk space (self-hosted)
+      if: inputs.runner-type == 'self-hosted'
+      shell: bash
+      run: |
+        rm -rf /tmp/* 2>/dev/null || true
+        rm -rf ~/.cargo/registry/cache 2>/dev/null || true
+
+    - name: Free disk space (ubuntu)
+      if: inputs.runner-type == 'ubuntu'
+      shell: bash
+      run: |
+        sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc 2>/dev/null || true
+        docker system prune -af 2>/dev/null || true
+
+    - name: Free disk space (macos)
+      if: inputs.runner-type == 'macos'
+      shell: bash
+      run: |
+        rm -rf ~/Library/Developer/Xcode/DerivedData/* 2>/dev/null || true
+        rm -rf ~/.cargo/registry/cache 2>/dev/null || true
+
+    - name: Free disk space (self-hosted-kotlin)
+      if: inputs.runner-type == 'self-hosted-kotlin'
+      shell: bash
+      run: |
+        rm -rf /tmp/* 2>/dev/null || true
+        rm -rf ~/.cargo/registry/cache 2>/dev/null || true
+        docker system prune -af 2>/dev/null || true
