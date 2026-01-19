@@ -1044,15 +1044,13 @@ fn extract_payment_id(
             .filter(|v| !v.is_empty())
     }
 
-    fn get_last_path_segment(url: &Url) -> Option<String> {
-        url.path_segments()?
-            .next_back()
-            .filter(|s| !s.is_empty())
-            .map(String::from)
+    fn get_path(url: &Url) -> Option<String> {
+        let path = url.path().trim_start_matches('/');
+        if path.is_empty() { None } else { Some(path.to_string()) }
     }
 
     fn extract_from_wc_pay_url(url: &Url) -> Option<String> {
-        get_query_param(url, "pid").or_else(|| get_last_path_segment(url))
+        get_query_param(url, "pid").or_else(|| get_path(url))
     }
 
     fn process_url(url_str: &str) -> Option<String> {
@@ -1324,6 +1322,11 @@ mod tests {
             extract_payment_id("https://pay.walletconnect.com/pay_123")
                 .unwrap(),
             "pay_123"
+        );
+        // pay.walletconnect.com with full path (multiple segments)
+        assert_eq!(
+            extract_payment_id("http://pay.walletconnect.com/abc/123").unwrap(),
+            "abc/123"
         );
         // Bare payment ID
         assert_eq!(extract_payment_id("pay_456").unwrap(), "pay_456");
