@@ -1439,6 +1439,43 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_extract_payment_id_subdomain_direct_urls() {
+        assert_eq!(
+            extract_payment_id(
+                "https://staging.pay.walletconnect.com/?pid=pay_123"
+            )
+            .unwrap(),
+            "pay_123"
+        );
+        assert_eq!(
+            extract_payment_id(
+                "https://dev.pay.walletconnect.com/?pid=pay_456"
+            )
+            .unwrap(),
+            "pay_456"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_extract_payment_id_rejects_non_subdomain_urls() {
+        // Domains that don't end with .pay.walletconnect.com should be URL-encoded
+        assert_eq!(
+            extract_payment_id(
+                "https://fakepay.walletconnect.com/?pid=pay_123"
+            )
+            .unwrap(),
+            "https%3A%2F%2Ffakepay.walletconnect.com%2F%3Fpid%3Dpay_123"
+        );
+        assert_eq!(
+            extract_payment_id(
+                "https://evil.pay.walletconnect.com.attacker.com/?pid=pay_123"
+            )
+            .unwrap(),
+            "https%3A%2F%2Fevil.pay.walletconnect.com.attacker.com%2F%3Fpid%3Dpay_123"
+        );
+    }
+
+    #[tokio::test]
     async fn test_extract_payment_id_fully_encoded_wc_uri() {
         assert_eq!(
             extract_payment_id("wc%3Afe8314404caac9b487daca1bb3ba4076f1ef0a52794c6117bd944ed17c5b32a7%402%3FexpiryTimestamp%3D1768460398%26relay-protocol%3Dirn%26symKey%3Db614f88cbae08c993154c9c4c23cd538ca17600d0ee7666d52fb8494f6c98b70%26pay%3Dhttps%3A%2F%2Fpay.walletconnect.com%2F%3Fpid%3Dpay_95a2ecc101KEYG1NH580DF2J04MBNRWE7V").unwrap(),
