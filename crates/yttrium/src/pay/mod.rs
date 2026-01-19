@@ -29,6 +29,13 @@ macro_rules! pay_error {
 
 #[derive(Debug, thiserror::Error)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Error))]
+pub enum ConfigError {
+    #[error("Invalid configuration: either api_key or app_id must be provided")]
+    MissingAuth,
+}
+
+#[derive(Debug, thiserror::Error)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Error))]
 pub enum PayError {
     #[error("HTTP error: {0}")]
     Http(String),
@@ -582,19 +589,24 @@ impl WalletConnectPay {
 #[cfg_attr(feature = "uniffi", uniffi::export(async_runtime = "tokio"))]
 impl WalletConnectPay {
     #[cfg_attr(feature = "uniffi", uniffi::constructor)]
-    pub fn new(config: SdkConfig) -> Self {
+    pub fn new(config: SdkConfig) -> Result<Self, ConfigError> {
+        // Validate: either api_key or app_id must be provided
+        if config.api_key.is_none() && config.app_id.is_none() {
+            return Err(ConfigError::MissingAuth);
+        }
+
         let client_id = config
             .client_id
             .clone()
             .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
-        Self {
+        Ok(Self {
             client: OnceLock::new(),
             config,
             cached_options: RwLock::new(Vec::new()),
             error_http_client: OnceLock::new(),
             initialized_event_sent: OnceLock::new(),
             client_id,
-        }
+        })
     }
 
     /// Get payment options for given accounts
@@ -1204,7 +1216,8 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let client = WalletConnectPay::new(test_config(mock_server.uri()));
+        let client =
+            WalletConnectPay::new(test_config(mock_server.uri())).unwrap();
         let result = client
             .get_payment_options(
                 "https://pay.walletconnect.com/pay_123".to_string(),
@@ -1242,7 +1255,8 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let client = WalletConnectPay::new(test_config(mock_server.uri()));
+        let client =
+            WalletConnectPay::new(test_config(mock_server.uri())).unwrap();
         let result = client
             .get_payment_options(
                 "pay_notfound".to_string(),
@@ -1272,7 +1286,8 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let client = WalletConnectPay::new(test_config(mock_server.uri()));
+        let client =
+            WalletConnectPay::new(test_config(mock_server.uri())).unwrap();
         let result = client
             .get_payment_options(
                 "pay_expired".to_string(),
@@ -1377,7 +1392,8 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let client = WalletConnectPay::new(test_config(mock_server.uri()));
+        let client =
+            WalletConnectPay::new(test_config(mock_server.uri())).unwrap();
         let response = client
             .get_payment_options(
                 "pay_123".to_string(),
@@ -1458,7 +1474,8 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let client = WalletConnectPay::new(test_config(mock_server.uri()));
+        let client =
+            WalletConnectPay::new(test_config(mock_server.uri())).unwrap();
         client
             .get_payment_options(
                 "pay_123".to_string(),
@@ -1503,7 +1520,8 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let client = WalletConnectPay::new(test_config(mock_server.uri()));
+        let client =
+            WalletConnectPay::new(test_config(mock_server.uri())).unwrap();
         // Call without populating cache first - should call fetch
         let actions = client
             .get_required_payment_actions(
@@ -1526,7 +1544,8 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let client = WalletConnectPay::new(test_config(mock_server.uri()));
+        let client =
+            WalletConnectPay::new(test_config(mock_server.uri())).unwrap();
         let result = client
             .get_required_payment_actions(
                 "pay_789".to_string(),
@@ -1554,7 +1573,8 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let client = WalletConnectPay::new(test_config(mock_server.uri()));
+        let client =
+            WalletConnectPay::new(test_config(mock_server.uri())).unwrap();
         let response = client
             .confirm_payment(
                 "pay_123".to_string(),
@@ -1596,7 +1616,8 @@ mod tests {
             )
             .mount(&mock_server)
             .await;
-        let client = WalletConnectPay::new(test_config(mock_server.uri()));
+        let client =
+            WalletConnectPay::new(test_config(mock_server.uri())).unwrap();
         let response = client
             .confirm_payment(
                 "pay_123".to_string(),
@@ -1633,7 +1654,8 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let client = WalletConnectPay::new(test_config(mock_server.uri()));
+        let client =
+            WalletConnectPay::new(test_config(mock_server.uri())).unwrap();
         let result = client
             .get_payment_options(
                 "pay_headers".to_string(),
@@ -1680,7 +1702,7 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let client = WalletConnectPay::new(custom_config);
+        let client = WalletConnectPay::new(custom_config).unwrap();
         let result = client
             .confirm_payment(
                 "pay_custom".to_string(),
@@ -1723,7 +1745,8 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let client = WalletConnectPay::new(test_config(mock_server.uri()));
+        let client =
+            WalletConnectPay::new(test_config(mock_server.uri())).unwrap();
         let response = client
             .get_payment_options(
                 "pay_123".to_string(),
@@ -1764,7 +1787,8 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let client = WalletConnectPay::new(test_config(mock_server.uri()));
+        let client =
+            WalletConnectPay::new(test_config(mock_server.uri())).unwrap();
         assert!(client.initialized_event_sent.get().is_none());
 
         client

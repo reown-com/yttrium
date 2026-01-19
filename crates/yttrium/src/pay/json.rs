@@ -1,4 +1,4 @@
-use super::{CollectDataFieldResult, SdkConfig, WalletConnectPay};
+use super::{CollectDataFieldResult, ConfigError, SdkConfig, WalletConnectPay};
 
 #[derive(Debug, thiserror::Error)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Error))]
@@ -7,12 +7,20 @@ pub enum PayJsonError {
     JsonParse(String),
     #[error("JSON serialize error: {0}")]
     JsonSerialize(String),
+    #[error("Configuration error: {0}")]
+    Config(String),
     #[error("Payment options error: {0}")]
     PaymentOptions(String),
     #[error("Payment request error: {0}")]
     PaymentRequest(String),
     #[error("Confirm payment error: {0}")]
     ConfirmPayment(String),
+}
+
+impl From<ConfigError> for PayJsonError {
+    fn from(e: ConfigError) -> Self {
+        PayJsonError::Config(e.to_string())
+    }
 }
 
 #[derive(Debug, serde::Deserialize)]
@@ -62,7 +70,7 @@ impl WalletConnectPayJson {
     pub fn new(sdk_config: String) -> Result<Self, PayJsonError> {
         let config: SdkConfig = serde_json::from_str(&sdk_config)
             .map_err(|e| PayJsonError::JsonParse(e.to_string()))?;
-        Ok(Self { client: WalletConnectPay::new(config) })
+        Ok(Self { client: WalletConnectPay::new(config)? })
     }
 
     /// Get payment options for a payment link

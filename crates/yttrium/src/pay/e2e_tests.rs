@@ -231,7 +231,7 @@ async fn e2e_payment_options_only() {
     );
     println!("Gateway URL: {}", payment.gateway_url);
 
-    let pay_client = WalletConnectPay::new(test_sdk_config());
+    let pay_client = WalletConnectPay::new(test_sdk_config()).unwrap();
     let accounts = vec![wallet.caip10_account(CHAIN_BASE)];
 
     let response = pay_client
@@ -277,7 +277,7 @@ async fn e2e_payment_happy_path() {
     println!("Gateway URL: {}", payment.gateway_url);
 
     // Step 2: Get payment options
-    let pay_client = WalletConnectPay::new(test_sdk_config());
+    let pay_client = WalletConnectPay::new(test_sdk_config()).unwrap();
     let accounts = vec![
         wallet.caip10_account(CHAIN_BASE),
         wallet.caip10_account(CHAIN_POLYGON),
