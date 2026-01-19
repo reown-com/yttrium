@@ -222,7 +222,7 @@ where
 #[serde(rename_all = "camelCase")]
 pub struct SdkConfig {
     pub base_url: String,
-    pub project_id: String,
+    pub project_id: Option<String>,
     pub sdk_name: String,
     pub sdk_version: String,
     pub sdk_platform: String,
@@ -911,10 +911,14 @@ impl WalletConnectPay {
         error: &E,
         payment_id: &str,
     ) {
+        // Skip error reporting if project_id is not configured
+        let Some(ref project_id) = self.config.project_id else {
+            return;
+        };
         error_reporting::report_error(
             self.error_http_client(),
             &self.config.bundle_id,
-            &self.config.project_id,
+            project_id,
             &self.config.sdk_name,
             &self.config.sdk_version,
             error_reporting::error_type_name(error),
@@ -927,7 +931,7 @@ impl WalletConnectPay {
         observability::send_trace(
             self.error_http_client(),
             &self.config.bundle_id,
-            &self.config.project_id,
+            self.config.project_id.as_deref().unwrap_or(""),
             self.config.api_key.as_deref().unwrap_or(""),
             self.config.app_id.as_deref().unwrap_or(""),
             &self.client_id,
@@ -1171,7 +1175,7 @@ mod tests {
     fn test_config(base_url: String) -> SdkConfig {
         SdkConfig {
             base_url,
-            project_id: "test-project-id".to_string(),
+            project_id: Some("test-project-id".to_string()),
             sdk_name: "test-sdk".to_string(),
             sdk_version: "1.0.0".to_string(),
             sdk_platform: "test".to_string(),
@@ -1679,7 +1683,7 @@ mod tests {
 
         let custom_config = SdkConfig {
             base_url: mock_server.uri(),
-            project_id: "my-custom-project-id".to_string(),
+            project_id: Some("my-custom-project-id".to_string()),
             sdk_name: "my-app".to_string(),
             sdk_version: "2.5.0".to_string(),
             sdk_platform: "ios".to_string(),

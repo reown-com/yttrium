@@ -191,7 +191,7 @@ mod tests {
     fn test_config(base_url: String) -> SdkConfig {
         SdkConfig {
             base_url,
-            project_id: "test-project-id".to_string(),
+            project_id: Some("test-project-id".to_string()),
             sdk_name: "test-sdk".to_string(),
             sdk_version: "1.0.0".to_string(),
             sdk_platform: "test".to_string(),
