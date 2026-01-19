@@ -252,7 +252,7 @@ mod tests {
             WalletConnectPayJson::new(test_config_json(&mock_server.uri()))
                 .unwrap();
 
-        let request_json = r#"{"paymentLink": "https://pay.example.com/pay_json_123", "accounts": ["eip155:8453:0xabc"]}"#;
+        let request_json = r#"{"paymentLink": "https://pay.walletconnect.com/pay_json_123", "accounts": ["eip155:8453:0xabc"]}"#;
         let result = client.get_payment_options(request_json.to_string()).await;
 
         assert!(result.is_ok());
