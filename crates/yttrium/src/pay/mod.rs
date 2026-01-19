@@ -1002,7 +1002,10 @@ fn extract_payment_id(
     }
 
     fn get_last_path_segment(url: &Url) -> Option<String> {
-        url.path_segments()?.next_back().filter(|s| !s.is_empty()).map(String::from)
+        url.path_segments()?
+            .next_back()
+            .filter(|s| !s.is_empty())
+            .map(String::from)
     }
 
     fn extract_from_wc_pay_url(url: &Url) -> Option<String> {
