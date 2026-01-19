@@ -507,7 +507,7 @@ use std::sync::{OnceLock, RwLock};
 
 /// Applies common SDK config headers to any progenitor-generated request builder
 macro_rules! with_sdk_config {
-    ($builder:expr, $config:expr) => {{
+    ($builder:expr, $config:expr, $client_id:expr) => {{
         let mut builder = $builder
             .sdk_name(&$config.sdk_name)
             .sdk_version(&$config.sdk_version)
@@ -517,9 +517,8 @@ macro_rules! with_sdk_config {
         }
         if let Some(ref app_id) = $config.app_id {
             builder = builder.app_id(app_id);
-        }
-        if let Some(ref client_id) = $config.client_id {
-            builder = builder.client_id(client_id);
+            // App-Id requires Client-Id to also be set
+            builder = builder.client_id($client_id);
         }
         builder
     }};
@@ -630,7 +629,8 @@ impl WalletConnectPay {
         let response = with_retry(|| async {
             with_sdk_config!(
                 self.client().gateway_get_payment_options(),
-                &self.config
+                &self.config,
+                &self.client_id
             )
             .id(&payment_id)
             .include_payment_info(include_payment_info)
@@ -821,7 +821,8 @@ impl WalletConnectPay {
         };
         let mut req = with_sdk_config!(
             self.client().confirm_payment_handler(),
-            &self.config
+            &self.config,
+            &self.client_id
         )
         .id(&payment_id)
         .body(body.clone());
@@ -966,11 +967,15 @@ impl WalletConnectPay {
         let body =
             types::FetchRequest { option_id: option_id.to_string(), data };
         let response = with_retry(|| async {
-            with_sdk_config!(self.client().fetch_handler(), &self.config)
-                .id(payment_id)
-                .body(body.clone())
-                .send()
-                .await
+            with_sdk_config!(
+                self.client().fetch_handler(),
+                &self.config,
+                &self.client_id
+            )
+            .id(payment_id)
+            .body(body.clone())
+            .send()
+            .await
         })
         .await?;
         Ok(response.into_inner().actions)
@@ -983,7 +988,8 @@ impl WalletConnectPay {
     ) -> Result<types::GetPaymentStatusResponse, PayError> {
         let mut req = with_sdk_config!(
             self.client().gateway_get_payment_status(),
-            &self.config
+            &self.config,
+            &self.client_id
         )
         .id(&payment_id);
         if let Some(ms) = max_poll_ms {
