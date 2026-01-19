@@ -1023,7 +1023,7 @@ impl WalletConnectPay {
 fn extract_payment_id(
     payment_link: &str,
 ) -> Result<String, GetPaymentOptionsError> {
-    const WC_PAY_HOST: &str = "pay.walletconnect.com";
+    const WC_PAY_HOST_SUFFIX: &str = "pay.walletconnect.com";
 
     fn url_decode(s: &str) -> String {
         urlencoding::decode(s)
@@ -1049,6 +1049,13 @@ fn extract_payment_id(
         get_query_param(url, "pid").or_else(|| get_last_path_segment(url))
     }
 
+    /// Check if the host is a WalletConnect Pay host (production or staging)
+    /// Matches: pay.walletconnect.com, staging.pay.walletconnect.com, dev.pay.walletconnect.com
+    fn is_wc_pay_host(host: Option<&str>) -> bool {
+        host.map(|h| h == WC_PAY_HOST_SUFFIX || h.ends_with(&format!(".{}", WC_PAY_HOST_SUFFIX)))
+            .unwrap_or(false)
+    }
+
     fn process_url(url_str: &str) -> Option<String> {
         let url = Url::parse(url_str).ok()?;
 
@@ -1056,14 +1063,14 @@ fn extract_payment_id(
             "wc" => {
                 let pay_url_str = get_query_param(&url, "pay")?;
                 let pay_url = Url::parse(&pay_url_str).ok()?;
-                if pay_url.host_str() == Some(WC_PAY_HOST) {
+                if is_wc_pay_host(pay_url.host_str()) {
                     extract_from_wc_pay_url(&pay_url)
                 } else {
                     Some(urlencoding::encode(&pay_url_str).into_owned())
                 }
             }
             "http" | "https" => {
-                if url.host_str() == Some(WC_PAY_HOST) {
+                if is_wc_pay_host(url.host_str()) {
                     extract_from_wc_pay_url(&url)
                 } else {
                     Some(urlencoding::encode(url_str).into_owned())
@@ -1421,6 +1428,33 @@ mod tests {
         assert_eq!(
             extract_payment_id("wc:abc123@2?relay-protocol=irn&symKey=xyz&pay=https%3A%2F%2Fpay.walletconnect.com%2F%3Fpid%3Dpay_03a2ecc101KEVQWPKPJ3TP47E1PBKSSV5Y").unwrap(),
             "pay_03a2ecc101KEVQWPKPJ3TP47E1PBKSSV5Y"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_extract_payment_id_staging_url() {
+        // Staging URL should work the same as production
+        assert_eq!(
+            extract_payment_id("https://staging.pay.walletconnect.com/?pid=pay_staging123").unwrap(),
+            "pay_staging123"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_extract_payment_id_wc_uri_with_staging_pay_param() {
+        // WC URI with staging pay URL should extract payment ID correctly
+        assert_eq!(
+            extract_payment_id("wc:abc123@2?relay-protocol=irn&symKey=xyz&pay=https%3A%2F%2Fstaging.pay.walletconnect.com%2F%3Fpid%3Dpay_staging456").unwrap(),
+            "pay_staging456"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_extract_payment_id_dev_url() {
+        // Dev URL should also work
+        assert_eq!(
+            extract_payment_id("https://dev.pay.walletconnect.com/?pid=pay_dev789").unwrap(),
+            "pay_dev789"
         );
     }
 
