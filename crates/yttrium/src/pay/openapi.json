@@ -30,7 +30,23 @@
           {
             "name": "Api-Key",
             "in": "header",
-            "required": true,
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "App-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Client-Id",
+            "in": "header",
+            "required": false,
             "schema": {
               "type": "string"
             }
@@ -38,7 +54,7 @@
           {
             "name": "Sdk-Name",
             "in": "header",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "string"
             }
@@ -46,7 +62,7 @@
           {
             "name": "Sdk-Version",
             "in": "header",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "string"
             }
@@ -54,7 +70,7 @@
           {
             "name": "Sdk-Platform",
             "in": "header",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "string"
             }
@@ -129,13 +145,29 @@
           "Gateway"
         ],
         "summary": "Confirm a payment",
-        "description": "This endpoint confirms a payment and submits it to the blockchain for processing.",
+        "description": "This endpoint confirms a payment and submits it to the blockchain for processing.\nThis is the COMMITMENT point - after this succeeds, the payment is durable.",
         "operationId": "confirm_payment_handler",
         "parameters": [
           {
             "name": "Api-Key",
             "in": "header",
-            "required": true,
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "App-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Client-Id",
+            "in": "header",
+            "required": false,
             "schema": {
               "type": "string"
             }
@@ -143,7 +175,7 @@
           {
             "name": "Sdk-Name",
             "in": "header",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "string"
             }
@@ -151,7 +183,7 @@
           {
             "name": "Sdk-Version",
             "in": "header",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "string"
             }
@@ -159,7 +191,7 @@
           {
             "name": "Sdk-Platform",
             "in": "header",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "string"
             }
@@ -262,7 +294,23 @@
           {
             "name": "Api-Key",
             "in": "header",
-            "required": true,
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "App-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Client-Id",
+            "in": "header",
+            "required": false,
             "schema": {
               "type": "string"
             }
@@ -270,7 +318,7 @@
           {
             "name": "Sdk-Name",
             "in": "header",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "string"
             }
@@ -278,7 +326,7 @@
           {
             "name": "Sdk-Version",
             "in": "header",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "string"
             }
@@ -286,7 +334,7 @@
           {
             "name": "Sdk-Platform",
             "in": "header",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "string"
             }
@@ -377,7 +425,23 @@
           {
             "name": "Api-Key",
             "in": "header",
-            "required": true,
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "App-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Client-Id",
+            "in": "header",
+            "required": false,
             "schema": {
               "type": "string"
             }
@@ -385,7 +449,7 @@
           {
             "name": "Sdk-Name",
             "in": "header",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "string"
             }
@@ -393,7 +457,7 @@
           {
             "name": "Sdk-Version",
             "in": "header",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "string"
             }
@@ -401,7 +465,7 @@
           {
             "name": "Sdk-Platform",
             "in": "header",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "string"
             }
@@ -502,7 +566,23 @@
           {
             "name": "Api-Key",
             "in": "header",
-            "required": true,
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "App-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Client-Id",
+            "in": "header",
+            "required": false,
             "schema": {
               "type": "string"
             }
@@ -510,7 +590,7 @@
           {
             "name": "Sdk-Name",
             "in": "header",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "string"
             }
@@ -518,7 +598,7 @@
           {
             "name": "Sdk-Version",
             "in": "header",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "string"
             }
@@ -526,7 +606,7 @@
           {
             "name": "Sdk-Platform",
             "in": "header",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "string"
             }
@@ -692,6 +772,7 @@
             "assetSymbol": "USDC",
             "decimals": 6,
             "iconUrl": "https://assets.walletconnect.com/usdc.png",
+            "networkIconUrl": "https://assets.walletconnect.com/base.png",
             "networkName": "Base"
           },
           "unit": "caip19/eip155:8453/erc20:0xUSDC...",
@@ -725,6 +806,11 @@
             "nullable": true,
             "description": "URL of the icon of the asset (if token)"
           },
+          "networkIconUrl": {
+            "type": "string",
+            "nullable": true,
+            "description": "URL of the icon of the network (if token)"
+          },
           "networkName": {
             "type": "string",
             "nullable": true,
@@ -736,6 +822,7 @@
           "assetSymbol": "USDC",
           "decimals": 6,
           "iconUrl": "https://assets.walletconnect.com/usdc.png",
+          "networkIconUrl": "https://assets.walletconnect.com/base.png",
           "networkName": "Base"
         }
       },
@@ -797,7 +884,7 @@
           "fields": [
             {
               "id": "fullName",
-              "name": "First name",
+              "name": "Full name",
               "required": true,
               "type": "text"
             },
@@ -838,7 +925,7 @@
         },
         "example": {
           "id": "fullName",
-          "name": "First name",
+          "name": "Full name",
           "required": true,
           "type": "text"
         }
@@ -933,7 +1020,9 @@
           "optionId": "opt_123",
           "results": [
             {
-              "data": ["0x123"],
+              "data": [
+                "0x123"
+              ],
               "type": "walletRpc"
             }
           ]
@@ -991,7 +1080,9 @@
           }
         ],
         "example": {
-          "data": ["0x123"],
+          "data": [
+            "0x123"
+          ],
           "type": "walletRpc"
         }
       },
@@ -1011,14 +1102,18 @@
           "missing_api_key",
           "missing_merchant_api_key",
           "missing_merchant_id",
-          "missing_sdk_name",
-          "missing_sdk_version",
-          "missing_sdk_platform",
           "header_not_ascii",
           "not_sandbox_api_key",
           "merchant_not_found",
           "merchant_exists",
-          "api_key_not_found"
+          "api_key_not_found",
+          "partner_not_found",
+          "wallet_not_found",
+          "missing_app_id",
+          "missing_client_id",
+          "invalid_app_id",
+          "conflicting_auth_headers",
+          "missing_auth_headers"
         ]
       },
       "ErrorResponse": {
@@ -1141,7 +1236,7 @@
             "fields": [
               {
                 "id": "fullName",
-                "name": "First name",
+                "name": "Full name",
                 "required": true,
                 "type": "text"
               },
@@ -1160,6 +1255,7 @@
                 "assetSymbol": "USDC",
                 "decimals": 6,
                 "iconUrl": "https://assets.walletconnect.com/usdc.png",
+                "networkIconUrl": "https://assets.walletconnect.com/base.png",
                 "networkName": "Base"
               },
               "unit": "caip19/eip155:8453/erc20:0xUSDC...",
@@ -1179,6 +1275,7 @@
           },
           "options": [
             {
+              "account": "eip155:1:0x0000000000000000000000000000000000000000",
               "actions": [
                 {
                   "data": {
@@ -1198,6 +1295,7 @@
                   "assetSymbol": "USDC",
                   "decimals": 6,
                   "iconUrl": "https://assets.walletconnect.com/usdc.png",
+                  "networkIconUrl": "https://assets.walletconnect.com/base.png",
                   "networkName": "Base"
                 },
                 "unit": "caip19/eip155:8453/erc20:0xUSDC...",
@@ -1249,6 +1347,7 @@
               "assetSymbol": "USDC",
               "decimals": 6,
               "iconUrl": "https://assets.walletconnect.com/usdc.png",
+              "networkIconUrl": "https://assets.walletconnect.com/base.png",
               "networkName": "Base"
             },
             "unit": "caip19/eip155:8453/erc20:0xUSDC...",
@@ -1321,11 +1420,16 @@
         "type": "object",
         "required": [
           "id",
+          "account",
           "amount",
           "etaS",
           "actions"
         ],
         "properties": {
+          "account": {
+            "type": "string",
+            "description": "The account to use for the option"
+          },
           "actions": {
             "type": "array",
             "items": {
@@ -1349,6 +1453,7 @@
           }
         },
         "example": {
+          "account": "eip155:1:0x0000000000000000000000000000000000000000",
           "actions": [
             {
               "data": {
@@ -1368,6 +1473,7 @@
               "assetSymbol": "USDC",
               "decimals": 6,
               "iconUrl": "https://assets.walletconnect.com/usdc.png",
+              "networkIconUrl": "https://assets.walletconnect.com/base.png",
               "networkName": "Base"
             },
             "unit": "caip19/eip155:8453/erc20:0xUSDC...",
@@ -1423,10 +1529,17 @@
         "in": "header",
         "name": "Api-Key"
       },
-      "Internal Api Key": {
+      "ApiKey": {
         "type": "apiKey",
         "in": "header",
-        "name": "Api-Key"
+        "name": "Api-Key",
+        "description": "Private API key for wallet authentication"
+      },
+      "AppId": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "App-Id",
+        "description": "Public App ID for wallet authentication. When using this auth mode, the Client-Id header is also required."
       }
     }
   },
@@ -1435,7 +1548,10 @@
       "API Key": []
     },
     {
-      "Internal Api Key": []
+      "ApiKey": []
+    },
+    {
+      "AppId": []
     }
   ],
   "tags": [

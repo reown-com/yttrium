@@ -29,6 +29,13 @@ macro_rules! pay_error {
 
 #[derive(Debug, thiserror::Error)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Error))]
+pub enum ConfigError {
+    #[error("Invalid configuration: either api_key or app_id must be provided")]
+    MissingAuth,
+}
+
+#[derive(Debug, thiserror::Error)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Error))]
 pub enum PayError {
     #[error("HTTP error: {0}")]
     Http(String),
@@ -215,12 +222,13 @@ where
 #[serde(rename_all = "camelCase")]
 pub struct SdkConfig {
     pub base_url: String,
-    pub project_id: String,
-    pub api_key: String,
+    pub project_id: Option<String>,
     pub sdk_name: String,
     pub sdk_version: String,
     pub sdk_platform: String,
     pub bundle_id: String,
+    pub api_key: Option<String>,
+    pub app_id: Option<String>,
     pub client_id: Option<String>,
 }
 
@@ -370,6 +378,7 @@ pub struct AmountDisplay {
     pub asset_name: String,
     pub decimals: i64,
     pub icon_url: Option<String>,
+    pub network_icon_url: Option<String>,
     pub network_name: Option<String>,
 }
 
@@ -380,6 +389,7 @@ impl From<types::AmountDisplay> for AmountDisplay {
             asset_name: d.asset_name,
             decimals: d.decimals,
             icon_url: d.icon_url,
+            network_icon_url: d.network_icon_url,
             network_name: d.network_name,
         }
     }
@@ -405,6 +415,7 @@ impl From<types::Amount> for PayAmount {
 #[serde(rename_all = "camelCase")]
 pub struct PaymentOption {
     pub id: String,
+    pub account: String,
     pub amount: PayAmount,
     pub eta_s: i64,
     pub actions: Vec<Action>,
@@ -414,6 +425,7 @@ impl From<types::PaymentOption> for PaymentOption {
     fn from(o: types::PaymentOption) -> Self {
         Self {
             id: o.id,
+            account: o.account,
             amount: o.amount.into(),
             eta_s: o.eta_s,
             actions: o
@@ -505,13 +517,21 @@ use {
 
 /// Applies common SDK config headers to any progenitor-generated request builder
 macro_rules! with_sdk_config {
-    ($builder:expr, $config:expr) => {
-        $builder
-            .api_key(&$config.api_key)
+    ($builder:expr, $config:expr, $client_id:expr) => {{
+        let mut builder = $builder
             .sdk_name(&$config.sdk_name)
             .sdk_version(&$config.sdk_version)
-            .sdk_platform(&$config.sdk_platform)
-    };
+            .sdk_platform(&$config.sdk_platform);
+        if let Some(ref api_key) = $config.api_key {
+            builder = builder.api_key(api_key);
+        }
+        if let Some(ref app_id) = $config.app_id {
+            builder = builder.app_id(app_id);
+            // App-Id requires Client-Id to also be set
+            builder = builder.client_id($client_id);
+        }
+        builder
+    }};
 }
 
 #[derive(Debug, Clone)]
@@ -572,19 +592,24 @@ impl WalletConnectPay {
 #[cfg_attr(feature = "uniffi", uniffi::export(async_runtime = "tokio"))]
 impl WalletConnectPay {
     #[cfg_attr(feature = "uniffi", uniffi::constructor)]
-    pub fn new(config: SdkConfig) -> Self {
+    pub fn new(config: SdkConfig) -> Result<Self, ConfigError> {
+        // Validate: either api_key or app_id must be provided
+        if config.api_key.is_none() && config.app_id.is_none() {
+            return Err(ConfigError::MissingAuth);
+        }
+
         let client_id = config
             .client_id
             .clone()
             .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
-        Self {
+        Ok(Self {
             client: OnceLock::new(),
             config,
             cached_options: RwLock::new(Vec::new()),
             error_http_client: OnceLock::new(),
             initialized_event_sent: OnceLock::new(),
             client_id,
-        }
+        })
     }
 
     /// Get payment options for given accounts
@@ -619,7 +644,8 @@ impl WalletConnectPay {
         let response = with_retry(|| async {
             with_sdk_config!(
                 self.client().gateway_get_payment_options(),
-                &self.config
+                &self.config,
+                &self.client_id
             )
             .id(&payment_id)
             .include_payment_info(include_payment_info)
@@ -810,7 +836,8 @@ impl WalletConnectPay {
         };
         let mut req = with_sdk_config!(
             self.client().confirm_payment_handler(),
-            &self.config
+            &self.config,
+            &self.client_id
         )
         .id(&payment_id)
         .body(body.clone());
@@ -887,10 +914,14 @@ impl WalletConnectPay {
         error: &E,
         payment_id: &str,
     ) {
+        // Skip error reporting if project_id is not configured
+        let Some(ref project_id) = self.config.project_id else {
+            return;
+        };
         error_reporting::report_error(
             self.error_http_client(),
             &self.config.bundle_id,
-            &self.config.project_id,
+            project_id,
             &self.config.sdk_name,
             &self.config.sdk_version,
             error_reporting::error_type_name(error),
@@ -903,8 +934,9 @@ impl WalletConnectPay {
         observability::send_trace(
             self.error_http_client(),
             &self.config.bundle_id,
-            &self.config.project_id,
-            &self.config.api_key,
+            self.config.project_id.as_deref().unwrap_or(""),
+            self.config.api_key.as_deref().unwrap_or(""),
+            self.config.app_id.as_deref().unwrap_or(""),
             &self.client_id,
             &self.config.sdk_name,
             &self.config.sdk_version,
@@ -954,11 +986,15 @@ impl WalletConnectPay {
         let body =
             types::FetchRequest { option_id: option_id.to_string(), data };
         let response = with_retry(|| async {
-            with_sdk_config!(self.client().fetch_handler(), &self.config)
-                .id(payment_id)
-                .body(body.clone())
-                .send()
-                .await
+            with_sdk_config!(
+                self.client().fetch_handler(),
+                &self.config,
+                &self.client_id
+            )
+            .id(payment_id)
+            .body(body.clone())
+            .send()
+            .await
         })
         .await?;
         Ok(response.into_inner().actions)
@@ -971,7 +1007,8 @@ impl WalletConnectPay {
     ) -> Result<types::GetPaymentStatusResponse, PayError> {
         let mut req = with_sdk_config!(
             self.client().gateway_get_payment_status(),
-            &self.config
+            &self.config,
+            &self.client_id
         )
         .id(&payment_id);
         if let Some(ms) = max_poll_ms {
@@ -1143,12 +1180,13 @@ mod tests {
     fn test_config(base_url: String) -> SdkConfig {
         SdkConfig {
             base_url,
-            project_id: "test-project-id".to_string(),
-            api_key: "test-api-key".to_string(),
+            project_id: Some("test-project-id".to_string()),
             sdk_name: "test-sdk".to_string(),
             sdk_version: "1.0.0".to_string(),
             sdk_platform: "test".to_string(),
             bundle_id: "com.test.app".to_string(),
+            api_key: Some("test-api-key".to_string()),
+            app_id: None,
             client_id: None,
         }
     }
@@ -1161,6 +1199,7 @@ mod tests {
             "options": [
                 {
                     "id": "opt_1",
+                    "account": "eip155:8453:0x123",
                     "amount": {
                         "unit": "caip19/eip155:8453/erc20:0xUSDC",
                         "value": "1000000",
@@ -1186,7 +1225,8 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let client = WalletConnectPay::new(test_config(mock_server.uri()));
+        let client =
+            WalletConnectPay::new(test_config(mock_server.uri())).unwrap();
         let result = client
             .get_payment_options(
                 "https://pay.walletconnect.com/pay_123".to_string(),
@@ -1224,7 +1264,8 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let client = WalletConnectPay::new(test_config(mock_server.uri()));
+        let client =
+            WalletConnectPay::new(test_config(mock_server.uri())).unwrap();
         let result = client
             .get_payment_options(
                 "pay_notfound".to_string(),
@@ -1254,7 +1295,8 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let client = WalletConnectPay::new(test_config(mock_server.uri()));
+        let client =
+            WalletConnectPay::new(test_config(mock_server.uri())).unwrap();
         let result = client
             .get_payment_options(
                 "pay_expired".to_string(),
@@ -1398,6 +1440,7 @@ mod tests {
             "options": [
                 {
                     "id": "opt_1",
+                    "account": "eip155:8453:0x123",
                     "amount": {
                         "unit": "caip19/eip155:8453/erc20:0xUSDC",
                         "value": "1000000",
@@ -1432,7 +1475,8 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let client = WalletConnectPay::new(test_config(mock_server.uri()));
+        let client =
+            WalletConnectPay::new(test_config(mock_server.uri())).unwrap();
         let response = client
             .get_payment_options(
                 "pay_123".to_string(),
@@ -1463,6 +1507,7 @@ mod tests {
             "options": [
                 {
                     "id": "opt_1",
+                    "account": "eip155:8453:0x123",
                     "amount": {
                         "unit": "caip19/eip155:8453/erc20:0xUSDC",
                         "value": "1000000",
@@ -1512,7 +1557,8 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let client = WalletConnectPay::new(test_config(mock_server.uri()));
+        let client =
+            WalletConnectPay::new(test_config(mock_server.uri())).unwrap();
         client
             .get_payment_options(
                 "pay_123".to_string(),
@@ -1557,7 +1603,8 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let client = WalletConnectPay::new(test_config(mock_server.uri()));
+        let client =
+            WalletConnectPay::new(test_config(mock_server.uri())).unwrap();
         // Call without populating cache first - should call fetch
         let actions = client
             .get_required_payment_actions(
@@ -1580,7 +1627,8 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let client = WalletConnectPay::new(test_config(mock_server.uri()));
+        let client =
+            WalletConnectPay::new(test_config(mock_server.uri())).unwrap();
         let result = client
             .get_required_payment_actions(
                 "pay_789".to_string(),
@@ -1608,7 +1656,8 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let client = WalletConnectPay::new(test_config(mock_server.uri()));
+        let client =
+            WalletConnectPay::new(test_config(mock_server.uri())).unwrap();
         let response = client
             .confirm_payment(
                 "pay_123".to_string(),
@@ -1650,7 +1699,8 @@ mod tests {
             )
             .mount(&mock_server)
             .await;
-        let client = WalletConnectPay::new(test_config(mock_server.uri()));
+        let client =
+            WalletConnectPay::new(test_config(mock_server.uri())).unwrap();
         let response = client
             .confirm_payment(
                 "pay_123".to_string(),
@@ -1687,7 +1737,8 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let client = WalletConnectPay::new(test_config(mock_server.uri()));
+        let client =
+            WalletConnectPay::new(test_config(mock_server.uri())).unwrap();
         let result = client
             .get_payment_options(
                 "pay_headers".to_string(),
@@ -1711,12 +1762,13 @@ mod tests {
 
         let custom_config = SdkConfig {
             base_url: mock_server.uri(),
-            project_id: "my-custom-project-id".to_string(),
-            api_key: "my-custom-api-key".to_string(),
+            project_id: Some("my-custom-project-id".to_string()),
             sdk_name: "my-app".to_string(),
             sdk_version: "2.5.0".to_string(),
             sdk_platform: "ios".to_string(),
             bundle_id: "com.custom.app".to_string(),
+            api_key: Some("my-custom-api-key".to_string()),
+            app_id: Some("custom-app-id".to_string()),
             client_id: Some("custom-client-id".to_string()),
         };
 
@@ -1733,7 +1785,7 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let client = WalletConnectPay::new(custom_config);
+        let client = WalletConnectPay::new(custom_config).unwrap();
         let result = client
             .confirm_payment(
                 "pay_custom".to_string(),
@@ -1776,7 +1828,8 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let client = WalletConnectPay::new(test_config(mock_server.uri()));
+        let client =
+            WalletConnectPay::new(test_config(mock_server.uri())).unwrap();
         let response = client
             .get_payment_options(
                 "pay_123".to_string(),
@@ -1817,7 +1870,8 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let client = WalletConnectPay::new(test_config(mock_server.uri()));
+        let client =
+            WalletConnectPay::new(test_config(mock_server.uri())).unwrap();
         assert!(client.initialized_event_sent.get().is_none());
 
         client

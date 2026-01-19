@@ -204,13 +204,13 @@ impl TestWallet {
 fn test_sdk_config() -> SdkConfig {
     SdkConfig {
         base_url: POS_API_BASE_URL.to_string(),
-        project_id: std::env::var("REOWN_PROJECT_ID")
-            .unwrap_or_else(|_| "test-project".to_string()),
-        api_key: get_merchant_api_key(),
+        project_id: std::env::var("REOWN_PROJECT_ID").ok(),
         sdk_name: "yttrium-e2e-test".to_string(),
         sdk_version: env!("CARGO_PKG_VERSION").to_string(),
         sdk_platform: "rust-tests".to_string(),
         bundle_id: "com.yttrium.e2e.tests".to_string(),
+        api_key: Some(get_merchant_api_key()),
+        app_id: None,
         client_id: None,
     }
 }
@@ -230,7 +230,7 @@ async fn e2e_payment_options_only() {
     );
     println!("Gateway URL: {}", payment.gateway_url);
 
-    let pay_client = WalletConnectPay::new(test_sdk_config());
+    let pay_client = WalletConnectPay::new(test_sdk_config()).unwrap();
     let accounts = vec![wallet.caip10_account(CHAIN_BASE)];
 
     let response = pay_client
@@ -276,7 +276,7 @@ async fn e2e_payment_happy_path() {
     println!("Gateway URL: {}", payment.gateway_url);
 
     // Step 2: Get payment options
-    let pay_client = WalletConnectPay::new(test_sdk_config());
+    let pay_client = WalletConnectPay::new(test_sdk_config()).unwrap();
     let accounts = vec![
         wallet.caip10_account(CHAIN_BASE),
         wallet.caip10_account(CHAIN_POLYGON),
