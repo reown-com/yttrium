@@ -780,9 +780,9 @@ open class WalletConnectPay: WalletConnectPayProtocol, @unchecked Sendable {
     public func uniffiCloneHandle() -> UInt64 {
         return try! rustCall { uniffi_yttrium_fn_clone_walletconnectpay(self.handle, $0) }
     }
-public convenience init(config: SdkConfig) {
+public convenience init(config: SdkConfig)throws  {
     let handle =
-        try! rustCall() {
+        try rustCallWithError(FfiConverterTypeConfigError_lift) {
     uniffi_yttrium_fn_constructor_walletconnectpay_new(
         FfiConverterTypeSdkConfig_lower(config),$0
     )
@@ -1166,15 +1166,17 @@ public struct AmountDisplay: Equatable, Hashable {
     public var assetName: String
     public var decimals: Int64
     public var iconUrl: String?
+    public var networkIconUrl: String?
     public var networkName: String?
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(assetSymbol: String, assetName: String, decimals: Int64, iconUrl: String?, networkName: String?) {
+    public init(assetSymbol: String, assetName: String, decimals: Int64, iconUrl: String?, networkIconUrl: String?, networkName: String?) {
         self.assetSymbol = assetSymbol
         self.assetName = assetName
         self.decimals = decimals
         self.iconUrl = iconUrl
+        self.networkIconUrl = networkIconUrl
         self.networkName = networkName
     }
 
@@ -1196,6 +1198,7 @@ public struct FfiConverterTypeAmountDisplay: FfiConverterRustBuffer {
                 assetName: FfiConverterString.read(from: &buf), 
                 decimals: FfiConverterInt64.read(from: &buf), 
                 iconUrl: FfiConverterOptionString.read(from: &buf), 
+                networkIconUrl: FfiConverterOptionString.read(from: &buf), 
                 networkName: FfiConverterOptionString.read(from: &buf)
         )
     }
@@ -1205,6 +1208,7 @@ public struct FfiConverterTypeAmountDisplay: FfiConverterRustBuffer {
         FfiConverterString.write(value.assetName, into: &buf)
         FfiConverterInt64.write(value.decimals, into: &buf)
         FfiConverterOptionString.write(value.iconUrl, into: &buf)
+        FfiConverterOptionString.write(value.networkIconUrl, into: &buf)
         FfiConverterOptionString.write(value.networkName, into: &buf)
     }
 }
@@ -1745,14 +1749,16 @@ public func FfiConverterTypePaymentInfo_lower(_ value: PaymentInfo) -> RustBuffe
 
 public struct PaymentOption: Equatable, Hashable {
     public var id: String
+    public var account: String
     public var amount: PayAmount
     public var etaS: Int64
     public var actions: [Action]
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(id: String, amount: PayAmount, etaS: Int64, actions: [Action]) {
+    public init(id: String, account: String, amount: PayAmount, etaS: Int64, actions: [Action]) {
         self.id = id
+        self.account = account
         self.amount = amount
         self.etaS = etaS
         self.actions = actions
@@ -1773,6 +1779,7 @@ public struct FfiConverterTypePaymentOption: FfiConverterRustBuffer {
         return
             try PaymentOption(
                 id: FfiConverterString.read(from: &buf), 
+                account: FfiConverterString.read(from: &buf), 
                 amount: FfiConverterTypePayAmount.read(from: &buf), 
                 etaS: FfiConverterInt64.read(from: &buf), 
                 actions: FfiConverterSequenceTypeAction.read(from: &buf)
@@ -1781,6 +1788,7 @@ public struct FfiConverterTypePaymentOption: FfiConverterRustBuffer {
 
     public static func write(_ value: PaymentOption, into buf: inout [UInt8]) {
         FfiConverterString.write(value.id, into: &buf)
+        FfiConverterString.write(value.account, into: &buf)
         FfiConverterTypePayAmount.write(value.amount, into: &buf)
         FfiConverterInt64.write(value.etaS, into: &buf)
         FfiConverterSequenceTypeAction.write(value.actions, into: &buf)
@@ -1865,24 +1873,26 @@ public func FfiConverterTypePaymentOptionsResponse_lower(_ value: PaymentOptions
 
 public struct SdkConfig: Equatable, Hashable {
     public var baseUrl: String
-    public var projectId: String
-    public var apiKey: String
+    public var projectId: String?
     public var sdkName: String
     public var sdkVersion: String
     public var sdkPlatform: String
     public var bundleId: String
+    public var apiKey: String?
+    public var appId: String?
     public var clientId: String?
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(baseUrl: String, projectId: String, apiKey: String, sdkName: String, sdkVersion: String, sdkPlatform: String, bundleId: String, clientId: String?) {
+    public init(baseUrl: String, projectId: String?, sdkName: String, sdkVersion: String, sdkPlatform: String, bundleId: String, apiKey: String?, appId: String?, clientId: String?) {
         self.baseUrl = baseUrl
         self.projectId = projectId
-        self.apiKey = apiKey
         self.sdkName = sdkName
         self.sdkVersion = sdkVersion
         self.sdkPlatform = sdkPlatform
         self.bundleId = bundleId
+        self.apiKey = apiKey
+        self.appId = appId
         self.clientId = clientId
     }
 
@@ -1901,24 +1911,26 @@ public struct FfiConverterTypeSdkConfig: FfiConverterRustBuffer {
         return
             try SdkConfig(
                 baseUrl: FfiConverterString.read(from: &buf), 
-                projectId: FfiConverterString.read(from: &buf), 
-                apiKey: FfiConverterString.read(from: &buf), 
+                projectId: FfiConverterOptionString.read(from: &buf), 
                 sdkName: FfiConverterString.read(from: &buf), 
                 sdkVersion: FfiConverterString.read(from: &buf), 
                 sdkPlatform: FfiConverterString.read(from: &buf), 
                 bundleId: FfiConverterString.read(from: &buf), 
+                apiKey: FfiConverterOptionString.read(from: &buf), 
+                appId: FfiConverterOptionString.read(from: &buf), 
                 clientId: FfiConverterOptionString.read(from: &buf)
         )
     }
 
     public static func write(_ value: SdkConfig, into buf: inout [UInt8]) {
         FfiConverterString.write(value.baseUrl, into: &buf)
-        FfiConverterString.write(value.projectId, into: &buf)
-        FfiConverterString.write(value.apiKey, into: &buf)
+        FfiConverterOptionString.write(value.projectId, into: &buf)
         FfiConverterString.write(value.sdkName, into: &buf)
         FfiConverterString.write(value.sdkVersion, into: &buf)
         FfiConverterString.write(value.sdkPlatform, into: &buf)
         FfiConverterString.write(value.bundleId, into: &buf)
+        FfiConverterOptionString.write(value.apiKey, into: &buf)
+        FfiConverterOptionString.write(value.appId, into: &buf)
         FfiConverterOptionString.write(value.clientId, into: &buf)
     }
 }
@@ -2058,6 +2070,74 @@ public func FfiConverterTypeCollectDataFieldType_lower(_ value: CollectDataField
     return FfiConverterTypeCollectDataFieldType.lower(value)
 }
 
+
+
+public enum ConfigError: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
+
+    
+    
+    case MissingAuth
+
+    
+
+    
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+    
+}
+
+#if compiler(>=6)
+extension ConfigError: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeConfigError: FfiConverterRustBuffer {
+    typealias SwiftType = ConfigError
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ConfigError {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+
+        
+
+        
+        case 1: return .MissingAuth
+
+         default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: ConfigError, into buf: inout [UInt8]) {
+        switch value {
+
+        
+
+        
+        
+        case .MissingAuth:
+            writeInt(&buf, Int32(1))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeConfigError_lift(_ buf: RustBuffer) throws -> ConfigError {
+    return try FfiConverterTypeConfigError.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeConfigError_lower(_ value: ConfigError) -> RustBuffer {
+    return FfiConverterTypeConfigError.lower(value)
+}
 
 
 public enum ConfirmPaymentError: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
@@ -2572,6 +2652,8 @@ public enum PayJsonError: Swift.Error, Equatable, Hashable, Foundation.Localized
     )
     case JsonSerialize(String
     )
+    case Config(String
+    )
     case PaymentOptions(String
     )
     case PaymentRequest(String
@@ -2611,13 +2693,16 @@ public struct FfiConverterTypePayJsonError: FfiConverterRustBuffer {
         case 2: return .JsonSerialize(
             try FfiConverterString.read(from: &buf)
             )
-        case 3: return .PaymentOptions(
+        case 3: return .Config(
             try FfiConverterString.read(from: &buf)
             )
-        case 4: return .PaymentRequest(
+        case 4: return .PaymentOptions(
             try FfiConverterString.read(from: &buf)
             )
-        case 5: return .ConfirmPayment(
+        case 5: return .PaymentRequest(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 6: return .ConfirmPayment(
             try FfiConverterString.read(from: &buf)
             )
 
@@ -2642,18 +2727,23 @@ public struct FfiConverterTypePayJsonError: FfiConverterRustBuffer {
             FfiConverterString.write(v1, into: &buf)
             
         
-        case let .PaymentOptions(v1):
+        case let .Config(v1):
             writeInt(&buf, Int32(3))
             FfiConverterString.write(v1, into: &buf)
             
         
-        case let .PaymentRequest(v1):
+        case let .PaymentOptions(v1):
             writeInt(&buf, Int32(4))
             FfiConverterString.write(v1, into: &buf)
             
         
-        case let .ConfirmPayment(v1):
+        case let .PaymentRequest(v1):
             writeInt(&buf, Int32(5))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .ConfirmPayment(v1):
+            writeInt(&buf, Int32(6))
             FfiConverterString.write(v1, into: &buf)
             
         }
@@ -4305,7 +4395,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_yttrium_checksum_method_walletconnectpayjson_get_required_payment_actions() != 40271) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_yttrium_checksum_constructor_walletconnectpay_new() != 2684) {
+    if (uniffi_yttrium_checksum_constructor_walletconnectpay_new() != 38488) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_yttrium_checksum_constructor_walletconnectpayjson_new() != 9334) {
