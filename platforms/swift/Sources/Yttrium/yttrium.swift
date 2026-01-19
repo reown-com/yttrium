@@ -1871,10 +1871,11 @@ public struct SdkConfig: Equatable, Hashable {
     public var sdkVersion: String
     public var sdkPlatform: String
     public var bundleId: String
+    public var clientId: String?
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(baseUrl: String, projectId: String, apiKey: String, sdkName: String, sdkVersion: String, sdkPlatform: String, bundleId: String) {
+    public init(baseUrl: String, projectId: String, apiKey: String, sdkName: String, sdkVersion: String, sdkPlatform: String, bundleId: String, clientId: String?) {
         self.baseUrl = baseUrl
         self.projectId = projectId
         self.apiKey = apiKey
@@ -1882,6 +1883,7 @@ public struct SdkConfig: Equatable, Hashable {
         self.sdkVersion = sdkVersion
         self.sdkPlatform = sdkPlatform
         self.bundleId = bundleId
+        self.clientId = clientId
     }
 
     
@@ -1904,7 +1906,8 @@ public struct FfiConverterTypeSdkConfig: FfiConverterRustBuffer {
                 sdkName: FfiConverterString.read(from: &buf), 
                 sdkVersion: FfiConverterString.read(from: &buf), 
                 sdkPlatform: FfiConverterString.read(from: &buf), 
-                bundleId: FfiConverterString.read(from: &buf)
+                bundleId: FfiConverterString.read(from: &buf), 
+                clientId: FfiConverterOptionString.read(from: &buf)
         )
     }
 
@@ -1916,6 +1919,7 @@ public struct FfiConverterTypeSdkConfig: FfiConverterRustBuffer {
         FfiConverterString.write(value.sdkVersion, into: &buf)
         FfiConverterString.write(value.sdkPlatform, into: &buf)
         FfiConverterString.write(value.bundleId, into: &buf)
+        FfiConverterOptionString.write(value.clientId, into: &buf)
     }
 }
 
