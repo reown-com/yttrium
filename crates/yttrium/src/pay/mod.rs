@@ -1026,7 +1026,7 @@ fn extract_payment_id(
     const WC_PAY_HOST: &str = "pay.walletconnect.com";
 
     fn is_wc_pay_host(host: Option<&str>) -> bool {
-        host.map_or(false, |h| {
+        host.is_some_and(|h| {
             h == WC_PAY_HOST || h.ends_with(".pay.walletconnect.com")
         })
     }
