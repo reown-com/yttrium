@@ -1025,6 +1025,12 @@ fn extract_payment_id(
 ) -> Result<String, GetPaymentOptionsError> {
     const WC_PAY_HOST: &str = "pay.walletconnect.com";
 
+    fn is_wc_pay_host(host: Option<&str>) -> bool {
+        host.is_some_and(|h| {
+            h == WC_PAY_HOST || h.ends_with(".pay.walletconnect.com")
+        })
+    }
+
     fn url_decode(s: &str) -> String {
         urlencoding::decode(s)
             .map(|c| c.into_owned())
@@ -1038,15 +1044,13 @@ fn extract_payment_id(
             .filter(|v| !v.is_empty())
     }
 
-    fn get_last_path_segment(url: &Url) -> Option<String> {
-        url.path_segments()?
-            .next_back()
-            .filter(|s| !s.is_empty())
-            .map(String::from)
+    fn get_path(url: &Url) -> Option<String> {
+        let path = url.path().trim_start_matches('/');
+        if path.is_empty() { None } else { Some(path.to_string()) }
     }
 
     fn extract_from_wc_pay_url(url: &Url) -> Option<String> {
-        get_query_param(url, "pid").or_else(|| get_last_path_segment(url))
+        get_query_param(url, "pid").or_else(|| get_path(url))
     }
 
     fn process_url(url_str: &str) -> Option<String> {
@@ -1056,14 +1060,14 @@ fn extract_payment_id(
             "wc" => {
                 let pay_url_str = get_query_param(&url, "pay")?;
                 let pay_url = Url::parse(&pay_url_str).ok()?;
-                if pay_url.host_str() == Some(WC_PAY_HOST) {
+                if is_wc_pay_host(pay_url.host_str()) {
                     extract_from_wc_pay_url(&pay_url)
                 } else {
                     Some(urlencoding::encode(&pay_url_str).into_owned())
                 }
             }
             "http" | "https" => {
-                if url.host_str() == Some(WC_PAY_HOST) {
+                if is_wc_pay_host(url.host_str()) {
                     extract_from_wc_pay_url(&url)
                 } else {
                     Some(urlencoding::encode(url_str).into_owned())
@@ -1319,6 +1323,11 @@ mod tests {
                 .unwrap(),
             "pay_123"
         );
+        // pay.walletconnect.com with full path (multiple segments)
+        assert_eq!(
+            extract_payment_id("http://pay.walletconnect.com/abc/123").unwrap(),
+            "abc/123"
+        );
         // Bare payment ID
         assert_eq!(extract_payment_id("pay_456").unwrap(), "pay_456");
         // Non-WC URL should be URL-encoded as the payment ID
@@ -1421,6 +1430,51 @@ mod tests {
         assert_eq!(
             extract_payment_id("wc:abc123@2?relay-protocol=irn&symKey=xyz&pay=https%3A%2F%2Fpay.walletconnect.com%2F%3Fpid%3Dpay_03a2ecc101KEVQWPKPJ3TP47E1PBKSSV5Y").unwrap(),
             "pay_03a2ecc101KEVQWPKPJ3TP47E1PBKSSV5Y"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_extract_payment_id_wc_uri_with_staging_pay_url() {
+        assert_eq!(
+            extract_payment_id("wc:c4ef1cc525b890c9c46ed40656e9048452d1d3eafe7c77ac963255cf372bcc51@2?expiryTimestamp=1768825874&relay-protocol=irn&symKey=b0487747501cd883edf2e08f33d802cd42d77631a3c9633c18b001507cfcbdc9&pay=https%3A%2F%2Fstaging.pay.walletconnect.com%2F%3Fpid%3Dpay_95a2ecc101KFB3B5W45JBD6CH1KJPCW9T1").unwrap(),
+            "pay_95a2ecc101KFB3B5W45JBD6CH1KJPCW9T1"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_extract_payment_id_subdomain_direct_urls() {
+        assert_eq!(
+            extract_payment_id(
+                "https://staging.pay.walletconnect.com/?pid=pay_123"
+            )
+            .unwrap(),
+            "pay_123"
+        );
+        assert_eq!(
+            extract_payment_id(
+                "https://dev.pay.walletconnect.com/?pid=pay_456"
+            )
+            .unwrap(),
+            "pay_456"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_extract_payment_id_rejects_non_subdomain_urls() {
+        // Domains that don't end with .pay.walletconnect.com should be URL-encoded
+        assert_eq!(
+            extract_payment_id(
+                "https://fakepay.walletconnect.com/?pid=pay_123"
+            )
+            .unwrap(),
+            "https%3A%2F%2Ffakepay.walletconnect.com%2F%3Fpid%3Dpay_123"
+        );
+        assert_eq!(
+            extract_payment_id(
+                "https://evil.pay.walletconnect.com.attacker.com/?pid=pay_123"
+            )
+            .unwrap(),
+            "https%3A%2F%2Fevil.pay.walletconnect.com.attacker.com%2F%3Fpid%3Dpay_123"
         );
     }
 
