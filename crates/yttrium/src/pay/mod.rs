@@ -498,7 +498,10 @@ pub struct PaymentOptionsResponse {
 
 // ==================== Client ====================
 
-use std::sync::{OnceLock, RwLock};
+use {
+    std::sync::{OnceLock, RwLock},
+    url::Url,
+};
 
 /// Applies common SDK config headers to any progenitor-generated request builder
 macro_rules! with_sdk_config {
@@ -983,72 +986,71 @@ impl WalletConnectPay {
 fn extract_payment_id(
     payment_link: &str,
 ) -> Result<String, GetPaymentOptionsError> {
+    const WC_PAY_HOST: &str = "pay.walletconnect.com";
+
     fn url_decode(s: &str) -> String {
         urlencoding::decode(s)
             .map(|c| c.into_owned())
             .unwrap_or_else(|_| s.to_string())
     }
 
-    fn extract_pid_from_query(query: &str) -> Option<String> {
-        query.split('&').find_map(|param| {
-            param
-                .strip_prefix("pid=")
-                .filter(|id| !id.is_empty())
-                .map(String::from)
-        })
+    fn get_query_param(url: &Url, key: &str) -> Option<String> {
+        url.query_pairs()
+            .find(|(k, _)| k == key)
+            .map(|(_, v)| v.into_owned())
+            .filter(|v| !v.is_empty())
     }
 
-    fn extract_pid_from_link(link: &str) -> Option<String> {
-        if let Some((_, query)) = link.split_once('?') {
-            if let Some(id) = extract_pid_from_query(query) {
-                return Some(id);
+    fn get_last_path_segment(url: &Url) -> Option<String> {
+        url.path_segments()?.next_back().filter(|s| !s.is_empty()).map(String::from)
+    }
+
+    fn extract_from_wc_pay_url(url: &Url) -> Option<String> {
+        get_query_param(url, "pid").or_else(|| get_last_path_segment(url))
+    }
+
+    fn process_url(url_str: &str) -> Option<String> {
+        let url = Url::parse(url_str).ok()?;
+
+        match url.scheme() {
+            "wc" => {
+                let pay_url_str = get_query_param(&url, "pay")?;
+                let pay_url = Url::parse(&pay_url_str).ok()?;
+                if pay_url.host_str() == Some(WC_PAY_HOST) {
+                    extract_from_wc_pay_url(&pay_url)
+                } else {
+                    Some(urlencoding::encode(&pay_url_str).into_owned())
+                }
             }
-        }
-        let last_segment = link.rsplit('/').next().unwrap_or("");
-        if !last_segment.is_empty()
-            && !last_segment.contains('?')
-            && !last_segment.contains('%')
-        {
-            return Some(last_segment.to_string());
-        }
-        None
-    }
-
-    fn extract_pay_param_value(query: &str) -> Option<String> {
-        for param in query.split('&') {
-            if let Some(value) = param.strip_prefix("pay=") {
-                return Some(url_decode(value));
+            "http" | "https" => {
+                if url.host_str() == Some(WC_PAY_HOST) {
+                    extract_from_wc_pay_url(&url)
+                } else {
+                    Some(urlencoding::encode(url_str).into_owned())
+                }
             }
+            _ => None,
         }
-        None
     }
 
-    fn try_extract_from_wc_uri(uri: &str) -> Option<String> {
-        let (_, query) = uri.split_once('?')?;
-        let pay_link = extract_pay_param_value(query)?;
-        extract_pid_from_link(&pay_link)
+    if payment_link.is_empty() {
+        return Err(GetPaymentOptionsError::InvalidRequest(
+            "unsupported payment link format: ''".to_string(),
+        ));
     }
 
+    // Try decoded version first, then original
     let decoded = url_decode(payment_link);
-
-    if decoded.starts_with("wc:") {
-        if let Some(id) = try_extract_from_wc_uri(&decoded) {
-            return Ok(id);
-        }
+    if let Some(id) = process_url(&decoded) {
+        return Ok(id);
     }
-
-    if payment_link.starts_with("wc:") {
-        if let Some(id) = try_extract_from_wc_uri(payment_link) {
-            return Ok(id);
-        }
-    }
-
-    if let Some(id) = extract_pid_from_link(&decoded) {
+    if let Some(id) = process_url(payment_link) {
         return Ok(id);
     }
 
-    if let Some(id) = extract_pid_from_link(payment_link) {
-        return Ok(id);
+    // Bare payment ID (no URL scheme)
+    if !payment_link.contains('/') {
+        return Ok(payment_link.to_string());
     }
 
     Err(GetPaymentOptionsError::InvalidRequest(format!(
@@ -1266,17 +1268,91 @@ mod tests {
 
     #[tokio::test]
     async fn test_extract_payment_id() {
+        // pay.walletconnect.com with path segment
         assert_eq!(
             extract_payment_id("https://pay.walletconnect.com/pay_123")
                 .unwrap(),
             "pay_123"
         );
+        // Bare payment ID
         assert_eq!(extract_payment_id("pay_456").unwrap(), "pay_456");
+        // Non-WC URL should be URL-encoded as the payment ID
         assert_eq!(
             extract_payment_id("https://example.com/path/to/pay_789").unwrap(),
-            "pay_789"
+            "https%3A%2F%2Fexample.com%2Fpath%2Fto%2Fpay_789"
         );
         assert!(extract_payment_id("").is_err());
+    }
+
+    #[tokio::test]
+    async fn test_extract_payment_id_short_url() {
+        // pay.wct.me/123 should be URL-encoded as the payment ID
+        assert_eq!(
+            extract_payment_id("https://pay.wct.me/123").unwrap(),
+            "https%3A%2F%2Fpay.wct.me%2F123"
+        );
+        assert_eq!(
+            extract_payment_id("https://pay.wct.me/abc_xyz").unwrap(),
+            "https%3A%2F%2Fpay.wct.me%2Fabc_xyz"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_extract_payment_id_wc_uri_with_short_url() {
+        // wc: URI with pay.wct.me URL should URL-encode that URL
+        assert_eq!(
+            extract_payment_id(
+                "wc:abc123@2?relay-protocol=irn&symKey=xyz&\
+                 pay=https%3A%2F%2Fpay.wct.me%2F123"
+            )
+            .unwrap(),
+            "https%3A%2F%2Fpay.wct.me%2F123"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_extract_payment_id_pid_takes_precedence_over_path() {
+        // pid query param should be preferred over path segment
+        assert_eq!(
+            extract_payment_id(
+                "https://pay.walletconnect.com/path_id?pid=query_id"
+            )
+            .unwrap(),
+            "query_id"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_extract_payment_id_wc_pay_trailing_slash() {
+        // Trailing slash with no path segment but has pid
+        assert_eq!(
+            extract_payment_id("https://pay.walletconnect.com/?pid=pay_123")
+                .unwrap(),
+            "pay_123"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_extract_payment_id_wc_pay_other_query_params() {
+        // Query params without pid should fall back to path
+        assert_eq!(
+            extract_payment_id("https://pay.walletconnect.com/pay_123?foo=bar")
+                .unwrap(),
+            "pay_123"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_extract_payment_id_http_urls() {
+        // HTTP (non-HTTPS) should also work
+        assert_eq!(
+            extract_payment_id("http://pay.walletconnect.com/pay_123").unwrap(),
+            "pay_123"
+        );
+        assert_eq!(
+            extract_payment_id("http://pay.wct.me/123").unwrap(),
+            "http%3A%2F%2Fpay.wct.me%2F123"
+        );
     }
 
     #[tokio::test]
