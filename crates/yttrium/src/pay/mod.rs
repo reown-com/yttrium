@@ -30,8 +30,13 @@ macro_rules! pay_error {
 #[derive(Debug, thiserror::Error)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Error))]
 pub enum ConfigError {
-    #[error("Invalid configuration: either api_key or app_id must be provided")]
+    #[error(
+        "Invalid configuration: either api_key or (app_id + client_id) \
+         must be provided, but not both"
+    )]
     MissingAuth,
+    #[error("Invalid configuration: api_key and app_id are mutually exclusive")]
+    ConflictingAuth,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -593,9 +598,15 @@ impl WalletConnectPay {
 impl WalletConnectPay {
     #[cfg_attr(feature = "uniffi", uniffi::constructor)]
     pub fn new(config: SdkConfig) -> Result<Self, ConfigError> {
-        // Validate: either api_key or app_id must be provided
-        if config.api_key.is_none() && config.app_id.is_none() {
+        // Validate: either api_key OR app_id must be provided (mutually
+        // exclusive)
+        let has_api_key = config.api_key.is_some();
+        let has_app_id = config.app_id.is_some();
+        if !has_api_key && !has_app_id {
             return Err(ConfigError::MissingAuth);
+        }
+        if has_api_key && has_app_id {
+            return Err(ConfigError::ConflictingAuth);
         }
 
         let client_id = config
@@ -1821,14 +1832,15 @@ mod tests {
             sdk_version: "2.5.0".to_string(),
             sdk_platform: "ios".to_string(),
             bundle_id: "com.custom.app".to_string(),
-            api_key: Some("my-custom-api-key".to_string()),
+            api_key: None,
             app_id: Some("custom-app-id".to_string()),
             client_id: Some("custom-client-id".to_string()),
         };
 
         Mock::given(method("POST"))
             .and(path("/v1/gateway/payment/pay_custom/confirm"))
-            .and(header("Api-Key", "my-custom-api-key"))
+            .and(header("App-Id", "custom-app-id"))
+            .and(header("Client-Id", "custom-client-id"))
             .and(header("Sdk-Name", "my-app"))
             .and(header("Sdk-Version", "2.5.0"))
             .and(header("Sdk-Platform", "ios"))
