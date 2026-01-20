@@ -32,8 +32,6 @@ macro_rules! pay_error {
 pub enum ConfigError {
     #[error("Missing authentication: {0}")]
     MissingAuth(String),
-    #[error("Conflicting authentication: {0}")]
-    ConflictingAuth(String),
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -518,6 +516,9 @@ use {
 };
 
 /// Applies common SDK config headers to any progenitor-generated request builder
+/// Auth header logic:
+/// - If api_key is present: use Api-Key header only
+/// - If only app_id is present: use App-Id + Client-Id headers
 macro_rules! with_sdk_config {
     ($builder:expr, $config:expr, $client_id:expr) => {{
         let mut builder = $builder
@@ -525,11 +526,11 @@ macro_rules! with_sdk_config {
             .sdk_version(&$config.sdk_version)
             .sdk_platform(&$config.sdk_platform);
         if let Some(ref api_key) = $config.api_key {
+            // api_key takes precedence for auth headers
             builder = builder.api_key(api_key);
-        }
-        if let Some(ref app_id) = $config.app_id {
+        } else if let Some(ref app_id) = $config.app_id {
+            // Only use App-Id header if api_key is not present
             builder = builder.app_id(app_id);
-            // App-Id requires Client-Id to also be set
             builder = builder.client_id($client_id);
         }
         builder
@@ -595,21 +596,15 @@ impl WalletConnectPay {
 impl WalletConnectPay {
     #[cfg_attr(feature = "uniffi", uniffi::constructor)]
     pub fn new(config: SdkConfig) -> Result<Self, ConfigError> {
-        // Validate: either api_key OR app_id must be provided (mutually
-        // exclusive)
+        // Validate: at least one of api_key or app_id must be provided
+        // - app_id only: use App-Id header + app_id for error reporting
+        // - api_key + app_id: use Api-Key header + app_id for error reporting
+        // - api_key only: use Api-Key header
         let has_api_key = config.api_key.is_some();
         let has_app_id = config.app_id.is_some();
         if !has_api_key && !has_app_id {
             return Err(ConfigError::MissingAuth(
-                "provide either `api_key` OR `app_id` (with `client_id`)"
-                    .to_string(),
-            ));
-        }
-        if has_api_key && has_app_id {
-            return Err(ConfigError::ConflictingAuth(
-                "`api_key` and `app_id` cannot both be set. \
-                 Use `api_key` alone OR `app_id` with `client_id`"
-                    .to_string(),
+                "provide `api_key` and/or `app_id`".to_string(),
             ));
         }
 
@@ -1229,7 +1224,10 @@ mod tests {
     }
 
     #[test]
-    fn test_config_conflicting_auth() {
+    fn test_config_valid_both_api_key_and_app_id() {
+        // Both api_key and app_id can be provided:
+        // - api_key is used for API auth headers
+        // - app_id is used for error reporting
         let config = SdkConfig {
             base_url: "http://example.com".to_string(),
             project_id: Some("test".to_string()),
@@ -1241,8 +1239,7 @@ mod tests {
             app_id: Some("app".to_string()),
             client_id: None,
         };
-        let result = WalletConnectPay::new(config);
-        assert!(matches!(result, Err(ConfigError::ConflictingAuth(_))));
+        assert!(WalletConnectPay::new(config).is_ok());
     }
 
     #[test]
@@ -1946,6 +1943,56 @@ mod tests {
         let result = client
             .confirm_payment(
                 "pay_custom".to_string(),
+                "opt_1".to_string(),
+                vec!["0x123".to_string()],
+                None,
+                None,
+            )
+            .await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_api_key_takes_precedence_over_app_id_for_headers() {
+        // When both api_key and app_id are provided:
+        // - Api-Key header is used (not App-Id)
+        // - app_id is used for error reporting only
+        let mock_server = MockServer::start().await;
+
+        let mock_response = serde_json::json!({
+            "status": "succeeded",
+            "isFinal": true,
+            "pollInMs": null
+        });
+
+        let config = SdkConfig {
+            base_url: mock_server.uri(),
+            project_id: Some("test-project".to_string()),
+            sdk_name: "test-sdk".to_string(),
+            sdk_version: "1.0.0".to_string(),
+            sdk_platform: "test".to_string(),
+            bundle_id: "com.test.app".to_string(),
+            api_key: Some("my-api-key".to_string()),
+            app_id: Some("my-app-id".to_string()),
+            client_id: Some("my-client-id".to_string()),
+        };
+
+        // Expect Api-Key header, NOT App-Id header
+        Mock::given(method("POST"))
+            .and(path("/v1/gateway/payment/pay_test/confirm"))
+            .and(header("Api-Key", "my-api-key"))
+            .and(header("Sdk-Name", "test-sdk"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(&mock_response),
+            )
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        let client = WalletConnectPay::new(config).unwrap();
+        let result = client
+            .confirm_payment(
+                "pay_test".to_string(),
                 "opt_1".to_string(),
                 vec!["0x123".to_string()],
                 None,
