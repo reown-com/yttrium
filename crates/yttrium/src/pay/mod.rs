@@ -616,6 +616,7 @@ impl WalletConnectPay {
         let client_id = config
             .client_id
             .clone()
+            .filter(|s| !s.is_empty())
             .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
         Ok(Self {
             client: OnceLock::new(),
@@ -1274,6 +1275,26 @@ mod tests {
             client_id: Some("client".to_string()),
         };
         assert!(WalletConnectPay::new(config).is_ok());
+    }
+
+    #[test]
+    fn test_config_empty_client_id_generates_uuid() {
+        let config = SdkConfig {
+            base_url: "http://example.com".to_string(),
+            project_id: Some("test".to_string()),
+            sdk_name: "test".to_string(),
+            sdk_version: "1.0.0".to_string(),
+            sdk_platform: "test".to_string(),
+            bundle_id: "com.test".to_string(),
+            api_key: Some("key".to_string()),
+            app_id: None,
+            client_id: Some("".to_string()),
+        };
+        let client = WalletConnectPay::new(config).unwrap();
+        // Empty string should be treated as None, generating a UUID
+        assert!(!client.client_id.is_empty());
+        // Should be a valid UUID format (36 chars with hyphens)
+        assert_eq!(client.client_id.len(), 36);
     }
 
     #[tokio::test]
