@@ -30,8 +30,8 @@ macro_rules! pay_error {
 #[derive(Debug, thiserror::Error)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Error))]
 pub enum ConfigError {
-    #[error("Invalid configuration: either api_key or app_id must be provided")]
-    MissingAuth,
+    #[error("Missing authentication: {0}")]
+    MissingAuth(String),
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -515,20 +515,23 @@ use {
     url::Url,
 };
 
-/// Applies common SDK config headers to any progenitor-generated request builder
+/// Applies common SDK config headers to any progenitor-generated request builder.
+/// Auth header logic:
+/// - If app_id is present: send App-Id + Client-Id headers (api_key ignored)
+/// - If only api_key is present: send Api-Key header
 macro_rules! with_sdk_config {
     ($builder:expr, $config:expr, $client_id:expr) => {{
         let mut builder = $builder
             .sdk_name(&$config.sdk_name)
             .sdk_version(&$config.sdk_version)
             .sdk_platform(&$config.sdk_platform);
-        if let Some(ref api_key) = $config.api_key {
-            builder = builder.api_key(api_key);
-        }
         if let Some(ref app_id) = $config.app_id {
+            // app_id takes precedence - use App-Id + Client-Id headers
             builder = builder.app_id(app_id);
-            // App-Id requires Client-Id to also be set
             builder = builder.client_id($client_id);
+        } else if let Some(ref api_key) = $config.api_key {
+            // Only use Api-Key if app_id is not present
+            builder = builder.api_key(api_key);
         }
         builder
     }};
@@ -593,14 +596,22 @@ impl WalletConnectPay {
 impl WalletConnectPay {
     #[cfg_attr(feature = "uniffi", uniffi::constructor)]
     pub fn new(config: SdkConfig) -> Result<Self, ConfigError> {
-        // Validate: either api_key or app_id must be provided
-        if config.api_key.is_none() && config.app_id.is_none() {
-            return Err(ConfigError::MissingAuth);
+        // Validate: at least one of api_key or app_id must be provided
+        // - app_id only: use App-Id header + app_id for error reporting
+        // - api_key + app_id: use Api-Key header + app_id for error reporting
+        // - api_key only: use Api-Key header
+        let has_api_key = config.api_key.is_some();
+        let has_app_id = config.app_id.is_some();
+        if !has_api_key && !has_app_id {
+            return Err(ConfigError::MissingAuth(
+                "provide `api_key` and/or `app_id`".to_string(),
+            ));
         }
 
         let client_id = config
             .client_id
             .clone()
+            .filter(|s| !s.is_empty())
             .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
         Ok(Self {
             client: OnceLock::new(),
@@ -1193,6 +1204,94 @@ mod tests {
             app_id: None,
             client_id: None,
         }
+    }
+
+    #[test]
+    fn test_config_missing_auth() {
+        let config = SdkConfig {
+            base_url: "http://example.com".to_string(),
+            project_id: Some("test".to_string()),
+            sdk_name: "test".to_string(),
+            sdk_version: "1.0.0".to_string(),
+            sdk_platform: "test".to_string(),
+            bundle_id: "com.test".to_string(),
+            api_key: None,
+            app_id: None,
+            client_id: None,
+        };
+        let result = WalletConnectPay::new(config);
+        assert!(matches!(result, Err(ConfigError::MissingAuth(_))));
+    }
+
+    #[test]
+    fn test_config_valid_both_api_key_and_app_id() {
+        // Both api_key and app_id can be provided:
+        // - api_key is used for API auth headers
+        // - app_id is used for error reporting
+        let config = SdkConfig {
+            base_url: "http://example.com".to_string(),
+            project_id: Some("test".to_string()),
+            sdk_name: "test".to_string(),
+            sdk_version: "1.0.0".to_string(),
+            sdk_platform: "test".to_string(),
+            bundle_id: "com.test".to_string(),
+            api_key: Some("key".to_string()),
+            app_id: Some("app".to_string()),
+            client_id: None,
+        };
+        assert!(WalletConnectPay::new(config).is_ok());
+    }
+
+    #[test]
+    fn test_config_valid_api_key_auth() {
+        let config = SdkConfig {
+            base_url: "http://example.com".to_string(),
+            project_id: Some("test".to_string()),
+            sdk_name: "test".to_string(),
+            sdk_version: "1.0.0".to_string(),
+            sdk_platform: "test".to_string(),
+            bundle_id: "com.test".to_string(),
+            api_key: Some("key".to_string()),
+            app_id: None,
+            client_id: None,
+        };
+        assert!(WalletConnectPay::new(config).is_ok());
+    }
+
+    #[test]
+    fn test_config_valid_app_id_auth() {
+        let config = SdkConfig {
+            base_url: "http://example.com".to_string(),
+            project_id: Some("test".to_string()),
+            sdk_name: "test".to_string(),
+            sdk_version: "1.0.0".to_string(),
+            sdk_platform: "test".to_string(),
+            bundle_id: "com.test".to_string(),
+            api_key: None,
+            app_id: Some("app".to_string()),
+            client_id: Some("client".to_string()),
+        };
+        assert!(WalletConnectPay::new(config).is_ok());
+    }
+
+    #[test]
+    fn test_config_empty_client_id_generates_uuid() {
+        let config = SdkConfig {
+            base_url: "http://example.com".to_string(),
+            project_id: Some("test".to_string()),
+            sdk_name: "test".to_string(),
+            sdk_version: "1.0.0".to_string(),
+            sdk_platform: "test".to_string(),
+            bundle_id: "com.test".to_string(),
+            api_key: Some("key".to_string()),
+            app_id: None,
+            client_id: Some("".to_string()),
+        };
+        let client = WalletConnectPay::new(config).unwrap();
+        // Empty string should be treated as None, generating a UUID
+        assert!(!client.client_id.is_empty());
+        // Should be a valid UUID format (36 chars with hyphens)
+        assert_eq!(client.client_id.len(), 36);
     }
 
     #[tokio::test]
@@ -1821,14 +1920,15 @@ mod tests {
             sdk_version: "2.5.0".to_string(),
             sdk_platform: "ios".to_string(),
             bundle_id: "com.custom.app".to_string(),
-            api_key: Some("my-custom-api-key".to_string()),
+            api_key: None,
             app_id: Some("custom-app-id".to_string()),
             client_id: Some("custom-client-id".to_string()),
         };
 
         Mock::given(method("POST"))
             .and(path("/v1/gateway/payment/pay_custom/confirm"))
-            .and(header("Api-Key", "my-custom-api-key"))
+            .and(header("App-Id", "custom-app-id"))
+            .and(header("Client-Id", "custom-client-id"))
             .and(header("Sdk-Name", "my-app"))
             .and(header("Sdk-Version", "2.5.0"))
             .and(header("Sdk-Platform", "ios"))
@@ -1843,6 +1943,56 @@ mod tests {
         let result = client
             .confirm_payment(
                 "pay_custom".to_string(),
+                "opt_1".to_string(),
+                vec!["0x123".to_string()],
+                None,
+                None,
+            )
+            .await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_app_id_takes_precedence_over_api_key() {
+        // When both api_key and app_id are provided, only App-Id + Client-Id
+        // headers are sent (api_key is ignored for headers)
+        let mock_server = MockServer::start().await;
+
+        let mock_response = serde_json::json!({
+            "status": "succeeded",
+            "isFinal": true,
+            "pollInMs": null
+        });
+
+        let config = SdkConfig {
+            base_url: mock_server.uri(),
+            project_id: Some("test-project".to_string()),
+            sdk_name: "test-sdk".to_string(),
+            sdk_version: "1.0.0".to_string(),
+            sdk_platform: "test".to_string(),
+            bundle_id: "com.test.app".to_string(),
+            api_key: Some("my-api-key".to_string()),
+            app_id: Some("my-app-id".to_string()),
+            client_id: Some("my-client-id".to_string()),
+        };
+
+        // Expect App-Id + Client-Id headers only (NOT Api-Key)
+        Mock::given(method("POST"))
+            .and(path("/v1/gateway/payment/pay_test/confirm"))
+            .and(header("App-Id", "my-app-id"))
+            .and(header("Client-Id", "my-client-id"))
+            .and(header("Sdk-Name", "test-sdk"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(&mock_response),
+            )
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        let client = WalletConnectPay::new(config).unwrap();
+        let result = client
+            .confirm_payment(
+                "pay_test".to_string(),
                 "opt_1".to_string(),
                 vec!["0x123".to_string()],
                 None,
