@@ -517,22 +517,21 @@ use {
 
 /// Applies common SDK config headers to any progenitor-generated request builder.
 /// Auth header logic:
-/// - If api_key is present: send Api-Key header
-/// - If app_id is present: send App-Id + Client-Id headers
-///
-/// Both can be sent together when both are configured.
+/// - If app_id is present: send App-Id + Client-Id headers (api_key ignored)
+/// - If only api_key is present: send Api-Key header
 macro_rules! with_sdk_config {
     ($builder:expr, $config:expr, $client_id:expr) => {{
         let mut builder = $builder
             .sdk_name(&$config.sdk_name)
             .sdk_version(&$config.sdk_version)
             .sdk_platform(&$config.sdk_platform);
-        if let Some(ref api_key) = $config.api_key {
-            builder = builder.api_key(api_key);
-        }
         if let Some(ref app_id) = $config.app_id {
+            // app_id takes precedence - use App-Id + Client-Id headers
             builder = builder.app_id(app_id);
             builder = builder.client_id($client_id);
+        } else if let Some(ref api_key) = $config.api_key {
+            // Only use Api-Key if app_id is not present
+            builder = builder.api_key(api_key);
         }
         builder
     }};
@@ -1954,9 +1953,9 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_both_api_key_and_app_id_headers_sent() {
-        // When both api_key and app_id are provided, both sets of headers
-        // are sent
+    async fn test_app_id_takes_precedence_over_api_key() {
+        // When both api_key and app_id are provided, only App-Id + Client-Id
+        // headers are sent (api_key is ignored for headers)
         let mock_server = MockServer::start().await;
 
         let mock_response = serde_json::json!({
@@ -1977,10 +1976,9 @@ mod tests {
             client_id: Some("my-client-id".to_string()),
         };
 
-        // Expect both Api-Key AND App-Id + Client-Id headers
+        // Expect App-Id + Client-Id headers only (NOT Api-Key)
         Mock::given(method("POST"))
             .and(path("/v1/gateway/payment/pay_test/confirm"))
-            .and(header("Api-Key", "my-api-key"))
             .and(header("App-Id", "my-app-id"))
             .and(header("Client-Id", "my-client-id"))
             .and(header("Sdk-Name", "test-sdk"))
