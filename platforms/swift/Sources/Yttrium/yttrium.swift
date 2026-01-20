@@ -2076,7 +2076,8 @@ public enum ConfigError: Swift.Error, Equatable, Hashable, Foundation.LocalizedE
 
     
     
-    case MissingAuth
+    case MissingAuth(String
+    )
 
     
 
@@ -2104,7 +2105,9 @@ public struct FfiConverterTypeConfigError: FfiConverterRustBuffer {
         
 
         
-        case 1: return .MissingAuth
+        case 1: return .MissingAuth(
+            try FfiConverterString.read(from: &buf)
+            )
 
          default: throw UniffiInternalError.unexpectedEnumCase
         }
@@ -2117,9 +2120,10 @@ public struct FfiConverterTypeConfigError: FfiConverterRustBuffer {
 
         
         
-        case .MissingAuth:
+        case let .MissingAuth(v1):
             writeInt(&buf, Int32(1))
-        
+            FfiConverterString.write(v1, into: &buf)
+            
         }
     }
 }
