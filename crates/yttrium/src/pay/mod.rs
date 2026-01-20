@@ -515,10 +515,12 @@ use {
     url::Url,
 };
 
-/// Applies common SDK config headers to any progenitor-generated request builder
+/// Applies common SDK config headers to any progenitor-generated request builder.
 /// Auth header logic:
-/// - If api_key is present: use Api-Key header only
-/// - If only app_id is present: use App-Id + Client-Id headers
+/// - If api_key is present: send Api-Key header
+/// - If app_id is present: send App-Id + Client-Id headers
+///
+/// Both can be sent together when both are configured.
 macro_rules! with_sdk_config {
     ($builder:expr, $config:expr, $client_id:expr) => {{
         let mut builder = $builder
@@ -526,10 +528,9 @@ macro_rules! with_sdk_config {
             .sdk_version(&$config.sdk_version)
             .sdk_platform(&$config.sdk_platform);
         if let Some(ref api_key) = $config.api_key {
-            // api_key takes precedence for auth headers
             builder = builder.api_key(api_key);
-        } else if let Some(ref app_id) = $config.app_id {
-            // Only use App-Id header if api_key is not present
+        }
+        if let Some(ref app_id) = $config.app_id {
             builder = builder.app_id(app_id);
             builder = builder.client_id($client_id);
         }
@@ -1953,10 +1954,9 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_api_key_takes_precedence_over_app_id_for_headers() {
-        // When both api_key and app_id are provided:
-        // - Api-Key header is used (not App-Id)
-        // - app_id is used for error reporting only
+    async fn test_both_api_key_and_app_id_headers_sent() {
+        // When both api_key and app_id are provided, both sets of headers
+        // are sent
         let mock_server = MockServer::start().await;
 
         let mock_response = serde_json::json!({
@@ -1977,10 +1977,12 @@ mod tests {
             client_id: Some("my-client-id".to_string()),
         };
 
-        // Expect Api-Key header, NOT App-Id header
+        // Expect both Api-Key AND App-Id + Client-Id headers
         Mock::given(method("POST"))
             .and(path("/v1/gateway/payment/pay_test/confirm"))
             .and(header("Api-Key", "my-api-key"))
+            .and(header("App-Id", "my-app-id"))
+            .and(header("Client-Id", "my-client-id"))
             .and(header("Sdk-Name", "test-sdk"))
             .respond_with(
                 ResponseTemplate::new(200).set_body_json(&mock_response),
