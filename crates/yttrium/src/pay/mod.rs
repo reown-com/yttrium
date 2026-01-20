@@ -32,7 +32,7 @@ macro_rules! pay_error {
 pub enum ConfigError {
     #[error(
         "Missing authentication: provide either `api_key` OR `app_id` \
-         (with `client_id`), but not both"
+         (with `client_id`)"
     )]
     MissingAuth,
     #[error(
@@ -1207,6 +1207,72 @@ mod tests {
             app_id: None,
             client_id: None,
         }
+    }
+
+    #[test]
+    fn test_config_missing_auth() {
+        let config = SdkConfig {
+            base_url: "http://example.com".to_string(),
+            project_id: Some("test".to_string()),
+            sdk_name: "test".to_string(),
+            sdk_version: "1.0.0".to_string(),
+            sdk_platform: "test".to_string(),
+            bundle_id: "com.test".to_string(),
+            api_key: None,
+            app_id: None,
+            client_id: None,
+        };
+        let result = WalletConnectPay::new(config);
+        assert!(matches!(result, Err(ConfigError::MissingAuth)));
+    }
+
+    #[test]
+    fn test_config_conflicting_auth() {
+        let config = SdkConfig {
+            base_url: "http://example.com".to_string(),
+            project_id: Some("test".to_string()),
+            sdk_name: "test".to_string(),
+            sdk_version: "1.0.0".to_string(),
+            sdk_platform: "test".to_string(),
+            bundle_id: "com.test".to_string(),
+            api_key: Some("key".to_string()),
+            app_id: Some("app".to_string()),
+            client_id: None,
+        };
+        let result = WalletConnectPay::new(config);
+        assert!(matches!(result, Err(ConfigError::ConflictingAuth)));
+    }
+
+    #[test]
+    fn test_config_valid_api_key_auth() {
+        let config = SdkConfig {
+            base_url: "http://example.com".to_string(),
+            project_id: Some("test".to_string()),
+            sdk_name: "test".to_string(),
+            sdk_version: "1.0.0".to_string(),
+            sdk_platform: "test".to_string(),
+            bundle_id: "com.test".to_string(),
+            api_key: Some("key".to_string()),
+            app_id: None,
+            client_id: None,
+        };
+        assert!(WalletConnectPay::new(config).is_ok());
+    }
+
+    #[test]
+    fn test_config_valid_app_id_auth() {
+        let config = SdkConfig {
+            base_url: "http://example.com".to_string(),
+            project_id: Some("test".to_string()),
+            sdk_name: "test".to_string(),
+            sdk_version: "1.0.0".to_string(),
+            sdk_platform: "test".to_string(),
+            bundle_id: "com.test".to_string(),
+            api_key: None,
+            app_id: Some("app".to_string()),
+            client_id: Some("client".to_string()),
+        };
+        assert!(WalletConnectPay::new(config).is_ok());
     }
 
     #[tokio::test]
