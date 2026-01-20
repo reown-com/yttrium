@@ -31,11 +31,14 @@ macro_rules! pay_error {
 #[cfg_attr(feature = "uniffi", derive(uniffi::Error))]
 pub enum ConfigError {
     #[error(
-        "Invalid configuration: either api_key or (app_id + client_id) \
-         must be provided, but not both"
+        "Missing authentication: provide either `api_key` OR `app_id` \
+         (with `client_id`), but not both"
     )]
     MissingAuth,
-    #[error("Invalid configuration: api_key and app_id are mutually exclusive")]
+    #[error(
+        "Conflicting authentication: `api_key` and `app_id` cannot both be \
+         set. Use `api_key` alone OR `app_id` with `client_id`"
+    )]
     ConflictingAuth,
 }
 
