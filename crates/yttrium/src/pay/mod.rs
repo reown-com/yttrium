@@ -30,16 +30,10 @@ macro_rules! pay_error {
 #[derive(Debug, thiserror::Error)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Error))]
 pub enum ConfigError {
-    #[error(
-        "Missing authentication: provide either `api_key` OR `app_id` \
-         (with `client_id`)"
-    )]
-    MissingAuth,
-    #[error(
-        "Conflicting authentication: `api_key` and `app_id` cannot both be \
-         set. Use `api_key` alone OR `app_id` with `client_id`"
-    )]
-    ConflictingAuth,
+    #[error("Missing authentication: {0}")]
+    MissingAuth(String),
+    #[error("Conflicting authentication: {0}")]
+    ConflictingAuth(String),
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -606,10 +600,17 @@ impl WalletConnectPay {
         let has_api_key = config.api_key.is_some();
         let has_app_id = config.app_id.is_some();
         if !has_api_key && !has_app_id {
-            return Err(ConfigError::MissingAuth);
+            return Err(ConfigError::MissingAuth(
+                "provide either `api_key` OR `app_id` (with `client_id`)"
+                    .to_string(),
+            ));
         }
         if has_api_key && has_app_id {
-            return Err(ConfigError::ConflictingAuth);
+            return Err(ConfigError::ConflictingAuth(
+                "`api_key` and `app_id` cannot both be set. \
+                 Use `api_key` alone OR `app_id` with `client_id`"
+                    .to_string(),
+            ));
         }
 
         let client_id = config
@@ -1223,7 +1224,7 @@ mod tests {
             client_id: None,
         };
         let result = WalletConnectPay::new(config);
-        assert!(matches!(result, Err(ConfigError::MissingAuth)));
+        assert!(matches!(result, Err(ConfigError::MissingAuth(_))));
     }
 
     #[test]
@@ -1240,7 +1241,7 @@ mod tests {
             client_id: None,
         };
         let result = WalletConnectPay::new(config);
-        assert!(matches!(result, Err(ConfigError::ConflictingAuth)));
+        assert!(matches!(result, Err(ConfigError::ConflictingAuth(_))));
     }
 
     #[test]
