@@ -37,6 +37,12 @@ pub enum ConfigError {
 #[derive(Debug, thiserror::Error)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Error))]
 pub enum PayError {
+    #[error("No network connection: {0}")]
+    NoConnection(String),
+    #[error("Request timed out: {0}")]
+    RequestTimeout(String),
+    #[error("Connection failed: {0}")]
+    ConnectionFailed(String),
     #[error("HTTP error: {0}")]
     Http(String),
     #[error("API error: {0}")]
@@ -53,7 +59,7 @@ impl From<progenitor_client::Error<types::ErrorResponse>> for PayError {
                 Self::Api(format!("{}: {}", status, resp.into_inner().message))
             }
             progenitor_client::Error::CommunicationError(err) => {
-                Self::Http(format!("Network error: {}", err))
+                map_reqwest_error_to_pay_error(&err)
             }
             progenitor_client::Error::InvalidRequest(msg) => Self::Api(msg),
             progenitor_client::Error::InvalidResponsePayload(_, err) => {
@@ -67,9 +73,32 @@ impl From<progenitor_client::Error<types::ErrorResponse>> for PayError {
     }
 }
 
+fn map_reqwest_error_to_pay_error(err: &reqwest::Error) -> PayError {
+    let msg = err.to_string();
+    if err.is_connect() {
+        let lower = msg.to_lowercase();
+        // ConnectionFailed: server is reachable but rejecting connections
+        if lower.contains("connection refused")
+            || lower.contains("actively refused")
+        {
+            PayError::ConnectionFailed(msg)
+        } else {
+            // NoConnection: no internet, DNS failure, network unreachable, etc.
+            PayError::NoConnection(msg)
+        }
+    } else if err.is_timeout() {
+        PayError::RequestTimeout(msg)
+    } else {
+        PayError::Http(msg)
+    }
+}
+
 impl error_reporting::HasErrorType for PayError {
     fn error_type(&self) -> &'static str {
         match self {
+            Self::NoConnection(_) => "NoConnection",
+            Self::RequestTimeout(_) => "RequestTimeout",
+            Self::ConnectionFailed(_) => "ConnectionFailed",
             Self::Http(_) => "Http",
             Self::Api(_) => "Api",
             Self::Timeout => "Timeout",
@@ -94,6 +123,12 @@ pub enum GetPaymentOptionsError {
     InvalidAccount(String),
     #[error("Compliance failed: {0}")]
     ComplianceFailed(String),
+    #[error("No network connection: {0}")]
+    NoConnection(String),
+    #[error("Request timed out: {0}")]
+    RequestTimeout(String),
+    #[error("Connection failed: {0}")]
+    ConnectionFailed(String),
     #[error("HTTP error: {0}")]
     Http(String),
     #[error("Internal error: {0}")]
@@ -110,6 +145,9 @@ impl error_reporting::HasErrorType for GetPaymentOptionsError {
             Self::PaymentNotReady(_) => "PaymentNotReady",
             Self::InvalidAccount(_) => "InvalidAccount",
             Self::ComplianceFailed(_) => "ComplianceFailed",
+            Self::NoConnection(_) => "NoConnection",
+            Self::RequestTimeout(_) => "RequestTimeout",
+            Self::ConnectionFailed(_) => "ConnectionFailed",
             Self::Http(_) => "Http",
             Self::InternalError(_) => "InternalError",
         }
@@ -125,6 +163,12 @@ pub enum GetPaymentRequestError {
     PaymentNotFound(String),
     #[error("Invalid account: {0}")]
     InvalidAccount(String),
+    #[error("No network connection: {0}")]
+    NoConnection(String),
+    #[error("Request timed out: {0}")]
+    RequestTimeout(String),
+    #[error("Connection failed: {0}")]
+    ConnectionFailed(String),
     #[error("HTTP error: {0}")]
     Http(String),
     #[error("Fetch error: {0}")]
@@ -139,6 +183,9 @@ impl error_reporting::HasErrorType for GetPaymentRequestError {
             Self::OptionNotFound(_) => "OptionNotFound",
             Self::PaymentNotFound(_) => "PaymentNotFound",
             Self::InvalidAccount(_) => "InvalidAccount",
+            Self::NoConnection(_) => "NoConnection",
+            Self::RequestTimeout(_) => "RequestTimeout",
+            Self::ConnectionFailed(_) => "ConnectionFailed",
             Self::Http(_) => "Http",
             Self::FetchError(_) => "FetchError",
             Self::InternalError(_) => "InternalError",
@@ -159,6 +206,12 @@ pub enum ConfirmPaymentError {
     InvalidSignature(String),
     #[error("Route expired: {0}")]
     RouteExpired(String),
+    #[error("No network connection: {0}")]
+    NoConnection(String),
+    #[error("Request timed out: {0}")]
+    RequestTimeout(String),
+    #[error("Connection failed: {0}")]
+    ConnectionFailed(String),
     #[error("HTTP error: {0}")]
     Http(String),
     #[error("Internal error: {0}")]
@@ -175,6 +228,9 @@ impl error_reporting::HasErrorType for ConfirmPaymentError {
             Self::InvalidOption(_) => "InvalidOption",
             Self::InvalidSignature(_) => "InvalidSignature",
             Self::RouteExpired(_) => "RouteExpired",
+            Self::NoConnection(_) => "NoConnection",
+            Self::RequestTimeout(_) => "RequestTimeout",
+            Self::ConnectionFailed(_) => "ConnectionFailed",
             Self::Http(_) => "Http",
             Self::InternalError(_) => "InternalError",
             Self::UnsupportedMethod(_) => "UnsupportedMethod",
@@ -185,8 +241,18 @@ impl error_reporting::HasErrorType for ConfirmPaymentError {
 const MAX_RETRIES: u32 = 3;
 const INITIAL_BACKOFF_MS: u64 = 100;
 
-fn is_server_error<T>(err: &progenitor_client::Error<T>) -> bool {
-    matches!(err, progenitor_client::Error::ErrorResponse(resp) if resp.status().is_server_error())
+fn is_retryable_error<T>(err: &progenitor_client::Error<T>) -> bool {
+    match err {
+        // Retry on 5xx server errors
+        progenitor_client::Error::ErrorResponse(resp) => {
+            resp.status().is_server_error()
+        }
+        // Retry on connection failures and timeouts
+        progenitor_client::Error::CommunicationError(reqwest_err) => {
+            reqwest_err.is_connect() || reqwest_err.is_timeout()
+        }
+        _ => false,
+    }
 }
 
 async fn with_retry<T, E, F, Fut>(
@@ -195,18 +261,26 @@ async fn with_retry<T, E, F, Fut>(
 where
     F: Fn() -> Fut,
     Fut: std::future::Future<Output = Result<T, progenitor_client::Error<E>>>,
+    E: std::fmt::Debug,
 {
     use rand::Rng;
     let mut attempt = 0;
     loop {
         match f().await {
             Ok(v) => return Ok(v),
-            Err(e) if is_server_error(&e) && attempt < MAX_RETRIES => {
+            Err(e) if is_retryable_error(&e) && attempt < MAX_RETRIES => {
                 attempt += 1;
                 let base_backoff = INITIAL_BACKOFF_MS
                     .saturating_mul(2u64.saturating_pow(attempt - 1));
                 let jitter = rand::thread_rng().gen_range(0..=base_backoff / 2);
                 let backoff = base_backoff + jitter;
+                pay_debug!(
+                    "Retry attempt {}/{} after {}ms (error: {})",
+                    attempt,
+                    MAX_RETRIES,
+                    backoff,
+                    e
+                );
                 tokio::time::sleep(std::time::Duration::from_millis(backoff))
                     .await;
             }
@@ -755,8 +829,7 @@ impl WalletConnectPay {
                             "get_required_payment_actions fetch: {:?}",
                             e
                         );
-                        let err =
-                            GetPaymentRequestError::FetchError(e.to_string());
+                        let err = map_pay_error_to_request_error(e);
                         self.report_error(&err, &payment_id);
                         self.send_trace(
                             observability::TraceEvent::RequiredActionsFailed,
@@ -973,9 +1046,7 @@ impl WalletConnectPay {
                     let resolved = self
                         .fetch(payment_id, option_id, build.data)
                         .await
-                        .map_err(|e| {
-                            GetPaymentRequestError::FetchError(e.to_string())
-                        })?;
+                        .map_err(map_pay_error_to_request_error)?;
                     for resolved_action in resolved {
                         if let types::Action::WalletRpc(data) = resolved_action
                         {
@@ -1142,7 +1213,32 @@ fn map_payment_options_error(
                 _ => GetPaymentOptionsError::Http(msg),
             }
         }
+        progenitor_client::Error::CommunicationError(err) => {
+            map_reqwest_error_to_payment_options_error(&err)
+        }
         other => GetPaymentOptionsError::Http(other.to_string()),
+    }
+}
+
+fn map_reqwest_error_to_payment_options_error(
+    err: &reqwest::Error,
+) -> GetPaymentOptionsError {
+    let msg = err.to_string();
+    if err.is_connect() {
+        let lower = msg.to_lowercase();
+        // ConnectionFailed: server is reachable but rejecting connections
+        if lower.contains("connection refused")
+            || lower.contains("actively refused")
+        {
+            GetPaymentOptionsError::ConnectionFailed(msg)
+        } else {
+            // NoConnection: no internet, DNS failure, network unreachable, etc.
+            GetPaymentOptionsError::NoConnection(msg)
+        }
+    } else if err.is_timeout() {
+        GetPaymentOptionsError::RequestTimeout(msg)
+    } else {
+        GetPaymentOptionsError::Http(msg)
     }
 }
 
@@ -1174,7 +1270,51 @@ fn map_confirm_payment_error(
                 _ => ConfirmPaymentError::Http(msg),
             }
         }
+        progenitor_client::Error::CommunicationError(err) => {
+            map_reqwest_error_to_confirm_payment_error(&err)
+        }
         other => ConfirmPaymentError::Http(other.to_string()),
+    }
+}
+
+fn map_reqwest_error_to_confirm_payment_error(
+    err: &reqwest::Error,
+) -> ConfirmPaymentError {
+    let msg = err.to_string();
+    if err.is_connect() {
+        let lower = msg.to_lowercase();
+        // ConnectionFailed: server is reachable but rejecting connections
+        if lower.contains("connection refused")
+            || lower.contains("actively refused")
+        {
+            ConfirmPaymentError::ConnectionFailed(msg)
+        } else {
+            // NoConnection: no internet, DNS failure, network unreachable, etc.
+            ConfirmPaymentError::NoConnection(msg)
+        }
+    } else if err.is_timeout() {
+        ConfirmPaymentError::RequestTimeout(msg)
+    } else {
+        ConfirmPaymentError::Http(msg)
+    }
+}
+
+fn map_pay_error_to_request_error(e: PayError) -> GetPaymentRequestError {
+    match e {
+        PayError::NoConnection(msg) => {
+            GetPaymentRequestError::NoConnection(msg)
+        }
+        PayError::RequestTimeout(msg) => {
+            GetPaymentRequestError::RequestTimeout(msg)
+        }
+        PayError::ConnectionFailed(msg) => {
+            GetPaymentRequestError::ConnectionFailed(msg)
+        }
+        PayError::Http(msg) => GetPaymentRequestError::Http(msg),
+        PayError::Api(msg) => GetPaymentRequestError::FetchError(msg),
+        PayError::Timeout => {
+            GetPaymentRequestError::FetchError("Timeout".to_string())
+        }
     }
 }
 
