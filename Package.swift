@@ -11,8 +11,8 @@ let yttriumXcframeworkTarget: Target = useLocalRustXcframework ?
     ) :
     .binaryTarget(
         name: "YttriumXCFramework",
-        url: "https://github.com/reown-com/yttrium/releases/download/0.10.15/libyttrium.xcframework.zip",
-        checksum: "3957811e94d7c5a28bcee19135b1cc9688077ff679178587cadf240d68ab3f4b"
+        url: "https://github.com/reown-com/yttrium/releases/download/0.10.18/libyttrium.xcframework.zip",
+        checksum: "c115cb99531d69f3918c3e8cf78b632b144a9102eb37fff3d9321665c48706e8"
     )
 
 let yttriumUtilsXcframeworkTarget: Target = useLocalRustXcframework ?
