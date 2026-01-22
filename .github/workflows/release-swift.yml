@@ -19,7 +19,7 @@ permissions:
 
 jobs:
   release-swift-package:
-    runs-on: macos-latest-xlarge
+    runs-on: macos-15-xlarge
     strategy:
       matrix:
         config:
@@ -55,10 +55,10 @@ jobs:
           git submodule update --init --recursive
           make setup-thirdparty
 
-      # 5. Select Newest Xcode Version Available
-      - name: Select Xcode 15.4
-        run: | 
-          sudo xcode-select -s /Applications/Xcode.app
+      # 5. Select Xcode 16.4 for Swift 6 compatibility
+      - name: Select Xcode 16.4
+        run: |
+          sudo xcode-select -s /Applications/Xcode_16.4.app/Contents/Developer
 
       # 6. Build and Package XCFramework
       - name: Build and Package XCFramework

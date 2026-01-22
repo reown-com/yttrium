@@ -13,8 +13,8 @@ import yttriumUtilsFFI
 
 fileprivate extension RustBuffer {
     // Allocate a new buffer, copying the contents of a `UInt8` array.
-    init(bytes: [UInt8]) {
-        let rbuf = bytes.withUnsafeBufferPointer { ptr in
+    init(byteArray: [UInt8]) {
+        let rbuf = byteArray.withUnsafeBufferPointer { ptr in
             RustBuffer.from(ptr)
         }
         self.init(capacity: rbuf.capacity, len: rbuf.len, data: rbuf.data)
@@ -209,7 +209,7 @@ extension FfiConverterRustBuffer {
     public static func lower(_ value: SwiftType) -> RustBuffer {
           var writer = createWriter()
           write(value, into: &writer)
-          return RustBuffer(bytes: writer)
+          return RustBuffer(byteArray: writer)
     }
 }
 // An error type for FFI errors. These errors occur at the UniFFI level, not
@@ -650,6 +650,11 @@ public convenience init(projectId: ProjectId, pulseMetadata: PulseMetadata) {
 }
 
     deinit {
+        if handle == 0 {
+            // Mock objects have handle=0 don't try to free them
+            return
+        }
+
         try! rustCall { uniffi_yttrium_fn_free_evmsigningclient(handle, $0) }
     }
 
@@ -832,6 +837,11 @@ open class LoggerImpl: Logger, @unchecked Sendable {
     // No primary constructor declared for this class.
 
     deinit {
+        if handle == 0 {
+            // Mock objects have handle=0 don't try to free them
+            return
+        }
+
         try! rustCall { uniffi_yttrium_fn_free_logger(handle, $0) }
     }
 
@@ -1011,6 +1021,11 @@ open class SendTxParams: SendTxParamsProtocol, @unchecked Sendable {
     // No primary constructor declared for this class.
 
     deinit {
+        if handle == 0 {
+            // Mock objects have handle=0 don't try to free them
+            return
+        }
+
         try! rustCall { uniffi_yttrium_fn_free_sendtxparams(handle, $0) }
     }
 
@@ -1127,6 +1142,11 @@ public convenience init(projectId: ProjectId, pulseMetadata: PulseMetadata) {
 }
 
     deinit {
+        if handle == 0 {
+            // Mock objects have handle=0 don't try to free them
+            return
+        }
+
         try! rustCall { uniffi_yttrium_fn_free_stacksclient(handle, $0) }
     }
 
@@ -1304,6 +1324,11 @@ public convenience init(projectId: ProjectId, pulseMetadata: PulseMetadata) {
 }
 
     deinit {
+        if handle == 0 {
+            // Mock objects have handle=0 don't try to free them
+            return
+        }
+
         try! rustCall { uniffi_yttrium_fn_free_suiclient(handle, $0) }
     }
 
@@ -1490,6 +1515,11 @@ public convenience init(cfg: TonClientConfig, projectId: ProjectId, pulseMetadat
 }
 
     deinit {
+        if handle == 0 {
+            // Mock objects have handle=0 don't try to free them
+            return
+        }
+
         try! rustCall { uniffi_yttrium_fn_free_tonclient(handle, $0) }
     }
 
@@ -1647,6 +1677,8 @@ public struct Amount: Equatable, Hashable {
     }
 
     
+
+    
 }
 
 #if compiler(>=6)
@@ -1705,6 +1737,8 @@ public struct BalanceFfi: Equatable, Hashable {
     }
 
     
+
+    
 }
 
 #if compiler(>=6)
@@ -1759,6 +1793,8 @@ public struct Call: Equatable, Hashable {
     }
 
     
+
+    
 }
 
 #if compiler(>=6)
@@ -1809,6 +1845,8 @@ public struct Config: Equatable, Hashable {
     public init(endpoints: Endpoints) {
         self.endpoints = endpoints
     }
+
+    
 
     
 }
@@ -1862,6 +1900,8 @@ public struct DisplayItem: Equatable, Hashable {
         self.label = label
         self.value = value
     }
+
+    
 
     
 }
@@ -1925,6 +1965,8 @@ public struct DisplayModel: Equatable, Hashable {
     }
 
     
+
+    
 }
 
 #if compiler(>=6)
@@ -1985,6 +2027,8 @@ public struct DoSendTransactionParams: Equatable, Hashable {
     }
 
     
+
+    
 }
 
 #if compiler(>=6)
@@ -2039,6 +2083,8 @@ public struct Endpoint: Equatable, Hashable {
     }
 
     
+
+    
 }
 
 #if compiler(>=6)
@@ -2091,6 +2137,8 @@ public struct Endpoints: Equatable, Hashable {
         self.bundler = bundler
         self.paymaster = paymaster
     }
+
+    
 
     
 }
@@ -2153,6 +2201,8 @@ public struct Erc20Metadata: Equatable, Hashable {
         self.price = price
         self.iconUrl = iconUrl
     }
+
+    
 
     
 }
@@ -2232,6 +2282,8 @@ public struct Erc3009Authorization: Equatable, Hashable {
     }
 
     
+
+    
 }
 
 #if compiler(>=6)
@@ -2298,6 +2350,8 @@ public struct Erc721Metadata: Equatable, Hashable {
     }
 
     
+
+    
 }
 
 #if compiler(>=6)
@@ -2354,6 +2408,8 @@ public struct EstimatedCost: Equatable, Hashable {
         self.writeCount = writeCount
         self.writeLength = writeLength
     }
+
+    
 
     
 }
@@ -2414,6 +2470,8 @@ public struct Estimation: Equatable, Hashable {
     }
 
     
+
+    
 }
 
 #if compiler(>=6)
@@ -2464,6 +2522,8 @@ public struct ExecuteDetails: Equatable, Hashable {
         self.initialTxnReceipt = initialTxnReceipt
         self.initialTxnHash = initialTxnHash
     }
+
+    
 
     
 }
@@ -2530,6 +2590,8 @@ public struct FeeEstimatedTransaction: Equatable, Hashable {
         self.maxFeePerGas = maxFeePerGas
         self.maxPriorityFeePerGas = maxPriorityFeePerGas
     }
+
+    
 
     
 }
@@ -2600,6 +2662,8 @@ public struct FeeEstimation: Equatable, Hashable {
         self.estimatedCostScalar = estimatedCostScalar
         self.estimations = estimations
     }
+
+    
 
     
 }
@@ -2678,6 +2742,8 @@ public struct FfiAuthorization: Equatable, Hashable {
     }
 
     
+
+    
 }
 
 #if compiler(>=6)
@@ -2738,6 +2804,8 @@ public struct FundingMetadata: Equatable, Hashable {
         self.bridgingFee = bridgingFee
         self.decimals = decimals
     }
+
+    
 
     
 }
@@ -2802,6 +2870,8 @@ public struct GetAssetsFilters: Equatable, Hashable {
     }
 
     
+
+    
 }
 
 #if compiler(>=6)
@@ -2854,6 +2924,8 @@ public struct GetAssetsParams: Equatable, Hashable {
         self.account = account
         self.filters = filters
     }
+
+    
 
     
 }
@@ -2914,6 +2986,8 @@ public struct InitialTransactionMetadata: Equatable, Hashable {
     }
 
     
+
+    
 }
 
 #if compiler(>=6)
@@ -2970,6 +3044,8 @@ public struct Keypair: Equatable, Hashable {
         self.sk = sk
         self.pk = pk
     }
+
+    
 
     
 }
@@ -3032,6 +3108,8 @@ public struct NativeMetadata: Equatable, Hashable {
     }
 
     
+
+    
 }
 
 #if compiler(>=6)
@@ -3092,6 +3170,8 @@ public struct OwnerSignature: Equatable, Hashable {
     }
 
     
+
+    
 }
 
 #if compiler(>=6)
@@ -3146,6 +3226,8 @@ public struct PrepareResponseAvailable: Equatable, Hashable {
         self.transactions = transactions
         self.metadata = metadata
     }
+
+    
 
     
 }
@@ -3206,6 +3288,8 @@ public struct PrepareResponseError: Equatable, Hashable {
         self.error = error
         self.reason = reason
     }
+
+    
 
     
 }
@@ -3272,6 +3356,8 @@ public struct PrepareResponseMetadata: Equatable, Hashable {
     }
 
     
+
+    
 }
 
 #if compiler(>=6)
@@ -3324,6 +3410,8 @@ public struct PrepareResponseNotRequired: Equatable, Hashable {
         self.initialTransaction = initialTransaction
         self.transactions = transactions
     }
+
+    
 
     
 }
@@ -3380,6 +3468,8 @@ public struct PreparedSendTransaction: Equatable, Hashable {
         self.hash = hash
         self.doSendTransactionParams = doSendTransactionParams
     }
+
+    
 
     
 }
@@ -3442,6 +3532,8 @@ public struct PulseMetadata: Equatable, Hashable {
     }
 
     
+
+    
 }
 
 #if compiler(>=6)
@@ -3499,6 +3591,8 @@ public struct RawPreview: Equatable, Hashable {
         self.selector = selector
         self.args = args
     }
+
+    
 
     
 }
@@ -3580,6 +3674,8 @@ public struct SafeOp: Equatable, Hashable {
     }
 
     
+
+    
 }
 
 #if compiler(>=6)
@@ -3656,6 +3752,8 @@ public struct SendTxMessage: Equatable, Hashable {
         self.stateInit = stateInit
         self.payload = payload
     }
+
+    
 
     
 }
@@ -3785,6 +3883,8 @@ public struct SignAndSendParams: Equatable, Hashable {
     }
 
     
+
+    
 }
 
 #if compiler(>=6)
@@ -3862,6 +3962,8 @@ public struct SignAndSendResult: Equatable, Hashable {
     }
 
     
+
+    
 }
 
 #if compiler(>=6)
@@ -3922,6 +4024,8 @@ public struct SignOutputObject: Equatable, Hashable {
     }
 
     
+
+    
 }
 
 #if compiler(>=6)
@@ -3974,6 +4078,8 @@ public struct SignOutputToSign: Equatable, Hashable {
         self.safeOp = safeOp
         self.domain = domain
     }
+
+    
 
     
 }
@@ -4030,6 +4136,8 @@ public struct SignStep3Params: Equatable, Hashable {
     }
 
     
+
+    
 }
 
 #if compiler(>=6)
@@ -4080,6 +4188,8 @@ public struct SignTransactionResult: Equatable, Hashable {
         self.txBytes = txBytes
         self.signature = signature
     }
+
+    
 
     
 }
@@ -4142,6 +4252,8 @@ public struct StacksAccount: Equatable, Hashable {
     }
 
     
+
+    
 }
 
 #if compiler(>=6)
@@ -4200,6 +4312,8 @@ public struct StatusResponseCompleted: Equatable, Hashable {
     }
 
     
+
+    
 }
 
 #if compiler(>=6)
@@ -4248,6 +4362,8 @@ public struct StatusResponseError: Equatable, Hashable {
         self.createdAt = createdAt
         self.error = error
     }
+
+    
 
     
 }
@@ -4308,6 +4424,8 @@ public struct StatusResponsePendingObject: Equatable, Hashable {
     }
 
     
+
+    
 }
 
 #if compiler(>=6)
@@ -4356,6 +4474,8 @@ public struct TonClientConfig: Equatable, Hashable {
     public init(networkId: String) {
         self.networkId = networkId
     }
+
+    
 
     
 }
@@ -4416,6 +4536,8 @@ public struct Transaction: Equatable, Hashable {
         self.gasLimit = gasLimit
         self.nonce = nonce
     }
+
+    
 
     
 }
@@ -4480,6 +4602,8 @@ public struct TransactionFee: Equatable, Hashable {
     }
 
     
+
+    
 }
 
 #if compiler(>=6)
@@ -4534,6 +4658,8 @@ public struct TransferStxRequest: Equatable, Hashable {
         self.recipient = recipient
         self.memo = memo
     }
+
+    
 
     
 }
@@ -4592,6 +4718,8 @@ public struct TransferStxResponse: Equatable, Hashable {
     }
 
     
+
+    
 }
 
 #if compiler(>=6)
@@ -4644,6 +4772,8 @@ public struct TxnDetails: Equatable, Hashable {
         self.transactionHashToSign = transactionHashToSign
         self.fee = fee
     }
+
+    
 
     
 }
@@ -4708,6 +4838,8 @@ public struct UiFields: Equatable, Hashable {
         self.initial = initial
         self.localTotal = localTotal
     }
+
+    
 
     
 }
@@ -4798,6 +4930,8 @@ public struct UserOperationV07: Equatable, Hashable {
     }
 
     
+
+    
 }
 
 #if compiler(>=6)
@@ -4878,6 +5012,8 @@ public struct WalletIdentity: Equatable, Hashable {
     }
 
     
+
+    
 }
 
 #if compiler(>=6)
@@ -4927,6 +5063,8 @@ public enum AddressOrNative: Equatable, Hashable {
     case addressVariant(Address
     )
     case native
+
+
 
 
 
@@ -4998,6 +5136,8 @@ public enum AssetFfi: Equatable, Hashable {
     )
     case erc721(address: AddressOrNative, balance: U256, metadata: Erc721Metadata
     )
+
+
 
 
 
@@ -5085,6 +5225,8 @@ public enum AssetType: Equatable, Hashable {
 
 
 
+
+
 }
 
 #if compiler(>=6)
@@ -5157,6 +5299,8 @@ public enum BridgingError: Equatable, Hashable {
     case insufficientGasFunds
     case transactionSimulationFailed
     case unknown
+
+
 
 
 
@@ -5253,6 +5397,8 @@ public enum Currency: Equatable, Hashable {
     case jpy
     case btc
     case eth
+
+
 
 
 
@@ -5366,6 +5512,8 @@ public enum DeriveKeypairFromMnemonicError: Swift.Error, Equatable, Hashable, Fo
     
 
     
+
+    
     public var errorDescription: String? {
         String(reflecting: self)
     }
@@ -5450,6 +5598,8 @@ public enum EngineErrorFfi: Swift.Error, Equatable, Hashable, Foundation.Localiz
     )
     case TokenRegistry(String
     )
+
+    
 
     
 
@@ -5575,6 +5725,8 @@ public enum EvmSigningError: Swift.Error, Equatable, Hashable, Foundation.Locali
     )
     case BalanceFetch(String
     )
+
+    
 
     
 
@@ -5738,6 +5890,8 @@ public enum ExecuteError: Swift.Error, Equatable, Hashable, Foundation.Localized
     
 
     
+
+    
     public var errorDescription: String? {
         String(reflecting: self)
     }
@@ -5812,6 +5966,8 @@ public enum ExecuteErrorReason: Swift.Error, Equatable, Hashable, Foundation.Loc
     )
     case Initial(SendTransactionError
     )
+
+    
 
     
 
@@ -5905,6 +6061,8 @@ public enum PrepareDetailedResponse: Equatable, Hashable {
 
 
 
+
+
 }
 
 #if compiler(>=6)
@@ -5973,6 +6131,8 @@ public enum PrepareDetailedResponseSuccess: Equatable, Hashable {
     )
     case notRequired(PrepareResponseNotRequired
     )
+
+
 
 
 
@@ -6047,6 +6207,8 @@ public enum PrepareResponse: Equatable, Hashable {
 
 
 
+
+
 }
 
 #if compiler(>=6)
@@ -6115,6 +6277,8 @@ public enum PrepareResponseSuccess: Equatable, Hashable {
     )
     case notRequired(PrepareResponseNotRequired
     )
+
+
 
 
 
@@ -6187,6 +6351,8 @@ public enum Route: Equatable, Hashable {
 
 
 
+
+
 }
 
 #if compiler(>=6)
@@ -6245,6 +6411,8 @@ public enum RouteSig: Equatable, Hashable {
     
     case eip155([PrimitiveSignature]
     )
+
+
 
 
 
@@ -6310,6 +6478,8 @@ public enum SendTransactionError: Swift.Error, Equatable, Hashable, Foundation.L
     )
     case Failed(txnHash: B256
     )
+
+    
 
     
 
@@ -6403,6 +6573,8 @@ public enum SignOutputEnum: Equatable, Hashable {
 
 
 
+
+
 }
 
 #if compiler(>=6)
@@ -6471,6 +6643,8 @@ public enum SolanaDeriveKeypairFromMnemonicError: Swift.Error, Equatable, Hashab
     )
     case Derive(String
     )
+
+    
 
     
 
@@ -6555,6 +6729,8 @@ public enum StacksAccountError: Swift.Error, Equatable, Hashable, Foundation.Loc
     
 
     
+
+    
     public var errorDescription: String? {
         String(reflecting: self)
     }
@@ -6625,6 +6801,8 @@ public enum StacksFeesError: Swift.Error, Equatable, Hashable, Foundation.Locali
     )
     case InvalidResponse(String
     )
+
+    
 
     
 
@@ -6711,6 +6889,8 @@ public enum StacksGetAddressError: Swift.Error, Equatable, Hashable, Foundation.
     )
     case InvalidVersion(String
     )
+
+    
 
     
 
@@ -6815,6 +6995,8 @@ public enum StacksSignMessageError: Swift.Error, Equatable, Hashable, Foundation
     
 
     
+
+    
     public var errorDescription: String? {
         String(reflecting: self)
     }
@@ -6911,6 +7093,8 @@ public enum StacksSignTransactionError: Swift.Error, Equatable, Hashable, Founda
     )
     case MemoTooLong(UInt32
     )
+
+    
 
     
 
@@ -7041,6 +7225,8 @@ public enum StacksTransferStxError: Swift.Error, Equatable, Hashable, Foundation
     
 
     
+
+    
     public var errorDescription: String? {
         String(reflecting: self)
     }
@@ -7156,6 +7342,8 @@ public enum StatusError: Swift.Error, Equatable, Hashable, Foundation.LocalizedE
      */
     case DecodingJson(StatusCode,SerdeJsonError,String
     )
+
+    
 
     
 
@@ -7277,6 +7465,8 @@ public enum StatusResponse: Equatable, Hashable {
 
 
 
+
+
 }
 
 #if compiler(>=6)
@@ -7355,6 +7545,8 @@ public enum SuiError: Swift.Error, Equatable, Hashable, Foundation.LocalizedErro
     )
     case ExecuteTransactionBlock(SuiSdkError
     )
+
+    
 
     
 
@@ -7451,6 +7643,8 @@ public enum SuiSignTransactionError: Swift.Error, Equatable, Hashable, Foundatio
     )
     case NoCoinsAvailableForGas(SuiAddress
     )
+
+    
 
     
 
@@ -7569,6 +7763,8 @@ public enum TonError: Swift.Error, Equatable, Hashable, Foundation.LocalizedErro
     
 
     
+
+    
     public var errorDescription: String? {
         String(reflecting: self)
     }
@@ -7672,6 +7868,8 @@ public enum Transactions: Equatable, Hashable {
 
 
 
+
+
 }
 
 #if compiler(>=6)
@@ -7730,6 +7928,8 @@ public enum TransferFeesError: Swift.Error, Equatable, Hashable, Foundation.Loca
     
     case FeeRate(String
     )
+
+    
 
     
 
@@ -7808,6 +8008,8 @@ public enum TypedEngineErrorFfi: Swift.Error, Equatable, Hashable, Foundation.Lo
     )
     case TokenRegistry(String
     )
+
+    
 
     
 
@@ -7908,6 +8110,8 @@ public enum WaitForSuccessError: Swift.Error, Equatable, Hashable, Foundation.Lo
     )
     case StatusResponsePending(StatusResponsePendingObject
     )
+
+    
 
     
 
@@ -10441,6 +10645,20 @@ fileprivate func uniffiFutureContinuationCallback(handle: UInt64, pollResult: In
         print("uniffiFutureContinuationCallback invalid handle")
     }
 }
+public func fundingMetadataToAmount(value: FundingMetadata) -> Amount  {
+    return try!  FfiConverterTypeAmount_lift(try! rustCall() {
+    uniffi_yttrium_fn_func_funding_metadata_to_amount(
+        FfiConverterTypeFundingMetadata_lower(value),$0
+    )
+})
+}
+public func fundingMetadataToBridgingFeeAmount(value: FundingMetadata) -> Amount  {
+    return try!  FfiConverterTypeAmount_lift(try! rustCall() {
+    uniffi_yttrium_fn_func_funding_metadata_to_bridging_fee_amount(
+        FfiConverterTypeFundingMetadata_lower(value),$0
+    )
+})
+}
 public func clearSigningFormat(chainId: UInt64, to: String, calldataHex: String)throws  -> DisplayModel  {
     return try  FfiConverterTypeDisplayModel_lift(try rustCallWithError(FfiConverterTypeEngineErrorFfi_lift) {
     uniffi_yttrium_fn_func_clear_signing_format(
@@ -10464,20 +10682,6 @@ public func clearSigningFormatWithValue(chainId: UInt64, to: String, valueHex: S
         FfiConverterString.lower(to),
         FfiConverterOptionString.lower(valueHex),
         FfiConverterString.lower(calldataHex),$0
-    )
-})
-}
-public func fundingMetadataToAmount(value: FundingMetadata) -> Amount  {
-    return try!  FfiConverterTypeAmount_lift(try! rustCall() {
-    uniffi_yttrium_fn_func_funding_metadata_to_amount(
-        FfiConverterTypeFundingMetadata_lower(value),$0
-    )
-})
-}
-public func fundingMetadataToBridgingFeeAmount(value: FundingMetadata) -> Amount  {
-    return try!  FfiConverterTypeAmount_lift(try! rustCall() {
-    uniffi_yttrium_fn_func_funding_metadata_to_bridging_fee_amount(
-        FfiConverterTypeFundingMetadata_lower(value),$0
     )
 })
 }
@@ -10560,121 +10764,121 @@ private let initializationResult: InitializationResult = {
     if bindings_contract_version != scaffolding_contract_version {
         return InitializationResult.contractVersionMismatch
     }
-    if (uniffi_yttrium_checksum_func_clear_signing_format() != 49027) {
+    if (uniffi_yttrium_checksum_func_funding_metadata_to_amount() != 40508) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_yttrium_checksum_func_clear_signing_format_typed() != 25777) {
+    if (uniffi_yttrium_checksum_func_funding_metadata_to_bridging_fee_amount() != 42676) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_yttrium_checksum_func_clear_signing_format_with_value() != 30805) {
+    if (uniffi_yttrium_checksum_func_clear_signing_format() != 43780) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_yttrium_checksum_func_funding_metadata_to_amount() != 52092) {
+    if (uniffi_yttrium_checksum_func_clear_signing_format_typed() != 11647) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_yttrium_checksum_func_funding_metadata_to_bridging_fee_amount() != 38273) {
+    if (uniffi_yttrium_checksum_func_clear_signing_format_with_value() != 36229) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_yttrium_checksum_func_register_logger() != 53062) {
+    if (uniffi_yttrium_checksum_func_register_logger() != 32546) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_yttrium_checksum_func_stacks_generate_wallet() != 8623) {
+    if (uniffi_yttrium_checksum_func_stacks_generate_wallet() != 4814) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_yttrium_checksum_func_stacks_get_address() != 14379) {
+    if (uniffi_yttrium_checksum_func_stacks_get_address() != 53129) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_yttrium_checksum_func_stacks_sign_message() != 52767) {
+    if (uniffi_yttrium_checksum_func_stacks_sign_message() != 61460) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_yttrium_checksum_func_sui_derive_keypair_from_mnemonic() != 51451) {
+    if (uniffi_yttrium_checksum_func_sui_derive_keypair_from_mnemonic() != 45033) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_yttrium_checksum_func_sui_generate_keypair() != 3308) {
+    if (uniffi_yttrium_checksum_func_sui_generate_keypair() != 61541) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_yttrium_checksum_func_sui_get_address() != 64923) {
+    if (uniffi_yttrium_checksum_func_sui_get_address() != 8927) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_yttrium_checksum_func_sui_get_public_key() != 65033) {
+    if (uniffi_yttrium_checksum_func_sui_get_public_key() != 34557) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_yttrium_checksum_func_sui_personal_sign() != 21640) {
+    if (uniffi_yttrium_checksum_func_sui_personal_sign() != 40621) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_yttrium_checksum_method_evmsigningclient_get_native_balance() != 64681) {
+    if (uniffi_yttrium_checksum_method_evmsigningclient_get_native_balance() != 23319) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_yttrium_checksum_method_evmsigningclient_get_token_balance() != 47048) {
+    if (uniffi_yttrium_checksum_method_evmsigningclient_get_token_balance() != 39605) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_yttrium_checksum_method_evmsigningclient_sign_and_send() != 30425) {
+    if (uniffi_yttrium_checksum_method_evmsigningclient_sign_and_send() != 4027) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_yttrium_checksum_method_evmsigningclient_sign_typed_data() != 26245) {
+    if (uniffi_yttrium_checksum_method_evmsigningclient_sign_typed_data() != 38022) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_yttrium_checksum_method_logger_log() != 540) {
+    if (uniffi_yttrium_checksum_method_logger_log() != 54293) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_yttrium_checksum_method_stacksclient_get_account() != 47469) {
+    if (uniffi_yttrium_checksum_method_stacksclient_get_account() != 40387) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_yttrium_checksum_method_stacksclient_transfer_fees() != 35491) {
+    if (uniffi_yttrium_checksum_method_stacksclient_transfer_fees() != 17306) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_yttrium_checksum_method_stacksclient_transfer_stx() != 55030) {
+    if (uniffi_yttrium_checksum_method_stacksclient_transfer_stx() != 22579) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_yttrium_checksum_method_suiclient_get_all_balances() != 49534) {
+    if (uniffi_yttrium_checksum_method_suiclient_get_all_balances() != 5303) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_yttrium_checksum_method_suiclient_sign_and_execute_transaction() != 3492) {
+    if (uniffi_yttrium_checksum_method_suiclient_sign_and_execute_transaction() != 44057) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_yttrium_checksum_method_suiclient_sign_transaction() != 14754) {
+    if (uniffi_yttrium_checksum_method_suiclient_sign_transaction() != 9948) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_yttrium_checksum_method_tonclient_broadcast_message() != 1154) {
+    if (uniffi_yttrium_checksum_method_tonclient_broadcast_message() != 50498) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_yttrium_checksum_method_tonclient_generate_keypair() != 3598) {
+    if (uniffi_yttrium_checksum_method_tonclient_generate_keypair() != 65015) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_yttrium_checksum_method_tonclient_generate_keypair_from_bip39_mnemonic() != 59997) {
+    if (uniffi_yttrium_checksum_method_tonclient_generate_keypair_from_bip39_mnemonic() != 40548) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_yttrium_checksum_method_tonclient_generate_keypair_from_ton_mnemonic() != 12150) {
+    if (uniffi_yttrium_checksum_method_tonclient_generate_keypair_from_ton_mnemonic() != 57500) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_yttrium_checksum_method_tonclient_get_address_from_keypair() != 27441) {
+    if (uniffi_yttrium_checksum_method_tonclient_get_address_from_keypair() != 48797) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_yttrium_checksum_method_tonclient_send_message() != 55560) {
+    if (uniffi_yttrium_checksum_method_tonclient_send_message() != 35228) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_yttrium_checksum_method_tonclient_sign_data() != 60300) {
+    if (uniffi_yttrium_checksum_method_tonclient_sign_data() != 37618) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_yttrium_checksum_constructor_evmsigningclient_new() != 21912) {
+    if (uniffi_yttrium_checksum_constructor_evmsigningclient_new() != 53499) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_yttrium_checksum_constructor_evmsigningclient_with_blockchain_api_url() != 22632) {
+    if (uniffi_yttrium_checksum_constructor_evmsigningclient_with_blockchain_api_url() != 44586) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_yttrium_checksum_constructor_stacksclient_new() != 14610) {
+    if (uniffi_yttrium_checksum_constructor_stacksclient_new() != 2314) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_yttrium_checksum_constructor_stacksclient_with_blockchain_api_url() != 37649) {
+    if (uniffi_yttrium_checksum_constructor_stacksclient_with_blockchain_api_url() != 32462) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_yttrium_checksum_constructor_suiclient_new() != 11380) {
+    if (uniffi_yttrium_checksum_constructor_suiclient_new() != 62804) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_yttrium_checksum_constructor_suiclient_with_blockchain_api_url() != 31125) {
+    if (uniffi_yttrium_checksum_constructor_suiclient_with_blockchain_api_url() != 12164) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_yttrium_checksum_constructor_tonclient_new() != 4033) {
+    if (uniffi_yttrium_checksum_constructor_tonclient_new() != 38312) {
         return InitializationResult.apiChecksumMismatch
     }
 
