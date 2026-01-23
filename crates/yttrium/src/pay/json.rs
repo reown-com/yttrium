@@ -1,25 +1,167 @@
-use super::{CollectDataFieldResult, ConfigError, SdkConfig, WalletConnectPay};
+use super::{
+    CollectDataFieldResult, ConfigError, ConfirmPaymentError,
+    GetPaymentOptionsError, GetPaymentRequestError, SdkConfig,
+    WalletConnectPay,
+};
 
 #[derive(Debug, thiserror::Error)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Error))]
 pub enum PayJsonError {
+    // JSON errors
     #[error("JSON parse error: {0}")]
     JsonParse(String),
     #[error("JSON serialize error: {0}")]
     JsonSerialize(String),
-    #[error("Configuration error: {0}")]
-    Config(String),
-    #[error("Payment options error: {0}")]
-    PaymentOptions(String),
-    #[error("Payment request error: {0}")]
-    PaymentRequest(String),
-    #[error("Confirm payment error: {0}")]
-    ConfirmPayment(String),
+    // Config errors
+    #[error("Missing authentication: {0}")]
+    MissingAuth(String),
+    // Connectivity errors
+    #[error("No network connection: {0}")]
+    NoConnection(String),
+    #[error("Request timed out: {0}")]
+    RequestTimeout(String),
+    #[error("Connection failed: {0}")]
+    ConnectionFailed(String),
+    // Shared domain errors
+    #[error("Payment not found: {0}")]
+    PaymentNotFound(String),
+    #[error("Payment expired: {0}")]
+    PaymentExpired(String),
+    #[error("Invalid account: {0}")]
+    InvalidAccount(String),
+    #[error("Option not found: {0}")]
+    OptionNotFound(String),
+    #[error("HTTP error: {0}")]
+    Http(String),
+    #[error("Internal error: {0}")]
+    InternalError(String),
+    // GetPaymentOptions specific errors
+    #[error("Invalid request: {0}")]
+    InvalidRequest(String),
+    #[error("Payment not ready: {0}")]
+    PaymentNotReady(String),
+    #[error("Compliance failed: {0}")]
+    ComplianceFailed(String),
+    // GetPaymentRequest specific errors
+    #[error("Fetch error: {0}")]
+    FetchError(String),
+    // ConfirmPayment specific errors
+    #[error("Invalid option: {0}")]
+    InvalidOption(String),
+    #[error("Invalid signature: {0}")]
+    InvalidSignature(String),
+    #[error("Route expired: {0}")]
+    RouteExpired(String),
+    #[error("Unsupported method: {0}")]
+    UnsupportedMethod(String),
 }
 
 impl From<ConfigError> for PayJsonError {
     fn from(e: ConfigError) -> Self {
-        PayJsonError::Config(e.to_string())
+        match e {
+            ConfigError::MissingAuth(msg) => PayJsonError::MissingAuth(msg),
+        }
+    }
+}
+
+impl From<GetPaymentOptionsError> for PayJsonError {
+    fn from(e: GetPaymentOptionsError) -> Self {
+        match e {
+            GetPaymentOptionsError::NoConnection(msg) => {
+                Self::NoConnection(msg)
+            }
+            GetPaymentOptionsError::RequestTimeout(msg) => {
+                Self::RequestTimeout(msg)
+            }
+            GetPaymentOptionsError::ConnectionFailed(msg) => {
+                Self::ConnectionFailed(msg)
+            }
+            GetPaymentOptionsError::PaymentNotFound(msg) => {
+                Self::PaymentNotFound(msg)
+            }
+            GetPaymentOptionsError::PaymentExpired(msg) => {
+                Self::PaymentExpired(msg)
+            }
+            GetPaymentOptionsError::InvalidAccount(msg) => {
+                Self::InvalidAccount(msg)
+            }
+            GetPaymentOptionsError::OptionNotFound(msg) => {
+                Self::OptionNotFound(msg)
+            }
+            GetPaymentOptionsError::Http(msg) => Self::Http(msg),
+            GetPaymentOptionsError::InternalError(msg) => {
+                Self::InternalError(msg)
+            }
+            GetPaymentOptionsError::InvalidRequest(msg) => {
+                Self::InvalidRequest(msg)
+            }
+            GetPaymentOptionsError::PaymentNotReady(msg) => {
+                Self::PaymentNotReady(msg)
+            }
+            GetPaymentOptionsError::ComplianceFailed(msg) => {
+                Self::ComplianceFailed(msg)
+            }
+        }
+    }
+}
+
+impl From<GetPaymentRequestError> for PayJsonError {
+    fn from(e: GetPaymentRequestError) -> Self {
+        match e {
+            GetPaymentRequestError::NoConnection(msg) => {
+                Self::NoConnection(msg)
+            }
+            GetPaymentRequestError::RequestTimeout(msg) => {
+                Self::RequestTimeout(msg)
+            }
+            GetPaymentRequestError::ConnectionFailed(msg) => {
+                Self::ConnectionFailed(msg)
+            }
+            GetPaymentRequestError::PaymentNotFound(msg) => {
+                Self::PaymentNotFound(msg)
+            }
+            GetPaymentRequestError::InvalidAccount(msg) => {
+                Self::InvalidAccount(msg)
+            }
+            GetPaymentRequestError::OptionNotFound(msg) => {
+                Self::OptionNotFound(msg)
+            }
+            GetPaymentRequestError::Http(msg) => Self::Http(msg),
+            GetPaymentRequestError::InternalError(msg) => {
+                Self::InternalError(msg)
+            }
+            GetPaymentRequestError::FetchError(msg) => Self::FetchError(msg),
+        }
+    }
+}
+
+impl From<ConfirmPaymentError> for PayJsonError {
+    fn from(e: ConfirmPaymentError) -> Self {
+        match e {
+            ConfirmPaymentError::NoConnection(msg) => Self::NoConnection(msg),
+            ConfirmPaymentError::RequestTimeout(msg) => {
+                Self::RequestTimeout(msg)
+            }
+            ConfirmPaymentError::ConnectionFailed(msg) => {
+                Self::ConnectionFailed(msg)
+            }
+            ConfirmPaymentError::PaymentNotFound(msg) => {
+                Self::PaymentNotFound(msg)
+            }
+            ConfirmPaymentError::PaymentExpired(msg) => {
+                Self::PaymentExpired(msg)
+            }
+            ConfirmPaymentError::Http(msg) => Self::Http(msg),
+            ConfirmPaymentError::InternalError(msg) => Self::InternalError(msg),
+            ConfirmPaymentError::InvalidOption(msg) => Self::InvalidOption(msg),
+            ConfirmPaymentError::InvalidSignature(msg) => {
+                Self::InvalidSignature(msg)
+            }
+            ConfirmPaymentError::RouteExpired(msg) => Self::RouteExpired(msg),
+            ConfirmPaymentError::UnsupportedMethod(msg) => {
+                Self::UnsupportedMethod(msg)
+            }
+        }
     }
 }
 
@@ -101,7 +243,7 @@ impl WalletConnectPayJson {
                 req.include_payment_info,
             )
             .await
-            .map_err(|e| PayJsonError::PaymentOptions(e.to_string()))?;
+            .map_err(PayJsonError::from)?;
         serde_json::to_string(&result)
             .map_err(|e| PayJsonError::JsonSerialize(e.to_string()))
     }
@@ -130,7 +272,7 @@ impl WalletConnectPayJson {
             .client
             .get_required_payment_actions(req.payment_id, req.option_id)
             .await
-            .map_err(|e| PayJsonError::PaymentRequest(e.to_string()))?;
+            .map_err(PayJsonError::from)?;
         serde_json::to_string(&result)
             .map_err(|e| PayJsonError::JsonSerialize(e.to_string()))
     }
@@ -171,7 +313,7 @@ impl WalletConnectPayJson {
                 req.max_poll_ms,
             )
             .await
-            .map_err(|e| PayJsonError::ConfirmPayment(e.to_string()))?;
+            .map_err(PayJsonError::from)?;
         serde_json::to_string(&result)
             .map_err(|e| PayJsonError::JsonSerialize(e.to_string()))
     }
