@@ -2158,6 +2158,12 @@ public enum ConfirmPaymentError: Swift.Error, Equatable, Hashable, Foundation.Lo
     )
     case RouteExpired(String
     )
+    case NoConnection(String
+    )
+    case RequestTimeout(String
+    )
+    case ConnectionFailed(String
+    )
     case Http(String
     )
     case InternalError(String
@@ -2206,13 +2212,22 @@ public struct FfiConverterTypeConfirmPaymentError: FfiConverterRustBuffer {
         case 5: return .RouteExpired(
             try FfiConverterString.read(from: &buf)
             )
-        case 6: return .Http(
+        case 6: return .NoConnection(
             try FfiConverterString.read(from: &buf)
             )
-        case 7: return .InternalError(
+        case 7: return .RequestTimeout(
             try FfiConverterString.read(from: &buf)
             )
-        case 8: return .UnsupportedMethod(
+        case 8: return .ConnectionFailed(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 9: return .Http(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 10: return .InternalError(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 11: return .UnsupportedMethod(
             try FfiConverterString.read(from: &buf)
             )
 
@@ -2252,18 +2267,33 @@ public struct FfiConverterTypeConfirmPaymentError: FfiConverterRustBuffer {
             FfiConverterString.write(v1, into: &buf)
             
         
-        case let .Http(v1):
+        case let .NoConnection(v1):
             writeInt(&buf, Int32(6))
             FfiConverterString.write(v1, into: &buf)
             
         
-        case let .InternalError(v1):
+        case let .RequestTimeout(v1):
             writeInt(&buf, Int32(7))
             FfiConverterString.write(v1, into: &buf)
             
         
-        case let .UnsupportedMethod(v1):
+        case let .ConnectionFailed(v1):
             writeInt(&buf, Int32(8))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .Http(v1):
+            writeInt(&buf, Int32(9))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .InternalError(v1):
+            writeInt(&buf, Int32(10))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .UnsupportedMethod(v1):
+            writeInt(&buf, Int32(11))
             FfiConverterString.write(v1, into: &buf)
             
         }
@@ -2303,6 +2333,12 @@ public enum GetPaymentOptionsError: Swift.Error, Equatable, Hashable, Foundation
     case InvalidAccount(String
     )
     case ComplianceFailed(String
+    )
+    case NoConnection(String
+    )
+    case RequestTimeout(String
+    )
+    case ConnectionFailed(String
     )
     case Http(String
     )
@@ -2356,10 +2392,19 @@ public struct FfiConverterTypeGetPaymentOptionsError: FfiConverterRustBuffer {
         case 7: return .ComplianceFailed(
             try FfiConverterString.read(from: &buf)
             )
-        case 8: return .Http(
+        case 8: return .NoConnection(
             try FfiConverterString.read(from: &buf)
             )
-        case 9: return .InternalError(
+        case 9: return .RequestTimeout(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 10: return .ConnectionFailed(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 11: return .Http(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 12: return .InternalError(
             try FfiConverterString.read(from: &buf)
             )
 
@@ -2409,13 +2454,28 @@ public struct FfiConverterTypeGetPaymentOptionsError: FfiConverterRustBuffer {
             FfiConverterString.write(v1, into: &buf)
             
         
-        case let .Http(v1):
+        case let .NoConnection(v1):
             writeInt(&buf, Int32(8))
             FfiConverterString.write(v1, into: &buf)
             
         
-        case let .InternalError(v1):
+        case let .RequestTimeout(v1):
             writeInt(&buf, Int32(9))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .ConnectionFailed(v1):
+            writeInt(&buf, Int32(10))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .Http(v1):
+            writeInt(&buf, Int32(11))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .InternalError(v1):
+            writeInt(&buf, Int32(12))
             FfiConverterString.write(v1, into: &buf)
             
         }
@@ -2447,6 +2507,12 @@ public enum GetPaymentRequestError: Swift.Error, Equatable, Hashable, Foundation
     case PaymentNotFound(String
     )
     case InvalidAccount(String
+    )
+    case NoConnection(String
+    )
+    case RequestTimeout(String
+    )
+    case ConnectionFailed(String
     )
     case Http(String
     )
@@ -2490,13 +2556,22 @@ public struct FfiConverterTypeGetPaymentRequestError: FfiConverterRustBuffer {
         case 3: return .InvalidAccount(
             try FfiConverterString.read(from: &buf)
             )
-        case 4: return .Http(
+        case 4: return .NoConnection(
             try FfiConverterString.read(from: &buf)
             )
-        case 5: return .FetchError(
+        case 5: return .RequestTimeout(
             try FfiConverterString.read(from: &buf)
             )
-        case 6: return .InternalError(
+        case 6: return .ConnectionFailed(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 7: return .Http(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 8: return .FetchError(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 9: return .InternalError(
             try FfiConverterString.read(from: &buf)
             )
 
@@ -2526,18 +2601,33 @@ public struct FfiConverterTypeGetPaymentRequestError: FfiConverterRustBuffer {
             FfiConverterString.write(v1, into: &buf)
             
         
-        case let .Http(v1):
+        case let .NoConnection(v1):
             writeInt(&buf, Int32(4))
             FfiConverterString.write(v1, into: &buf)
             
         
-        case let .FetchError(v1):
+        case let .RequestTimeout(v1):
             writeInt(&buf, Int32(5))
             FfiConverterString.write(v1, into: &buf)
             
         
-        case let .InternalError(v1):
+        case let .ConnectionFailed(v1):
             writeInt(&buf, Int32(6))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .Http(v1):
+            writeInt(&buf, Int32(7))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .FetchError(v1):
+            writeInt(&buf, Int32(8))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .InternalError(v1):
+            writeInt(&buf, Int32(9))
             FfiConverterString.write(v1, into: &buf)
             
         }
@@ -2564,6 +2654,12 @@ public enum PayError: Swift.Error, Equatable, Hashable, Foundation.LocalizedErro
 
     
     
+    case NoConnection(String
+    )
+    case RequestTimeout(String
+    )
+    case ConnectionFailed(String
+    )
     case Http(String
     )
     case Api(String
@@ -2596,13 +2692,22 @@ public struct FfiConverterTypePayError: FfiConverterRustBuffer {
         
 
         
-        case 1: return .Http(
+        case 1: return .NoConnection(
             try FfiConverterString.read(from: &buf)
             )
-        case 2: return .Api(
+        case 2: return .RequestTimeout(
             try FfiConverterString.read(from: &buf)
             )
-        case 3: return .Timeout
+        case 3: return .ConnectionFailed(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 4: return .Http(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 5: return .Api(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 6: return .Timeout
 
          default: throw UniffiInternalError.unexpectedEnumCase
         }
@@ -2615,18 +2720,33 @@ public struct FfiConverterTypePayError: FfiConverterRustBuffer {
 
         
         
-        case let .Http(v1):
+        case let .NoConnection(v1):
             writeInt(&buf, Int32(1))
             FfiConverterString.write(v1, into: &buf)
             
         
-        case let .Api(v1):
+        case let .RequestTimeout(v1):
             writeInt(&buf, Int32(2))
             FfiConverterString.write(v1, into: &buf)
             
         
-        case .Timeout:
+        case let .ConnectionFailed(v1):
             writeInt(&buf, Int32(3))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .Http(v1):
+            writeInt(&buf, Int32(4))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .Api(v1):
+            writeInt(&buf, Int32(5))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case .Timeout:
+            writeInt(&buf, Int32(6))
         
         }
     }
@@ -2656,13 +2776,41 @@ public enum PayJsonError: Swift.Error, Equatable, Hashable, Foundation.Localized
     )
     case JsonSerialize(String
     )
-    case Config(String
+    case MissingAuth(String
     )
-    case PaymentOptions(String
+    case NoConnection(String
     )
-    case PaymentRequest(String
+    case RequestTimeout(String
     )
-    case ConfirmPayment(String
+    case ConnectionFailed(String
+    )
+    case PaymentNotFound(String
+    )
+    case PaymentExpired(String
+    )
+    case InvalidAccount(String
+    )
+    case OptionNotFound(String
+    )
+    case Http(String
+    )
+    case InternalError(String
+    )
+    case InvalidRequest(String
+    )
+    case PaymentNotReady(String
+    )
+    case ComplianceFailed(String
+    )
+    case FetchError(String
+    )
+    case InvalidOption(String
+    )
+    case InvalidSignature(String
+    )
+    case RouteExpired(String
+    )
+    case UnsupportedMethod(String
     )
 
     
@@ -2697,16 +2845,58 @@ public struct FfiConverterTypePayJsonError: FfiConverterRustBuffer {
         case 2: return .JsonSerialize(
             try FfiConverterString.read(from: &buf)
             )
-        case 3: return .Config(
+        case 3: return .MissingAuth(
             try FfiConverterString.read(from: &buf)
             )
-        case 4: return .PaymentOptions(
+        case 4: return .NoConnection(
             try FfiConverterString.read(from: &buf)
             )
-        case 5: return .PaymentRequest(
+        case 5: return .RequestTimeout(
             try FfiConverterString.read(from: &buf)
             )
-        case 6: return .ConfirmPayment(
+        case 6: return .ConnectionFailed(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 7: return .PaymentNotFound(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 8: return .PaymentExpired(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 9: return .InvalidAccount(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 10: return .OptionNotFound(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 11: return .Http(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 12: return .InternalError(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 13: return .InvalidRequest(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 14: return .PaymentNotReady(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 15: return .ComplianceFailed(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 16: return .FetchError(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 17: return .InvalidOption(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 18: return .InvalidSignature(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 19: return .RouteExpired(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 20: return .UnsupportedMethod(
             try FfiConverterString.read(from: &buf)
             )
 
@@ -2731,23 +2921,93 @@ public struct FfiConverterTypePayJsonError: FfiConverterRustBuffer {
             FfiConverterString.write(v1, into: &buf)
             
         
-        case let .Config(v1):
+        case let .MissingAuth(v1):
             writeInt(&buf, Int32(3))
             FfiConverterString.write(v1, into: &buf)
             
         
-        case let .PaymentOptions(v1):
+        case let .NoConnection(v1):
             writeInt(&buf, Int32(4))
             FfiConverterString.write(v1, into: &buf)
             
         
-        case let .PaymentRequest(v1):
+        case let .RequestTimeout(v1):
             writeInt(&buf, Int32(5))
             FfiConverterString.write(v1, into: &buf)
             
         
-        case let .ConfirmPayment(v1):
+        case let .ConnectionFailed(v1):
             writeInt(&buf, Int32(6))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .PaymentNotFound(v1):
+            writeInt(&buf, Int32(7))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .PaymentExpired(v1):
+            writeInt(&buf, Int32(8))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .InvalidAccount(v1):
+            writeInt(&buf, Int32(9))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .OptionNotFound(v1):
+            writeInt(&buf, Int32(10))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .Http(v1):
+            writeInt(&buf, Int32(11))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .InternalError(v1):
+            writeInt(&buf, Int32(12))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .InvalidRequest(v1):
+            writeInt(&buf, Int32(13))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .PaymentNotReady(v1):
+            writeInt(&buf, Int32(14))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .ComplianceFailed(v1):
+            writeInt(&buf, Int32(15))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .FetchError(v1):
+            writeInt(&buf, Int32(16))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .InvalidOption(v1):
+            writeInt(&buf, Int32(17))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .InvalidSignature(v1):
+            writeInt(&buf, Int32(18))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .RouteExpired(v1):
+            writeInt(&buf, Int32(19))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .UnsupportedMethod(v1):
+            writeInt(&buf, Int32(20))
             FfiConverterString.write(v1, into: &buf)
             
         }
