@@ -32,8 +32,9 @@ jobs:
           fetch-depth: 0  # Fetch all history so that we can create and push tags
 
       # 2. Setup ccache (Optional: Improve build speeds)
-      - name: Run sccache-cache
-        uses: mozilla-actions/sccache-action@v0.0.4
+      # Temporarily disabled to force fresh build without cache
+      # - name: Run sccache-cache
+      #   uses: mozilla-actions/sccache-action@v0.0.4
 
       # 3. Setup pnpm (JavaScript Package Manager)
       - name: Setup pnpm
