@@ -2238,4 +2238,141 @@ mod tests {
             .unwrap();
         assert!(client.initialized_event_sent.get().is_some());
     }
+
+    #[tokio::test]
+    async fn test_get_payment_options_connection_error() {
+        // Use a port that's definitely not listening
+        // This tests that connection errors are properly categorized
+        let client = WalletConnectPay::new(test_config(
+            "http://127.0.0.1:54321".to_string(),
+        ))
+        .unwrap();
+
+        let result = client
+            .get_payment_options(
+                "pay_123".to_string(),
+                vec!["eip155:8453:0x123".to_string()],
+                false,
+            )
+            .await;
+
+        // Connection errors to closed ports map to NoConnection or
+        // ConnectionFailed depending on the OS error message
+        assert!(
+            matches!(
+                result,
+                Err(GetPaymentOptionsError::NoConnection(_))
+                    | Err(GetPaymentOptionsError::ConnectionFailed(_))
+            ),
+            "Expected NoConnection or ConnectionFailed, got {:?}",
+            result
+        );
+    }
+
+    #[tokio::test]
+    async fn test_get_payment_options_no_connection_dns_failure() {
+        // Use a hostname that will fail DNS resolution
+        // .invalid is a reserved TLD that should never resolve
+        let client = WalletConnectPay::new(test_config(
+            "http://nonexistent.invalid:8080".to_string(),
+        ))
+        .unwrap();
+
+        let result = client
+            .get_payment_options(
+                "pay_123".to_string(),
+                vec!["eip155:8453:0x123".to_string()],
+                false,
+            )
+            .await;
+
+        // DNS failure should map to NoConnection
+        assert!(
+            matches!(result, Err(GetPaymentOptionsError::NoConnection(_))),
+            "Expected NoConnection, got {:?}",
+            result
+        );
+    }
+
+    #[tokio::test]
+    async fn test_get_required_payment_actions_connection_error() {
+        // Test that connection errors are properly categorized
+        // by pointing to a non-listening port
+        let client = WalletConnectPay::new(test_config(
+            "http://127.0.0.1:54322".to_string(),
+        ))
+        .unwrap();
+
+        let result = client
+            .get_required_payment_actions(
+                "pay_123".to_string(),
+                "opt_1".to_string(),
+            )
+            .await;
+
+        // Connection errors map to NoConnection or ConnectionFailed
+        assert!(
+            matches!(
+                result,
+                Err(GetPaymentRequestError::NoConnection(_))
+                    | Err(GetPaymentRequestError::ConnectionFailed(_))
+            ),
+            "Expected NoConnection or ConnectionFailed, got {:?}",
+            result
+        );
+    }
+
+    #[tokio::test]
+    async fn test_confirm_payment_connection_error() {
+        let client = WalletConnectPay::new(test_config(
+            "http://127.0.0.1:54323".to_string(),
+        ))
+        .unwrap();
+
+        let result = client
+            .confirm_payment(
+                "pay_123".to_string(),
+                "opt_1".to_string(),
+                vec![],
+                None,
+                Some(5000),
+            )
+            .await;
+
+        // Connection errors map to NoConnection or ConnectionFailed
+        assert!(
+            matches!(
+                result,
+                Err(ConfirmPaymentError::NoConnection(_))
+                    | Err(ConfirmPaymentError::ConnectionFailed(_))
+            ),
+            "Expected NoConnection or ConnectionFailed, got {:?}",
+            result
+        );
+    }
+
+    #[tokio::test]
+    async fn test_confirm_payment_no_connection_dns_failure() {
+        let client = WalletConnectPay::new(test_config(
+            "http://nonexistent.invalid:8080".to_string(),
+        ))
+        .unwrap();
+
+        let result = client
+            .confirm_payment(
+                "pay_123".to_string(),
+                "opt_1".to_string(),
+                vec![],
+                None,
+                Some(5000),
+            )
+            .await;
+
+        // DNS failure should map to NoConnection
+        assert!(
+            matches!(result, Err(ConfirmPaymentError::NoConnection(_))),
+            "Expected NoConnection, got {:?}",
+            result
+        );
+    }
 }
