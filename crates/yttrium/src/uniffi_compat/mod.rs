@@ -18,6 +18,9 @@ pub mod evm_signing;
 #[cfg(feature = "ton")]
 pub mod ton;
 
+#[cfg(feature = "tron")]
+pub mod tron;
+
 #[cfg(feature = "chain_abstraction_client")]
 use crate::chain_abstraction::{
     amount::Amount,

@@ -17,6 +17,7 @@ solana = ["yttrium/solana"]
 sui = ["yttrium/sui"]
 stacks = ["yttrium/stacks"]
 ton = ["yttrium/ton"]
+tron = ["yttrium/tron"]
 eip155 = ["yttrium/eip155"]
 pay = ["yttrium/pay", "dep:pay-api", "pay-api/uniffi"]
 

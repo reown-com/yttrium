@@ -55,7 +55,7 @@ wasm = [
     "web-sys/MessageEvent",
 ]
 
-all_namespaces = ["eip155", "solana", "sui", "stacks", "ton"]
+all_namespaces = ["eip155", "solana", "sui", "stacks", "ton", "tron"]
 eip155 = []
 solana = [
     "dep:solana-sdk",
@@ -87,6 +87,16 @@ sui = [
 ]
 stacks = ["dep:stacks-rs", "dep:bip32", "dep:stacks_secp256k1", "dep:rand"]
 ton = ["dep:ton_lib", "dep:ed25519-dalek", "dep:rand", "dep:data-encoding"]
+tron = [
+    "dep:stacks_secp256k1",
+    "dep:bip32",
+    "dep:rand",
+    "dep:bs58",
+    "stacks_secp256k1/global-context",
+    "stacks_secp256k1/rand-std",
+    "bip32/bip39",
+    "bip32/secp256k1",
+]
 
 # Features contributing to bundle size, that you might not need
 all_clients = [
@@ -262,6 +272,9 @@ stacks_secp256k1 = { workspace = true, optional = true, features = [
 time = { version = "0.3.36", default-features = false, features = ["formatting", "macros", "std"] }
 num-bigint = "0.4.6"
 rand = { workspace = true, optional = true }
+
+# TRON
+bs58 = { workspace = true, optional = true }
 
 #TON
 ton_lib = { version = "0.0.39", optional = true }

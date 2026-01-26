@@ -21,7 +21,7 @@ export CARGO_TARGET_ARMV7_LINUX_ANDROIDEABI_RUSTFLAGS="-C link-arg=-Wl,--gc-sect
 export CARGO_TARGET_X86_64_LINUX_ANDROID_RUSTFLAGS="-C link-arg=-Wl,--gc-sections"
 
 ACCOUNT_FEATURES="android,erc6492_client,pay,uniffi/cli"
-UTILS_FEATURES="android,chain_abstraction_client,solana,stacks,sui,ton,eip155,uniffi/cli"
+UTILS_FEATURES="android,chain_abstraction_client,solana,stacks,sui,ton,tron,eip155,uniffi/cli"
 WCPAY_FEATURES="android,pay,uniffi/cli"
 PROFILE="uniffi-release-kotlin"
 WCPAY_PROFILE="uniffi-release-kotlin-wcpay"
