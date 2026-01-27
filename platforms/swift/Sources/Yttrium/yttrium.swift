@@ -13,8 +13,8 @@ import yttriumFFI
 
 fileprivate extension RustBuffer {
     // Allocate a new buffer, copying the contents of a `UInt8` array.
-    init(bytes: [UInt8]) {
-        let rbuf = bytes.withUnsafeBufferPointer { ptr in
+    init(byteArray: [UInt8]) {
+        let rbuf = byteArray.withUnsafeBufferPointer { ptr in
             RustBuffer.from(ptr)
         }
         self.init(capacity: rbuf.capacity, len: rbuf.len, data: rbuf.data)
@@ -209,7 +209,7 @@ extension FfiConverterRustBuffer {
     public static func lower(_ value: SwiftType) -> RustBuffer {
           var writer = createWriter()
           write(value, into: &writer)
-          return RustBuffer(bytes: writer)
+          return RustBuffer(byteArray: writer)
     }
 }
 // An error type for FFI errors. These errors occur at the UniFFI level, not
@@ -585,6 +585,11 @@ open class LoggerImpl: Logger, @unchecked Sendable {
     // No primary constructor declared for this class.
 
     deinit {
+        if handle == 0 {
+            // Mock objects have handle=0 don't try to free them
+            return
+        }
+
         try! rustCall { uniffi_yttrium_fn_free_logger(handle, $0) }
     }
 
@@ -791,6 +796,11 @@ public convenience init(config: SdkConfig)throws  {
 }
 
     deinit {
+        if handle == 0 {
+            // Mock objects have handle=0 don't try to free them
+            return
+        }
+
         try! rustCall { uniffi_yttrium_fn_free_walletconnectpay(handle, $0) }
     }
 
@@ -993,6 +1003,11 @@ public convenience init(sdkConfig: String)throws  {
 }
 
     deinit {
+        if handle == 0 {
+            // Mock objects have handle=0 don't try to free them
+            return
+        }
+
         try! rustCall { uniffi_yttrium_fn_free_walletconnectpayjson(handle, $0) }
     }
 
@@ -1123,6 +1138,8 @@ public struct Action: Equatable, Hashable {
     }
 
     
+
+    
 }
 
 #if compiler(>=6)
@@ -1179,6 +1196,8 @@ public struct AmountDisplay: Equatable, Hashable {
         self.networkIconUrl = networkIconUrl
         self.networkName = networkName
     }
+
+    
 
     
 }
@@ -1243,6 +1262,8 @@ public struct BuyerInfo: Equatable, Hashable {
     }
 
     
+
+    
 }
 
 #if compiler(>=6)
@@ -1293,6 +1314,8 @@ public struct CollectDataAction: Equatable, Hashable {
     public init(fields: [CollectDataField]) {
         self.fields = fields
     }
+
+    
 
     
 }
@@ -1347,6 +1370,8 @@ public struct CollectDataField: Equatable, Hashable {
         self.required = required
         self.fieldType = fieldType
     }
+
+    
 
     
 }
@@ -1405,6 +1430,8 @@ public struct CollectDataFieldResult: Equatable, Hashable {
     }
 
     
+
+    
 }
 
 #if compiler(>=6)
@@ -1457,6 +1484,8 @@ public struct ConfirmPaymentResultResponse: Equatable, Hashable {
         self.isFinal = isFinal
         self.pollInMs = pollInMs
     }
+
+    
 
     
 }
@@ -1533,6 +1562,8 @@ public struct FfiAuthorization: Equatable, Hashable {
     }
 
     
+
+    
 }
 
 #if compiler(>=6)
@@ -1587,6 +1618,8 @@ public struct MerchantInfo: Equatable, Hashable {
     }
 
     
+
+    
 }
 
 #if compiler(>=6)
@@ -1639,6 +1672,8 @@ public struct PayAmount: Equatable, Hashable {
         self.value = value
         self.display = display
     }
+
+    
 
     
 }
@@ -1699,6 +1734,8 @@ public struct PaymentInfo: Equatable, Hashable {
         self.merchant = merchant
         self.buyer = buyer
     }
+
+    
 
     
 }
@@ -1765,6 +1802,8 @@ public struct PaymentOption: Equatable, Hashable {
     }
 
     
+
+    
 }
 
 #if compiler(>=6)
@@ -1825,6 +1864,8 @@ public struct PaymentOptionsResponse: Equatable, Hashable {
         self.options = options
         self.collectData = collectData
     }
+
+    
 
     
 }
@@ -1897,6 +1938,8 @@ public struct SdkConfig: Equatable, Hashable {
     }
 
     
+
+    
 }
 
 #if compiler(>=6)
@@ -1965,6 +2008,8 @@ public struct WalletRpcAction: Equatable, Hashable {
     }
 
     
+
+    
 }
 
 #if compiler(>=6)
@@ -2013,6 +2058,8 @@ public enum CollectDataFieldType: Equatable, Hashable {
     
     case text
     case date
+
+
 
 
 
@@ -2078,6 +2125,8 @@ public enum ConfigError: Swift.Error, Equatable, Hashable, Foundation.LocalizedE
     
     case MissingAuth(String
     )
+
+    
 
     
 
@@ -2170,6 +2219,8 @@ public enum ConfirmPaymentError: Swift.Error, Equatable, Hashable, Foundation.Lo
     )
     case UnsupportedMethod(String
     )
+
+    
 
     
 
@@ -2344,6 +2395,8 @@ public enum GetPaymentOptionsError: Swift.Error, Equatable, Hashable, Foundation
     )
     case InternalError(String
     )
+
+    
 
     
 
@@ -2524,6 +2577,8 @@ public enum GetPaymentRequestError: Swift.Error, Equatable, Hashable, Foundation
     
 
     
+
+    
     public var errorDescription: String? {
         String(reflecting: self)
     }
@@ -2665,6 +2720,8 @@ public enum PayError: Swift.Error, Equatable, Hashable, Foundation.LocalizedErro
     case Api(String
     )
     case Timeout
+
+    
 
     
 
@@ -2812,6 +2869,8 @@ public enum PayJsonError: Swift.Error, Equatable, Hashable, Foundation.Localized
     )
     case UnsupportedMethod(String
     )
+
+    
 
     
 
@@ -3042,6 +3101,8 @@ public enum PaymentStatus: Equatable, Hashable {
 
 
 
+
+
 }
 
 #if compiler(>=6)
@@ -3124,6 +3185,8 @@ public enum SolanaDeriveKeypairFromMnemonicError: Swift.Error, Equatable, Hashab
     )
     case Derive(String
     )
+
+    
 
     
 
@@ -4635,34 +4698,34 @@ private let initializationResult: InitializationResult = {
     if bindings_contract_version != scaffolding_contract_version {
         return InitializationResult.contractVersionMismatch
     }
-    if (uniffi_yttrium_checksum_func_register_logger() != 53062) {
+    if (uniffi_yttrium_checksum_func_register_logger() != 32546) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_yttrium_checksum_method_logger_log() != 540) {
+    if (uniffi_yttrium_checksum_method_walletconnectpay_confirm_payment() != 8088) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_yttrium_checksum_method_walletconnectpay_confirm_payment() != 54467) {
+    if (uniffi_yttrium_checksum_method_walletconnectpay_get_payment_options() != 22) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_yttrium_checksum_method_walletconnectpay_get_payment_options() != 45817) {
+    if (uniffi_yttrium_checksum_method_walletconnectpay_get_required_payment_actions() != 51761) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_yttrium_checksum_method_walletconnectpay_get_required_payment_actions() != 22202) {
+    if (uniffi_yttrium_checksum_method_walletconnectpayjson_confirm_payment() != 37878) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_yttrium_checksum_method_walletconnectpayjson_confirm_payment() != 4981) {
+    if (uniffi_yttrium_checksum_method_walletconnectpayjson_get_payment_options() != 1513) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_yttrium_checksum_method_walletconnectpayjson_get_payment_options() != 27733) {
+    if (uniffi_yttrium_checksum_method_walletconnectpayjson_get_required_payment_actions() != 58726) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_yttrium_checksum_method_walletconnectpayjson_get_required_payment_actions() != 40271) {
+    if (uniffi_yttrium_checksum_method_logger_log() != 54293) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_yttrium_checksum_constructor_walletconnectpay_new() != 38488) {
+    if (uniffi_yttrium_checksum_constructor_walletconnectpay_new() != 41987) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_yttrium_checksum_constructor_walletconnectpayjson_new() != 9334) {
+    if (uniffi_yttrium_checksum_constructor_walletconnectpayjson_new() != 6253) {
         return InitializationResult.apiChecksumMismatch
     }
 

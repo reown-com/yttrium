@@ -139,12 +139,15 @@ jobs:
           action: cleanup
 
   build_swift_and_test:
-    name: Swift Package - latest
-    runs-on: macos-latest-xlarge
+    name: Swift Package - Xcode ${{ matrix.xcode }}
+    runs-on: macos-14-xlarge
     strategy:
       matrix:
         config:
           - debug
+        xcode:
+          - "15.4"  # Swift 5.10 - backwards compatibility
+          - "16.2"  # Swift 6.x - new version support
     steps:
       - uses: actions/checkout@v4
         with:
@@ -158,8 +161,8 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           cache-on-failure: true
-      - name: Select Xcode 15.4
-        run: sudo xcode-select -s /Applications/Xcode.app
+      - name: Select Xcode ${{ matrix.xcode }}
+        run: sudo xcode-select -s /Applications/Xcode_${{ matrix.xcode }}.app/Contents/Developer
 
       # Build bindings
       - run: make build-xcframework

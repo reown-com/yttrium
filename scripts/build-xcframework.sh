@@ -112,6 +112,19 @@ generate_ffi() {
     --out-dir target/uniffi-xcframework-staging
 }
 
+patch_swift_for_swift6() {
+  echo "Patching generated Swift for Swift 6 compatibility..."
+  local swift_file="target/uniffi-xcframework-staging/yttrium.swift"
+
+  # Rename 'bytes' parameter to 'byteArray' to avoid collision with Data.bytes (SE-0456)
+  # This is backwards compatible - works on both Swift 5.x and Swift 6.x
+  sed -i '' 's/init(bytes: \[UInt8\])/init(byteArray: [UInt8])/g' "$swift_file"
+  sed -i '' 's/let rbuf = bytes\.withUnsafeBufferPointer/let rbuf = byteArray.withUnsafeBufferPointer/g' "$swift_file"
+  sed -i '' 's/RustBuffer(bytes: writer)/RustBuffer(byteArray: writer)/g' "$swift_file"
+
+  echo "Swift 6 compatibility patch applied"
+}
+
 build_xcframework() {
   echo "Generating XCFramework..."
   rm -rf target/ios
@@ -183,6 +196,7 @@ rustup target add aarch64-apple-ios-sim --toolchain nightly
 # Execute the build steps
 build_rust_libraries
 generate_ffi $PACKAGE_NAME
+patch_swift_for_swift6
 create_fat_simulator_lib $PACKAGE_NAME
 build_xcframework $PACKAGE_NAME
 copy_swift_sources
