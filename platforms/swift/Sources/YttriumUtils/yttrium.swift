@@ -4760,6 +4760,214 @@ public func FfiConverterTypeTransferStxResponse_lower(_ value: TransferStxRespon
 }
 
 
+public struct TronAddress: Equatable, Hashable {
+    /**
+     * Base58Check encoded address starting with 'T'
+     */
+    public var base58: String
+    /**
+     * Hex-encoded address (21 bytes = 42 hex chars, with 0x41 prefix)
+     */
+    public var hex: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Base58Check encoded address starting with 'T'
+         */base58: String, 
+        /**
+         * Hex-encoded address (21 bytes = 42 hex chars, with 0x41 prefix)
+         */hex: String) {
+        self.base58 = base58
+        self.hex = hex
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension TronAddress: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeTronAddress: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> TronAddress {
+        return
+            try TronAddress(
+                base58: FfiConverterString.read(from: &buf), 
+                hex: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: TronAddress, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.base58, into: &buf)
+        FfiConverterString.write(value.hex, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTronAddress_lift(_ buf: RustBuffer) throws -> TronAddress {
+    return try FfiConverterTypeTronAddress.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTronAddress_lower(_ value: TronAddress) -> RustBuffer {
+    return FfiConverterTypeTronAddress.lower(value)
+}
+
+
+public struct TronKeypair: Equatable, Hashable {
+    /**
+     * Hex-encoded private key (32 bytes = 64 hex chars)
+     */
+    public var sk: String
+    /**
+     * Hex-encoded compressed public key (33 bytes = 66 hex chars)
+     */
+    public var pk: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Hex-encoded private key (32 bytes = 64 hex chars)
+         */sk: String, 
+        /**
+         * Hex-encoded compressed public key (33 bytes = 66 hex chars)
+         */pk: String) {
+        self.sk = sk
+        self.pk = pk
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension TronKeypair: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeTronKeypair: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> TronKeypair {
+        return
+            try TronKeypair(
+                sk: FfiConverterString.read(from: &buf), 
+                pk: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: TronKeypair, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.sk, into: &buf)
+        FfiConverterString.write(value.pk, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTronKeypair_lift(_ buf: RustBuffer) throws -> TronKeypair {
+    return try FfiConverterTypeTronKeypair.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTronKeypair_lower(_ value: TronKeypair) -> RustBuffer {
+    return FfiConverterTypeTronKeypair.lower(value)
+}
+
+
+public struct TronSignedTransaction: Equatable, Hashable {
+    /**
+     * Transaction ID (SHA256 of raw_data)
+     */
+    public var txId: String
+    /**
+     * Array of hex-encoded RSV signatures
+     */
+    public var signature: [String]
+    /**
+     * Original raw_data_hex
+     */
+    public var rawDataHex: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Transaction ID (SHA256 of raw_data)
+         */txId: String, 
+        /**
+         * Array of hex-encoded RSV signatures
+         */signature: [String], 
+        /**
+         * Original raw_data_hex
+         */rawDataHex: String) {
+        self.txId = txId
+        self.signature = signature
+        self.rawDataHex = rawDataHex
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension TronSignedTransaction: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeTronSignedTransaction: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> TronSignedTransaction {
+        return
+            try TronSignedTransaction(
+                txId: FfiConverterString.read(from: &buf), 
+                signature: FfiConverterSequenceString.read(from: &buf), 
+                rawDataHex: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: TronSignedTransaction, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.txId, into: &buf)
+        FfiConverterSequenceString.write(value.signature, into: &buf)
+        FfiConverterString.write(value.rawDataHex, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTronSignedTransaction_lift(_ buf: RustBuffer) throws -> TronSignedTransaction {
+    return try FfiConverterTypeTronSignedTransaction.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTronSignedTransaction_lower(_ value: TronSignedTransaction) -> RustBuffer {
+    return FfiConverterTypeTronSignedTransaction.lower(value)
+}
+
+
 public struct TxnDetails: Equatable, Hashable {
     public var transaction: FeeEstimatedTransaction
     public var transactionHashToSign: B256
@@ -7996,6 +8204,150 @@ public func FfiConverterTypeTransferFeesError_lower(_ value: TransferFeesError) 
 }
 
 
+public enum TronError: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
+
+    
+    
+    case InvalidAddress(String
+    )
+    case InvalidPrivateKey(String
+    )
+    case InvalidPublicKey(String
+    )
+    case InvalidMnemonic(String
+    )
+    case SigningError(String
+    )
+    case SerializationError(String
+    )
+    case InvalidTransaction(String
+    )
+    case KeyDerivationError(String
+    )
+
+    
+
+    
+
+    
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+    
+}
+
+#if compiler(>=6)
+extension TronError: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeTronError: FfiConverterRustBuffer {
+    typealias SwiftType = TronError
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> TronError {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+
+        
+
+        
+        case 1: return .InvalidAddress(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 2: return .InvalidPrivateKey(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 3: return .InvalidPublicKey(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 4: return .InvalidMnemonic(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 5: return .SigningError(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 6: return .SerializationError(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 7: return .InvalidTransaction(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 8: return .KeyDerivationError(
+            try FfiConverterString.read(from: &buf)
+            )
+
+         default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: TronError, into buf: inout [UInt8]) {
+        switch value {
+
+        
+
+        
+        
+        case let .InvalidAddress(v1):
+            writeInt(&buf, Int32(1))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .InvalidPrivateKey(v1):
+            writeInt(&buf, Int32(2))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .InvalidPublicKey(v1):
+            writeInt(&buf, Int32(3))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .InvalidMnemonic(v1):
+            writeInt(&buf, Int32(4))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .SigningError(v1):
+            writeInt(&buf, Int32(5))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .SerializationError(v1):
+            writeInt(&buf, Int32(6))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .InvalidTransaction(v1):
+            writeInt(&buf, Int32(7))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .KeyDerivationError(v1):
+            writeInt(&buf, Int32(8))
+            FfiConverterString.write(v1, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTronError_lift(_ buf: RustBuffer) throws -> TronError {
+    return try FfiConverterTypeTronError.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTronError_lower(_ value: TronError) -> RustBuffer {
+    return FfiConverterTypeTronError.lower(value)
+}
+
+
 public enum TypedEngineErrorFfi: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
 
     
@@ -10748,6 +11100,84 @@ public func suiPersonalSign(keypair: SuiKeyPair, message: Data) -> Signature  {
     )
 })
 }
+/**
+ * Convert a Base58Check address to TronAddress
+ */
+public func tronAddressFromBase58(base58Addr: String)throws  -> TronAddress  {
+    return try  FfiConverterTypeTronAddress_lift(try rustCallWithError(FfiConverterTypeTronError_lift) {
+    uniffi_yttrium_fn_func_tron_address_from_base58(
+        FfiConverterString.lower(base58Addr),$0
+    )
+})
+}
+/**
+ * Convert a hex-encoded address to TronAddress
+ */
+public func tronAddressFromHex(hexAddr: String)throws  -> TronAddress  {
+    return try  FfiConverterTypeTronAddress_lift(try rustCallWithError(FfiConverterTypeTronError_lift) {
+    uniffi_yttrium_fn_func_tron_address_from_hex(
+        FfiConverterString.lower(hexAddr),$0
+    )
+})
+}
+/**
+ * Generate a new random TRON keypair
+ */
+public func tronGenerateKeypair() -> TronKeypair  {
+    return try!  FfiConverterTypeTronKeypair_lift(try! rustCall() {
+    uniffi_yttrium_fn_func_tron_generate_keypair($0
+    )
+})
+}
+/**
+ * Generate a TRON keypair from a BIP39 mnemonic
+ *
+ * Uses BIP44 derivation path m/44'/195'/0'/0/0 by default
+ */
+public func tronGenerateKeypairFromMnemonic(mnemonic: String, derivationPath: String?)throws  -> TronKeypair  {
+    return try  FfiConverterTypeTronKeypair_lift(try rustCallWithError(FfiConverterTypeTronError_lift) {
+    uniffi_yttrium_fn_func_tron_generate_keypair_from_mnemonic(
+        FfiConverterString.lower(mnemonic),
+        FfiConverterOptionString.lower(derivationPath),$0
+    )
+})
+}
+/**
+ * Get the TRON address from a keypair
+ */
+public func tronGetAddress(keypair: TronKeypair)throws  -> TronAddress  {
+    return try  FfiConverterTypeTronAddress_lift(try rustCallWithError(FfiConverterTypeTronError_lift) {
+    uniffi_yttrium_fn_func_tron_get_address(
+        FfiConverterTypeTronKeypair_lower(keypair),$0
+    )
+})
+}
+/**
+ * Sign a message following TIP-191 (tron_signMessage)
+ *
+ * Returns a hex-encoded RSV signature (65 bytes = 130 hex chars)
+ */
+public func tronSignMessage(message: String, keypair: TronKeypair)throws  -> String  {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeTronError_lift) {
+    uniffi_yttrium_fn_func_tron_sign_message(
+        FfiConverterString.lower(message),
+        FfiConverterTypeTronKeypair_lower(keypair),$0
+    )
+})
+}
+/**
+ * Sign a transaction (tron_signTransaction)
+ *
+ * Takes the hex-encoded raw_data and returns a signed transaction
+ */
+public func tronSignTransaction(rawDataHex: String, keypair: TronKeypair)throws  -> TronSignedTransaction  {
+    return try  FfiConverterTypeTronSignedTransaction_lift(try rustCallWithError(FfiConverterTypeTronError_lift) {
+    uniffi_yttrium_fn_func_tron_sign_transaction(
+        FfiConverterString.lower(rawDataHex),
+        FfiConverterTypeTronKeypair_lower(keypair),$0
+    )
+})
+}
 
 private enum InitializationResult {
     case ok
@@ -10804,6 +11234,27 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_yttrium_checksum_func_sui_personal_sign() != 40621) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_func_tron_address_from_base58() != 20951) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_func_tron_address_from_hex() != 7659) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_func_tron_generate_keypair() != 24406) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_func_tron_generate_keypair_from_mnemonic() != 59059) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_func_tron_get_address() != 25924) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_func_tron_sign_message() != 50884) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_func_tron_sign_transaction() != 15276) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_yttrium_checksum_method_evmsigningclient_get_native_balance() != 23319) {
