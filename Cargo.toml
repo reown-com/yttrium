@@ -94,6 +94,11 @@ stacks-rs = { version = "0.3.3", default-features = false }
 bip32 = { version = "0.5.1", default-features = false }
 stacks_secp256k1 = { version = "0.28.2", package = "secp256k1", default-features = false, features = ["recovery"] }
 
+# TRON
+bs58 = { version = "0.5", default-features = false, features = ["check"] }
+tiny-keccak = { version = "2.0", default-features = false, features = ["keccak"] }
+sha2 = { version = "0.10", default-features = false }
+
 # Used by WASM ONLY, since wasm-pack doesn't support custom profiles
 # https://github.com/rustwasm/wasm-pack/issues/1461
 [profile.release]
