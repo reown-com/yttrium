@@ -54,6 +54,8 @@ pub enum PayJsonError {
     RouteExpired(String),
     #[error("Unsupported method: {0}")]
     UnsupportedMethod(String),
+    #[error("Payment status unknown: {0}")]
+    StatusUnknown(String),
 }
 
 impl From<ConfigError> for PayJsonError {
@@ -161,6 +163,7 @@ impl From<ConfirmPaymentError> for PayJsonError {
             ConfirmPaymentError::UnsupportedMethod(msg) => {
                 Self::UnsupportedMethod(msg)
             }
+            ConfirmPaymentError::StatusUnknown(msg) => Self::StatusUnknown(msg),
         }
     }
 }
