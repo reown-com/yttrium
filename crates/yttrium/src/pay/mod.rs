@@ -218,6 +218,8 @@ pub enum ConfirmPaymentError {
     InternalError(String),
     #[error("Unsupported RPC method: {0}")]
     UnsupportedMethod(String),
+    #[error("Payment status unknown - confirmation may have succeeded: {0}")]
+    StatusUnknown(String),
 }
 
 impl error_reporting::HasErrorType for ConfirmPaymentError {
@@ -234,6 +236,7 @@ impl error_reporting::HasErrorType for ConfirmPaymentError {
             Self::Http(_) => "Http",
             Self::InternalError(_) => "InternalError",
             Self::UnsupportedMethod(_) => "UnsupportedMethod",
+            Self::StatusUnknown(_) => "StatusUnknown",
         }
     }
 }
@@ -929,9 +932,94 @@ impl WalletConnectPay {
             req = req.max_poll_ms(ms);
         }
 
-        let response = with_retry(|| async { req.clone().send().await })
+        let response = match with_retry(|| async { req.clone().send().await })
             .await
-            .map_err(|e| {
+        {
+            Ok(resp) => resp,
+            Err(e) => {
+                // Check if this is a communication error where we might have
+                // lost the response but the server processed the request
+                if matches!(e, progenitor_client::Error::CommunicationError(_))
+                {
+                    pay_debug!(
+                        "confirm_payment: network error, checking status"
+                    );
+                    // Wait briefly for server to process
+                    tokio::time::sleep(std::time::Duration::from_millis(500))
+                        .await;
+
+                    // Try to verify payment status
+                    match self
+                        .get_gateway_payment_status(
+                            payment_id.clone(),
+                            max_poll_ms,
+                        )
+                        .await
+                    {
+                        Ok(status) => {
+                            let payment_status: PaymentStatus =
+                                status.status.into();
+                            match payment_status {
+                                PaymentStatus::Succeeded => {
+                                    pay_debug!(
+                                        "confirm_payment: recovered - succeeded"
+                                    );
+                                    self.send_trace(
+                                        observability::TraceEvent::ConfirmPaymentSucceeded,
+                                        &payment_id,
+                                    );
+                                    return Ok(ConfirmPaymentResultResponse {
+                                        status: PaymentStatus::Succeeded,
+                                        is_final: true,
+                                        poll_in_ms: None,
+                                    });
+                                }
+                                PaymentStatus::Processing => {
+                                    pay_debug!(
+                                        "confirm_payment: recovered - processing"
+                                    );
+                                    return self
+                                        .poll_until_final(
+                                            payment_id,
+                                            max_poll_ms,
+                                        )
+                                        .await;
+                                }
+                                PaymentStatus::Failed
+                                | PaymentStatus::Expired => {
+                                    return Ok(ConfirmPaymentResultResponse {
+                                        status: payment_status,
+                                        is_final: true,
+                                        poll_in_ms: None,
+                                    });
+                                }
+                                PaymentStatus::RequiresAction => {
+                                    // Confirm didn't go through, fall through
+                                    // to return original error
+                                }
+                            }
+                        }
+                        Err(status_err) => {
+                            pay_error!(
+                                "confirm_payment: status check failed: {:?}",
+                                status_err
+                            );
+                            let err =
+                                ConfirmPaymentError::StatusUnknown(format!(
+                                    "Confirm failed ({}), status check \
+                                     also failed ({})",
+                                    e, status_err
+                                ));
+                            self.report_error(&err, &payment_id);
+                            self.send_trace(
+                                observability::TraceEvent::ConfirmPaymentFailed,
+                                &payment_id,
+                            );
+                            return Err(err);
+                        }
+                    }
+                }
+                // Non-network error or recovery failed (RequiresAction)
                 pay_error!("confirm_payment: {:?}", e);
                 let err = map_confirm_payment_error(e);
                 self.report_error(&err, &payment_id);
@@ -939,8 +1027,9 @@ impl WalletConnectPay {
                     observability::TraceEvent::ConfirmPaymentFailed,
                     &payment_id,
                 );
-                err
-            })?;
+                return Err(err);
+            }
+        };
         let mut result: ConfirmPaymentResultResponse =
             response.into_inner().into();
         pay_debug!(
@@ -1028,6 +1117,47 @@ impl WalletConnectPay {
             event,
             payment_id,
         );
+    }
+
+    async fn poll_until_final(
+        &self,
+        payment_id: String,
+        max_poll_ms: Option<i64>,
+    ) -> Result<ConfirmPaymentResultResponse, ConfirmPaymentError> {
+        loop {
+            let status = self
+                .get_gateway_payment_status(payment_id.clone(), max_poll_ms)
+                .await
+                .map_err(|e| {
+                    pay_error!("poll_until_final: {:?}", e);
+                    let err = ConfirmPaymentError::Http(e.to_string());
+                    self.report_error(&err, &payment_id);
+                    self.send_trace(
+                        observability::TraceEvent::ConfirmPaymentFailed,
+                        &payment_id,
+                    );
+                    err
+                })?;
+
+            if status.is_final {
+                self.send_trace(
+                    observability::TraceEvent::ConfirmPaymentSucceeded,
+                    &payment_id,
+                );
+                return Ok(ConfirmPaymentResultResponse {
+                    status: status.status.into(),
+                    is_final: true,
+                    poll_in_ms: None,
+                });
+            }
+
+            let poll_ms = status.poll_in_ms.unwrap_or(1000);
+            pay_debug!("poll_until_final: polling in {}ms", poll_ms);
+            tokio::time::sleep(std::time::Duration::from_millis(
+                poll_ms as u64,
+            ))
+            .await;
+        }
     }
 
     async fn resolve_actions(
@@ -2339,14 +2469,11 @@ mod tests {
             )
             .await;
 
-        // Connection errors map to NoConnection or ConnectionFailed
+        // Connection errors now return StatusUnknown since we attempt status
+        // verification before returning the error
         assert!(
-            matches!(
-                result,
-                Err(ConfirmPaymentError::NoConnection(_))
-                    | Err(ConfirmPaymentError::ConnectionFailed(_))
-            ),
-            "Expected NoConnection or ConnectionFailed, got {:?}",
+            matches!(result, Err(ConfirmPaymentError::StatusUnknown(_))),
+            "Expected StatusUnknown, got {:?}",
             result
         );
     }
@@ -2368,10 +2495,11 @@ mod tests {
             )
             .await;
 
-        // DNS failure should map to NoConnection
+        // DNS failure now returns StatusUnknown since we attempt status
+        // verification before returning the error
         assert!(
-            matches!(result, Err(ConfirmPaymentError::NoConnection(_))),
-            "Expected NoConnection, got {:?}",
+            matches!(result, Err(ConfirmPaymentError::StatusUnknown(_))),
+            "Expected StatusUnknown, got {:?}",
             result
         );
     }
