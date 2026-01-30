@@ -160,7 +160,9 @@ pub struct PayJson {
 #[wasm_bindgen]
 impl PayJson {
     #[wasm_bindgen(constructor)]
-    pub fn new(sdk_config_json: String) -> Result<PayJson, crate::pay::PayJsonError> {
+    pub fn new(
+        sdk_config_json: String,
+    ) -> Result<PayJson, crate::pay::PayJsonError> {
         crate::pay::WalletConnectPayJson::new(sdk_config_json)
             .map(|inner| Self { inner })
     }

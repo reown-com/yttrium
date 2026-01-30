@@ -42,7 +42,7 @@ native = [
 wasm = [
     "dep:wasm-bindgen",
     "dep:wasm-bindgen-futures",
-    "alloy/wasm-bindgen",
+    "alloy?/wasm-bindgen",
     "dep:tsify-next",
     "dep:derive_jserror",
     "dep:serde-wasm-bindgen",
@@ -108,11 +108,36 @@ all_clients = [
     "sign_client",
     "pay",
 ]
-account_client = []
-erc6492_client = []
-chain_abstraction_client = []
-transaction_sponsorship_client = []
+account_client = [
+    "dep:alloy",
+    "dep:alloy-provider",
+    "dep:erc6492",
+    "dep:relay_rpc",
+    "dep:tower",
+]
+erc6492_client = [
+    "dep:alloy",
+    "dep:alloy-provider",
+    "dep:erc6492",
+    "dep:tower",
+]
+chain_abstraction_client = [
+    "eip155",
+    "dep:alloy",
+    "dep:alloy-provider",
+    "dep:erc6492",
+    "dep:relay_rpc",
+    "dep:tower",
+]
+transaction_sponsorship_client = [
+    "dep:alloy",
+    "dep:alloy-provider",
+    "dep:erc6492",
+    "dep:relay_rpc",
+    "dep:tower",
+]
 sign_client = [
+    "dep:relay_rpc",
     "dep:futures-concurrency",
     "dep:chacha20poly1305",
     "dep:rand",
@@ -122,6 +147,9 @@ sign_client = [
     "dep:sha2",
     "dep:tokio-util",
     "dep:jsonwebtoken",
+    "native",
+    "tracing/attributes",
+    "tokio/macros",
 ]
 
 sign_canary = [
@@ -161,8 +189,8 @@ serde-wasm-bindgen = { workspace = true, optional = true }
 
 # Clear signing engine
 
-# Ethereum
-alloy = { workspace = true, features = [
+# Ethereum (optional - only for account_client, chain_abstraction_client, erc6492_client)
+alloy = { workspace = true, optional = true, features = [
     "contract",
     "network",
     "providers",
@@ -173,10 +201,10 @@ alloy = { workspace = true, features = [
     "eip712",
     "rlp",
 ] }
-alloy-provider = { workspace = true, features = ["erc4337-api"] }
-erc6492.workspace = true
-relay_rpc.workspace = true
-tower = { version = "0.5", features = ["util"] }
+alloy-provider = { workspace = true, optional = true, features = ["erc4337-api"] }
+erc6492 = { workspace = true, optional = true }
+relay_rpc = { workspace = true, optional = true }
+tower = { version = "0.5", optional = true, features = ["util"] }
 
 # foundry-block-explorers = "0.2.3"
 getrandom2 = { package = "getrandom", version = "0.2", default-features = false }
@@ -196,7 +224,7 @@ eyre.workspace = true
 thiserror.workspace = true
 
 # Async
-tokio = { workspace = true, default-features = false, features = ["rt"] }
+tokio = { workspace = true, default-features = false, features = ["rt", "sync"] }
 tokio-util = { workspace = true, optional = true, default-features = false }
 futures.workspace = true
 
@@ -273,7 +301,7 @@ stacks_secp256k1 = { workspace = true, optional = true, features = [
 ] }
 time = { version = "0.3.36", default-features = false, features = ["formatting", "macros", "std"] }
 num-bigint = "0.4.6"
-rand = { workspace = true, optional = true }
+rand = { workspace = true, optional = true, features = ["std", "std_rng"] }
 
 # TRON
 bs58 = { workspace = true, optional = true }
