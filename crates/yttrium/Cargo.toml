@@ -155,6 +155,7 @@ sign_client = [
 
 sign_canary = [
     "sign_client",
+    "native",
     "tokio/rt-multi-thread",
     "dep:aws-config",
     "dep:aws-sdk-cloudwatch",
