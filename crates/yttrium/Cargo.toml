@@ -25,14 +25,16 @@ full = ["all_platforms", "all_clients", "all_namespaces"]
 # Features enabling FFI bindings for different platforms
 all_platforms = ["android", "ios", "wasm"]
 ios = ["uniffi"]
-android = ["uniffi", "dep:rustls-platform-verifier", "dep:jni"]
+android = ["uniffi", "uniffi-rustls", "dep:jni"]
+android-full = ["android", "native", "dep:rustls-platform-verifier"]
 uniffi = [
     "dep:uniffi",
     "dep:uniffi_macros",
-    "reqwest/default-tls",
-    "native",
     "dep:tracing-subscriber",
 ]
+# TLS backend options for uniffi builds
+uniffi-native-tls = ["uniffi", "reqwest/native-tls"]
+uniffi-rustls = ["uniffi", "reqwest/rustls-tls"]
 native = [
     "dep:tokio-tungstenite",
     "tokio-tungstenite/connect",
