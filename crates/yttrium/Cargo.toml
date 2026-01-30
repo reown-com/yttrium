@@ -151,7 +151,6 @@ sign_client = [
     "dep:sha2",
     "dep:tokio-util",
     "dep:jsonwebtoken",
-    "native",
     "tracing/attributes",
     "tokio/macros",
 ]
