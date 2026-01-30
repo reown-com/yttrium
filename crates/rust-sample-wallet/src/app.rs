@@ -381,7 +381,7 @@ pub fn App() -> impl IntoView {
 
                 match client_guard
                     .wallet_client
-                    .approve(pairing.0, namespaces, metadata)
+                    .approve(pairing.0, namespaces, metadata, None)
                     .await
                 {
                     Ok(_approved_session) => {

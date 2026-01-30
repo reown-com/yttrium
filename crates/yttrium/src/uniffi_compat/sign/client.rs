@@ -219,13 +219,22 @@ impl SignClient {
         proposal: SessionProposalFfi,
         approved_namespaces: HashMap<String, SettleNamespace>,
         self_metadata: Metadata,
+        session_properties: Option<HashMap<String, String>>,
     ) -> Result<SessionFfi, ApproveError> {
         let proposal: SessionProposal = proposal.into();
         tracing::debug!("approved_namespaces: {:?}", approved_namespaces);
         tracing::debug!("self_metadata: {:?}", self_metadata);
+        tracing::debug!("session_properties: {:?}", session_properties);
         let session = {
             let mut client = self.client.lock().await;
-            client.approve(proposal, approved_namespaces, self_metadata).await?
+            client
+                .approve(
+                    proposal,
+                    approved_namespaces,
+                    self_metadata,
+                    session_properties,
+                )
+                .await?
         };
         Ok(session.into())
     }

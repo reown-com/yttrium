@@ -294,7 +294,7 @@ pub async fn test_sign_impl() -> Result<(), String> {
     tracing::debug!(group = "wallet", probe = "metadata");
 
     wallet_client
-        .approve(pairing.0, namespaces, metadata)
+        .approve(pairing.0, namespaces, metadata, None)
         .await
         .map_err(|e| format!("Failed to approve: {e}"))?;
     tracing::debug!(group = "wallet", probe = "approve_finished");

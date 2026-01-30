@@ -516,11 +516,24 @@ impl Client {
         proposal: SessionProposal,
         approved_namespaces: HashMap<String, SettleNamespace>,
         self_metadata: Metadata,
+        session_properties: Option<HashMap<String, String>>,
     ) -> Result<Session, ApproveError> {
         // TODO implement
         // https://github.com/WalletConnect/walletconnect-monorepo/blob/5bef698dcf0ae910548481959a6a5d87eaf7aaa5/packages/sign-client/src/controllers/engine.ts#L341
 
         // TODO check is valid: validate namespaces, validate metadata, validate expiry timestamp
+
+        // Merge wallet-provided session properties with proposal properties
+        // Wallet properties take precedence (allow override)
+        let final_session_properties = {
+            let mut props = proposal.session_properties.clone();
+            if let Some(wallet_props) = session_properties {
+                for (key, value) in wallet_props {
+                    props.insert(key, value);
+                }
+            }
+            props
+        };
 
         let self_key = x25519_dalek::StaticSecret::random();
         let self_public_key = PublicKey::from(&self_key);
@@ -566,7 +579,7 @@ impl Client {
                 metadata: self_metadata.clone(),
             },
             expiry: session_expiry,
-            session_properties: proposal.session_properties.clone(),
+            session_properties: final_session_properties.clone(),
             scoped_properties: proposal.scoped_properties.clone(),
         };
         let session_settlement_json_rpc = JsonRpcRequest {
@@ -622,7 +635,7 @@ impl Client {
             session_namespaces: approved_namespaces,
             required_namespaces: proposal.required_namespaces.clone(),
             optional_namespaces: proposal.optional_namespaces.clone(),
-            session_properties: proposal.session_properties.clone(),
+            session_properties: final_session_properties,
             scoped_properties: proposal.scoped_properties.clone(),
             is_acknowledged: false,
             pairing_topic: proposal.pairing_topic.clone(),
