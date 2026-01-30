@@ -366,6 +366,9 @@ async fn e2e_payment_happy_path() {
                             CollectDataFieldType::Text => {
                                 "test-value".to_string()
                             }
+                            CollectDataFieldType::Checkbox => {
+                                "true".to_string()
+                            }
                         },
                     };
                     CollectDataFieldResult { id: field.id.clone(), value }

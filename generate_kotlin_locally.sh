@@ -172,15 +172,18 @@ install_variant_sources() {
         # Process yttrium.kt:
         # 1. Change package: uniffi.yttrium -> uniffi.yttrium_utils
         # 2. Change imports: uniffi.uniffi_yttrium -> uniffi.uniffi_yttrium_utils
-        # 3. Change library name: "uniffi_yttrium" -> "uniffi_yttrium_utils"
+        # 3. Change type references: uniffi.yttrium.Type -> uniffi.yttrium_utils.Type
+        # 4. Change library name: "uniffi_yttrium" -> "uniffi_yttrium_utils"
         if command -v perl >/dev/null 2>&1; then
             perl -0pi -e 's/\bpackage\s+uniffi\.yttrium\b/package uniffi.yttrium_utils/g' "$kotlin_base/yttrium.kt"
             perl -0pi -e 's/\buniffi\.uniffi_yttrium(?!_utils)\b/uniffi.uniffi_yttrium_utils/g' "$kotlin_base/yttrium.kt"
+            perl -0pi -e 's/\buniffi\.yttrium\.(\w)/uniffi.yttrium_utils.$1/g' "$kotlin_base/yttrium.kt"
             perl -0pi -e 's/return "uniffi_yttrium"/return "uniffi_yttrium_utils"/g' "$kotlin_base/yttrium.kt"
         else
             sed -i '' 's/^package uniffi\.yttrium$/package uniffi.yttrium_utils/' "$kotlin_base/yttrium.kt" || true
             sed -i '' 's/uniffi\.uniffi_yttrium\([^_]\)/uniffi.uniffi_yttrium_utils\1/g' "$kotlin_base/yttrium.kt" || true
             sed -i '' 's/uniffi\.uniffi_yttrium$/uniffi.uniffi_yttrium_utils/g' "$kotlin_base/yttrium.kt" || true
+            sed -i '' 's/uniffi\.yttrium\.\([A-Za-z]\)/uniffi.yttrium_utils.\1/g' "$kotlin_base/yttrium.kt" || true
             sed -i '' 's/return "uniffi_yttrium"/return "uniffi_yttrium_utils"/g' "$kotlin_base/yttrium.kt" || true
         fi
     fi
@@ -206,15 +209,18 @@ install_variant_sources() {
         # Process yttrium.kt:
         # 1. Change package: uniffi.yttrium -> uniffi.yttrium_wcpay
         # 2. Change imports: uniffi.uniffi_yttrium -> uniffi.uniffi_yttrium_wcpay
-        # 3. Change library name: "uniffi_yttrium" -> "uniffi_yttrium_wcpay"
+        # 3. Change type references: uniffi.yttrium.Type -> uniffi.yttrium_wcpay.Type
+        # 4. Change library name: "uniffi_yttrium" -> "uniffi_yttrium_wcpay"
         if command -v perl >/dev/null 2>&1; then
             perl -0pi -e 's/\bpackage\s+uniffi\.yttrium\b/package uniffi.yttrium_wcpay/g' "$kotlin_base/yttrium.kt"
             perl -0pi -e 's/\buniffi\.uniffi_yttrium(?!_wcpay)\b/uniffi.uniffi_yttrium_wcpay/g' "$kotlin_base/yttrium.kt"
+            perl -0pi -e 's/\buniffi\.yttrium\.(\w)/uniffi.yttrium_wcpay.$1/g' "$kotlin_base/yttrium.kt"
             perl -0pi -e 's/return "uniffi_yttrium"/return "uniffi_yttrium_wcpay"/g' "$kotlin_base/yttrium.kt"
         else
             sed -i '' 's/^package uniffi\.yttrium$/package uniffi.yttrium_wcpay/' "$kotlin_base/yttrium.kt" || true
             sed -i '' 's/uniffi\.uniffi_yttrium\([^_]\)/uniffi.uniffi_yttrium_wcpay\1/g' "$kotlin_base/yttrium.kt" || true
             sed -i '' 's/uniffi\.uniffi_yttrium$/uniffi.uniffi_yttrium_wcpay/g' "$kotlin_base/yttrium.kt" || true
+            sed -i '' 's/uniffi\.yttrium\.\([A-Za-z]\)/uniffi.yttrium_wcpay.\1/g' "$kotlin_base/yttrium.kt" || true
             sed -i '' 's/return "uniffi_yttrium"/return "uniffi_yttrium_wcpay"/g' "$kotlin_base/yttrium.kt" || true
         fi
     fi
