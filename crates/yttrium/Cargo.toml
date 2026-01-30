@@ -32,10 +32,6 @@ uniffi = [
     "reqwest/default-tls",
     "native",
     "dep:tracing-subscriber",
-    "dep:alloy",
-    "dep:alloy-provider",
-    "dep:relay_rpc",
-    "dep:tower",
 ]
 native = [
     "dep:tokio-tungstenite",

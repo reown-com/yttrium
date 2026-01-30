@@ -53,6 +53,14 @@ use {
     alloy::rpc::json_rpc::Id,
     relay_rpc::domain::{ClientId, Topic},
 };
+#[cfg(any(
+    feature = "account_client",
+    feature = "chain_abstraction_client",
+    feature = "erc6492_client",
+    feature = "transaction_sponsorship_client",
+    feature = "sign_client",
+    feature = "evm_signing",
+))]
 use {
     alloy::{
         contract::Error as AlloyError,
@@ -66,8 +74,10 @@ use {
         transports::{self, TransportErrorKind},
     },
     alloy_provider::PendingTransactionError,
-    eyre::Report as EyreError,
     relay_rpc::domain::ProjectId,
+};
+use {
+    eyre::Report as EyreError,
     reqwest::{Error as ReqwestError, StatusCode, Url},
     serde_json::Error as SerdeJsonError,
     uniffi::deps::anyhow::Error as AnyhowError,
@@ -75,6 +85,14 @@ use {
 
 // TODO use https://mozilla.github.io/uniffi-rs/next/udl/remote_ext_types.html#remote-types when it's available
 
+#[cfg(any(
+    feature = "account_client",
+    feature = "chain_abstraction_client",
+    feature = "erc6492_client",
+    feature = "transaction_sponsorship_client",
+    feature = "sign_client",
+    feature = "evm_signing",
+))]
 uniffi::custom_type!(Address, String, {
     remote,
     try_lift: |val| Ok(val.parse()?),
@@ -104,12 +122,28 @@ uniffi::custom_type!(SolanaKeypair, String, {
     lower: |obj| obj.to_base58_string(),
 });
 
+#[cfg(any(
+    feature = "account_client",
+    feature = "chain_abstraction_client",
+    feature = "erc6492_client",
+    feature = "transaction_sponsorship_client",
+    feature = "sign_client",
+    feature = "evm_signing",
+))]
 uniffi::custom_type!(PrivateKeySigner, String, {
     remote,
     try_lift: |val| Ok(val.parse()?),
     lower: |obj| hex::encode(obj.to_bytes()),
 });
 
+#[cfg(any(
+    feature = "account_client",
+    feature = "chain_abstraction_client",
+    feature = "erc6492_client",
+    feature = "transaction_sponsorship_client",
+    feature = "sign_client",
+    feature = "evm_signing",
+))]
 uniffi::custom_type!(PrimitiveSignature, String, {
     remote,
     try_lift: |val| Ok(val.parse()?),
@@ -123,67 +157,161 @@ uniffi::custom_type!(SolanaSignature, String, {
     lower: |obj| obj.to_string(),
 });
 
+#[cfg(any(
+    feature = "account_client",
+    feature = "chain_abstraction_client",
+    feature = "erc6492_client",
+    feature = "transaction_sponsorship_client",
+    feature = "sign_client",
+    feature = "evm_signing",
+))]
 uniffi::custom_type!(Eip712Domain, String, {
     remote,
     try_lift: |_val| unimplemented!("Does not support lifting Eip712Domain"),
     lower: |_obj| "Does not support lowering Eip712Domain".to_owned(),
 });
 
+#[cfg(any(
+    feature = "account_client",
+    feature = "chain_abstraction_client",
+    feature = "erc6492_client",
+    feature = "transaction_sponsorship_client",
+    feature = "sign_client",
+    feature = "evm_signing",
+))]
 fn uint_to_hex<const BITS: usize, const LIMBS: usize>(
     obj: Uint<BITS, LIMBS>,
 ) -> String {
     format!("0x{obj:x}")
 }
 
+#[cfg(any(
+    feature = "account_client",
+    feature = "chain_abstraction_client",
+    feature = "erc6492_client",
+    feature = "transaction_sponsorship_client",
+    feature = "sign_client",
+    feature = "evm_signing",
+))]
 uniffi::custom_type!(U8, String, {
     remote,
     try_lift: |val| Ok(val.parse()?),
     lower: |obj| uint_to_hex(obj),
 });
 
+#[cfg(any(
+    feature = "account_client",
+    feature = "chain_abstraction_client",
+    feature = "erc6492_client",
+    feature = "transaction_sponsorship_client",
+    feature = "sign_client",
+    feature = "evm_signing",
+))]
 uniffi::custom_type!(U48, String, {
     remote,
     try_lift: |val| Ok(val.parse()?),
     lower: |obj| uint_to_hex(obj),
 });
 
+#[cfg(any(
+    feature = "account_client",
+    feature = "chain_abstraction_client",
+    feature = "erc6492_client",
+    feature = "transaction_sponsorship_client",
+    feature = "sign_client",
+    feature = "evm_signing",
+))]
 uniffi::custom_type!(U64, String, {
     remote,
     try_lift: |val| Ok(val.parse()?),
     lower: |obj| uint_to_hex(obj),
 });
 
+#[cfg(any(
+    feature = "account_client",
+    feature = "chain_abstraction_client",
+    feature = "erc6492_client",
+    feature = "transaction_sponsorship_client",
+    feature = "sign_client",
+    feature = "evm_signing",
+))]
 uniffi::custom_type!(U128, String, {
     remote,
     try_lift: |val| Ok(val.parse()?),
     lower: |obj| uint_to_hex(obj),
 });
 
+#[cfg(any(
+    feature = "account_client",
+    feature = "chain_abstraction_client",
+    feature = "erc6492_client",
+    feature = "transaction_sponsorship_client",
+    feature = "sign_client",
+    feature = "evm_signing",
+))]
 type U128Primitive = u128;
+#[cfg(any(
+    feature = "account_client",
+    feature = "chain_abstraction_client",
+    feature = "erc6492_client",
+    feature = "transaction_sponsorship_client",
+    feature = "sign_client",
+    feature = "evm_signing",
+))]
 uniffi::custom_type!(U128Primitive, String, {
     remote,
     try_lift: |val| Ok(val.parse::<U128>()?.to()),
     lower: |obj| uint_to_hex(U128::from(obj)),
 });
 
+#[cfg(any(
+    feature = "account_client",
+    feature = "chain_abstraction_client",
+    feature = "erc6492_client",
+    feature = "transaction_sponsorship_client",
+    feature = "sign_client",
+    feature = "evm_signing",
+))]
 uniffi::custom_type!(U256, String, {
     remote,
     try_lift: |val| Ok(val.parse()?),
     lower: |obj| uint_to_hex(obj),
 });
 
+#[cfg(any(
+    feature = "account_client",
+    feature = "chain_abstraction_client",
+    feature = "erc6492_client",
+    feature = "transaction_sponsorship_client",
+    feature = "sign_client",
+    feature = "evm_signing",
+))]
 uniffi::custom_type!(Bytes, String, {
     remote,
     try_lift: |val| Ok(val.parse()?),
     lower: |obj| obj.to_string(),
 });
 
+#[cfg(any(
+    feature = "account_client",
+    feature = "chain_abstraction_client",
+    feature = "erc6492_client",
+    feature = "transaction_sponsorship_client",
+    feature = "sign_client",
+    feature = "evm_signing",
+))]
 uniffi::custom_type!(B256, String, {
     remote,
     try_lift: |val| Ok(val.parse()?),
     lower: |obj| obj.to_string(),
 });
 
+#[cfg(any(
+    feature = "account_client",
+    feature = "chain_abstraction_client",
+    feature = "transaction_sponsorship_client",
+    feature = "sign_client",
+))]
 uniffi::custom_type!(ProjectId, String, {
     remote,
     try_lift: |val| Ok(val.into()),
@@ -224,8 +352,24 @@ uniffi::custom_type!(Url, String, {
     lower: |obj| obj.to_string(),
 });
 
+#[cfg(any(
+    feature = "account_client",
+    feature = "chain_abstraction_client",
+    feature = "erc6492_client",
+    feature = "transaction_sponsorship_client",
+    feature = "sign_client",
+    feature = "evm_signing",
+))]
 pub type RpcError = transports::RpcError<TransportErrorKind>;
 
+#[cfg(any(
+    feature = "account_client",
+    feature = "chain_abstraction_client",
+    feature = "erc6492_client",
+    feature = "transaction_sponsorship_client",
+    feature = "sign_client",
+    feature = "evm_signing",
+))]
 uniffi::custom_type!(RpcError, String, {
     remote,
     try_lift: |_val| unimplemented!("Does not support lifting RpcError"),
@@ -241,21 +385,53 @@ uniffi::custom_type!(AnyhowError, String, {
     try_lift: |_val| unimplemented!("Does not support lifting AnyhowError"),
     lower: |obj| obj.to_string(),
 });
+#[cfg(any(
+    feature = "account_client",
+    feature = "chain_abstraction_client",
+    feature = "erc6492_client",
+    feature = "transaction_sponsorship_client",
+    feature = "sign_client",
+    feature = "evm_signing",
+))]
 uniffi::custom_type!(AlloyError, String, {
     remote,
     try_lift: |_val| unimplemented!("Does not support lifting AlloyError"),
     lower: |obj| obj.to_string(),
 });
+#[cfg(any(
+    feature = "account_client",
+    feature = "chain_abstraction_client",
+    feature = "erc6492_client",
+    feature = "transaction_sponsorship_client",
+    feature = "sign_client",
+    feature = "evm_signing",
+))]
 uniffi::custom_type!(TransactionReceipt, String, {
     remote,
     try_lift: |_val| unimplemented!("Does not support lifting TransactionReceipt"),
     lower: |obj| serde_json::to_string(&obj).unwrap(),
 });
+#[cfg(any(
+    feature = "account_client",
+    feature = "chain_abstraction_client",
+    feature = "erc6492_client",
+    feature = "transaction_sponsorship_client",
+    feature = "sign_client",
+    feature = "evm_signing",
+))]
 uniffi::custom_type!(UserOperationReceipt, String, {
     remote,
     try_lift: |_val| unimplemented!("Does not support lifting UserOperationReceipt"),
     lower: |obj| serde_json::to_string(&obj).unwrap(),
 });
+#[cfg(any(
+    feature = "account_client",
+    feature = "chain_abstraction_client",
+    feature = "erc6492_client",
+    feature = "transaction_sponsorship_client",
+    feature = "sign_client",
+    feature = "evm_signing",
+))]
 uniffi::custom_type!(PendingTransactionError, String, {
     remote,
     try_lift: |_val| unimplemented!("Does not support lifting PendingTransactionError"),
@@ -289,6 +465,14 @@ fn funding_metadata_to_bridging_fee_amount(value: FundingMetadata) -> Amount {
     value.to_bridging_fee_amount()
 }
 
+#[cfg(any(
+    feature = "account_client",
+    feature = "chain_abstraction_client",
+    feature = "erc6492_client",
+    feature = "transaction_sponsorship_client",
+    feature = "sign_client",
+    feature = "evm_signing",
+))]
 uniffi::custom_type!(Authorization, FfiAuthorization, {
     remote,
     try_lift: |val| Ok(Authorization {
@@ -303,6 +487,14 @@ uniffi::custom_type!(Authorization, FfiAuthorization, {
     },
 });
 
+#[cfg(any(
+    feature = "account_client",
+    feature = "chain_abstraction_client",
+    feature = "erc6492_client",
+    feature = "transaction_sponsorship_client",
+    feature = "sign_client",
+    feature = "evm_signing",
+))]
 #[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
 pub struct FfiAuthorization {
     /// The chain ID of the authorization.
@@ -439,7 +631,17 @@ uniffi::custom_type!(StatusCode, u16, {
     lower: |obj| obj.as_u16(),
 });
 
-#[cfg(test)]
+#[cfg(all(
+    test,
+    any(
+        feature = "account_client",
+        feature = "chain_abstraction_client",
+        feature = "erc6492_client",
+        feature = "transaction_sponsorship_client",
+        feature = "sign_client",
+        feature = "evm_signing",
+    )
+))]
 mod tests {
     use {
         super::*,
