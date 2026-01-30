@@ -69,6 +69,7 @@ pub mod ton_provider;
 pub mod transaction_sponsorship;
 #[cfg(any(feature = "account_client", feature = "chain_abstraction_client"))]
 pub mod user_operation;
+#[cfg(any(feature = "account_client", feature = "chain_abstraction_client"))]
 pub mod utils;
 #[cfg(any(feature = "account_client", feature = "chain_abstraction_client"))]
 pub mod wallet_provider;

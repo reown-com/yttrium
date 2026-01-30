@@ -149,3 +149,45 @@ impl Client {
             .map(|balance| balance.to_string())
     }
 }
+
+#[cfg(feature = "pay")]
+#[wasm_bindgen]
+pub struct PayJson {
+    inner: crate::pay::WalletConnectPayJson,
+}
+
+#[cfg(feature = "pay")]
+#[wasm_bindgen]
+impl PayJson {
+    #[wasm_bindgen(constructor)]
+    pub fn new(
+        sdk_config_json: String,
+    ) -> Result<PayJson, crate::pay::PayJsonError> {
+        crate::pay::WalletConnectPayJson::new(sdk_config_json)
+            .map(|inner| Self { inner })
+    }
+
+    #[wasm_bindgen]
+    pub async fn get_payment_options(
+        &self,
+        request_json: String,
+    ) -> Result<String, crate::pay::PayJsonError> {
+        self.inner.get_payment_options(request_json).await
+    }
+
+    #[wasm_bindgen]
+    pub async fn get_required_payment_actions(
+        &self,
+        request_json: String,
+    ) -> Result<String, crate::pay::PayJsonError> {
+        self.inner.get_required_payment_actions(request_json).await
+    }
+
+    #[wasm_bindgen]
+    pub async fn confirm_payment(
+        &self,
+        request_json: String,
+    ) -> Result<String, crate::pay::PayJsonError> {
+        self.inner.confirm_payment(request_json).await
+    }
+}

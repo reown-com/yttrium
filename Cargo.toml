@@ -57,6 +57,7 @@ uniffi_macros = { version = "0.31.0", default-features = false }
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
 tsify-next = "0.5.4"
+serde-wasm-bindgen = "0.6"
 
 # Solana
 solana-sdk = { version = "3.0.0", default-features = false }

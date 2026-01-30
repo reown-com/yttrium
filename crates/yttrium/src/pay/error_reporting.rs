@@ -1,10 +1,8 @@
 use {
+    crate::time::{SystemTime, UNIX_EPOCH},
     reqwest::Client as HttpClient,
     serde::Serialize,
-    std::{
-        sync::atomic::{AtomicU64, Ordering},
-        time::{SystemTime, UNIX_EPOCH},
-    },
+    std::sync::atomic::{AtomicU64, Ordering},
     uuid::Uuid,
 };
 
