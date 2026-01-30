@@ -45,6 +45,7 @@ wasm = [
     "alloy/wasm-bindgen",
     "dep:tsify-next",
     "dep:derive_jserror",
+    "dep:serde-wasm-bindgen",
     "getrandom/wasm_js",
     "getrandom2/js",
     "uuid/js",
@@ -131,7 +132,7 @@ sign_canary = [
 ]
 clear_signing = []
 evm_signing = ["chain_abstraction_client"]
-pay = ["dep:progenitor-client", "uniffi", "dep:rand"]
+pay = ["dep:progenitor-client", "dep:rand"]
 
 # Features enabling test coverage
 test_full = [
@@ -156,6 +157,7 @@ uniffi_macros = { workspace = true, optional = true }
 wasm-bindgen = { workspace = true, optional = true }
 wasm-bindgen-futures = { workspace = true, optional = true }
 tsify-next = { workspace = true, optional = true, features = ["js"] }
+serde-wasm-bindgen = { workspace = true, optional = true }
 
 # Clear signing engine
 
@@ -329,4 +331,4 @@ base64 = "0.22"
 rand = "0.8"
 
 [package.metadata.wasm-pack.profile.release]
-wasm-opt = ['-Oz']
+wasm-opt = ['-Oz', '--enable-bulk-memory', '--enable-nontrapping-float-to-int', '--enable-sign-ext']
