@@ -173,8 +173,8 @@ jobs:
         run: make CONFIG=${{ matrix.config }} build-swift-apple-platforms
 
   build-kotlin-variant:
-    runs-on: [self-hosted, aws-ecs-8cpu-32mem-55disk-45m]
-    timeout-minutes: 45
+    runs-on: [self-hosted, aws-ecs-16cpu-64mem-40disk-60m]
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
@@ -269,8 +269,8 @@ jobs:
           retention-days: 1
 
   build-kotlin:
-    runs-on: [self-hosted, aws-ecs-8cpu-32mem-55disk-45m]
-    timeout-minutes: 20
+    runs-on: [self-hosted, aws-ecs-16cpu-64mem-40disk-60m]
+    timeout-minutes: 30
     needs: build-kotlin-variant
 
     steps:
