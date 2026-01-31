@@ -36,6 +36,13 @@ use crate::wallet_service_api::{
     AddressOrNative, Asset, AssetData, Erc20Metadata, Erc721Metadata,
     NativeMetadata,
 };
+#[cfg(any(
+    feature = "account_client",
+    feature = "chain_abstraction_client",
+    feature = "transaction_sponsorship_client",
+    feature = "sign_client",
+))]
+use relay_rpc::domain::ProjectId;
 #[cfg(feature = "solana")]
 use {
     crate::chain_abstraction::solana::{
@@ -75,13 +82,6 @@ use {
     },
     alloy_provider::PendingTransactionError,
 };
-#[cfg(any(
-    feature = "account_client",
-    feature = "chain_abstraction_client",
-    feature = "transaction_sponsorship_client",
-    feature = "sign_client",
-))]
-use relay_rpc::domain::ProjectId;
 use {
     eyre::Report as EyreError,
     reqwest::{Error as ReqwestError, StatusCode, Url},
