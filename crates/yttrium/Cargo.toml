@@ -20,23 +20,21 @@ required-features = ["sign_canary"]
 
 [features]
 default = ["eip155", "erc6492_client", "chain_abstraction_client"]
-full = ["all_platforms", "all_clients", "all_namespaces"]
+full = ["all_platforms", "all_clients", "all_namespaces", "native"]
 
 # Features enabling FFI bindings for different platforms
 all_platforms = ["android", "ios", "wasm"]
 ios = ["uniffi"]
-android = ["uniffi", "dep:rustls-platform-verifier", "dep:jni"]
+android = ["uniffi", "uniffi-rustls", "dep:jni"]
+android-full = ["android", "native", "dep:rustls-platform-verifier"]
 uniffi = [
     "dep:uniffi",
     "dep:uniffi_macros",
-    "reqwest/default-tls",
-    "native",
     "dep:tracing-subscriber",
-    "dep:alloy",
-    "dep:alloy-provider",
-    "dep:relay_rpc",
-    "dep:tower",
 ]
+# TLS backend options for uniffi builds
+uniffi-native-tls = ["uniffi", "reqwest/native-tls"]
+uniffi-rustls = ["uniffi", "reqwest/rustls-tls"]
 native = [
     "dep:tokio-tungstenite",
     "tokio-tungstenite/connect",
@@ -157,6 +155,7 @@ sign_client = [
 
 sign_canary = [
     "sign_client",
+    "native",
     "tokio/rt-multi-thread",
     "dep:aws-config",
     "dep:aws-sdk-cloudwatch",
