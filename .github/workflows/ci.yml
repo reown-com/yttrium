@@ -324,14 +324,16 @@ jobs:
           done
           mkdir -p "$GEN/utils/kotlin/com/reown/yttrium"
           cp artifacts/yttrium-utils/kotlin/*.kt "$GEN/utils/kotlin/com/reown/yttrium/"
-          # Rename packages (using -0pi for slurp mode like original script)
-          perl -0pi -e 's/\bpackage\s+uniffi\.uniffi_yttrium\b/package uniffi.uniffi_yttrium_utils/g' "$GEN/utils/kotlin/com/reown/yttrium/uniffi_yttrium.kt"
-          perl -0pi -e 's/\buniffi\.yttrium(?!_utils)\b/uniffi.yttrium_utils/g' "$GEN/utils/kotlin/com/reown/yttrium/uniffi_yttrium.kt"
-          perl -0pi -e 's/return "uniffi_yttrium"/return "uniffi_yttrium_utils"/g' "$GEN/utils/kotlin/com/reown/yttrium/uniffi_yttrium.kt"
-          perl -0pi -e 's/\bpackage\s+uniffi\.yttrium\b/package uniffi.yttrium_utils/g' "$GEN/utils/kotlin/com/reown/yttrium/yttrium.kt"
-          perl -0pi -e 's/\buniffi\.uniffi_yttrium(?!_utils)\b/uniffi.uniffi_yttrium_utils/g' "$GEN/utils/kotlin/com/reown/yttrium/yttrium.kt"
-          perl -0pi -e 's/\buniffi\.yttrium(?!_utils)\b/uniffi.yttrium_utils/g' "$GEN/utils/kotlin/com/reown/yttrium/yttrium.kt"
-          perl -0pi -e 's/return "uniffi_yttrium"/return "uniffi_yttrium_utils"/g' "$GEN/utils/kotlin/com/reown/yttrium/yttrium.kt"
+          # Rename packages (same approach as release-kotlin-all.yml)
+          find "$GEN/utils/kotlin" -type f -name "*.kt" -exec perl -i -pe '
+            s/^package uniffi\.yttrium$/package uniffi.yttrium_utils/;
+            s/^import uniffi\.yttrium\./import uniffi.yttrium_utils./g;
+            s/^package uniffi\.uniffi_yttrium$/package uniffi.uniffi_yttrium_utils/;
+            s/^import uniffi\.uniffi_yttrium\./import uniffi.uniffi_yttrium_utils./g;
+            s/\buniffi\.yttrium\./uniffi.yttrium_utils./g;
+            s/\buniffi\.uniffi_yttrium\./uniffi.uniffi_yttrium_utils./g;
+            s/return "uniffi_yttrium"/return "uniffi_yttrium_utils"/g;
+          ' {} \;
           
           # yttrium-wcpay variant (with package renaming)
           for abi in arm64-v8a armeabi-v7a x86_64; do
@@ -340,14 +342,16 @@ jobs:
           done
           mkdir -p "$GEN/wcpay/kotlin/com/reown/yttrium"
           cp artifacts/yttrium-wcpay/kotlin/*.kt "$GEN/wcpay/kotlin/com/reown/yttrium/"
-          # Rename packages (using -0pi for slurp mode like original script)
-          perl -0pi -e 's/\bpackage\s+uniffi\.uniffi_yttrium\b/package uniffi.uniffi_yttrium_wcpay/g' "$GEN/wcpay/kotlin/com/reown/yttrium/uniffi_yttrium.kt"
-          perl -0pi -e 's/\buniffi\.yttrium(?!_wcpay)\b/uniffi.yttrium_wcpay/g' "$GEN/wcpay/kotlin/com/reown/yttrium/uniffi_yttrium.kt"
-          perl -0pi -e 's/return "uniffi_yttrium"/return "uniffi_yttrium_wcpay"/g' "$GEN/wcpay/kotlin/com/reown/yttrium/uniffi_yttrium.kt"
-          perl -0pi -e 's/\bpackage\s+uniffi\.yttrium\b/package uniffi.yttrium_wcpay/g' "$GEN/wcpay/kotlin/com/reown/yttrium/yttrium.kt"
-          perl -0pi -e 's/\buniffi\.uniffi_yttrium(?!_wcpay)\b/uniffi.uniffi_yttrium_wcpay/g' "$GEN/wcpay/kotlin/com/reown/yttrium/yttrium.kt"
-          perl -0pi -e 's/\buniffi\.yttrium(?!_wcpay)\b/uniffi.yttrium_wcpay/g' "$GEN/wcpay/kotlin/com/reown/yttrium/yttrium.kt"
-          perl -0pi -e 's/return "uniffi_yttrium"/return "uniffi_yttrium_wcpay"/g' "$GEN/wcpay/kotlin/com/reown/yttrium/yttrium.kt"
+          # Rename packages (same approach as release-kotlin-all.yml)
+          find "$GEN/wcpay/kotlin" -type f -name "*.kt" -exec perl -i -pe '
+            s/^package uniffi\.yttrium$/package uniffi.yttrium_wcpay/;
+            s/^import uniffi\.yttrium\./import uniffi.yttrium_wcpay./g;
+            s/^package uniffi\.uniffi_yttrium$/package uniffi.uniffi_yttrium_wcpay/;
+            s/^import uniffi\.uniffi_yttrium\./import uniffi.uniffi_yttrium_wcpay./g;
+            s/\buniffi\.yttrium\./uniffi.yttrium_wcpay./g;
+            s/\buniffi\.uniffi_yttrium\./uniffi.uniffi_yttrium_wcpay./g;
+            s/return "uniffi_yttrium"/return "uniffi_yttrium_wcpay"/g;
+          ' {} \;
 
       - name: Build Gradle AARs
         working-directory: crates/kotlin-ffi/android
