@@ -172,14 +172,32 @@ jobs:
       - name: Build ${{ matrix.config }}
         run: make CONFIG=${{ matrix.config }} build-swift-apple-platforms
 
-  build-kotlin:
+  build-kotlin-variant:
     runs-on: [self-hosted, aws-ecs-8cpu-32mem-55disk-45m]
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        variant:
+          - name: yttrium
+            features: "android,erc6492_client,pay,uniffi/cli"
+            profile: uniffi-release-kotlin
+            lib_suffix: ""
+          - name: yttrium-utils
+            features: "android,chain_abstraction_client,solana,stacks,sui,ton,tron,eip155,uniffi/cli"
+            profile: uniffi-release-kotlin
+            lib_suffix: "_utils"
+          - name: yttrium-wcpay
+            features: "android,pay,uniffi/cli"
+            profile: uniffi-release-kotlin-wcpay
+            lib_suffix: "_wcpay"
 
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/free-disk-space
         with:
           runner-type: self-hosted-kotlin
+
       - name: Install Android NDK
         id: setup-ndk
         uses: nttld/setup-ndk@v1
@@ -193,27 +211,147 @@ jobs:
           rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android
           echo "$HOME/.cargo/bin" >> $GITHUB_PATH
 
-      - name: Set up Java 11 and 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: "temurin"
-          java-version: |
-            11
-            17
-
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
       - name: Install cargo-ndk (cached)
         uses: taiki-e/install-action@v2
         with:
           tool: cargo-ndk
 
-      - name: Build Rust library
-        run: ./generate_kotlin_locally.sh
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+          key: kotlin-${{ matrix.variant.name }}
+
+      - name: Build ${{ matrix.variant.name }} native libraries
+        run: |
+          cargo ndk -t armv7-linux-androideabi -t aarch64-linux-android -t x86_64-linux-android build \
+            --profile="${{ matrix.variant.profile }}" \
+            --no-default-features \
+            --features="${{ matrix.variant.features }}" \
+            -p kotlin-ffi
         env:
           ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
-          RUSTFLAGS: "-C link-arg=-Wl,--gc-sections"
+          CARGO_TARGET_AARCH64_LINUX_ANDROID_RUSTFLAGS: "-C link-arg=-Wl,--gc-sections"
+          CARGO_TARGET_ARMV7_LINUX_ANDROIDEABI_RUSTFLAGS: "-C link-arg=-Wl,--gc-sections"
+          CARGO_TARGET_X86_64_LINUX_ANDROID_RUSTFLAGS: "-C link-arg=-Wl,--gc-sections"
+
+      - name: Generate Kotlin bindings
+        run: |
+          cargo run \
+            --no-default-features \
+            --features="${{ matrix.variant.features }}" \
+            -p kotlin-ffi \
+            --bin uniffi-bindgen generate \
+            --library "target/aarch64-linux-android/${{ matrix.variant.profile }}/libuniffi_yttrium.so" \
+            --language kotlin \
+            --out-dir bindings
+
+      - name: Strip and prepare artifacts
+        run: |
+          STRIP="${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip"
+          mkdir -p artifacts/arm64-v8a artifacts/armeabi-v7a artifacts/x86_64 artifacts/kotlin
+          
+          for pair in "aarch64-linux-android:arm64-v8a" "armv7-linux-androideabi:armeabi-v7a" "x86_64-linux-android:x86_64"; do
+            target="${pair%%:*}"
+            abi="${pair##*:}"
+            src="target/${target}/${{ matrix.variant.profile }}/libuniffi_yttrium.so"
+            "$STRIP" --strip-all "$src"
+            cp "$src" "artifacts/${abi}/libuniffi_yttrium${{ matrix.variant.lib_suffix }}.so"
+          done
+          
+          cp bindings/uniffi/uniffi_yttrium/uniffi_yttrium.kt artifacts/kotlin/
+          cp bindings/uniffi/yttrium/yttrium.kt artifacts/kotlin/
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: kotlin-${{ matrix.variant.name }}
+          path: artifacts/
+          retention-days: 1
+
+  build-kotlin:
+    runs-on: [self-hosted, aws-ecs-8cpu-32mem-55disk-45m]
+    timeout-minutes: 20
+    needs: build-kotlin-variant
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download yttrium artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: kotlin-yttrium
+          path: artifacts/yttrium
+
+      - name: Download yttrium-utils artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: kotlin-yttrium-utils
+          path: artifacts/yttrium-utils
+
+      - name: Download yttrium-wcpay artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: kotlin-yttrium-wcpay
+          path: artifacts/yttrium-wcpay
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Prepare Gradle sources
+        run: |
+          GEN="crates/kotlin-ffi/android/build/generated"
+          
+          # yttrium variant
+          for abi in arm64-v8a armeabi-v7a x86_64; do
+            mkdir -p "$GEN/yttrium/jniLibs/$abi"
+            cp "artifacts/yttrium/$abi/libuniffi_yttrium.so" "$GEN/yttrium/jniLibs/$abi/"
+          done
+          mkdir -p "$GEN/yttrium/kotlin/com/reown/yttrium"
+          cp artifacts/yttrium/kotlin/*.kt "$GEN/yttrium/kotlin/com/reown/yttrium/"
+          
+          # yttrium-utils variant (with package renaming)
+          for abi in arm64-v8a armeabi-v7a x86_64; do
+            mkdir -p "$GEN/utils/jniLibs/$abi"
+            cp "artifacts/yttrium-utils/$abi/libuniffi_yttrium_utils.so" "$GEN/utils/jniLibs/$abi/"
+          done
+          mkdir -p "$GEN/utils/kotlin/com/reown/yttrium"
+          cp artifacts/yttrium-utils/kotlin/*.kt "$GEN/utils/kotlin/com/reown/yttrium/"
+          # Rename packages
+          perl -pi -e 's/\bpackage uniffi\.uniffi_yttrium\b/package uniffi.uniffi_yttrium_utils/g' "$GEN/utils/kotlin/com/reown/yttrium/uniffi_yttrium.kt"
+          perl -pi -e 's/\buniffi\.yttrium(?!_utils)\b/uniffi.yttrium_utils/g' "$GEN/utils/kotlin/com/reown/yttrium/uniffi_yttrium.kt"
+          perl -pi -e 's/return "uniffi_yttrium"/return "uniffi_yttrium_utils"/g' "$GEN/utils/kotlin/com/reown/yttrium/uniffi_yttrium.kt"
+          perl -pi -e 's/\bpackage uniffi\.yttrium\b/package uniffi.yttrium_utils/g' "$GEN/utils/kotlin/com/reown/yttrium/yttrium.kt"
+          perl -pi -e 's/\buniffi\.uniffi_yttrium(?!_utils)\b/uniffi.uniffi_yttrium_utils/g' "$GEN/utils/kotlin/com/reown/yttrium/yttrium.kt"
+          perl -pi -e 's/return "uniffi_yttrium"/return "uniffi_yttrium_utils"/g' "$GEN/utils/kotlin/com/reown/yttrium/yttrium.kt"
+          
+          # yttrium-wcpay variant (with package renaming)
+          for abi in arm64-v8a armeabi-v7a x86_64; do
+            mkdir -p "$GEN/wcpay/jniLibs/$abi"
+            cp "artifacts/yttrium-wcpay/$abi/libuniffi_yttrium_wcpay.so" "$GEN/wcpay/jniLibs/$abi/"
+          done
+          mkdir -p "$GEN/wcpay/kotlin/com/reown/yttrium"
+          cp artifacts/yttrium-wcpay/kotlin/*.kt "$GEN/wcpay/kotlin/com/reown/yttrium/"
+          # Rename packages
+          perl -pi -e 's/\bpackage uniffi\.uniffi_yttrium\b/package uniffi.uniffi_yttrium_wcpay/g' "$GEN/wcpay/kotlin/com/reown/yttrium/uniffi_yttrium.kt"
+          perl -pi -e 's/\buniffi\.yttrium(?!_wcpay)\b/uniffi.yttrium_wcpay/g' "$GEN/wcpay/kotlin/com/reown/yttrium/uniffi_yttrium.kt"
+          perl -pi -e 's/return "uniffi_yttrium"/return "uniffi_yttrium_wcpay"/g' "$GEN/wcpay/kotlin/com/reown/yttrium/uniffi_yttrium.kt"
+          perl -pi -e 's/\bpackage uniffi\.yttrium\b/package uniffi.yttrium_wcpay/g' "$GEN/wcpay/kotlin/com/reown/yttrium/yttrium.kt"
+          perl -pi -e 's/\buniffi\.uniffi_yttrium(?!_wcpay)\b/uniffi.uniffi_yttrium_wcpay/g' "$GEN/wcpay/kotlin/com/reown/yttrium/yttrium.kt"
+          perl -pi -e 's/return "uniffi_yttrium"/return "uniffi_yttrium_wcpay"/g' "$GEN/wcpay/kotlin/com/reown/yttrium/yttrium.kt"
+
+      - name: Build Gradle AARs
+        working-directory: crates/kotlin-ffi/android
+        run: |
+          ./gradlew \
+            :yttrium:assembleRelease \
+            :yttrium-utils:assembleRelease \
+            :yttrium-wcpay:assembleRelease
 
   merge_check:
     name: Merge Check
