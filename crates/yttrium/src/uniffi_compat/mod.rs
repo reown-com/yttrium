@@ -74,8 +74,14 @@ use {
         transports::{self, TransportErrorKind},
     },
     alloy_provider::PendingTransactionError,
-    relay_rpc::domain::ProjectId,
 };
+#[cfg(any(
+    feature = "account_client",
+    feature = "chain_abstraction_client",
+    feature = "transaction_sponsorship_client",
+    feature = "sign_client",
+))]
+use relay_rpc::domain::ProjectId;
 use {
     eyre::Report as EyreError,
     reqwest::{Error as ReqwestError, StatusCode, Url},
