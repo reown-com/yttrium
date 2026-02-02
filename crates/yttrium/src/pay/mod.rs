@@ -335,10 +335,25 @@ impl From<types::PaymentStatus> for PaymentStatus {
 #[derive(Debug, Clone, PartialEq, serde::Serialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
 #[serde(rename_all = "camelCase")]
+pub struct PaymentResultInfo {
+    pub tx_id: String,
+    pub option_amount: PayAmount,
+}
+
+impl From<types::PaymentInformation> for PaymentResultInfo {
+    fn from(i: types::PaymentInformation) -> Self {
+        Self { tx_id: i.tx_id, option_amount: i.option_amount.into() }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
+#[serde(rename_all = "camelCase")]
 pub struct ConfirmPaymentResultResponse {
     pub status: PaymentStatus,
     pub is_final: bool,
     pub poll_in_ms: Option<i64>,
+    pub info: Option<PaymentResultInfo>,
 }
 
 impl From<types::ConfirmPaymentResponse> for ConfirmPaymentResultResponse {
@@ -347,6 +362,7 @@ impl From<types::ConfirmPaymentResponse> for ConfirmPaymentResultResponse {
             status: r.status.into(),
             is_final: r.is_final,
             poll_in_ms: r.poll_in_ms,
+            info: None,
         }
     }
 }
@@ -379,6 +395,7 @@ impl From<types::WalletRpcAction> for WalletRpcAction {
 pub enum CollectDataFieldType {
     Text,
     Date,
+    Checkbox,
 }
 
 impl From<types::CollectDataFieldType> for CollectDataFieldType {
@@ -386,6 +403,9 @@ impl From<types::CollectDataFieldType> for CollectDataFieldType {
         match t {
             types::CollectDataFieldType::Text => CollectDataFieldType::Text,
             types::CollectDataFieldType::Date => CollectDataFieldType::Date,
+            types::CollectDataFieldType::Checkbox => {
+                CollectDataFieldType::Checkbox
+            }
         }
     }
 }
@@ -416,11 +436,17 @@ impl From<types::CollectDataField> for CollectDataField {
 #[serde(rename_all = "camelCase")]
 pub struct CollectDataAction {
     pub fields: Vec<CollectDataField>,
+    pub url: Option<String>,
+    pub schema: Option<String>,
 }
 
 impl From<types::CollectData> for CollectDataAction {
     fn from(c: types::CollectData) -> Self {
-        Self { fields: c.fields.into_iter().map(Into::into).collect() }
+        Self {
+            fields: c.fields.into_iter().map(Into::into).collect(),
+            url: c.url,
+            schema: c.schema.and_then(|s| serde_json::to_string(&s).ok()),
+        }
     }
 }
 
@@ -972,6 +998,7 @@ impl WalletConnectPay {
                 status: status.status.into(),
                 is_final: status.is_final,
                 poll_in_ms: status.poll_in_ms,
+                info: status.info.map(Into::into),
             };
             pay_debug!(
                 "confirm_payment: polled status={:?}, is_final={}",
