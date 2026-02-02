@@ -1,0 +1,138 @@
+name: Build and Release Yttrium WASM Pay
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release (e.g. 0.0.1)"
+        required: true
+
+env:
+  CARGO_TERM_COLOR: always
+  VERSION: ${{ github.event.inputs.version || '0.0.1' }}
+  TARGET_BRANCH: ${{ github.ref_name }}
+
+permissions:
+  contents: write
+
+jobs:
+  build-wasm:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust nightly toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          override: true
+          components: rust-src
+          target: wasm32-unknown-unknown
+
+      - name: Install wasm-pack
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+
+      - name: Build WASM package (lean pay-only)
+        working-directory: crates/yttrium
+        run: |
+          RUSTFLAGS="-Zlocation-detail=none -Zfmt-debug=none" \
+          wasm-pack build \
+            --release \
+            --target web \
+            --no-default-features \
+            --features=wasm,pay \
+            -Z build-std=std,panic_abort \
+            -Z build-std-features=optimize_for_size,panic_immediate_abort
+
+      - name: Compress WASM with Brotli
+        working-directory: crates/yttrium/pkg
+        run: |
+          sudo apt-get install -y brotli
+          brotli -9 -k yttrium_bg.wasm
+          echo "=== WASM Binary Sizes ==="
+          ls -lh yttrium_bg.wasm*
+          echo ""
+          echo "Raw size: $(stat -c%s yttrium_bg.wasm) bytes"
+          echo "Brotli size: $(stat -c%s yttrium_bg.wasm.br) bytes"
+
+      - name: Create artifacts directory
+        run: |
+          mkdir -p artifacts
+          cp -r crates/yttrium/pkg/* artifacts/
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: wasm-pay-artifacts
+          path: artifacts/
+          retention-days: 30
+
+  create-github-release:
+    needs: build-wasm
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: wasm-pay-artifacts
+          path: wasm-pay/
+
+      - name: Debug listing
+        run: |
+          echo "Contents of wasm-pay/:"
+          ls -lh wasm-pay/
+
+      - name: Create artifacts zip
+        run: |
+          zip -r wasm-pay-artifacts.zip wasm-pay/
+          echo "Zip created:"
+          ls -lh wasm-pay-artifacts.zip
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: wasm-pay-${{ env.VERSION }}
+          release_name: "Yttrium WASM Pay ${{ env.VERSION }}"
+          body: |
+            Release WASM Pay module version ${{ env.VERSION }}
+
+            **Branch:** ${{ env.TARGET_BRANCH }}
+
+            ## Installation
+
+            Download and extract `wasm-pay-artifacts.zip`, then import in your JavaScript/TypeScript project:
+
+            ```typescript
+            import init, { PayJson } from './yttrium.js';
+
+            await init();
+
+            const pay = new PayJson(JSON.stringify({
+              baseUrl: 'https://pay.walletconnect.com',
+              projectId: 'your-project-id',
+              apiKey: 'your-api-key',
+              sdkName: 'your-sdk',
+              sdkVersion: '1.0.0',
+              sdkPlatform: 'web',
+              bundleId: 'com.example.app'
+            }));
+            ```
+          draft: false
+          prerelease: false
+
+      - name: Upload Release Assets
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: wasm-pay-artifacts.zip
+          asset_name: wasm-pay-artifacts.zip
+          asset_content_type: application/zip
