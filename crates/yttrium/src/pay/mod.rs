@@ -361,7 +361,7 @@ impl From<types::ConfirmPaymentResponse> for ConfirmPaymentResultResponse {
             status: r.status.into(),
             is_final: r.is_final,
             poll_in_ms: r.poll_in_ms,
-            info: None,
+            info: r.info.map(Into::into),
         }
     }
 }
