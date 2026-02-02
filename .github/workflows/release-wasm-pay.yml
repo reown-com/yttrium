@@ -89,47 +89,37 @@ jobs:
           echo "Zip created:"
           ls -lh wasm-pay-${{ env.VERSION }}.zip
 
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
+      - name: Create Release and Upload Assets
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: wasm-pay-${{ env.VERSION }}
-          release_name: "Yttrium WASM Pay ${{ env.VERSION }}"
-          body: |
-            Release WASM Pay module version ${{ env.VERSION }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "wasm-pay-${{ env.VERSION }}" \
+            wasm-pay-${{ env.VERSION }}.zip \
+            --title "Yttrium WASM Pay ${{ env.VERSION }}" \
+            --target "${{ env.TARGET_BRANCH }}" \
+            --notes "$(cat <<'EOF'
+          Release WASM Pay module version ${{ env.VERSION }}
 
-            **Branch:** ${{ env.TARGET_BRANCH }}
+          **Branch:** ${{ env.TARGET_BRANCH }}
 
-            ## Installation
+          ## Installation
 
-            Download and extract `wasm-pay-artifacts.zip`, then import in your JavaScript/TypeScript project:
+          Download and extract the zip, then import in your JavaScript/TypeScript project:
 
-            ```typescript
-            import init, { PayJson } from './yttrium.js';
+          ```typescript
+          import init, { PayJson } from './yttrium.js';
 
-            await init();
+          await init();
 
-            const pay = new PayJson(JSON.stringify({
-              baseUrl: 'https://pay.walletconnect.com',
-              projectId: 'your-project-id',
-              apiKey: 'your-api-key',
-              sdkName: 'your-sdk',
-              sdkVersion: '1.0.0',
-              sdkPlatform: 'web',
-              bundleId: 'com.example.app'
-            }));
-            ```
-          draft: false
-          prerelease: false
-
-      - name: Upload Release Assets
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: wasm-pay-${{ env.VERSION }}.zip
-          asset_name: wasm-pay-${{ env.VERSION }}.zip
-          asset_content_type: application/zip
+          const pay = new PayJson(JSON.stringify({
+            baseUrl: 'https://pay.walletconnect.com',
+            projectId: 'your-project-id',
+            apiKey: 'your-api-key',
+            sdkName: 'your-sdk',
+            sdkVersion: '1.0.0',
+            sdkPlatform: 'web',
+            bundleId: 'com.example.app'
+          }));
+          ```
+          EOF
+          )"
