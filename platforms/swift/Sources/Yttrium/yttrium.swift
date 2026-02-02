@@ -1308,11 +1308,15 @@ public func FfiConverterTypeBuyerInfo_lower(_ value: BuyerInfo) -> RustBuffer {
 
 public struct CollectDataAction: Equatable, Hashable {
     public var fields: [CollectDataField]
+    public var url: String?
+    public var schema: String?
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(fields: [CollectDataField]) {
+    public init(fields: [CollectDataField], url: String?, schema: String?) {
         self.fields = fields
+        self.url = url
+        self.schema = schema
     }
 
     
@@ -1331,12 +1335,16 @@ public struct FfiConverterTypeCollectDataAction: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> CollectDataAction {
         return
             try CollectDataAction(
-                fields: FfiConverterSequenceTypeCollectDataField.read(from: &buf)
+                fields: FfiConverterSequenceTypeCollectDataField.read(from: &buf), 
+                url: FfiConverterOptionString.read(from: &buf), 
+                schema: FfiConverterOptionString.read(from: &buf)
         )
     }
 
     public static func write(_ value: CollectDataAction, into buf: inout [UInt8]) {
         FfiConverterSequenceTypeCollectDataField.write(value.fields, into: &buf)
+        FfiConverterOptionString.write(value.url, into: &buf)
+        FfiConverterOptionString.write(value.schema, into: &buf)
     }
 }
 
@@ -1476,13 +1484,15 @@ public struct ConfirmPaymentResultResponse: Equatable, Hashable {
     public var status: PaymentStatus
     public var isFinal: Bool
     public var pollInMs: Int64?
+    public var info: PaymentResultInfo?
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(status: PaymentStatus, isFinal: Bool, pollInMs: Int64?) {
+    public init(status: PaymentStatus, isFinal: Bool, pollInMs: Int64?, info: PaymentResultInfo?) {
         self.status = status
         self.isFinal = isFinal
         self.pollInMs = pollInMs
+        self.info = info
     }
 
     
@@ -1503,7 +1513,8 @@ public struct FfiConverterTypeConfirmPaymentResultResponse: FfiConverterRustBuff
             try ConfirmPaymentResultResponse(
                 status: FfiConverterTypePaymentStatus.read(from: &buf), 
                 isFinal: FfiConverterBool.read(from: &buf), 
-                pollInMs: FfiConverterOptionInt64.read(from: &buf)
+                pollInMs: FfiConverterOptionInt64.read(from: &buf), 
+                info: FfiConverterOptionTypePaymentResultInfo.read(from: &buf)
         )
     }
 
@@ -1511,6 +1522,7 @@ public struct FfiConverterTypeConfirmPaymentResultResponse: FfiConverterRustBuff
         FfiConverterTypePaymentStatus.write(value.status, into: &buf)
         FfiConverterBool.write(value.isFinal, into: &buf)
         FfiConverterOptionInt64.write(value.pollInMs, into: &buf)
+        FfiConverterOptionTypePaymentResultInfo.write(value.info, into: &buf)
     }
 }
 
@@ -1912,6 +1924,60 @@ public func FfiConverterTypePaymentOptionsResponse_lower(_ value: PaymentOptions
 }
 
 
+public struct PaymentResultInfo: Equatable, Hashable {
+    public var txId: String
+    public var optionAmount: PayAmount
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(txId: String, optionAmount: PayAmount) {
+        self.txId = txId
+        self.optionAmount = optionAmount
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension PaymentResultInfo: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypePaymentResultInfo: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> PaymentResultInfo {
+        return
+            try PaymentResultInfo(
+                txId: FfiConverterString.read(from: &buf), 
+                optionAmount: FfiConverterTypePayAmount.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: PaymentResultInfo, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.txId, into: &buf)
+        FfiConverterTypePayAmount.write(value.optionAmount, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePaymentResultInfo_lift(_ buf: RustBuffer) throws -> PaymentResultInfo {
+    return try FfiConverterTypePaymentResultInfo.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePaymentResultInfo_lower(_ value: PaymentResultInfo) -> RustBuffer {
+    return FfiConverterTypePaymentResultInfo.lower(value)
+}
+
+
 public struct SdkConfig: Equatable, Hashable {
     public var baseUrl: String
     public var projectId: String?
@@ -2058,6 +2124,7 @@ public enum CollectDataFieldType: Equatable, Hashable {
     
     case text
     case date
+    case checkbox
 
 
 
@@ -2083,6 +2150,8 @@ public struct FfiConverterTypeCollectDataFieldType: FfiConverterRustBuffer {
         
         case 2: return .date
         
+        case 3: return .checkbox
+        
         default: throw UniffiInternalError.unexpectedEnumCase
         }
     }
@@ -2097,6 +2166,10 @@ public struct FfiConverterTypeCollectDataFieldType: FfiConverterRustBuffer {
         
         case .date:
             writeInt(&buf, Int32(2))
+        
+        
+        case .checkbox:
+            writeInt(&buf, Int32(3))
         
         }
     }
@@ -3375,6 +3448,30 @@ fileprivate struct FfiConverterOptionTypePaymentInfo: FfiConverterRustBuffer {
         switch try readInt(&buf) as Int8 {
         case 0: return nil
         case 1: return try FfiConverterTypePaymentInfo.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypePaymentResultInfo: FfiConverterRustBuffer {
+    typealias SwiftType = PaymentResultInfo?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypePaymentResultInfo.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypePaymentResultInfo.read(from: &buf)
         default: throw UniffiInternalError.unexpectedOptionalTag
         }
     }
