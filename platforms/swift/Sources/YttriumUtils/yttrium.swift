@@ -1458,6 +1458,19 @@ public protocol TonClientProtocol: AnyObject, Sendable {
     
     func getAddressFromKeypair(keypair: Keypair) throws  -> WalletIdentity
     
+    /**
+     * Returns session properties needed for TON WalletConnect approval.
+     * Includes both the hex-encoded public key and base64-encoded StateInit.
+     */
+    func getSessionProperties(keypair: Keypair) throws  -> TonSessionProperties
+    
+    /**
+     * Returns the StateInit BOC (base64-encoded) for the wallet derived
+     * from the given keypair. This is needed for WalletConnect session
+     * approval with TON namespaces.
+     */
+    func getStateInitBoc(keypair: Keypair) throws  -> String
+    
     func sendMessage(network: String, from: String, keypair: Keypair, validUntil: UInt32, messages: [SendTxMessage]) async throws  -> String
     
     func signData(text: String, keypair: Keypair) throws  -> String
@@ -1572,6 +1585,33 @@ open func generateKeypairFromTonMnemonic(mnemonic: String)throws  -> Keypair  {
 open func getAddressFromKeypair(keypair: Keypair)throws  -> WalletIdentity  {
     return try  FfiConverterTypeWalletIdentity_lift(try rustCallWithError(FfiConverterTypeTonError_lift) {
     uniffi_yttrium_fn_method_tonclient_get_address_from_keypair(
+            self.uniffiCloneHandle(),
+        FfiConverterTypeKeypair_lower(keypair),$0
+    )
+})
+}
+    
+    /**
+     * Returns session properties needed for TON WalletConnect approval.
+     * Includes both the hex-encoded public key and base64-encoded StateInit.
+     */
+open func getSessionProperties(keypair: Keypair)throws  -> TonSessionProperties  {
+    return try  FfiConverterTypeTonSessionProperties_lift(try rustCallWithError(FfiConverterTypeTonError_lift) {
+    uniffi_yttrium_fn_method_tonclient_get_session_properties(
+            self.uniffiCloneHandle(),
+        FfiConverterTypeKeypair_lower(keypair),$0
+    )
+})
+}
+    
+    /**
+     * Returns the StateInit BOC (base64-encoded) for the wallet derived
+     * from the given keypair. This is needed for WalletConnect session
+     * approval with TON namespaces.
+     */
+open func getStateInitBoc(keypair: Keypair)throws  -> String  {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeTonError_lift) {
+    uniffi_yttrium_fn_method_tonclient_get_state_init_boc(
             self.uniffiCloneHandle(),
         FfiConverterTypeKeypair_lower(keypair),$0
     )
@@ -4513,6 +4553,77 @@ public func FfiConverterTypeTonClientConfig_lift(_ buf: RustBuffer) throws -> To
 #endif
 public func FfiConverterTypeTonClientConfig_lower(_ value: TonClientConfig) -> RustBuffer {
     return FfiConverterTypeTonClientConfig.lower(value)
+}
+
+
+/**
+ * TON session properties for WalletConnect session approval.
+ * These properties are required by TON Connect for signature verification
+ * and wallet address computation.
+ */
+public struct TonSessionProperties: Equatable, Hashable {
+    /**
+     * Hex-encoded Ed25519 public key
+     */
+    public var publicKey: String
+    /**
+     * Base64-encoded StateInit BOC (Bag of Cells)
+     */
+    public var stateInit: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Hex-encoded Ed25519 public key
+         */publicKey: String, 
+        /**
+         * Base64-encoded StateInit BOC (Bag of Cells)
+         */stateInit: String) {
+        self.publicKey = publicKey
+        self.stateInit = stateInit
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension TonSessionProperties: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeTonSessionProperties: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> TonSessionProperties {
+        return
+            try TonSessionProperties(
+                publicKey: FfiConverterString.read(from: &buf), 
+                stateInit: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: TonSessionProperties, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.publicKey, into: &buf)
+        FfiConverterString.write(value.stateInit, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTonSessionProperties_lift(_ buf: RustBuffer) throws -> TonSessionProperties {
+    return try FfiConverterTypeTonSessionProperties.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTonSessionProperties_lower(_ value: TonSessionProperties) -> RustBuffer {
+    return FfiConverterTypeTonSessionProperties.lower(value)
 }
 
 
@@ -11303,6 +11414,12 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_yttrium_checksum_method_tonclient_get_address_from_keypair() != 48797) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_method_tonclient_get_session_properties() != 58749) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_method_tonclient_get_state_init_boc() != 20358) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_yttrium_checksum_method_tonclient_send_message() != 35228) {
