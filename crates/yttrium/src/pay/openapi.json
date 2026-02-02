@@ -1059,6 +1059,11 @@
           "status": {
             "$ref": "#/components/schemas/PaymentStatus",
             "description": "Payment status"
+          },
+          "info": {
+            "$ref": "#/components/schemas/PaymentInformation",
+            "nullable": true,
+            "description": "Payment information (transaction hash, amount). Present when status is Succeeded."
           }
         },
         "example": {
