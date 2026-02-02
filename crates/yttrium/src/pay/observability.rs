@@ -2,8 +2,7 @@ use {
     crate::time::{SystemTime, UNIX_EPOCH},
     reqwest::Client as HttpClient,
     serde::Serialize,
-    std::collections::HashMap,
-    std::sync::RwLock,
+    std::{collections::HashMap, sync::RwLock},
     uuid::Uuid,
 };
 
