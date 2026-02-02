@@ -45,16 +45,12 @@ jobs:
             -Z build-std=std,panic_abort \
             -Z build-std-features=optimize_for_size,panic_immediate_abort
 
-      - name: Compress WASM with Brotli
+      - name: Display WASM size
         working-directory: crates/yttrium/pkg
         run: |
-          sudo apt-get install -y brotli
-          brotli -9 -k yttrium_bg.wasm
-          echo "=== WASM Binary Sizes ==="
-          ls -lh yttrium_bg.wasm*
-          echo ""
-          echo "Raw size: $(stat -c%s yttrium_bg.wasm) bytes"
-          echo "Brotli size: $(stat -c%s yttrium_bg.wasm.br) bytes"
+          echo "=== WASM Binary Size ==="
+          ls -lh yttrium_bg.wasm
+          echo "Size: $(stat -c%s yttrium_bg.wasm) bytes"
 
       - name: Create artifacts directory
         run: |
