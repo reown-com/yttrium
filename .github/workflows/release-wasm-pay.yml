@@ -56,6 +56,7 @@ jobs:
         run: |
           mkdir -p artifacts
           cp -r crates/yttrium/pkg/* artifacts/
+          echo "${{ env.VERSION }}" > artifacts/version.txt
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
@@ -84,9 +85,9 @@ jobs:
 
       - name: Create artifacts zip
         run: |
-          zip -r wasm-pay-artifacts.zip wasm-pay/
+          zip -r wasm-pay-${{ env.VERSION }}.zip wasm-pay/
           echo "Zip created:"
-          ls -lh wasm-pay-artifacts.zip
+          ls -lh wasm-pay-${{ env.VERSION }}.zip
 
       - name: Create Release
         id: create_release
@@ -129,6 +130,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: wasm-pay-artifacts.zip
-          asset_name: wasm-pay-artifacts.zip
+          asset_path: wasm-pay-${{ env.VERSION }}.zip
+          asset_name: wasm-pay-${{ env.VERSION }}.zip
           asset_content_type: application/zip
