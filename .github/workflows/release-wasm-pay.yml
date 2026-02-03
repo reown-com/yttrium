@@ -36,7 +36,7 @@ jobs:
       - name: Build WASM package (lean pay-only)
         working-directory: crates/yttrium
         run: |
-          RUSTFLAGS="-Zlocation-detail=none -Zfmt-debug=none -Zunstable-options -Cpanic=immediate-abort" \
+          RUSTFLAGS="-Zlocation-detail=none -Zfmt-debug=none -Zunstable-options -Cpanic=immediate-abort --cfg getrandom_backend=\"wasm_js\"" \
           wasm-pack build \
             --release \
             --target web \
