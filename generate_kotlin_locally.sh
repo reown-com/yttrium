@@ -53,7 +53,7 @@ check_prerequisites() {
         if [ -z "$java_version" ]; then
             java_version=$(java -version 2>&1 | grep -oE '[0-9]+\.[0-9]+' | head -1 | cut -d. -f1)
         fi
-        if [ -n "$java_version" ] && [ "$java_version" -lt 17 ] 2>/dev/null; then
+        if [ -n "$java_version" ] && [ "$java_version" -ge 1 ] 2>/dev/null && [ "$java_version" -lt 17 ]; then
             echo "ERROR: Java 17 or higher is required (found Java $java_version)"
             echo "Please install Java 17+ using one of:"
             echo "  - Android Studio's bundled JDK"
