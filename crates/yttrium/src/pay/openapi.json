@@ -878,6 +878,15 @@
             "items": {
               "$ref": "#/components/schemas/CollectDataField"
             }
+          },
+          "url": {
+            "type": "string",
+            "nullable": true,
+            "description": "URL for webview-based data collection"
+          },
+          "schema": {
+            "description": "JSON Schema for validating IC form data (for webview mode)",
+            "nullable": true
           }
         },
         "example": {
@@ -953,7 +962,8 @@
         "type": "string",
         "enum": [
           "text",
-          "date"
+          "date",
+          "checkbox"
         ]
       },
       "CollectDataResult": {
@@ -1049,6 +1059,11 @@
           "status": {
             "$ref": "#/components/schemas/PaymentStatus",
             "description": "Payment status"
+          },
+          "info": {
+            "$ref": "#/components/schemas/PaymentInformation",
+            "nullable": true,
+            "description": "Payment information (transaction hash, amount). Present when status is Succeeded."
           }
         },
         "example": {
@@ -1387,12 +1402,49 @@
           "status": {
             "$ref": "#/components/schemas/PaymentStatus",
             "description": "Payment status"
+          },
+          "info": {
+            "$ref": "#/components/schemas/PaymentInformation",
+            "nullable": true,
+            "description": "Payment information (transaction hash, amount). Present when status is Succeeded."
           }
         },
         "example": {
           "isFinal": false,
           "pollInMs": 1000,
           "status": "requires_action"
+        }
+      },
+      "PaymentInformation": {
+        "type": "object",
+        "required": [
+          "txId",
+          "optionAmount"
+        ],
+        "properties": {
+          "txId": {
+            "type": "string",
+            "description": "Transaction identifier (hash)"
+          },
+          "optionAmount": {
+            "$ref": "#/components/schemas/Amount",
+            "description": "Amount paid in token units"
+          }
+        },
+        "example": {
+          "txId": "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+          "optionAmount": {
+            "display": {
+              "assetName": "USD Coin",
+              "assetSymbol": "USDC",
+              "decimals": 6,
+              "iconUrl": "https://assets.walletconnect.com/usdc.png",
+              "networkIconUrl": "https://assets.walletconnect.com/base.png",
+              "networkName": "Base"
+            },
+            "unit": "caip19/eip155:8453/erc20:0xUSDC...",
+            "value": "1000000"
+          }
         }
       },
       "MerchantInfo": {

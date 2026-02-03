@@ -1,4 +1,5 @@
 use {
+    crate::time::{SystemTime, UNIX_EPOCH},
     reqwest::Client as HttpClient,
     serde::Serialize,
     std::{collections::HashMap, sync::RwLock},
@@ -56,6 +57,42 @@ fn get_ingest_url(is_staging: bool) -> &'static str {
     if is_staging { INGEST_STAGING_URL } else { INGEST_PROD_URL }
 }
 
+fn format_timestamp_rfc3339() -> String {
+    let duration =
+        SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default();
+    let secs = duration.as_secs();
+    let millis = duration.subsec_millis();
+    let (year, month, day, hour, min, sec) = unix_to_datetime(secs as i64);
+    format!(
+        "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}.{:03}Z",
+        year, month, day, hour, min, sec, millis
+    )
+}
+
+fn unix_to_datetime(timestamp: i64) -> (i32, u32, u32, u32, u32, u32) {
+    let secs_per_day = 86400i64;
+    let days = timestamp / secs_per_day;
+    let remaining = (timestamp % secs_per_day) as u32;
+    let hour = remaining / 3600;
+    let min = (remaining % 3600) / 60;
+    let sec = remaining % 60;
+    let (year, month, day) = days_to_ymd(days as i32 + 719468);
+    (year, month, day, hour, min, sec)
+}
+
+fn days_to_ymd(days: i32) -> (i32, u32, u32) {
+    let era = if days >= 0 { days } else { days - 146096 } / 146097;
+    let doe = (days - era * 146097) as u32;
+    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
+    let y = yoe as i32 + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = doy - (153 * mp + 2) / 5 + 1;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 };
+    let y = if m <= 2 { y + 1 } else { y };
+    (y, m, d)
+}
+
 #[derive(Debug, Clone, Copy, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum TraceEvent {
@@ -109,8 +146,7 @@ pub(crate) fn send_trace(
         payment_id: payment_id.to_string(),
         actor: ACTOR,
         event_type: event,
-        ts: chrono::Utc::now()
-            .to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
+        ts: format_timestamp_rfc3339(),
         version: EVENT_VERSION,
         source_service: format!("{}-{}", sdk_name, sdk_platform),
         sdk_name: sdk_name.to_string(),
