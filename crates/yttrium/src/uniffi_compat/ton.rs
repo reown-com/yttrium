@@ -71,6 +71,17 @@ pub struct SendTxParams {
     pub messages: Vec<SendTxMessage>,
 }
 
+/// TON session properties for WalletConnect session approval.
+/// These properties are required by TON Connect for signature verification
+/// and wallet address computation.
+#[derive(uniffi::Record)]
+pub struct TonSessionProperties {
+    /// Hex-encoded Ed25519 public key
+    pub public_key: String,
+    /// Base64-encoded StateInit BOC (Bag of Cells)
+    pub state_init: String,
+}
+
 #[derive(uniffi::Object)]
 pub struct TonClient {
     cfg: TonClientConfig,
@@ -253,6 +264,86 @@ impl TonClient {
         let signature_base64 = BASE64.encode(signature.to_bytes().as_ref());
 
         Ok(signature_base64)
+    }
+
+    /// Returns the StateInit BOC (base64-encoded) for the wallet derived
+    /// from the given keypair. This is needed for WalletConnect session
+    /// approval with TON namespaces.
+    pub fn get_state_init_boc(
+        &self,
+        keypair: &Keypair,
+    ) -> Result<String, TonError> {
+        use ton_lib::{
+            block_tlb::StateInit,
+            ton_lib_core::traits::tlb::TLB,
+            wallet::{WALLET_DEFAULT_ID, WalletVersion},
+        };
+
+        let pk_bytes = hex::decode(&keypair.pk).map_err(|e| {
+            TonError::SerializationError(format!(
+                "Invalid public key hex: {}",
+                e
+            ))
+        })?;
+
+        if pk_bytes.len() != 32 {
+            return Err(TonError::SerializationError(
+                "Invalid public key length".to_string(),
+            ));
+        }
+
+        let sk_bytes = BASE64.decode(keypair.sk.as_bytes()).map_err(|e| {
+            TonError::SerializationError(format!(
+                "Invalid private key base64: {}",
+                e
+            ))
+        })?;
+
+        if sk_bytes.len() != 32 {
+            return Err(TonError::SerializationError(
+                "Invalid private key length".to_string(),
+            ));
+        }
+
+        // Build ton-lib wallet keypair (secret_key must be 64 bytes: sk||pk)
+        let mut secret_key = Vec::with_capacity(64);
+        secret_key.extend_from_slice(&sk_bytes);
+        secret_key.extend_from_slice(&pk_bytes);
+        let ton_keypair =
+            ton_lib::wallet::KeyPair { public_key: pk_bytes, secret_key };
+
+        // Get wallet code and data for V4R2
+        let version = WalletVersion::V4R2;
+        let code = WalletVersion::get_code(version)
+            .map_err(|e| TonError::TonCoreError(e.to_string()))?
+            .clone();
+        let data = WalletVersion::get_default_data(
+            version,
+            &ton_keypair,
+            WALLET_DEFAULT_ID,
+        )
+        .map_err(|e| TonError::TonCoreError(e.to_string()))?;
+
+        // Construct StateInit and serialize to BOC
+        let state_init = StateInit::new(code, data);
+        let boc = state_init.to_boc().map_err(|e| {
+            TonError::TonCoreError(format!(
+                "Failed to serialize StateInit: {}",
+                e
+            ))
+        })?;
+
+        Ok(BASE64.encode(&boc))
+    }
+
+    /// Returns session properties needed for TON WalletConnect approval.
+    /// Includes both the hex-encoded public key and base64-encoded StateInit.
+    pub fn get_session_properties(
+        &self,
+        keypair: &Keypair,
+    ) -> Result<TonSessionProperties, TonError> {
+        let state_init = self.get_state_init_boc(keypair)?;
+        Ok(TonSessionProperties { public_key: keypair.pk.clone(), state_init })
     }
 
     pub async fn send_message(
@@ -692,5 +783,56 @@ mod tests {
             friendly_bounceable,
             "EQCjI2QtnNXkYxNovk87FQF0J-TR0V2XcjoQPxwpYJt8FLjA"
         );
+    }
+
+    #[test]
+    fn test_get_state_init_boc() {
+        let client = create_test_client();
+        let mnemonic = "test test test test test test test test test test \
+            test junk";
+
+        let keypair =
+            client.generate_keypair_from_bip39_mnemonic(mnemonic).unwrap();
+        let state_init_boc = client.get_state_init_boc(&keypair).unwrap();
+
+        // Verify it's valid base64
+        assert!(!state_init_boc.is_empty());
+        assert!(BASE64.decode(state_init_boc.as_bytes()).is_ok());
+    }
+
+    #[test]
+    fn test_get_session_properties() {
+        let client = create_test_client();
+        let mnemonic = "test test test test test test test test test test \
+            test junk";
+
+        let keypair =
+            client.generate_keypair_from_bip39_mnemonic(mnemonic).unwrap();
+        let props = client.get_session_properties(&keypair).unwrap();
+
+        // Verify public_key matches keypair
+        assert_eq!(props.public_key, keypair.pk);
+
+        // Verify state_init is valid base64
+        assert!(!props.state_init.is_empty());
+        assert!(BASE64.decode(props.state_init.as_bytes()).is_ok());
+    }
+
+    #[test]
+    fn test_session_properties_deterministic() {
+        let client = create_test_client();
+        let mnemonic = "test test test test test test test test test test \
+            test junk";
+
+        let keypair =
+            client.generate_keypair_from_bip39_mnemonic(mnemonic).unwrap();
+
+        // Get properties twice
+        let props1 = client.get_session_properties(&keypair).unwrap();
+        let props2 = client.get_session_properties(&keypair).unwrap();
+
+        // Should be deterministic
+        assert_eq!(props1.public_key, props2.public_key);
+        assert_eq!(props1.state_init, props2.state_init);
     }
 }
