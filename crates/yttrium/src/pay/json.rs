@@ -6,6 +6,7 @@ use super::{
 
 #[derive(Debug, thiserror::Error)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Error))]
+#[cfg_attr(feature = "wasm", derive(derive_jserror::JsError))]
 pub enum PayJsonError {
     // JSON errors
     #[error("JSON parse error: {0}")]

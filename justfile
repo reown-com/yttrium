@@ -72,7 +72,7 @@ lint: fmt clippy
 
 clippy:
   cargo clippy --workspace --all-features --all-targets -- -D warnings
-  cargo clippy -p yttrium --lib --features=uniffi,sign_client -- -D warnings
+  cargo clippy -p yttrium --lib --features=uniffi,sign_client,native -- -D warnings
   cargo clippy -p yttrium --lib --target wasm32-unknown-unknown --features=wasm,sign_client -- -D warnings
 
 fmt:

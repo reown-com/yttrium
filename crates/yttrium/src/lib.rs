@@ -69,6 +69,7 @@ pub mod ton_provider;
 pub mod transaction_sponsorship;
 #[cfg(any(feature = "account_client", feature = "chain_abstraction_client"))]
 pub mod user_operation;
+#[cfg(any(feature = "account_client", feature = "chain_abstraction_client"))]
 pub mod utils;
 #[cfg(any(feature = "account_client", feature = "chain_abstraction_client"))]
 pub mod wallet_provider;
@@ -76,8 +77,8 @@ pub mod wallet_provider;
 pub mod wallet_service_api;
 
 // Android JNI initialization for rustls-platform-verifier
-// TODO try to move this to uniffi_compat or kotlin-ffi
-#[cfg(all(target_os = "android", feature = "android"))]
+// Only compiled when android-full feature is enabled (includes rustls-platform-verifier)
+#[cfg(all(target_os = "android", feature = "android-full"))]
 #[unsafe(no_mangle)]
 pub extern "C" fn Java_com_yttrium_YttriumKt_initializeTls(
     mut env: jni::JNIEnv,
@@ -88,7 +89,7 @@ pub extern "C" fn Java_com_yttrium_YttriumKt_initializeTls(
 }
 
 // Android JNI initialization for rustls-platform-verifier (utils variant)
-#[cfg(all(target_os = "android", feature = "android"))]
+#[cfg(all(target_os = "android", feature = "android-full"))]
 #[unsafe(no_mangle)]
 pub extern "C" fn Java_com_yttrium_utils_YttriumUtilsKt_initializeTls(
     mut env: jni::JNIEnv,
@@ -99,7 +100,7 @@ pub extern "C" fn Java_com_yttrium_utils_YttriumUtilsKt_initializeTls(
 }
 
 // Android JNI initialization for rustls-platform-verifier (wcpay variant)
-#[cfg(all(target_os = "android", feature = "android"))]
+#[cfg(all(target_os = "android", feature = "android-full"))]
 #[unsafe(no_mangle)]
 pub extern "C" fn Java_com_yttrium_wcpay_YttriumWcpayKt_initializeTls(
     mut env: jni::JNIEnv,
