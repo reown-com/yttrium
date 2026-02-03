@@ -17,6 +17,7 @@ impl Error for YttriumError {
     }
 }
 
+#[cfg(any(feature = "account_client", feature = "chain_abstraction_client"))]
 impl From<alloy::signers::Error> for YttriumError {
     fn from(e: alloy::signers::Error) -> Self {
         YttriumError { message: e.to_string() }
