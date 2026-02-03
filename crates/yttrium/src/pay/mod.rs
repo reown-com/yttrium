@@ -8,10 +8,10 @@ progenitor::generate_api!(
 mod error_reporting;
 mod observability;
 
-#[cfg(feature = "uniffi")]
+#[cfg(any(feature = "uniffi", feature = "wasm"))]
 pub mod json;
 
-#[cfg(feature = "uniffi")]
+#[cfg(any(feature = "uniffi", feature = "wasm"))]
 pub use json::{PayJsonError, WalletConnectPayJson};
 
 // Logging helpers - use tracing which routes to registered logger
@@ -75,22 +75,22 @@ impl From<progenitor_client::Error<types::ErrorResponse>> for PayError {
 
 fn map_reqwest_error_to_pay_error(err: &reqwest::Error) -> PayError {
     let msg = err.to_string();
+    #[cfg(not(target_arch = "wasm32"))]
     if err.is_connect() {
         let lower = msg.to_lowercase();
-        // ConnectionFailed: server is reachable but rejecting connections
         if lower.contains("connection refused")
             || lower.contains("actively refused")
         {
-            PayError::ConnectionFailed(msg)
+            return PayError::ConnectionFailed(msg);
         } else {
-            // NoConnection: no internet, DNS failure, network unreachable, etc.
-            PayError::NoConnection(msg)
+            return PayError::NoConnection(msg);
         }
-    } else if err.is_timeout() {
-        PayError::RequestTimeout(msg)
-    } else {
-        PayError::Http(msg)
     }
+    #[cfg(not(target_arch = "wasm32"))]
+    if err.is_timeout() {
+        return PayError::RequestTimeout(msg);
+    }
+    PayError::Http(msg)
 }
 
 impl error_reporting::HasErrorType for PayError {
@@ -243,14 +243,15 @@ const INITIAL_BACKOFF_MS: u64 = 100;
 
 fn is_retryable_error<T>(err: &progenitor_client::Error<T>) -> bool {
     match err {
-        // Retry on 5xx server errors
         progenitor_client::Error::ErrorResponse(resp) => {
             resp.status().is_server_error()
         }
-        // Retry on connection failures and timeouts
+        #[cfg(not(target_arch = "wasm32"))]
         progenitor_client::Error::CommunicationError(reqwest_err) => {
             reqwest_err.is_connect() || reqwest_err.is_timeout()
         }
+        #[cfg(target_arch = "wasm32")]
+        progenitor_client::Error::CommunicationError(_) => true,
         _ => false,
     }
 }
@@ -281,7 +282,7 @@ where
                     backoff,
                     e
                 );
-                tokio::time::sleep(std::time::Duration::from_millis(backoff))
+                crate::time::sleep(crate::time::Duration::from_millis(backoff))
                     .await;
             }
             Err(e) => return Err(e),
@@ -664,17 +665,16 @@ impl WalletConnectPay {
 
     fn error_http_client(&self) -> &reqwest::Client {
         self.error_http_client.get_or_init(|| {
-            reqwest::Client::builder()
-                .user_agent(format!(
-                    "{}/{}",
-                    self.config.sdk_name, self.config.sdk_version
-                ))
-                .timeout(std::time::Duration::from_secs(5))
-                .build()
-                .unwrap_or_else(|e| {
-                    tracing::warn!("Failed to build error HTTP client: {}", e);
-                    reqwest::Client::new()
-                })
+            let builder = reqwest::Client::builder().user_agent(format!(
+                "{}/{}",
+                self.config.sdk_name, self.config.sdk_version
+            ));
+            #[cfg(not(target_arch = "wasm32"))]
+            let builder = builder.timeout(std::time::Duration::from_secs(5));
+            builder.build().unwrap_or_else(|e| {
+                tracing::warn!("Failed to build error HTTP client: {}", e);
+                reqwest::Client::new()
+            })
         })
     }
 
@@ -977,7 +977,7 @@ impl WalletConnectPay {
         while !result.is_final {
             let poll_ms = result.poll_in_ms.unwrap_or(1000);
             pay_debug!("confirm_payment: polling in {}ms", poll_ms);
-            tokio::time::sleep(std::time::Duration::from_millis(
+            crate::time::sleep(crate::time::Duration::from_millis(
                 poll_ms as u64,
             ))
             .await;
@@ -1251,22 +1251,22 @@ fn map_reqwest_error_to_payment_options_error(
     err: &reqwest::Error,
 ) -> GetPaymentOptionsError {
     let msg = err.to_string();
+    #[cfg(not(target_arch = "wasm32"))]
     if err.is_connect() {
         let lower = msg.to_lowercase();
-        // ConnectionFailed: server is reachable but rejecting connections
         if lower.contains("connection refused")
             || lower.contains("actively refused")
         {
-            GetPaymentOptionsError::ConnectionFailed(msg)
+            return GetPaymentOptionsError::ConnectionFailed(msg);
         } else {
-            // NoConnection: no internet, DNS failure, network unreachable, etc.
-            GetPaymentOptionsError::NoConnection(msg)
+            return GetPaymentOptionsError::NoConnection(msg);
         }
-    } else if err.is_timeout() {
-        GetPaymentOptionsError::RequestTimeout(msg)
-    } else {
-        GetPaymentOptionsError::Http(msg)
     }
+    #[cfg(not(target_arch = "wasm32"))]
+    if err.is_timeout() {
+        return GetPaymentOptionsError::RequestTimeout(msg);
+    }
+    GetPaymentOptionsError::Http(msg)
 }
 
 fn map_confirm_payment_error(
@@ -1308,22 +1308,22 @@ fn map_reqwest_error_to_confirm_payment_error(
     err: &reqwest::Error,
 ) -> ConfirmPaymentError {
     let msg = err.to_string();
+    #[cfg(not(target_arch = "wasm32"))]
     if err.is_connect() {
         let lower = msg.to_lowercase();
-        // ConnectionFailed: server is reachable but rejecting connections
         if lower.contains("connection refused")
             || lower.contains("actively refused")
         {
-            ConfirmPaymentError::ConnectionFailed(msg)
+            return ConfirmPaymentError::ConnectionFailed(msg);
         } else {
-            // NoConnection: no internet, DNS failure, network unreachable, etc.
-            ConfirmPaymentError::NoConnection(msg)
+            return ConfirmPaymentError::NoConnection(msg);
         }
-    } else if err.is_timeout() {
-        ConfirmPaymentError::RequestTimeout(msg)
-    } else {
-        ConfirmPaymentError::Http(msg)
     }
+    #[cfg(not(target_arch = "wasm32"))]
+    if err.is_timeout() {
+        return ConfirmPaymentError::RequestTimeout(msg);
+    }
+    ConfirmPaymentError::Http(msg)
 }
 
 fn map_pay_error_to_request_error(e: PayError) -> GetPaymentRequestError {
