@@ -36,14 +36,14 @@ jobs:
       - name: Build WASM package (lean pay-only)
         working-directory: crates/yttrium
         run: |
-          RUSTFLAGS="-Zlocation-detail=none -Zfmt-debug=none" \
+          RUSTFLAGS="-Zlocation-detail=none -Zfmt-debug=none -Zunstable-options -Cpanic=immediate-abort" \
           wasm-pack build \
             --release \
             --target web \
             --no-default-features \
             --features=wasm,pay \
             -Z build-std=std,panic_abort \
-            -Z build-std-features=optimize_for_size,panic_immediate_abort
+            -Z build-std-features=optimize_for_size
 
       - name: Display WASM size
         working-directory: crates/yttrium/pkg
