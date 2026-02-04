@@ -24,7 +24,7 @@ full = ["all_platforms", "all_clients", "all_namespaces", "native"]
 
 # Features enabling FFI bindings for different platforms
 all_platforms = ["android", "ios", "wasm"]
-ios = ["uniffi"]
+ios = ["uniffi", "uniffi-native-tls"]
 android = ["uniffi", "uniffi-rustls", "dep:jni"]
 android-full = ["android", "native", "dep:rustls-platform-verifier"]
 uniffi = [
