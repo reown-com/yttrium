@@ -748,15 +748,21 @@ impl WalletConnectPay {
     fn client_for_env(&self, env: PayApiEnv) -> &Client {
         // If config has a custom base_url (e.g., for tests), use it for both envs
         if self.is_custom_base_url() {
+            pay_debug!(
+                "client_for_env: CUSTOM base_url={}",
+                self.config.base_url
+            );
             return self
                 .client_prod
                 .get_or_init(|| Client::new(&self.config.base_url));
         }
         match env {
             PayApiEnv::Prod => {
+                pay_debug!("client_for_env: PROD url={}", API_PROD_URL);
                 self.client_prod.get_or_init(|| Client::new(API_PROD_URL))
             }
             PayApiEnv::Staging => {
+                pay_debug!("client_for_env: STAGING url={}", API_STAGING_URL);
                 self.client_staging.get_or_init(|| Client::new(API_STAGING_URL))
             }
         }
@@ -852,6 +858,21 @@ impl WalletConnectPay {
         // Register API environment for endpoint routing
         let api_env = detect_api_env(&payment_link);
         set_payment_api_env(&payment_id, api_env);
+
+        // Debug: log which API endpoint will be used
+        let target_url = match api_env {
+            PayApiEnv::Staging => API_STAGING_URL,
+            PayApiEnv::Prod => API_PROD_URL,
+        };
+        pay_debug!(
+            "API routing: payment_id={}, env={:?}, target_url={}, \
+             config.base_url={}, is_custom={}",
+            payment_id,
+            api_env,
+            target_url,
+            self.config.base_url,
+            self.is_custom_base_url()
+        );
 
         self.send_trace(
             observability::TraceEvent::PaymentOptionsRequested,
