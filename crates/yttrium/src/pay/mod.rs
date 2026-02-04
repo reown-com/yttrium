@@ -241,6 +241,10 @@ impl error_reporting::HasErrorType for ConfirmPaymentError {
 const MAX_RETRIES: u32 = 3;
 const INITIAL_BACKOFF_MS: u64 = 100;
 
+// API endpoint constants
+const API_STAGING_URL: &str = "https://staging.api.pay.walletconnect.com";
+const API_PROD_URL: &str = "https://api.pay.walletconnect.com";
+
 fn is_retryable_error<T>(err: &progenitor_client::Error<T>) -> bool {
     match err {
         progenitor_client::Error::ErrorResponse(resp) => {
@@ -609,12 +613,82 @@ pub struct PaymentOptionsResponse {
     pub collect_data: Option<CollectDataAction>,
 }
 
-// ==================== Client ====================
+// ==================== API Environment ====================
 
 use {
-    std::sync::{OnceLock, RwLock},
+    std::{
+        collections::HashMap,
+        sync::{OnceLock, RwLock},
+    },
     url::Url,
 };
+
+/// API environment for routing requests
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum PayApiEnv {
+    Staging,
+    Prod,
+}
+
+/// Global storage for payment ID -> API environment mapping
+static PAYMENT_API_ENVS: RwLock<Option<HashMap<String, PayApiEnv>>> =
+    RwLock::new(None);
+
+/// URL decode helper
+fn url_decode(s: &str) -> String {
+    urlencoding::decode(s)
+        .map(|c| c.into_owned())
+        .unwrap_or_else(|_| s.to_string())
+}
+
+/// Extract the pay URL from various formats (WC URI, encoded URLs, plain URLs)
+fn extract_pay_url_for_env(link: &str) -> String {
+    let decoded = url_decode(link);
+    // Handle WC URI format: wc:...?pay=https://... or wc:...?pay=https%3A%2F%2F
+    if decoded.starts_with("wc:") {
+        if let Some((_, query)) = decoded.split_once('?') {
+            for param in query.split('&') {
+                if let Some(value) = param.strip_prefix("pay=") {
+                    return url_decode(value);
+                }
+            }
+        }
+    }
+    decoded
+}
+
+/// Determine API environment based on payment link domain
+/// - dev.pay.walletconnect.* -> staging API
+/// - Everything else (staging.*, prod, bare IDs) -> prod API
+fn detect_api_env(payment_link: &str) -> PayApiEnv {
+    let pay_url = extract_pay_url_for_env(payment_link);
+
+    // dev.pay.walletconnect.* -> staging API
+    if pay_url.contains("dev.pay.walletconnect") {
+        return PayApiEnv::Staging;
+    }
+    // Everything else (staging.*, prod, bare IDs) -> prod API
+    PayApiEnv::Prod
+}
+
+/// Store the API environment for a payment ID
+fn set_payment_api_env(payment_id: &str, env: PayApiEnv) {
+    let mut envs =
+        PAYMENT_API_ENVS.write().expect("Payment API envs lock poisoned");
+    envs.get_or_insert_with(HashMap::new).insert(payment_id.to_string(), env);
+}
+
+/// Get the API environment for a payment ID (defaults to Prod)
+fn get_payment_api_env(payment_id: &str) -> PayApiEnv {
+    PAYMENT_API_ENVS
+        .read()
+        .expect("Payment API envs lock poisoned")
+        .as_ref()
+        .and_then(|m| m.get(payment_id).copied())
+        .unwrap_or(PayApiEnv::Prod)
+}
+
+// ==================== Client ====================
 
 /// Applies common SDK config headers to any progenitor-generated request builder.
 /// Auth header logic:
@@ -646,8 +720,10 @@ struct CachedPaymentOption {
 
 #[cfg_attr(feature = "uniffi", derive(uniffi::Object))]
 pub struct WalletConnectPay {
-    /// Lazily initialized API client (requires Tokio runtime)
-    client: OnceLock<Client>,
+    /// Lazily initialized API client for production (requires Tokio runtime)
+    client_prod: OnceLock<Client>,
+    /// Lazily initialized API client for staging (requires Tokio runtime)
+    client_staging: OnceLock<Client>,
     config: SdkConfig,
     cached_options: RwLock<Vec<CachedPaymentOption>>,
     /// Lazily initialized HTTP client for error reporting (requires Tokio runtime)
@@ -659,8 +735,37 @@ pub struct WalletConnectPay {
 }
 
 impl WalletConnectPay {
-    fn client(&self) -> &Client {
-        self.client.get_or_init(|| Client::new(&self.config.base_url))
+    /// Check if config has a custom base_url for testing
+    fn is_custom_base_url(&self) -> bool {
+        let url = &self.config.base_url;
+        !url.is_empty()
+            && url != API_PROD_URL
+            && url != API_STAGING_URL
+            && !url.contains("api.pay.walletconnect.com")
+    }
+
+    /// Get the API client for a specific environment
+    fn client_for_env(&self, env: PayApiEnv) -> &Client {
+        // If config has a custom base_url (e.g., for tests), use it for both envs
+        if self.is_custom_base_url() {
+            return self
+                .client_prod
+                .get_or_init(|| Client::new(&self.config.base_url));
+        }
+        match env {
+            PayApiEnv::Prod => {
+                self.client_prod.get_or_init(|| Client::new(API_PROD_URL))
+            }
+            PayApiEnv::Staging => {
+                self.client_staging.get_or_init(|| Client::new(API_STAGING_URL))
+            }
+        }
+    }
+
+    /// Get the API client for a payment ID based on registered environment
+    fn client_for_payment(&self, payment_id: &str) -> &Client {
+        let env = get_payment_api_env(payment_id);
+        self.client_for_env(env)
     }
 
     fn error_http_client(&self) -> &reqwest::Client {
@@ -714,7 +819,8 @@ impl WalletConnectPay {
             .filter(|s| !s.is_empty())
             .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
         Ok(Self {
-            client: OnceLock::new(),
+            client_prod: OnceLock::new(),
+            client_staging: OnceLock::new(),
             config,
             cached_options: RwLock::new(Vec::new()),
             error_http_client: OnceLock::new(),
@@ -743,6 +849,10 @@ impl WalletConnectPay {
         // Register payment environment for observability routing
         observability::set_payment_env(&payment_id, &payment_link);
 
+        // Register API environment for endpoint routing
+        let api_env = detect_api_env(&payment_link);
+        set_payment_api_env(&payment_id, api_env);
+
         self.send_trace(
             observability::TraceEvent::PaymentOptionsRequested,
             &payment_id,
@@ -754,7 +864,8 @@ impl WalletConnectPay {
         };
         let response = with_retry(|| async {
             with_sdk_config!(
-                self.client().gateway_get_payment_options(),
+                self.client_for_payment(&payment_id)
+                    .gateway_get_payment_options(),
                 &self.config,
                 &self.client_id
             )
@@ -945,7 +1056,7 @@ impl WalletConnectPay {
             collected_data: api_collected_data,
         };
         let mut req = with_sdk_config!(
-            self.client().confirm_payment_handler(),
+            self.client_for_payment(&payment_id).confirm_payment_handler(),
             &self.config,
             &self.client_id
         )
@@ -1096,7 +1207,7 @@ impl WalletConnectPay {
             types::FetchRequest { option_id: option_id.to_string(), data };
         let response = with_retry(|| async {
             with_sdk_config!(
-                self.client().fetch_handler(),
+                self.client_for_payment(payment_id).fetch_handler(),
                 &self.config,
                 &self.client_id
             )
@@ -1115,7 +1226,7 @@ impl WalletConnectPay {
         max_poll_ms: Option<i64>,
     ) -> Result<types::GetPaymentStatusResponse, PayError> {
         let mut req = with_sdk_config!(
-            self.client().gateway_get_payment_status(),
+            self.client_for_payment(&payment_id).gateway_get_payment_status(),
             &self.config,
             &self.client_id
         )
@@ -2400,6 +2511,142 @@ mod tests {
             matches!(result, Err(ConfirmPaymentError::NoConnection(_))),
             "Expected NoConnection, got {:?}",
             result
+        );
+    }
+
+    // ==================== API Environment Detection Tests ====================
+
+    #[test]
+    fn test_detect_api_env_dev_plain_url() {
+        // dev.pay.walletconnect.com -> staging API
+        assert_eq!(
+            detect_api_env("https://dev.pay.walletconnect.com/?pid=pay_123"),
+            PayApiEnv::Staging
+        );
+    }
+
+    #[test]
+    fn test_detect_api_env_dev_wc_uri_encoded() {
+        // WC URI with encoded dev pay URL -> staging API
+        let wc_uri = "wc:3e7007a06202f0ef39f35d6c5f0afc71e288bfb0613d4e2b9a54f56e678dc590@2?expiryTimestamp=1770191763&relay-protocol=irn&symKey=8f78c5f6eb1dc40cad042a1a7d89092f36186f04595cc7f3d14573281ab9fe7b&pay=https%3A%2F%2Fdev.pay.walletconnect.com%2F%3Fpid%3Dpay_4da2ecc101KGKT40C3Q6DG042PA39G448F";
+        assert_eq!(detect_api_env(wc_uri), PayApiEnv::Staging);
+    }
+
+    #[test]
+    fn test_detect_api_env_dev_wc_uri_plain() {
+        // WC URI with non-encoded dev pay URL -> staging API
+        let wc_uri =
+            "wc:abc@2?pay=https://dev.pay.walletconnect.com/?pid=pay_123";
+        assert_eq!(detect_api_env(wc_uri), PayApiEnv::Staging);
+    }
+
+    #[test]
+    fn test_detect_api_env_staging_plain_url() {
+        // staging.pay.walletconnect.com -> prod API (per requirements)
+        assert_eq!(
+            detect_api_env(
+                "https://staging.pay.walletconnect.com/?pid=pay_123"
+            ),
+            PayApiEnv::Prod
+        );
+    }
+
+    #[test]
+    fn test_detect_api_env_staging_wc_uri() {
+        // WC URI with staging pay URL -> prod API
+        let wc_uri = "wc:abc@2?pay=https%3A%2F%2Fstaging.pay.walletconnect.com%2F%3Fpid%3Dpay_123";
+        assert_eq!(detect_api_env(wc_uri), PayApiEnv::Prod);
+    }
+
+    #[test]
+    fn test_detect_api_env_prod_plain_url() {
+        // pay.walletconnect.com (production) -> prod API
+        assert_eq!(
+            detect_api_env("https://pay.walletconnect.com/?pid=pay_123"),
+            PayApiEnv::Prod
+        );
+    }
+
+    #[test]
+    fn test_detect_api_env_prod_wc_uri() {
+        // WC URI with prod pay URL -> prod API
+        let wc_uri = "wc:abc@2?pay=https%3A%2F%2Fpay.walletconnect.com%2F%3Fpid%3Dpay_123";
+        assert_eq!(detect_api_env(wc_uri), PayApiEnv::Prod);
+    }
+
+    #[test]
+    fn test_detect_api_env_bare_payment_id() {
+        // Bare payment ID (no URL) -> prod API (default)
+        assert_eq!(detect_api_env("pay_123"), PayApiEnv::Prod);
+    }
+
+    #[test]
+    fn test_detect_api_env_custom_domain() {
+        // Non-WalletConnect domain -> prod API (default)
+        assert_eq!(
+            detect_api_env("https://example.com/pay_123"),
+            PayApiEnv::Prod
+        );
+    }
+
+    #[test]
+    fn test_extract_pay_url_wc_uri_encoded() {
+        let wc_uri = "wc:abc@2?pay=https%3A%2F%2Fdev.pay.walletconnect.com%2F%3Fpid%3Dpay_123";
+        assert_eq!(
+            extract_pay_url_for_env(wc_uri),
+            "https://dev.pay.walletconnect.com/?pid=pay_123"
+        );
+    }
+
+    #[test]
+    fn test_extract_pay_url_plain_url() {
+        assert_eq!(
+            extract_pay_url_for_env(
+                "https://pay.walletconnect.com/?pid=pay_123"
+            ),
+            "https://pay.walletconnect.com/?pid=pay_123"
+        );
+    }
+
+    #[test]
+    fn test_payment_api_env_storage() {
+        // Test that we can store and retrieve API environments
+        set_payment_api_env("pay_test_staging", PayApiEnv::Staging);
+        set_payment_api_env("pay_test_prod", PayApiEnv::Prod);
+
+        assert_eq!(get_payment_api_env("pay_test_staging"), PayApiEnv::Staging);
+        assert_eq!(get_payment_api_env("pay_test_prod"), PayApiEnv::Prod);
+
+        // Unknown payment defaults to Prod
+        assert_eq!(get_payment_api_env("pay_unknown_xyz"), PayApiEnv::Prod);
+    }
+
+    #[test]
+    fn test_exact_failing_payment_link() {
+        // Test the exact payment link that's causing the 404 error
+        let payment_link = "wc:1f6ed77dcd170487cf349ce50ec19d219ad3b1dcaaa3467e84c86d02e59005f9@2?expiryTimestamp=1770203484&relay-protocol=irn&symKey=0cf340fd1c2a0692693d80e2d7c5fa1b6908a72c199aedf01f42f14ac3d1f791&pay=https%3A%2F%2Fdev.pay.walletconnect.com%2F%3Fpid%3Dpay_0ea2ecc101KGM59VW6YZCAZVY05G6ZGHC0";
+
+        // 1. Verify payment ID extraction
+        let payment_id = extract_payment_id(payment_link).unwrap();
+        assert_eq!(
+            payment_id, "pay_0ea2ecc101KGM59VW6YZCAZVY05G6ZGHC0",
+            "Payment ID should be extracted correctly"
+        );
+
+        // 2. Verify API environment detection
+        let api_env = detect_api_env(payment_link);
+        assert_eq!(
+            api_env,
+            PayApiEnv::Staging,
+            "dev.pay.walletconnect.com should route to Staging API"
+        );
+
+        // 3. Verify pay URL extraction
+        let pay_url = extract_pay_url_for_env(payment_link);
+        assert_eq!(
+            pay_url,
+            "https://dev.pay.walletconnect.com/?pid=pay_0ea2ecc101KGM59VW6YZCAZVY05G6ZGHC0",
+            "Pay URL should be decoded correctly"
         );
     }
 }
