@@ -1291,6 +1291,7 @@ public func FfiConverterTypeBuyerInfo_lower(_ value: BuyerInfo) -> RustBuffer {
 
 
 public struct CollectDataAction: Equatable, Hashable {
+    @available(*, deprecated, message: "Use url or schema instead.")
     public var fields: [CollectDataField]
     public var url: String?
     public var schema: String?
