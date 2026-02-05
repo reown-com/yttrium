@@ -286,6 +286,13 @@ impl ProviderPool {
         tracing: Option<std::sync::mpsc::Sender<RpcRequestAnalytics>>,
         url_override: Option<Url>,
     ) -> crate::ton_provider::TonProvider {
+        assert!(network.starts_with("ton:"), "Invalid TON chain ID");
+        // Normalize chain ID to CAIP-2 format (e.g., "ton:mainnet" -> "ton:-239")
+        let network = match network {
+            "ton:mainnet" => network::ton::MAINNET,
+            "ton:testnet" => network::ton::TESTNET,
+            _ => network,
+        };
         let ton_client = self.ton_clients.read().await.get(network).cloned();
         if let Some(ton_client) = ton_client {
             ton_client

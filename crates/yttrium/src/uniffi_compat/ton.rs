@@ -670,7 +670,7 @@ mod tests {
 
     fn create_test_client() -> TonClient {
         TonClient::new(
-            TonClientConfig { network_id: "ton:mainnet".to_string() },
+            TonClientConfig { network_id: "ton:-239".to_string() },
             "test-project".into(),
             crate::pulse::get_pulse_metadata(),
         )
