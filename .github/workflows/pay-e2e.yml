@@ -28,6 +28,7 @@ jobs:
       - run: cargo test -p yttrium --features=test_pay_api pay::e2e_tests -- --nocapture
         env:
           REOWN_PROJECT_ID: ${{ vars.REOWN_PROJECT_ID }}
+          WALLET_PROJECT_ID: ${{ secrets.WALLET_PROJECT_ID }}
           TEST_WALLET_PRIVATE_KEY: ${{ secrets.TEST_WALLET_PRIVATE_KEY }}
           MERCHANT_API_KEY: ${{ secrets.MERCHANT_API_KEY }}
           MERCHANT_ID: merchant-1768556907
