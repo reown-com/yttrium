@@ -174,7 +174,7 @@ test_local_bundler = []
 test_pimlico_api = []
 test_blockchain_api = []
 test_depends_on_env_REOWN_PROJECT_ID = []
-test_pay_api = ["pay"]
+test_pay_api = ["pay", "reqwest/native-tls"]
 test_sign = [
     "sign_client",
     "test_depends_on_env_REOWN_PROJECT_ID",
