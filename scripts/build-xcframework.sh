@@ -122,6 +122,10 @@ patch_swift_for_swift6() {
   sed -i '' 's/let rbuf = bytes\.withUnsafeBufferPointer/let rbuf = byteArray.withUnsafeBufferPointer/g' "$swift_file"
   sed -i '' 's/RustBuffer(bytes: writer)/RustBuffer(byteArray: writer)/g' "$swift_file"
 
+  # Deprecate CollectDataAction.fields in favor of url/schema
+  sed -i '' 's/public var fields: \[CollectDataField\]/@available(*, deprecated, message: "Use url or schema instead.")\
+    public var fields: [CollectDataField]/g' "$swift_file"
+
   echo "Swift 6 compatibility patch applied"
 }
 

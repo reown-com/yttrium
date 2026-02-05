@@ -123,15 +123,55 @@ This section covers how to build and test yttrium locally on both Android and iO
 
 ### iOS/Swift Local Testing Workflow
 
-**Option A: Swift Package Manager**
+#### Building Swift Frameworks Locally
 
-1. Build XCFrameworks:
-   ```bash
-   ./scripts/set-up-local-swift-package.sh
+To build and test the Swift XCFrameworks locally:
+
+```bash
+make set-up-local-swift-package
+```
+
+This command:
+1. Builds `libyttrium.xcframework` for iOS devices and simulators
+2. Builds `libyttrium-utils.xcframework`
+3. Generates a local `Package.swift` pointing to the built artifacts
+4. Marks `Package.swift` as git-ignored to prevent accidental commits
+
+#### Testing in reown-swift
+
+To test your local yttrium changes in the [reown-swift](https://github.com/reown-com/reown-swift) repository:
+
+1. Clone reown-swift as a sibling directory:
    ```
-2. In Xcode, add yttrium as a local package (File → Add Package Dependencies → Add Local)
+   StudioProjects/
+   ├── yttrium/        # This repo
+   └── reown-swift/    # Clone here
+   ```
 
-**Option B: CocoaPods**
+2. Build yttrium locally:
+   ```bash
+   cd yttrium
+   make set-up-local-swift-package
+   ```
+
+3. Edit `reown-swift/Package.swift` and set the debug flag:
+   ```swift
+   // Line 5-6 in Package.swift
+   let yttriumDebug = true  // Change from false to true
+   ```
+
+4. Build/run reown-swift - it will use your local yttrium artifacts.
+
+#### Reverting Local Package.swift
+
+To restore the original `Package.swift` after local testing:
+
+```bash
+git update-index --no-assume-unchanged Package.swift
+git checkout -- Package.swift
+```
+
+#### CocoaPods (Alternative)
 
 1. Modify `YttriumUtilsWrapper.podspec` to use local paths:
    ```ruby
