@@ -287,12 +287,7 @@ impl ProviderPool {
         url_override: Option<Url>,
     ) -> crate::ton_provider::TonProvider {
         assert!(network.starts_with("ton:"), "Invalid TON chain ID");
-        // Normalize chain ID to CAIP-2 format (e.g., "ton:mainnet" -> "ton:-239")
-        let network = match network {
-            "ton:mainnet" => network::ton::MAINNET,
-            "ton:testnet" => network::ton::TESTNET,
-            _ => network,
-        };
+        let network = network::ton::normalize_chain_id(network);
         let ton_client = self.ton_clients.read().await.get(network).cloned();
         if let Some(ton_client) = ton_client {
             ton_client
@@ -353,6 +348,21 @@ pub mod network {
     pub mod ton {
         pub const MAINNET: &str = "ton:-239";
         pub const TESTNET: &str = "ton:-3";
+
+        /// Normalize TON chain ID to CAIP-2 format.
+        ///
+        /// Converts human-readable formats to numeric CAIP-2:
+        /// - "ton:mainnet" -> "ton:-239"
+        /// - "ton:testnet" -> "ton:-3"
+        ///
+        /// CAIP-2 formats pass through unchanged.
+        pub fn normalize_chain_id(chain_id: &str) -> &str {
+            match chain_id {
+                "ton:mainnet" => MAINNET,
+                "ton:testnet" => TESTNET,
+                _ => chain_id,
+            }
+        }
     }
 }
 
@@ -481,5 +491,32 @@ impl CustomClient {
         serde_json::from_slice(&body).map_err(|err| {
             TransportError::deser_err(err, String::from_utf8_lossy(&body))
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::network::ton;
+
+    #[test]
+    fn test_ton_normalize_chain_id_mainnet() {
+        assert_eq!(ton::normalize_chain_id("ton:mainnet"), "ton:-239");
+    }
+
+    #[test]
+    fn test_ton_normalize_chain_id_testnet() {
+        assert_eq!(ton::normalize_chain_id("ton:testnet"), "ton:-3");
+    }
+
+    #[test]
+    fn test_ton_normalize_chain_id_caip2_passthrough() {
+        assert_eq!(ton::normalize_chain_id("ton:-239"), "ton:-239");
+        assert_eq!(ton::normalize_chain_id("ton:-3"), "ton:-3");
+    }
+
+    #[test]
+    fn test_ton_normalize_chain_id_unknown_passthrough() {
+        // Unknown formats pass through unchanged
+        assert_eq!(ton::normalize_chain_id("ton:unknown"), "ton:unknown");
     }
 }
