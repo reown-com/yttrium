@@ -363,7 +363,8 @@ async fn e2e_payment_happy_path() {
                             CollectDataFieldType::Date => {
                                 "1990-01-15".to_string()
                             }
-                            CollectDataFieldType::Text => {
+                            CollectDataFieldType::Text
+                            | CollectDataFieldType::Unknown { .. } => {
                                 "test-value".to_string()
                             }
                             CollectDataFieldType::Checkbox => {
