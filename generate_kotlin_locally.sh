@@ -14,6 +14,73 @@ fi
 
 echo "Using ANDROID_NDK_HOME: $ANDROID_NDK_HOME"
 
+check_prerequisites() {
+    local has_error=0
+
+    # Check cargo-ndk
+    if ! command -v cargo-ndk &> /dev/null; then
+        echo "ERROR: cargo-ndk is not installed!"
+        echo "Please install it with:"
+        echo "  cargo install cargo-ndk"
+        echo ""
+        has_error=1
+    fi
+
+    # Check Rust Android targets
+    local required_targets=("aarch64-linux-android" "armv7-linux-androideabi" "x86_64-linux-android")
+    local installed_targets
+    installed_targets=$(rustup target list --installed 2>/dev/null || echo "")
+    local missing_targets=()
+    for target in "${required_targets[@]}"; do
+        if ! echo "$installed_targets" | grep -q "^${target}$"; then
+            missing_targets+=("$target")
+        fi
+    done
+    if [ ${#missing_targets[@]} -gt 0 ]; then
+        echo "ERROR: Missing Rust Android targets: ${missing_targets[*]}"
+        echo "Please install them with:"
+        echo "  rustup target add ${missing_targets[*]}"
+        echo ""
+        has_error=1
+    fi
+
+    # Check Java version (need Java 17+)
+    if command -v java &> /dev/null; then
+        local java_version
+        # Extract major version, handling various JDK output formats
+        java_version=$(java -version 2>&1 | awk -F'"' '/version/ {print $2}' | cut -d. -f1)
+        # Fallback for non-standard outputs (e.g., "17.0.1" without quotes)
+        if [ -z "$java_version" ]; then
+            java_version=$(java -version 2>&1 | grep -oE '[0-9]+\.[0-9]+' | head -1 | cut -d. -f1)
+        fi
+        if [ -n "$java_version" ] && [ "$java_version" -ge 1 ] 2>/dev/null && [ "$java_version" -lt 17 ]; then
+            echo "ERROR: Java 17 or higher is required (found Java $java_version)"
+            echo "Please install Java 17+ using one of:"
+            echo "  - Android Studio's bundled JDK"
+            echo "  - Homebrew: brew install openjdk@17"
+            echo "  - Zulu JDK: https://www.azul.com/downloads/"
+            echo ""
+            has_error=1
+        fi
+    else
+        echo "ERROR: Java is not installed!"
+        echo "Please install Java 17+ using one of:"
+        echo "  - Android Studio's bundled JDK"
+        echo "  - Homebrew: brew install openjdk@17"
+        echo "  - Zulu JDK: https://www.azul.com/downloads/"
+        echo ""
+        has_error=1
+    fi
+
+    if [ $has_error -eq 1 ]; then
+        exit 1
+    fi
+
+    echo "All prerequisites satisfied"
+}
+
+check_prerequisites
+
 # Link-time optimization flag for dead code elimination (Android targets only)
 # Using target-specific RUSTFLAGS avoids conflicts with macOS host builds
 export CARGO_TARGET_AARCH64_LINUX_ANDROID_RUSTFLAGS="-C link-arg=-Wl,--gc-sections"
@@ -171,19 +238,20 @@ install_variant_sources() {
 
         # Process yttrium.kt:
         # 1. Change package: uniffi.yttrium -> uniffi.yttrium_utils
-        # 2. Change imports: uniffi.uniffi_yttrium -> uniffi.uniffi_yttrium_utils
-        # 3. Change type references: uniffi.yttrium.Type -> uniffi.yttrium_utils.Type
+        # 2. Change type references: uniffi.yttrium.X -> uniffi.yttrium_utils.X
+        # 3. Change imports: uniffi.uniffi_yttrium -> uniffi.uniffi_yttrium_utils
         # 4. Change library name: "uniffi_yttrium" -> "uniffi_yttrium_utils"
         if command -v perl >/dev/null 2>&1; then
             perl -0pi -e 's/\bpackage\s+uniffi\.yttrium\b/package uniffi.yttrium_utils/g' "$kotlin_base/yttrium.kt"
+            perl -0pi -e 's/\buniffi\.yttrium(?!_utils)\b/uniffi.yttrium_utils/g' "$kotlin_base/yttrium.kt"
             perl -0pi -e 's/\buniffi\.uniffi_yttrium(?!_utils)\b/uniffi.uniffi_yttrium_utils/g' "$kotlin_base/yttrium.kt"
-            perl -0pi -e 's/\buniffi\.yttrium\.(\w)/uniffi.yttrium_utils.$1/g' "$kotlin_base/yttrium.kt"
             perl -0pi -e 's/return "uniffi_yttrium"/return "uniffi_yttrium_utils"/g' "$kotlin_base/yttrium.kt"
         else
             sed -i '' 's/^package uniffi\.yttrium$/package uniffi.yttrium_utils/' "$kotlin_base/yttrium.kt" || true
+            sed -i '' 's/uniffi\.yttrium\([^_]\)/uniffi.yttrium_utils\1/g' "$kotlin_base/yttrium.kt" || true
+            sed -i '' 's/uniffi\.yttrium$/uniffi.yttrium_utils/g' "$kotlin_base/yttrium.kt" || true
             sed -i '' 's/uniffi\.uniffi_yttrium\([^_]\)/uniffi.uniffi_yttrium_utils\1/g' "$kotlin_base/yttrium.kt" || true
             sed -i '' 's/uniffi\.uniffi_yttrium$/uniffi.uniffi_yttrium_utils/g' "$kotlin_base/yttrium.kt" || true
-            sed -i '' 's/uniffi\.yttrium\.\([A-Za-z]\)/uniffi.yttrium_utils.\1/g' "$kotlin_base/yttrium.kt" || true
             sed -i '' 's/return "uniffi_yttrium"/return "uniffi_yttrium_utils"/g' "$kotlin_base/yttrium.kt" || true
         fi
     fi
@@ -208,19 +276,20 @@ install_variant_sources() {
 
         # Process yttrium.kt:
         # 1. Change package: uniffi.yttrium -> uniffi.yttrium_wcpay
-        # 2. Change imports: uniffi.uniffi_yttrium -> uniffi.uniffi_yttrium_wcpay
-        # 3. Change type references: uniffi.yttrium.Type -> uniffi.yttrium_wcpay.Type
+        # 2. Change type references: uniffi.yttrium.X -> uniffi.yttrium_wcpay.X
+        # 3. Change imports: uniffi.uniffi_yttrium -> uniffi.uniffi_yttrium_wcpay
         # 4. Change library name: "uniffi_yttrium" -> "uniffi_yttrium_wcpay"
         if command -v perl >/dev/null 2>&1; then
             perl -0pi -e 's/\bpackage\s+uniffi\.yttrium\b/package uniffi.yttrium_wcpay/g' "$kotlin_base/yttrium.kt"
+            perl -0pi -e 's/\buniffi\.yttrium(?!_wcpay)\b/uniffi.yttrium_wcpay/g' "$kotlin_base/yttrium.kt"
             perl -0pi -e 's/\buniffi\.uniffi_yttrium(?!_wcpay)\b/uniffi.uniffi_yttrium_wcpay/g' "$kotlin_base/yttrium.kt"
-            perl -0pi -e 's/\buniffi\.yttrium\.(\w)/uniffi.yttrium_wcpay.$1/g' "$kotlin_base/yttrium.kt"
             perl -0pi -e 's/return "uniffi_yttrium"/return "uniffi_yttrium_wcpay"/g' "$kotlin_base/yttrium.kt"
         else
             sed -i '' 's/^package uniffi\.yttrium$/package uniffi.yttrium_wcpay/' "$kotlin_base/yttrium.kt" || true
+            sed -i '' 's/uniffi\.yttrium\([^_]\)/uniffi.yttrium_wcpay\1/g' "$kotlin_base/yttrium.kt" || true
+            sed -i '' 's/uniffi\.yttrium$/uniffi.yttrium_wcpay/g' "$kotlin_base/yttrium.kt" || true
             sed -i '' 's/uniffi\.uniffi_yttrium\([^_]\)/uniffi.uniffi_yttrium_wcpay\1/g' "$kotlin_base/yttrium.kt" || true
             sed -i '' 's/uniffi\.uniffi_yttrium$/uniffi.uniffi_yttrium_wcpay/g' "$kotlin_base/yttrium.kt" || true
-            sed -i '' 's/uniffi\.yttrium\.\([A-Za-z]\)/uniffi.yttrium_wcpay.\1/g' "$kotlin_base/yttrium.kt" || true
             sed -i '' 's/return "uniffi_yttrium"/return "uniffi_yttrium_wcpay"/g' "$kotlin_base/yttrium.kt" || true
         fi
     fi
