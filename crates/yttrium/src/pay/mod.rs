@@ -269,6 +269,8 @@ const MAX_RETRIES: u32 = 3;
 const INITIAL_BACKOFF_MS: u64 = 100;
 const RECOVERY_ATTEMPTS: u32 = 3;
 const RECOVERY_DELAY_MS: u64 = 2000;
+/// Maximum number of polling iterations to prevent infinite loops
+const MAX_POLL_ATTEMPTS: u32 = 60;
 
 /// Errors that definitely happened BEFORE the request was sent.
 /// These are safe to retry because the server never received the request.
@@ -327,7 +329,15 @@ fn is_retryable_error<T>(err: &progenitor_client::Error<T>) -> bool {
             false
         }
         #[cfg(target_arch = "wasm32")]
-        progenitor_client::Error::CommunicationError(_) => true,
+        progenitor_client::Error::CommunicationError(err) => {
+            // Apply same pre/post-send logic for WASM
+            let msg = err.to_string();
+            if is_pre_send_error(&msg) {
+                return true;
+            }
+            // Don't retry post-send errors
+            !is_post_send_error(&msg)
+        }
         _ => false,
     }
 }
@@ -1132,9 +1142,34 @@ impl WalletConnectPay {
             result.status,
             result.is_final
         );
+        let mut poll_attempts: u32 = 0;
         while !result.is_final {
+            poll_attempts += 1;
+            if poll_attempts > MAX_POLL_ATTEMPTS {
+                pay_error!(
+                    "confirm_payment: exceeded max poll attempts ({})",
+                    MAX_POLL_ATTEMPTS
+                );
+                let err = ConfirmPaymentError::RequestTimeout(format!(
+                    "Payment status polling timed out after {} attempts. \
+                     Current status: {:?}",
+                    MAX_POLL_ATTEMPTS, result.status
+                ));
+                self.report_error(&err, &payment_id);
+                self.send_trace(
+                    observability::TraceEvent::ConfirmPaymentFailed,
+                    &payment_id,
+                );
+                return Err(err);
+            }
+
             let poll_ms = result.poll_in_ms.unwrap_or(1000);
-            pay_debug!("confirm_payment: polling in {}ms", poll_ms);
+            pay_debug!(
+                "confirm_payment: polling attempt {}/{} in {}ms",
+                poll_attempts,
+                MAX_POLL_ATTEMPTS,
+                poll_ms
+            );
             crate::time::sleep(crate::time::Duration::from_millis(
                 poll_ms as u64,
             ))
@@ -3139,5 +3174,11 @@ mod tests {
 
         let err = ConfirmPaymentError::NoConnection("dns error".into());
         assert!(!is_maybe_sent_error(&err));
+    }
+
+    #[test]
+    fn test_max_poll_attempts_constant() {
+        // Verify constant exists and is reasonable (60 attempts at ~1s each)
+        assert_eq!(MAX_POLL_ATTEMPTS, 60);
     }
 }
