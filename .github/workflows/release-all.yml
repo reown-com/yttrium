@@ -1,0 +1,31 @@
+name: Release All Platforms
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release (e.g. 0.10.5)"
+        required: true
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-kotlin:
+    uses: ./.github/workflows/release-kotlin-all.yml
+    with:
+      version: ${{ inputs.version }}
+    secrets: inherit
+
+  release-swift:
+    uses: ./.github/workflows/release-swift.yml
+    with:
+      version: ${{ inputs.version }}
+    secrets: inherit
+
+  release-wasm-pay:
+    uses: ./.github/workflows/release-wasm-pay.yml
+    with:
+      version: ${{ inputs.version }}
+    secrets: inherit
