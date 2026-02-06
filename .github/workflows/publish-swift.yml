@@ -76,7 +76,7 @@ jobs:
           tag_name: ${{ steps.version.outputs.version }}
           name: Yttrium ${{ steps.version.outputs.version }}
           draft: false
-          prerelease: true
+          prerelease: false
           files: |
             Output/libyttrium.xcframework.zip
           body: |
