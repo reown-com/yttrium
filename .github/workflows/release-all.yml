@@ -24,6 +24,12 @@ jobs:
       version: ${{ inputs.version }}
     secrets: inherit
 
+  release-swift-utils:
+    uses: ./.github/workflows/release-swift-utils.yml
+    with:
+      version: ${{ inputs.version }}
+    secrets: inherit
+
   release-wasm-pay:
     uses: ./.github/workflows/release-wasm-pay.yml
     with:
