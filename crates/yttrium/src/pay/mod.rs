@@ -1,10 +1,10 @@
-// Include progenitor-generated code from build.rs
-// The build script preprocesses openapi.json to remove enum constraints,
-// making the API forward-compatible with new enum values.
+// Progenitor generates elided lifetimes that trigger this lint
+#![allow(mismatched_lifetime_syntaxes)]
 include!(concat!(env!("OUT_DIR"), "/pay_codegen.rs"));
 
 mod error_reporting;
 mod observability;
+mod serde_enums;
 
 #[cfg(any(feature = "uniffi", feature = "wasm"))]
 pub mod json;
@@ -305,9 +305,8 @@ pub struct SdkConfig {
     pub client_id: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Enum))]
-#[serde(rename_all = "snake_case")]
 pub enum PaymentStatus {
     RequiresAction,
     Processing,
@@ -387,9 +386,8 @@ impl From<types::WalletRpcAction> for WalletRpcAction {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Enum))]
-#[serde(rename_all = "snake_case")]
 pub enum CollectDataFieldType {
     Text,
     Date,
