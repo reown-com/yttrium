@@ -1,12 +1,10 @@
-progenitor::generate_api!(
-    spec = "src/pay/openapi.json",
-    interface = Builder,
-    tags = Separate,
-    derives = [PartialEq],
-);
+// Progenitor generates elided lifetimes that trigger this lint
+#![allow(mismatched_lifetime_syntaxes)]
+include!(concat!(env!("OUT_DIR"), "/pay_codegen.rs"));
 
 mod error_reporting;
 mod observability;
+mod serde_enums;
 
 #[cfg(any(feature = "uniffi", feature = "wasm"))]
 pub mod json;
@@ -307,27 +305,26 @@ pub struct SdkConfig {
     pub client_id: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Enum))]
-#[serde(rename_all = "snake_case")]
 pub enum PaymentStatus {
     RequiresAction,
     Processing,
     Succeeded,
     Failed,
     Expired,
+    Unknown { value: String },
 }
 
 impl From<types::PaymentStatus> for PaymentStatus {
     fn from(s: types::PaymentStatus) -> Self {
-        match s {
-            types::PaymentStatus::RequiresAction => {
-                PaymentStatus::RequiresAction
-            }
-            types::PaymentStatus::Processing => PaymentStatus::Processing,
-            types::PaymentStatus::Succeeded => PaymentStatus::Succeeded,
-            types::PaymentStatus::Failed => PaymentStatus::Failed,
-            types::PaymentStatus::Expired => PaymentStatus::Expired,
+        match s.as_str() {
+            "requires_action" => PaymentStatus::RequiresAction,
+            "processing" => PaymentStatus::Processing,
+            "succeeded" => PaymentStatus::Succeeded,
+            "failed" => PaymentStatus::Failed,
+            "expired" => PaymentStatus::Expired,
+            other => PaymentStatus::Unknown { value: other.to_string() },
         }
     }
 }
@@ -389,23 +386,22 @@ impl From<types::WalletRpcAction> for WalletRpcAction {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Enum))]
-#[serde(rename_all = "snake_case")]
 pub enum CollectDataFieldType {
     Text,
     Date,
     Checkbox,
+    Unknown { value: String },
 }
 
 impl From<types::CollectDataFieldType> for CollectDataFieldType {
     fn from(t: types::CollectDataFieldType) -> Self {
-        match t {
-            types::CollectDataFieldType::Text => CollectDataFieldType::Text,
-            types::CollectDataFieldType::Date => CollectDataFieldType::Date,
-            types::CollectDataFieldType::Checkbox => {
-                CollectDataFieldType::Checkbox
-            }
+        match t.as_str() {
+            "text" => CollectDataFieldType::Text,
+            "date" => CollectDataFieldType::Date,
+            "checkbox" => CollectDataFieldType::Checkbox,
+            other => CollectDataFieldType::Unknown { value: other.to_string() },
         }
     }
 }
@@ -2400,6 +2396,50 @@ mod tests {
             matches!(result, Err(ConfirmPaymentError::NoConnection(_))),
             "Expected NoConnection, got {:?}",
             result
+        );
+    }
+
+    #[test]
+    fn test_payment_status_forward_compatible() {
+        assert_eq!(
+            PaymentStatus::from(types::PaymentStatus::from(
+                "succeeded".to_string()
+            )),
+            PaymentStatus::Succeeded
+        );
+        assert_eq!(
+            PaymentStatus::from(types::PaymentStatus::from(
+                "processing".to_string()
+            )),
+            PaymentStatus::Processing
+        );
+        assert_eq!(
+            PaymentStatus::from(types::PaymentStatus::from(
+                "new_future_status".to_string()
+            )),
+            PaymentStatus::Unknown { value: "new_future_status".to_string() }
+        );
+    }
+
+    #[test]
+    fn test_collect_data_field_type_forward_compatible() {
+        assert_eq!(
+            CollectDataFieldType::from(types::CollectDataFieldType::from(
+                "text".to_string()
+            )),
+            CollectDataFieldType::Text
+        );
+        assert_eq!(
+            CollectDataFieldType::from(types::CollectDataFieldType::from(
+                "date".to_string()
+            )),
+            CollectDataFieldType::Date
+        );
+        assert_eq!(
+            CollectDataFieldType::from(types::CollectDataFieldType::from(
+                "future_type".to_string()
+            )),
+            CollectDataFieldType::Unknown { value: "future_type".to_string() }
         );
     }
 }
