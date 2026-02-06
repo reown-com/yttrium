@@ -2,7 +2,8 @@
 use crate::pulse::PulseMetadata;
 use {
     crate::{
-        blockchain_api::BLOCKCHAIN_API_URL_PROD, provider_pool::ProviderPool,
+        blockchain_api::BLOCKCHAIN_API_URL_PROD,
+        provider_pool::{ProviderPool, network},
     },
     data_encoding::BASE64,
     ed25519_dalek::{Signer, SigningKey},
@@ -354,11 +355,14 @@ impl TonClient {
         valid_until: u32,
         messages: Vec<SendTxMessage>,
     ) -> Result<String, TonError> {
-        // Validate network matches client
-        if network != self.cfg.network_id {
+        // Validate network matches client (normalize both to CAIP-2 for comparison)
+        let normalized_request = network::ton::normalize_chain_id(&network);
+        let normalized_client =
+            network::ton::normalize_chain_id(&self.cfg.network_id);
+        if normalized_request != normalized_client {
             return Err(TonError::NetworkMismatch(format!(
                 "client={} request={}",
-                self.cfg.network_id, network
+                normalized_client, normalized_request
             )));
         }
 
@@ -670,7 +674,7 @@ mod tests {
 
     fn create_test_client() -> TonClient {
         TonClient::new(
-            TonClientConfig { network_id: "ton:mainnet".to_string() },
+            TonClientConfig { network_id: "ton:-239".to_string() },
             "test-project".into(),
             crate::pulse::get_pulse_metadata(),
         )
