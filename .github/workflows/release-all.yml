@@ -2,36 +2,62 @@ name: Release All Platforms
 
 on:
   workflow_dispatch:
-    inputs:
-      version:
-        description: "Version to release (e.g. 0.10.5)"
-        required: true
 
 permissions:
   contents: write
   pull-requests: write
 
 jobs:
+  compute-versions:
+    runs-on: ubuntu-latest
+    outputs:
+      swift_version: ${{ steps.versions.outputs.swift_version }}
+      kotlin_version: ${{ steps.versions.outputs.kotlin_version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Compute release versions
+        id: versions
+        run: |
+          HIGHEST=$(git tag -l | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -1)
+          if [ -z "$HIGHEST" ]; then
+            HIGHEST="0.0.0"
+          fi
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$HIGHEST"
+          SWIFT_VERSION="$MAJOR.$MINOR.$((PATCH + 1))"
+          KOTLIN_VERSION="$MAJOR.$MINOR.$((PATCH + 2))"
+          echo "swift_version=$SWIFT_VERSION" >> $GITHUB_OUTPUT
+          echo "kotlin_version=$KOTLIN_VERSION" >> $GITHUB_OUTPUT
+          echo "### Computed Versions" >> $GITHUB_STEP_SUMMARY
+          echo "- Highest existing tag: \`$HIGHEST\`" >> $GITHUB_STEP_SUMMARY
+          echo "- Swift / WASM version: \`$SWIFT_VERSION\`" >> $GITHUB_STEP_SUMMARY
+          echo "- Kotlin version: \`$KOTLIN_VERSION\`" >> $GITHUB_STEP_SUMMARY
+
   release-kotlin:
+    needs: compute-versions
     uses: ./.github/workflows/release-kotlin-all.yml
     with:
-      version: ${{ inputs.version }}
+      version: ${{ needs.compute-versions.outputs.kotlin_version }}
     secrets: inherit
 
   release-swift:
+    needs: compute-versions
     uses: ./.github/workflows/release-swift.yml
     with:
-      version: ${{ inputs.version }}
+      version: ${{ needs.compute-versions.outputs.swift_version }}
     secrets: inherit
 
   release-swift-utils:
+    needs: compute-versions
     uses: ./.github/workflows/release-swift-utils.yml
     with:
-      version: ${{ inputs.version }}
+      version: ${{ needs.compute-versions.outputs.swift_version }}
     secrets: inherit
 
   release-wasm-pay:
+    needs: compute-versions
     uses: ./.github/workflows/release-wasm-pay.yml
     with:
-      version: ${{ inputs.version }}
+      version: ${{ needs.compute-versions.outputs.swift_version }}
     secrets: inherit
