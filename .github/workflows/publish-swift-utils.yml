@@ -83,7 +83,7 @@ jobs:
           tag_name: ${{ steps.version.outputs.version }}
           name: YttriumUtils ${{ steps.version.outputs.version }}
           draft: false
-          prerelease: true
+          prerelease: false
           files: |
             Output/libyttrium-utils.xcframework.zip
             Output/libyttrium-utils-pod.zip
