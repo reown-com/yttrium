@@ -301,7 +301,7 @@ stacks_secp256k1 = { workspace = true, optional = true, features = [
     "hashes",
     "recovery",
 ] }
-time = { version = "0.3.36", default-features = false, features = ["formatting", "macros", "std"] }
+time = { version = "0.3.47", default-features = false, features = ["formatting", "macros", "std"] }
 num-bigint = "0.4.6"
 rand = { workspace = true, optional = true, features = ["std", "std_rng"] }
 
