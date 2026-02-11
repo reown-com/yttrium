@@ -23,7 +23,7 @@ jobs:
         with:
           submodules: recursive
       - name: Run sccache-cache
-        uses: mozilla-actions/sccache-action@v0.0.4
+        uses: mozilla-actions/sccache-action@v0.0.9
       - run: rustup update stable && rustup default stable
       - run: cargo test -p yttrium --features=test_pay_api pay::e2e_tests -- --nocapture
         env:
