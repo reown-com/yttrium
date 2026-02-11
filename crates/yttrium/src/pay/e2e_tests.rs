@@ -201,6 +201,11 @@ impl TestWallet {
     }
 }
 
+fn get_wallet_project_id() -> String {
+    std::env::var("WALLET_PROJECT_ID")
+        .expect("WALLET_PROJECT_ID environment variable must be set")
+}
+
 fn test_sdk_config() -> SdkConfig {
     SdkConfig {
         base_url: POS_API_BASE_URL.to_string(),
@@ -209,8 +214,8 @@ fn test_sdk_config() -> SdkConfig {
         sdk_version: env!("CARGO_PKG_VERSION").to_string(),
         sdk_platform: "rust-tests".to_string(),
         bundle_id: "com.yttrium.e2e.tests".to_string(),
-        api_key: Some(get_merchant_api_key()),
-        app_id: None,
+        api_key: None,
+        app_id: Some(get_wallet_project_id()),
         client_id: None,
     }
 }
