@@ -520,6 +520,7 @@ pub struct PaymentOption {
     pub amount: PayAmount,
     pub eta_s: i64,
     pub actions: Vec<Action>,
+    pub collect_data: Option<CollectDataAction>,
 }
 
 impl From<types::PaymentOption> for PaymentOption {
@@ -539,6 +540,7 @@ impl From<types::PaymentOption> for PaymentOption {
                     types::Action::Build(_) => None,
                 })
                 .collect(),
+            collect_data: o.collect_data.map(Into::into),
         }
     }
 }
@@ -1482,7 +1484,19 @@ mod tests {
                         }
                     },
                     "etaS": 5,
-                    "actions": []
+                    "actions": [],
+                    "collectData": {
+                        "fields": [
+                            {
+                                "type": "text",
+                                "id": "fullName",
+                                "name": "Full Name",
+                                "required": true
+                            }
+                        ],
+                        "url": "https://data-collection.example.com/ic/pay_123",
+                        "schema": {"type": "object"}
+                    }
                 }
             ]
         });
@@ -1517,6 +1531,16 @@ mod tests {
             response.options[0].amount.display.network_name,
             Some("Base".to_string())
         );
+        let opt_cd =
+            response.options[0].collect_data.as_ref().expect("collect_data");
+        assert_eq!(opt_cd.fields.len(), 1);
+        assert_eq!(opt_cd.fields[0].id, "fullName");
+        assert_eq!(opt_cd.fields[0].field_type, CollectDataFieldType::Text);
+        assert_eq!(
+            opt_cd.url,
+            Some("https://data-collection.example.com/ic/pay_123".to_string())
+        );
+        assert!(opt_cd.schema.is_some());
     }
 
     #[tokio::test]
@@ -2173,7 +2197,23 @@ mod tests {
     async fn test_collect_data_response() {
         let mock_server = MockServer::start().await;
         let mock_response = serde_json::json!({
-            "options": [],
+            "options": [
+                {
+                    "id": "opt_1",
+                    "account": "eip155:8453:0x123",
+                    "amount": {
+                        "unit": "caip19/eip155:8453/erc20:0xUSDC",
+                        "value": "1000000",
+                        "display": {
+                            "assetSymbol": "USDC",
+                            "assetName": "USD Coin",
+                            "decimals": 6
+                        }
+                    },
+                    "etaS": 5,
+                    "actions": []
+                }
+            ],
             "collectData": {
                 "fields": [
                     {
@@ -2188,7 +2228,14 @@ mod tests {
                         "name": "Date of Birth",
                         "required": false
                     }
-                ]
+                ],
+                "url": "https://data-collection.example.com/ic/pay_123",
+                "schema": {
+                    "type": "object",
+                    "properties": {
+                        "firstName": {"type": "string"}
+                    }
+                }
             }
         });
         Mock::given(method("POST"))
@@ -2218,6 +2265,12 @@ mod tests {
         assert_eq!(data.fields[1].id, "dob");
         assert_eq!(data.fields[1].field_type, CollectDataFieldType::Date);
         assert!(!data.fields[1].required);
+        assert_eq!(
+            data.url,
+            Some("https://data-collection.example.com/ic/pay_123".to_string())
+        );
+        assert!(data.schema.is_some());
+        assert!(response.options[0].collect_data.is_none());
     }
 
     #[tokio::test]
