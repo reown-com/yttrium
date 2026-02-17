@@ -55,6 +55,8 @@ pub enum PayJsonError {
     RouteExpired(String),
     #[error("Unsupported method: {0}")]
     UnsupportedMethod(String),
+    #[error("Polling timeout: {0}")]
+    PollingTimeout(String),
 }
 
 impl From<ConfigError> for PayJsonError {
@@ -161,6 +163,9 @@ impl From<ConfirmPaymentError> for PayJsonError {
             ConfirmPaymentError::RouteExpired(msg) => Self::RouteExpired(msg),
             ConfirmPaymentError::UnsupportedMethod(msg) => {
                 Self::UnsupportedMethod(msg)
+            }
+            ConfirmPaymentError::PollingTimeout(msg) => {
+                Self::PollingTimeout(msg)
             }
         }
     }
