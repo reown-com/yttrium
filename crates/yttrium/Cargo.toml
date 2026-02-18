@@ -241,7 +241,7 @@ dotenvy = { version = "0.15.7", default-features = false }
 hex = { version = "0.4.3", features = ["std"], default-features = false }
 tiny-keccak = { version = "2.0", features = ["keccak"] }
 async-trait = { version = "0.1.83", default-features = false }
-tracing = { version = "0.1.40", default-features = false, features = [
+tracing = { version = "0.1.44", default-features = false, features = [
     "release_max_level_debug",
 ] }
 tracing-subscriber = { version = "0.3.20", default-features = false, optional = true, features = [
