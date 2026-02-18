@@ -162,7 +162,7 @@ sign_canary = [
 ]
 clear_signing = []
 evm_signing = ["chain_abstraction_client"]
-pay = ["dep:progenitor-client", "dep:rand"]
+pay = ["dep:parking_lot", "dep:progenitor-client", "dep:rand"]
 
 # Features enabling test coverage
 test_full = [
@@ -174,7 +174,7 @@ test_local_bundler = []
 test_pimlico_api = []
 test_blockchain_api = []
 test_depends_on_env_REOWN_PROJECT_ID = []
-test_pay_api = ["pay"]
+test_pay_api = ["pay", "reqwest/native-tls"]
 test_sign = [
     "sign_client",
     "test_depends_on_env_REOWN_PROJECT_ID",
@@ -333,6 +333,7 @@ aws-config = { version = "1.1.7", features = ["behavior-version-latest"], option
 aws-sdk-cloudwatch = { version = "1.91.0", optional = true }
 
 # Pay
+parking_lot = { version = "0.12", optional = true }
 progenitor = { workspace = true }
 progenitor-client = { workspace = true, optional = true }
 urlencoding = "2.1"

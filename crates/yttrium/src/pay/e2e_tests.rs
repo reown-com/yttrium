@@ -39,7 +39,10 @@ struct CreatePaymentResponse {
     is_final: bool,
 }
 
-const POS_API_BASE_URL: &str = "https://api.pay.walletconnect.com";
+fn get_api_base_url() -> String {
+    std::env::var("PAY_API_BASE_URL")
+        .unwrap_or_else(|_| "https://api.pay.walletconnect.com".to_string())
+}
 
 fn get_merchant_api_key() -> String {
     std::env::var("MERCHANT_API_KEY")
@@ -107,7 +110,7 @@ impl PosApiClient {
 
         let response = self
             .http_client
-            .post(format!("{}/v1/merchant/payment", POS_API_BASE_URL))
+            .post(format!("{}/v1/merchant/payment", get_api_base_url()))
             .header("Api-Key", get_merchant_api_key())
             .header("Merchant-Id", get_merchant_id())
             .header("Sdk-Name", "yttrium-e2e-test")
@@ -201,16 +204,21 @@ impl TestWallet {
     }
 }
 
+fn get_wallet_project_id() -> String {
+    std::env::var("WALLET_PROJECT_ID")
+        .expect("WALLET_PROJECT_ID environment variable must be set")
+}
+
 fn test_sdk_config() -> SdkConfig {
     SdkConfig {
-        base_url: POS_API_BASE_URL.to_string(),
+        base_url: get_api_base_url(),
         project_id: std::env::var("REOWN_PROJECT_ID").ok(),
         sdk_name: "yttrium-e2e-test".to_string(),
         sdk_version: env!("CARGO_PKG_VERSION").to_string(),
         sdk_platform: "rust-tests".to_string(),
         bundle_id: "com.yttrium.e2e.tests".to_string(),
-        api_key: Some(get_merchant_api_key()),
-        app_id: None,
+        api_key: None,
+        app_id: Some(get_wallet_project_id()),
         client_id: None,
     }
 }

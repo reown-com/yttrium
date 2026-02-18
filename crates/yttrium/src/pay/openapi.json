@@ -145,7 +145,7 @@
           "Gateway"
         ],
         "summary": "Confirm a payment",
-        "description": "This endpoint confirms a payment and submits it to the blockchain for processing.\nThis is the COMMITMENT point - after this succeeds, the payment is durable.",
+        "description": "This endpoint confirms a payment and submits it to the blockchain for processing.",
         "operationId": "confirm_payment_handler",
         "parameters": [
           {
@@ -213,8 +213,7 @@
             "schema": {
               "type": "integer",
               "format": "int64",
-              "minimum": 0,
-              "nullable": true
+              "minimum": 0
             }
           }
         ],
@@ -485,8 +484,7 @@
             "description": "Whether to include payment information in the response",
             "required": false,
             "schema": {
-              "type": "boolean",
-              "nullable": true
+              "type": "boolean"
             }
           }
         ],
@@ -628,8 +626,251 @@
             "schema": {
               "type": "integer",
               "format": "int64",
-              "minimum": 0,
-              "nullable": true
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment status retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetPaymentStatusResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Payment not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/payments": {
+      "post": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Create a new payment",
+        "description": "Creates a new payment with the provided payment details.",
+        "operationId": "paymentsCreatePayment",
+        "parameters": [
+          {
+            "name": "Api-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Merchant-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Sdk-Name",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Sdk-Version",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Sdk-Platform",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePayment"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Payment created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatePaymentResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/payments/{id}/status": {
+      "get": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Get the payment status",
+        "description": "Retrieves the status of a payment by its ID. Returns a polling delay to wait\nbefore checking the status again.",
+        "operationId": "paymentsGetPaymentStatus",
+        "parameters": [
+          {
+            "name": "Api-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Merchant-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Sdk-Name",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Sdk-Version",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Sdk-Platform",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Payment ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "maxPollMs",
+            "in": "query",
+            "description": "Maximum time to long-poll for payment status, in milliseconds.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 0
             }
           }
         ],
@@ -739,7 +980,7 @@
             "method": "eth_signTypedData_v4",
             "params": [
               "0x0000000000000000000000000000000000000000",
-              "{\"domain\":{\"name\":\"USD Coin\",\"version\":\"2\",\"chainId\":\"0x2105\",\"verifyingContract\":\"0x0000000000000000000000000000000000000000\"},\"types\":{\"EIP712Domain\":[{\"type\":\"string\",\"name\":\"name\"},{\"type\":\"string\",\"name\":\"version\"},{\"type\":\"uint256\",\"name\":\"chainId\"},{\"type\":\"address\",\"name\":\"verifyingContract\"}],\"TransferWithAuthorization\":[{\"type\":\"address\",\"name\":\"from\"},{\"type\":\"address\",\"name\":\"to\"},{\"type\":\"uint256\",\"name\":\"value\"},{\"type\":\"uint256\",\"name\":\"validAfter\"},{\"type\":\"uint256\",\"name\":\"validBefore\"},{\"type\":\"bytes32\",\"name\":\"nonce\"}]},\"primaryType\":\"TransferWithAuthorization\",\"message\":{\"from\":\"0x0000000000000000000000000000000000000000\",\"nonce\":\"0x0000000000000000000000000000000000000000000000000000000000000000\",\"to\":\"0x0000000000000000000000000000000000000000\",\"validAfter\":\"0x0\",\"validBefore\":\"0x0\",\"value\":\"0x0\"}}"
+              "{\"domain\":{\"name\":\"USD Coin\",\"version\":\"2\",\"chainId\":\"0x2105\",\"verifyingContract\":\"0x0000000000000000000000000000000000000000\"},\"types\":{\"EIP712Domain\":[{\"type\":\"string\",\"name\":\"name\"},{\"type\":\"string\",\"name\":\"version\"},{\"type\":\"uint256\",\"name\":\"chainId\"},{\"type\":\"address\",\"name\":\"verifyingContract\"}],\"ReceiveWithAuthorization\":[{\"type\":\"address\",\"name\":\"from\"},{\"type\":\"address\",\"name\":\"to\"},{\"type\":\"uint256\",\"name\":\"value\"},{\"type\":\"uint256\",\"name\":\"validAfter\"},{\"type\":\"uint256\",\"name\":\"validBefore\"},{\"type\":\"bytes32\",\"name\":\"nonce\"}]},\"primaryType\":\"ReceiveWithAuthorization\",\"message\":{\"from\":\"0x0000000000000000000000000000000000000000\",\"nonce\":\"0x0000000000000000000000000000000000000000000000000000000000000000\",\"to\":\"0x0000000000000000000000000000000000000000\",\"validAfter\":\"0x0\",\"validBefore\":\"0x0\",\"value\":\"0x0\"}}"
             ]
           },
           "type": "walletRpc"
@@ -775,7 +1016,7 @@
             "networkIconUrl": "https://assets.walletconnect.com/base.png",
             "networkName": "Base"
           },
-          "unit": "caip19/eip155:8453/erc20:0xUSDC...",
+          "unit": "caip19/eip155:8453/erc20:0x0000000000000000000000000000000000000000",
           "value": "1000000"
         }
       },
@@ -803,18 +1044,18 @@
           },
           "iconUrl": {
             "type": "string",
-            "nullable": true,
-            "description": "URL of the icon of the asset (if token)"
+            "description": "URL of the icon of the asset (if token)",
+            "nullable": true
           },
           "networkIconUrl": {
             "type": "string",
-            "nullable": true,
-            "description": "URL of the icon of the network (if token)"
+            "description": "URL of the icon of the network (if token)",
+            "nullable": true
           },
           "networkName": {
             "type": "string",
-            "nullable": true,
-            "description": "Name of the network of the asset (if token)"
+            "description": "Name of the network of the asset (if token)",
+            "nullable": true
           }
         },
         "example": {
@@ -824,6 +1065,27 @@
           "iconUrl": "https://assets.walletconnect.com/usdc.png",
           "networkIconUrl": "https://assets.walletconnect.com/base.png",
           "networkName": "Base"
+        }
+      },
+      "AmountParameter": {
+        "type": "object",
+        "required": [
+          "unit",
+          "value"
+        ],
+        "properties": {
+          "unit": {
+            "type": "string",
+            "description": "Currency unit, prefixed with either \"iso4217/\" or \"caip19/\""
+          },
+          "value": {
+            "type": "string",
+            "description": "Amount value, in the currency unit's minor units"
+          }
+        },
+        "example": {
+          "unit": "iso4217/USD",
+          "value": "100"
         }
       },
       "Build": {
@@ -853,8 +1115,8 @@
           },
           "accountProviderIcon": {
             "type": "string",
-            "nullable": true,
-            "description": "Account provider icon URL"
+            "description": "Account provider icon URL",
+            "nullable": true
           },
           "accountProviderName": {
             "type": "string",
@@ -879,14 +1141,14 @@
               "$ref": "#/components/schemas/CollectDataField"
             }
           },
+          "schema": {
+            "description": "JSON Schema for validating IC form data (for webview mode)",
+            "nullable": true
+          },
           "url": {
             "type": "string",
             "nullable": true,
             "description": "URL for webview-based data collection"
-          },
-          "schema": {
-            "description": "JSON Schema for validating IC form data (for webview mode)",
-            "nullable": true
           }
         },
         "example": {
@@ -903,7 +1165,52 @@
               "required": true,
               "type": "date"
             }
-          ]
+          ],
+          "schema": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "additionalProperties": false,
+            "properties": {
+              "dob": {
+                "description": "Date of birth in YYYY-MM-DD format",
+                "format": "date",
+                "title": "Date of Birth",
+                "type": "string"
+              },
+              "fullName": {
+                "description": "User's full legal name",
+                "minLength": 1,
+                "title": "Full Name",
+                "type": "string"
+              },
+              "pobAddress": {
+                "description": "Place of birth city and state (e.g., 'New York, NY')",
+                "maxLength": 200,
+                "title": "Place of Birth Address",
+                "type": "string"
+              },
+              "pobCountry": {
+                "description": "Place of birth country code (ISO 3166-1 alpha-2)",
+                "pattern": "^[A-Z]{2}$",
+                "title": "Place of Birth Country",
+                "type": "string"
+              },
+              "tosConfirmed": {
+                "const": true,
+                "description": "Must be true to confirm Terms of Service acceptance",
+                "title": "Terms of Service Confirmation",
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "fullName",
+              "dob",
+              "tosConfirmed",
+              "pobCountry",
+              "pobAddress"
+            ],
+            "type": "object"
+          },
+          "url": "https://data-collection.walletconnect.com/ic/pay_123?accounts=eip155:1:0x123"
         }
       },
       "CollectDataField": {
@@ -988,6 +1295,10 @@
             {
               "id": "dob",
               "value": "1990-01-01"
+            },
+            {
+              "id": "tosConfirmed",
+              "value": "true"
             }
           ]
         }
@@ -1024,9 +1335,14 @@
               {
                 "id": "dob",
                 "value": "1990-01-01"
+              },
+              {
+                "id": "tosConfirmed",
+                "value": "true"
               }
             ]
           },
+          "excludeFromRelayer": null,
           "optionId": "opt_123",
           "results": [
             {
@@ -1052,9 +1368,9 @@
           "pollInMs": {
             "type": "integer",
             "format": "int64",
-            "nullable": true,
-            "description": "Time to poll for payment status, in milliseconds. Not present if the payment is in a final state.",
-            "minimum": 0
+            "description": "Time to poll for payment status, in milliseconds. Not present if the\npayment is in a final state.",
+            "minimum": 0,
+            "nullable": true
           },
           "status": {
             "$ref": "#/components/schemas/PaymentStatus",
@@ -1101,6 +1417,86 @@
           "type": "walletRpc"
         }
       },
+      "CreatePayment": {
+        "type": "object",
+        "required": [
+          "referenceId",
+          "amount"
+        ],
+        "properties": {
+          "amount": {
+            "$ref": "#/components/schemas/AmountParameter",
+            "description": "Amount to be paid"
+          },
+          "expiresAt": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Optional custom expiration timestamp (Unix seconds since epoch).\nMust be in the future if provided. If not provided, defaults to 5 minutes from now.",
+            "nullable": true
+          },
+          "referenceId": {
+            "type": "string",
+            "description": "Merchant/PSP order ID"
+          }
+        },
+        "example": {
+          "amount": {
+            "unit": "iso4217/USD",
+            "value": "100"
+          },
+          "expiresAt": null,
+          "referenceId": "ORDER-123"
+        }
+      },
+      "CreatePaymentResponse": {
+        "type": "object",
+        "required": [
+          "paymentId",
+          "status",
+          "expiresAt",
+          "isFinal",
+          "gatewayUrl"
+        ],
+        "properties": {
+          "expiresAt": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Payment expiration timestamp, in seconds since epoch",
+            "minimum": 0
+          },
+          "gatewayUrl": {
+            "type": "string",
+            "description": "Gateway URL to redirect the user to for payment"
+          },
+          "isFinal": {
+            "type": "boolean",
+            "description": "True if the payment is in a final state and no longer requires polling"
+          },
+          "paymentId": {
+            "$ref": "#/components/schemas/PaymentId",
+            "description": "Payment ID"
+          },
+          "pollInMs": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Time to poll for payment status, in milliseconds. Not present if the\npayment is in a final state.",
+            "minimum": 0,
+            "nullable": true
+          },
+          "status": {
+            "$ref": "#/components/schemas/PaymentStatus",
+            "description": "Payment status"
+          }
+        },
+        "example": {
+          "expiresAt": 1718236800,
+          "gatewayUrl": "https://api.pay.walletconnect.com/pay_123",
+          "isFinal": false,
+          "paymentId": "pay_e5a2ecc101KHC27YB729ZSF59YJSY06CA2",
+          "pollInMs": 1000,
+          "status": "requires_action"
+        }
+      },
       "ErrorCode": {
         "type": "string",
         "description": "Standard error codes for API responses.\n\nThis prevents typos like \"invlaid_params\" from reaching production.",
@@ -1109,11 +1505,13 @@
           "invalid_params",
           "params_validation",
           "payment_not_found",
+          "idempotency_conflict",
           "internal_error",
           "invalid_api_key",
           "unauthorized",
           "forbidden",
           "invalid_state",
+          "payment_expired",
           "missing_api_key",
           "missing_merchant_api_key",
           "missing_merchant_id",
@@ -1128,7 +1526,8 @@
           "missing_client_id",
           "invalid_app_id",
           "conflicting_auth_headers",
-          "missing_auth_headers"
+          "missing_auth_headers",
+          "sanctioned_user"
         ]
       },
       "ErrorResponse": {
@@ -1189,7 +1588,7 @@
                 "method": "eth_signTypedData_v4",
                 "params": [
                   "0x0000000000000000000000000000000000000000",
-                  "{\"domain\":{\"name\":\"USD Coin\",\"version\":\"2\",\"chainId\":\"0x2105\",\"verifyingContract\":\"0x0000000000000000000000000000000000000000\"},\"types\":{\"EIP712Domain\":[{\"type\":\"string\",\"name\":\"name\"},{\"type\":\"string\",\"name\":\"version\"},{\"type\":\"uint256\",\"name\":\"chainId\"},{\"type\":\"address\",\"name\":\"verifyingContract\"}],\"TransferWithAuthorization\":[{\"type\":\"address\",\"name\":\"from\"},{\"type\":\"address\",\"name\":\"to\"},{\"type\":\"uint256\",\"name\":\"value\"},{\"type\":\"uint256\",\"name\":\"validAfter\"},{\"type\":\"uint256\",\"name\":\"validBefore\"},{\"type\":\"bytes32\",\"name\":\"nonce\"}]},\"primaryType\":\"TransferWithAuthorization\",\"message\":{\"from\":\"0x0000000000000000000000000000000000000000\",\"nonce\":\"0x0000000000000000000000000000000000000000000000000000000000000000\",\"to\":\"0x0000000000000000000000000000000000000000\",\"validAfter\":\"0x0\",\"validBefore\":\"0x0\",\"value\":\"0x0\"}}"
+                  "{\"domain\":{\"name\":\"USD Coin\",\"version\":\"2\",\"chainId\":\"0x2105\",\"verifyingContract\":\"0x0000000000000000000000000000000000000000\"},\"types\":{\"EIP712Domain\":[{\"type\":\"string\",\"name\":\"name\"},{\"type\":\"string\",\"name\":\"version\"},{\"type\":\"uint256\",\"name\":\"chainId\"},{\"type\":\"address\",\"name\":\"verifyingContract\"}],\"ReceiveWithAuthorization\":[{\"type\":\"address\",\"name\":\"from\"},{\"type\":\"address\",\"name\":\"to\"},{\"type\":\"uint256\",\"name\":\"value\"},{\"type\":\"uint256\",\"name\":\"validAfter\"},{\"type\":\"uint256\",\"name\":\"validBefore\"},{\"type\":\"bytes32\",\"name\":\"nonce\"}]},\"primaryType\":\"ReceiveWithAuthorization\",\"message\":{\"from\":\"0x0000000000000000000000000000000000000000\",\"nonce\":\"0x0000000000000000000000000000000000000000000000000000000000000000\",\"to\":\"0x0000000000000000000000000000000000000000\",\"validAfter\":\"0x0\",\"validBefore\":\"0x0\",\"value\":\"0x0\"}}"
                 ]
               },
               "type": "walletRpc"
@@ -1211,10 +1610,10 @@
           },
           "refresh": {
             "type": "array",
-            "nullable": true,
             "items": {
               "type": "string"
-            }
+            },
+            "nullable": true
           }
         },
         "example": {
@@ -1226,9 +1625,6 @@
       },
       "GetPaymentOptionsResponse": {
         "type": "object",
-        "required": [
-          "options"
-        ],
         "properties": {
           "collectData": {
             "$ref": "#/components/schemas/CollectData",
@@ -1236,8 +1632,7 @@
           },
           "info": {
             "$ref": "#/components/schemas/GetPaymentResponse",
-            "nullable": true,
-            "description": "Payment information (included if includePaymentInfo=true)"
+            "nullable": true
           },
           "options": {
             "type": "array",
@@ -1261,7 +1656,52 @@
                 "required": true,
                 "type": "date"
               }
-            ]
+            ],
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "additionalProperties": false,
+              "properties": {
+                "dob": {
+                  "description": "Date of birth in YYYY-MM-DD format",
+                  "format": "date",
+                  "title": "Date of Birth",
+                  "type": "string"
+                },
+                "fullName": {
+                  "description": "User's full legal name",
+                  "minLength": 1,
+                  "title": "Full Name",
+                  "type": "string"
+                },
+                "pobAddress": {
+                  "description": "Place of birth city and state (e.g., 'New York, NY')",
+                  "maxLength": 200,
+                  "title": "Place of Birth Address",
+                  "type": "string"
+                },
+                "pobCountry": {
+                  "description": "Place of birth country code (ISO 3166-1 alpha-2)",
+                  "pattern": "^[A-Z]{2}$",
+                  "title": "Place of Birth Country",
+                  "type": "string"
+                },
+                "tosConfirmed": {
+                  "const": true,
+                  "description": "Must be true to confirm Terms of Service acceptance",
+                  "title": "Terms of Service Confirmation",
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "fullName",
+                "dob",
+                "tosConfirmed",
+                "pobCountry",
+                "pobAddress"
+              ],
+              "type": "object"
+            },
+            "url": "https://data-collection.walletconnect.com/ic/pay_123?accounts=eip155:1:0x123"
           },
           "info": {
             "amount": {
@@ -1273,7 +1713,7 @@
                 "networkIconUrl": "https://assets.walletconnect.com/base.png",
                 "networkName": "Base"
               },
-              "unit": "caip19/eip155:8453/erc20:0xUSDC...",
+              "unit": "caip19/eip155:8453/erc20:0x0000000000000000000000000000000000000000",
               "value": "1000000"
             },
             "buyer": {
@@ -1298,7 +1738,7 @@
                     "method": "eth_signTypedData_v4",
                     "params": [
                       "0x0000000000000000000000000000000000000000",
-                      "{\"domain\":{\"name\":\"USD Coin\",\"version\":\"2\",\"chainId\":\"0x2105\",\"verifyingContract\":\"0x0000000000000000000000000000000000000000\"},\"types\":{\"EIP712Domain\":[{\"type\":\"string\",\"name\":\"name\"},{\"type\":\"string\",\"name\":\"version\"},{\"type\":\"uint256\",\"name\":\"chainId\"},{\"type\":\"address\",\"name\":\"verifyingContract\"}],\"TransferWithAuthorization\":[{\"type\":\"address\",\"name\":\"from\"},{\"type\":\"address\",\"name\":\"to\"},{\"type\":\"uint256\",\"name\":\"value\"},{\"type\":\"uint256\",\"name\":\"validAfter\"},{\"type\":\"uint256\",\"name\":\"validBefore\"},{\"type\":\"bytes32\",\"name\":\"nonce\"}]},\"primaryType\":\"TransferWithAuthorization\",\"message\":{\"from\":\"0x0000000000000000000000000000000000000000\",\"nonce\":\"0x0000000000000000000000000000000000000000000000000000000000000000\",\"to\":\"0x0000000000000000000000000000000000000000\",\"validAfter\":\"0x0\",\"validBefore\":\"0x0\",\"value\":\"0x0\"}}"
+                      "{\"domain\":{\"name\":\"USD Coin\",\"version\":\"2\",\"chainId\":\"0x2105\",\"verifyingContract\":\"0x0000000000000000000000000000000000000000\"},\"types\":{\"EIP712Domain\":[{\"type\":\"string\",\"name\":\"name\"},{\"type\":\"string\",\"name\":\"version\"},{\"type\":\"uint256\",\"name\":\"chainId\"},{\"type\":\"address\",\"name\":\"verifyingContract\"}],\"ReceiveWithAuthorization\":[{\"type\":\"address\",\"name\":\"from\"},{\"type\":\"address\",\"name\":\"to\"},{\"type\":\"uint256\",\"name\":\"value\"},{\"type\":\"uint256\",\"name\":\"validAfter\"},{\"type\":\"uint256\",\"name\":\"validBefore\"},{\"type\":\"bytes32\",\"name\":\"nonce\"}]},\"primaryType\":\"ReceiveWithAuthorization\",\"message\":{\"from\":\"0x0000000000000000000000000000000000000000\",\"nonce\":\"0x0000000000000000000000000000000000000000000000000000000000000000\",\"to\":\"0x0000000000000000000000000000000000000000\",\"validAfter\":\"0x0\",\"validBefore\":\"0x0\",\"value\":\"0x0\"}}"
                     ]
                   },
                   "type": "walletRpc"
@@ -1313,14 +1753,78 @@
                   "networkIconUrl": "https://assets.walletconnect.com/base.png",
                   "networkName": "Base"
                 },
-                "unit": "caip19/eip155:8453/erc20:0xUSDC...",
+                "unit": "caip19/eip155:8453/erc20:0x0000000000000000000000000000000000000000",
                 "value": "1000000"
+              },
+              "collectData": {
+                "fields": [
+                  {
+                    "id": "fullName",
+                    "name": "Full name",
+                    "required": true,
+                    "type": "text"
+                  },
+                  {
+                    "id": "dob",
+                    "name": "Date of birth",
+                    "required": true,
+                    "type": "date"
+                  }
+                ],
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "additionalProperties": false,
+                  "properties": {
+                    "dob": {
+                      "description": "Date of birth in YYYY-MM-DD format",
+                      "format": "date",
+                      "title": "Date of Birth",
+                      "type": "string"
+                    },
+                    "fullName": {
+                      "description": "User's full legal name",
+                      "minLength": 1,
+                      "title": "Full Name",
+                      "type": "string"
+                    },
+                    "pobAddress": {
+                      "description": "Place of birth city and state (e.g., 'New York, NY')",
+                      "maxLength": 200,
+                      "title": "Place of Birth Address",
+                      "type": "string"
+                    },
+                    "pobCountry": {
+                      "description": "Place of birth country code (ISO 3166-1 alpha-2)",
+                      "pattern": "^[A-Z]{2}$",
+                      "title": "Place of Birth Country",
+                      "type": "string"
+                    },
+                    "tosConfirmed": {
+                      "const": true,
+                      "description": "Must be true to confirm Terms of Service acceptance",
+                      "title": "Terms of Service Confirmation",
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "fullName",
+                    "dob",
+                    "tosConfirmed",
+                    "pobCountry",
+                    "pobAddress"
+                  ],
+                  "type": "object"
+                },
+                "url": "https://data-collection.walletconnect.com/ic/pay_123?accounts=eip155:1:0x123"
               },
               "etaS": 5,
               "id": "opt_123"
             }
           ]
-        }
+        },
+        "required": [
+          "options"
+        ]
       },
       "GetPaymentResponse": {
         "type": "object",
@@ -1365,7 +1869,7 @@
               "networkIconUrl": "https://assets.walletconnect.com/base.png",
               "networkName": "Base"
             },
-            "unit": "caip19/eip155:8453/erc20:0xUSDC...",
+            "unit": "caip19/eip155:8453/erc20:0x0000000000000000000000000000000000000000",
             "value": "1000000"
           },
           "buyer": {
@@ -1388,6 +1892,11 @@
           "isFinal"
         ],
         "properties": {
+          "info": {
+            "$ref": "#/components/schemas/PaymentInformation",
+            "nullable": true,
+            "description": "Payment information (transaction hash, amount). Present when status is\nSucceeded, null otherwise."
+          },
           "isFinal": {
             "type": "boolean",
             "description": "True if the payment is in a final state and no longer requires polling"
@@ -1395,56 +1904,20 @@
           "pollInMs": {
             "type": "integer",
             "format": "int64",
-            "nullable": true,
-            "description": "Time to poll for payment status, in milliseconds. Not present if the payment is in a final state.",
-            "minimum": 0
+            "description": "Time to poll for payment status, in milliseconds. Not present if the\npayment is in a final state.",
+            "minimum": 0,
+            "nullable": true
           },
           "status": {
             "$ref": "#/components/schemas/PaymentStatus",
             "description": "Payment status"
-          },
-          "info": {
-            "$ref": "#/components/schemas/PaymentInformation",
-            "nullable": true,
-            "description": "Payment information (transaction hash, amount). Present when status is Succeeded."
           }
         },
         "example": {
+          "info": null,
           "isFinal": false,
           "pollInMs": 1000,
           "status": "requires_action"
-        }
-      },
-      "PaymentInformation": {
-        "type": "object",
-        "required": [
-          "txId",
-          "optionAmount"
-        ],
-        "properties": {
-          "txId": {
-            "type": "string",
-            "description": "Transaction identifier (hash)"
-          },
-          "optionAmount": {
-            "$ref": "#/components/schemas/Amount",
-            "description": "Amount paid in token units"
-          }
-        },
-        "example": {
-          "txId": "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
-          "optionAmount": {
-            "display": {
-              "assetName": "USD Coin",
-              "assetSymbol": "USDC",
-              "decimals": 6,
-              "iconUrl": "https://assets.walletconnect.com/usdc.png",
-              "networkIconUrl": "https://assets.walletconnect.com/base.png",
-              "networkName": "Base"
-            },
-            "unit": "caip19/eip155:8453/erc20:0xUSDC...",
-            "value": "1000000"
-          }
         }
       },
       "MerchantInfo": {
@@ -1455,8 +1928,8 @@
         "properties": {
           "iconUrl": {
             "type": "string",
-            "nullable": true,
-            "description": "Merchant icon URL"
+            "description": "Merchant icon URL",
+            "nullable": true
           },
           "name": {
             "type": "string",
@@ -1466,6 +1939,44 @@
         "example": {
           "iconUrl": "https://example.com/icon.png",
           "name": "Merchant"
+        }
+      },
+      "PaymentId": {
+        "type": "string",
+        "description": "Payment ID",
+        "example": "pay_7fa2ecc101ARZ3NDEKTSV4RRFFQ69G5FAV"
+      },
+      "PaymentInformation": {
+        "type": "object",
+        "description": "Payment information returned when payment succeeds",
+        "required": [
+          "txId",
+          "optionAmount"
+        ],
+        "properties": {
+          "optionAmount": {
+            "$ref": "#/components/schemas/Amount",
+            "description": "Amount paid in token units"
+          },
+          "txId": {
+            "type": "string",
+            "description": "Transaction identifier (hash)"
+          }
+        },
+        "example": {
+          "optionAmount": {
+            "display": {
+              "assetName": "USD Coin",
+              "assetSymbol": "USDC",
+              "decimals": 6,
+              "iconUrl": "https://assets.walletconnect.com/usdc.png",
+              "networkIconUrl": "https://assets.walletconnect.com/base.png",
+              "networkName": "Base"
+            },
+            "unit": "caip19/eip155:8453/erc20:0x0000000000000000000000000000000000000000",
+            "value": "1000000"
+          },
+          "txId": "0xabc123..."
         }
       },
       "PaymentOption": {
@@ -1493,6 +2004,11 @@
             "$ref": "#/components/schemas/Amount",
             "description": "The option's token and amount"
           },
+          "collectData": {
+            "$ref": "#/components/schemas/CollectData",
+            "nullable": true,
+            "description": "Per-option IC data collection info. Present when this option's account requires data collection, null otherwise."
+          },
           "etaS": {
             "type": "integer",
             "format": "int64",
@@ -1513,7 +2029,7 @@
                 "method": "eth_signTypedData_v4",
                 "params": [
                   "0x0000000000000000000000000000000000000000",
-                  "{\"domain\":{\"name\":\"USD Coin\",\"version\":\"2\",\"chainId\":\"0x2105\",\"verifyingContract\":\"0x0000000000000000000000000000000000000000\"},\"types\":{\"EIP712Domain\":[{\"type\":\"string\",\"name\":\"name\"},{\"type\":\"string\",\"name\":\"version\"},{\"type\":\"uint256\",\"name\":\"chainId\"},{\"type\":\"address\",\"name\":\"verifyingContract\"}],\"TransferWithAuthorization\":[{\"type\":\"address\",\"name\":\"from\"},{\"type\":\"address\",\"name\":\"to\"},{\"type\":\"uint256\",\"name\":\"value\"},{\"type\":\"uint256\",\"name\":\"validAfter\"},{\"type\":\"uint256\",\"name\":\"validBefore\"},{\"type\":\"bytes32\",\"name\":\"nonce\"}]},\"primaryType\":\"TransferWithAuthorization\",\"message\":{\"from\":\"0x0000000000000000000000000000000000000000\",\"nonce\":\"0x0000000000000000000000000000000000000000000000000000000000000000\",\"to\":\"0x0000000000000000000000000000000000000000\",\"validAfter\":\"0x0\",\"validBefore\":\"0x0\",\"value\":\"0x0\"}}"
+                  "{\"domain\":{\"name\":\"USD Coin\",\"version\":\"2\",\"chainId\":\"0x2105\",\"verifyingContract\":\"0x0000000000000000000000000000000000000000\"},\"types\":{\"EIP712Domain\":[{\"type\":\"string\",\"name\":\"name\"},{\"type\":\"string\",\"name\":\"version\"},{\"type\":\"uint256\",\"name\":\"chainId\"},{\"type\":\"address\",\"name\":\"verifyingContract\"}],\"ReceiveWithAuthorization\":[{\"type\":\"address\",\"name\":\"from\"},{\"type\":\"address\",\"name\":\"to\"},{\"type\":\"uint256\",\"name\":\"value\"},{\"type\":\"uint256\",\"name\":\"validAfter\"},{\"type\":\"uint256\",\"name\":\"validBefore\"},{\"type\":\"bytes32\",\"name\":\"nonce\"}]},\"primaryType\":\"ReceiveWithAuthorization\",\"message\":{\"from\":\"0x0000000000000000000000000000000000000000\",\"nonce\":\"0x0000000000000000000000000000000000000000000000000000000000000000\",\"to\":\"0x0000000000000000000000000000000000000000\",\"validAfter\":\"0x0\",\"validBefore\":\"0x0\",\"value\":\"0x0\"}}"
                 ]
               },
               "type": "walletRpc"
@@ -1528,8 +2044,69 @@
               "networkIconUrl": "https://assets.walletconnect.com/base.png",
               "networkName": "Base"
             },
-            "unit": "caip19/eip155:8453/erc20:0xUSDC...",
+            "unit": "caip19/eip155:8453/erc20:0x0000000000000000000000000000000000000000",
             "value": "1000000"
+          },
+          "collectData": {
+            "fields": [
+              {
+                "id": "fullName",
+                "name": "Full name",
+                "required": true,
+                "type": "text"
+              },
+              {
+                "id": "dob",
+                "name": "Date of birth",
+                "required": true,
+                "type": "date"
+              }
+            ],
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "additionalProperties": false,
+              "properties": {
+                "dob": {
+                  "description": "Date of birth in YYYY-MM-DD format",
+                  "format": "date",
+                  "title": "Date of Birth",
+                  "type": "string"
+                },
+                "fullName": {
+                  "description": "User's full legal name",
+                  "minLength": 1,
+                  "title": "Full Name",
+                  "type": "string"
+                },
+                "pobAddress": {
+                  "description": "Place of birth city and state (e.g., 'New York, NY')",
+                  "maxLength": 200,
+                  "title": "Place of Birth Address",
+                  "type": "string"
+                },
+                "pobCountry": {
+                  "description": "Place of birth country code (ISO 3166-1 alpha-2)",
+                  "pattern": "^[A-Z]{2}$",
+                  "title": "Place of Birth Country",
+                  "type": "string"
+                },
+                "tosConfirmed": {
+                  "const": true,
+                  "description": "Must be true to confirm Terms of Service acceptance",
+                  "title": "Terms of Service Confirmation",
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "fullName",
+                "dob",
+                "tosConfirmed",
+                "pobCountry",
+                "pobAddress"
+              ],
+              "type": "object"
+            },
+            "url": "https://data-collection.walletconnect.com/ic/pay_123?accounts=eip155:1:0x123"
           },
           "etaS": 5,
           "id": "opt_123"
@@ -1537,7 +2114,7 @@
       },
       "PaymentStatus": {
         "type": "string",
-        "description": "Payment status representing the lifecycle of a payment.",
+        "description": "Payment status representing the lifecycle of a payment.\n\nPayments progress through these states from creation to terminal status.\nSome states are specific to the payment source (pull vs push).",
         "enum": [
           "requires_action",
           "processing",
@@ -1570,7 +2147,7 @@
           "method": "eth_signTypedData_v4",
           "params": [
             "0x0000000000000000000000000000000000000000",
-            "{\"domain\":{\"name\":\"USD Coin\",\"version\":\"2\",\"chainId\":\"0x2105\",\"verifyingContract\":\"0x0000000000000000000000000000000000000000\"},\"types\":{\"EIP712Domain\":[{\"type\":\"string\",\"name\":\"name\"},{\"type\":\"string\",\"name\":\"version\"},{\"type\":\"uint256\",\"name\":\"chainId\"},{\"type\":\"address\",\"name\":\"verifyingContract\"}],\"TransferWithAuthorization\":[{\"type\":\"address\",\"name\":\"from\"},{\"type\":\"address\",\"name\":\"to\"},{\"type\":\"uint256\",\"name\":\"value\"},{\"type\":\"uint256\",\"name\":\"validAfter\"},{\"type\":\"uint256\",\"name\":\"validBefore\"},{\"type\":\"bytes32\",\"name\":\"nonce\"}]},\"primaryType\":\"TransferWithAuthorization\",\"message\":{\"from\":\"0x0000000000000000000000000000000000000000\",\"nonce\":\"0x0000000000000000000000000000000000000000000000000000000000000000\",\"to\":\"0x0000000000000000000000000000000000000000\",\"validAfter\":\"0x0\",\"validBefore\":\"0x0\",\"value\":\"0x0\"}}"
+            "{\"domain\":{\"name\":\"USD Coin\",\"version\":\"2\",\"chainId\":\"0x2105\",\"verifyingContract\":\"0x0000000000000000000000000000000000000000\"},\"types\":{\"EIP712Domain\":[{\"type\":\"string\",\"name\":\"name\"},{\"type\":\"string\",\"name\":\"version\"},{\"type\":\"uint256\",\"name\":\"chainId\"},{\"type\":\"address\",\"name\":\"verifyingContract\"}],\"ReceiveWithAuthorization\":[{\"type\":\"address\",\"name\":\"from\"},{\"type\":\"address\",\"name\":\"to\"},{\"type\":\"uint256\",\"name\":\"value\"},{\"type\":\"uint256\",\"name\":\"validAfter\"},{\"type\":\"uint256\",\"name\":\"validBefore\"},{\"type\":\"bytes32\",\"name\":\"nonce\"}]},\"primaryType\":\"ReceiveWithAuthorization\",\"message\":{\"from\":\"0x0000000000000000000000000000000000000000\",\"nonce\":\"0x0000000000000000000000000000000000000000000000000000000000000000\",\"to\":\"0x0000000000000000000000000000000000000000\",\"validAfter\":\"0x0\",\"validBefore\":\"0x0\",\"value\":\"0x0\"}}"
           ]
         }
       }
@@ -1607,6 +2184,10 @@
     }
   ],
   "tags": [
+    {
+      "name": "Payments",
+      "description": "Payment operations"
+    },
     {
       "name": "Gateway",
       "description": "Gateway API for wallets to fulfill payments"

@@ -1711,15 +1711,17 @@ public struct PaymentOption: Equatable, Hashable {
     public var amount: PayAmount
     public var etaS: Int64
     public var actions: [Action]
+    public var collectData: CollectDataAction?
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(id: String, account: String, amount: PayAmount, etaS: Int64, actions: [Action]) {
+    public init(id: String, account: String, amount: PayAmount, etaS: Int64, actions: [Action], collectData: CollectDataAction?) {
         self.id = id
         self.account = account
         self.amount = amount
         self.etaS = etaS
         self.actions = actions
+        self.collectData = collectData
     }
 
     
@@ -1742,7 +1744,8 @@ public struct FfiConverterTypePaymentOption: FfiConverterRustBuffer {
                 account: FfiConverterString.read(from: &buf), 
                 amount: FfiConverterTypePayAmount.read(from: &buf), 
                 etaS: FfiConverterInt64.read(from: &buf), 
-                actions: FfiConverterSequenceTypeAction.read(from: &buf)
+                actions: FfiConverterSequenceTypeAction.read(from: &buf), 
+                collectData: FfiConverterOptionTypeCollectDataAction.read(from: &buf)
         )
     }
 
@@ -1752,6 +1755,7 @@ public struct FfiConverterTypePaymentOption: FfiConverterRustBuffer {
         FfiConverterTypePayAmount.write(value.amount, into: &buf)
         FfiConverterInt64.write(value.etaS, into: &buf)
         FfiConverterSequenceTypeAction.write(value.actions, into: &buf)
+        FfiConverterOptionTypeCollectDataAction.write(value.collectData, into: &buf)
     }
 }
 

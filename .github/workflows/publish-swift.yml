@@ -52,12 +52,23 @@ jobs:
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "Swift Core release version: ${VERSION}" >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Download Release Artifacts
+      - name: Download Release Artifacts (from release-swift)
+        id: download_dedicated
+        continue-on-error: true
         uses: dawidd6/action-download-artifact@v6
         with:
           name: swift-core-release-${{ steps.version.outputs.version }}
           path: Output/
           workflow: release-swift.yml
+          workflow_conclusion: success
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Download Release Artifacts (from release-all)
+        if: steps.download_dedicated.outcome == 'failure'
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          name: swift-core-release-${{ steps.version.outputs.version }}
+          path: Output/
+          workflow: release-all.yml
           workflow_conclusion: success
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -76,7 +87,7 @@ jobs:
           tag_name: ${{ steps.version.outputs.version }}
           name: Yttrium ${{ steps.version.outputs.version }}
           draft: false
-          prerelease: true
+          prerelease: false
           files: |
             Output/libyttrium.xcframework.zip
           body: |

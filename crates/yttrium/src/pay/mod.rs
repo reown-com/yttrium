@@ -218,6 +218,8 @@ pub enum ConfirmPaymentError {
     InternalError(String),
     #[error("Unsupported RPC method: {0}")]
     UnsupportedMethod(String),
+    #[error("Polling timeout: {0}")]
+    PollingTimeout(String),
 }
 
 impl error_reporting::HasErrorType for ConfirmPaymentError {
@@ -234,6 +236,7 @@ impl error_reporting::HasErrorType for ConfirmPaymentError {
             Self::Http(_) => "Http",
             Self::InternalError(_) => "InternalError",
             Self::UnsupportedMethod(_) => "UnsupportedMethod",
+            Self::PollingTimeout(_) => "PollingTimeout",
         }
     }
 }
@@ -267,8 +270,9 @@ impl error_reporting::HasErrorType for GetPaymentStatusError {
 
 const MAX_RETRIES: u32 = 3;
 const INITIAL_BACKOFF_MS: u64 = 100;
-/// Maximum number of polling iterations to prevent infinite loops
-const MAX_POLL_ATTEMPTS: u32 = 60;
+const API_CONNECT_TIMEOUT_SECS: u64 = 10;
+const API_REQUEST_TIMEOUT_SECS: u64 = 30;
+const MAX_POLLING_DURATION_SECS: u64 = 300;
 
 fn looks_like_network_error(msg: &str) -> bool {
     let lower = msg.to_lowercase();
@@ -580,6 +584,7 @@ pub struct PaymentOption {
     pub amount: PayAmount,
     pub eta_s: i64,
     pub actions: Vec<Action>,
+    pub collect_data: Option<CollectDataAction>,
 }
 
 impl From<types::PaymentOption> for PaymentOption {
@@ -599,6 +604,7 @@ impl From<types::PaymentOption> for PaymentOption {
                     types::Action::Build(_) => None,
                 })
                 .collect(),
+            collect_data: o.collect_data.map(Into::into),
         }
     }
 }
@@ -671,10 +677,7 @@ pub struct PaymentOptionsResponse {
 
 // ==================== Client ====================
 
-use {
-    std::sync::{OnceLock, RwLock},
-    url::Url,
-};
+use {parking_lot::RwLock, std::sync::OnceLock, url::Url};
 
 /// Applies common SDK config headers to any progenitor-generated request builder.
 /// Auth header logic:
@@ -720,7 +723,21 @@ pub struct WalletConnectPay {
 
 impl WalletConnectPay {
     fn client(&self) -> &Client {
-        self.client.get_or_init(|| Client::new(&self.config.base_url))
+        self.client.get_or_init(|| {
+            #[cfg(not(target_arch = "wasm32"))]
+            let http = reqwest::Client::builder()
+                .connect_timeout(std::time::Duration::from_secs(
+                    API_CONNECT_TIMEOUT_SECS,
+                ))
+                .timeout(std::time::Duration::from_secs(
+                    API_REQUEST_TIMEOUT_SECS,
+                ))
+                .build()
+                .unwrap_or_else(|_| reqwest::Client::new());
+            #[cfg(target_arch = "wasm32")]
+            let http = reqwest::Client::new();
+            Client::new_with_client(&self.config.base_url, http)
+        })
     }
 
     fn error_http_client(&self) -> &reqwest::Client {
@@ -851,10 +868,7 @@ impl WalletConnectPay {
                 actions: o.actions.clone(),
             })
             .collect();
-        let mut cache = self
-            .cached_options
-            .write()
-            .expect("Cache lock poisoned - indicates a bug");
+        let mut cache = self.cached_options.write();
         *cache = cached;
 
         self.send_trace(
@@ -889,10 +903,7 @@ impl WalletConnectPay {
         );
 
         let raw_actions = {
-            let cache = self
-                .cached_options
-                .read()
-                .expect("Cache lock poisoned - indicates a bug");
+            let cache = self.cached_options.read();
             cache
                 .iter()
                 .find(|o| o.option_id == option_id)
@@ -923,10 +934,7 @@ impl WalletConnectPay {
                         );
                         err
                     })?;
-                let mut cache = self
-                    .cached_options
-                    .write()
-                    .expect("Cache lock poisoned - indicates a bug");
+                let mut cache = self.cached_options.write();
                 if let Some(cached) =
                     cache.iter_mut().find(|o| o.option_id == option_id)
                 {
@@ -1015,41 +1023,42 @@ impl WalletConnectPay {
             req = req.max_poll_ms(ms);
         }
 
-        let mut result: ConfirmPaymentResultResponse =
-            match with_retry(|| async { req.clone().send().await }).await {
-                Ok(response) => response.into_inner().into(),
-                Err(e) => {
-                    pay_error!("confirm_payment: {:?}", e);
-                    let err = map_confirm_payment_error(e);
-                    self.report_error(&err, &payment_id);
-                    self.send_trace(
-                        observability::TraceEvent::ConfirmPaymentFailed,
-                        &payment_id,
-                    );
-                    if is_network_error(&err) {
-                        return Err(make_user_friendly_error(err));
-                    }
-                    return Err(err);
+        let response = with_retry(|| async { req.clone().send().await })
+            .await
+            .map_err(|e| {
+                pay_error!("confirm_payment: {:?}", e);
+                let err = map_confirm_payment_error(e);
+                self.report_error(&err, &payment_id);
+                self.send_trace(
+                    observability::TraceEvent::ConfirmPaymentFailed,
+                    &payment_id,
+                );
+                if is_network_error(&err) {
+                    make_user_friendly_error(err)
+                } else {
+                    err
                 }
-            };
+            })?;
+        let mut result: ConfirmPaymentResultResponse =
+            response.into_inner().into();
         pay_debug!(
             "confirm_payment: initial status={:?}, is_final={}",
             result.status,
             result.is_final
         );
-        let mut poll_attempts: u32 = 0;
+        let poll_timeout = max_poll_ms
+            .filter(|&ms| ms > 0)
+            .map(|ms| crate::time::Duration::from_millis(ms as u64))
+            .unwrap_or(crate::time::Duration::from_secs(
+                MAX_POLLING_DURATION_SECS,
+            ));
+        let poll_start = crate::time::Instant::now();
         while !result.is_final {
-            poll_attempts += 1;
-            if poll_attempts > MAX_POLL_ATTEMPTS {
-                pay_error!(
-                    "confirm_payment: exceeded max poll attempts ({})",
-                    MAX_POLL_ATTEMPTS
-                );
-                let err = ConfirmPaymentError::RequestTimeout(format!(
-                    "Payment status polling timed out after {} attempts. \
-                     Current status: {:?}",
-                    MAX_POLL_ATTEMPTS, result.status
-                ));
+            if poll_start.elapsed() >= poll_timeout {
+                let msg =
+                    format!("polling exceeded {}ms", poll_timeout.as_millis());
+                pay_error!("confirm_payment: {}", msg);
+                let err = ConfirmPaymentError::PollingTimeout(msg);
                 self.report_error(&err, &payment_id);
                 self.send_trace(
                     observability::TraceEvent::ConfirmPaymentFailed,
@@ -1057,42 +1066,34 @@ impl WalletConnectPay {
                 );
                 return Err(err);
             }
-
             let poll_ms = result.poll_in_ms.unwrap_or(1000);
-            pay_debug!(
-                "confirm_payment: polling attempt {}/{} in {}ms",
-                poll_attempts,
-                MAX_POLL_ATTEMPTS,
-                poll_ms
-            );
+            pay_debug!("confirm_payment: polling in {}ms", poll_ms);
             crate::time::sleep(crate::time::Duration::from_millis(
                 poll_ms as u64,
             ))
             .await;
-
-            result = match self
+            let status = self
                 .get_gateway_payment_status(payment_id.clone(), max_poll_ms)
                 .await
-            {
-                Ok(status) => ConfirmPaymentResultResponse {
-                    status: status.status.into(),
-                    is_final: status.is_final,
-                    poll_in_ms: status.poll_in_ms,
-                    info: status.info.map(Into::into),
-                },
-                Err(e) => {
+                .map_err(|e| {
                     pay_error!("confirm_payment poll: {:?}", e);
-                    let err = map_pay_error_to_confirm_error(e);
+                    let err = ConfirmPaymentError::Http(e.to_string());
                     self.report_error(&err, &payment_id);
                     self.send_trace(
                         observability::TraceEvent::ConfirmPaymentFailed,
                         &payment_id,
                     );
                     if is_network_error(&err) {
-                        return Err(make_user_friendly_error(err));
+                        make_user_friendly_error(err)
+                    } else {
+                        err
                     }
-                    return Err(err);
-                }
+                })?;
+            result = ConfirmPaymentResultResponse {
+                status: status.status.into(),
+                is_final: status.is_final,
+                poll_in_ms: status.poll_in_ms,
+                info: status.info.map(Into::into),
             };
             pay_debug!(
                 "confirm_payment: polled status={:?}, is_final={}",
@@ -1493,23 +1494,6 @@ fn map_reqwest_error_to_confirm_payment_error(
     ConfirmPaymentError::Http(msg)
 }
 
-fn map_pay_error_to_confirm_error(e: PayError) -> ConfirmPaymentError {
-    match e {
-        PayError::NoConnection(msg) => ConfirmPaymentError::NoConnection(msg),
-        PayError::RequestTimeout(msg) => {
-            ConfirmPaymentError::RequestTimeout(msg)
-        }
-        PayError::ConnectionFailed(msg) => {
-            ConfirmPaymentError::ConnectionFailed(msg)
-        }
-        PayError::Http(msg) => ConfirmPaymentError::Http(msg),
-        PayError::Api(msg) => ConfirmPaymentError::Http(msg),
-        PayError::Timeout => {
-            ConfirmPaymentError::RequestTimeout("Request timed out".into())
-        }
-    }
-}
-
 fn map_pay_error_to_request_error(e: PayError) -> GetPaymentRequestError {
     match e {
         PayError::NoConnection(msg) => {
@@ -1689,7 +1673,19 @@ mod tests {
                         }
                     },
                     "etaS": 5,
-                    "actions": []
+                    "actions": [],
+                    "collectData": {
+                        "fields": [
+                            {
+                                "type": "text",
+                                "id": "fullName",
+                                "name": "Full Name",
+                                "required": true
+                            }
+                        ],
+                        "url": "https://data-collection.example.com/ic/pay_123",
+                        "schema": {"type": "object"}
+                    }
                 }
             ]
         });
@@ -1724,6 +1720,16 @@ mod tests {
             response.options[0].amount.display.network_name,
             Some("Base".to_string())
         );
+        let opt_cd =
+            response.options[0].collect_data.as_ref().expect("collect_data");
+        assert_eq!(opt_cd.fields.len(), 1);
+        assert_eq!(opt_cd.fields[0].id, "fullName");
+        assert_eq!(opt_cd.fields[0].field_type, CollectDataFieldType::Text);
+        assert_eq!(
+            opt_cd.url,
+            Some("https://data-collection.example.com/ic/pay_123".to_string())
+        );
+        assert!(opt_cd.schema.is_some());
     }
 
     #[tokio::test]
@@ -2380,7 +2386,23 @@ mod tests {
     async fn test_collect_data_response() {
         let mock_server = MockServer::start().await;
         let mock_response = serde_json::json!({
-            "options": [],
+            "options": [
+                {
+                    "id": "opt_1",
+                    "account": "eip155:8453:0x123",
+                    "amount": {
+                        "unit": "caip19/eip155:8453/erc20:0xUSDC",
+                        "value": "1000000",
+                        "display": {
+                            "assetSymbol": "USDC",
+                            "assetName": "USD Coin",
+                            "decimals": 6
+                        }
+                    },
+                    "etaS": 5,
+                    "actions": []
+                }
+            ],
             "collectData": {
                 "fields": [
                     {
@@ -2395,7 +2417,14 @@ mod tests {
                         "name": "Date of Birth",
                         "required": false
                     }
-                ]
+                ],
+                "url": "https://data-collection.example.com/ic/pay_123",
+                "schema": {
+                    "type": "object",
+                    "properties": {
+                        "firstName": {"type": "string"}
+                    }
+                }
             }
         });
         Mock::given(method("POST"))
@@ -2425,6 +2454,12 @@ mod tests {
         assert_eq!(data.fields[1].id, "dob");
         assert_eq!(data.fields[1].field_type, CollectDataFieldType::Date);
         assert!(!data.fields[1].required);
+        assert_eq!(
+            data.url,
+            Some("https://data-collection.example.com/ic/pay_123".to_string())
+        );
+        assert!(data.schema.is_some());
+        assert!(response.options[0].collect_data.is_none());
     }
 
     #[tokio::test]
@@ -2731,8 +2766,6 @@ mod tests {
     async fn test_confirm_payment_auto_recovers_on_network_return() {
         let mock_server = MockServer::start().await;
 
-        // First confirm call succeeds (no network error in this test)
-        // but returns processing, then status endpoint returns succeeded
         let confirm_response = serde_json::json!({
             "status": "processing",
             "isFinal": false,
@@ -2777,19 +2810,59 @@ mod tests {
         assert!(resp.is_final);
     }
 
+    #[tokio::test]
+    async fn test_confirm_payment_polling_timeout() {
+        let mock_server = MockServer::start().await;
+        let confirm_response = serde_json::json!({
+            "status": "processing",
+            "isFinal": false,
+            "pollInMs": 10
+        });
+        let status_response = serde_json::json!({
+            "status": "processing",
+            "isFinal": false,
+            "pollInMs": 10
+        });
+        Mock::given(method("POST"))
+            .and(path("/v1/gateway/payment/pay_timeout/confirm"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(&confirm_response),
+            )
+            .mount(&mock_server)
+            .await;
+        Mock::given(method("GET"))
+            .and(path("/v1/gateway/payment/pay_timeout/status"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(&status_response),
+            )
+            .mount(&mock_server)
+            .await;
+        let client =
+            WalletConnectPay::new(test_config(mock_server.uri())).unwrap();
+        let result = client
+            .confirm_payment(
+                "pay_timeout".to_string(),
+                "opt_1".to_string(),
+                vec!["0x123".to_string()],
+                None,
+                Some(100),
+            )
+            .await;
+        assert!(
+            matches!(result, Err(ConfirmPaymentError::PollingTimeout(_))),
+            "Expected PollingTimeout, got {:?}",
+            result
+        );
+    }
+
     #[test]
     fn test_looks_like_network_error_detects_patterns() {
-        // Should detect "error sending request"
         assert!(looks_like_network_error(
-            "error sending request for url (https://api.example.com/v1/test)"
+            "error sending request for url (https://example.com)"
         ));
-        // Should detect connection reset
         assert!(looks_like_network_error("Connection reset by peer"));
-        // Should detect timeout
         assert!(looks_like_network_error("operation timed out"));
-        // Should detect network unreachable
         assert!(looks_like_network_error("Network is unreachable"));
-        // Should NOT detect regular HTTP errors
         assert!(!looks_like_network_error("404: Not found"));
         assert!(!looks_like_network_error("500: Internal server error"));
         assert!(!looks_like_network_error("Invalid JSON response"));
@@ -2797,17 +2870,14 @@ mod tests {
 
     #[test]
     fn test_is_network_error_detects_http_with_network_patterns() {
-        // Http error with network pattern should be detected
         let err = ConfirmPaymentError::Http(
-            "error sending request for url (https://api.example.com)".into(),
+            "error sending request for url (https://example.com)".into(),
         );
         assert!(is_network_error(&err));
 
-        // Http error without network pattern should NOT be detected
         let err = ConfirmPaymentError::Http("404: Not found".into());
         assert!(!is_network_error(&err));
 
-        // Explicit network errors should always be detected
         let err = ConfirmPaymentError::NoConnection("test".into());
         assert!(is_network_error(&err));
         let err = ConfirmPaymentError::RequestTimeout("test".into());
@@ -2818,32 +2888,28 @@ mod tests {
 
     #[test]
     fn test_make_user_friendly_error_handles_http_network_errors() {
-        // Http error with network pattern should get user-friendly message
         let err = ConfirmPaymentError::Http(
-            "error sending request for url (https://api.example.com)".into(),
+            "error sending request for url (https://example.com)".into(),
         );
         let friendly = make_user_friendly_error(err);
         match friendly {
             ConfirmPaymentError::NoConnection(msg) => {
                 assert!(msg.contains("No internet connection"));
             }
-            other => panic!("Expected NoConnection, got {:?}", other),
+            other => {
+                panic!("Expected NoConnection, got {:?}", other)
+            }
         }
 
-        // Http error without network pattern should NOT be changed
         let err = ConfirmPaymentError::Http("404: Not found".into());
         let friendly = make_user_friendly_error(err);
         match friendly {
             ConfirmPaymentError::Http(msg) => {
                 assert_eq!(msg, "404: Not found");
             }
-            other => panic!("Expected Http, got {:?}", other),
+            other => {
+                panic!("Expected Http, got {:?}", other)
+            }
         }
-    }
-
-    #[test]
-    fn test_max_poll_attempts_constant() {
-        // Verify constant exists and is reasonable (60 attempts at ~1s each)
-        assert_eq!(MAX_POLL_ATTEMPTS, 60);
     }
 }
