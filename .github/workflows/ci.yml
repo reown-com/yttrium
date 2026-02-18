@@ -262,7 +262,7 @@ jobs:
           cp bindings/uniffi/yttrium/yttrium.kt artifacts/kotlin/
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: kotlin-${{ matrix.variant.name }}
           path: artifacts/

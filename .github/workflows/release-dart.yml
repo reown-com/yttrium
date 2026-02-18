@@ -129,7 +129,7 @@ jobs:
 
       # Upload Android artifacts
       - name: Upload Android artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v6
         with:
           name: dart-android-artifacts
           path: jniLibs/
@@ -163,7 +163,7 @@ jobs:
 
       # Upload iOS artifacts
       - name: Upload iOS artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v6
         with:
           name: dart-ios-artifacts
           path: universal/

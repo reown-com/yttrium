@@ -30,7 +30,7 @@ jobs:
       working-directory: crates/rust-sample-wallet
       env:
         REOWN_PROJECT_ID: ${{ vars.REOWN_PROJECT_ID }}
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@v6
       if: ${{ !cancelled() }}
       with:
         name: playwright-report

@@ -108,7 +108,7 @@ jobs:
           cp target/${{ matrix.target }}/uniffi-release-kotlin-wcpay/libuniffi_yttrium.so yttrium/libs/$abi_name/libuniffi_yttrium_wcpay.so
 
       - name: Upload artifact (unique name per target)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: wcpay-artifacts-${{ matrix.target }}
           path: yttrium/
@@ -145,7 +145,7 @@ jobs:
             cp -r combined/aarch64/kotlin-wcpay-bindings merged/yttrium/
           fi
       - name: Upload single combined artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: wcpay-artifacts
           path: merged/yttrium/

@@ -65,7 +65,7 @@ jobs:
           echo "${{ env.VERSION }}" > artifacts/version.txt
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: wasm-pay-artifacts
           path: artifacts/

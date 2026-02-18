@@ -105,7 +105,7 @@ jobs:
               ls -R yttrium/
 
       - name: Upload artifact (unique name per target)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: artifacts-${{ matrix.target }}
           path: yttrium/
@@ -176,7 +176,7 @@ jobs:
             ls -R merged/yttrium
 
       - name: Upload single combined artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: artifacts
           path: merged/yttrium/

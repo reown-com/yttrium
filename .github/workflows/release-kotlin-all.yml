@@ -93,7 +93,7 @@ jobs:
           mkdir -p yttrium/libs/$abi_name
           cp target/${{ matrix.target }}/uniffi-release-kotlin/libuniffi_yttrium.so yttrium/libs/$abi_name/
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: yttrium-${{ matrix.target }}
           path: yttrium/
@@ -181,7 +181,7 @@ jobs:
           mkdir -p yttrium/libs/$abi_name
           cp target/${{ matrix.target }}/uniffi-release-kotlin/libuniffi_yttrium.so yttrium/libs/$abi_name/libuniffi_yttrium_utils.so
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: yttrium-utils-${{ matrix.target }}
           path: yttrium/
@@ -269,7 +269,7 @@ jobs:
           mkdir -p yttrium/libs/$abi_name
           cp target/${{ matrix.target }}/uniffi-release-kotlin-wcpay/libuniffi_yttrium.so yttrium/libs/$abi_name/libuniffi_yttrium_wcpay.so
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: yttrium-wcpay-${{ matrix.target }}
           path: yttrium/
@@ -372,7 +372,7 @@ jobs:
           ls -lh *.zip
 
       - name: Upload combined artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: all-kotlin-artifacts
           path: |
