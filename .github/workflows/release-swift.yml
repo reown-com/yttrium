@@ -105,7 +105,7 @@ jobs:
       # 10. Create a Pull Request with Core updates
       - name: Create Pull Request for Core Release
         id: create_pr
-        uses: peter-evans/create-pull-request@v6
+        uses: peter-evans/create-pull-request@v8
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: "chore: update Package.swift and podspec for version ${{ env.VERSION }}"
