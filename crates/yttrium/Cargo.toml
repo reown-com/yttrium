@@ -162,7 +162,7 @@ sign_canary = [
 ]
 clear_signing = []
 evm_signing = ["chain_abstraction_client"]
-pay = ["dep:parking_lot", "dep:progenitor-client", "dep:rand"]
+pay = ["dep:parking_lot", "dep:progenitor-client", "dep:rand", "dep:sha2"]
 
 # Features enabling test coverage
 test_full = [
