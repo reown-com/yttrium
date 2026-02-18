@@ -240,6 +240,8 @@ impl error_reporting::HasErrorType for ConfirmPaymentError {
 
 const MAX_RETRIES: u32 = 3;
 const INITIAL_BACKOFF_MS: u64 = 100;
+const API_CONNECT_TIMEOUT_SECS: u64 = 10;
+const API_REQUEST_TIMEOUT_SECS: u64 = 30;
 
 fn is_retryable_error<T>(err: &progenitor_client::Error<T>) -> bool {
     match err {
@@ -659,7 +661,21 @@ pub struct WalletConnectPay {
 
 impl WalletConnectPay {
     fn client(&self) -> &Client {
-        self.client.get_or_init(|| Client::new(&self.config.base_url))
+        self.client.get_or_init(|| {
+            #[cfg(not(target_arch = "wasm32"))]
+            let http = reqwest::Client::builder()
+                .connect_timeout(std::time::Duration::from_secs(
+                    API_CONNECT_TIMEOUT_SECS,
+                ))
+                .timeout(std::time::Duration::from_secs(
+                    API_REQUEST_TIMEOUT_SECS,
+                ))
+                .build()
+                .unwrap_or_else(|_| reqwest::Client::new());
+            #[cfg(target_arch = "wasm32")]
+            let http = reqwest::Client::new();
+            Client::new_with_client(&self.config.base_url, http)
+        })
     }
 
     fn error_http_client(&self) -> &reqwest::Client {
