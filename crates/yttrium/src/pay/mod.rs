@@ -267,14 +267,10 @@ impl error_reporting::HasErrorType for GetPaymentStatusError {
 
 const MAX_RETRIES: u32 = 3;
 const INITIAL_BACKOFF_MS: u64 = 100;
-const RECOVERY_ATTEMPTS: u32 = 3;
-const RECOVERY_DELAY_MS: u64 = 2000;
 /// Maximum number of polling iterations to prevent infinite loops
 const MAX_POLL_ATTEMPTS: u32 = 60;
 
-/// Errors that definitely happened BEFORE the request was sent.
-/// These are safe to retry because the server never received the request.
-fn is_pre_send_error(msg: &str) -> bool {
+fn looks_like_network_error(msg: &str) -> bool {
     let lower = msg.to_lowercase();
     lower.contains("dns error")
         || lower.contains("failed to lookup")
@@ -285,13 +281,7 @@ fn is_pre_send_error(msg: &str) -> bool {
         || lower.contains("network is unreachable")
         || lower.contains("network is down")
         || lower.contains("no route to host")
-}
-
-/// Errors that might have happened AFTER the request was sent.
-/// These should NOT be retried - instead check the payment status.
-fn is_post_send_error(msg: &str) -> bool {
-    let lower = msg.to_lowercase();
-    lower.contains("error sending request")
+        || lower.contains("error sending request")
         || lower.contains("connection reset")
         || lower.contains("connection closed")
         || lower.contains("connection aborted")
@@ -302,11 +292,6 @@ fn is_post_send_error(msg: &str) -> bool {
         || lower.contains("timed out")
 }
 
-/// Check if an error message looks like any network connectivity issue
-fn looks_like_network_error(msg: &str) -> bool {
-    is_pre_send_error(msg) || is_post_send_error(msg)
-}
-
 fn is_retryable_error<T>(err: &progenitor_client::Error<T>) -> bool {
     match err {
         progenitor_client::Error::ErrorResponse(resp) => {
@@ -314,30 +299,10 @@ fn is_retryable_error<T>(err: &progenitor_client::Error<T>) -> bool {
         }
         #[cfg(not(target_arch = "wasm32"))]
         progenitor_client::Error::CommunicationError(reqwest_err) => {
-            let msg = reqwest_err.to_string();
-            // Only retry if we're confident the request never reached the server
-            // Pre-send errors (DNS, connection refused) are safe to retry
-            if is_pre_send_error(&msg) {
-                return true;
-            }
-            // For is_connect() errors not caught above, check if it's truly
-            // a pre-send error (reqwest marks some post-send errors as connect)
-            if reqwest_err.is_connect() && !is_post_send_error(&msg) {
-                return true;
-            }
-            // Don't retry post-send errors - the request might have gone through
-            false
+            reqwest_err.is_connect() || reqwest_err.is_timeout()
         }
         #[cfg(target_arch = "wasm32")]
-        progenitor_client::Error::CommunicationError(err) => {
-            // Apply same pre/post-send logic for WASM
-            let msg = err.to_string();
-            if is_pre_send_error(&msg) {
-                return true;
-            }
-            // Don't retry post-send errors
-            !is_post_send_error(&msg)
-        }
+        progenitor_client::Error::CommunicationError(_) => true,
         _ => false,
     }
 }
@@ -1050,93 +1015,23 @@ impl WalletConnectPay {
             req = req.max_poll_ms(ms);
         }
 
-        let mut result: ConfirmPaymentResultResponse = match with_retry(
-            || async { req.clone().send().await },
-        )
-        .await
-        {
-            Ok(response) => response.into_inner().into(),
-            Err(e) => {
-                pay_error!("confirm_payment: {:?}", e);
-                let err = map_confirm_payment_error(e);
-
-                // Check if request might have been sent to the server.
-                // This includes "invalid state" (server processed it) and
-                // post-send errors (connection dropped after sending).
-                // In these cases, check status immediately - no retry delays.
-                if is_invalid_state_error(&err) || is_maybe_sent_error(&err) {
-                    pay_debug!(
-                        "confirm_payment: request may have been sent, checking status"
-                    );
-                    // Try to get status immediately (no delay for first attempt)
-                    if let Ok(status) = self
-                        .get_gateway_payment_status(
-                            payment_id.clone(),
-                            max_poll_ms,
-                        )
-                        .await
-                    {
-                        pay_debug!(
-                            "confirm_payment: actual status={:?}",
-                            status.status
-                        );
-                        ConfirmPaymentResultResponse {
-                            status: status.status.into(),
-                            is_final: status.is_final,
-                            poll_in_ms: status.poll_in_ms,
-                            info: status.info.map(Into::into),
-                        }
-                    } else if let Some(recovered) = self
-                        .try_recover_payment_status(&payment_id, max_poll_ms)
-                        .await
-                    {
-                        // Immediate check failed, try recovery with delays
-                        pay_debug!(
-                            "confirm_payment: recovered status={:?}",
-                            recovered.status
-                        );
-                        recovered
-                    } else {
-                        self.report_error(&err, &payment_id);
-                        self.send_trace(
-                            observability::TraceEvent::ConfirmPaymentFailed,
-                            &payment_id,
-                        );
-                        return Err(make_user_friendly_error(err));
-                    }
-                // Pre-send network errors (DNS, connection refused) -
-                // request definitely didn't go through, use recovery delays
-                } else if is_network_error(&err) {
-                    pay_debug!(
-                        "confirm_payment: pre-send error, attempting recovery"
-                    );
-                    if let Some(recovered) = self
-                        .try_recover_payment_status(&payment_id, max_poll_ms)
-                        .await
-                    {
-                        pay_debug!(
-                            "confirm_payment: recovered status={:?}",
-                            recovered.status
-                        );
-                        recovered
-                    } else {
-                        self.report_error(&err, &payment_id);
-                        self.send_trace(
-                            observability::TraceEvent::ConfirmPaymentFailed,
-                            &payment_id,
-                        );
-                        return Err(make_user_friendly_error(err));
-                    }
-                } else {
+        let mut result: ConfirmPaymentResultResponse =
+            match with_retry(|| async { req.clone().send().await }).await {
+                Ok(response) => response.into_inner().into(),
+                Err(e) => {
+                    pay_error!("confirm_payment: {:?}", e);
+                    let err = map_confirm_payment_error(e);
                     self.report_error(&err, &payment_id);
                     self.send_trace(
                         observability::TraceEvent::ConfirmPaymentFailed,
                         &payment_id,
                     );
+                    if is_network_error(&err) {
+                        return Err(make_user_friendly_error(err));
+                    }
                     return Err(err);
                 }
-            }
-        };
+            };
         pay_debug!(
             "confirm_payment: initial status={:?}, is_final={}",
             result.status,
@@ -1188,36 +1083,15 @@ impl WalletConnectPay {
                 Err(e) => {
                     pay_error!("confirm_payment poll: {:?}", e);
                     let err = map_pay_error_to_confirm_error(e);
-
-                    // Attempt recovery for network errors during polling
+                    self.report_error(&err, &payment_id);
+                    self.send_trace(
+                        observability::TraceEvent::ConfirmPaymentFailed,
+                        &payment_id,
+                    );
                     if is_network_error(&err) {
-                        pay_debug!(
-                            "confirm_payment poll: network error, recovery"
-                        );
-                        if let Some(recovered) = self
-                            .try_recover_payment_status(
-                                &payment_id,
-                                max_poll_ms,
-                            )
-                            .await
-                        {
-                            recovered
-                        } else {
-                            self.report_error(&err, &payment_id);
-                            self.send_trace(
-                                observability::TraceEvent::ConfirmPaymentFailed,
-                                &payment_id,
-                            );
-                            return Err(make_user_friendly_error(err));
-                        }
-                    } else {
-                        self.report_error(&err, &payment_id);
-                        self.send_trace(
-                            observability::TraceEvent::ConfirmPaymentFailed,
-                            &payment_id,
-                        );
-                        return Err(err);
+                        return Err(make_user_friendly_error(err));
                     }
+                    return Err(err);
                 }
             };
             pay_debug!(
@@ -1378,53 +1252,6 @@ impl WalletConnectPay {
             with_retry(|| async { req.clone().send().await }).await?;
         Ok(response.into_inner())
     }
-
-    /// Attempt to recover payment status after a network error.
-    /// Returns Some(response) if successful, None if still can't reach server.
-    async fn try_recover_payment_status(
-        &self,
-        payment_id: &str,
-        max_poll_ms: Option<i64>,
-    ) -> Option<ConfirmPaymentResultResponse> {
-        for attempt in 1..=RECOVERY_ATTEMPTS {
-            pay_debug!(
-                "try_recover_payment_status: attempt {}/{} for {}",
-                attempt,
-                RECOVERY_ATTEMPTS,
-                payment_id
-            );
-            crate::time::sleep(crate::time::Duration::from_millis(
-                RECOVERY_DELAY_MS,
-            ))
-            .await;
-
-            match self
-                .get_gateway_payment_status(payment_id.to_string(), max_poll_ms)
-                .await
-            {
-                Ok(status) => {
-                    pay_debug!(
-                        "try_recover_payment_status: recovered status={:?}",
-                        status.status
-                    );
-                    return Some(ConfirmPaymentResultResponse {
-                        status: status.status.into(),
-                        is_final: status.is_final,
-                        poll_in_ms: status.poll_in_ms,
-                        info: status.info.map(Into::into),
-                    });
-                }
-                Err(e) => {
-                    pay_debug!(
-                        "try_recover_payment_status: attempt {} failed: {:?}",
-                        attempt,
-                        e
-                    );
-                }
-            }
-        }
-        None
-    }
 }
 
 fn is_network_error(err: &ConfirmPaymentError) -> bool {
@@ -1439,33 +1266,8 @@ fn is_network_error(err: &ConfirmPaymentError) -> bool {
     }
 }
 
-/// Check if this error indicates the request might have been sent to the server.
-/// For these errors, we should NOT retry - instead check payment status directly.
-fn is_maybe_sent_error(err: &ConfirmPaymentError) -> bool {
-    match err {
-        ConfirmPaymentError::NoConnection(msg)
-        | ConfirmPaymentError::RequestTimeout(msg)
-        | ConfirmPaymentError::ConnectionFailed(msg)
-        | ConfirmPaymentError::Http(msg) => is_post_send_error(msg),
-        _ => false,
-    }
-}
-
-/// Check if this is an "invalid state" error, which typically means
-/// the payment was already processed (our request went through before
-/// the network dropped, but we didn't receive the response).
-fn is_invalid_state_error(err: &ConfirmPaymentError) -> bool {
-    match err {
-        ConfirmPaymentError::InvalidOption(msg) => {
-            msg.to_lowercase().contains("invalid payment state")
-                || msg.to_lowercase().contains("invalid state")
-        }
-        _ => false,
-    }
-}
-
 const USER_FRIENDLY_NETWORK_ERROR: &str =
-    "Unable to confirm payment status. Please check your internet connection.";
+    "No internet connection. Check your payment status with the Merchant";
 
 fn make_user_friendly_error(err: ConfirmPaymentError) -> ConfirmPaymentError {
     match err {
@@ -2907,14 +2709,14 @@ mod tests {
         match result {
             Err(ConfirmPaymentError::NoConnection(msg)) => {
                 assert!(
-                    msg.contains("Unable to confirm payment status"),
+                    msg.contains("No internet connection"),
                     "Expected user-friendly message, got: {}",
                     msg
                 );
             }
             Err(ConfirmPaymentError::ConnectionFailed(msg)) => {
                 assert!(
-                    msg.contains("Unable to confirm payment status"),
+                    msg.contains("No internet connection"),
                     "Expected user-friendly message, got: {}",
                     msg
                 );
@@ -3023,7 +2825,7 @@ mod tests {
         let friendly = make_user_friendly_error(err);
         match friendly {
             ConfirmPaymentError::NoConnection(msg) => {
-                assert!(msg.contains("Unable to confirm payment status"));
+                assert!(msg.contains("No internet connection"));
             }
             other => panic!("Expected NoConnection, got {:?}", other),
         }
@@ -3037,143 +2839,6 @@ mod tests {
             }
             other => panic!("Expected Http, got {:?}", other),
         }
-    }
-
-    #[test]
-    fn test_is_invalid_state_error_detects_patterns() {
-        // Should detect "Invalid payment state"
-        let err = ConfirmPaymentError::InvalidOption(
-            "400: Invalid payment state".into(),
-        );
-        assert!(is_invalid_state_error(&err));
-
-        // Should detect "invalid state" (case insensitive)
-        let err =
-            ConfirmPaymentError::InvalidOption("Invalid State error".into());
-        assert!(is_invalid_state_error(&err));
-
-        // Should NOT detect other InvalidOption errors
-        let err =
-            ConfirmPaymentError::InvalidOption("400: Option not found".into());
-        assert!(!is_invalid_state_error(&err));
-
-        // Should NOT detect other error types
-        let err = ConfirmPaymentError::Http("Invalid payment state".into());
-        assert!(!is_invalid_state_error(&err));
-    }
-
-    #[tokio::test]
-    async fn test_confirm_payment_recovers_on_invalid_state() {
-        // This tests the scenario where:
-        // 1. First confirm request goes through but connection drops
-        // 2. Retry gets "Invalid payment state" (400)
-        // 3. SDK should check status and return the actual result
-        let mock_server = MockServer::start().await;
-
-        // First call returns 400 Invalid payment state
-        let error_response = serde_json::json!({
-            "code": "invalid_state",
-            "message": "Invalid payment state"
-        });
-        Mock::given(method("POST"))
-            .and(path("/v1/gateway/payment/pay_invalid_state/confirm"))
-            .respond_with(
-                ResponseTemplate::new(400).set_body_json(&error_response),
-            )
-            .mount(&mock_server)
-            .await;
-
-        // Status endpoint returns succeeded
-        let status_response = serde_json::json!({
-            "status": "succeeded",
-            "isFinal": true
-        });
-        Mock::given(method("GET"))
-            .and(path("/v1/gateway/payment/pay_invalid_state/status"))
-            .respond_with(
-                ResponseTemplate::new(200).set_body_json(&status_response),
-            )
-            .mount(&mock_server)
-            .await;
-
-        let client =
-            WalletConnectPay::new(test_config(mock_server.uri())).unwrap();
-        let result = client
-            .confirm_payment(
-                "pay_invalid_state".to_string(),
-                "opt_1".to_string(),
-                vec!["0x123".to_string()],
-                None,
-                Some(5000),
-            )
-            .await;
-
-        // Should succeed by checking status after getting invalid state
-        assert!(result.is_ok(), "Expected Ok, got {:?}", result);
-        let resp = result.unwrap();
-        assert_eq!(resp.status, PaymentStatus::Succeeded);
-        assert!(resp.is_final);
-    }
-
-    #[test]
-    fn test_is_pre_send_error_detects_safe_to_retry_errors() {
-        // DNS errors - safe to retry
-        assert!(is_pre_send_error("dns error: failed to lookup address"));
-        assert!(is_pre_send_error("Name or service not known"));
-        assert!(is_pre_send_error("No such host is known"));
-
-        // Connection refused - safe to retry
-        assert!(is_pre_send_error("Connection refused"));
-        assert!(is_pre_send_error("connection actively refused"));
-
-        // Network unreachable - safe to retry
-        assert!(is_pre_send_error("Network is unreachable"));
-        assert!(is_pre_send_error("Network is down"));
-        assert!(is_pre_send_error("No route to host"));
-
-        // Post-send errors should NOT be detected as pre-send
-        assert!(!is_pre_send_error("Connection reset by peer"));
-        assert!(!is_pre_send_error("connection aborted"));
-        assert!(!is_pre_send_error("Broken pipe"));
-        assert!(!is_pre_send_error("error sending request"));
-    }
-
-    #[test]
-    fn test_is_post_send_error_detects_maybe_sent_errors() {
-        // Errors that might occur after request was sent
-        assert!(is_post_send_error("Connection reset by peer"));
-        assert!(is_post_send_error("connection aborted"));
-        assert!(is_post_send_error("Software caused connection abort"));
-        assert!(is_post_send_error("Broken pipe"));
-        assert!(is_post_send_error("error sending request for url"));
-        assert!(is_post_send_error("operation timed out"));
-
-        // Pre-send errors should NOT be detected as post-send
-        assert!(!is_post_send_error("Connection refused"));
-        assert!(!is_post_send_error("dns error"));
-        assert!(!is_post_send_error("Network is unreachable"));
-    }
-
-    #[test]
-    fn test_is_maybe_sent_error_detects_post_send_confirm_errors() {
-        // Post-send errors should trigger immediate status check
-        let err = ConfirmPaymentError::Http(
-            "error sending request for url (https://api.example.com)".into(),
-        );
-        assert!(is_maybe_sent_error(&err));
-
-        let err = ConfirmPaymentError::NoConnection(
-            "Software caused connection abort".into(),
-        );
-        assert!(is_maybe_sent_error(&err));
-
-        // Pre-send errors should NOT be detected as maybe-sent
-        let err =
-            ConfirmPaymentError::NoConnection("Connection refused".into());
-        assert!(!is_maybe_sent_error(&err));
-
-        let err = ConfirmPaymentError::NoConnection("dns error".into());
-        assert!(!is_maybe_sent_error(&err));
     }
 
     #[test]
