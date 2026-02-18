@@ -274,6 +274,7 @@ impl error_reporting::HasErrorType for GetPaymentStatusError {
 
 const MAX_RETRIES: u32 = 5;
 const INITIAL_BACKOFF_MS: u64 = 1000;
+const MAX_BACKOFF_MS: u64 = 2000;
 const API_CONNECT_TIMEOUT_SECS: u64 = 10;
 const API_REQUEST_TIMEOUT_SECS: u64 = 30;
 const MAX_POLLING_DURATION_SECS: u64 = 300;
@@ -329,7 +330,8 @@ where
             Err(e) if is_retryable_error(&e) && attempt < MAX_RETRIES => {
                 attempt += 1;
                 let base_backoff = INITIAL_BACKOFF_MS
-                    .saturating_mul(2u64.saturating_pow(attempt - 1));
+                    .saturating_mul(2u64.saturating_pow(attempt - 1))
+                    .min(MAX_BACKOFF_MS);
                 let jitter = rand::thread_rng().gen_range(0..=base_backoff / 2);
                 let backoff = base_backoff + jitter;
                 pay_debug!(
