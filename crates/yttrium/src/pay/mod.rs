@@ -272,8 +272,8 @@ impl error_reporting::HasErrorType for GetPaymentStatusError {
     }
 }
 
-const MAX_RETRIES: u32 = 3;
-const INITIAL_BACKOFF_MS: u64 = 100;
+const MAX_RETRIES: u32 = 5;
+const INITIAL_BACKOFF_MS: u64 = 1000;
 const API_CONNECT_TIMEOUT_SECS: u64 = 10;
 const API_REQUEST_TIMEOUT_SECS: u64 = 30;
 const MAX_POLLING_DURATION_SECS: u64 = 300;
@@ -306,9 +306,7 @@ fn is_retryable_error<T>(err: &progenitor_client::Error<T>) -> bool {
             resp.status().is_server_error()
         }
         #[cfg(not(target_arch = "wasm32"))]
-        progenitor_client::Error::CommunicationError(reqwest_err) => {
-            reqwest_err.is_connect() || reqwest_err.is_timeout()
-        }
+        progenitor_client::Error::CommunicationError(_) => true,
         #[cfg(target_arch = "wasm32")]
         progenitor_client::Error::CommunicationError(_) => true,
         _ => false,
