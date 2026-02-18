@@ -73,28 +73,48 @@ impl From<progenitor_client::Error<types::ErrorResponse>> for PayError {
     }
 }
 
-fn map_reqwest_error_to_pay_error(err: &reqwest::Error) -> PayError {
+enum NetworkErrorKind {
+    NoConnection(String),
+    ConnectionFailed(String),
+    RequestTimeout(String),
+    /// Not a network error — pass through the raw message
+    Other(String),
+}
+
+fn classify_reqwest_error(
+    err: &reqwest::Error,
+    friendly_msg: &str,
+) -> NetworkErrorKind {
     let msg = err.to_string();
-    let friendly = USER_FRIENDLY_NETWORK_ERROR_RETRY.to_string();
+    let friendly = friendly_msg.to_string();
     #[cfg(not(target_arch = "wasm32"))]
     if err.is_connect() {
         let lower = msg.to_lowercase();
-        if lower.contains("connection refused")
+        return if lower.contains("connection refused")
             || lower.contains("actively refused")
         {
-            return PayError::ConnectionFailed(friendly);
+            NetworkErrorKind::ConnectionFailed(friendly)
         } else {
-            return PayError::NoConnection(friendly);
-        }
+            NetworkErrorKind::NoConnection(friendly)
+        };
     }
     #[cfg(not(target_arch = "wasm32"))]
     if err.is_timeout() {
-        return PayError::RequestTimeout(friendly);
+        return NetworkErrorKind::RequestTimeout(friendly);
     }
     if looks_like_network_error(&msg) {
-        return PayError::NoConnection(friendly);
+        return NetworkErrorKind::NoConnection(friendly);
     }
-    PayError::Http(msg)
+    NetworkErrorKind::Other(msg)
+}
+
+fn map_reqwest_error_to_pay_error(err: &reqwest::Error) -> PayError {
+    match classify_reqwest_error(err, USER_FRIENDLY_NETWORK_ERROR_RETRY) {
+        NetworkErrorKind::NoConnection(m) => PayError::NoConnection(m),
+        NetworkErrorKind::ConnectionFailed(m) => PayError::ConnectionFailed(m),
+        NetworkErrorKind::RequestTimeout(m) => PayError::RequestTimeout(m),
+        NetworkErrorKind::Other(m) => PayError::Http(m),
+    }
 }
 
 impl error_reporting::HasErrorType for PayError {
@@ -1425,27 +1445,18 @@ fn map_payment_options_error(
 fn map_reqwest_error_to_payment_options_error(
     err: &reqwest::Error,
 ) -> GetPaymentOptionsError {
-    let msg = err.to_string();
-    let friendly = USER_FRIENDLY_NETWORK_ERROR_RETRY.to_string();
-    #[cfg(not(target_arch = "wasm32"))]
-    if err.is_connect() {
-        let lower = msg.to_lowercase();
-        if lower.contains("connection refused")
-            || lower.contains("actively refused")
-        {
-            return GetPaymentOptionsError::ConnectionFailed(friendly);
-        } else {
-            return GetPaymentOptionsError::NoConnection(friendly);
+    match classify_reqwest_error(err, USER_FRIENDLY_NETWORK_ERROR_RETRY) {
+        NetworkErrorKind::NoConnection(m) => {
+            GetPaymentOptionsError::NoConnection(m)
         }
+        NetworkErrorKind::ConnectionFailed(m) => {
+            GetPaymentOptionsError::ConnectionFailed(m)
+        }
+        NetworkErrorKind::RequestTimeout(m) => {
+            GetPaymentOptionsError::RequestTimeout(m)
+        }
+        NetworkErrorKind::Other(m) => GetPaymentOptionsError::Http(m),
     }
-    #[cfg(not(target_arch = "wasm32"))]
-    if err.is_timeout() {
-        return GetPaymentOptionsError::RequestTimeout(friendly);
-    }
-    if looks_like_network_error(&msg) {
-        return GetPaymentOptionsError::NoConnection(friendly);
-    }
-    GetPaymentOptionsError::Http(msg)
 }
 
 fn map_confirm_payment_error(
@@ -1486,27 +1497,18 @@ fn map_confirm_payment_error(
 fn map_reqwest_error_to_confirm_payment_error(
     err: &reqwest::Error,
 ) -> ConfirmPaymentError {
-    let msg = err.to_string();
-    let friendly = USER_FRIENDLY_NETWORK_ERROR.to_string();
-    #[cfg(not(target_arch = "wasm32"))]
-    if err.is_connect() {
-        let lower = msg.to_lowercase();
-        if lower.contains("connection refused")
-            || lower.contains("actively refused")
-        {
-            return ConfirmPaymentError::ConnectionFailed(friendly);
-        } else {
-            return ConfirmPaymentError::NoConnection(friendly);
+    match classify_reqwest_error(err, USER_FRIENDLY_NETWORK_ERROR) {
+        NetworkErrorKind::NoConnection(m) => {
+            ConfirmPaymentError::NoConnection(m)
         }
+        NetworkErrorKind::ConnectionFailed(m) => {
+            ConfirmPaymentError::ConnectionFailed(m)
+        }
+        NetworkErrorKind::RequestTimeout(m) => {
+            ConfirmPaymentError::RequestTimeout(m)
+        }
+        NetworkErrorKind::Other(m) => ConfirmPaymentError::Http(m),
     }
-    #[cfg(not(target_arch = "wasm32"))]
-    if err.is_timeout() {
-        return ConfirmPaymentError::RequestTimeout(friendly);
-    }
-    if looks_like_network_error(&msg) {
-        return ConfirmPaymentError::NoConnection(friendly);
-    }
-    ConfirmPaymentError::Http(msg)
 }
 
 fn map_pay_error_to_request_error(e: PayError) -> GetPaymentRequestError {
