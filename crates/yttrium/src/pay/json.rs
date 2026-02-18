@@ -1,7 +1,7 @@
 use super::{
     CollectDataFieldResult, ConfigError, ConfirmPaymentError,
-    GetPaymentOptionsError, GetPaymentRequestError, SdkConfig,
-    WalletConnectPay,
+    GetPaymentOptionsError, GetPaymentRequestError, GetPaymentStatusError,
+    SdkConfig, WalletConnectPay,
 };
 
 #[derive(Debug, thiserror::Error)]
@@ -171,6 +171,24 @@ impl From<ConfirmPaymentError> for PayJsonError {
     }
 }
 
+impl From<GetPaymentStatusError> for PayJsonError {
+    fn from(e: GetPaymentStatusError) -> Self {
+        match e {
+            GetPaymentStatusError::PaymentNotFound(msg) => {
+                Self::PaymentNotFound(msg)
+            }
+            GetPaymentStatusError::NoConnection(msg) => Self::NoConnection(msg),
+            GetPaymentStatusError::RequestTimeout(msg) => {
+                Self::RequestTimeout(msg)
+            }
+            GetPaymentStatusError::ConnectionFailed(msg) => {
+                Self::ConnectionFailed(msg)
+            }
+            GetPaymentStatusError::Http(msg) => Self::Http(msg),
+        }
+    }
+}
+
 #[derive(Debug, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct GetPaymentOptionsRequestJson {
@@ -203,6 +221,12 @@ struct ConfirmPaymentJsonRequestJson {
     #[serde(default)]
     collected_data: Option<Vec<CollectDataFieldResultJson>>,
     max_poll_ms: Option<i64>,
+}
+
+#[derive(Debug, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct GetPaymentStatusRequestJson {
+    payment_id: String,
 }
 
 /// JSON wrapper for WalletConnectPay client
@@ -318,6 +342,31 @@ impl WalletConnectPayJson {
                 collected_data,
                 req.max_poll_ms,
             )
+            .await
+            .map_err(PayJsonError::from)?;
+        serde_json::to_string(&result)
+            .map_err(|e| PayJsonError::JsonSerialize(e.to_string()))
+    }
+
+    /// Get the current status of a payment
+    /// Use this to check status after a network error during confirm_payment
+    /// Input JSON: { "paymentId": "string" }
+    /// Returns JSON PaymentStatusResponse or error
+    pub async fn get_payment_status(
+        &self,
+        request_json: String,
+    ) -> Result<String, PayJsonError> {
+        let req: GetPaymentStatusRequestJson =
+            serde_json::from_str(&request_json)
+                .map_err(|e| PayJsonError::JsonParse(e.to_string()))?;
+        if req.payment_id.is_empty() {
+            return Err(PayJsonError::JsonParse(
+                "payment_id cannot be empty".to_string(),
+            ));
+        }
+        let result = self
+            .client
+            .get_payment_status(req.payment_id)
             .await
             .map_err(PayJsonError::from)?;
         serde_json::to_string(&result)
@@ -602,6 +651,61 @@ mod tests {
         let request_json = r#"{"paymentId": "pay_123", "optionId": ""}"#;
         let result =
             client.get_required_payment_actions(request_json.to_string()).await;
+        assert!(matches!(result, Err(PayJsonError::JsonParse(_))));
+    }
+
+    #[tokio::test]
+    async fn test_json_get_payment_status_success() {
+        let mock_server = MockServer::start().await;
+
+        let status_response = serde_json::json!({
+            "status": "succeeded",
+            "isFinal": true
+        });
+
+        Mock::given(method("GET"))
+            .and(path("/v1/gateway/payment/pay_json_status/status"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(&status_response),
+            )
+            .mount(&mock_server)
+            .await;
+
+        let client =
+            WalletConnectPayJson::new(test_config_json(&mock_server.uri()))
+                .unwrap();
+
+        let request_json = r#"{"paymentId": "pay_json_status"}"#;
+        let result = client.get_payment_status(request_json.to_string()).await;
+
+        assert!(result.is_ok());
+        let response_json = result.unwrap();
+        let parsed: serde_json::Value =
+            serde_json::from_str(&response_json).unwrap();
+        assert_eq!(parsed["paymentId"], "pay_json_status");
+        assert_eq!(parsed["status"], "succeeded");
+        assert_eq!(parsed["isFinal"], true);
+    }
+
+    #[tokio::test]
+    async fn test_json_get_payment_status_empty_payment_id() {
+        let mock_server = MockServer::start().await;
+        let client =
+            WalletConnectPayJson::new(test_config_json(&mock_server.uri()))
+                .unwrap();
+        let request_json = r#"{"paymentId": ""}"#;
+        let result = client.get_payment_status(request_json.to_string()).await;
+        assert!(matches!(result, Err(PayJsonError::JsonParse(_))));
+    }
+
+    #[tokio::test]
+    async fn test_json_get_payment_status_invalid_json() {
+        let mock_server = MockServer::start().await;
+        let client =
+            WalletConnectPayJson::new(test_config_json(&mock_server.uri()))
+                .unwrap();
+        let result =
+            client.get_payment_status("not valid json".to_string()).await;
         assert!(matches!(result, Err(PayJsonError::JsonParse(_))));
     }
 }
