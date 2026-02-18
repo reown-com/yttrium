@@ -114,17 +114,17 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Download aarch64 artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: utils-artifacts-aarch64-linux-android
           path: combined/aarch64
       - name: Download armv7 artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: utils-artifacts-armv7-linux-androideabi
           path: combined/armv7
       - name: Download x86_64 artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: utils-artifacts-x86_64-linux-android
           path: combined/x86_64
@@ -152,7 +152,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
       - name: Download single final artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: utils-artifacts
           path: yttrium/
