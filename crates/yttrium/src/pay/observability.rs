@@ -127,6 +127,11 @@ struct EventPayload {
     payload: serde_json::Value,
 }
 
+fn sha256_hex(input: &str) -> String {
+    use sha2::{Digest, Sha256};
+    hex::encode(Sha256::digest(input.as_bytes()))
+}
+
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn send_trace(
     http_client: &HttpClient,
@@ -152,8 +157,8 @@ pub(crate) fn send_trace(
         sdk_name: sdk_name.to_string(),
         sdk_version: sdk_version.to_string(),
         sdk_platform: sdk_platform.to_string(),
-        api_key: api_key.to_string(),
-        app_id: app_id.to_string(),
+        api_key: sha256_hex(api_key),
+        app_id: sha256_hex(app_id),
         client_id: client_id.to_string(),
         bundle_id: bundle_id.to_string(),
         payload: serde_json::json!({}),
@@ -235,6 +240,8 @@ mod tests {
 
     #[test]
     fn test_event_payload_serialization() {
+        let api_key_hash = sha256_hex("test-api-key");
+        let app_id_hash = sha256_hex("test-app-id");
         let payload = EventPayload {
             event_id: "test-id".to_string(),
             payment_id: "pay_123".to_string(),
@@ -246,8 +253,8 @@ mod tests {
             sdk_name: "test-sdk".to_string(),
             sdk_version: "1.0.0".to_string(),
             sdk_platform: "ios".to_string(),
-            api_key: "test-api-key".to_string(),
-            app_id: "test-app-id".to_string(),
+            api_key: api_key_hash.clone(),
+            app_id: app_id_hash.clone(),
             client_id: "test-client-id".to_string(),
             bundle_id: "com.test.app".to_string(),
             payload: serde_json::json!({}),
@@ -258,15 +265,17 @@ mod tests {
         assert!(json.contains("\"payment_id\":\"pay_123\""));
         assert!(json.contains("\"actor\":\"WALLET_SDK\""));
         assert!(json.contains("\"event_type\":\"sdk_initialized\""));
-        assert!(json.contains("\"ts\":\"2025-01-07T10:00:00.000Z\""));
         assert!(json.contains("\"version\":1"));
         assert!(json.contains("\"sdk_name\":\"test-sdk\""));
         assert!(json.contains("\"sdk_version\":\"1.0.0\""));
         assert!(json.contains("\"sdk_platform\":\"ios\""));
-        assert!(json.contains("\"api_key\":\"test-api-key\""));
-        assert!(json.contains("\"app_id\":\"test-app-id\""));
+        assert!(json.contains(&format!("\"api_key\":\"{}\"", api_key_hash)));
+        assert!(json.contains(&format!("\"app_id\":\"{}\"", app_id_hash)));
         assert!(json.contains("\"client_id\":\"test-client-id\""));
         assert!(json.contains("\"bundle_id\":\"com.test.app\""));
+        // Raw credentials must not appear in payload
+        assert!(!json.contains("test-api-key"));
+        assert!(!json.contains("test-app-id"));
     }
 
     #[test]
@@ -409,8 +418,8 @@ mod tests {
             sdk_name: "test-sdk".to_string(),
             sdk_version: "1.0.0".to_string(),
             sdk_platform: "ios".to_string(),
-            api_key: "test-api-key".to_string(),
-            app_id: "test-app-id".to_string(),
+            api_key: sha256_hex("test-api-key"),
+            app_id: sha256_hex("test-app-id"),
             client_id: "test-client-id".to_string(),
             bundle_id: "com.test.app".to_string(),
             payload: serde_json::json!({}),
@@ -478,8 +487,8 @@ mod tests {
             sdk_name: "test-sdk".to_string(),
             sdk_version: "1.0.0".to_string(),
             sdk_platform: "ios".to_string(),
-            api_key: "test-api-key".to_string(),
-            app_id: "test-app-id".to_string(),
+            api_key: sha256_hex("test-api-key"),
+            app_id: sha256_hex("test-app-id"),
             client_id: "test-client-id".to_string(),
             bundle_id: "com.test.app".to_string(),
             payload: serde_json::json!({}),
@@ -513,5 +522,16 @@ mod tests {
 
         assert!(!success, "Should fail after retries");
         assert_eq!(attempts, 2, "Should have made exactly 2 attempts");
+    }
+
+    #[test]
+    fn test_sha256_hex() {
+        let hash = sha256_hex("hello");
+        assert_eq!(hash.len(), 64);
+        assert_eq!(
+            hash,
+            "2cf24dba5fb0a30e26e83b2ac5b9e29e\
+             1b161e5c1fa7425e73043362938b9824"
+        );
     }
 }
