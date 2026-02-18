@@ -613,10 +613,7 @@ pub struct PaymentOptionsResponse {
 
 // ==================== Client ====================
 
-use {
-    std::sync::{OnceLock, RwLock},
-    url::Url,
-};
+use {parking_lot::RwLock, std::sync::OnceLock, url::Url};
 
 /// Applies common SDK config headers to any progenitor-generated request builder.
 /// Auth header logic:
@@ -793,10 +790,7 @@ impl WalletConnectPay {
                 actions: o.actions.clone(),
             })
             .collect();
-        let mut cache = self
-            .cached_options
-            .write()
-            .expect("Cache lock poisoned - indicates a bug");
+        let mut cache = self.cached_options.write();
         *cache = cached;
 
         self.send_trace(
@@ -831,10 +825,7 @@ impl WalletConnectPay {
         );
 
         let raw_actions = {
-            let cache = self
-                .cached_options
-                .read()
-                .expect("Cache lock poisoned - indicates a bug");
+            let cache = self.cached_options.read();
             cache
                 .iter()
                 .find(|o| o.option_id == option_id)
@@ -865,10 +856,7 @@ impl WalletConnectPay {
                         );
                         err
                     })?;
-                let mut cache = self
-                    .cached_options
-                    .write()
-                    .expect("Cache lock poisoned - indicates a bug");
+                let mut cache = self.cached_options.write();
                 if let Some(cached) =
                     cache.iter_mut().find(|o| o.option_id == option_id)
                 {
