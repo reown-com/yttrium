@@ -75,20 +75,24 @@ impl From<progenitor_client::Error<types::ErrorResponse>> for PayError {
 
 fn map_reqwest_error_to_pay_error(err: &reqwest::Error) -> PayError {
     let msg = err.to_string();
+    let friendly = USER_FRIENDLY_NETWORK_ERROR_RETRY.to_string();
     #[cfg(not(target_arch = "wasm32"))]
     if err.is_connect() {
         let lower = msg.to_lowercase();
         if lower.contains("connection refused")
             || lower.contains("actively refused")
         {
-            return PayError::ConnectionFailed(msg);
+            return PayError::ConnectionFailed(friendly);
         } else {
-            return PayError::NoConnection(msg);
+            return PayError::NoConnection(friendly);
         }
     }
     #[cfg(not(target_arch = "wasm32"))]
     if err.is_timeout() {
-        return PayError::RequestTimeout(msg);
+        return PayError::RequestTimeout(friendly);
+    }
+    if looks_like_network_error(&msg) {
+        return PayError::NoConnection(friendly);
     }
     PayError::Http(msg)
 }
@@ -1270,6 +1274,9 @@ fn is_network_error(err: &ConfirmPaymentError) -> bool {
 const USER_FRIENDLY_NETWORK_ERROR: &str =
     "No internet connection. Check your payment status with the Merchant";
 
+const USER_FRIENDLY_NETWORK_ERROR_RETRY: &str =
+    "No internet connection. Please check your connection and try again";
+
 fn make_user_friendly_error(err: ConfirmPaymentError) -> ConfirmPaymentError {
     match err {
         ConfirmPaymentError::NoConnection(_) => {
@@ -1419,20 +1426,24 @@ fn map_reqwest_error_to_payment_options_error(
     err: &reqwest::Error,
 ) -> GetPaymentOptionsError {
     let msg = err.to_string();
+    let friendly = USER_FRIENDLY_NETWORK_ERROR_RETRY.to_string();
     #[cfg(not(target_arch = "wasm32"))]
     if err.is_connect() {
         let lower = msg.to_lowercase();
         if lower.contains("connection refused")
             || lower.contains("actively refused")
         {
-            return GetPaymentOptionsError::ConnectionFailed(msg);
+            return GetPaymentOptionsError::ConnectionFailed(friendly);
         } else {
-            return GetPaymentOptionsError::NoConnection(msg);
+            return GetPaymentOptionsError::NoConnection(friendly);
         }
     }
     #[cfg(not(target_arch = "wasm32"))]
     if err.is_timeout() {
-        return GetPaymentOptionsError::RequestTimeout(msg);
+        return GetPaymentOptionsError::RequestTimeout(friendly);
+    }
+    if looks_like_network_error(&msg) {
+        return GetPaymentOptionsError::NoConnection(friendly);
     }
     GetPaymentOptionsError::Http(msg)
 }
@@ -1476,20 +1487,24 @@ fn map_reqwest_error_to_confirm_payment_error(
     err: &reqwest::Error,
 ) -> ConfirmPaymentError {
     let msg = err.to_string();
+    let friendly = USER_FRIENDLY_NETWORK_ERROR.to_string();
     #[cfg(not(target_arch = "wasm32"))]
     if err.is_connect() {
         let lower = msg.to_lowercase();
         if lower.contains("connection refused")
             || lower.contains("actively refused")
         {
-            return ConfirmPaymentError::ConnectionFailed(msg);
+            return ConfirmPaymentError::ConnectionFailed(friendly);
         } else {
-            return ConfirmPaymentError::NoConnection(msg);
+            return ConfirmPaymentError::NoConnection(friendly);
         }
     }
     #[cfg(not(target_arch = "wasm32"))]
     if err.is_timeout() {
-        return ConfirmPaymentError::RequestTimeout(msg);
+        return ConfirmPaymentError::RequestTimeout(friendly);
+    }
+    if looks_like_network_error(&msg) {
+        return ConfirmPaymentError::NoConnection(friendly);
     }
     ConfirmPaymentError::Http(msg)
 }
