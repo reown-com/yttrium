@@ -218,6 +218,8 @@ pub enum ConfirmPaymentError {
     InternalError(String),
     #[error("Unsupported RPC method: {0}")]
     UnsupportedMethod(String),
+    #[error("Polling timeout: {0}")]
+    PollingTimeout(String),
 }
 
 impl error_reporting::HasErrorType for ConfirmPaymentError {
@@ -234,6 +236,7 @@ impl error_reporting::HasErrorType for ConfirmPaymentError {
             Self::Http(_) => "Http",
             Self::InternalError(_) => "InternalError",
             Self::UnsupportedMethod(_) => "UnsupportedMethod",
+            Self::PollingTimeout(_) => "PollingTimeout",
         }
     }
 }
@@ -242,6 +245,7 @@ const MAX_RETRIES: u32 = 3;
 const INITIAL_BACKOFF_MS: u64 = 100;
 const API_CONNECT_TIMEOUT_SECS: u64 = 10;
 const API_REQUEST_TIMEOUT_SECS: u64 = 30;
+const MAX_POLLING_DURATION_SECS: u64 = 300;
 
 fn is_retryable_error<T>(err: &progenitor_client::Error<T>) -> bool {
     match err {
@@ -980,7 +984,26 @@ impl WalletConnectPay {
             result.status,
             result.is_final
         );
+        let poll_timeout = max_poll_ms
+            .filter(|&ms| ms > 0)
+            .map(|ms| crate::time::Duration::from_millis(ms as u64))
+            .unwrap_or(crate::time::Duration::from_secs(
+                MAX_POLLING_DURATION_SECS,
+            ));
+        let poll_start = crate::time::Instant::now();
         while !result.is_final {
+            if poll_start.elapsed() >= poll_timeout {
+                let msg =
+                    format!("polling exceeded {}ms", poll_timeout.as_millis());
+                pay_error!("confirm_payment: {}", msg);
+                let err = ConfirmPaymentError::PollingTimeout(msg);
+                self.report_error(&err, &payment_id);
+                self.send_trace(
+                    observability::TraceEvent::ConfirmPaymentFailed,
+                    &payment_id,
+                );
+                return Err(err);
+            }
             let poll_ms = result.poll_in_ms.unwrap_or(1000);
             pay_debug!("confirm_payment: polling in {}ms", poll_ms);
             crate::time::sleep(crate::time::Duration::from_millis(
@@ -2456,6 +2479,51 @@ mod tests {
         assert!(
             matches!(result, Err(ConfirmPaymentError::NoConnection(_))),
             "Expected NoConnection, got {:?}",
+            result
+        );
+    }
+
+    #[tokio::test]
+    async fn test_confirm_payment_polling_timeout() {
+        let mock_server = MockServer::start().await;
+        let confirm_response = serde_json::json!({
+            "status": "processing",
+            "isFinal": false,
+            "pollInMs": 10
+        });
+        let status_response = serde_json::json!({
+            "status": "processing",
+            "isFinal": false,
+            "pollInMs": 10
+        });
+        Mock::given(method("POST"))
+            .and(path("/v1/gateway/payment/pay_timeout/confirm"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(&confirm_response),
+            )
+            .mount(&mock_server)
+            .await;
+        Mock::given(method("GET"))
+            .and(path("/v1/gateway/payment/pay_timeout/status"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(&status_response),
+            )
+            .mount(&mock_server)
+            .await;
+        let client =
+            WalletConnectPay::new(test_config(mock_server.uri())).unwrap();
+        let result = client
+            .confirm_payment(
+                "pay_timeout".to_string(),
+                "opt_1".to_string(),
+                vec!["0x123".to_string()],
+                None,
+                Some(100),
+            )
+            .await;
+        assert!(
+            matches!(result, Err(ConfirmPaymentError::PollingTimeout(_))),
+            "Expected PollingTimeout, got {:?}",
             result
         );
     }
