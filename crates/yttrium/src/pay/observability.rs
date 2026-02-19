@@ -23,12 +23,12 @@ pub(crate) fn set_payment_env(payment_id: &str, payment_link: &str) {
 
     fn extract_pay_url(link: &str) -> String {
         let decoded = url_decode(link);
-        if decoded.starts_with("wc:") {
-            if let Some((_, query)) = decoded.split_once('?') {
-                for param in query.split('&') {
-                    if let Some(value) = param.strip_prefix("pay=") {
-                        return url_decode(value);
-                    }
+        if decoded.starts_with("wc:")
+            && let Some((_, query)) = decoded.split_once('?')
+        {
+            for param in query.split('&') {
+                if let Some(value) = param.strip_prefix("pay=") {
+                    return url_decode(value);
                 }
             }
         }
