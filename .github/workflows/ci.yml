@@ -11,7 +11,7 @@ permissions:
 
 env:
   CARGO_TERM_COLOR: always
-  RUST_MSRV: 1.90.0
+  RUST_MSRV: 1.91.0
 
 jobs:
   rust_RUST_MSRV:

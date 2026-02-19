@@ -686,13 +686,13 @@ impl Client {
     ) -> Result<(), RejectError> {
         // Check if proposal is expired
         // TODO remove this check: https://reown-inc.slack.com/archives/C098LHLHCNM/p1756148081338769
-        if let Some(expiry) = proposal.expiry_timestamp {
-            if is_expired(expiry) {
-                return Err(RejectError::Internal(format!(
-                    "Proposal id {} has expired",
-                    proposal.session_proposal_rpc_id
-                )));
-            }
+        if let Some(expiry) = proposal.expiry_timestamp
+            && is_expired(expiry)
+        {
+            return Err(RejectError::Internal(format!(
+                "Proposal id {} has expired",
+                proposal.session_proposal_rpc_id
+            )));
         }
 
         let error_response = GenericJsonRpcResponseError {
@@ -896,10 +896,10 @@ impl Client {
             .ok_or(UpdateError::SessionNotFound)?;
 
         // validateController: only the controller can send updates
-        if let Some(session) = &session_opt {
-            if session.controller_key != Some(session.self_public_key) {
-                return Err(UpdateError::Unauthorized);
-            }
+        if let Some(session) = &session_opt
+            && session.controller_key != Some(session.self_public_key)
+        {
+            return Err(UpdateError::Unauthorized);
         }
 
         // Update local storage immediately
