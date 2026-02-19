@@ -34,7 +34,7 @@ serde_json = { version = "1.0", default-features = false }
 oslog = { version = "0.2.0", default-features = false }
 log = { version = "0.4.20", default-features = false }
 
-alloy = { version = "1.1.3", default-features = false }
+alloy = { version = "1.7.3", default-features = false }
 alloy-provider = { version = "1.1.3", default-features = false }
 erc6492 = { git = "https://github.com/reown-com/erc6492.git", rev = "5e4580a", default-features = false }
 relay_rpc = { git = "https://github.com/WalletConnect/WalletConnectRust.git", rev = "b2ebad0", default-features = false }
