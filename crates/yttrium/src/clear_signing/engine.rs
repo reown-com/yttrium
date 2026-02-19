@@ -417,11 +417,11 @@ fn format_native_amount(
         return value.default_string();
     };
 
-    if let Ok(key) = native_token_key(chain_id) {
-        if let Some(meta) = token_metadata.get(&key) {
-            let formatted = format_amount_with_decimals(amount, meta.decimals);
-            return format!("{} {}", formatted, meta.symbol);
-        }
+    if let Ok(key) = native_token_key(chain_id)
+        && let Some(meta) = token_metadata.get(&key)
+    {
+        let formatted = format_amount_with_decimals(amount, meta.decimals);
+        return format!("{} {}", formatted, meta.symbol);
     }
 
     let formatted = format_amount_with_decimals(amount, 18);
@@ -450,12 +450,11 @@ fn format_enum(
         return Ok(value.default_string());
     };
 
-    if let Some(mapping) = enum_map.as_object() {
-        if let Some(label) = mapping.get(&amount.to_string()) {
-            if let Some(text) = label.as_str() {
-                return Ok(text.to_string());
-            }
-        }
+    if let Some(mapping) = enum_map.as_object()
+        && let Some(label) = mapping.get(&amount.to_string())
+        && let Some(text) = label.as_str()
+    {
+        return Ok(text.to_string());
     }
 
     Ok(amount.to_string())

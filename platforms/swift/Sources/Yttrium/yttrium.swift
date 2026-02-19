@@ -723,6 +723,12 @@ public protocol WalletConnectPayProtocol: AnyObject, Sendable {
     func getPaymentOptions(paymentLink: String, accounts: [String], includePaymentInfo: Bool) async throws  -> PaymentOptionsResponse
     
     /**
+     * Get the current status of a payment
+     * Use this to check status after a network error during confirm_payment
+     */
+    func getPaymentStatus(paymentId: String) async throws  -> PaymentStatusResponse
+    
+    /**
      * Get required payment actions for a selected option
      * Returns cached actions if available, otherwise calls fetch to get them
      * Build action types are automatically resolved by calling the fetch endpoint
@@ -834,6 +840,27 @@ open func getPaymentOptions(paymentLink: String, accounts: [String], includePaym
 }
     
     /**
+     * Get the current status of a payment
+     * Use this to check status after a network error during confirm_payment
+     */
+open func getPaymentStatus(paymentId: String)async throws  -> PaymentStatusResponse  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_yttrium_fn_method_walletconnectpay_get_payment_status(
+                    self.uniffiCloneHandle(),
+                    FfiConverterString.lower(paymentId)
+                )
+            },
+            pollFunc: ffi_yttrium_rust_future_poll_rust_buffer,
+            completeFunc: ffi_yttrium_rust_future_complete_rust_buffer,
+            freeFunc: ffi_yttrium_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypePaymentStatusResponse_lift,
+            errorHandler: FfiConverterTypeGetPaymentStatusError_lift
+        )
+}
+    
+    /**
      * Get required payment actions for a selected option
      * Returns cached actions if available, otherwise calls fetch to get them
      * Build action types are automatically resolved by calling the fetch endpoint
@@ -924,6 +951,14 @@ public protocol WalletConnectPayJsonProtocol: AnyObject, Sendable {
      * Returns JSON PaymentOptionsResponse or error
      */
     func getPaymentOptions(requestJson: String) async throws  -> String
+    
+    /**
+     * Get the current status of a payment
+     * Use this to check status after a network error during confirm_payment
+     * Input JSON: { "paymentId": "string" }
+     * Returns JSON PaymentStatusResponse or error
+     */
+    func getPaymentStatus(requestJson: String) async throws  -> String
     
     /**
      * Get required payment actions for a selected option
@@ -1030,6 +1065,29 @@ open func getPaymentOptions(requestJson: String)async throws  -> String  {
         try  await uniffiRustCallAsync(
             rustFutureFunc: {
                 uniffi_yttrium_fn_method_walletconnectpayjson_get_payment_options(
+                    self.uniffiCloneHandle(),
+                    FfiConverterString.lower(requestJson)
+                )
+            },
+            pollFunc: ffi_yttrium_rust_future_poll_rust_buffer,
+            completeFunc: ffi_yttrium_rust_future_complete_rust_buffer,
+            freeFunc: ffi_yttrium_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterString.lift,
+            errorHandler: FfiConverterTypePayJsonError_lift
+        )
+}
+    
+    /**
+     * Get the current status of a payment
+     * Use this to check status after a network error during confirm_payment
+     * Input JSON: { "paymentId": "string" }
+     * Returns JSON PaymentStatusResponse or error
+     */
+open func getPaymentStatus(requestJson: String)async throws  -> String  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_yttrium_fn_method_walletconnectpayjson_get_payment_status(
                     self.uniffiCloneHandle(),
                     FfiConverterString.lower(requestJson)
                 )
@@ -1891,6 +1949,64 @@ public func FfiConverterTypePaymentResultInfo_lower(_ value: PaymentResultInfo) 
 }
 
 
+public struct PaymentStatusResponse: Equatable, Hashable {
+    public var paymentId: String
+    public var status: PaymentStatus
+    public var isFinal: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(paymentId: String, status: PaymentStatus, isFinal: Bool) {
+        self.paymentId = paymentId
+        self.status = status
+        self.isFinal = isFinal
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension PaymentStatusResponse: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypePaymentStatusResponse: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> PaymentStatusResponse {
+        return
+            try PaymentStatusResponse(
+                paymentId: FfiConverterString.read(from: &buf), 
+                status: FfiConverterTypePaymentStatus.read(from: &buf), 
+                isFinal: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: PaymentStatusResponse, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.paymentId, into: &buf)
+        FfiConverterTypePaymentStatus.write(value.status, into: &buf)
+        FfiConverterBool.write(value.isFinal, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePaymentStatusResponse_lift(_ buf: RustBuffer) throws -> PaymentStatusResponse {
+    return try FfiConverterTypePaymentStatusResponse.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePaymentStatusResponse_lower(_ value: PaymentStatusResponse) -> RustBuffer {
+    return FfiConverterTypePaymentStatusResponse.lower(value)
+}
+
+
 public struct SdkConfig: Equatable, Hashable {
     public var baseUrl: String
     public var projectId: String?
@@ -2205,6 +2321,8 @@ public enum ConfirmPaymentError: Swift.Error, Equatable, Hashable, Foundation.Lo
     )
     case UnsupportedMethod(String
     )
+    case PollingTimeout(String
+    )
 
     
 
@@ -2265,6 +2383,9 @@ public struct FfiConverterTypeConfirmPaymentError: FfiConverterRustBuffer {
             try FfiConverterString.read(from: &buf)
             )
         case 11: return .UnsupportedMethod(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 12: return .PollingTimeout(
             try FfiConverterString.read(from: &buf)
             )
 
@@ -2331,6 +2452,11 @@ public struct FfiConverterTypeConfirmPaymentError: FfiConverterRustBuffer {
         
         case let .UnsupportedMethod(v1):
             writeInt(&buf, Int32(11))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .PollingTimeout(v1):
+            writeInt(&buf, Int32(12))
             FfiConverterString.write(v1, into: &buf)
             
         }
@@ -2691,6 +2817,120 @@ public func FfiConverterTypeGetPaymentRequestError_lower(_ value: GetPaymentRequ
 }
 
 
+public enum GetPaymentStatusError: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
+
+    
+    
+    case PaymentNotFound(String
+    )
+    case NoConnection(String
+    )
+    case RequestTimeout(String
+    )
+    case ConnectionFailed(String
+    )
+    case Http(String
+    )
+
+    
+
+    
+
+    
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+    
+}
+
+#if compiler(>=6)
+extension GetPaymentStatusError: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeGetPaymentStatusError: FfiConverterRustBuffer {
+    typealias SwiftType = GetPaymentStatusError
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> GetPaymentStatusError {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+
+        
+
+        
+        case 1: return .PaymentNotFound(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 2: return .NoConnection(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 3: return .RequestTimeout(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 4: return .ConnectionFailed(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 5: return .Http(
+            try FfiConverterString.read(from: &buf)
+            )
+
+         default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: GetPaymentStatusError, into buf: inout [UInt8]) {
+        switch value {
+
+        
+
+        
+        
+        case let .PaymentNotFound(v1):
+            writeInt(&buf, Int32(1))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .NoConnection(v1):
+            writeInt(&buf, Int32(2))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .RequestTimeout(v1):
+            writeInt(&buf, Int32(3))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .ConnectionFailed(v1):
+            writeInt(&buf, Int32(4))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .Http(v1):
+            writeInt(&buf, Int32(5))
+            FfiConverterString.write(v1, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeGetPaymentStatusError_lift(_ buf: RustBuffer) throws -> GetPaymentStatusError {
+    return try FfiConverterTypeGetPaymentStatusError.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeGetPaymentStatusError_lower(_ value: GetPaymentStatusError) -> RustBuffer {
+    return FfiConverterTypeGetPaymentStatusError.lower(value)
+}
+
+
 public enum PayError: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
 
     
@@ -2855,6 +3095,8 @@ public enum PayJsonError: Swift.Error, Equatable, Hashable, Foundation.Localized
     )
     case UnsupportedMethod(String
     )
+    case PollingTimeout(String
+    )
 
     
 
@@ -2942,6 +3184,9 @@ public struct FfiConverterTypePayJsonError: FfiConverterRustBuffer {
             try FfiConverterString.read(from: &buf)
             )
         case 20: return .UnsupportedMethod(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 21: return .PollingTimeout(
             try FfiConverterString.read(from: &buf)
             )
 
@@ -3053,6 +3298,11 @@ public struct FfiConverterTypePayJsonError: FfiConverterRustBuffer {
         
         case let .UnsupportedMethod(v1):
             writeInt(&buf, Int32(20))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .PollingTimeout(v1):
+            writeInt(&buf, Int32(21))
             FfiConverterString.write(v1, into: &buf)
             
         }
@@ -3881,6 +4131,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_yttrium_checksum_method_walletconnectpay_get_payment_options() != 22) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_yttrium_checksum_method_walletconnectpay_get_payment_status() != 43880) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_yttrium_checksum_method_walletconnectpay_get_required_payment_actions() != 51761) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -3888,6 +4141,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_yttrium_checksum_method_walletconnectpayjson_get_payment_options() != 1513) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_method_walletconnectpayjson_get_payment_status() != 33736) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_yttrium_checksum_method_walletconnectpayjson_get_required_payment_actions() != 58726) {
