@@ -755,6 +755,7 @@ impl WalletConnectPay {
                 WCP_VERSION_HEADER,
                 reqwest::header::HeaderValue::from_static(WCP_VERSION),
             );
+            let fallback = default_headers.clone();
             #[cfg(not(target_arch = "wasm32"))]
             let http = reqwest::Client::builder()
                 .default_headers(default_headers)
@@ -767,7 +768,10 @@ impl WalletConnectPay {
                 .build()
                 .unwrap_or_else(|e| {
                     pay_error!("failed to build pay HTTP client: {e}");
-                    reqwest::Client::new()
+                    reqwest::Client::builder()
+                        .default_headers(fallback)
+                        .build()
+                        .unwrap_or_default()
                 });
             #[cfg(target_arch = "wasm32")]
             let http = reqwest::Client::builder()
@@ -775,7 +779,10 @@ impl WalletConnectPay {
                 .build()
                 .unwrap_or_else(|e| {
                     pay_error!("failed to build pay HTTP client: {e}");
-                    reqwest::Client::new()
+                    reqwest::Client::builder()
+                        .default_headers(fallback)
+                        .build()
+                        .unwrap_or_default()
                 });
             Client::new_with_client(&self.config.base_url, http)
         })
