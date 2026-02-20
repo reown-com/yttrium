@@ -244,7 +244,7 @@ async-trait = { version = "0.1.83", default-features = false }
 tracing = { version = "0.1.40", default-features = false, features = [
     "release_max_level_debug",
 ] }
-tracing-subscriber = { version = "0.3.20", default-features = false, optional = true, features = [
+tracing-subscriber = { version = "0.3.22", default-features = false, optional = true, features = [
     "fmt",
     "std",
 ] }
@@ -314,7 +314,7 @@ anyhow = "1"
 ed25519-dalek = { version = "2", features = ["rand_core"], optional = true }
 
 # Sign Client
-futures-concurrency = { version = "7.6.3", optional = true }
+futures-concurrency = { version = "7.7.1", optional = true }
 tokio-tungstenite = { workspace = true, optional = true }
 web-sys = { workspace = true, optional = true }
 chacha20poly1305 = { workspace = true, optional = true, features = [
