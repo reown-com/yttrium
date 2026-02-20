@@ -39,7 +39,7 @@ jobs:
 
       # 2. Setup ccache (Optional: Improve build speeds)
       - name: Run sccache-cache
-        uses: mozilla-actions/sccache-action@v0.0.4
+        uses: mozilla-actions/sccache-action@v0.0.9
 
       # 3. Setup pnpm (JavaScript Package Manager)
       - name: Setup pnpm

@@ -39,7 +39,7 @@ jobs:
 
       # 2. Install sccache
       - name: Run sccache-cache
-        uses: mozilla-actions/sccache-action@v0.0.6
+        uses: mozilla-actions/sccache-action@v0.0.9
 
       # 3. Install pnpm
       - uses: pnpm/action-setup@v4
