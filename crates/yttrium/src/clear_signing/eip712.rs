@@ -59,16 +59,17 @@ pub fn format_typed_data(
     let descriptor = parse_descriptor(&resolved)?;
     let mut warnings = Vec::new();
 
-    if let Some(context) = descriptor.context.as_ref() {
-        if !context.eip712.deployments.iter().any(|deployment| {
+    if let Some(context) = descriptor.context.as_ref()
+        && !context.eip712.deployments.iter().any(|deployment| {
             deployment.chain_id == chain_id
                 && deployment.address.eq_ignore_ascii_case(&verifying_contract)
-        }) {
-            warnings.push(format!(
-                "Descriptor deployment mismatch for chain {} and address {}",
-                chain_id, verifying_contract
-            ));
-        }
+        })
+    {
+        warnings.push(format!(
+            "Descriptor deployment mismatch for chain {} \
+             and address {}",
+            chain_id, verifying_contract
+        ));
     }
 
     let Some(format) = descriptor.display.formats.get(&data.primary_type)
@@ -305,14 +306,12 @@ fn format_enum(
         return Ok(format_raw(value));
     };
 
-    if let Some(mapping) = enum_map.as_object() {
-        if let Some(text) = value_as_string(value) {
-            if let Some(label_value) = mapping.get(&text) {
-                if let Some(label) = label_value.as_str() {
-                    return Ok(label.to_string());
-                }
-            }
-        }
+    if let Some(mapping) = enum_map.as_object()
+        && let Some(text) = value_as_string(value)
+        && let Some(label_value) = mapping.get(&text)
+        && let Some(label) = label_value.as_str()
+    {
+        return Ok(label.to_string());
     }
 
     Ok(format_raw(value))
