@@ -153,13 +153,13 @@ impl TestWallet {
         let address = signer.address();
 
         // Optionally validate address if TEST_WALLET_ADDRESS env var is set
-        if let Some(expected) = get_expected_test_address() {
-            if address != expected {
-                return Err(PayTestError::AddressMismatch {
-                    expected: expected.to_string(),
-                    actual: address.to_string(),
-                });
-            }
+        if let Some(expected) = get_expected_test_address()
+            && address != expected
+        {
+            return Err(PayTestError::AddressMismatch {
+                expected: expected.to_string(),
+                actual: address.to_string(),
+            });
         }
 
         Ok(Self { signer, address })

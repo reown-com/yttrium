@@ -1,0 +1,21 @@
+name: Security Audit
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  checks: write
+
+jobs:
+  audit:
+    name: cargo audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: rustsec/audit-check@v2.0.0
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
