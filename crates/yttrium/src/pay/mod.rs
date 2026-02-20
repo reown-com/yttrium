@@ -298,6 +298,8 @@ const MAX_BACKOFF_MS: u64 = 2000;
 const API_CONNECT_TIMEOUT_SECS: u64 = 10;
 const API_REQUEST_TIMEOUT_SECS: u64 = 30;
 const MAX_POLLING_DURATION_SECS: u64 = 300;
+const WCP_VERSION_HEADER: &str = "WCP-Version";
+const WCP_VERSION: &str = "2026-02-18";
 
 fn looks_like_network_error(msg: &str) -> bool {
     let lower = msg.to_lowercase();
@@ -748,8 +750,15 @@ pub struct WalletConnectPay {
 impl WalletConnectPay {
     fn client(&self) -> &Client {
         self.client.get_or_init(|| {
+            let mut default_headers = reqwest::header::HeaderMap::new();
+            default_headers.insert(
+                WCP_VERSION_HEADER,
+                reqwest::header::HeaderValue::from_static(WCP_VERSION),
+            );
+            let fallback = default_headers.clone();
             #[cfg(not(target_arch = "wasm32"))]
             let http = reqwest::Client::builder()
+                .default_headers(default_headers)
                 .connect_timeout(std::time::Duration::from_secs(
                     API_CONNECT_TIMEOUT_SECS,
                 ))
@@ -757,9 +766,24 @@ impl WalletConnectPay {
                     API_REQUEST_TIMEOUT_SECS,
                 ))
                 .build()
-                .unwrap_or_else(|_| reqwest::Client::new());
+                .unwrap_or_else(|e| {
+                    pay_error!("failed to build pay HTTP client: {e}");
+                    reqwest::Client::builder()
+                        .default_headers(fallback)
+                        .build()
+                        .unwrap_or_default()
+                });
             #[cfg(target_arch = "wasm32")]
-            let http = reqwest::Client::new();
+            let http = reqwest::Client::builder()
+                .default_headers(default_headers)
+                .build()
+                .unwrap_or_else(|e| {
+                    pay_error!("failed to build pay HTTP client: {e}");
+                    reqwest::Client::builder()
+                        .default_headers(fallback)
+                        .build()
+                        .unwrap_or_default()
+                });
             Client::new_with_client(&self.config.base_url, http)
         })
     }
@@ -2280,6 +2304,7 @@ mod tests {
             .and(header("Sdk-Name", "test-sdk"))
             .and(header("Sdk-Version", "1.0.0"))
             .and(header("Sdk-Platform", "test"))
+            .and(header("WCP-Version", WCP_VERSION))
             .respond_with(
                 ResponseTemplate::new(200).set_body_json(&mock_response),
             )
@@ -2297,6 +2322,31 @@ mod tests {
             )
             .await;
 
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_wcp_version_header_is_set() {
+        let mock_server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/v1/gateway/payment/pay_ver/options"))
+            .and(header("WCP-Version", WCP_VERSION))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_json(serde_json::json!({"options": []})),
+            )
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+        let client =
+            WalletConnectPay::new(test_config(mock_server.uri())).unwrap();
+        let result = client
+            .get_payment_options(
+                "pay_ver".to_string(),
+                vec!["eip155:1:0x123".to_string()],
+                false,
+            )
+            .await;
         assert!(result.is_ok());
     }
 
