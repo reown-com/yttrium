@@ -179,14 +179,14 @@ jobs:
 
       # Download Android artifacts
       - name: Download Android artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v7
         with:
           name: dart-android-artifacts
           path: jniLibs/
 
       # Download iOS artifacts
       - name: Download iOS artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v7
         with:
           name: dart-ios-artifacts
           path: universal/

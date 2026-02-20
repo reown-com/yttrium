@@ -277,19 +277,19 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Download yttrium artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: kotlin-yttrium
           path: artifacts/yttrium
 
       - name: Download yttrium-utils artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: kotlin-yttrium-utils
           path: artifacts/yttrium-utils
 
       - name: Download yttrium-wcpay artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: kotlin-yttrium-wcpay
           path: artifacts/yttrium-wcpay
