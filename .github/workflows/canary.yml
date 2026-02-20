@@ -60,7 +60,7 @@ jobs:
         with:
           mask-password: 'true'
       
-      - uses: docker/login-action@v2
+      - uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
