@@ -2299,7 +2299,7 @@ mod tests {
             .and(header("Sdk-Name", "test-sdk"))
             .and(header("Sdk-Version", "1.0.0"))
             .and(header("Sdk-Platform", "test"))
-            .and(header("WCP-Version", "2026-02-18"))
+            .and(header("WCP-Version", WCP_VERSION))
             .respond_with(
                 ResponseTemplate::new(200).set_body_json(&mock_response),
             )
