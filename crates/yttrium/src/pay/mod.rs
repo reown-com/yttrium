@@ -753,9 +753,7 @@ impl WalletConnectPay {
             let mut default_headers = reqwest::header::HeaderMap::new();
             default_headers.insert(
                 WCP_VERSION_HEADER,
-                reqwest::header::HeaderValue::from_static(
-                    WCP_VERSION,
-                ),
+                reqwest::header::HeaderValue::from_static(WCP_VERSION),
             );
             #[cfg(not(target_arch = "wasm32"))]
             let http = reqwest::Client::builder()
