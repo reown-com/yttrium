@@ -69,7 +69,7 @@ solana-signature = { version = "3.1.0", default-features = false }
 solana-signer = { version = "3.0.0", default-features = false }
 solana-keypair = { version = "3.1.0", default-features = false }
 solana-derivation-path = { version = "3.0.0", default-features = false }
-solana-commitment-config = { version = "3.0.0", default-features = false }
+solana-commitment-config = { version = "3.1.1", default-features = false }
 solana-system-interface = { version = "3.0.0", default-features = false }
 spl-token = { version = "9.0.0", default-features = false }
 spl-associated-token-account = { version = "8.0.0", default-features = false }
