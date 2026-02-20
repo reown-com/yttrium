@@ -767,12 +767,18 @@ impl WalletConnectPay {
                     API_REQUEST_TIMEOUT_SECS,
                 ))
                 .build()
-                .unwrap_or_else(|_| reqwest::Client::new());
+                .unwrap_or_else(|e| {
+                    pay_error!("failed to build pay HTTP client: {e}");
+                    reqwest::Client::new()
+                });
             #[cfg(target_arch = "wasm32")]
             let http = reqwest::Client::builder()
                 .default_headers(default_headers)
                 .build()
-                .unwrap_or_else(|_| reqwest::Client::new());
+                .unwrap_or_else(|e| {
+                    pay_error!("failed to build pay HTTP client: {e}");
+                    reqwest::Client::new()
+                });
             Client::new_with_client(&self.config.base_url, http)
         })
     }
