@@ -401,19 +401,11 @@ async fn e2e_payment_happy_path() {
         result.status, result.is_final
     );
 
-    // Step 8: Verify final status
+    // Step 8: Verify successful status
     assert!(result.is_final, "Expected final status");
-    match result.status {
-        PaymentStatus::Succeeded => {
-            println!("Payment succeeded!");
-        }
-        PaymentStatus::Failed => {
-            println!(
-                "Payment failed - check if test wallet has sufficient USDC on Base"
-            );
-        }
-        status => {
-            panic!("Unexpected payment status: {:?}", status);
-        }
-    }
+    assert_eq!(
+        result.status,
+        PaymentStatus::Succeeded,
+        "Expected payment to succeed"
+    );
 }
