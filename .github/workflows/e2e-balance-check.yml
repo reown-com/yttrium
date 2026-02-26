@@ -1,0 +1,205 @@
+name: E2E Wallet Balance Check
+
+on:
+  schedule:
+    - cron: '0 * * * *'  # Every hour
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+env:
+  BASE_USDC: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+  OP_USDC: "0x0b2c639c533813f4aa9d7837caf62653d097ff85"
+  BASE_RPC: "https://mainnet.base.org"
+  OP_RPC: "https://mainnet.optimism.io"
+  SOL_RPC: "https://api.mainnet.solana.com"
+
+jobs:
+  check-balance:
+    name: Check E2E Wallet Balances
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+
+      - name: Install Solana derivation dependencies
+        run: |
+          # Convert FAUCET_MNEMONIC into a seed buffer.
+          # Needed before any Solana HD derivation.
+          # @scure/bip39
+          #
+          # Derive ed25519 key material at m/44'/501'/0'/0'.
+          # This matches use_solana_account(0) in Rust test helpers.
+          # ed25519-hd-key
+          #
+          # Construct a Solana keypair from derived seed and output
+          # base58 public key for getBalance RPC checks.
+          # @solana/web3.js
+          npm install --no-save \
+            @scure/bip39 \
+            ed25519-hd-key \
+            @solana/web3.js
+
+      - name: Derive wallet addresses
+        id: addrs
+        env:
+          TEST_WALLET_PRIVATE_KEY: ${{ secrets.TEST_WALLET_PRIVATE_KEY }}
+          FAUCET_MNEMONIC: ${{ secrets.FAUCET_MNEMONIC }}
+        run: |
+          PAY_ADDR=$(cast wallet address --private-key "$TEST_WALLET_PRIVATE_KEY")
+          # Faucet uses MnemonicBuilder default (m/44'/60'/0'/0/0), same as cast default
+          FAUCET_ADDR=$(cast wallet address --mnemonic "$FAUCET_MNEMONIC")
+          FAUCET_SOL_ADDR=$(node -e "const { mnemonicToSeedSync } = require('@scure/bip39'); const { derivePath } = require('ed25519-hd-key'); const { Keypair } = require('@solana/web3.js'); const seed = mnemonicToSeedSync(process.env.FAUCET_MNEMONIC); const path = \"m/44'/501'/0'/0'\"; const derived = derivePath(path, Buffer.from(seed).toString('hex')).key; const kp = Keypair.fromSeed(derived); console.log(kp.publicKey.toBase58());")
+          echo "pay=$PAY_ADDR" >> $GITHUB_OUTPUT
+          echo "faucet=$FAUCET_ADDR" >> $GITHUB_OUTPUT
+          echo "faucet_solana=$FAUCET_SOL_ADDR" >> $GITHUB_OUTPUT
+
+      - name: Check pay wallet USDC on Base
+        id: pay_usdc_base
+        run: |
+          BALANCE=$(cast call --rpc-url "$BASE_RPC" "$BASE_USDC" \
+            "balanceOf(address)(uint256)" \
+            "${{ steps.addrs.outputs.pay }}" | awk '{print $1}')
+          echo "balance=$BALANCE" >> $GITHUB_OUTPUT
+          echo "Pay wallet USDC on Base (raw): $BALANCE"
+
+      - name: Check faucet ETH on Base
+        id: faucet_eth_base
+        run: |
+          BALANCE=$(cast balance --rpc-url "$BASE_RPC" \
+            "${{ steps.addrs.outputs.faucet }}" | awk '{print $1}')
+          echo "balance=$BALANCE" >> $GITHUB_OUTPUT
+          echo "Faucet ETH on Base (wei): $BALANCE"
+
+      - name: Check faucet USDC on Base
+        id: faucet_usdc_base
+        run: |
+          BALANCE=$(cast call --rpc-url "$BASE_RPC" "$BASE_USDC" \
+            "balanceOf(address)(uint256)" \
+            "${{ steps.addrs.outputs.faucet }}" | awk '{print $1}')
+          echo "balance=$BALANCE" >> $GITHUB_OUTPUT
+          echo "Faucet USDC on Base (raw): $BALANCE"
+
+      - name: Check faucet ETH on Optimism
+        id: faucet_eth_op
+        run: |
+          BALANCE=$(cast balance --rpc-url "$OP_RPC" \
+            "${{ steps.addrs.outputs.faucet }}" | awk '{print $1}')
+          echo "balance=$BALANCE" >> $GITHUB_OUTPUT
+          echo "Faucet ETH on Optimism (wei): $BALANCE"
+
+      - name: Check faucet USDC on Optimism
+        id: faucet_usdc_op
+        run: |
+          BALANCE=$(cast call --rpc-url "$OP_RPC" "$OP_USDC" \
+            "balanceOf(address)(uint256)" \
+            "${{ steps.addrs.outputs.faucet }}" | awk '{print $1}')
+          echo "balance=$BALANCE" >> $GITHUB_OUTPUT
+          echo "Faucet USDC on Optimism (raw): $BALANCE"
+
+      - name: Check faucet SOL on Solana
+        id: faucet_sol
+        run: |
+          RESPONSE=$(curl -sf -X POST "$SOL_RPC" \
+            -H 'Content-Type: application/json' \
+            -d "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"getBalance\",\"params\":[\"${{ steps.addrs.outputs.faucet_solana }}\"]}")
+          BALANCE=$(echo "$RESPONSE" | python3 -c 'import json,sys; print(json.load(sys.stdin)["result"]["value"])')
+          echo "balance=$BALANCE" >> $GITHUB_OUTPUT
+          echo "Faucet SOL on Solana (lamports): $BALANCE"
+
+      - name: Alert if pay wallet USDC on Base is low
+        run: |
+          BALANCE="${{ steps.pay_usdc_base.outputs.balance }}"
+          THRESHOLD="${{ vars.USDC_THRESHOLD_UNITS || '2000000' }}"
+          if [ "$BALANCE" -lt "$THRESHOLD" ]; then
+            BALANCE_HUMAN=$(echo "scale=2; $BALANCE / 1000000" | bc)
+            AMOUNT_TO_REPORT=$(echo "scale=2; $THRESHOLD / 1000000" | bc)
+            if ! curl -sf -X POST -H 'Content-Type: application/json' \
+              -d "{\"address\":\"${{ steps.addrs.outputs.pay }}\",\"chain\":\"Base\",\"asset\":\"USDC\",\"amount\":\"${AMOUNT_TO_REPORT}\"}" \
+              "${{ secrets.SLACK_WEBHOOK_URL }}"; then
+              echo "::error::Failed to send Slack alert"
+              exit 1
+            fi
+            echo "::warning::Pay wallet USDC on Base low (${BALANCE_HUMAN} USDC), alert sent"
+          fi
+
+      - name: Alert if faucet ETH on Base is low
+        run: |
+          BALANCE="${{ steps.faucet_eth_base.outputs.balance }}"
+          THRESHOLD="${{ vars.ETH_THRESHOLD_WEI || '500000000000000' }}"
+          if [ "$BALANCE" -lt "$THRESHOLD" ]; then
+            BALANCE_HUMAN=$(echo "scale=6; $BALANCE / 1000000000000000000" | bc)
+            AMOUNT_TO_REPORT=$(echo "scale=6; $THRESHOLD / 1000000000000000000" | bc)
+            if ! curl -sf -X POST -H 'Content-Type: application/json' \
+              -d "{\"address\":\"${{ steps.addrs.outputs.faucet }}\",\"chain\":\"Base\",\"asset\":\"ETH\",\"amount\":\"${AMOUNT_TO_REPORT}\"}" \
+              "${{ secrets.SLACK_WEBHOOK_URL }}"; then
+              echo "::error::Failed to send Slack alert"
+              exit 1
+            fi
+            echo "::warning::Faucet ETH on Base low (${BALANCE_HUMAN} ETH), alert sent"
+          fi
+
+      - name: Alert if faucet USDC on Base is low
+        run: |
+          BALANCE="${{ steps.faucet_usdc_base.outputs.balance }}"
+          THRESHOLD="${{ vars.USDC_THRESHOLD_UNITS || '2000000' }}"
+          if [ "$BALANCE" -lt "$THRESHOLD" ]; then
+            BALANCE_HUMAN=$(echo "scale=2; $BALANCE / 1000000" | bc)
+            AMOUNT_TO_REPORT=$(echo "scale=2; $THRESHOLD / 1000000" | bc)
+            if ! curl -sf -X POST -H 'Content-Type: application/json' \
+              -d "{\"address\":\"${{ steps.addrs.outputs.faucet }}\",\"chain\":\"Base\",\"asset\":\"USDC\",\"amount\":\"${AMOUNT_TO_REPORT}\"}" \
+              "${{ secrets.SLACK_WEBHOOK_URL }}"; then
+              echo "::error::Failed to send Slack alert"
+              exit 1
+            fi
+            echo "::warning::Faucet USDC on Base low (${BALANCE_HUMAN} USDC), alert sent"
+          fi
+
+      - name: Alert if faucet ETH on Optimism is low
+        run: |
+          BALANCE="${{ steps.faucet_eth_op.outputs.balance }}"
+          THRESHOLD="${{ vars.ETH_THRESHOLD_WEI || '500000000000000' }}"
+          if [ "$BALANCE" -lt "$THRESHOLD" ]; then
+            BALANCE_HUMAN=$(echo "scale=6; $BALANCE / 1000000000000000000" | bc)
+            AMOUNT_TO_REPORT=$(echo "scale=6; $THRESHOLD / 1000000000000000000" | bc)
+            if ! curl -sf -X POST -H 'Content-Type: application/json' \
+              -d "{\"address\":\"${{ steps.addrs.outputs.faucet }}\",\"chain\":\"Optimism\",\"asset\":\"ETH\",\"amount\":\"${AMOUNT_TO_REPORT}\"}" \
+              "${{ secrets.SLACK_WEBHOOK_URL }}"; then
+              echo "::error::Failed to send Slack alert"
+              exit 1
+            fi
+            echo "::warning::Faucet ETH on Optimism low (${BALANCE_HUMAN} ETH), alert sent"
+          fi
+
+      - name: Alert if faucet USDC on Optimism is low
+        run: |
+          BALANCE="${{ steps.faucet_usdc_op.outputs.balance }}"
+          THRESHOLD="${{ vars.USDC_THRESHOLD_UNITS || '2000000' }}"
+          if [ "$BALANCE" -lt "$THRESHOLD" ]; then
+            BALANCE_HUMAN=$(echo "scale=2; $BALANCE / 1000000" | bc)
+            AMOUNT_TO_REPORT=$(echo "scale=2; $THRESHOLD / 1000000" | bc)
+            if ! curl -sf -X POST -H 'Content-Type: application/json' \
+              -d "{\"address\":\"${{ steps.addrs.outputs.faucet }}\",\"chain\":\"Optimism\",\"asset\":\"USDC\",\"amount\":\"${AMOUNT_TO_REPORT}\"}" \
+              "${{ secrets.SLACK_WEBHOOK_URL }}"; then
+              echo "::error::Failed to send Slack alert"
+              exit 1
+            fi
+            echo "::warning::Faucet USDC on Optimism low (${BALANCE_HUMAN} USDC), alert sent"
+          fi
+
+      - name: Alert if faucet SOL on Solana is low
+        run: |
+          BALANCE="${{ steps.faucet_sol.outputs.balance }}"
+          THRESHOLD="${{ vars.SOL_THRESHOLD_LAMPORTS || '100000000' }}"
+          if [ "$BALANCE" -lt "$THRESHOLD" ]; then
+            BALANCE_HUMAN=$(echo "scale=6; $BALANCE / 1000000000" | bc)
+            AMOUNT_TO_REPORT=$(echo "scale=6; $THRESHOLD / 1000000000" | bc)
+            if ! curl -sf -X POST -H 'Content-Type: application/json' \
+              -d "{\"address\":\"${{ steps.addrs.outputs.faucet_solana }}\",\"chain\":\"Solana\",\"asset\":\"SOL\",\"amount\":\"${AMOUNT_TO_REPORT}\"}" \
+              "${{ secrets.SLACK_WEBHOOK_URL }}"; then
+              echo "::error::Failed to send Slack alert"
+              exit 1
+            fi
+            echo "::warning::Faucet SOL on Solana low (${BALANCE_HUMAN} SOL), alert sent"
+          fi
