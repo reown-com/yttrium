@@ -634,7 +634,7 @@ dependencies = [
  "serde_json",
  "tokio",
  "tokio-stream",
- "tower 0.5.2",
+ "tower 0.5.3",
  "tracing",
  "url",
  "wasmtimer",
@@ -921,7 +921,7 @@ dependencies = [
  "serde_json",
  "thiserror 2.0.17",
  "tokio",
- "tower 0.5.2",
+ "tower 0.5.3",
  "tracing",
  "url",
  "wasm-bindgen-futures",
@@ -939,7 +939,7 @@ dependencies = [
  "itertools 0.14.0",
  "reqwest",
  "serde_json",
- "tower 0.5.2",
+ "tower 0.5.3",
  "tracing",
  "url",
 ]
@@ -2211,7 +2211,7 @@ dependencies = [
  "rustls-pki-types",
  "tokio",
  "tokio-rustls 0.26.2",
- "tower 0.5.2",
+ "tower 0.5.3",
  "tracing",
 ]
 
@@ -2366,7 +2366,7 @@ dependencies = [
  "sync_wrapper",
  "tokio",
  "tokio-tungstenite 0.26.2",
- "tower 0.5.2",
+ "tower 0.5.3",
  "tower-layer",
  "tower-service",
 ]
@@ -5311,7 +5311,7 @@ dependencies = [
  "serde_json",
  "tokio",
  "tonic",
- "tower 0.5.2",
+ "tower 0.5.3",
  "tower-layer",
  "tower-util",
  "tracing",
@@ -7913,7 +7913,7 @@ dependencies = [
  "tokio-stream",
  "tonic",
  "tonic-health",
- "tower 0.5.2",
+ "tower 0.5.3",
  "tower-http 0.5.2",
  "tracing",
 ]
@@ -9949,7 +9949,7 @@ dependencies = [
  "tokio-native-tls",
  "tokio-rustls 0.26.2",
  "tokio-util",
- "tower 0.5.2",
+ "tower 0.5.3",
  "tower-http 0.6.8",
  "tower-service",
  "url",
@@ -13646,7 +13646,7 @@ dependencies = [
  "tokio",
  "tokio-rustls 0.26.2",
  "tokio-util",
- "tower 0.5.2",
+ "tower 0.5.3",
  "tracing",
 ]
 
@@ -14737,7 +14737,7 @@ dependencies = [
  "tokio-tower",
  "ton_lib_core",
  "ton_liteapi",
- "tower 0.5.2",
+ "tower 0.5.3",
 ]
 
 [[package]]
@@ -14820,7 +14820,7 @@ dependencies = [
  "tokio",
  "tokio-rustls 0.26.2",
  "tokio-stream",
- "tower 0.5.2",
+ "tower 0.5.3",
  "tower-layer",
  "tower-service",
  "tracing",
@@ -14863,9 +14863,9 @@ dependencies = [
 
 [[package]]
 name = "tower"
-version = "0.5.2"
+version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d039ad9159c98b70ecfd540b2573b97f7f52c3e8d9f8ad57a24b916a536975f9"
+checksum = "ebe5ef63511595f1344e2d5cfa636d973292adc0eec1f0ad45fae9f0851ab1d4"
 dependencies = [
  "futures-core",
  "futures-util",
@@ -14930,7 +14930,7 @@ dependencies = [
  "pin-project-lite",
  "tokio",
  "tokio-util",
- "tower 0.5.2",
+ "tower 0.5.3",
  "tower-layer",
  "tower-service",
 ]
@@ -16503,7 +16503,7 @@ dependencies = [
  "tokio-tungstenite 0.27.0",
  "tokio-util",
  "ton_lib",
- "tower 0.5.2",
+ "tower 0.5.3",
  "tracing",
  "tracing-subscriber",
  "tsify-next",
