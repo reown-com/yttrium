@@ -50,7 +50,7 @@ jobs:
           PAY_ADDR=$(cast wallet address --private-key "$TEST_WALLET_PRIVATE_KEY")
           # Faucet uses MnemonicBuilder default (m/44'/60'/0'/0/0), same as cast default
           FAUCET_ADDR=$(cast wallet address --mnemonic "$FAUCET_MNEMONIC")
-          cat > /tmp/derive-solana.js << 'SCRIPT'
+          cat > derive-solana.js << 'SCRIPT'
           const { mnemonicToSeedSync } = require('@scure/bip39');
           const { derivePath } = require('ed25519-hd-key');
           const { Keypair } = require('@solana/web3.js');
@@ -59,7 +59,7 @@ jobs:
           const derived = derivePath("m/44'/501'/0'/0'", Buffer.from(seed).toString('hex')).key;
           console.log(Keypair.fromSeed(derived).publicKey.toBase58());
           SCRIPT
-          FAUCET_SOL_ADDR=$(node /tmp/derive-solana.js)
+          FAUCET_SOL_ADDR=$(node derive-solana.js)
           echo "pay=$PAY_ADDR" >> $GITHUB_OUTPUT
           echo "faucet=$FAUCET_ADDR" >> $GITHUB_OUTPUT
           echo "faucet_solana=$FAUCET_SOL_ADDR" >> $GITHUB_OUTPUT
