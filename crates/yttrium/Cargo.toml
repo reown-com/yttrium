@@ -213,7 +213,7 @@ getrandom2 = { package = "getrandom", version = "0.2", default-features = false 
 getrandom = { version = "0.3.1", default-features = false }
 
 chrono = { version = "0.4", default-features = false, features = ["std", "clock"] }
-uuid = { version = "1.13.1", default-features = false, features = [
+uuid = { version = "1.21.0", default-features = false, features = [
     "v4",
     "serde",
     "rng-getrandom",
