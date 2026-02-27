@@ -122,122 +122,218 @@ jobs:
           echo "balance=$BALANCE" >> $GITHUB_OUTPUT
           echo "Faucet SOL on Solana (lamports): $BALANCE"
 
-      - name: Alert if pay wallet USDC on Base is low
+      - name: Prepare alert for pay wallet USDC on Base
+        id: alert_pay_usdc_base
         run: |
           BALANCE="${{ steps.pay_usdc_base.outputs.balance }}"
           THRESHOLD="${{ vars.USDC_THRESHOLD_UNITS || '2000000' }}"
           if [ "$BALANCE" -lt "$THRESHOLD" ]; then
             BALANCE_HUMAN=$(echo "scale=2; $BALANCE / 1000000" | bc)
-            AMOUNT_TO_REPORT=$(echo "scale=2; $THRESHOLD / 1000000" | bc)
-            WEBHOOK_URL="${{ secrets.SLACK_WEBHOOK_URL }}"
-            if [ -z "$WEBHOOK_URL" ]; then
-              echo "::warning::SLACK_WEBHOOK_URL not configured, skipping alert"
-            elif ! curl -fsS --fail-with-body -X POST \
-              -H 'Content-Type: application/json' \
-              -d "{\"text\":\"Pay wallet USDC on Base is low: ${BALANCE_HUMAN} USDC (threshold ${AMOUNT_TO_REPORT} USDC) at ${{ steps.addrs.outputs.pay }}\",\"address\":\"${{ steps.addrs.outputs.pay }}\",\"chain\":\"Base\",\"asset\":\"USDC\",\"balance\":\"${BALANCE_HUMAN}\",\"amount\":\"${AMOUNT_TO_REPORT}\"}" \
-              "$WEBHOOK_URL"; then
-              echo "::error::Failed to send Slack alert"
-              exit 1
-            fi
-            echo "::warning::Pay wallet USDC on Base low (${BALANCE_HUMAN} USDC), alert sent"
+            THRESHOLD_HUMAN=$(echo "scale=2; $THRESHOLD / 1000000" | bc)
+            ALERT_TEXT="Pay wallet USDC on Base is low: ${BALANCE_HUMAN} \
+              USDC (threshold ${THRESHOLD_HUMAN} USDC) at \
+              ${{ steps.addrs.outputs.pay }}"
+            echo "should_alert=true" >> "$GITHUB_OUTPUT"
+            echo "text=$ALERT_TEXT" >> "$GITHUB_OUTPUT"
+            echo "::warning::$ALERT_TEXT"
           fi
 
-      - name: Alert if faucet ETH on Base is low
+      - name: Send Slack alert for pay wallet USDC on Base
+        if: |
+          steps.alert_pay_usdc_base.outputs.should_alert == 'true' &&
+          secrets.SLACK_WEBHOOK_URL != ''
+        uses: slackapi/slack-github-action@v2.1.0
+        with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
+          payload: |
+            {
+              "text": "${{ steps.alert_pay_usdc_base.outputs.text }}"
+            }
+
+      - name: Skip Slack alert for pay wallet USDC on Base (no webhook)
+        if: |
+          steps.alert_pay_usdc_base.outputs.should_alert == 'true' &&
+          secrets.SLACK_WEBHOOK_URL == ''
+        run: |
+          echo "::warning::SLACK_WEBHOOK_URL not configured, skipping alert"
+
+      - name: Prepare alert for faucet ETH on Base
+        id: alert_faucet_eth_base
         run: |
           BALANCE="${{ steps.faucet_eth_base.outputs.balance }}"
           THRESHOLD="${{ vars.ETH_THRESHOLD_WEI || '500000000000000' }}"
           if [ "$BALANCE" -lt "$THRESHOLD" ]; then
             BALANCE_HUMAN=$(echo "scale=6; $BALANCE / 1000000000000000000" | bc)
-            AMOUNT_TO_REPORT=$(echo "scale=6; $THRESHOLD / 1000000000000000000" | bc)
-            WEBHOOK_URL="${{ secrets.SLACK_WEBHOOK_URL }}"
-            if [ -z "$WEBHOOK_URL" ]; then
-              echo "::warning::SLACK_WEBHOOK_URL not configured, skipping alert"
-            elif ! curl -fsS --fail-with-body -X POST \
-              -H 'Content-Type: application/json' \
-              -d "{\"text\":\"Faucet ETH on Base is low: ${BALANCE_HUMAN} ETH (threshold ${AMOUNT_TO_REPORT} ETH) at ${{ steps.addrs.outputs.faucet }}\",\"address\":\"${{ steps.addrs.outputs.faucet }}\",\"chain\":\"Base\",\"asset\":\"ETH\",\"balance\":\"${BALANCE_HUMAN}\",\"amount\":\"${AMOUNT_TO_REPORT}\"}" \
-              "$WEBHOOK_URL"; then
-              echo "::error::Failed to send Slack alert"
-              exit 1
-            fi
-            echo "::warning::Faucet ETH on Base low (${BALANCE_HUMAN} ETH), alert sent"
+            THRESHOLD_HUMAN=$(echo "scale=6; $THRESHOLD / 1000000000000000000" | bc)
+            ALERT_TEXT="Faucet ETH on Base is low: ${BALANCE_HUMAN} ETH \
+              (threshold ${THRESHOLD_HUMAN} ETH) at \
+              ${{ steps.addrs.outputs.faucet }}"
+            echo "should_alert=true" >> "$GITHUB_OUTPUT"
+            echo "text=$ALERT_TEXT" >> "$GITHUB_OUTPUT"
+            echo "::warning::$ALERT_TEXT"
           fi
 
-      - name: Alert if faucet USDC on Base is low
+      - name: Send Slack alert for faucet ETH on Base
+        if: |
+          steps.alert_faucet_eth_base.outputs.should_alert == 'true' &&
+          secrets.SLACK_WEBHOOK_URL != ''
+        uses: slackapi/slack-github-action@v2.1.0
+        with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
+          payload: |
+            {
+              "text": "${{ steps.alert_faucet_eth_base.outputs.text }}"
+            }
+
+      - name: Skip Slack alert for faucet ETH on Base (no webhook)
+        if: |
+          steps.alert_faucet_eth_base.outputs.should_alert == 'true' &&
+          secrets.SLACK_WEBHOOK_URL == ''
+        run: |
+          echo "::warning::SLACK_WEBHOOK_URL not configured, skipping alert"
+
+      - name: Prepare alert for faucet USDC on Base
+        id: alert_faucet_usdc_base
         run: |
           BALANCE="${{ steps.faucet_usdc_base.outputs.balance }}"
           THRESHOLD="${{ vars.USDC_THRESHOLD_UNITS || '2000000' }}"
           if [ "$BALANCE" -lt "$THRESHOLD" ]; then
             BALANCE_HUMAN=$(echo "scale=2; $BALANCE / 1000000" | bc)
-            AMOUNT_TO_REPORT=$(echo "scale=2; $THRESHOLD / 1000000" | bc)
-            WEBHOOK_URL="${{ secrets.SLACK_WEBHOOK_URL }}"
-            if [ -z "$WEBHOOK_URL" ]; then
-              echo "::warning::SLACK_WEBHOOK_URL not configured, skipping alert"
-            elif ! curl -fsS --fail-with-body -X POST \
-              -H 'Content-Type: application/json' \
-              -d "{\"text\":\"Faucet USDC on Base is low: ${BALANCE_HUMAN} USDC (threshold ${AMOUNT_TO_REPORT} USDC) at ${{ steps.addrs.outputs.faucet }}\",\"address\":\"${{ steps.addrs.outputs.faucet }}\",\"chain\":\"Base\",\"asset\":\"USDC\",\"balance\":\"${BALANCE_HUMAN}\",\"amount\":\"${AMOUNT_TO_REPORT}\"}" \
-              "$WEBHOOK_URL"; then
-              echo "::error::Failed to send Slack alert"
-              exit 1
-            fi
-            echo "::warning::Faucet USDC on Base low (${BALANCE_HUMAN} USDC), alert sent"
+            THRESHOLD_HUMAN=$(echo "scale=2; $THRESHOLD / 1000000" | bc)
+            ALERT_TEXT="Faucet USDC on Base is low: ${BALANCE_HUMAN} USDC \
+              (threshold ${THRESHOLD_HUMAN} USDC) at \
+              ${{ steps.addrs.outputs.faucet }}"
+            echo "should_alert=true" >> "$GITHUB_OUTPUT"
+            echo "text=$ALERT_TEXT" >> "$GITHUB_OUTPUT"
+            echo "::warning::$ALERT_TEXT"
           fi
 
-      - name: Alert if faucet ETH on Optimism is low
+      - name: Send Slack alert for faucet USDC on Base
+        if: |
+          steps.alert_faucet_usdc_base.outputs.should_alert == 'true' &&
+          secrets.SLACK_WEBHOOK_URL != ''
+        uses: slackapi/slack-github-action@v2.1.0
+        with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
+          payload: |
+            {
+              "text": "${{ steps.alert_faucet_usdc_base.outputs.text }}"
+            }
+
+      - name: Skip Slack alert for faucet USDC on Base (no webhook)
+        if: |
+          steps.alert_faucet_usdc_base.outputs.should_alert == 'true' &&
+          secrets.SLACK_WEBHOOK_URL == ''
+        run: |
+          echo "::warning::SLACK_WEBHOOK_URL not configured, skipping alert"
+
+      - name: Prepare alert for faucet ETH on Optimism
+        id: alert_faucet_eth_op
         run: |
           BALANCE="${{ steps.faucet_eth_op.outputs.balance }}"
           THRESHOLD="${{ vars.ETH_THRESHOLD_WEI || '500000000000000' }}"
           if [ "$BALANCE" -lt "$THRESHOLD" ]; then
             BALANCE_HUMAN=$(echo "scale=6; $BALANCE / 1000000000000000000" | bc)
-            AMOUNT_TO_REPORT=$(echo "scale=6; $THRESHOLD / 1000000000000000000" | bc)
-            WEBHOOK_URL="${{ secrets.SLACK_WEBHOOK_URL }}"
-            if [ -z "$WEBHOOK_URL" ]; then
-              echo "::warning::SLACK_WEBHOOK_URL not configured, skipping alert"
-            elif ! curl -fsS --fail-with-body -X POST \
-              -H 'Content-Type: application/json' \
-              -d "{\"text\":\"Faucet ETH on Optimism is low: ${BALANCE_HUMAN} ETH (threshold ${AMOUNT_TO_REPORT} ETH) at ${{ steps.addrs.outputs.faucet }}\",\"address\":\"${{ steps.addrs.outputs.faucet }}\",\"chain\":\"Optimism\",\"asset\":\"ETH\",\"balance\":\"${BALANCE_HUMAN}\",\"amount\":\"${AMOUNT_TO_REPORT}\"}" \
-              "$WEBHOOK_URL"; then
-              echo "::error::Failed to send Slack alert"
-              exit 1
-            fi
-            echo "::warning::Faucet ETH on Optimism low (${BALANCE_HUMAN} ETH), alert sent"
+            THRESHOLD_HUMAN=$(echo "scale=6; $THRESHOLD / 1000000000000000000" | bc)
+            ALERT_TEXT="Faucet ETH on Optimism is low: ${BALANCE_HUMAN} ETH \
+              (threshold ${THRESHOLD_HUMAN} ETH) at \
+              ${{ steps.addrs.outputs.faucet }}"
+            echo "should_alert=true" >> "$GITHUB_OUTPUT"
+            echo "text=$ALERT_TEXT" >> "$GITHUB_OUTPUT"
+            echo "::warning::$ALERT_TEXT"
           fi
 
-      - name: Alert if faucet USDC on Optimism is low
+      - name: Send Slack alert for faucet ETH on Optimism
+        if: |
+          steps.alert_faucet_eth_op.outputs.should_alert == 'true' &&
+          secrets.SLACK_WEBHOOK_URL != ''
+        uses: slackapi/slack-github-action@v2.1.0
+        with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
+          payload: |
+            {
+              "text": "${{ steps.alert_faucet_eth_op.outputs.text }}"
+            }
+
+      - name: Skip Slack alert for faucet ETH on Optimism (no webhook)
+        if: |
+          steps.alert_faucet_eth_op.outputs.should_alert == 'true' &&
+          secrets.SLACK_WEBHOOK_URL == ''
+        run: |
+          echo "::warning::SLACK_WEBHOOK_URL not configured, skipping alert"
+
+      - name: Prepare alert for faucet USDC on Optimism
+        id: alert_faucet_usdc_op
         run: |
           BALANCE="${{ steps.faucet_usdc_op.outputs.balance }}"
           THRESHOLD="${{ vars.USDC_THRESHOLD_UNITS || '2000000' }}"
           if [ "$BALANCE" -lt "$THRESHOLD" ]; then
             BALANCE_HUMAN=$(echo "scale=2; $BALANCE / 1000000" | bc)
-            AMOUNT_TO_REPORT=$(echo "scale=2; $THRESHOLD / 1000000" | bc)
-            WEBHOOK_URL="${{ secrets.SLACK_WEBHOOK_URL }}"
-            if [ -z "$WEBHOOK_URL" ]; then
-              echo "::warning::SLACK_WEBHOOK_URL not configured, skipping alert"
-            elif ! curl -fsS --fail-with-body -X POST \
-              -H 'Content-Type: application/json' \
-              -d "{\"text\":\"Faucet USDC on Optimism is low: ${BALANCE_HUMAN} USDC (threshold ${AMOUNT_TO_REPORT} USDC) at ${{ steps.addrs.outputs.faucet }}\",\"address\":\"${{ steps.addrs.outputs.faucet }}\",\"chain\":\"Optimism\",\"asset\":\"USDC\",\"balance\":\"${BALANCE_HUMAN}\",\"amount\":\"${AMOUNT_TO_REPORT}\"}" \
-              "$WEBHOOK_URL"; then
-              echo "::error::Failed to send Slack alert"
-              exit 1
-            fi
-            echo "::warning::Faucet USDC on Optimism low (${BALANCE_HUMAN} USDC), alert sent"
+            THRESHOLD_HUMAN=$(echo "scale=2; $THRESHOLD / 1000000" | bc)
+            ALERT_TEXT="Faucet USDC on Optimism is low: ${BALANCE_HUMAN} USDC \
+              (threshold ${THRESHOLD_HUMAN} USDC) at \
+              ${{ steps.addrs.outputs.faucet }}"
+            echo "should_alert=true" >> "$GITHUB_OUTPUT"
+            echo "text=$ALERT_TEXT" >> "$GITHUB_OUTPUT"
+            echo "::warning::$ALERT_TEXT"
           fi
 
-      - name: Alert if faucet SOL on Solana is low
+      - name: Send Slack alert for faucet USDC on Optimism
+        if: |
+          steps.alert_faucet_usdc_op.outputs.should_alert == 'true' &&
+          secrets.SLACK_WEBHOOK_URL != ''
+        uses: slackapi/slack-github-action@v2.1.0
+        with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
+          payload: |
+            {
+              "text": "${{ steps.alert_faucet_usdc_op.outputs.text }}"
+            }
+
+      - name: Skip Slack alert for faucet USDC on Optimism (no webhook)
+        if: |
+          steps.alert_faucet_usdc_op.outputs.should_alert == 'true' &&
+          secrets.SLACK_WEBHOOK_URL == ''
+        run: |
+          echo "::warning::SLACK_WEBHOOK_URL not configured, skipping alert"
+
+      - name: Prepare alert for faucet SOL on Solana
+        id: alert_faucet_sol
         run: |
           BALANCE="${{ steps.faucet_sol.outputs.balance }}"
           THRESHOLD="${{ vars.SOL_THRESHOLD_LAMPORTS || '100000000' }}"
           if [ "$BALANCE" -lt "$THRESHOLD" ]; then
             BALANCE_HUMAN=$(echo "scale=6; $BALANCE / 1000000000" | bc)
-            AMOUNT_TO_REPORT=$(echo "scale=6; $THRESHOLD / 1000000000" | bc)
-            WEBHOOK_URL="${{ secrets.SLACK_WEBHOOK_URL }}"
-            if [ -z "$WEBHOOK_URL" ]; then
-              echo "::warning::SLACK_WEBHOOK_URL not configured, skipping alert"
-            elif ! curl -fsS --fail-with-body -X POST \
-              -H 'Content-Type: application/json' \
-              -d "{\"text\":\"Faucet SOL on Solana is low: ${BALANCE_HUMAN} SOL (threshold ${AMOUNT_TO_REPORT} SOL) at ${{ steps.addrs.outputs.faucet_solana }}\",\"address\":\"${{ steps.addrs.outputs.faucet_solana }}\",\"chain\":\"Solana\",\"asset\":\"SOL\",\"balance\":\"${BALANCE_HUMAN}\",\"amount\":\"${AMOUNT_TO_REPORT}\"}" \
-              "$WEBHOOK_URL"; then
-              echo "::error::Failed to send Slack alert"
-              exit 1
-            fi
-            echo "::warning::Faucet SOL on Solana low (${BALANCE_HUMAN} SOL), alert sent"
+            THRESHOLD_HUMAN=$(echo "scale=6; $THRESHOLD / 1000000000" | bc)
+            ALERT_TEXT="Faucet SOL on Solana is low: ${BALANCE_HUMAN} SOL \
+              (threshold ${THRESHOLD_HUMAN} SOL) at \
+              ${{ steps.addrs.outputs.faucet_solana }}"
+            echo "should_alert=true" >> "$GITHUB_OUTPUT"
+            echo "text=$ALERT_TEXT" >> "$GITHUB_OUTPUT"
+            echo "::warning::$ALERT_TEXT"
           fi
+
+      - name: Send Slack alert for faucet SOL on Solana
+        if: |
+          steps.alert_faucet_sol.outputs.should_alert == 'true' &&
+          secrets.SLACK_WEBHOOK_URL != ''
+        uses: slackapi/slack-github-action@v2.1.0
+        with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
+          payload: |
+            {
+              "text": "${{ steps.alert_faucet_sol.outputs.text }}"
+            }
+
+      - name: Skip Slack alert for faucet SOL on Solana (no webhook)
+        if: |
+          steps.alert_faucet_sol.outputs.should_alert == 'true' &&
+          secrets.SLACK_WEBHOOK_URL == ''
+        run: |
+          echo "::warning::SLACK_WEBHOOK_URL not configured, skipping alert"
