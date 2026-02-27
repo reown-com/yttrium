@@ -88,7 +88,42 @@ cargo install cargo-ndk --locked
 
 You will also need to install Android Studio and the "NDK (Side by side)" SDK Tools.
 
-### Building Swift Frameworks Locally
+## Local Development
+
+This section covers how to build and test yttrium locally on both Android and iOS platforms.
+
+### Android/Kotlin Prerequisites
+
+| Prerequisite       | Error when missing                       | Solution                                                                               |
+| ------------------ | ---------------------------------------- | -------------------------------------------------------------------------------------- |
+| Android NDK        | Script shows helpful message             | Install via Android Studio SDK Manager                                                 |
+| `ANDROID_NDK_HOME` | "ANDROID_NDK_HOME is not set"            | `export ANDROID_NDK_HOME=$HOME/Library/Android/sdk/ndk/<version>`                      |
+| `cargo-ndk`        | "no such command: ndk"                   | `cargo install cargo-ndk`                                                              |
+| Rust targets       | "target may not be installed"            | `rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android` |
+| Java 17            | "Android Gradle plugin requires Java 17" | Use Zulu JDK, Homebrew, or Android Studio's bundled JDK                                |
+
+### Android Local Testing Workflow
+
+1. Build and publish to Maven Local:
+   ```bash
+   ./generate_kotlin_locally.sh
+   ```
+2. In the consuming app's `build.gradle`, add `mavenLocal()` to repositories:
+   ```gradle
+   repositories {
+       mavenLocal()
+       // ... other repos
+   }
+   ```
+3. Change the dependency to use the local version:
+   ```gradle
+   // "unspecified" is the default version for Maven Local publishes
+   implementation("com.github.reown-com:yttrium-utils:unspecified")
+   ```
+
+### iOS/Swift Local Testing Workflow
+
+#### Building Swift Frameworks Locally
 
 To build and test the Swift XCFrameworks locally:
 
@@ -135,6 +170,20 @@ To restore the original `Package.swift` after local testing:
 git update-index --no-assume-unchanged Package.swift
 git checkout -- Package.swift
 ```
+
+#### CocoaPods (Alternative)
+
+1. Modify `YttriumUtilsWrapper.podspec` to use local paths:
+   ```ruby
+   spec.source = { :path => "." }
+   spec.vendored_frameworks = "target/ios-utils/libyttrium-utils.xcframework"
+   spec.source_files = "platforms/swift/Sources/YttriumUtils/**/*.swift"
+   ```
+2. Update the app's Podfile:
+   ```ruby
+   pod 'YttriumUtilsWrapper', :path => '/path/to/yttrium'
+   ```
+3. Run `pod install`
 
 ### Setup
 
