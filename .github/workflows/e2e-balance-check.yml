@@ -132,7 +132,7 @@ jobs:
           if [ "$BALANCE" -lt "$THRESHOLD" ]; then
             BALANCE_HUMAN=$(echo "scale=2; $BALANCE / 1000000" | bc)
             THRESHOLD_HUMAN=$(echo "scale=2; $THRESHOLD / 1000000" | bc)
-            ALERT_TEXT="Can i have ${THRESHOLD_HUMAN} USDC on Base in wallet: \
+            ALERT_TEXT="[request] Can i have ${THRESHOLD_HUMAN} USDC on Base in wallet: \
               ${{ steps.addrs.outputs.pay }}"
             echo "should_alert=true" >> "$GITHUB_OUTPUT"
             echo "text=$ALERT_TEXT" >> "$GITHUB_OUTPUT"
@@ -167,7 +167,7 @@ jobs:
           if [ "$BALANCE" -lt "$THRESHOLD" ]; then
             BALANCE_HUMAN=$(echo "scale=6; $BALANCE / 1000000000000000000" | bc)
             THRESHOLD_HUMAN=$(echo "scale=6; $THRESHOLD / 1000000000000000000" | bc)
-            ALERT_TEXT="Can i have ${THRESHOLD_HUMAN} ETH on Base in wallet: \
+            ALERT_TEXT="[request] Can i have ${THRESHOLD_HUMAN} ETH on Base in wallet: \
               ${{ steps.addrs.outputs.faucet }}"
             echo "should_alert=true" >> "$GITHUB_OUTPUT"
             echo "text=$ALERT_TEXT" >> "$GITHUB_OUTPUT"
@@ -202,7 +202,7 @@ jobs:
           if [ "$BALANCE" -lt "$THRESHOLD" ]; then
             BALANCE_HUMAN=$(echo "scale=2; $BALANCE / 1000000" | bc)
             THRESHOLD_HUMAN=$(echo "scale=2; $THRESHOLD / 1000000" | bc)
-            ALERT_TEXT="Can i have ${THRESHOLD_HUMAN} USDC on Base in wallet: \
+            ALERT_TEXT="[request] Can i have ${THRESHOLD_HUMAN} USDC on Base in wallet: \
               ${{ steps.addrs.outputs.faucet }}"
             echo "should_alert=true" >> "$GITHUB_OUTPUT"
             echo "text=$ALERT_TEXT" >> "$GITHUB_OUTPUT"
@@ -237,7 +237,7 @@ jobs:
           if [ "$BALANCE" -lt "$THRESHOLD" ]; then
             BALANCE_HUMAN=$(echo "scale=6; $BALANCE / 1000000000000000000" | bc)
             THRESHOLD_HUMAN=$(echo "scale=6; $THRESHOLD / 1000000000000000000" | bc)
-            ALERT_TEXT="Can i have ${THRESHOLD_HUMAN} ETH on Optimism in wallet: \
+            ALERT_TEXT="[request] Can i have ${THRESHOLD_HUMAN} ETH on Optimism in wallet: \
               ${{ steps.addrs.outputs.faucet }}"
             echo "should_alert=true" >> "$GITHUB_OUTPUT"
             echo "text=$ALERT_TEXT" >> "$GITHUB_OUTPUT"
@@ -272,7 +272,7 @@ jobs:
           if [ "$BALANCE" -lt "$THRESHOLD" ]; then
             BALANCE_HUMAN=$(echo "scale=2; $BALANCE / 1000000" | bc)
             THRESHOLD_HUMAN=$(echo "scale=2; $THRESHOLD / 1000000" | bc)
-            ALERT_TEXT="Can i have ${THRESHOLD_HUMAN} USDC on Optimism in wallet: \
+            ALERT_TEXT="[request] Can i have ${THRESHOLD_HUMAN} USDC on Optimism in wallet: \
               ${{ steps.addrs.outputs.faucet }}"
             echo "should_alert=true" >> "$GITHUB_OUTPUT"
             echo "text=$ALERT_TEXT" >> "$GITHUB_OUTPUT"
@@ -307,7 +307,7 @@ jobs:
           if [ "$BALANCE" -lt "$THRESHOLD" ]; then
             BALANCE_HUMAN=$(echo "scale=6; $BALANCE / 1000000000" | bc)
             THRESHOLD_HUMAN=$(echo "scale=6; $THRESHOLD / 1000000000" | bc)
-            ALERT_TEXT="Can i have ${THRESHOLD_HUMAN} SOL on Solana in wallet: \
+            ALERT_TEXT="[request] Can i have ${THRESHOLD_HUMAN} SOL on Solana in wallet: \
               ${{ steps.addrs.outputs.faucet_solana }}"
             echo "should_alert=true" >> "$GITHUB_OUTPUT"
             echo "text=$ALERT_TEXT" >> "$GITHUB_OUTPUT"
