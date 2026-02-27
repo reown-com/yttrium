@@ -103,9 +103,7 @@ impl From<GetPaymentOptionsError> for PayJsonError {
             GetPaymentOptionsError::PaymentNotReady(msg) => {
                 Self::PaymentNotReady(msg)
             }
-            GetPaymentOptionsError::RateLimited(msg) => {
-                Self::RateLimited(msg)
-            }
+            GetPaymentOptionsError::RateLimited(msg) => Self::RateLimited(msg),
             GetPaymentOptionsError::ComplianceFailed(msg) => {
                 Self::ComplianceFailed(msg)
             }
@@ -138,9 +136,7 @@ impl From<GetPaymentRequestError> for PayJsonError {
             GetPaymentRequestError::InternalError(msg) => {
                 Self::InternalError(msg)
             }
-            GetPaymentRequestError::RateLimited(msg) => {
-                Self::RateLimited(msg)
-            }
+            GetPaymentRequestError::RateLimited(msg) => Self::RateLimited(msg),
             GetPaymentRequestError::FetchError(msg) => Self::FetchError(msg),
         }
     }
@@ -172,9 +168,7 @@ impl From<ConfirmPaymentError> for PayJsonError {
             ConfirmPaymentError::UnsupportedMethod(msg) => {
                 Self::UnsupportedMethod(msg)
             }
-            ConfirmPaymentError::RateLimited(msg) => {
-                Self::RateLimited(msg)
-            }
+            ConfirmPaymentError::RateLimited(msg) => Self::RateLimited(msg),
             ConfirmPaymentError::PollingTimeout(msg) => {
                 Self::PollingTimeout(msg)
             }
@@ -195,9 +189,7 @@ impl From<GetPaymentStatusError> for PayJsonError {
             GetPaymentStatusError::ConnectionFailed(msg) => {
                 Self::ConnectionFailed(msg)
             }
-            GetPaymentStatusError::RateLimited(msg) => {
-                Self::RateLimited(msg)
-            }
+            GetPaymentStatusError::RateLimited(msg) => Self::RateLimited(msg),
             GetPaymentStatusError::Http(msg) => Self::Http(msg),
         }
     }

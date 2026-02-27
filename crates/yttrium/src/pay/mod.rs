@@ -58,8 +58,7 @@ impl From<progenitor_client::Error<types::ErrorResponse>> for PayError {
         match e {
             progenitor_client::Error::ErrorResponse(resp) => {
                 let status = resp.status().as_u16();
-                let msg =
-                    format!("{}: {}", status, resp.into_inner().message);
+                let msg = format!("{}: {}", status, resp.into_inner().message);
                 if status == 429 {
                     Self::RateLimited(msg)
                 } else {
@@ -76,15 +75,9 @@ impl From<progenitor_client::Error<types::ErrorResponse>> for PayError {
             progenitor_client::Error::UnexpectedResponse(resp) => {
                 let status = resp.status().as_u16();
                 if status == 429 {
-                    Self::RateLimited(format!(
-                        "{}: Too many requests",
-                        status
-                    ))
+                    Self::RateLimited(format!("{}: Too many requests", status))
                 } else {
-                    Self::Api(format!(
-                        "{}: Unexpected response",
-                        status
-                    ))
+                    Self::Api(format!("{}: Unexpected response", status))
                 }
             }
             other => Self::Api(other.to_string()),
@@ -361,9 +354,7 @@ enum RetryAction {
     RetryAfter(u64),
 }
 
-fn parse_retry_after(
-    headers: &reqwest::header::HeaderMap,
-) -> Option<u64> {
+fn parse_retry_after(headers: &reqwest::header::HeaderMap) -> Option<u64> {
     headers
         .get(reqwest::header::RETRY_AFTER)
         .and_then(|v| v.to_str().ok())
@@ -440,10 +431,8 @@ where
                     backoff,
                     e
                 );
-                crate::time::sleep(
-                    crate::time::Duration::from_millis(backoff),
-                )
-                .await;
+                crate::time::sleep(crate::time::Duration::from_millis(backoff))
+                    .await;
             }
             Err(e) => return Err(e),
         }
@@ -1629,9 +1618,7 @@ fn map_pay_error_to_request_error(e: PayError) -> GetPaymentRequestError {
         PayError::ConnectionFailed(msg) => {
             GetPaymentRequestError::ConnectionFailed(msg)
         }
-        PayError::RateLimited(msg) => {
-            GetPaymentRequestError::RateLimited(msg)
-        }
+        PayError::RateLimited(msg) => GetPaymentRequestError::RateLimited(msg),
         PayError::Http(msg) => GetPaymentRequestError::Http(msg),
         PayError::Api(msg) => GetPaymentRequestError::FetchError(msg),
         PayError::Timeout => {
@@ -1649,9 +1636,7 @@ fn map_pay_error_to_status_error(e: PayError) -> GetPaymentStatusError {
         PayError::ConnectionFailed(msg) => {
             GetPaymentStatusError::ConnectionFailed(msg)
         }
-        PayError::RateLimited(msg) => {
-            GetPaymentStatusError::RateLimited(msg)
-        }
+        PayError::RateLimited(msg) => GetPaymentStatusError::RateLimited(msg),
         PayError::Http(msg) => GetPaymentStatusError::Http(msg),
         PayError::Api(msg) => {
             if msg.starts_with("404:") {
