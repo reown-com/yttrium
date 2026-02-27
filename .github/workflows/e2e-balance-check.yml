@@ -19,6 +19,8 @@ jobs:
   check-balance:
     name: Check E2E Wallet Balances
     runs-on: ubuntu-latest
+    env:
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
     steps:
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
@@ -141,10 +143,10 @@ jobs:
       - name: Send Slack alert for pay wallet USDC on Base
         if: |
           steps.alert_pay_usdc_base.outputs.should_alert == 'true' &&
-          secrets.SLACK_WEBHOOK_URL != ''
+          env.SLACK_WEBHOOK_URL != ''
         uses: slackapi/slack-github-action@v2.1.0
         with:
-          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook: ${{ env.SLACK_WEBHOOK_URL }}
           webhook-type: incoming-webhook
           payload: |
             {
@@ -154,7 +156,7 @@ jobs:
       - name: Skip Slack alert for pay wallet USDC on Base (no webhook)
         if: |
           steps.alert_pay_usdc_base.outputs.should_alert == 'true' &&
-          secrets.SLACK_WEBHOOK_URL == ''
+          env.SLACK_WEBHOOK_URL == ''
         run: |
           echo "::warning::SLACK_WEBHOOK_URL not configured, skipping alert"
 
@@ -177,10 +179,10 @@ jobs:
       - name: Send Slack alert for faucet ETH on Base
         if: |
           steps.alert_faucet_eth_base.outputs.should_alert == 'true' &&
-          secrets.SLACK_WEBHOOK_URL != ''
+          env.SLACK_WEBHOOK_URL != ''
         uses: slackapi/slack-github-action@v2.1.0
         with:
-          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook: ${{ env.SLACK_WEBHOOK_URL }}
           webhook-type: incoming-webhook
           payload: |
             {
@@ -190,7 +192,7 @@ jobs:
       - name: Skip Slack alert for faucet ETH on Base (no webhook)
         if: |
           steps.alert_faucet_eth_base.outputs.should_alert == 'true' &&
-          secrets.SLACK_WEBHOOK_URL == ''
+          env.SLACK_WEBHOOK_URL == ''
         run: |
           echo "::warning::SLACK_WEBHOOK_URL not configured, skipping alert"
 
@@ -213,10 +215,10 @@ jobs:
       - name: Send Slack alert for faucet USDC on Base
         if: |
           steps.alert_faucet_usdc_base.outputs.should_alert == 'true' &&
-          secrets.SLACK_WEBHOOK_URL != ''
+          env.SLACK_WEBHOOK_URL != ''
         uses: slackapi/slack-github-action@v2.1.0
         with:
-          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook: ${{ env.SLACK_WEBHOOK_URL }}
           webhook-type: incoming-webhook
           payload: |
             {
@@ -226,7 +228,7 @@ jobs:
       - name: Skip Slack alert for faucet USDC on Base (no webhook)
         if: |
           steps.alert_faucet_usdc_base.outputs.should_alert == 'true' &&
-          secrets.SLACK_WEBHOOK_URL == ''
+          env.SLACK_WEBHOOK_URL == ''
         run: |
           echo "::warning::SLACK_WEBHOOK_URL not configured, skipping alert"
 
@@ -249,10 +251,10 @@ jobs:
       - name: Send Slack alert for faucet ETH on Optimism
         if: |
           steps.alert_faucet_eth_op.outputs.should_alert == 'true' &&
-          secrets.SLACK_WEBHOOK_URL != ''
+          env.SLACK_WEBHOOK_URL != ''
         uses: slackapi/slack-github-action@v2.1.0
         with:
-          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook: ${{ env.SLACK_WEBHOOK_URL }}
           webhook-type: incoming-webhook
           payload: |
             {
@@ -262,7 +264,7 @@ jobs:
       - name: Skip Slack alert for faucet ETH on Optimism (no webhook)
         if: |
           steps.alert_faucet_eth_op.outputs.should_alert == 'true' &&
-          secrets.SLACK_WEBHOOK_URL == ''
+          env.SLACK_WEBHOOK_URL == ''
         run: |
           echo "::warning::SLACK_WEBHOOK_URL not configured, skipping alert"
 
@@ -285,10 +287,10 @@ jobs:
       - name: Send Slack alert for faucet USDC on Optimism
         if: |
           steps.alert_faucet_usdc_op.outputs.should_alert == 'true' &&
-          secrets.SLACK_WEBHOOK_URL != ''
+          env.SLACK_WEBHOOK_URL != ''
         uses: slackapi/slack-github-action@v2.1.0
         with:
-          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook: ${{ env.SLACK_WEBHOOK_URL }}
           webhook-type: incoming-webhook
           payload: |
             {
@@ -298,7 +300,7 @@ jobs:
       - name: Skip Slack alert for faucet USDC on Optimism (no webhook)
         if: |
           steps.alert_faucet_usdc_op.outputs.should_alert == 'true' &&
-          secrets.SLACK_WEBHOOK_URL == ''
+          env.SLACK_WEBHOOK_URL == ''
         run: |
           echo "::warning::SLACK_WEBHOOK_URL not configured, skipping alert"
 
@@ -321,10 +323,10 @@ jobs:
       - name: Send Slack alert for faucet SOL on Solana
         if: |
           steps.alert_faucet_sol.outputs.should_alert == 'true' &&
-          secrets.SLACK_WEBHOOK_URL != ''
+          env.SLACK_WEBHOOK_URL != ''
         uses: slackapi/slack-github-action@v2.1.0
         with:
-          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook: ${{ env.SLACK_WEBHOOK_URL }}
           webhook-type: incoming-webhook
           payload: |
             {
@@ -334,6 +336,6 @@ jobs:
       - name: Skip Slack alert for faucet SOL on Solana (no webhook)
         if: |
           steps.alert_faucet_sol.outputs.should_alert == 'true' &&
-          secrets.SLACK_WEBHOOK_URL == ''
+          env.SLACK_WEBHOOK_URL == ''
         run: |
           echo "::warning::SLACK_WEBHOOK_URL not configured, skipping alert"
