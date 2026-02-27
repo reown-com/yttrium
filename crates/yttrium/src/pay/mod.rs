@@ -368,34 +368,32 @@ fn parse_retry_after(
         .get(reqwest::header::RETRY_AFTER)
         .and_then(|v| v.to_str().ok())
         .and_then(|v| v.parse::<u64>().ok())
-        .map(|secs| secs.saturating_mul(1000))
+        .map(|secs| secs.saturating_mul(1000).min(MAX_BACKOFF_MS))
+}
+
+fn classify_status(
+    status: reqwest::StatusCode,
+    headers: &reqwest::header::HeaderMap,
+) -> RetryAction {
+    if status.as_u16() == 429 {
+        match parse_retry_after(headers) {
+            Some(ms) if ms > 0 => RetryAction::RetryAfter(ms),
+            _ => RetryAction::Retry,
+        }
+    } else if status.is_server_error() {
+        RetryAction::Retry
+    } else {
+        RetryAction::NoRetry
+    }
 }
 
 fn retry_action<T>(err: &progenitor_client::Error<T>) -> RetryAction {
     match err {
         progenitor_client::Error::ErrorResponse(resp) => {
-            if resp.status().as_u16() == 429 {
-                match parse_retry_after(resp.headers()) {
-                    Some(ms) => RetryAction::RetryAfter(ms),
-                    None => RetryAction::RetryAfter(0),
-                }
-            } else if resp.status().is_server_error() {
-                RetryAction::Retry
-            } else {
-                RetryAction::NoRetry
-            }
+            classify_status(resp.status(), resp.headers())
         }
         progenitor_client::Error::UnexpectedResponse(resp) => {
-            if resp.status().as_u16() == 429 {
-                match parse_retry_after(resp.headers()) {
-                    Some(ms) => RetryAction::RetryAfter(ms),
-                    None => RetryAction::RetryAfter(0),
-                }
-            } else if resp.status().is_server_error() {
-                RetryAction::Retry
-            } else {
-                RetryAction::NoRetry
-            }
+            classify_status(resp.status(), resp.headers())
         }
         progenitor_client::Error::CommunicationError(_) => RetryAction::Retry,
         _ => RetryAction::NoRetry,
@@ -432,7 +430,7 @@ where
                     }
                     RetryAction::RetryAfter(ms) => {
                         attempt += 1;
-                        if ms > 0 { ms } else { compute_backoff(attempt) }
+                        ms
                     }
                 };
                 pay_debug!(
@@ -3083,7 +3081,7 @@ mod tests {
             .respond_with(
                 ResponseTemplate::new(429).set_body_json(&error_response),
             )
-            .expect(1..)
+            .expect(MAX_RETRIES as u64 + 1)
             .mount(&mock_server)
             .await;
         let client =
@@ -3107,9 +3105,19 @@ mod tests {
         let mut headers = reqwest::header::HeaderMap::new();
         headers.insert(
             reqwest::header::RETRY_AFTER,
-            reqwest::header::HeaderValue::from_static("5"),
+            reqwest::header::HeaderValue::from_static("1"),
         );
-        assert_eq!(parse_retry_after(&headers), Some(5000));
+        assert_eq!(parse_retry_after(&headers), Some(1000));
+    }
+
+    #[test]
+    fn test_parse_retry_after_capped() {
+        let mut headers = reqwest::header::HeaderMap::new();
+        headers.insert(
+            reqwest::header::RETRY_AFTER,
+            reqwest::header::HeaderValue::from_static("3600"),
+        );
+        assert_eq!(parse_retry_after(&headers), Some(MAX_BACKOFF_MS));
     }
 
     #[test]
