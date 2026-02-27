@@ -129,9 +129,13 @@ jobs:
           if [ "$BALANCE" -lt "$THRESHOLD" ]; then
             BALANCE_HUMAN=$(echo "scale=2; $BALANCE / 1000000" | bc)
             AMOUNT_TO_REPORT=$(echo "scale=2; $THRESHOLD / 1000000" | bc)
-            if ! curl -sf -X POST -H 'Content-Type: application/json' \
-              -d "{\"address\":\"${{ steps.addrs.outputs.pay }}\",\"chain\":\"Base\",\"asset\":\"USDC\",\"balance\":\"${BALANCE_HUMAN}\",\"amount\":\"${AMOUNT_TO_REPORT}\"}" \
-              "${{ secrets.SLACK_WEBHOOK_URL }}"; then
+            WEBHOOK_URL="${{ secrets.SLACK_WEBHOOK_URL }}"
+            if [ -z "$WEBHOOK_URL" ]; then
+              echo "::warning::SLACK_WEBHOOK_URL not configured, skipping alert"
+            elif ! curl -fsS --fail-with-body -X POST \
+              -H 'Content-Type: application/json' \
+              -d "{\"text\":\"Pay wallet USDC on Base is low: ${BALANCE_HUMAN} USDC (threshold ${AMOUNT_TO_REPORT} USDC) at ${{ steps.addrs.outputs.pay }}\",\"address\":\"${{ steps.addrs.outputs.pay }}\",\"chain\":\"Base\",\"asset\":\"USDC\",\"balance\":\"${BALANCE_HUMAN}\",\"amount\":\"${AMOUNT_TO_REPORT}\"}" \
+              "$WEBHOOK_URL"; then
               echo "::error::Failed to send Slack alert"
               exit 1
             fi
@@ -145,9 +149,13 @@ jobs:
           if [ "$BALANCE" -lt "$THRESHOLD" ]; then
             BALANCE_HUMAN=$(echo "scale=6; $BALANCE / 1000000000000000000" | bc)
             AMOUNT_TO_REPORT=$(echo "scale=6; $THRESHOLD / 1000000000000000000" | bc)
-            if ! curl -sf -X POST -H 'Content-Type: application/json' \
-              -d "{\"address\":\"${{ steps.addrs.outputs.faucet }}\",\"chain\":\"Base\",\"asset\":\"ETH\",\"balance\":\"${BALANCE_HUMAN}\",\"amount\":\"${AMOUNT_TO_REPORT}\"}" \
-              "${{ secrets.SLACK_WEBHOOK_URL }}"; then
+            WEBHOOK_URL="${{ secrets.SLACK_WEBHOOK_URL }}"
+            if [ -z "$WEBHOOK_URL" ]; then
+              echo "::warning::SLACK_WEBHOOK_URL not configured, skipping alert"
+            elif ! curl -fsS --fail-with-body -X POST \
+              -H 'Content-Type: application/json' \
+              -d "{\"text\":\"Faucet ETH on Base is low: ${BALANCE_HUMAN} ETH (threshold ${AMOUNT_TO_REPORT} ETH) at ${{ steps.addrs.outputs.faucet }}\",\"address\":\"${{ steps.addrs.outputs.faucet }}\",\"chain\":\"Base\",\"asset\":\"ETH\",\"balance\":\"${BALANCE_HUMAN}\",\"amount\":\"${AMOUNT_TO_REPORT}\"}" \
+              "$WEBHOOK_URL"; then
               echo "::error::Failed to send Slack alert"
               exit 1
             fi
@@ -161,9 +169,13 @@ jobs:
           if [ "$BALANCE" -lt "$THRESHOLD" ]; then
             BALANCE_HUMAN=$(echo "scale=2; $BALANCE / 1000000" | bc)
             AMOUNT_TO_REPORT=$(echo "scale=2; $THRESHOLD / 1000000" | bc)
-            if ! curl -sf -X POST -H 'Content-Type: application/json' \
-              -d "{\"address\":\"${{ steps.addrs.outputs.faucet }}\",\"chain\":\"Base\",\"asset\":\"USDC\",\"balance\":\"${BALANCE_HUMAN}\",\"amount\":\"${AMOUNT_TO_REPORT}\"}" \
-              "${{ secrets.SLACK_WEBHOOK_URL }}"; then
+            WEBHOOK_URL="${{ secrets.SLACK_WEBHOOK_URL }}"
+            if [ -z "$WEBHOOK_URL" ]; then
+              echo "::warning::SLACK_WEBHOOK_URL not configured, skipping alert"
+            elif ! curl -fsS --fail-with-body -X POST \
+              -H 'Content-Type: application/json' \
+              -d "{\"text\":\"Faucet USDC on Base is low: ${BALANCE_HUMAN} USDC (threshold ${AMOUNT_TO_REPORT} USDC) at ${{ steps.addrs.outputs.faucet }}\",\"address\":\"${{ steps.addrs.outputs.faucet }}\",\"chain\":\"Base\",\"asset\":\"USDC\",\"balance\":\"${BALANCE_HUMAN}\",\"amount\":\"${AMOUNT_TO_REPORT}\"}" \
+              "$WEBHOOK_URL"; then
               echo "::error::Failed to send Slack alert"
               exit 1
             fi
@@ -177,9 +189,13 @@ jobs:
           if [ "$BALANCE" -lt "$THRESHOLD" ]; then
             BALANCE_HUMAN=$(echo "scale=6; $BALANCE / 1000000000000000000" | bc)
             AMOUNT_TO_REPORT=$(echo "scale=6; $THRESHOLD / 1000000000000000000" | bc)
-            if ! curl -sf -X POST -H 'Content-Type: application/json' \
-              -d "{\"address\":\"${{ steps.addrs.outputs.faucet }}\",\"chain\":\"Optimism\",\"asset\":\"ETH\",\"balance\":\"${BALANCE_HUMAN}\",\"amount\":\"${AMOUNT_TO_REPORT}\"}" \
-              "${{ secrets.SLACK_WEBHOOK_URL }}"; then
+            WEBHOOK_URL="${{ secrets.SLACK_WEBHOOK_URL }}"
+            if [ -z "$WEBHOOK_URL" ]; then
+              echo "::warning::SLACK_WEBHOOK_URL not configured, skipping alert"
+            elif ! curl -fsS --fail-with-body -X POST \
+              -H 'Content-Type: application/json' \
+              -d "{\"text\":\"Faucet ETH on Optimism is low: ${BALANCE_HUMAN} ETH (threshold ${AMOUNT_TO_REPORT} ETH) at ${{ steps.addrs.outputs.faucet }}\",\"address\":\"${{ steps.addrs.outputs.faucet }}\",\"chain\":\"Optimism\",\"asset\":\"ETH\",\"balance\":\"${BALANCE_HUMAN}\",\"amount\":\"${AMOUNT_TO_REPORT}\"}" \
+              "$WEBHOOK_URL"; then
               echo "::error::Failed to send Slack alert"
               exit 1
             fi
@@ -193,9 +209,13 @@ jobs:
           if [ "$BALANCE" -lt "$THRESHOLD" ]; then
             BALANCE_HUMAN=$(echo "scale=2; $BALANCE / 1000000" | bc)
             AMOUNT_TO_REPORT=$(echo "scale=2; $THRESHOLD / 1000000" | bc)
-            if ! curl -sf -X POST -H 'Content-Type: application/json' \
-              -d "{\"address\":\"${{ steps.addrs.outputs.faucet }}\",\"chain\":\"Optimism\",\"asset\":\"USDC\",\"balance\":\"${BALANCE_HUMAN}\",\"amount\":\"${AMOUNT_TO_REPORT}\"}" \
-              "${{ secrets.SLACK_WEBHOOK_URL }}"; then
+            WEBHOOK_URL="${{ secrets.SLACK_WEBHOOK_URL }}"
+            if [ -z "$WEBHOOK_URL" ]; then
+              echo "::warning::SLACK_WEBHOOK_URL not configured, skipping alert"
+            elif ! curl -fsS --fail-with-body -X POST \
+              -H 'Content-Type: application/json' \
+              -d "{\"text\":\"Faucet USDC on Optimism is low: ${BALANCE_HUMAN} USDC (threshold ${AMOUNT_TO_REPORT} USDC) at ${{ steps.addrs.outputs.faucet }}\",\"address\":\"${{ steps.addrs.outputs.faucet }}\",\"chain\":\"Optimism\",\"asset\":\"USDC\",\"balance\":\"${BALANCE_HUMAN}\",\"amount\":\"${AMOUNT_TO_REPORT}\"}" \
+              "$WEBHOOK_URL"; then
               echo "::error::Failed to send Slack alert"
               exit 1
             fi
@@ -209,9 +229,13 @@ jobs:
           if [ "$BALANCE" -lt "$THRESHOLD" ]; then
             BALANCE_HUMAN=$(echo "scale=6; $BALANCE / 1000000000" | bc)
             AMOUNT_TO_REPORT=$(echo "scale=6; $THRESHOLD / 1000000000" | bc)
-            if ! curl -sf -X POST -H 'Content-Type: application/json' \
-              -d "{\"address\":\"${{ steps.addrs.outputs.faucet_solana }}\",\"chain\":\"Solana\",\"asset\":\"SOL\",\"balance\":\"${BALANCE_HUMAN}\",\"amount\":\"${AMOUNT_TO_REPORT}\"}" \
-              "${{ secrets.SLACK_WEBHOOK_URL }}"; then
+            WEBHOOK_URL="${{ secrets.SLACK_WEBHOOK_URL }}"
+            if [ -z "$WEBHOOK_URL" ]; then
+              echo "::warning::SLACK_WEBHOOK_URL not configured, skipping alert"
+            elif ! curl -fsS --fail-with-body -X POST \
+              -H 'Content-Type: application/json' \
+              -d "{\"text\":\"Faucet SOL on Solana is low: ${BALANCE_HUMAN} SOL (threshold ${AMOUNT_TO_REPORT} SOL) at ${{ steps.addrs.outputs.faucet_solana }}\",\"address\":\"${{ steps.addrs.outputs.faucet_solana }}\",\"chain\":\"Solana\",\"asset\":\"SOL\",\"balance\":\"${BALANCE_HUMAN}\",\"amount\":\"${AMOUNT_TO_REPORT}\"}" \
+              "$WEBHOOK_URL"; then
               echo "::error::Failed to send Slack alert"
               exit 1
             fi
