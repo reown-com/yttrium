@@ -19,7 +19,7 @@ jobs:
     runs-on: [self-hosted, aws-ecs-16cpu-64mem-40disk-60m]
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           submodules: recursive
       - uses: ./.github/actions/free-disk-space
@@ -48,7 +48,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           submodules: recursive
       - uses: ./.github/actions/free-disk-space
@@ -81,7 +81,7 @@ jobs:
     runs-on: [self-hosted, aws-ecs-16cpu-64mem-40disk-60m]
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           submodules: recursive
       - uses: ./.github/actions/free-disk-space
@@ -110,7 +110,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           submodules: recursive
       - uses: ./.github/actions/free-disk-space
@@ -149,7 +149,7 @@ jobs:
           - "15.4"  # Swift 5.10 - backwards compatibility
           - "16.2"  # Swift 6.x - new version support
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           submodules: recursive
       - uses: ./.github/actions/free-disk-space
@@ -193,7 +193,7 @@ jobs:
             lib_suffix: "_wcpay"
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: ./.github/actions/free-disk-space
         with:
           runner-type: self-hosted-kotlin
@@ -274,7 +274,7 @@ jobs:
     needs: build-kotlin-variant
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Download yttrium artifacts
         uses: actions/download-artifact@v7

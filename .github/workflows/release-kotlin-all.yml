@@ -35,7 +35,7 @@ jobs:
       matrix:
         target: [aarch64-linux-android, armv7-linux-androideabi, x86_64-linux-android]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v6
       - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
@@ -112,7 +112,7 @@ jobs:
       matrix:
         target: [aarch64-linux-android, armv7-linux-androideabi, x86_64-linux-android]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v6
       - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
@@ -200,7 +200,7 @@ jobs:
       matrix:
         target: [aarch64-linux-android, armv7-linux-androideabi, x86_64-linux-android]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v6
       - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
@@ -281,7 +281,7 @@ jobs:
     needs: [build-yttrium, build-yttrium-utils, build-yttrium-wcpay]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v6
 
       # Download yttrium artifacts
       - name: Download yttrium aarch64
@@ -388,7 +388,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v6
 
       - name: Download all artifacts
         uses: actions/download-artifact@v7
