@@ -43,6 +43,8 @@ pub enum PayError {
     RequestTimeout(String),
     #[error("Connection failed: {0}")]
     ConnectionFailed(String),
+    #[error("Rate limited: {0}")]
+    RateLimited(String),
     #[error("HTTP error: {0}")]
     Http(String),
     #[error("API error: {0}")]
@@ -56,7 +58,12 @@ impl From<progenitor_client::Error<types::ErrorResponse>> for PayError {
         match e {
             progenitor_client::Error::ErrorResponse(resp) => {
                 let status = resp.status().as_u16();
-                Self::Api(format!("{}: {}", status, resp.into_inner().message))
+                let msg = format!("{}: {}", status, resp.into_inner().message);
+                if status == 429 {
+                    Self::RateLimited(msg)
+                } else {
+                    Self::Api(msg)
+                }
             }
             progenitor_client::Error::CommunicationError(err) => {
                 map_reqwest_error_to_pay_error(&err)
@@ -65,9 +72,14 @@ impl From<progenitor_client::Error<types::ErrorResponse>> for PayError {
             progenitor_client::Error::InvalidResponsePayload(_, err) => {
                 Self::Api(format!("Invalid response: {}", err))
             }
-            progenitor_client::Error::UnexpectedResponse(resp) => Self::Api(
-                format!("{}: Unexpected response", resp.status().as_u16()),
-            ),
+            progenitor_client::Error::UnexpectedResponse(resp) => {
+                let status = resp.status().as_u16();
+                if status == 429 {
+                    Self::RateLimited(format!("{}: Too many requests", status))
+                } else {
+                    Self::Api(format!("{}: Unexpected response", status))
+                }
+            }
             other => Self::Api(other.to_string()),
         }
     }
@@ -123,6 +135,7 @@ impl error_reporting::HasErrorType for PayError {
             Self::NoConnection(_) => "NoConnection",
             Self::RequestTimeout(_) => "RequestTimeout",
             Self::ConnectionFailed(_) => "ConnectionFailed",
+            Self::RateLimited(_) => "RateLimited",
             Self::Http(_) => "Http",
             Self::Api(_) => "Api",
             Self::Timeout => "Timeout",
@@ -153,6 +166,8 @@ pub enum GetPaymentOptionsError {
     RequestTimeout(String),
     #[error("Connection failed: {0}")]
     ConnectionFailed(String),
+    #[error("Rate limited: {0}")]
+    RateLimited(String),
     #[error("HTTP error: {0}")]
     Http(String),
     #[error("Internal error: {0}")]
@@ -172,6 +187,7 @@ impl error_reporting::HasErrorType for GetPaymentOptionsError {
             Self::NoConnection(_) => "NoConnection",
             Self::RequestTimeout(_) => "RequestTimeout",
             Self::ConnectionFailed(_) => "ConnectionFailed",
+            Self::RateLimited(_) => "RateLimited",
             Self::Http(_) => "Http",
             Self::InternalError(_) => "InternalError",
         }
@@ -193,6 +209,8 @@ pub enum GetPaymentRequestError {
     RequestTimeout(String),
     #[error("Connection failed: {0}")]
     ConnectionFailed(String),
+    #[error("Rate limited: {0}")]
+    RateLimited(String),
     #[error("HTTP error: {0}")]
     Http(String),
     #[error("Fetch error: {0}")]
@@ -210,6 +228,7 @@ impl error_reporting::HasErrorType for GetPaymentRequestError {
             Self::NoConnection(_) => "NoConnection",
             Self::RequestTimeout(_) => "RequestTimeout",
             Self::ConnectionFailed(_) => "ConnectionFailed",
+            Self::RateLimited(_) => "RateLimited",
             Self::Http(_) => "Http",
             Self::FetchError(_) => "FetchError",
             Self::InternalError(_) => "InternalError",
@@ -236,6 +255,8 @@ pub enum ConfirmPaymentError {
     RequestTimeout(String),
     #[error("Connection failed: {0}")]
     ConnectionFailed(String),
+    #[error("Rate limited: {0}")]
+    RateLimited(String),
     #[error("HTTP error: {0}")]
     Http(String),
     #[error("Internal error: {0}")]
@@ -257,6 +278,7 @@ impl error_reporting::HasErrorType for ConfirmPaymentError {
             Self::NoConnection(_) => "NoConnection",
             Self::RequestTimeout(_) => "RequestTimeout",
             Self::ConnectionFailed(_) => "ConnectionFailed",
+            Self::RateLimited(_) => "RateLimited",
             Self::Http(_) => "Http",
             Self::InternalError(_) => "InternalError",
             Self::UnsupportedMethod(_) => "UnsupportedMethod",
@@ -276,6 +298,8 @@ pub enum GetPaymentStatusError {
     RequestTimeout(String),
     #[error("Connection failed: {0}")]
     ConnectionFailed(String),
+    #[error("Rate limited: {0}")]
+    RateLimited(String),
     #[error("HTTP error: {0}")]
     Http(String),
 }
@@ -287,6 +311,7 @@ impl error_reporting::HasErrorType for GetPaymentStatusError {
             Self::NoConnection(_) => "NoConnection",
             Self::RequestTimeout(_) => "RequestTimeout",
             Self::ConnectionFailed(_) => "ConnectionFailed",
+            Self::RateLimited(_) => "RateLimited",
             Self::Http(_) => "Http",
         }
     }
@@ -323,17 +348,56 @@ fn looks_like_network_error(msg: &str) -> bool {
         || lower.contains("timed out")
 }
 
-fn is_retryable_error<T>(err: &progenitor_client::Error<T>) -> bool {
+enum RetryAction {
+    NoRetry,
+    Retry,
+    RetryAfter(u64),
+}
+
+fn parse_retry_after(headers: &reqwest::header::HeaderMap) -> Option<u64> {
+    headers
+        .get(reqwest::header::RETRY_AFTER)
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.parse::<u64>().ok())
+        .map(|secs| secs.saturating_mul(1000).min(MAX_BACKOFF_MS))
+}
+
+fn classify_status(
+    status: reqwest::StatusCode,
+    headers: &reqwest::header::HeaderMap,
+) -> RetryAction {
+    if status.as_u16() == 429 {
+        match parse_retry_after(headers) {
+            Some(ms) if ms > 0 => RetryAction::RetryAfter(ms),
+            _ => RetryAction::Retry,
+        }
+    } else if status.is_server_error() {
+        RetryAction::Retry
+    } else {
+        RetryAction::NoRetry
+    }
+}
+
+fn retry_action<T>(err: &progenitor_client::Error<T>) -> RetryAction {
     match err {
         progenitor_client::Error::ErrorResponse(resp) => {
-            resp.status().is_server_error()
+            classify_status(resp.status(), resp.headers())
         }
-        #[cfg(not(target_arch = "wasm32"))]
-        progenitor_client::Error::CommunicationError(_) => true,
-        #[cfg(target_arch = "wasm32")]
-        progenitor_client::Error::CommunicationError(_) => true,
-        _ => false,
+        progenitor_client::Error::UnexpectedResponse(resp) => {
+            classify_status(resp.status(), resp.headers())
+        }
+        progenitor_client::Error::CommunicationError(_) => RetryAction::Retry,
+        _ => RetryAction::NoRetry,
     }
+}
+
+fn compute_backoff(attempt: u32) -> u64 {
+    use rand::Rng;
+    let base = INITIAL_BACKOFF_MS
+        .saturating_mul(2u64.saturating_pow(attempt - 1))
+        .min(MAX_BACKOFF_MS);
+    let jitter = rand::thread_rng().gen_range(0..=base / 2);
+    base + jitter
 }
 
 async fn with_retry<T, E, F, Fut>(
@@ -344,18 +408,22 @@ where
     Fut: std::future::Future<Output = Result<T, progenitor_client::Error<E>>>,
     E: std::fmt::Debug,
 {
-    use rand::Rng;
     let mut attempt = 0;
     loop {
         match f().await {
             Ok(v) => return Ok(v),
-            Err(e) if is_retryable_error(&e) && attempt < MAX_RETRIES => {
-                attempt += 1;
-                let base_backoff = INITIAL_BACKOFF_MS
-                    .saturating_mul(2u64.saturating_pow(attempt - 1))
-                    .min(MAX_BACKOFF_MS);
-                let jitter = rand::thread_rng().gen_range(0..=base_backoff / 2);
-                let backoff = base_backoff + jitter;
+            Err(e) if attempt < MAX_RETRIES => {
+                let backoff = match retry_action(&e) {
+                    RetryAction::NoRetry => return Err(e),
+                    RetryAction::Retry => {
+                        attempt += 1;
+                        compute_backoff(attempt)
+                    }
+                    RetryAction::RetryAfter(ms) => {
+                        attempt += 1;
+                        ms
+                    }
+                };
                 pay_debug!(
                     "Retry attempt {}/{} after {}ms (error: {})",
                     attempt,
@@ -1443,6 +1511,7 @@ fn map_payment_options_error(
                 400 => GetPaymentOptionsError::InvalidRequest(msg),
                 410 => GetPaymentOptionsError::PaymentExpired(msg),
                 422 => GetPaymentOptionsError::InvalidAccount(msg),
+                429 => GetPaymentOptionsError::RateLimited(msg),
                 451 => GetPaymentOptionsError::ComplianceFailed(msg),
                 _ => GetPaymentOptionsError::Http(msg),
             }
@@ -1455,6 +1524,7 @@ fn map_payment_options_error(
                 400 => GetPaymentOptionsError::InvalidRequest(msg),
                 410 => GetPaymentOptionsError::PaymentExpired(msg),
                 422 => GetPaymentOptionsError::InvalidAccount(msg),
+                429 => GetPaymentOptionsError::RateLimited(msg),
                 451 => GetPaymentOptionsError::ComplianceFailed(msg),
                 _ => GetPaymentOptionsError::Http(msg),
             }
@@ -1496,6 +1566,7 @@ fn map_confirm_payment_error(
                 400 => ConfirmPaymentError::InvalidOption(msg),
                 422 => ConfirmPaymentError::InvalidSignature(msg),
                 409 => ConfirmPaymentError::RouteExpired(msg),
+                429 => ConfirmPaymentError::RateLimited(msg),
                 _ => ConfirmPaymentError::Http(msg),
             }
         }
@@ -1508,6 +1579,7 @@ fn map_confirm_payment_error(
                 400 => ConfirmPaymentError::InvalidOption(msg),
                 422 => ConfirmPaymentError::InvalidSignature(msg),
                 409 => ConfirmPaymentError::RouteExpired(msg),
+                429 => ConfirmPaymentError::RateLimited(msg),
                 _ => ConfirmPaymentError::Http(msg),
             }
         }
@@ -1546,6 +1618,7 @@ fn map_pay_error_to_request_error(e: PayError) -> GetPaymentRequestError {
         PayError::ConnectionFailed(msg) => {
             GetPaymentRequestError::ConnectionFailed(msg)
         }
+        PayError::RateLimited(msg) => GetPaymentRequestError::RateLimited(msg),
         PayError::Http(msg) => GetPaymentRequestError::Http(msg),
         PayError::Api(msg) => GetPaymentRequestError::FetchError(msg),
         PayError::Timeout => {
@@ -1563,6 +1636,7 @@ fn map_pay_error_to_status_error(e: PayError) -> GetPaymentStatusError {
         PayError::ConnectionFailed(msg) => {
             GetPaymentStatusError::ConnectionFailed(msg)
         }
+        PayError::RateLimited(msg) => GetPaymentStatusError::RateLimited(msg),
         PayError::Http(msg) => GetPaymentStatusError::Http(msg),
         PayError::Api(msg) => {
             if msg.starts_with("404:") {
@@ -2978,5 +3052,72 @@ mod tests {
                 panic!("Expected Http, got {:?}", other)
             }
         }
+    }
+
+    #[tokio::test]
+    async fn test_rate_limit_returns_rate_limited_error() {
+        let mock_server = MockServer::start().await;
+        let error_response = serde_json::json!({
+            "code": "rate_limited",
+            "message": "Too many requests"
+        });
+        Mock::given(method("POST"))
+            .and(path("/v1/gateway/payment/pay_rl/options"))
+            .respond_with(
+                ResponseTemplate::new(429).set_body_json(&error_response),
+            )
+            .expect(MAX_RETRIES as u64 + 1)
+            .mount(&mock_server)
+            .await;
+        let client =
+            WalletConnectPay::new(test_config(mock_server.uri())).unwrap();
+        let result = client
+            .get_payment_options(
+                "pay_rl".to_string(),
+                vec!["eip155:8453:0x123".to_string()],
+                false,
+            )
+            .await;
+        assert!(
+            matches!(result, Err(GetPaymentOptionsError::RateLimited(_))),
+            "Expected RateLimited, got {:?}",
+            result
+        );
+    }
+
+    #[test]
+    fn test_parse_retry_after_valid() {
+        let mut headers = reqwest::header::HeaderMap::new();
+        headers.insert(
+            reqwest::header::RETRY_AFTER,
+            reqwest::header::HeaderValue::from_static("1"),
+        );
+        assert_eq!(parse_retry_after(&headers), Some(1000));
+    }
+
+    #[test]
+    fn test_parse_retry_after_capped() {
+        let mut headers = reqwest::header::HeaderMap::new();
+        headers.insert(
+            reqwest::header::RETRY_AFTER,
+            reqwest::header::HeaderValue::from_static("3600"),
+        );
+        assert_eq!(parse_retry_after(&headers), Some(MAX_BACKOFF_MS));
+    }
+
+    #[test]
+    fn test_parse_retry_after_missing() {
+        let headers = reqwest::header::HeaderMap::new();
+        assert_eq!(parse_retry_after(&headers), None);
+    }
+
+    #[test]
+    fn test_parse_retry_after_invalid() {
+        let mut headers = reqwest::header::HeaderMap::new();
+        headers.insert(
+            reqwest::header::RETRY_AFTER,
+            reqwest::header::HeaderValue::from_static("not-a-number"),
+        );
+        assert_eq!(parse_retry_after(&headers), None);
     }
 }
