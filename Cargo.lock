@@ -1937,7 +1937,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "94bffc006df10ac2a68c83692d734a465f8ee6c5b384d8545a636f81d858f4bf"
 dependencies = [
  "aws-lc-sys",
- "untrusted 0.7.1",
  "zeroize",
 ]
 
@@ -4592,6 +4591,7 @@ dependencies = [
  "ff 0.13.1",
  "generic-array",
  "group 0.13.0",
+ "hkdf 0.12.4",
  "pem-rfc7468 0.7.0",
  "pkcs8 0.10.2",
  "rand_core 0.6.4",
@@ -4830,7 +4830,7 @@ dependencies = [
  "rand 0.8.5",
  "readonly",
  "rfc6979 0.4.0",
- "rsa",
+ "rsa 0.8.2",
  "schemars 0.8.22",
  "secp256k1 0.27.0",
  "serde",
@@ -5369,11 +5369,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "139ef39800118c7683f2fd3c98c1b23c09ae076556b435f8e9064ae108aaeeec"
 dependencies = [
  "cfg-if",
+ "js-sys",
  "libc",
  "r-efi",
  "rand_core 0.10.0",
  "wasip2",
  "wasip3",
+ "wasm-bindgen",
 ]
 
 [[package]]
@@ -6801,15 +6803,19 @@ version = "10.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0529410abe238729a60b108898784df8984c87f6054c9c4fcacc47e4803c1ce1"
 dependencies = [
- "aws-lc-rs",
  "base64 0.22.1",
+ "ed25519-dalek",
  "getrandom 0.2.16",
+ "hmac 0.12.1",
  "js-sys",
- "pem 3.0.5",
+ "p256",
+ "p384",
+ "rand 0.8.5",
+ "rsa 0.9.9",
  "serde",
  "serde_json",
+ "sha2 0.10.9",
  "signature 2.2.0",
- "simple_asn1",
 ]
 
 [[package]]
@@ -9030,6 +9036,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "pkcs1"
+version = "0.7.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c8ffb9f10fa047879315e6625af03c164b16962a5368d724ed16323b68ace47f"
+dependencies = [
+ "der 0.7.10",
+ "pkcs8 0.10.2",
+ "spki 0.7.3",
+]
+
+[[package]]
 name = "pkcs8"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -10116,11 +10133,31 @@ dependencies = [
  "num-integer",
  "num-iter",
  "num-traits",
- "pkcs1",
+ "pkcs1 0.4.1",
  "pkcs8 0.9.0",
  "rand_core 0.6.4",
  "sha2 0.10.9",
  "signature 2.2.0",
+ "subtle",
+ "zeroize",
+]
+
+[[package]]
+name = "rsa"
+version = "0.9.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "40a0376c50d0358279d9d643e4bf7b7be212f1f4ff1da9070a7b54d22ef75c88"
+dependencies = [
+ "const-oid 0.9.6",
+ "digest 0.10.7",
+ "num-bigint-dig",
+ "num-integer",
+ "num-traits",
+ "pkcs1 0.7.5",
+ "pkcs8 0.10.2",
+ "rand_core 0.6.4",
+ "signature 2.2.0",
+ "spki 0.7.3",
  "subtle",
  "zeroize",
 ]
@@ -16639,6 +16676,7 @@ dependencies = [
  "futures-concurrency",
  "getrandom 0.2.16",
  "getrandom 0.3.3",
+ "getrandom 0.4.1",
  "hex",
  "hkdf 0.13.0-rc.2",
  "jni",
