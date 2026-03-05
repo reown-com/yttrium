@@ -115,8 +115,8 @@ jobs:
         shell: bash
         working-directory: crates/yttrium_dart/rust
         run: |
-          rustup target add armv7-linux-androideabi aarch64-linux-android i686-linux-android x86_64-linux-android
-          cargo ndk -t armeabi-v7a -t arm64-v8a -t x86 -t x86_64 build --profile=uniffi-release
+          rustup target add armv7-linux-androideabi aarch64-linux-android
+          cargo ndk -t armeabi-v7a -t arm64-v8a build --profile=uniffi-release
 
       # Prepare Android artifacts
       - name: Prepare Android artifacts
@@ -124,12 +124,8 @@ jobs:
         run: |
           mkdir -p jniLibs/arm64-v8a
           mkdir -p jniLibs/armeabi-v7a
-          mkdir -p jniLibs/x86
-          mkdir -p jniLibs/x86_64
           cp target/aarch64-linux-android/uniffi-release/libyttrium_dart.so jniLibs/arm64-v8a/libyttrium_dart.so
           cp target/armv7-linux-androideabi/uniffi-release/libyttrium_dart.so jniLibs/armeabi-v7a/libyttrium_dart.so
-          cp target/i686-linux-android/uniffi-release/libyttrium_dart.so jniLibs/x86/libyttrium_dart.so
-          cp target/x86_64-linux-android/uniffi-release/libyttrium_dart.so jniLibs/x86_64/libyttrium_dart.so
 
       # Upload Android artifacts
       - name: Upload Android artifacts
