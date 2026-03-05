@@ -239,7 +239,10 @@ async fn e2e_payment_options_only() {
     println!("Gateway URL: {}", payment.gateway_url);
 
     let pay_client = WalletConnectPay::new(test_sdk_config()).unwrap();
-    let accounts = vec![wallet.caip10_account(CHAIN_BASE)];
+    let accounts = vec![
+        wallet.caip10_account(CHAIN_BASE),
+        wallet.caip10_account(CHAIN_POLYGON),
+    ];
 
     let response = pay_client
         .get_payment_options(payment.gateway_url, accounts, true)
@@ -401,19 +404,11 @@ async fn e2e_payment_happy_path() {
         result.status, result.is_final
     );
 
-    // Step 8: Verify final status
+    // Step 8: Verify successful status
     assert!(result.is_final, "Expected final status");
-    match result.status {
-        PaymentStatus::Succeeded => {
-            println!("Payment succeeded!");
-        }
-        PaymentStatus::Failed => {
-            println!(
-                "Payment failed - check if test wallet has sufficient USDC on Base"
-            );
-        }
-        status => {
-            panic!("Unexpected payment status: {:?}", status);
-        }
-    }
+    assert_eq!(
+        result.status,
+        PaymentStatus::Succeeded,
+        "Expected payment to succeed"
+    );
 }
