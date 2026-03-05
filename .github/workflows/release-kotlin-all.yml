@@ -30,10 +30,11 @@ jobs:
       # Use target-specific RUSTFLAGS to avoid affecting host builds
       CARGO_TARGET_AARCH64_LINUX_ANDROID_RUSTFLAGS: "-C link-arg=-Wl,--gc-sections"
       CARGO_TARGET_ARMV7_LINUX_ANDROIDEABI_RUSTFLAGS: "-C link-arg=-Wl,--gc-sections"
+      CARGO_TARGET_I686_LINUX_ANDROID_RUSTFLAGS: "-C link-arg=-Wl,--gc-sections"
       CARGO_TARGET_X86_64_LINUX_ANDROID_RUSTFLAGS: "-C link-arg=-Wl,--gc-sections"
     strategy:
       matrix:
-        target: [aarch64-linux-android, armv7-linux-androideabi, x86_64-linux-android]
+        target: [aarch64-linux-android, armv7-linux-androideabi, i686-linux-android, x86_64-linux-android]
     steps:
       - uses: actions/checkout@v3
       - name: Install Rust toolchain
@@ -88,6 +89,7 @@ jobs:
           declare -A abi_map
           abi_map[aarch64-linux-android]="arm64-v8a"
           abi_map[armv7-linux-androideabi]="armeabi-v7a"
+          abi_map[i686-linux-android]="x86"
           abi_map[x86_64-linux-android]="x86_64"
           abi_name=${abi_map[${{ matrix.target }}]}
           mkdir -p yttrium/libs/$abi_name
@@ -107,10 +109,11 @@ jobs:
       # Use target-specific RUSTFLAGS to avoid affecting host builds
       CARGO_TARGET_AARCH64_LINUX_ANDROID_RUSTFLAGS: "-C link-arg=-Wl,--gc-sections"
       CARGO_TARGET_ARMV7_LINUX_ANDROIDEABI_RUSTFLAGS: "-C link-arg=-Wl,--gc-sections"
+      CARGO_TARGET_I686_LINUX_ANDROID_RUSTFLAGS: "-C link-arg=-Wl,--gc-sections"
       CARGO_TARGET_X86_64_LINUX_ANDROID_RUSTFLAGS: "-C link-arg=-Wl,--gc-sections"
     strategy:
       matrix:
-        target: [aarch64-linux-android, armv7-linux-androideabi, x86_64-linux-android]
+        target: [aarch64-linux-android, armv7-linux-androideabi, i686-linux-android, x86_64-linux-android]
     steps:
       - uses: actions/checkout@v3
       - name: Install Rust toolchain
@@ -176,6 +179,7 @@ jobs:
           declare -A abi_map
           abi_map[aarch64-linux-android]="arm64-v8a"
           abi_map[armv7-linux-androideabi]="armeabi-v7a"
+          abi_map[i686-linux-android]="x86"
           abi_map[x86_64-linux-android]="x86_64"
           abi_name=${abi_map[${{ matrix.target }}]}
           mkdir -p yttrium/libs/$abi_name
@@ -195,10 +199,11 @@ jobs:
       # Use target-specific RUSTFLAGS to avoid affecting host builds
       CARGO_TARGET_AARCH64_LINUX_ANDROID_RUSTFLAGS: "-C link-arg=-Wl,--gc-sections"
       CARGO_TARGET_ARMV7_LINUX_ANDROIDEABI_RUSTFLAGS: "-C link-arg=-Wl,--gc-sections"
+      CARGO_TARGET_I686_LINUX_ANDROID_RUSTFLAGS: "-C link-arg=-Wl,--gc-sections"
       CARGO_TARGET_X86_64_LINUX_ANDROID_RUSTFLAGS: "-C link-arg=-Wl,--gc-sections"
     strategy:
       matrix:
-        target: [aarch64-linux-android, armv7-linux-androideabi, x86_64-linux-android]
+        target: [aarch64-linux-android, armv7-linux-androideabi, i686-linux-android, x86_64-linux-android]
     steps:
       - uses: actions/checkout@v3
       - name: Install Rust toolchain
@@ -264,6 +269,7 @@ jobs:
           declare -A abi_map
           abi_map[aarch64-linux-android]="arm64-v8a"
           abi_map[armv7-linux-androideabi]="armeabi-v7a"
+          abi_map[i686-linux-android]="x86"
           abi_map[x86_64-linux-android]="x86_64"
           abi_name=${abi_map[${{ matrix.target }}]}
           mkdir -p yttrium/libs/$abi_name
@@ -294,6 +300,11 @@ jobs:
         with:
           name: yttrium-armv7-linux-androideabi
           path: yttrium/armv7
+      - name: Download yttrium i686
+        uses: actions/download-artifact@v4
+        with:
+          name: yttrium-i686-linux-android
+          path: yttrium/i686
       - name: Download yttrium x86_64
         uses: actions/download-artifact@v7
         with:
@@ -311,6 +322,11 @@ jobs:
         with:
           name: yttrium-utils-armv7-linux-androideabi
           path: yttrium-utils/armv7
+      - name: Download yttrium-utils i686
+        uses: actions/download-artifact@v4
+        with:
+          name: yttrium-utils-i686-linux-android
+          path: yttrium-utils/i686
       - name: Download yttrium-utils x86_64
         uses: actions/download-artifact@v7
         with:
@@ -328,6 +344,11 @@ jobs:
         with:
           name: yttrium-wcpay-armv7-linux-androideabi
           path: yttrium-wcpay/armv7
+      - name: Download yttrium-wcpay i686
+        uses: actions/download-artifact@v4
+        with:
+          name: yttrium-wcpay-i686-linux-android
+          path: yttrium-wcpay/i686
       - name: Download yttrium-wcpay x86_64
         uses: actions/download-artifact@v7
         with:
@@ -340,6 +361,7 @@ jobs:
           mkdir -p merged-yttrium/yttrium/libs
           cp -r yttrium/aarch64/libs/arm64-v8a merged-yttrium/yttrium/libs/
           cp -r yttrium/armv7/libs/armeabi-v7a merged-yttrium/yttrium/libs/
+          cp -r yttrium/i686/libs/x86 merged-yttrium/yttrium/libs/
           cp -r yttrium/x86_64/libs/x86_64 merged-yttrium/yttrium/libs/
           [ -d yttrium/aarch64/kotlin-bindings ] && cp -r yttrium/aarch64/kotlin-bindings merged-yttrium/yttrium/
 
@@ -349,6 +371,7 @@ jobs:
           mkdir -p merged-utils/yttrium/libs
           cp -r yttrium-utils/aarch64/libs/arm64-v8a merged-utils/yttrium/libs/
           cp -r yttrium-utils/armv7/libs/armeabi-v7a merged-utils/yttrium/libs/
+          cp -r yttrium-utils/i686/libs/x86 merged-utils/yttrium/libs/
           cp -r yttrium-utils/x86_64/libs/x86_64 merged-utils/yttrium/libs/
           [ -d yttrium-utils/aarch64/kotlin-utils-bindings ] && cp -r yttrium-utils/aarch64/kotlin-utils-bindings merged-utils/yttrium/
 
@@ -358,6 +381,7 @@ jobs:
           mkdir -p merged-wcpay/yttrium/libs
           cp -r yttrium-wcpay/aarch64/libs/arm64-v8a merged-wcpay/yttrium/libs/
           cp -r yttrium-wcpay/armv7/libs/armeabi-v7a merged-wcpay/yttrium/libs/
+          cp -r yttrium-wcpay/i686/libs/x86 merged-wcpay/yttrium/libs/
           cp -r yttrium-wcpay/x86_64/libs/x86_64 merged-wcpay/yttrium/libs/
           [ -d yttrium-wcpay/aarch64/kotlin-wcpay-bindings ] && cp -r yttrium-wcpay/aarch64/kotlin-wcpay-bindings merged-wcpay/yttrium/
 

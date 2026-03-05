@@ -18,6 +18,7 @@ echo "Using ANDROID_NDK_HOME: $ANDROID_NDK_HOME"
 # Using target-specific RUSTFLAGS avoids conflicts with macOS host builds
 export CARGO_TARGET_AARCH64_LINUX_ANDROID_RUSTFLAGS="-C link-arg=-Wl,--gc-sections"
 export CARGO_TARGET_ARMV7_LINUX_ANDROIDEABI_RUSTFLAGS="-C link-arg=-Wl,--gc-sections"
+export CARGO_TARGET_I686_LINUX_ANDROID_RUSTFLAGS="-C link-arg=-Wl,--gc-sections"
 export CARGO_TARGET_X86_64_LINUX_ANDROID_RUSTFLAGS="-C link-arg=-Wl,--gc-sections"
 
 ACCOUNT_FEATURES="android,erc6492_client,pay,uniffi/cli"
@@ -27,12 +28,13 @@ PROFILE="uniffi-release-kotlin"
 WCPAY_PROFILE="uniffi-release-kotlin-wcpay"
 OUTPUT_ROOT="build/kotlin-artifacts"
 GEN_ROOT="crates/kotlin-ffi/android/build/generated"
-TARGETS=("aarch64-linux-android" "armv7-linux-androideabi" "x86_64-linux-android")
+TARGETS=("aarch64-linux-android" "armv7-linux-androideabi" "i686-linux-android" "x86_64-linux-android")
 
 abi_name() {
     case "$1" in
         aarch64-linux-android) echo "arm64-v8a" ;;
         armv7-linux-androideabi) echo "armeabi-v7a" ;;
+        i686-linux-android) echo "x86" ;;
         x86_64-linux-android) echo "x86_64" ;;
         *) echo "" ;;
     esac
@@ -61,6 +63,7 @@ cleanup() {
     # Purge any legacy sources/libs in src/main to avoid mixing with generated flavor inputs
     rm -rf crates/kotlin-ffi/android/src/main/jniLibs/arm64-v8a
     rm -rf crates/kotlin-ffi/android/src/main/jniLibs/armeabi-v7a
+    rm -rf crates/kotlin-ffi/android/src/main/jniLibs/x86
     rm -rf crates/kotlin-ffi/android/src/main/jniLibs/x86_64
     rm -rf crates/kotlin-ffi/android/src/main/kotlin/com/reown/yttrium
 
@@ -228,7 +231,7 @@ install_variant_sources() {
 
 build_account_variant() {
     echo "Building yttrium (erc6492_client) variant..."
-    cargo ndk -t armv7-linux-androideabi -t aarch64-linux-android -t x86_64-linux-android build \
+    cargo ndk -t armv7-linux-androideabi -t aarch64-linux-android -t i686-linux-android -t x86_64-linux-android build \
         --profile="$PROFILE" \
         --no-default-features \
         --features="$ACCOUNT_FEATURES" \
@@ -251,7 +254,7 @@ build_account_variant() {
 
 build_utils_variant() {
     echo "Building utils variant (solana, stacks, sui, ton)..."
-    cargo ndk -t armv7-linux-androideabi -t aarch64-linux-android -t x86_64-linux-android build \
+    cargo ndk -t armv7-linux-androideabi -t aarch64-linux-android -t i686-linux-android -t x86_64-linux-android build \
         --profile="$PROFILE" \
         --no-default-features \
         --features="$UTILS_FEATURES" \
@@ -301,7 +304,7 @@ build_utils_variant() {
 
 build_wcpay_variant() {
     echo "Building wcpay variant (pay only) with optimized profile..."
-    cargo ndk -t armv7-linux-androideabi -t aarch64-linux-android -t x86_64-linux-android build \
+    cargo ndk -t armv7-linux-androideabi -t aarch64-linux-android -t i686-linux-android -t x86_64-linux-android build \
         --profile="$WCPAY_PROFILE" \
         --no-default-features \
         --features="$WCPAY_FEATURES" \
@@ -377,16 +380,28 @@ strip_binaries() {
     local libs_to_strip=(
         "$GEN_ROOT/yttrium/jniLibs/arm64-v8a/libuniffi_yttrium.so"
         "$GEN_ROOT/yttrium/jniLibs/armeabi-v7a/libuniffi_yttrium.so"
+        "$GEN_ROOT/yttrium/jniLibs/x86/libuniffi_yttrium.so"
+        "$GEN_ROOT/yttrium/jniLibs/x86_64/libuniffi_yttrium.so"
         "$GEN_ROOT/utils/jniLibs/arm64-v8a/libuniffi_yttrium_utils.so"
         "$GEN_ROOT/utils/jniLibs/armeabi-v7a/libuniffi_yttrium_utils.so"
+        "$GEN_ROOT/utils/jniLibs/x86/libuniffi_yttrium_utils.so"
+        "$GEN_ROOT/utils/jniLibs/x86_64/libuniffi_yttrium_utils.so"
         "$GEN_ROOT/wcpay/jniLibs/arm64-v8a/libuniffi_yttrium_wcpay.so"
         "$GEN_ROOT/wcpay/jniLibs/armeabi-v7a/libuniffi_yttrium_wcpay.so"
+        "$GEN_ROOT/wcpay/jniLibs/x86/libuniffi_yttrium_wcpay.so"
+        "$GEN_ROOT/wcpay/jniLibs/x86_64/libuniffi_yttrium_wcpay.so"
         "$OUTPUT_ROOT/libs/arm64-v8a/libuniffi_yttrium.so"
         "$OUTPUT_ROOT/libs/armeabi-v7a/libuniffi_yttrium.so"
+        "$OUTPUT_ROOT/libs/x86/libuniffi_yttrium.so"
+        "$OUTPUT_ROOT/libs/x86_64/libuniffi_yttrium.so"
         "$OUTPUT_ROOT/libs/arm64-v8a/libuniffi_yttrium_utils.so"
         "$OUTPUT_ROOT/libs/armeabi-v7a/libuniffi_yttrium_utils.so"
+        "$OUTPUT_ROOT/libs/x86/libuniffi_yttrium_utils.so"
+        "$OUTPUT_ROOT/libs/x86_64/libuniffi_yttrium_utils.so"
         "$OUTPUT_ROOT/libs/arm64-v8a/libuniffi_yttrium_wcpay.so"
         "$OUTPUT_ROOT/libs/armeabi-v7a/libuniffi_yttrium_wcpay.so"
+        "$OUTPUT_ROOT/libs/x86/libuniffi_yttrium_wcpay.so"
+        "$OUTPUT_ROOT/libs/x86_64/libuniffi_yttrium_wcpay.so"
     )
 
     for lib in "${libs_to_strip[@]}"; do
