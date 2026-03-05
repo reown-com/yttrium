@@ -15,7 +15,7 @@ thiserror = { version = "1.0", default-features = false }
 
 # Async
 tokio = { version = "1.48.0", default-features = false }
-tokio-util = { version = "0.7.16", default-features = false }
+tokio-util = { version = "0.7.18", default-features = false }
 futures = { version = "0.3.31", default-features = false }
 
 wasmtimer = { version = "0.4.1", default-features = false, features = [
