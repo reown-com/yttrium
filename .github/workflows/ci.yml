@@ -156,7 +156,7 @@ jobs:
         with:
           runner-type: macos
       - name: Run sccache-cache
-        uses: mozilla-actions/sccache-action@v0.0.4
+        uses: mozilla-actions/sccache-action@v0.0.9
       - run: rustup update ${{ env.RUST_MSRV }} && rustup default ${{ env.RUST_MSRV }}
       - uses: Swatinem/rust-cache@v2
         with:
@@ -295,7 +295,7 @@ jobs:
           path: artifacts/yttrium-wcpay
 
       - name: Set up Java 11 and 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: "temurin"
           java-version: |
