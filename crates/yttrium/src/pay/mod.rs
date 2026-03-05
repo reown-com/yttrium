@@ -635,7 +635,7 @@ impl From<CollectDataFieldResult> for types::CollectDataFieldResult {
 pub struct AmountDisplay {
     pub asset_symbol: String,
     pub asset_name: String,
-    pub decimals: i64,
+    pub decimals: i32,
     pub icon_url: Option<String>,
     pub network_icon_url: Option<String>,
     pub network_name: Option<String>,
