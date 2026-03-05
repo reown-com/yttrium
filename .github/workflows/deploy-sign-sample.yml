@@ -30,7 +30,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4 # repo checkout
+      - uses: actions/checkout@v6 # repo checkout
 
       # Install Rust Nightly Toolchain, with Clippy & Rustfmt
       - name: Install nightly Rust

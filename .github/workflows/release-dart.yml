@@ -22,7 +22,7 @@ jobs:
     steps:
       # Checkout repository
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v6
 
       # Cache Flutter dependencies
       - name: Cache Flutter dependencies
@@ -102,7 +102,7 @@ jobs:
     steps:
       # Checkout repository
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v6
 
       # Install cargo-ndk
       - name: Install cargo-ndk
@@ -141,7 +141,7 @@ jobs:
     steps:
       # Checkout repository
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v6
 
       # Build Native iOS libraries
       - name: Build Native iOS libraries
@@ -175,7 +175,7 @@ jobs:
     steps:
       # Checkout repository
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v6
 
       # Download Android artifacts
       - name: Download Android artifacts

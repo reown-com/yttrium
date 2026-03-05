@@ -18,7 +18,7 @@ jobs:
       matrix:
         target: [aarch64-linux-android, armv7-linux-androideabi, i686-linux-android, x86_64-linux-android]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v6
       - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
@@ -116,7 +116,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v6
       - name: Download aarch64 artifact
         uses: actions/download-artifact@v7
         with:
@@ -202,7 +202,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v6
 
       - name: Download single final artifact
         uses: actions/download-artifact@v7
