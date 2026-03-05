@@ -319,7 +319,8 @@ tokio-tungstenite = { workspace = true, optional = true }
 web-sys = { workspace = true, optional = true }
 chacha20poly1305 = { workspace = true, optional = true, features = [
     "alloc",
-    "os_rng",
+    "getrandom",
+    "rand_core",
 ] }
 x25519-dalek = { version = "3.0.0-pre.0", features = [
     "static_secrets",
@@ -351,7 +352,7 @@ test-log = { version = "0.2.17", default-features = false, features = [
 reqwest.workspace = true
 alloy = { workspace = true, features = ["node-bindings", "reqwest"] }
 serial_test.workspace = true
-chacha20poly1305 = { workspace = true, features = ["alloc", "os_rng"] }
+chacha20poly1305 = { workspace = true, features = ["alloc", "getrandom", "rand_core"] }
 data-encoding = { workspace = true }
 ton_lib = "0.0.39"
 hex = "0.4.3"

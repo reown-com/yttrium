@@ -28,7 +28,10 @@ use {
         client_types::Session,
         envelope_type0::{EnvelopeType0, encode_envelope_type0},
     },
-    chacha20poly1305::{AeadCore, ChaCha20Poly1305, KeyInit, aead::Aead},
+    chacha20poly1305::{
+        ChaCha20Poly1305, KeyInit,
+        aead::{Aead, Generate, Nonce},
+    },
     data_encoding::BASE64,
     relay_rpc::domain::Topic,
     serde::Serialize,
@@ -163,8 +166,7 @@ fn encrypt(
         String::from_utf8_lossy(serialized)
     );
     let key = ChaCha20Poly1305::new(&shared_secret.into());
-    let nonce = ChaCha20Poly1305::generate_nonce()
-        .map_err(|e| format!("Failed to generate nonce: {e}"))?;
+    let nonce = Nonce::<ChaCha20Poly1305>::generate();
     let encrypted = key
         .encrypt(&nonce, serialized)
         .map_err(|e| format!("Failed to encrypt message: {e}"))?;
