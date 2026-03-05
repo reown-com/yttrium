@@ -156,7 +156,7 @@ jobs:
         with:
           runner-type: macos
       - name: Run sccache-cache
-        uses: mozilla-actions/sccache-action@v0.0.4
+        uses: mozilla-actions/sccache-action@v0.0.9
       - run: rustup update ${{ env.RUST_MSRV }} && rustup default ${{ env.RUST_MSRV }}
       - uses: Swatinem/rust-cache@v2
         with:
