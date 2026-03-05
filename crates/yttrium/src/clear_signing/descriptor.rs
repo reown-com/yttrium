@@ -31,12 +31,12 @@ pub(crate) fn build_descriptor(
         object.remove("includes");
     }
 
-    if let Some(abi_json) = resolved.abi_json {
-        if needs_abi_injection(&descriptor_value) {
-            let abi_value: JsonValue = serde_json::from_str(abi_json)
-                .map_err(|err| DescriptorError::Parse(err.to_string()))?;
-            inject_abi(&mut descriptor_value, abi_value);
-        }
+    if let Some(abi_json) = resolved.abi_json
+        && needs_abi_injection(&descriptor_value)
+    {
+        let abi_value: JsonValue = serde_json::from_str(abi_json)
+            .map_err(|err| DescriptorError::Parse(err.to_string()))?;
+        inject_abi(&mut descriptor_value, abi_value);
     }
 
     serde_json::from_value(descriptor_value)

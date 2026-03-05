@@ -43,6 +43,8 @@ pub enum PayError {
     RequestTimeout(String),
     #[error("Connection failed: {0}")]
     ConnectionFailed(String),
+    #[error("Rate limited: {0}")]
+    RateLimited(String),
     #[error("HTTP error: {0}")]
     Http(String),
     #[error("API error: {0}")]
@@ -56,7 +58,12 @@ impl From<progenitor_client::Error<types::ErrorResponse>> for PayError {
         match e {
             progenitor_client::Error::ErrorResponse(resp) => {
                 let status = resp.status().as_u16();
-                Self::Api(format!("{}: {}", status, resp.into_inner().message))
+                let msg = format!("{}: {}", status, resp.into_inner().message);
+                if status == 429 {
+                    Self::RateLimited(msg)
+                } else {
+                    Self::Api(msg)
+                }
             }
             progenitor_client::Error::CommunicationError(err) => {
                 map_reqwest_error_to_pay_error(&err)
@@ -65,32 +72,61 @@ impl From<progenitor_client::Error<types::ErrorResponse>> for PayError {
             progenitor_client::Error::InvalidResponsePayload(_, err) => {
                 Self::Api(format!("Invalid response: {}", err))
             }
-            progenitor_client::Error::UnexpectedResponse(resp) => Self::Api(
-                format!("{}: Unexpected response", resp.status().as_u16()),
-            ),
+            progenitor_client::Error::UnexpectedResponse(resp) => {
+                let status = resp.status().as_u16();
+                if status == 429 {
+                    Self::RateLimited(format!("{}: Too many requests", status))
+                } else {
+                    Self::Api(format!("{}: Unexpected response", status))
+                }
+            }
             other => Self::Api(other.to_string()),
         }
     }
 }
 
-fn map_reqwest_error_to_pay_error(err: &reqwest::Error) -> PayError {
+enum NetworkErrorKind {
+    NoConnection(String),
+    ConnectionFailed(String),
+    RequestTimeout(String),
+    /// Not a network error — pass through the raw message
+    Other(String),
+}
+
+fn classify_reqwest_error(
+    err: &reqwest::Error,
+    friendly_msg: &str,
+) -> NetworkErrorKind {
     let msg = err.to_string();
+    let friendly = friendly_msg.to_string();
     #[cfg(not(target_arch = "wasm32"))]
     if err.is_connect() {
         let lower = msg.to_lowercase();
-        if lower.contains("connection refused")
+        return if lower.contains("connection refused")
             || lower.contains("actively refused")
         {
-            return PayError::ConnectionFailed(msg);
+            NetworkErrorKind::ConnectionFailed(friendly)
         } else {
-            return PayError::NoConnection(msg);
-        }
+            NetworkErrorKind::NoConnection(friendly)
+        };
     }
     #[cfg(not(target_arch = "wasm32"))]
     if err.is_timeout() {
-        return PayError::RequestTimeout(msg);
+        return NetworkErrorKind::RequestTimeout(friendly);
     }
-    PayError::Http(msg)
+    if looks_like_network_error(&msg) {
+        return NetworkErrorKind::NoConnection(friendly);
+    }
+    NetworkErrorKind::Other(msg)
+}
+
+fn map_reqwest_error_to_pay_error(err: &reqwest::Error) -> PayError {
+    match classify_reqwest_error(err, USER_FRIENDLY_NETWORK_ERROR_RETRY) {
+        NetworkErrorKind::NoConnection(m) => PayError::NoConnection(m),
+        NetworkErrorKind::ConnectionFailed(m) => PayError::ConnectionFailed(m),
+        NetworkErrorKind::RequestTimeout(m) => PayError::RequestTimeout(m),
+        NetworkErrorKind::Other(m) => PayError::Http(m),
+    }
 }
 
 impl error_reporting::HasErrorType for PayError {
@@ -99,6 +135,7 @@ impl error_reporting::HasErrorType for PayError {
             Self::NoConnection(_) => "NoConnection",
             Self::RequestTimeout(_) => "RequestTimeout",
             Self::ConnectionFailed(_) => "ConnectionFailed",
+            Self::RateLimited(_) => "RateLimited",
             Self::Http(_) => "Http",
             Self::Api(_) => "Api",
             Self::Timeout => "Timeout",
@@ -129,6 +166,8 @@ pub enum GetPaymentOptionsError {
     RequestTimeout(String),
     #[error("Connection failed: {0}")]
     ConnectionFailed(String),
+    #[error("Rate limited: {0}")]
+    RateLimited(String),
     #[error("HTTP error: {0}")]
     Http(String),
     #[error("Internal error: {0}")]
@@ -148,6 +187,7 @@ impl error_reporting::HasErrorType for GetPaymentOptionsError {
             Self::NoConnection(_) => "NoConnection",
             Self::RequestTimeout(_) => "RequestTimeout",
             Self::ConnectionFailed(_) => "ConnectionFailed",
+            Self::RateLimited(_) => "RateLimited",
             Self::Http(_) => "Http",
             Self::InternalError(_) => "InternalError",
         }
@@ -169,6 +209,8 @@ pub enum GetPaymentRequestError {
     RequestTimeout(String),
     #[error("Connection failed: {0}")]
     ConnectionFailed(String),
+    #[error("Rate limited: {0}")]
+    RateLimited(String),
     #[error("HTTP error: {0}")]
     Http(String),
     #[error("Fetch error: {0}")]
@@ -186,6 +228,7 @@ impl error_reporting::HasErrorType for GetPaymentRequestError {
             Self::NoConnection(_) => "NoConnection",
             Self::RequestTimeout(_) => "RequestTimeout",
             Self::ConnectionFailed(_) => "ConnectionFailed",
+            Self::RateLimited(_) => "RateLimited",
             Self::Http(_) => "Http",
             Self::FetchError(_) => "FetchError",
             Self::InternalError(_) => "InternalError",
@@ -212,12 +255,16 @@ pub enum ConfirmPaymentError {
     RequestTimeout(String),
     #[error("Connection failed: {0}")]
     ConnectionFailed(String),
+    #[error("Rate limited: {0}")]
+    RateLimited(String),
     #[error("HTTP error: {0}")]
     Http(String),
     #[error("Internal error: {0}")]
     InternalError(String),
     #[error("Unsupported RPC method: {0}")]
     UnsupportedMethod(String),
+    #[error("Polling timeout: {0}")]
+    PollingTimeout(String),
 }
 
 impl error_reporting::HasErrorType for ConfirmPaymentError {
@@ -231,29 +278,126 @@ impl error_reporting::HasErrorType for ConfirmPaymentError {
             Self::NoConnection(_) => "NoConnection",
             Self::RequestTimeout(_) => "RequestTimeout",
             Self::ConnectionFailed(_) => "ConnectionFailed",
+            Self::RateLimited(_) => "RateLimited",
             Self::Http(_) => "Http",
             Self::InternalError(_) => "InternalError",
             Self::UnsupportedMethod(_) => "UnsupportedMethod",
+            Self::PollingTimeout(_) => "PollingTimeout",
         }
     }
 }
 
-const MAX_RETRIES: u32 = 3;
-const INITIAL_BACKOFF_MS: u64 = 100;
+#[derive(Debug, thiserror::Error)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Error))]
+pub enum GetPaymentStatusError {
+    #[error("Payment not found: {0}")]
+    PaymentNotFound(String),
+    #[error("No network connection: {0}")]
+    NoConnection(String),
+    #[error("Request timed out: {0}")]
+    RequestTimeout(String),
+    #[error("Connection failed: {0}")]
+    ConnectionFailed(String),
+    #[error("Rate limited: {0}")]
+    RateLimited(String),
+    #[error("HTTP error: {0}")]
+    Http(String),
+}
 
-fn is_retryable_error<T>(err: &progenitor_client::Error<T>) -> bool {
+impl error_reporting::HasErrorType for GetPaymentStatusError {
+    fn error_type(&self) -> &'static str {
+        match self {
+            Self::PaymentNotFound(_) => "PaymentNotFound",
+            Self::NoConnection(_) => "NoConnection",
+            Self::RequestTimeout(_) => "RequestTimeout",
+            Self::ConnectionFailed(_) => "ConnectionFailed",
+            Self::RateLimited(_) => "RateLimited",
+            Self::Http(_) => "Http",
+        }
+    }
+}
+
+const MAX_RETRIES: u32 = 5;
+const INITIAL_BACKOFF_MS: u64 = 1000;
+const MAX_BACKOFF_MS: u64 = 2000;
+const API_CONNECT_TIMEOUT_SECS: u64 = 10;
+const API_REQUEST_TIMEOUT_SECS: u64 = 30;
+const MAX_POLLING_DURATION_SECS: u64 = 300;
+const WCP_VERSION_HEADER: &str = "WCP-Version";
+const WCP_VERSION: &str = "2026-02-18";
+
+fn looks_like_network_error(msg: &str) -> bool {
+    let lower = msg.to_lowercase();
+    lower.contains("dns error")
+        || lower.contains("failed to lookup")
+        || lower.contains("name or service not known")
+        || lower.contains("no such host")
+        || lower.contains("connection refused")
+        || lower.contains("actively refused")
+        || lower.contains("network is unreachable")
+        || lower.contains("network is down")
+        || lower.contains("no route to host")
+        || lower.contains("error sending request")
+        || lower.contains("connection reset")
+        || lower.contains("connection closed")
+        || lower.contains("connection aborted")
+        || lower.contains("broken pipe")
+        || lower.contains("software caused connection abort")
+        || lower.contains("socket is not connected")
+        || lower.contains("operation timed out")
+        || lower.contains("timed out")
+}
+
+enum RetryAction {
+    NoRetry,
+    Retry,
+    RetryAfter(u64),
+}
+
+fn parse_retry_after(headers: &reqwest::header::HeaderMap) -> Option<u64> {
+    headers
+        .get(reqwest::header::RETRY_AFTER)
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.parse::<u64>().ok())
+        .map(|secs| secs.saturating_mul(1000).min(MAX_BACKOFF_MS))
+}
+
+fn classify_status(
+    status: reqwest::StatusCode,
+    headers: &reqwest::header::HeaderMap,
+) -> RetryAction {
+    if status.as_u16() == 429 {
+        match parse_retry_after(headers) {
+            Some(ms) if ms > 0 => RetryAction::RetryAfter(ms),
+            _ => RetryAction::Retry,
+        }
+    } else if status.is_server_error() {
+        RetryAction::Retry
+    } else {
+        RetryAction::NoRetry
+    }
+}
+
+fn retry_action<T>(err: &progenitor_client::Error<T>) -> RetryAction {
     match err {
         progenitor_client::Error::ErrorResponse(resp) => {
-            resp.status().is_server_error()
+            classify_status(resp.status(), resp.headers())
         }
-        #[cfg(not(target_arch = "wasm32"))]
-        progenitor_client::Error::CommunicationError(reqwest_err) => {
-            reqwest_err.is_connect() || reqwest_err.is_timeout()
+        progenitor_client::Error::UnexpectedResponse(resp) => {
+            classify_status(resp.status(), resp.headers())
         }
-        #[cfg(target_arch = "wasm32")]
-        progenitor_client::Error::CommunicationError(_) => true,
-        _ => false,
+        progenitor_client::Error::CommunicationError(_) => RetryAction::Retry,
+        _ => RetryAction::NoRetry,
     }
+}
+
+fn compute_backoff(attempt: u32) -> u64 {
+    use rand::Rng;
+    let base = INITIAL_BACKOFF_MS
+        .saturating_mul(2u64.saturating_pow(attempt - 1))
+        .min(MAX_BACKOFF_MS);
+    let jitter = rand::thread_rng().gen_range(0..=base / 2);
+    base + jitter
 }
 
 async fn with_retry<T, E, F, Fut>(
@@ -264,17 +408,22 @@ where
     Fut: std::future::Future<Output = Result<T, progenitor_client::Error<E>>>,
     E: std::fmt::Debug,
 {
-    use rand::Rng;
     let mut attempt = 0;
     loop {
         match f().await {
             Ok(v) => return Ok(v),
-            Err(e) if is_retryable_error(&e) && attempt < MAX_RETRIES => {
-                attempt += 1;
-                let base_backoff = INITIAL_BACKOFF_MS
-                    .saturating_mul(2u64.saturating_pow(attempt - 1));
-                let jitter = rand::thread_rng().gen_range(0..=base_backoff / 2);
-                let backoff = base_backoff + jitter;
+            Err(e) if attempt < MAX_RETRIES => {
+                let backoff = match retry_action(&e) {
+                    RetryAction::NoRetry => return Err(e),
+                    RetryAction::Retry => {
+                        attempt += 1;
+                        compute_backoff(attempt)
+                    }
+                    RetryAction::RetryAfter(ms) => {
+                        attempt += 1;
+                        ms
+                    }
+                };
                 pay_debug!(
                     "Retry attempt {}/{} after {}ms (error: {})",
                     attempt,
@@ -365,6 +514,15 @@ impl From<types::ConfirmPaymentResponse> for ConfirmPaymentResultResponse {
             info: r.info.map(Into::into),
         }
     }
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
+#[serde(rename_all = "camelCase")]
+pub struct PaymentStatusResponse {
+    pub payment_id: String,
+    pub status: PaymentStatus,
+    pub is_final: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -613,10 +771,7 @@ pub struct PaymentOptionsResponse {
 
 // ==================== Client ====================
 
-use {
-    std::sync::{OnceLock, RwLock},
-    url::Url,
-};
+use {parking_lot::RwLock, std::sync::OnceLock, url::Url};
 
 /// Applies common SDK config headers to any progenitor-generated request builder.
 /// Auth header logic:
@@ -662,7 +817,43 @@ pub struct WalletConnectPay {
 
 impl WalletConnectPay {
     fn client(&self) -> &Client {
-        self.client.get_or_init(|| Client::new(&self.config.base_url))
+        self.client.get_or_init(|| {
+            let mut default_headers = reqwest::header::HeaderMap::new();
+            default_headers.insert(
+                WCP_VERSION_HEADER,
+                reqwest::header::HeaderValue::from_static(WCP_VERSION),
+            );
+            let fallback = default_headers.clone();
+            #[cfg(not(target_arch = "wasm32"))]
+            let http = reqwest::Client::builder()
+                .default_headers(default_headers)
+                .connect_timeout(std::time::Duration::from_secs(
+                    API_CONNECT_TIMEOUT_SECS,
+                ))
+                .timeout(std::time::Duration::from_secs(
+                    API_REQUEST_TIMEOUT_SECS,
+                ))
+                .build()
+                .unwrap_or_else(|e| {
+                    pay_error!("failed to build pay HTTP client: {e}");
+                    reqwest::Client::builder()
+                        .default_headers(fallback)
+                        .build()
+                        .unwrap_or_default()
+                });
+            #[cfg(target_arch = "wasm32")]
+            let http = reqwest::Client::builder()
+                .default_headers(default_headers)
+                .build()
+                .unwrap_or_else(|e| {
+                    pay_error!("failed to build pay HTTP client: {e}");
+                    reqwest::Client::builder()
+                        .default_headers(fallback)
+                        .build()
+                        .unwrap_or_default()
+                });
+            Client::new_with_client(&self.config.base_url, http)
+        })
     }
 
     fn error_http_client(&self) -> &reqwest::Client {
@@ -793,10 +984,7 @@ impl WalletConnectPay {
                 actions: o.actions.clone(),
             })
             .collect();
-        let mut cache = self
-            .cached_options
-            .write()
-            .expect("Cache lock poisoned - indicates a bug");
+        let mut cache = self.cached_options.write();
         *cache = cached;
 
         self.send_trace(
@@ -831,10 +1019,7 @@ impl WalletConnectPay {
         );
 
         let raw_actions = {
-            let cache = self
-                .cached_options
-                .read()
-                .expect("Cache lock poisoned - indicates a bug");
+            let cache = self.cached_options.read();
             cache
                 .iter()
                 .find(|o| o.option_id == option_id)
@@ -865,10 +1050,7 @@ impl WalletConnectPay {
                         );
                         err
                     })?;
-                let mut cache = self
-                    .cached_options
-                    .write()
-                    .expect("Cache lock poisoned - indicates a bug");
+                let mut cache = self.cached_options.write();
                 if let Some(cached) =
                     cache.iter_mut().find(|o| o.option_id == option_id)
                 {
@@ -967,7 +1149,11 @@ impl WalletConnectPay {
                     observability::TraceEvent::ConfirmPaymentFailed,
                     &payment_id,
                 );
-                err
+                if is_network_error(&err) {
+                    make_user_friendly_error(err)
+                } else {
+                    err
+                }
             })?;
         let mut result: ConfirmPaymentResultResponse =
             response.into_inner().into();
@@ -976,7 +1162,26 @@ impl WalletConnectPay {
             result.status,
             result.is_final
         );
+        let poll_timeout = max_poll_ms
+            .filter(|&ms| ms > 0)
+            .map(|ms| crate::time::Duration::from_millis(ms as u64))
+            .unwrap_or(crate::time::Duration::from_secs(
+                MAX_POLLING_DURATION_SECS,
+            ));
+        let poll_start = crate::time::Instant::now();
         while !result.is_final {
+            if poll_start.elapsed() >= poll_timeout {
+                let msg =
+                    format!("polling exceeded {}ms", poll_timeout.as_millis());
+                pay_error!("confirm_payment: {}", msg);
+                let err = ConfirmPaymentError::PollingTimeout(msg);
+                self.report_error(&err, &payment_id);
+                self.send_trace(
+                    observability::TraceEvent::ConfirmPaymentFailed,
+                    &payment_id,
+                );
+                return Err(err);
+            }
             let poll_ms = result.poll_in_ms.unwrap_or(1000);
             pay_debug!("confirm_payment: polling in {}ms", poll_ms);
             crate::time::sleep(crate::time::Duration::from_millis(
@@ -994,7 +1199,11 @@ impl WalletConnectPay {
                         observability::TraceEvent::ConfirmPaymentFailed,
                         &payment_id,
                     );
-                    err
+                    if is_network_error(&err) {
+                        make_user_friendly_error(err)
+                    } else {
+                        err
+                    }
                 })?;
             result = ConfirmPaymentResultResponse {
                 status: status.status.into(),
@@ -1017,6 +1226,37 @@ impl WalletConnectPay {
             &payment_id,
         );
         Ok(result)
+    }
+
+    /// Get the current status of a payment
+    /// Use this to check status after a network error during confirm_payment
+    pub async fn get_payment_status(
+        &self,
+        payment_id: String,
+    ) -> Result<PaymentStatusResponse, GetPaymentStatusError> {
+        pay_debug!("get_payment_status: payment_id={}", payment_id);
+        self.send_initialized_event_once(&payment_id);
+
+        let result = self
+            .get_gateway_payment_status(payment_id.clone(), None)
+            .await
+            .map_err(|e| {
+                pay_error!("get_payment_status: {:?}", e);
+                let err = map_pay_error_to_status_error(e);
+                self.report_error(&err, &payment_id);
+                err
+            })?;
+
+        pay_debug!(
+            "get_payment_status: status={:?}, is_final={}",
+            result.status,
+            result.is_final
+        );
+        Ok(PaymentStatusResponse {
+            payment_id,
+            status: result.status.into(),
+            is_final: result.is_final,
+        })
     }
 }
 
@@ -1131,6 +1371,51 @@ impl WalletConnectPay {
     }
 }
 
+fn is_network_error(err: &ConfirmPaymentError) -> bool {
+    match err {
+        ConfirmPaymentError::NoConnection(_)
+        | ConfirmPaymentError::RequestTimeout(_)
+        | ConfirmPaymentError::ConnectionFailed(_) => true,
+        // Also check Http errors for network-like patterns
+        // (reqwest sometimes categorizes network errors as generic Http)
+        ConfirmPaymentError::Http(msg) => looks_like_network_error(msg),
+        _ => false,
+    }
+}
+
+const USER_FRIENDLY_NETWORK_ERROR: &str =
+    "No internet connection. Check your payment status with the Merchant";
+
+const USER_FRIENDLY_NETWORK_ERROR_RETRY: &str =
+    "No internet connection. Please check your connection and try again";
+
+fn make_user_friendly_error(err: ConfirmPaymentError) -> ConfirmPaymentError {
+    match err {
+        ConfirmPaymentError::NoConnection(_) => {
+            ConfirmPaymentError::NoConnection(
+                USER_FRIENDLY_NETWORK_ERROR.into(),
+            )
+        }
+        ConfirmPaymentError::RequestTimeout(_) => {
+            ConfirmPaymentError::RequestTimeout(
+                USER_FRIENDLY_NETWORK_ERROR.into(),
+            )
+        }
+        ConfirmPaymentError::ConnectionFailed(_) => {
+            ConfirmPaymentError::ConnectionFailed(
+                USER_FRIENDLY_NETWORK_ERROR.into(),
+            )
+        }
+        // Also handle Http errors that look like network issues
+        ConfirmPaymentError::Http(ref msg) if looks_like_network_error(msg) => {
+            ConfirmPaymentError::NoConnection(
+                USER_FRIENDLY_NETWORK_ERROR.into(),
+            )
+        }
+        other => other,
+    }
+}
+
 fn extract_payment_id(
     payment_link: &str,
 ) -> Result<String, GetPaymentOptionsError> {
@@ -1226,6 +1511,7 @@ fn map_payment_options_error(
                 400 => GetPaymentOptionsError::InvalidRequest(msg),
                 410 => GetPaymentOptionsError::PaymentExpired(msg),
                 422 => GetPaymentOptionsError::InvalidAccount(msg),
+                429 => GetPaymentOptionsError::RateLimited(msg),
                 451 => GetPaymentOptionsError::ComplianceFailed(msg),
                 _ => GetPaymentOptionsError::Http(msg),
             }
@@ -1238,6 +1524,7 @@ fn map_payment_options_error(
                 400 => GetPaymentOptionsError::InvalidRequest(msg),
                 410 => GetPaymentOptionsError::PaymentExpired(msg),
                 422 => GetPaymentOptionsError::InvalidAccount(msg),
+                429 => GetPaymentOptionsError::RateLimited(msg),
                 451 => GetPaymentOptionsError::ComplianceFailed(msg),
                 _ => GetPaymentOptionsError::Http(msg),
             }
@@ -1252,23 +1539,18 @@ fn map_payment_options_error(
 fn map_reqwest_error_to_payment_options_error(
     err: &reqwest::Error,
 ) -> GetPaymentOptionsError {
-    let msg = err.to_string();
-    #[cfg(not(target_arch = "wasm32"))]
-    if err.is_connect() {
-        let lower = msg.to_lowercase();
-        if lower.contains("connection refused")
-            || lower.contains("actively refused")
-        {
-            return GetPaymentOptionsError::ConnectionFailed(msg);
-        } else {
-            return GetPaymentOptionsError::NoConnection(msg);
+    match classify_reqwest_error(err, USER_FRIENDLY_NETWORK_ERROR_RETRY) {
+        NetworkErrorKind::NoConnection(m) => {
+            GetPaymentOptionsError::NoConnection(m)
         }
+        NetworkErrorKind::ConnectionFailed(m) => {
+            GetPaymentOptionsError::ConnectionFailed(m)
+        }
+        NetworkErrorKind::RequestTimeout(m) => {
+            GetPaymentOptionsError::RequestTimeout(m)
+        }
+        NetworkErrorKind::Other(m) => GetPaymentOptionsError::Http(m),
     }
-    #[cfg(not(target_arch = "wasm32"))]
-    if err.is_timeout() {
-        return GetPaymentOptionsError::RequestTimeout(msg);
-    }
-    GetPaymentOptionsError::Http(msg)
 }
 
 fn map_confirm_payment_error(
@@ -1284,6 +1566,7 @@ fn map_confirm_payment_error(
                 400 => ConfirmPaymentError::InvalidOption(msg),
                 422 => ConfirmPaymentError::InvalidSignature(msg),
                 409 => ConfirmPaymentError::RouteExpired(msg),
+                429 => ConfirmPaymentError::RateLimited(msg),
                 _ => ConfirmPaymentError::Http(msg),
             }
         }
@@ -1296,6 +1579,7 @@ fn map_confirm_payment_error(
                 400 => ConfirmPaymentError::InvalidOption(msg),
                 422 => ConfirmPaymentError::InvalidSignature(msg),
                 409 => ConfirmPaymentError::RouteExpired(msg),
+                429 => ConfirmPaymentError::RateLimited(msg),
                 _ => ConfirmPaymentError::Http(msg),
             }
         }
@@ -1309,23 +1593,18 @@ fn map_confirm_payment_error(
 fn map_reqwest_error_to_confirm_payment_error(
     err: &reqwest::Error,
 ) -> ConfirmPaymentError {
-    let msg = err.to_string();
-    #[cfg(not(target_arch = "wasm32"))]
-    if err.is_connect() {
-        let lower = msg.to_lowercase();
-        if lower.contains("connection refused")
-            || lower.contains("actively refused")
-        {
-            return ConfirmPaymentError::ConnectionFailed(msg);
-        } else {
-            return ConfirmPaymentError::NoConnection(msg);
+    match classify_reqwest_error(err, USER_FRIENDLY_NETWORK_ERROR) {
+        NetworkErrorKind::NoConnection(m) => {
+            ConfirmPaymentError::NoConnection(m)
         }
+        NetworkErrorKind::ConnectionFailed(m) => {
+            ConfirmPaymentError::ConnectionFailed(m)
+        }
+        NetworkErrorKind::RequestTimeout(m) => {
+            ConfirmPaymentError::RequestTimeout(m)
+        }
+        NetworkErrorKind::Other(m) => ConfirmPaymentError::Http(m),
     }
-    #[cfg(not(target_arch = "wasm32"))]
-    if err.is_timeout() {
-        return ConfirmPaymentError::RequestTimeout(msg);
-    }
-    ConfirmPaymentError::Http(msg)
 }
 
 fn map_pay_error_to_request_error(e: PayError) -> GetPaymentRequestError {
@@ -1339,10 +1618,35 @@ fn map_pay_error_to_request_error(e: PayError) -> GetPaymentRequestError {
         PayError::ConnectionFailed(msg) => {
             GetPaymentRequestError::ConnectionFailed(msg)
         }
+        PayError::RateLimited(msg) => GetPaymentRequestError::RateLimited(msg),
         PayError::Http(msg) => GetPaymentRequestError::Http(msg),
         PayError::Api(msg) => GetPaymentRequestError::FetchError(msg),
         PayError::Timeout => {
             GetPaymentRequestError::FetchError("Timeout".to_string())
+        }
+    }
+}
+
+fn map_pay_error_to_status_error(e: PayError) -> GetPaymentStatusError {
+    match e {
+        PayError::NoConnection(msg) => GetPaymentStatusError::NoConnection(msg),
+        PayError::RequestTimeout(msg) => {
+            GetPaymentStatusError::RequestTimeout(msg)
+        }
+        PayError::ConnectionFailed(msg) => {
+            GetPaymentStatusError::ConnectionFailed(msg)
+        }
+        PayError::RateLimited(msg) => GetPaymentStatusError::RateLimited(msg),
+        PayError::Http(msg) => GetPaymentStatusError::Http(msg),
+        PayError::Api(msg) => {
+            if msg.starts_with("404:") {
+                GetPaymentStatusError::PaymentNotFound(msg)
+            } else {
+                GetPaymentStatusError::Http(msg)
+            }
+        }
+        PayError::Timeout => {
+            GetPaymentStatusError::RequestTimeout("Request timed out".into())
         }
     }
 }
@@ -2074,6 +2378,7 @@ mod tests {
             .and(header("Sdk-Name", "test-sdk"))
             .and(header("Sdk-Version", "1.0.0"))
             .and(header("Sdk-Platform", "test"))
+            .and(header("WCP-Version", WCP_VERSION))
             .respond_with(
                 ResponseTemplate::new(200).set_body_json(&mock_response),
             )
@@ -2091,6 +2396,31 @@ mod tests {
             )
             .await;
 
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_wcp_version_header_is_set() {
+        let mock_server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/v1/gateway/payment/pay_ver/options"))
+            .and(header("WCP-Version", WCP_VERSION))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_json(serde_json::json!({"options": []})),
+            )
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+        let client =
+            WalletConnectPay::new(test_config(mock_server.uri())).unwrap();
+        let result = client
+            .get_payment_options(
+                "pay_ver".to_string(),
+                vec!["eip155:1:0x123".to_string()],
+                false,
+            )
+            .await;
         assert!(result.is_ok());
     }
 
@@ -2454,5 +2784,340 @@ mod tests {
             "Expected NoConnection, got {:?}",
             result
         );
+    }
+
+    #[tokio::test]
+    async fn test_get_payment_status_success() {
+        let mock_server = MockServer::start().await;
+
+        let status_response = serde_json::json!({
+            "status": "succeeded",
+            "isFinal": true
+        });
+
+        Mock::given(method("GET"))
+            .and(path("/v1/gateway/payment/pay_status_123/status"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(&status_response),
+            )
+            .mount(&mock_server)
+            .await;
+
+        let client =
+            WalletConnectPay::new(test_config(mock_server.uri())).unwrap();
+        let result =
+            client.get_payment_status("pay_status_123".to_string()).await;
+
+        assert!(result.is_ok());
+        let resp = result.unwrap();
+        assert_eq!(resp.payment_id, "pay_status_123");
+        assert_eq!(resp.status, PaymentStatus::Succeeded);
+        assert!(resp.is_final);
+    }
+
+    #[tokio::test]
+    async fn test_get_payment_status_not_found() {
+        let mock_server = MockServer::start().await;
+
+        let error_response = serde_json::json!({
+            "code": "payment_not_found",
+            "message": "Payment not found"
+        });
+
+        Mock::given(method("GET"))
+            .and(path("/v1/gateway/payment/pay_notfound/status"))
+            .respond_with(
+                ResponseTemplate::new(404).set_body_json(&error_response),
+            )
+            .mount(&mock_server)
+            .await;
+
+        let client =
+            WalletConnectPay::new(test_config(mock_server.uri())).unwrap();
+        let result =
+            client.get_payment_status("pay_notfound".to_string()).await;
+
+        assert!(
+            matches!(result, Err(GetPaymentStatusError::PaymentNotFound(_))),
+            "Expected PaymentNotFound, got {:?}",
+            result
+        );
+    }
+
+    #[tokio::test]
+    async fn test_get_payment_status_connection_error() {
+        let client = WalletConnectPay::new(test_config(
+            "http://127.0.0.1:54324".to_string(),
+        ))
+        .unwrap();
+
+        let result = client.get_payment_status("pay_123".to_string()).await;
+
+        assert!(
+            matches!(
+                result,
+                Err(GetPaymentStatusError::NoConnection(_))
+                    | Err(GetPaymentStatusError::ConnectionFailed(_))
+            ),
+            "Expected NoConnection or ConnectionFailed, got {:?}",
+            result
+        );
+    }
+
+    #[tokio::test]
+    async fn test_confirm_payment_returns_user_friendly_error_message() {
+        let client = WalletConnectPay::new(test_config(
+            "http://nonexistent.invalid:8080".to_string(),
+        ))
+        .unwrap();
+
+        let result = client
+            .confirm_payment(
+                "pay_123".to_string(),
+                "opt_1".to_string(),
+                vec![],
+                None,
+                Some(100),
+            )
+            .await;
+
+        // Network errors should contain user-friendly message
+        match result {
+            Err(ConfirmPaymentError::NoConnection(msg)) => {
+                assert!(
+                    msg.contains("No internet connection"),
+                    "Expected user-friendly message, got: {}",
+                    msg
+                );
+            }
+            Err(ConfirmPaymentError::ConnectionFailed(msg)) => {
+                assert!(
+                    msg.contains("No internet connection"),
+                    "Expected user-friendly message, got: {}",
+                    msg
+                );
+            }
+            other => {
+                panic!("Expected NoConnection or ConnectionFailed: {:?}", other)
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn test_confirm_payment_auto_recovers_on_network_return() {
+        let mock_server = MockServer::start().await;
+
+        let confirm_response = serde_json::json!({
+            "status": "processing",
+            "isFinal": false,
+            "pollInMs": 10
+        });
+        let status_response = serde_json::json!({
+            "status": "succeeded",
+            "isFinal": true
+        });
+
+        Mock::given(method("POST"))
+            .and(path("/v1/gateway/payment/pay_recover/confirm"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(&confirm_response),
+            )
+            .mount(&mock_server)
+            .await;
+
+        Mock::given(method("GET"))
+            .and(path("/v1/gateway/payment/pay_recover/status"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(&status_response),
+            )
+            .mount(&mock_server)
+            .await;
+
+        let client =
+            WalletConnectPay::new(test_config(mock_server.uri())).unwrap();
+        let result = client
+            .confirm_payment(
+                "pay_recover".to_string(),
+                "opt_1".to_string(),
+                vec!["0x123".to_string()],
+                None,
+                Some(5000),
+            )
+            .await;
+
+        assert!(result.is_ok());
+        let resp = result.unwrap();
+        assert_eq!(resp.status, PaymentStatus::Succeeded);
+        assert!(resp.is_final);
+    }
+
+    #[tokio::test]
+    async fn test_confirm_payment_polling_timeout() {
+        let mock_server = MockServer::start().await;
+        let confirm_response = serde_json::json!({
+            "status": "processing",
+            "isFinal": false,
+            "pollInMs": 10
+        });
+        let status_response = serde_json::json!({
+            "status": "processing",
+            "isFinal": false,
+            "pollInMs": 10
+        });
+        Mock::given(method("POST"))
+            .and(path("/v1/gateway/payment/pay_timeout/confirm"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(&confirm_response),
+            )
+            .mount(&mock_server)
+            .await;
+        Mock::given(method("GET"))
+            .and(path("/v1/gateway/payment/pay_timeout/status"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(&status_response),
+            )
+            .mount(&mock_server)
+            .await;
+        let client =
+            WalletConnectPay::new(test_config(mock_server.uri())).unwrap();
+        let result = client
+            .confirm_payment(
+                "pay_timeout".to_string(),
+                "opt_1".to_string(),
+                vec!["0x123".to_string()],
+                None,
+                Some(100),
+            )
+            .await;
+        assert!(
+            matches!(result, Err(ConfirmPaymentError::PollingTimeout(_))),
+            "Expected PollingTimeout, got {:?}",
+            result
+        );
+    }
+
+    #[test]
+    fn test_looks_like_network_error_detects_patterns() {
+        assert!(looks_like_network_error(
+            "error sending request for url (https://example.com)"
+        ));
+        assert!(looks_like_network_error("Connection reset by peer"));
+        assert!(looks_like_network_error("operation timed out"));
+        assert!(looks_like_network_error("Network is unreachable"));
+        assert!(!looks_like_network_error("404: Not found"));
+        assert!(!looks_like_network_error("500: Internal server error"));
+        assert!(!looks_like_network_error("Invalid JSON response"));
+    }
+
+    #[test]
+    fn test_is_network_error_detects_http_with_network_patterns() {
+        let err = ConfirmPaymentError::Http(
+            "error sending request for url (https://example.com)".into(),
+        );
+        assert!(is_network_error(&err));
+
+        let err = ConfirmPaymentError::Http("404: Not found".into());
+        assert!(!is_network_error(&err));
+
+        let err = ConfirmPaymentError::NoConnection("test".into());
+        assert!(is_network_error(&err));
+        let err = ConfirmPaymentError::RequestTimeout("test".into());
+        assert!(is_network_error(&err));
+        let err = ConfirmPaymentError::ConnectionFailed("test".into());
+        assert!(is_network_error(&err));
+    }
+
+    #[test]
+    fn test_make_user_friendly_error_handles_http_network_errors() {
+        let err = ConfirmPaymentError::Http(
+            "error sending request for url (https://example.com)".into(),
+        );
+        let friendly = make_user_friendly_error(err);
+        match friendly {
+            ConfirmPaymentError::NoConnection(msg) => {
+                assert!(msg.contains("No internet connection"));
+            }
+            other => {
+                panic!("Expected NoConnection, got {:?}", other)
+            }
+        }
+
+        let err = ConfirmPaymentError::Http("404: Not found".into());
+        let friendly = make_user_friendly_error(err);
+        match friendly {
+            ConfirmPaymentError::Http(msg) => {
+                assert_eq!(msg, "404: Not found");
+            }
+            other => {
+                panic!("Expected Http, got {:?}", other)
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn test_rate_limit_returns_rate_limited_error() {
+        let mock_server = MockServer::start().await;
+        let error_response = serde_json::json!({
+            "code": "rate_limited",
+            "message": "Too many requests"
+        });
+        Mock::given(method("POST"))
+            .and(path("/v1/gateway/payment/pay_rl/options"))
+            .respond_with(
+                ResponseTemplate::new(429).set_body_json(&error_response),
+            )
+            .expect(MAX_RETRIES as u64 + 1)
+            .mount(&mock_server)
+            .await;
+        let client =
+            WalletConnectPay::new(test_config(mock_server.uri())).unwrap();
+        let result = client
+            .get_payment_options(
+                "pay_rl".to_string(),
+                vec!["eip155:8453:0x123".to_string()],
+                false,
+            )
+            .await;
+        assert!(
+            matches!(result, Err(GetPaymentOptionsError::RateLimited(_))),
+            "Expected RateLimited, got {:?}",
+            result
+        );
+    }
+
+    #[test]
+    fn test_parse_retry_after_valid() {
+        let mut headers = reqwest::header::HeaderMap::new();
+        headers.insert(
+            reqwest::header::RETRY_AFTER,
+            reqwest::header::HeaderValue::from_static("1"),
+        );
+        assert_eq!(parse_retry_after(&headers), Some(1000));
+    }
+
+    #[test]
+    fn test_parse_retry_after_capped() {
+        let mut headers = reqwest::header::HeaderMap::new();
+        headers.insert(
+            reqwest::header::RETRY_AFTER,
+            reqwest::header::HeaderValue::from_static("3600"),
+        );
+        assert_eq!(parse_retry_after(&headers), Some(MAX_BACKOFF_MS));
+    }
+
+    #[test]
+    fn test_parse_retry_after_missing() {
+        let headers = reqwest::header::HeaderMap::new();
+        assert_eq!(parse_retry_after(&headers), None);
+    }
+
+    #[test]
+    fn test_parse_retry_after_invalid() {
+        let mut headers = reqwest::header::HeaderMap::new();
+        headers.insert(
+            reqwest::header::RETRY_AFTER,
+            reqwest::header::HeaderValue::from_static("not-a-number"),
+        );
+        assert_eq!(parse_retry_after(&headers), None);
     }
 }

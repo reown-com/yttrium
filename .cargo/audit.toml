@@ -1,0 +1,15 @@
+[advisories]
+ignore = [
+    # proc-macro-error: unmaintained, transitive via sui-sdk (git pin) -> multihash-derive
+    "RUSTSEC-2024-0370",
+    # ring <0.17: unmaintained, transitive via relay_rpc (git pin) -> jsonwebtoken 8.3.0
+    "RUSTSEC-2025-0010",
+    # ring 0.16: AES panic, transitive via relay_rpc (git pin) -> jsonwebtoken 8.3.0
+    "RUSTSEC-2025-0009",
+    # rustls-pemfile: unmaintained, transitive via aws-sdk + sui-sdk (git pin)
+    "RUSTSEC-2025-0134",
+    # protobuf: uncontrolled recursion, transitive via sui-sdk (git pin) -> prometheus
+    "RUSTSEC-2024-0437",
+    # rsa: timing sidechannel, transitive via sui-sdk (git pin) -> fastcrypto
+    "RUSTSEC-2023-0071",
+]

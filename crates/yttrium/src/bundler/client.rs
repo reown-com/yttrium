@@ -123,12 +123,12 @@ impl BundlerClient {
             match self.get_user_operation_receipt(hash.clone()).await? {
                 Some(receipt) => return Ok(receipt),
                 None => {
-                    if let Some(timeout_duration) = timeout {
-                        if start_time.elapsed() > timeout_duration {
-                            return Err(eyre::eyre!(
-                                "Timeout waiting for user operation receipt",
-                            ));
-                        }
+                    if let Some(timeout_duration) = timeout
+                        && start_time.elapsed() > timeout_duration
+                    {
+                        return Err(eyre::eyre!(
+                            "Timeout waiting for user operation receipt",
+                        ));
                     }
                     println!(
                         "No Receipt yet. Trying again in {:?}",

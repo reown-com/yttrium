@@ -562,24 +562,21 @@ fn load_address_book_registry() -> ChainAddressBook {
     let mut map = HashMap::new();
     if let Ok(value) =
         serde_json::from_str::<serde_json::Value>(ADDRESS_BOOK_JSON)
+        && let Some(entries) = value.as_object()
     {
-        if let Some(entries) = value.as_object() {
-            for (chain_key, addresses_value) in entries {
-                let Some(addresses) = addresses_value.as_object() else {
-                    continue;
-                };
-                let normalized_chain = chain_key.trim().to_ascii_lowercase();
-                let mut chain_map = HashMap::new();
-                for (address, label_value) in addresses {
-                    if let Some(label) = label_value.as_str() {
-                        chain_map.insert(
-                            normalize_address(address),
-                            label.to_string(),
-                        );
-                    }
+        for (chain_key, addresses_value) in entries {
+            let Some(addresses) = addresses_value.as_object() else {
+                continue;
+            };
+            let normalized_chain = chain_key.trim().to_ascii_lowercase();
+            let mut chain_map = HashMap::new();
+            for (address, label_value) in addresses {
+                if let Some(label) = label_value.as_str() {
+                    chain_map
+                        .insert(normalize_address(address), label.to_string());
                 }
-                map.insert(normalized_chain, chain_map);
             }
+            map.insert(normalized_chain, chain_map);
         }
     }
     map
