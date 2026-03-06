@@ -441,6 +441,22 @@ fileprivate struct FfiConverterUInt16: FfiConverterPrimitive {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterInt32: FfiConverterPrimitive {
+    typealias FfiType = Int32
+    typealias SwiftType = Int32
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Int32 {
+        return try lift(readInt(&buf))
+    }
+
+    public static func write(_ value: Int32, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterInt64: FfiConverterPrimitive {
     typealias FfiType = Int64
     typealias SwiftType = Int64
@@ -1223,14 +1239,14 @@ public func FfiConverterTypeAction_lower(_ value: Action) -> RustBuffer {
 public struct AmountDisplay: Equatable, Hashable {
     public var assetSymbol: String
     public var assetName: String
-    public var decimals: Int64
+    public var decimals: Int32
     public var iconUrl: String?
     public var networkIconUrl: String?
     public var networkName: String?
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(assetSymbol: String, assetName: String, decimals: Int64, iconUrl: String?, networkIconUrl: String?, networkName: String?) {
+    public init(assetSymbol: String, assetName: String, decimals: Int32, iconUrl: String?, networkIconUrl: String?, networkName: String?) {
         self.assetSymbol = assetSymbol
         self.assetName = assetName
         self.decimals = decimals
@@ -1257,7 +1273,7 @@ public struct FfiConverterTypeAmountDisplay: FfiConverterRustBuffer {
             try AmountDisplay(
                 assetSymbol: FfiConverterString.read(from: &buf), 
                 assetName: FfiConverterString.read(from: &buf), 
-                decimals: FfiConverterInt64.read(from: &buf), 
+                decimals: FfiConverterInt32.read(from: &buf), 
                 iconUrl: FfiConverterOptionString.read(from: &buf), 
                 networkIconUrl: FfiConverterOptionString.read(from: &buf), 
                 networkName: FfiConverterOptionString.read(from: &buf)
@@ -1267,7 +1283,7 @@ public struct FfiConverterTypeAmountDisplay: FfiConverterRustBuffer {
     public static func write(_ value: AmountDisplay, into buf: inout [UInt8]) {
         FfiConverterString.write(value.assetSymbol, into: &buf)
         FfiConverterString.write(value.assetName, into: &buf)
-        FfiConverterInt64.write(value.decimals, into: &buf)
+        FfiConverterInt32.write(value.decimals, into: &buf)
         FfiConverterOptionString.write(value.iconUrl, into: &buf)
         FfiConverterOptionString.write(value.networkIconUrl, into: &buf)
         FfiConverterOptionString.write(value.networkName, into: &buf)
