@@ -58,7 +58,7 @@ jobs:
       - name: Download Release Artifacts (from release-swift-utils)
         id: download_dedicated
         continue-on-error: true
-        uses: dawidd6/action-download-artifact@v6
+        uses: dawidd6/action-download-artifact@v16
         with:
           name: swift-utils-release-${{ steps.version.outputs.version }}
           path: Output/
@@ -67,7 +67,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
       - name: Download Release Artifacts (from release-all)
         if: steps.download_dedicated.outcome == 'failure'
-        uses: dawidd6/action-download-artifact@v6
+        uses: dawidd6/action-download-artifact@v16
         with:
           name: swift-utils-release-${{ steps.version.outputs.version }}
           path: Output/
