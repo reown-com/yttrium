@@ -65,7 +65,7 @@ solana-client = { version = "3.1.9", default-features = false }
 solana-seed-phrase = { version = "3.0.0", default-features = false }
 solana-seed-derivable = { version = "3.0.0", default-features = false }
 solana-transaction = { version = "3.0.2", default-features = false }
-solana-signature = { version = "3.1.0", default-features = false }
+solana-signature = { version = "3.2.0", default-features = false }
 solana-signer = { version = "3.0.0", default-features = false }
 solana-keypair = { version = "3.1.0", default-features = false }
 solana-derivation-path = { version = "3.0.0", default-features = false }
