@@ -283,7 +283,7 @@ async fn decode_attestation_into_verify_context(
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Attestation {
     pub exp: u64,
