@@ -478,9 +478,7 @@ impl From<types::PaymentStatus> for PaymentStatus {
             types::PaymentStatus::Succeeded => PaymentStatus::Succeeded,
             types::PaymentStatus::Failed => PaymentStatus::Failed,
             types::PaymentStatus::Expired => PaymentStatus::Expired,
-            types::PaymentStatus::Cancelled => {
-                PaymentStatus::Cancelled
-            }
+            types::PaymentStatus::Cancelled => PaymentStatus::Cancelled,
         }
     }
 }
@@ -499,14 +497,9 @@ impl From<types::PaymentInformation> for PaymentResultInfo {
     }
 }
 
-impl From<types::GatewayPaymentInformation>
-    for PaymentResultInfo
-{
+impl From<types::GatewayPaymentInformation> for PaymentResultInfo {
     fn from(i: types::GatewayPaymentInformation) -> Self {
-        Self {
-            tx_id: i.tx_id,
-            option_amount: i.option_amount.into(),
-        }
+        Self { tx_id: i.tx_id, option_amount: i.option_amount.into() }
     }
 }
 
