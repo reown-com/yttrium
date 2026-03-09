@@ -167,9 +167,7 @@ impl From<ConfirmPaymentError> for PayJsonError {
                 Self::InvalidSignature(msg)
             }
             ConfirmPaymentError::RouteExpired(msg) => Self::RouteExpired(msg),
-            ConfirmPaymentError::QuoteExpired(msg) => {
-                Self::QuoteExpired(msg)
-            }
+            ConfirmPaymentError::QuoteExpired(msg) => Self::QuoteExpired(msg),
             ConfirmPaymentError::UnsupportedMethod(msg) => {
                 Self::UnsupportedMethod(msg)
             }
