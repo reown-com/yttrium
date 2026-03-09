@@ -1784,16 +1784,18 @@ public struct PaymentOption: Equatable, Hashable {
     public var account: String
     public var amount: PayAmount
     public var etaS: Int64
+    public var expiresAt: Int64?
     public var actions: [Action]
     public var collectData: CollectDataAction?
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(id: String, account: String, amount: PayAmount, etaS: Int64, actions: [Action], collectData: CollectDataAction?) {
+    public init(id: String, account: String, amount: PayAmount, etaS: Int64, expiresAt: Int64?, actions: [Action], collectData: CollectDataAction?) {
         self.id = id
         self.account = account
         self.amount = amount
         self.etaS = etaS
+        self.expiresAt = expiresAt
         self.actions = actions
         self.collectData = collectData
     }
@@ -1814,11 +1816,12 @@ public struct FfiConverterTypePaymentOption: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> PaymentOption {
         return
             try PaymentOption(
-                id: FfiConverterString.read(from: &buf), 
-                account: FfiConverterString.read(from: &buf), 
-                amount: FfiConverterTypePayAmount.read(from: &buf), 
-                etaS: FfiConverterInt64.read(from: &buf), 
-                actions: FfiConverterSequenceTypeAction.read(from: &buf), 
+                id: FfiConverterString.read(from: &buf),
+                account: FfiConverterString.read(from: &buf),
+                amount: FfiConverterTypePayAmount.read(from: &buf),
+                etaS: FfiConverterInt64.read(from: &buf),
+                expiresAt: FfiConverterOptionInt64.read(from: &buf),
+                actions: FfiConverterSequenceTypeAction.read(from: &buf),
                 collectData: FfiConverterOptionTypeCollectDataAction.read(from: &buf)
         )
     }
@@ -1828,6 +1831,7 @@ public struct FfiConverterTypePaymentOption: FfiConverterRustBuffer {
         FfiConverterString.write(value.account, into: &buf)
         FfiConverterTypePayAmount.write(value.amount, into: &buf)
         FfiConverterInt64.write(value.etaS, into: &buf)
+        FfiConverterOptionInt64.write(value.expiresAt, into: &buf)
         FfiConverterSequenceTypeAction.write(value.actions, into: &buf)
         FfiConverterOptionTypeCollectDataAction.write(value.collectData, into: &buf)
     }
@@ -3410,6 +3414,7 @@ public enum PaymentStatus: Equatable, Hashable {
     case succeeded
     case failed
     case expired
+    case cancelled
 
 
 
@@ -3440,7 +3445,9 @@ public struct FfiConverterTypePaymentStatus: FfiConverterRustBuffer {
         case 4: return .failed
         
         case 5: return .expired
-        
+
+        case 6: return .cancelled
+
         default: throw UniffiInternalError.unexpectedEnumCase
         }
     }
@@ -3467,7 +3474,11 @@ public struct FfiConverterTypePaymentStatus: FfiConverterRustBuffer {
         
         case .expired:
             writeInt(&buf, Int32(5))
-        
+
+
+        case .cancelled:
+            writeInt(&buf, Int32(6))
+
         }
     }
 }

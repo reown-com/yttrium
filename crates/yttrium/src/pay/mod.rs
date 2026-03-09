@@ -249,6 +249,8 @@ pub enum ConfirmPaymentError {
     InvalidSignature(String),
     #[error("Route expired: {0}")]
     RouteExpired(String),
+    #[error("Quote expired: {0}")]
+    QuoteExpired(String),
     #[error("No network connection: {0}")]
     NoConnection(String),
     #[error("Request timed out: {0}")]
@@ -275,6 +277,7 @@ impl error_reporting::HasErrorType for ConfirmPaymentError {
             Self::InvalidOption(_) => "InvalidOption",
             Self::InvalidSignature(_) => "InvalidSignature",
             Self::RouteExpired(_) => "RouteExpired",
+            Self::QuoteExpired(_) => "QuoteExpired",
             Self::NoConnection(_) => "NoConnection",
             Self::RequestTimeout(_) => "RequestTimeout",
             Self::ConnectionFailed(_) => "ConnectionFailed",
@@ -1569,7 +1572,11 @@ fn map_confirm_payment_error(
     match e {
         progenitor_client::Error::ErrorResponse(resp) => {
             let status = resp.status().as_u16();
-            let msg = format!("{}: {}", status, resp.into_inner().message);
+            let inner = resp.into_inner();
+            let msg = format!("{}: {}", status, inner.message);
+            if inner.code == types::ErrorCode::QuoteExpired {
+                return ConfirmPaymentError::QuoteExpired(msg);
+            }
             match status {
                 404 => ConfirmPaymentError::PaymentNotFound(msg),
                 410 => ConfirmPaymentError::PaymentExpired(msg),
