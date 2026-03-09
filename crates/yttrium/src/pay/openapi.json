@@ -10,7 +10,7 @@
     "license": {
       "name": ""
     },
-    "version": "0.0.0"
+    "version": "2026-02-19.preview"
   },
   "servers": [
     {
@@ -45,6 +45,14 @@
           },
           {
             "name": "Client-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "WCP-Version",
             "in": "header",
             "required": false,
             "schema": {
@@ -173,6 +181,14 @@
             }
           },
           {
+            "name": "WCP-Version",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "Sdk-Name",
             "in": "header",
             "required": false,
@@ -213,7 +229,8 @@
             "schema": {
               "type": "integer",
               "format": "int64",
-              "minimum": 0
+              "minimum": 0,
+              "nullable": true
             }
           }
         ],
@@ -308,6 +325,14 @@
           },
           {
             "name": "Client-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "WCP-Version",
             "in": "header",
             "required": false,
             "schema": {
@@ -446,6 +471,14 @@
             }
           },
           {
+            "name": "WCP-Version",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "Sdk-Name",
             "in": "header",
             "required": false,
@@ -484,7 +517,8 @@
             "description": "Whether to include payment information in the response",
             "required": false,
             "schema": {
-              "type": "boolean"
+              "type": "boolean",
+              "nullable": true
             }
           }
         ],
@@ -586,6 +620,14 @@
             }
           },
           {
+            "name": "WCP-Version",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "Sdk-Name",
             "in": "header",
             "required": false,
@@ -626,7 +668,8 @@
             "schema": {
               "type": "integer",
               "format": "int64",
-              "minimum": 0
+              "minimum": 0,
+              "nullable": true
             }
           }
         ],
@@ -705,6 +748,14 @@
             "name": "Merchant-Id",
             "in": "header",
             "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "WCP-Version",
+            "in": "header",
+            "required": false,
             "schema": {
               "type": "string"
             }
@@ -822,6 +873,14 @@
             }
           },
           {
+            "name": "WCP-Version",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "Sdk-Name",
             "in": "header",
             "required": false,
@@ -870,7 +929,8 @@
             "schema": {
               "type": "integer",
               "format": "int64",
-              "minimum": 0
+              "minimum": 0,
+              "nullable": true
             }
           }
         ],
@@ -1139,7 +1199,9 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/CollectDataField"
-            }
+            },
+            "description": "Deprecated: Use `schema` and `url` fields instead for webview-based data collection",
+            "deprecated": true
           },
           "schema": {
             "description": "JSON Schema for validating IC form data (for webview mode)",
@@ -1169,6 +1231,20 @@
           "schema": {
             "$schema": "https://json-schema.org/draft/2020-12/schema",
             "additionalProperties": false,
+            "anyOf": [
+              {
+                "required": [
+                  "pobCountry",
+                  "pobAddress"
+                ]
+              },
+              {
+                "required": [
+                  "porCountry",
+                  "porAddress"
+                ]
+              }
+            ],
             "properties": {
               "dob": {
                 "description": "Date of birth in YYYY-MM-DD format",
@@ -1194,6 +1270,18 @@
                 "title": "Place of Birth Country",
                 "type": "string"
               },
+              "porAddress": {
+                "description": "Place of residence street address, city, and state",
+                "maxLength": 200,
+                "title": "Place of Residence Address",
+                "type": "string"
+              },
+              "porCountry": {
+                "description": "Place of residence country code (ISO 3166-1 alpha-2)",
+                "pattern": "^[A-Z]{2}$",
+                "title": "Place of Residence Country",
+                "type": "string"
+              },
               "tosConfirmed": {
                 "const": true,
                 "description": "Must be true to confirm Terms of Service acceptance",
@@ -1204,9 +1292,7 @@
             "required": [
               "fullName",
               "dob",
-              "tosConfirmed",
-              "pobCountry",
-              "pobAddress"
+              "tosConfirmed"
             ],
             "type": "object"
           },
@@ -1299,6 +1385,14 @@
             {
               "id": "tosConfirmed",
               "value": "true"
+            },
+            {
+              "id": "pobCountry",
+              "value": "US"
+            },
+            {
+              "id": "pobAddress",
+              "value": "New York, NY"
             }
           ]
         }
@@ -1339,6 +1433,14 @@
               {
                 "id": "tosConfirmed",
                 "value": "true"
+              },
+              {
+                "id": "pobCountry",
+                "value": "US"
+              },
+              {
+                "id": "pobAddress",
+                "value": "New York, NY"
               }
             ]
           },
@@ -1361,6 +1463,11 @@
           "isFinal"
         ],
         "properties": {
+          "info": {
+            "$ref": "#/components/schemas/GatewayPaymentInformation",
+            "nullable": true,
+            "description": "Payment information (transaction hash). Present when status is\nSucceeded, null otherwise."
+          },
           "isFinal": {
             "type": "boolean",
             "description": "True if the payment is in a final state and no longer requires polling"
@@ -1375,14 +1482,10 @@
           "status": {
             "$ref": "#/components/schemas/PaymentStatus",
             "description": "Payment status"
-          },
-          "info": {
-            "$ref": "#/components/schemas/PaymentInformation",
-            "nullable": true,
-            "description": "Payment information (transaction hash, amount). Present when status is Succeeded."
           }
         },
         "example": {
+          "info": null,
           "isFinal": true,
           "pollInMs": null,
           "status": "succeeded"
@@ -1425,18 +1528,15 @@
         ],
         "properties": {
           "amount": {
-            "$ref": "#/components/schemas/AmountParameter",
-            "description": "Amount to be paid"
+            "$ref": "#/components/schemas/AmountParameter"
           },
           "expiresAt": {
             "type": "integer",
             "format": "int64",
-            "description": "Optional custom expiration timestamp (Unix seconds since epoch).\nMust be in the future if provided. If not provided, defaults to 5 minutes from now.",
             "nullable": true
           },
           "referenceId": {
-            "type": "string",
-            "description": "Merchant/PSP order ID"
+            "type": "string"
           }
         },
         "example": {
@@ -1492,7 +1592,7 @@
           "expiresAt": 1718236800,
           "gatewayUrl": "https://api.pay.walletconnect.com/pay_123",
           "isFinal": false,
-          "paymentId": "pay_e5a2ecc101KHC27YB729ZSF59YJSY06CA2",
+          "paymentId": "pay_19a2ecc101KJZRBV11SR1Y3BKYRJKM62DR",
           "pollInMs": 1000,
           "status": "requires_action"
         }
@@ -1512,6 +1612,7 @@
           "forbidden",
           "invalid_state",
           "payment_expired",
+          "quote_expired",
           "missing_api_key",
           "missing_merchant_api_key",
           "missing_merchant_id",
@@ -1527,6 +1628,9 @@
           "invalid_app_id",
           "conflicting_auth_headers",
           "missing_auth_headers",
+          "invalid_api_version",
+          "unknown_api_version",
+          "api_version_downgrade",
           "sanctioned_user"
         ]
       },
@@ -1596,6 +1700,24 @@
           ]
         }
       },
+      "GatewayPaymentInformation": {
+        "type": "object",
+        "description": "Payment information returned when a gateway payment succeeds.",
+        "required": [
+          "txId",
+          "optionAmount"
+        ],
+        "properties": {
+          "optionAmount": {
+            "$ref": "#/components/schemas/Amount",
+            "description": "Amount paid in token units"
+          },
+          "txId": {
+            "type": "string",
+            "description": "Transaction identifier (hash)"
+          }
+        }
+      },
       "GetPaymentOptionsRequest": {
         "type": "object",
         "required": [
@@ -1660,6 +1782,20 @@
             "schema": {
               "$schema": "https://json-schema.org/draft/2020-12/schema",
               "additionalProperties": false,
+              "anyOf": [
+                {
+                  "required": [
+                    "pobCountry",
+                    "pobAddress"
+                  ]
+                },
+                {
+                  "required": [
+                    "porCountry",
+                    "porAddress"
+                  ]
+                }
+              ],
               "properties": {
                 "dob": {
                   "description": "Date of birth in YYYY-MM-DD format",
@@ -1685,6 +1821,18 @@
                   "title": "Place of Birth Country",
                   "type": "string"
                 },
+                "porAddress": {
+                  "description": "Place of residence street address, city, and state",
+                  "maxLength": 200,
+                  "title": "Place of Residence Address",
+                  "type": "string"
+                },
+                "porCountry": {
+                  "description": "Place of residence country code (ISO 3166-1 alpha-2)",
+                  "pattern": "^[A-Z]{2}$",
+                  "title": "Place of Residence Country",
+                  "type": "string"
+                },
                 "tosConfirmed": {
                   "const": true,
                   "description": "Must be true to confirm Terms of Service acceptance",
@@ -1695,9 +1843,7 @@
               "required": [
                 "fullName",
                 "dob",
-                "tosConfirmed",
-                "pobCountry",
-                "pobAddress"
+                "tosConfirmed"
               ],
               "type": "object"
             },
@@ -1774,6 +1920,20 @@
                 "schema": {
                   "$schema": "https://json-schema.org/draft/2020-12/schema",
                   "additionalProperties": false,
+                  "anyOf": [
+                    {
+                      "required": [
+                        "pobCountry",
+                        "pobAddress"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "porCountry",
+                        "porAddress"
+                      ]
+                    }
+                  ],
                   "properties": {
                     "dob": {
                       "description": "Date of birth in YYYY-MM-DD format",
@@ -1799,6 +1959,18 @@
                       "title": "Place of Birth Country",
                       "type": "string"
                     },
+                    "porAddress": {
+                      "description": "Place of residence street address, city, and state",
+                      "maxLength": 200,
+                      "title": "Place of Residence Address",
+                      "type": "string"
+                    },
+                    "porCountry": {
+                      "description": "Place of residence country code (ISO 3166-1 alpha-2)",
+                      "pattern": "^[A-Z]{2}$",
+                      "title": "Place of Residence Country",
+                      "type": "string"
+                    },
                     "tosConfirmed": {
                       "const": true,
                       "description": "Must be true to confirm Terms of Service acceptance",
@@ -1809,15 +1981,14 @@
                   "required": [
                     "fullName",
                     "dob",
-                    "tosConfirmed",
-                    "pobCountry",
-                    "pobAddress"
+                    "tosConfirmed"
                   ],
                   "type": "object"
                 },
                 "url": "https://data-collection.walletconnect.com/ic/pay_123?accounts=eip155:1:0x123"
               },
               "etaS": 5,
+              "expiresAt": 1700000300,
               "id": "opt_123"
             }
           ]
@@ -1836,27 +2007,22 @@
         ],
         "properties": {
           "amount": {
-            "$ref": "#/components/schemas/Amount",
-            "description": "Amount to be paid"
+            "$ref": "#/components/schemas/Amount"
           },
           "buyer": {
             "$ref": "#/components/schemas/BuyerInfo",
-            "nullable": true,
-            "description": "Buyer information, present if the payment has been submitted"
+            "nullable": true
           },
           "expiresAt": {
             "type": "integer",
             "format": "int64",
-            "description": "Payment expiration timestamp, in seconds since epoch",
             "minimum": 0
           },
           "merchant": {
-            "$ref": "#/components/schemas/MerchantInfo",
-            "description": "Merchant information"
+            "$ref": "#/components/schemas/MerchantInfo"
           },
           "status": {
-            "$ref": "#/components/schemas/PaymentStatus",
-            "description": "Payment status"
+            "$ref": "#/components/schemas/PaymentStatus"
           }
         },
         "example": {
@@ -2015,6 +2181,13 @@
             "description": "Estimated time to complete the option, in seconds",
             "minimum": 0
           },
+          "expiresAt": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Unix timestamp (seconds) after which this quote is stale and confirm_payment\nwill reject it with `quote_expired`. The wallet should re-fetch options before\nthis deadline. `None` for direct-currency options that don't involve a rate.",
+            "minimum": 0,
+            "nullable": true
+          },
           "id": {
             "type": "string",
             "description": "ID of the option to be used to refer to it in other requests. May be up to 2^16 characters."
@@ -2065,6 +2238,20 @@
             "schema": {
               "$schema": "https://json-schema.org/draft/2020-12/schema",
               "additionalProperties": false,
+              "anyOf": [
+                {
+                  "required": [
+                    "pobCountry",
+                    "pobAddress"
+                  ]
+                },
+                {
+                  "required": [
+                    "porCountry",
+                    "porAddress"
+                  ]
+                }
+              ],
               "properties": {
                 "dob": {
                   "description": "Date of birth in YYYY-MM-DD format",
@@ -2090,6 +2277,18 @@
                   "title": "Place of Birth Country",
                   "type": "string"
                 },
+                "porAddress": {
+                  "description": "Place of residence street address, city, and state",
+                  "maxLength": 200,
+                  "title": "Place of Residence Address",
+                  "type": "string"
+                },
+                "porCountry": {
+                  "description": "Place of residence country code (ISO 3166-1 alpha-2)",
+                  "pattern": "^[A-Z]{2}$",
+                  "title": "Place of Residence Country",
+                  "type": "string"
+                },
                 "tosConfirmed": {
                   "const": true,
                   "description": "Must be true to confirm Terms of Service acceptance",
@@ -2100,15 +2299,14 @@
               "required": [
                 "fullName",
                 "dob",
-                "tosConfirmed",
-                "pobCountry",
-                "pobAddress"
+                "tosConfirmed"
               ],
               "type": "object"
             },
             "url": "https://data-collection.walletconnect.com/ic/pay_123?accounts=eip155:1:0x123"
           },
           "etaS": 5,
+          "expiresAt": 1700000300,
           "id": "opt_123"
         }
       },
@@ -2120,7 +2318,8 @@
           "processing",
           "succeeded",
           "failed",
-          "expired"
+          "expired",
+          "cancelled"
         ]
       },
       "WalletRpcAction": {
