@@ -257,7 +257,7 @@ reqwest.workspace = true
 url = { workspace = true, features = ["serde"] }
 
 # TLS platform verifier for Android
-rustls-platform-verifier = { version = "0.5", optional = true }
+rustls-platform-verifier = { version = "0.6", optional = true }
 jni = { version = "0.21", optional = true }
 
 # Tiny dependency, could copy source. Pinning to exact version to avoid supply-chain attacks.
