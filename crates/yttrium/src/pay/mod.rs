@@ -249,6 +249,8 @@ pub enum ConfirmPaymentError {
     InvalidSignature(String),
     #[error("Route expired: {0}")]
     RouteExpired(String),
+    #[error("Quote expired: {0}")]
+    QuoteExpired(String),
     #[error("No network connection: {0}")]
     NoConnection(String),
     #[error("Request timed out: {0}")]
@@ -275,6 +277,7 @@ impl error_reporting::HasErrorType for ConfirmPaymentError {
             Self::InvalidOption(_) => "InvalidOption",
             Self::InvalidSignature(_) => "InvalidSignature",
             Self::RouteExpired(_) => "RouteExpired",
+            Self::QuoteExpired(_) => "QuoteExpired",
             Self::NoConnection(_) => "NoConnection",
             Self::RequestTimeout(_) => "RequestTimeout",
             Self::ConnectionFailed(_) => "ConnectionFailed",
@@ -324,7 +327,7 @@ const API_CONNECT_TIMEOUT_SECS: u64 = 10;
 const API_REQUEST_TIMEOUT_SECS: u64 = 30;
 const MAX_POLLING_DURATION_SECS: u64 = 300;
 const WCP_VERSION_HEADER: &str = "WCP-Version";
-const WCP_VERSION: &str = "2026-02-18";
+const WCP_VERSION: &str = "2026-02-19.preview";
 
 fn looks_like_network_error(msg: &str) -> bool {
     let lower = msg.to_lowercase();
@@ -465,6 +468,7 @@ pub enum PaymentStatus {
     Succeeded,
     Failed,
     Expired,
+    Cancelled,
 }
 
 impl From<types::PaymentStatus> for PaymentStatus {
@@ -477,6 +481,7 @@ impl From<types::PaymentStatus> for PaymentStatus {
             types::PaymentStatus::Succeeded => PaymentStatus::Succeeded,
             types::PaymentStatus::Failed => PaymentStatus::Failed,
             types::PaymentStatus::Expired => PaymentStatus::Expired,
+            types::PaymentStatus::Cancelled => PaymentStatus::Cancelled,
         }
     }
 }
@@ -491,6 +496,12 @@ pub struct PaymentResultInfo {
 
 impl From<types::PaymentInformation> for PaymentResultInfo {
     fn from(i: types::PaymentInformation) -> Self {
+        Self { tx_id: i.tx_id, option_amount: i.option_amount.into() }
+    }
+}
+
+impl From<types::GatewayPaymentInformation> for PaymentResultInfo {
+    fn from(i: types::GatewayPaymentInformation) -> Self {
         Self { tx_id: i.tx_id, option_amount: i.option_amount.into() }
     }
 }
@@ -677,6 +688,7 @@ pub struct PaymentOption {
     pub account: String,
     pub amount: PayAmount,
     pub eta_s: i64,
+    pub expires_at: Option<i64>,
     pub actions: Vec<Action>,
     pub collect_data: Option<CollectDataAction>,
 }
@@ -688,6 +700,7 @@ impl From<types::PaymentOption> for PaymentOption {
             account: o.account,
             amount: o.amount.into(),
             eta_s: o.eta_s,
+            expires_at: o.expires_at,
             actions: o
                 .actions
                 .into_iter()
@@ -1559,7 +1572,11 @@ fn map_confirm_payment_error(
     match e {
         progenitor_client::Error::ErrorResponse(resp) => {
             let status = resp.status().as_u16();
-            let msg = format!("{}: {}", status, resp.into_inner().message);
+            let inner = resp.into_inner();
+            let msg = format!("{}: {}", status, inner.message);
+            if inner.code == types::ErrorCode::QuoteExpired {
+                return ConfirmPaymentError::QuoteExpired(msg);
+            }
             match status {
                 404 => ConfirmPaymentError::PaymentNotFound(msg),
                 410 => ConfirmPaymentError::PaymentExpired(msg),
