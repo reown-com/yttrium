@@ -55,6 +55,8 @@ pub enum PayJsonError {
     InvalidSignature(String),
     #[error("Route expired: {0}")]
     RouteExpired(String),
+    #[error("Quote expired: {0}")]
+    QuoteExpired(String),
     #[error("Unsupported method: {0}")]
     UnsupportedMethod(String),
     #[error("Polling timeout: {0}")]
@@ -165,6 +167,7 @@ impl From<ConfirmPaymentError> for PayJsonError {
                 Self::InvalidSignature(msg)
             }
             ConfirmPaymentError::RouteExpired(msg) => Self::RouteExpired(msg),
+            ConfirmPaymentError::QuoteExpired(msg) => Self::QuoteExpired(msg),
             ConfirmPaymentError::UnsupportedMethod(msg) => {
                 Self::UnsupportedMethod(msg)
             }
