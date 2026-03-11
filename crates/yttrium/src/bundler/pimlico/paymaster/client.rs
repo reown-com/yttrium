@@ -85,7 +85,7 @@ mod tests {
     use {super::*, alloy::primitives::Address, eyre::ensure};
 
     pub async fn setup_sponsor_user_operation_v07_paymaster_mock()
-    -> eyre::Result<PaymasterClient> {
+    -> eyre::Result<(PaymasterClient, wiremock::MockServer)> {
         use wiremock::{
             Mock, MockServer, ResponseTemplate,
             matchers::{method, path},
@@ -123,12 +123,12 @@ mod tests {
         let bundler_client =
             PaymasterClient::new(BundlerConfig::new(url.parse()?));
 
-        Ok(bundler_client)
+        Ok((bundler_client, mock_server))
     }
 
     #[tokio::test]
     async fn test_sponsor_user_operation_v07() -> eyre::Result<()> {
-        let paymaster_client =
+        let (paymaster_client, _mock_server) =
             setup_sponsor_user_operation_v07_paymaster_mock().await?;
 
         let entry_point =
