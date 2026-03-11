@@ -146,8 +146,7 @@ impl TestWallet {
                 PayTestError::MissingEnvVar("TEST_WALLET_PRIVATE_KEY")
             })?;
 
-        let key = private_key.strip_prefix("0x").unwrap_or(&private_key);
-        let signer = PrivateKeySigner::from_str(key)
+        let signer = PrivateKeySigner::from_str(&private_key)
             .map_err(|e| PayTestError::InvalidPrivateKey(e.to_string()))?;
 
         let address = signer.address();
