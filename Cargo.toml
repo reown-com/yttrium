@@ -88,7 +88,7 @@ sui_shared_crypto = { git = "https://github.com/mystenlabs/sui", package = "shar
 fastcrypto = { git = "https://github.com/MystenLabs/fastcrypto", rev = "16fa86d0dd943024a9088d46850a72ecd55b7f46", default-features = false }
 rand = { version = "0.8.5", default-features = false }
 bcs = { version = "0.1.4", default-features = false }
-tiny-bip39 = { version = "1.0.0", default-features = false }
+tiny-bip39 = { version = "2.0.0", default-features = false }
 
 # Stacks
 stacks-rs = { version = "0.3.3", default-features = false }
