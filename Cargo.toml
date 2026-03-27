@@ -16,7 +16,7 @@ thiserror = { version = "1.0", default-features = false }
 # Async
 tokio = { version = "1.48.0", default-features = false }
 tokio-util = { version = "0.7.18", default-features = false }
-futures = { version = "0.3.31", default-features = false }
+futures = { version = "0.3.32", default-features = false }
 
 wasmtimer = { version = "0.4.1", default-features = false, features = [
     "tokio",
@@ -40,7 +40,7 @@ erc6492 = { git = "https://github.com/reown-com/erc6492.git", rev = "5e4580a", d
 relay_rpc = { git = "https://github.com/WalletConnect/WalletConnectRust.git", rev = "b2ebad0", default-features = false }
 
 # Sign Client
-tokio-tungstenite = { version = "0.27.0", default-features = false }
+tokio-tungstenite = { version = "0.28.0", default-features = false }
 web-sys = { version = "0.3.77", default-features = false }
 chacha20poly1305 = { version = "0.11.0-rc.3", default-features = false }
 
@@ -65,7 +65,7 @@ solana-client = { version = "3.1.9", default-features = false }
 solana-seed-phrase = { version = "3.0.0", default-features = false }
 solana-seed-derivable = { version = "3.0.0", default-features = false }
 solana-transaction = { version = "3.0.2", default-features = false }
-solana-signature = { version = "3.1.0", default-features = false }
+solana-signature = { version = "3.2.0", default-features = false }
 solana-signer = { version = "3.0.0", default-features = false }
 solana-keypair = { version = "3.1.0", default-features = false }
 solana-derivation-path = { version = "3.0.0", default-features = false }
