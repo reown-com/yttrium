@@ -19,7 +19,7 @@ pub mod status;
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
 #[cfg_attr(
     feature = "wasm",
-    derive(tsify_next::Tsify),
+    derive(tsify::Tsify),
     tsify(into_wasm_abi, from_wasm_abi)
 )]
 #[serde(rename_all = "camelCase")]
@@ -40,7 +40,7 @@ pub struct Transaction {
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
 #[cfg_attr(
     feature = "wasm",
-    derive(tsify_next::Tsify),
+    derive(tsify::Tsify),
     tsify(into_wasm_abi, from_wasm_abi)
 )]
 #[serde(rename_all = "camelCase")]

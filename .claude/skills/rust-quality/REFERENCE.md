@@ -171,7 +171,7 @@ default = ["eip155", "erc6492_client"]
 all_platforms = ["android", "ios", "wasm"]
 ios = ["uniffi"]
 android = ["uniffi", "dep:jni"]
-wasm = ["dep:wasm-bindgen", "dep:tsify-next"]
+wasm = ["dep:wasm-bindgen", "dep:tsify"]
 
 # Client features (additive)
 all_clients = ["client_a", "client_b", "client_c"]

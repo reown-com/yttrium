@@ -170,7 +170,7 @@ impl FromStr for Eip155OrSolanaAddress {
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
 #[cfg_attr(
     feature = "wasm",
-    derive(tsify_next::Tsify),
+    derive(tsify::Tsify),
     tsify(into_wasm_abi, from_wasm_abi)
 )]
 #[serde(rename_all = "camelCase")]
@@ -187,7 +187,7 @@ pub struct PrepareResponseMetadata {
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
 #[cfg_attr(
     feature = "wasm",
-    derive(tsify_next::Tsify),
+    derive(tsify::Tsify),
     tsify(into_wasm_abi, from_wasm_abi)
 )]
 #[serde(rename_all = "camelCase")]
@@ -213,7 +213,7 @@ impl InitialTransactionMetadata {
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
 #[cfg_attr(
     feature = "wasm",
-    derive(tsify_next::Tsify),
+    derive(tsify::Tsify),
     tsify(into_wasm_abi, from_wasm_abi)
 )]
 #[serde(rename_all = "camelCase")]
@@ -263,7 +263,7 @@ impl FundingMetadata {
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
 #[cfg_attr(
     feature = "wasm",
-    derive(tsify_next::Tsify),
+    derive(tsify::Tsify),
     tsify(into_wasm_abi, from_wasm_abi)
 )]
 #[serde(rename_all = "camelCase")]
@@ -278,7 +278,7 @@ pub struct PrepareResponseAvailable {
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Enum))]
 #[cfg_attr(
     feature = "wasm",
-    derive(tsify_next::Tsify),
+    derive(tsify::Tsify),
     tsify(into_wasm_abi, from_wasm_abi)
 )]
 #[serde(rename_all = "camelCase")]
@@ -329,7 +329,7 @@ impl Transactions {
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
 #[cfg_attr(
     feature = "wasm",
-    derive(tsify_next::Tsify),
+    derive(tsify::Tsify),
     tsify(into_wasm_abi, from_wasm_abi)
 )]
 #[serde(rename_all = "camelCase")]
@@ -344,7 +344,7 @@ pub struct SolanaTransaction {
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
 #[cfg_attr(
     feature = "wasm",
-    derive(tsify_next::Tsify),
+    derive(tsify::Tsify),
     tsify(into_wasm_abi, from_wasm_abi)
 )]
 #[serde(rename_all = "camelCase")]
@@ -357,7 +357,7 @@ pub struct PrepareResponseNotRequired {
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Enum))]
 #[cfg_attr(
     feature = "wasm",
-    derive(tsify_next::Tsify),
+    derive(tsify::Tsify),
     tsify(into_wasm_abi, from_wasm_abi)
 )]
 #[serde(untagged)]
@@ -381,7 +381,7 @@ impl PrepareResponseSuccess {
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
 #[cfg_attr(
     feature = "wasm",
-    derive(tsify_next::Tsify),
+    derive(tsify::Tsify),
     tsify(into_wasm_abi, from_wasm_abi)
 )]
 #[serde(rename_all = "camelCase")]
@@ -394,7 +394,7 @@ pub struct PrepareResponseError {
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Enum))]
 #[cfg_attr(
     feature = "wasm",
-    derive(tsify_next::Tsify),
+    derive(tsify::Tsify),
     tsify(into_wasm_abi, from_wasm_abi)
 )]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
@@ -413,7 +413,7 @@ pub enum BridgingError {
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Enum))]
 #[cfg_attr(
     feature = "wasm",
-    derive(tsify_next::Tsify),
+    derive(tsify::Tsify),
     tsify(into_wasm_abi, from_wasm_abi)
 )]
 #[serde(untagged)]
