@@ -11,7 +11,7 @@ pub const WALLET_GET_ASSETS: &str = "wallet_getAssets";
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(
     feature = "wasm",
-    derive(tsify_next::Tsify),
+    derive(tsify::Tsify),
     tsify(into_wasm_abi, from_wasm_abi)
 )]
 #[serde(rename_all = "camelCase")]
@@ -25,7 +25,7 @@ pub struct GetAssetsParams {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(
     feature = "wasm",
-    derive(tsify_next::Tsify),
+    derive(tsify::Tsify),
     tsify(into_wasm_abi, from_wasm_abi)
 )]
 #[serde(rename_all = "camelCase")]
@@ -46,7 +46,7 @@ pub type ChainFilter = Vec<Eip155ChainId>;
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(
     feature = "wasm",
-    derive(tsify_next::Tsify),
+    derive(tsify::Tsify),
     tsify(into_wasm_abi, from_wasm_abi)
 )]
 #[serde(
@@ -66,7 +66,7 @@ pub type GetAssetsResult = HashMap<Eip155ChainId, Vec<Asset>>;
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(
     feature = "wasm",
-    derive(tsify_next::Tsify),
+    derive(tsify::Tsify),
     tsify(into_wasm_abi, from_wasm_abi)
 )]
 #[serde(
@@ -118,7 +118,7 @@ impl Asset {
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Enum))]
 #[cfg_attr(
     feature = "wasm",
-    derive(tsify_next::Tsify),
+    derive(tsify::Tsify),
     tsify(into_wasm_abi, from_wasm_abi)
 )]
 pub enum AddressOrNative {
@@ -171,7 +171,7 @@ impl<'de> Deserialize<'de> for AddressOrNative {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(
     feature = "wasm",
-    derive(tsify_next::Tsify),
+    derive(tsify::Tsify),
     tsify(into_wasm_abi, from_wasm_abi)
 )]
 #[serde(rename_all = "camelCase")]
@@ -185,7 +185,7 @@ pub struct AssetData<M> {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(
     feature = "wasm",
-    derive(tsify_next::Tsify),
+    derive(tsify::Tsify),
     tsify(into_wasm_abi, from_wasm_abi)
 )]
 #[serde(rename_all = "camelCase")]
@@ -206,7 +206,7 @@ pub struct NativeMetadata {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(
     feature = "wasm",
-    derive(tsify_next::Tsify),
+    derive(tsify::Tsify),
     tsify(into_wasm_abi, from_wasm_abi)
 )]
 #[serde(rename_all = "camelCase")]
@@ -226,7 +226,7 @@ pub struct Erc20Metadata {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(
     feature = "wasm",
-    derive(tsify_next::Tsify),
+    derive(tsify::Tsify),
     tsify(into_wasm_abi, from_wasm_abi)
 )]
 #[serde(rename_all = "camelCase")]

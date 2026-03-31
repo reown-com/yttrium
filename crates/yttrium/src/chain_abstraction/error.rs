@@ -107,7 +107,7 @@ pub enum PrepareDetailedError {
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Enum))]
 #[cfg_attr(
     feature = "wasm",
-    derive(tsify_next::Tsify),
+    derive(tsify::Tsify),
     tsify(into_wasm_abi, from_wasm_abi)
 )]
 #[serde(rename_all = "camelCase")]
@@ -121,7 +121,7 @@ pub enum PrepareDetailedResponse {
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Enum))]
 #[cfg_attr(
     feature = "wasm",
-    derive(tsify_next::Tsify),
+    derive(tsify::Tsify),
     tsify(into_wasm_abi, from_wasm_abi)
 )]
 #[serde(rename_all = "camelCase")]

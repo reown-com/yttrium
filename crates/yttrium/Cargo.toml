@@ -45,7 +45,7 @@ wasm = [
     "dep:wasm-bindgen",
     "dep:wasm-bindgen-futures",
     "alloy?/wasm-bindgen",
-    "dep:tsify-next",
+    "dep:tsify",
     "dep:derive_jserror",
     "dep:serde-wasm-bindgen",
     "getrandom4/wasm_js",
@@ -187,7 +187,7 @@ uniffi_macros = { workspace = true, optional = true }
 
 wasm-bindgen = { workspace = true, optional = true }
 wasm-bindgen-futures = { workspace = true, optional = true }
-tsify-next = { workspace = true, optional = true, features = ["js"] }
+tsify = { workspace = true, optional = true, features = ["js"] }
 serde-wasm-bindgen = { workspace = true, optional = true }
 
 # Clear signing engine
@@ -215,7 +215,7 @@ getrandom2 = { package = "getrandom", version = "0.2", default-features = false 
 getrandom = { version = "0.3.1", default-features = false }
 
 chrono = { version = "0.4", default-features = false, features = ["std", "clock"] }
-uuid = { version = "1.22.0", default-features = false, features = [
+uuid = { version = "1.23.0", default-features = false, features = [
     "v4",
     "serde",
     "rng-getrandom",
@@ -312,7 +312,6 @@ bs58 = { workspace = true, optional = true }
 
 #TON
 ton_lib = { version = "0.0.39", optional = true }
-anyhow = "1"
 ed25519-dalek = { version = "2", features = ["rand_core"], optional = true }
 
 # Sign Client

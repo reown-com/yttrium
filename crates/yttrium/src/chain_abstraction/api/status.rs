@@ -21,7 +21,7 @@ pub struct StatusQueryParams {
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
 #[cfg_attr(
     feature = "wasm",
-    derive(tsify_next::Tsify),
+    derive(tsify::Tsify),
     tsify(into_wasm_abi, from_wasm_abi)
 )]
 #[serde(rename_all = "camelCase")]
@@ -35,7 +35,7 @@ pub struct StatusResponsePendingObject {
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
 #[cfg_attr(
     feature = "wasm",
-    derive(tsify_next::Tsify),
+    derive(tsify::Tsify),
     tsify(into_wasm_abi, from_wasm_abi)
 )]
 #[serde(rename_all = "camelCase")]
@@ -47,7 +47,7 @@ pub struct StatusResponseCompleted {
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Record))]
 #[cfg_attr(
     feature = "wasm",
-    derive(tsify_next::Tsify),
+    derive(tsify::Tsify),
     tsify(into_wasm_abi, from_wasm_abi)
 )]
 #[serde(rename_all = "camelCase")]
@@ -60,7 +60,7 @@ pub struct StatusResponseError {
 #[cfg_attr(feature = "uniffi", derive(uniffi_macros::Enum))]
 #[cfg_attr(
     feature = "wasm",
-    derive(tsify_next::Tsify),
+    derive(tsify::Tsify),
     tsify(into_wasm_abi, from_wasm_abi)
 )]
 #[serde(rename_all = "UPPERCASE", tag = "status")]
