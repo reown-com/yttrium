@@ -23,6 +23,7 @@ build_rust_libraries() {
   # Ensure C/C++ built via cc crate uses consistent min iOS version
   export IPHONEOS_DEPLOYMENT_TARGET="13.0"
   export CFLAGS_aarch64_apple_ios="-miphoneos-version-min=13.0"
+  # Use panic=immediate-abort via RUSTFLAGS to completely eliminate panic handling code
   export RUSTFLAGS="-C linker=$CC_aarch64_apple_ios -C link-arg=-miphoneos-version-min=13.0 -Zunstable-options -Cpanic=immediate-abort"
 
   # Build with nightly and -Z build-std to eliminate rust_eh_personality symbols
@@ -53,6 +54,7 @@ build_rust_libraries() {
   # Ensure C/C++ built via cc crate uses consistent min iOS Simulator version
   export IPHONEOS_DEPLOYMENT_TARGET="13.0"
   export CFLAGS_x86_64_apple_ios="-mios-simulator-version-min=13.0"
+  # Use panic=immediate-abort via RUSTFLAGS to completely eliminate panic handling code
   export RUSTFLAGS="-C linker=$CC_x86_64_apple_ios -C link-arg=-mios-simulator-version-min=13.0 -Zunstable-options -Cpanic=immediate-abort"
 
   cargo +nightly build \
@@ -82,6 +84,7 @@ build_rust_libraries() {
   # Ensure C/C++ built via cc crate uses consistent min iOS Simulator version
   export IPHONEOS_DEPLOYMENT_TARGET="13.0"
   export CFLAGS_aarch64_apple_ios_sim="-mios-simulator-version-min=13.0"
+  # Use panic=immediate-abort via RUSTFLAGS to completely eliminate panic handling code
   export RUSTFLAGS="-C linker=$CC_aarch64_apple_ios_sim -C link-arg=-mios-simulator-version-min=13.0 -Zunstable-options -Cpanic=immediate-abort"
 
   cargo +nightly build \
