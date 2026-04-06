@@ -983,14 +983,14 @@ impl WalletConnectPay {
         })?;
 
         let api_response = response.into_inner();
+        let options = api_response.options.unwrap_or_default();
         pay_debug!(
             "get_payment_options: success, {} options",
-            api_response.options.len()
+            options.len()
         );
 
         // Cache the options with their raw actions
-        let cached: Vec<CachedPaymentOption> = api_response
-            .options
+        let cached: Vec<CachedPaymentOption> = options
             .iter()
             .map(|o| CachedPaymentOption {
                 option_id: o.id.clone(),
@@ -1007,7 +1007,7 @@ impl WalletConnectPay {
         Ok(PaymentOptionsResponse {
             payment_id,
             info: api_response.info.map(Into::into),
-            options: api_response.options.into_iter().map(Into::into).collect(),
+            options: options.into_iter().map(Into::into).collect(),
             collect_data: api_response.collect_data.map(Into::into),
         })
     }
