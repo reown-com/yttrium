@@ -984,10 +984,7 @@ impl WalletConnectPay {
 
         let api_response = response.into_inner();
         let options = api_response.options.unwrap_or_default();
-        pay_debug!(
-            "get_payment_options: success, {} options",
-            options.len()
-        );
+        pay_debug!("get_payment_options: success, {} options", options.len());
 
         // Cache the options with their raw actions
         let cached: Vec<CachedPaymentOption> = options
@@ -1952,19 +1949,15 @@ mod tests {
         });
 
         Mock::given(method("POST"))
-            .and(path(
-                "/v1/gateway/payment/pay_succeeded/options",
-            ))
+            .and(path("/v1/gateway/payment/pay_succeeded/options"))
             .respond_with(
-                ResponseTemplate::new(200)
-                    .set_body_json(&mock_response),
+                ResponseTemplate::new(200).set_body_json(&mock_response),
             )
             .mount(&mock_server)
             .await;
 
         let client =
-            WalletConnectPay::new(test_config(mock_server.uri()))
-                .unwrap();
+            WalletConnectPay::new(test_config(mock_server.uri())).unwrap();
         let result = client
             .get_payment_options(
                 "pay_succeeded".to_string(),
