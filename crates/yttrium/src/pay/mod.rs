@@ -1927,6 +1927,61 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_get_payment_options_null_options_terminal_state() {
+        let mock_server = MockServer::start().await;
+        let mock_response = serde_json::json!({
+            "info": {
+                "status": "succeeded",
+                "amount": {
+                    "unit": "iso4217/USD",
+                    "value": "1",
+                    "display": {
+                        "assetSymbol": "USD",
+                        "assetName": "US Dollar",
+                        "decimals": 2
+                    }
+                },
+                "expiresAt": 1775490768_i64,
+                "merchant": {
+                    "name": "Test Merchant",
+                    "iconUrl": null
+                }
+            },
+            "collectData": null,
+            "options": null
+        });
+
+        Mock::given(method("POST"))
+            .and(path(
+                "/v1/gateway/payment/pay_succeeded/options",
+            ))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_json(&mock_response),
+            )
+            .mount(&mock_server)
+            .await;
+
+        let client =
+            WalletConnectPay::new(test_config(mock_server.uri()))
+                .unwrap();
+        let result = client
+            .get_payment_options(
+                "pay_succeeded".to_string(),
+                vec!["eip155:8453:0x123".to_string()],
+                true,
+            )
+            .await;
+
+        assert!(result.is_ok());
+        let response = result.unwrap();
+        assert!(response.options.is_empty());
+        assert!(response.info.is_some());
+        let info = response.info.unwrap();
+        assert_eq!(info.status, PaymentStatus::Succeeded);
+    }
+
+    #[tokio::test]
     async fn test_extract_payment_id() {
         // pay.walletconnect.com with path segment
         assert_eq!(
