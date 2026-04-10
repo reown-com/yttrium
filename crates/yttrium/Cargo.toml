@@ -327,7 +327,7 @@ x25519-dalek = { version = "3.0.0-pre.1", features = [
     "static_secrets",
     "os_rng",
 ], optional = true }
-hkdf = { version = "0.13.0-rc.5", optional = true }
+hkdf = { version = "0.13.0", optional = true }
 sha2 = { version = "0.11.0-rc.5", optional = true }
 jsonwebtoken = { version = "10.3.0", optional = true, default-features = false, features = ["rust_crypto"] }
 
