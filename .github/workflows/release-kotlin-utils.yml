@@ -125,7 +125,7 @@ jobs:
           name: utils-artifacts-armv7-linux-androideabi
           path: combined/armv7
       - name: Download i686 artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: utils-artifacts-i686-linux-android
           path: combined/i686

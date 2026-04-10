@@ -301,7 +301,7 @@ jobs:
           name: yttrium-armv7-linux-androideabi
           path: yttrium/armv7
       - name: Download yttrium i686
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: yttrium-i686-linux-android
           path: yttrium/i686
@@ -323,7 +323,7 @@ jobs:
           name: yttrium-utils-armv7-linux-androideabi
           path: yttrium-utils/armv7
       - name: Download yttrium-utils i686
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: yttrium-utils-i686-linux-android
           path: yttrium-utils/i686
@@ -345,7 +345,7 @@ jobs:
           name: yttrium-wcpay-armv7-linux-androideabi
           path: yttrium-wcpay/armv7
       - name: Download yttrium-wcpay i686
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: yttrium-wcpay-i686-linux-android
           path: yttrium-wcpay/i686
