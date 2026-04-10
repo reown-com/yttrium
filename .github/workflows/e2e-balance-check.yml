@@ -143,7 +143,7 @@ jobs:
         if: |
           steps.alert_pay_usdc_base.outputs.should_alert == 'true' &&
           env.SLACK_FAUCETBOT_WEBHOOK_URL != ''
-        uses: slackapi/slack-github-action@v2.1.0
+        uses: slackapi/slack-github-action@v2.1.1
         with:
           webhook: ${{ env.SLACK_FAUCETBOT_WEBHOOK_URL }}
           webhook-type: incoming-webhook
@@ -178,7 +178,7 @@ jobs:
         if: |
           steps.alert_faucet_eth_base.outputs.should_alert == 'true' &&
           env.SLACK_FAUCETBOT_WEBHOOK_URL != ''
-        uses: slackapi/slack-github-action@v2.1.0
+        uses: slackapi/slack-github-action@v2.1.1
         with:
           webhook: ${{ env.SLACK_FAUCETBOT_WEBHOOK_URL }}
           webhook-type: incoming-webhook
@@ -213,7 +213,7 @@ jobs:
         if: |
           steps.alert_faucet_usdc_base.outputs.should_alert == 'true' &&
           env.SLACK_FAUCETBOT_WEBHOOK_URL != ''
-        uses: slackapi/slack-github-action@v2.1.0
+        uses: slackapi/slack-github-action@v2.1.1
         with:
           webhook: ${{ env.SLACK_FAUCETBOT_WEBHOOK_URL }}
           webhook-type: incoming-webhook
@@ -248,7 +248,7 @@ jobs:
         if: |
           steps.alert_faucet_eth_op.outputs.should_alert == 'true' &&
           env.SLACK_FAUCETBOT_WEBHOOK_URL != ''
-        uses: slackapi/slack-github-action@v2.1.0
+        uses: slackapi/slack-github-action@v2.1.1
         with:
           webhook: ${{ env.SLACK_FAUCETBOT_WEBHOOK_URL }}
           webhook-type: incoming-webhook
@@ -283,7 +283,7 @@ jobs:
         if: |
           steps.alert_faucet_usdc_op.outputs.should_alert == 'true' &&
           env.SLACK_FAUCETBOT_WEBHOOK_URL != ''
-        uses: slackapi/slack-github-action@v2.1.0
+        uses: slackapi/slack-github-action@v2.1.1
         with:
           webhook: ${{ env.SLACK_FAUCETBOT_WEBHOOK_URL }}
           webhook-type: incoming-webhook
@@ -318,7 +318,7 @@ jobs:
         if: |
           steps.alert_faucet_sol.outputs.should_alert == 'true' &&
           env.SLACK_FAUCETBOT_WEBHOOK_URL != ''
-        uses: slackapi/slack-github-action@v2.1.0
+        uses: slackapi/slack-github-action@v2.1.1
         with:
           webhook: ${{ env.SLACK_FAUCETBOT_WEBHOOK_URL }}
           webhook-type: incoming-webhook
