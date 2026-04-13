@@ -32,7 +32,7 @@ jobs:
           distribution: "temurin"
           java-version: "17"
       - name: Set up Android SDK
-        uses: android-actions/setup-android@v2
+        uses: android-actions/setup-android@v3
         with:
           api-level: 35
           build-tools: 35.0.0
@@ -106,7 +106,7 @@ jobs:
               ls -R yttrium/
 
       - name: Upload artifact (unique name per target)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: artifacts-${{ matrix.target }}
           path: yttrium/
@@ -140,7 +140,7 @@ jobs:
               ls -R combined/armv7
 
       - name: Download i686 artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: artifacts-i686-linux-android
           path: combined/i686
@@ -191,7 +191,7 @@ jobs:
             ls -R merged/yttrium
 
       - name: Upload single combined artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: artifacts
           path: merged/yttrium/
