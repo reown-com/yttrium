@@ -1760,7 +1760,8 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/PaymentOption"
-            }
+            },
+            "nullable": true
           }
         },
         "example": {
