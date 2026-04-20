@@ -130,7 +130,7 @@ jobs:
 
       # 11. Upload artifacts for the publish workflow
       - name: Upload Release Artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: swift-utils-release-${{ env.VERSION }}
           path: |

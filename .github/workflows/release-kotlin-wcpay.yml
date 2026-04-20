@@ -37,7 +37,7 @@ jobs:
           distribution: "temurin"
           java-version: "17"
       - name: Set up Android SDK
-        uses: android-actions/setup-android@v2
+        uses: android-actions/setup-android@v3
         with:
           api-level: 35
           build-tools: 35.0.0
@@ -110,7 +110,7 @@ jobs:
           cp target/${{ matrix.target }}/uniffi-release-kotlin-wcpay/libuniffi_yttrium.so yttrium/libs/$abi_name/libuniffi_yttrium_wcpay.so
 
       - name: Upload artifact (unique name per target)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: wcpay-artifacts-${{ matrix.target }}
           path: yttrium/
@@ -131,7 +131,7 @@ jobs:
           name: wcpay-artifacts-armv7-linux-androideabi
           path: combined/armv7
       - name: Download i686 artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: wcpay-artifacts-i686-linux-android
           path: combined/i686
@@ -153,7 +153,7 @@ jobs:
             cp -r combined/aarch64/kotlin-wcpay-bindings merged/yttrium/
           fi
       - name: Upload single combined artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: wcpay-artifacts
           path: merged/yttrium/
