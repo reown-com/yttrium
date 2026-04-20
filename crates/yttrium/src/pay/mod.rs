@@ -778,7 +778,7 @@ impl From<types::GetPaymentResponse> for PaymentInfo {
 pub struct PaymentOptionsResponse {
     pub payment_id: String,
     pub info: Option<PaymentInfo>,
-    pub options: Vec<PaymentOption>,
+    pub options: Option<Vec<PaymentOption>>,
     pub collect_data: Option<CollectDataAction>,
 }
 
@@ -983,11 +983,16 @@ impl WalletConnectPay {
         })?;
 
         let api_response = response.into_inner();
-        let options = api_response.options.unwrap_or_default();
-        pay_debug!("get_payment_options: success, {} options", options.len());
+        pay_debug!(
+            "get_payment_options: success, {} options",
+            api_response.options.as_ref().map_or(0, Vec::len)
+        );
 
         // Cache the options with their raw actions
-        let cached: Vec<CachedPaymentOption> = options
+        let cached: Vec<CachedPaymentOption> = api_response
+            .options
+            .as_deref()
+            .unwrap_or_default()
             .iter()
             .map(|o| CachedPaymentOption {
                 option_id: o.id.clone(),
@@ -1004,7 +1009,9 @@ impl WalletConnectPay {
         Ok(PaymentOptionsResponse {
             payment_id,
             info: api_response.info.map(Into::into),
-            options: options.into_iter().map(Into::into).collect(),
+            options: api_response
+                .options
+                .map(|opts| opts.into_iter().map(Into::into).collect()),
             collect_data: api_response.collect_data.map(Into::into),
         })
     }
@@ -1839,18 +1846,15 @@ mod tests {
 
         assert!(result.is_ok());
         let response = result.unwrap();
-        assert_eq!(response.options.len(), 1);
-        assert_eq!(response.options[0].id, "opt_1");
+        let options = response.options.expect("options");
+        assert_eq!(options.len(), 1);
+        assert_eq!(options[0].id, "opt_1");
+        assert_eq!(options[0].amount.unit, "caip19/eip155:8453/erc20:0xUSDC");
         assert_eq!(
-            response.options[0].amount.unit,
-            "caip19/eip155:8453/erc20:0xUSDC"
-        );
-        assert_eq!(
-            response.options[0].amount.display.network_name,
+            options[0].amount.display.network_name,
             Some("Base".to_string())
         );
-        let opt_cd =
-            response.options[0].collect_data.as_ref().expect("collect_data");
+        let opt_cd = options[0].collect_data.as_ref().expect("collect_data");
         assert_eq!(opt_cd.fields.len(), 1);
         assert_eq!(opt_cd.fields[0].id, "fullName");
         assert_eq!(opt_cd.fields[0].field_type, CollectDataFieldType::Text);
@@ -1968,7 +1972,7 @@ mod tests {
 
         assert!(result.is_ok());
         let response = result.unwrap();
-        assert!(response.options.is_empty());
+        assert!(response.options.is_none());
         assert!(response.info.is_some());
         let info = response.info.unwrap();
         assert_eq!(info.status, PaymentStatus::Succeeded);
@@ -2198,7 +2202,7 @@ mod tests {
             )
             .await
             .unwrap();
-        assert_eq!(response.options.len(), 1);
+        assert_eq!(response.options.as_ref().map(Vec::len), Some(1));
 
         let actions = client
             .get_required_payment_actions(
@@ -2665,7 +2669,11 @@ mod tests {
             Some("https://data-collection.example.com/ic/pay_123".to_string())
         );
         assert!(data.schema.is_some());
-        assert!(response.options[0].collect_data.is_none());
+        assert!(
+            response.options.as_ref().expect("options")[0]
+                .collect_data
+                .is_none()
+        );
     }
 
     #[tokio::test]
