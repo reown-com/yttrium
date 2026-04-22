@@ -386,7 +386,7 @@ pub async fn encode_send_transactions(
     // https://github.com/rhinestonewtf/safe7579/compare/80a6c7a3d40dd7334a0fe4463b7112ca8fe5f60a...main#diff-8fa26e5e86315f14488e14d8d719a37dd681cb96410c74a21df54185c43036abR306
     // But doing it here for now just-in-case
     let mut signatures = signatures;
-    signatures.sort_by(|a, b| a.owner.cmp(&b.owner));
+    signatures.sort_by_key(|a| a.owner);
     let signature_bytes = signatures
         .into_iter()
         .map(|s| s.signature.as_bytes())
