@@ -2497,6 +2497,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "bcs"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "302fd2afb39688efc82f6138a68861b8f04f95be5faab2a06805a8a49f28deb6"
+dependencies = [
+ "serde_core",
+]
+
+[[package]]
 name = "bech32"
 version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4893,7 +4902,7 @@ name = "fastcrypto-tbls"
 version = "0.1.0"
 source = "git+https://github.com/MystenLabs/fastcrypto?rev=16fa86d0dd943024a9088d46850a72ecd55b7f46#16fa86d0dd943024a9088d46850a72ecd55b7f46"
 dependencies = [
- "bcs",
+ "bcs 0.1.6",
  "digest 0.10.7",
  "fastcrypto",
  "hex",
@@ -4919,7 +4928,7 @@ dependencies = [
  "ark-relations",
  "ark-serialize 0.4.2",
  "ark-snark",
- "bcs",
+ "bcs 0.1.6",
  "byte-slice-cast",
  "derive_more 0.99.20",
  "fastcrypto",
@@ -7533,7 +7542,7 @@ version = "0.1.0"
 source = "git+https://github.com/mystenlabs/sui?rev=f9c8d50#f9c8d503474a0339548fea1bd49489b5275b9af8"
 dependencies = [
  "anyhow",
- "bcs",
+ "bcs 0.1.6",
  "move-binary-format",
  "move-command-line-common",
  "move-core-types",
@@ -7587,7 +7596,7 @@ version = "0.1.0"
 source = "git+https://github.com/mystenlabs/sui?rev=f9c8d50#f9c8d503474a0339548fea1bd49489b5275b9af8"
 dependencies = [
  "anyhow",
- "bcs",
+ "bcs 0.1.6",
  "colored",
  "dirs-next",
  "hex",
@@ -7608,7 +7617,7 @@ version = "0.0.1"
 source = "git+https://github.com/mystenlabs/sui?rev=f9c8d50#f9c8d503474a0339548fea1bd49489b5275b9af8"
 dependencies = [
  "anyhow",
- "bcs",
+ "bcs 0.1.6",
  "clap",
  "codespan-reporting",
  "dunce",
@@ -7644,7 +7653,7 @@ version = "0.0.4"
 source = "git+https://github.com/mystenlabs/sui?rev=f9c8d50#f9c8d503474a0339548fea1bd49489b5275b9af8"
 dependencies = [
  "anyhow",
- "bcs",
+ "bcs 0.1.6",
  "enum-compat-util",
  "ethnum",
  "hex",
@@ -7669,7 +7678,7 @@ version = "0.1.0"
 source = "git+https://github.com/mystenlabs/sui?rev=f9c8d50#f9c8d503474a0339548fea1bd49489b5275b9af8"
 dependencies = [
  "anyhow",
- "bcs",
+ "bcs 0.1.6",
  "clap",
  "codespan",
  "colored",
@@ -7694,7 +7703,7 @@ version = "0.1.0"
 source = "git+https://github.com/mystenlabs/sui?rev=f9c8d50#f9c8d503474a0339548fea1bd49489b5275b9af8"
 dependencies = [
  "anyhow",
- "bcs",
+ "bcs 0.1.6",
  "clap",
  "hex",
  "inline_colorization",
@@ -7825,7 +7834,7 @@ name = "move-vm-types"
 version = "0.1.0"
 source = "git+https://github.com/mystenlabs/sui?rev=f9c8d50#f9c8d503474a0339548fea1bd49489b5275b9af8"
 dependencies = [
- "bcs",
+ "bcs 0.1.6",
  "move-binary-format",
  "move-core-types",
  "move-vm-profiler",
@@ -7951,7 +7960,7 @@ dependencies = [
  "anemo",
  "anemo-tower",
  "async-stream",
- "bcs",
+ "bcs 0.1.6",
  "bytes",
  "eyre",
  "fastcrypto",
@@ -11402,7 +11411,7 @@ name = "shared-crypto"
 version = "0.0.0"
 source = "git+https://github.com/mystenlabs/sui?rev=f9c8d50#f9c8d503474a0339548fea1bd49489b5275b9af8"
 dependencies = [
- "bcs",
+ "bcs 0.1.6",
  "eyre",
  "fastcrypto",
  "serde",
@@ -13847,7 +13856,7 @@ source = "git+https://github.com/mystenlabs/sui?rev=f9c8d50#f9c8d503474a0339548f
 dependencies = [
  "anemo",
  "anyhow",
- "bcs",
+ "bcs 0.1.6",
  "clap",
  "consensus-config",
  "csv",
@@ -13907,7 +13916,7 @@ version = "0.0.0"
 source = "git+https://github.com/mystenlabs/sui?rev=f9c8d50#f9c8d503474a0339548fea1bd49489b5275b9af8"
 dependencies = [
  "anyhow",
- "bcs",
+ "bcs 0.1.6",
  "fastcrypto",
  "move-binary-format",
  "move-bytecode-utils",
@@ -13944,7 +13953,7 @@ version = "0.0.0"
 source = "git+https://github.com/mystenlabs/sui?rev=f9c8d50#f9c8d503474a0339548fea1bd49489b5275b9af8"
 dependencies = [
  "anyhow",
- "bcs",
+ "bcs 0.1.6",
  "colored",
  "enum_dispatch",
  "fastcrypto",
@@ -14006,7 +14015,7 @@ name = "sui-open-rpc"
 version = "1.54.0"
 source = "git+https://github.com/mystenlabs/sui?rev=f9c8d50#f9c8d503474a0339548fea1bd49489b5275b9af8"
 dependencies = [
- "bcs",
+ "bcs 0.1.6",
  "schemars 0.8.22",
  "serde",
  "serde_json",
@@ -14032,7 +14041,7 @@ version = "0.1.0"
 source = "git+https://github.com/mystenlabs/sui?rev=f9c8d50#f9c8d503474a0339548fea1bd49489b5275b9af8"
 dependencies = [
  "async-trait",
- "bcs",
+ "bcs 0.1.6",
  "eyre",
  "lru 0.10.1",
  "move-binary-format",
@@ -14089,7 +14098,7 @@ version = "0.0.0"
 source = "git+https://github.com/MystenLabs/sui-rust-sdk.git?rev=d3334e5a8b1127f2e197d85750f1fb78c7084ae1#d3334e5a8b1127f2e197d85750f1fb78c7084ae1"
 dependencies = [
  "base64 0.22.1",
- "bcs",
+ "bcs 0.1.6",
  "bytes",
  "http 1.4.0",
  "prost 0.13.5",
@@ -14110,7 +14119,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "base64 0.21.7",
- "bcs",
+ "bcs 0.1.6",
  "clap",
  "colored",
  "fastcrypto",
@@ -14141,7 +14150,7 @@ version = "0.0.5"
 source = "git+https://github.com/MystenLabs/sui-rust-sdk.git?rev=d3334e5a8b1127f2e197d85750f1fb78c7084ae1#d3334e5a8b1127f2e197d85750f1fb78c7084ae1"
 dependencies = [
  "base64ct",
- "bcs",
+ "bcs 0.1.6",
  "blake2",
  "bnum",
  "bs58 0.5.1",
@@ -14162,7 +14171,7 @@ source = "git+https://github.com/mystenlabs/sui?rev=f9c8d50#f9c8d503474a0339548f
 dependencies = [
  "anyhow",
  "async-trait",
- "bcs",
+ "bcs 0.1.6",
  "futures",
  "move-binary-format",
  "move-core-types",
@@ -14181,7 +14190,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "base64 0.21.7",
- "bcs",
+ "bcs 0.1.6",
  "better_any",
  "bincode",
  "byteorder",
@@ -16767,7 +16776,7 @@ dependencies = [
  "aws-config",
  "aws-sdk-cloudwatch",
  "base64 0.22.1",
- "bcs",
+ "bcs 0.2.0",
  "bincode",
  "bip32 0.5.3",
  "bs58 0.5.1",
