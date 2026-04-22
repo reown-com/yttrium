@@ -249,11 +249,8 @@ async fn e2e_payment_options_only() {
         .expect("Failed to get payment options");
 
     assert!(!response.payment_id.is_empty());
-    println!(
-        "Payment {} has {} options",
-        response.payment_id,
-        response.options.len()
-    );
+    let options = response.options.expect("Expected options to be present");
+    println!("Payment {} has {} options", response.payment_id, options.len());
 
     if let Some(info) = &response.info {
         println!(
@@ -263,10 +260,7 @@ async fn e2e_payment_options_only() {
         println!("Merchant: {}", info.merchant.name);
     }
 
-    assert!(
-        !response.options.is_empty(),
-        "Expected at least one payment option"
-    );
+    assert!(!options.is_empty(), "Expected at least one payment option");
 }
 
 #[tokio::test]
@@ -297,11 +291,12 @@ async fn e2e_payment_happy_path() {
         .await
         .expect("Failed to get payment options");
 
-    println!("Got {} payment options", options_response.options.len());
-    assert!(
-        !options_response.options.is_empty(),
-        "Expected at least one payment option"
-    );
+    let options = options_response
+        .options
+        .as_ref()
+        .expect("Expected options to be present");
+    println!("Got {} payment options", options.len());
+    assert!(!options.is_empty(), "Expected at least one payment option");
 
     if let Some(info) = &options_response.info {
         println!(
@@ -312,13 +307,12 @@ async fn e2e_payment_happy_path() {
     }
 
     // Step 3: Select first available option (prefer Base chain)
-    let selected_option = options_response
-        .options
+    let selected_option = options
         .iter()
         .find(|opt| {
             opt.actions.iter().any(|a| a.wallet_rpc.chain_id == CHAIN_BASE)
         })
-        .or_else(|| options_response.options.first())
+        .or_else(|| options.first())
         .expect("No payment option available");
 
     println!(
