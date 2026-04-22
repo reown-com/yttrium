@@ -325,7 +325,6 @@ const INITIAL_BACKOFF_MS: u64 = 1000;
 const MAX_BACKOFF_MS: u64 = 2000;
 const API_CONNECT_TIMEOUT_SECS: u64 = 10;
 const API_REQUEST_TIMEOUT_SECS: u64 = 30;
-const MAX_POLLING_DURATION_SECS: u64 = 300;
 const WCP_VERSION_HEADER: &str = "WCP-Version";
 const WCP_VERSION: &str = "2026-02-19.preview";
 
@@ -1177,15 +1176,13 @@ impl WalletConnectPay {
         );
         let poll_timeout = max_poll_ms
             .filter(|&ms| ms > 0)
-            .map(|ms| crate::time::Duration::from_millis(ms as u64))
-            .unwrap_or(crate::time::Duration::from_secs(
-                MAX_POLLING_DURATION_SECS,
-            ));
+            .map(|ms| crate::time::Duration::from_millis(ms as u64));
         let poll_start = crate::time::Instant::now();
         while !result.is_final {
-            if poll_start.elapsed() >= poll_timeout {
-                let msg =
-                    format!("polling exceeded {}ms", poll_timeout.as_millis());
+            if let Some(timeout) = poll_timeout
+                && poll_start.elapsed() >= timeout
+            {
+                let msg = format!("polling exceeded {}ms", timeout.as_millis());
                 pay_error!("confirm_payment: {}", msg);
                 let err = ConfirmPaymentError::PollingTimeout(msg);
                 self.report_error(&err, &payment_id);

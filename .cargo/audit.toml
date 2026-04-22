@@ -12,4 +12,8 @@ ignore = [
     "RUSTSEC-2024-0437",
     # rsa: timing sidechannel, transitive via sui-sdk (git pin) -> fastcrypto
     "RUSTSEC-2023-0071",
+    # rustls-webpki 0.101.7: name constraints + CRL parsing panic, transitive via sui-sdk (git pin) -> sct/rustls 0.21
+    "RUSTSEC-2026-0098",
+    "RUSTSEC-2026-0099",
+    "RUSTSEC-2026-0104",
 ]
