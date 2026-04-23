@@ -9299,11 +9299,11 @@ dependencies = [
 
 [[package]]
 name = "progenitor"
-version = "0.11.2"
+version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2326f73d5326257514712436680ef8da4543ee47c0e9e0d501545c8909ee12e4"
+checksum = "d36315275b213c64c68dff684477ea7118a0f630832f737b550796a368f9962c"
 dependencies = [
- "progenitor-client",
+ "progenitor-client 0.13.0",
  "progenitor-impl",
  "progenitor-macro",
 ]
@@ -9324,10 +9324,25 @@ dependencies = [
 ]
 
 [[package]]
-name = "progenitor-impl"
-version = "0.11.2"
+name = "progenitor-client"
+version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "90f6d9109b04e005bbdec84cacec7e81cc15533f2b5dc505f0defc212d270c15"
+checksum = "3999c302f5f2a42b7ca1cc39ad9e612c74cf2910ef6e58f869e45f3068b9659f"
+dependencies = [
+ "bytes",
+ "futures-core",
+ "percent-encoding",
+ "reqwest 0.13.2",
+ "serde",
+ "serde_json",
+ "serde_urlencoded",
+]
+
+[[package]]
+name = "progenitor-impl"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "de362a0477182f45accdbad4d43cd89a95a1db0a518a7c1ddf3e525e6896f0f0"
 dependencies = [
  "heck 0.5.0",
  "http 1.4.0",
@@ -9347,9 +9362,9 @@ dependencies = [
 
 [[package]]
 name = "progenitor-macro"
-version = "0.11.2"
+version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "46596c574831739c661f22923fe587399c61f5e3e79b73cc9a93644c72248d84"
+checksum = "c98aeaaab266bf848a602c78e039e7d62c80ba36303ae4092ec65f17e7fd0eaa"
 dependencies = [
  "openapiv3",
  "proc-macro2",
@@ -15504,9 +15519,9 @@ dependencies = [
 
 [[package]]
 name = "typify"
-version = "0.4.3"
+version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7144144e97e987c94758a3017c920a027feac0799df325d6df4fc8f08d02068e"
+checksum = "b715573a376585888b742ead9be5f4826105e622169180662e2c81bed4a149c3"
 dependencies = [
  "typify-impl",
  "typify-macro",
@@ -15514,9 +15529,9 @@ dependencies = [
 
 [[package]]
 name = "typify-impl"
-version = "0.4.3"
+version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "062879d46aa4c9dfe0d33b035bbaf512da192131645d05deacb7033ec8581a09"
+checksum = "a2fd0d27608a466d063d23b97cf2d26c25d838f01b4f7d5ff406a7446f16b6e3"
 dependencies = [
  "heck 0.5.0",
  "log",
@@ -15534,9 +15549,9 @@ dependencies = [
 
 [[package]]
 name = "typify-macro"
-version = "0.4.3"
+version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9708a3ceb6660ba3f8d2b8f0567e7d4b8b198e2b94d093b8a6077a751425de9e"
+checksum = "fd04bb1207cd4e250941cc1641f4c4815f7eaa2145f45c09dd49cb0a3691710a"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -16795,7 +16810,7 @@ dependencies = [
  "parking_lot",
  "pay-api",
  "progenitor",
- "progenitor-client",
+ "progenitor-client 0.11.2",
  "quinn",
  "rand 0.8.5",
  "relay_rpc",
