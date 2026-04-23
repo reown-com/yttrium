@@ -871,8 +871,8 @@ pub fn App() -> impl IntoView {
                                             {move || {
                                                 session
                                                     .session_namespaces
-                                                    .iter()
-                                                    .flat_map(|(_, settle_namespace)| {
+                                                    .values()
+                                                    .flat_map(|settle_namespace| {
                                                         settle_namespace.accounts.iter()
                                                     })
                                                     .map(|account| {
@@ -931,8 +931,8 @@ pub fn App() -> impl IntoView {
                                             {move || {
                                                 session2
                                                     .session_namespaces
-                                                    .iter()
-                                                    .flat_map(|(_, settle_namespace)| {
+                                                    .values()
+                                                    .flat_map(|settle_namespace| {
                                                         let topic = session2.topic.clone();
                                                         settle_namespace.accounts.iter().map(move |account| {
                                                             let account = account.clone();

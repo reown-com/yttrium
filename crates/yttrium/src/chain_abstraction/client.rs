@@ -350,7 +350,7 @@ impl Client {
                 #[cfg(feature = "solana")]
                 Transactions::Solana(_txns) => None,
             })
-            .zip(route_l1_data_fees.into_iter())
+            .zip(route_l1_data_fees)
         {
             let mut route_estimates = Vec::with_capacity(txns.len());
             for txn in txns {
@@ -641,15 +641,12 @@ impl Client {
         let route_start = start;
         let mut route = Vec::with_capacity(ui_fields.route.len());
         // TODO run in parallel
-        for (route_index, (txn, sig)) in ui_fields
-            .route
-            .into_iter()
-            .zip(route_txn_sigs.into_iter())
-            .enumerate()
+        for (route_index, (txn, sig)) in
+            ui_fields.route.into_iter().zip(route_txn_sigs).enumerate()
         {
             match (txn, sig) {
                 (Route::Eip155(txn), RouteSig::Eip155(sig)) => {
-                    for (txn, sig) in txn.into_iter().zip(sig.into_iter()) {
+                    for (txn, sig) in txn.into_iter().zip(sig) {
                         let result = send_transaction(
                             txn.transaction,
                             sig,
@@ -697,7 +694,7 @@ impl Client {
                             solana::SolanaCommitmentConfig::confirmed(), // TODO what commitment level should we use?
                         );
 
-                    for (txn, sig) in txn.into_iter().zip(sig.into_iter()) {
+                    for (txn, sig) in txn.into_iter().zip(sig) {
                         let transaction = VersionedTransaction {
                             signatures: vec![sig],
                             message: txn.transaction.transaction.message,
