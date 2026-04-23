@@ -11,7 +11,7 @@ license = "Apache-2.0"
 [workspace.dependencies]
 # Errors/Result
 eyre = { version = "0.6.12", features = ["default"], default-features = false }
-thiserror = { version = "1.0", default-features = false }
+thiserror = { version = "2.0", default-features = false }
 
 # Async
 tokio = { version = "1.50.0", default-features = false }
