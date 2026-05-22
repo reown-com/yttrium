@@ -550,6 +550,81 @@ fn solana_sign_prehash(
 }
 
 #[cfg(feature = "solana")]
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
+pub struct SolanaSignedTransaction {
+    pub signature: SolanaSignature,
+    pub transaction: VersionedTransaction,
+}
+
+#[cfg(feature = "solana")]
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Error, thiserror::Error)]
+pub enum SolanaSignTransactionError {
+    #[error(
+        "signer pubkey {pubkey} is not a required signer of this transaction"
+    )]
+    SignerNotRequired { pubkey: String },
+}
+
+#[cfg(feature = "solana")]
+fn sign_versioned_transaction(
+    keypair: &SolanaKeypair,
+    mut transaction: VersionedTransaction,
+) -> Result<SolanaSignedTransaction, SolanaSignTransactionError> {
+    let pubkey = keypair.pubkey();
+    let num_required =
+        transaction.message.header().num_required_signatures as usize;
+    // Only the static account keys can be signers; ALT-loaded keys cannot.
+    let index = transaction
+        .message
+        .static_account_keys()
+        .iter()
+        .take(num_required)
+        .position(|k| k == &pubkey)
+        .ok_or_else(|| SolanaSignTransactionError::SignerNotRequired {
+            pubkey: pubkey.to_string(),
+        })?;
+
+    let signature = keypair.sign_message(&transaction.message.serialize());
+
+    if transaction.signatures.len() < num_required {
+        transaction.signatures.resize(num_required, SolanaSignature::default());
+    }
+    transaction.signatures[index] = signature;
+
+    Ok(SolanaSignedTransaction { signature, transaction })
+}
+
+#[cfg(feature = "solana")]
+#[uniffi::export]
+fn solana_sign_transaction(
+    keypair: SolanaKeypair,
+    transaction: VersionedTransaction,
+) -> Result<SolanaSignedTransaction, SolanaSignTransactionError> {
+    sign_versioned_transaction(&keypair, transaction)
+}
+
+#[cfg(feature = "solana")]
+#[uniffi::export]
+fn solana_sign_all_transactions(
+    keypair: SolanaKeypair,
+    transactions: Vec<VersionedTransaction>,
+) -> Result<Vec<SolanaSignedTransaction>, SolanaSignTransactionError> {
+    transactions
+        .into_iter()
+        .map(|tx| sign_versioned_transaction(&keypair, tx))
+        .collect()
+}
+
+#[cfg(feature = "solana")]
+#[uniffi::export]
+fn solana_sign_message(
+    keypair: SolanaKeypair,
+    message: Bytes,
+) -> SolanaSignature {
+    keypair.sign_message(&message)
+}
+
+#[cfg(feature = "solana")]
 #[uniffi::export]
 fn solana_generate_keypair() -> SolanaKeypair {
     SolanaKeypair::new()
@@ -743,5 +818,122 @@ mod tests {
         let s = "0x1";
         let n = s.parse::<U256>().unwrap();
         assert_eq!(n, Uint::from(1));
+    }
+
+    #[cfg(feature = "solana")]
+    mod solana_sign {
+        use {
+            super::super::*,
+            solana_sdk::{
+                hash::Hash,
+                message::{Message, VersionedMessage},
+                pubkey::Pubkey,
+            },
+            solana_system_interface::instruction as system_instruction,
+        };
+
+        fn unsigned_transfer_tx(
+            payer: &Pubkey,
+            recipient: &Pubkey,
+            lamports: u64,
+        ) -> VersionedTransaction {
+            let ix = system_instruction::transfer(payer, recipient, lamports);
+            let mut msg = Message::new(&[ix], Some(payer));
+            msg.recent_blockhash = Hash::new_from_array([7u8; 32]);
+            VersionedTransaction {
+                signatures: vec![SolanaSignature::default()],
+                message: VersionedMessage::Legacy(msg),
+            }
+        }
+
+        #[test]
+        fn signs_and_verifies() {
+            let payer = SolanaKeypair::new();
+            let recipient = SolanaKeypair::new();
+            let tx =
+                unsigned_transfer_tx(&payer.pubkey(), &recipient.pubkey(), 1);
+
+            let signed = solana_sign_transaction(payer.insecure_clone(), tx)
+                .expect("sign");
+
+            assert_eq!(signed.transaction.signatures.len(), 1);
+            assert_eq!(signed.transaction.signatures[0], signed.signature);
+            assert!(signed.signature.verify(
+                payer.pubkey().as_ref(),
+                &signed.transaction.message.serialize(),
+            ));
+        }
+
+        #[test]
+        fn rejects_non_signer_keypair() {
+            let payer = SolanaKeypair::new();
+            let recipient = SolanaKeypair::new();
+            let stranger = SolanaKeypair::new();
+            let tx =
+                unsigned_transfer_tx(&payer.pubkey(), &recipient.pubkey(), 1);
+
+            let err = solana_sign_transaction(stranger.insecure_clone(), tx)
+                .expect_err("should reject");
+            assert!(matches!(
+                err,
+                SolanaSignTransactionError::SignerNotRequired { .. }
+            ));
+        }
+
+        #[test]
+        fn sign_all_preserves_order_and_signs_each() {
+            let payer = SolanaKeypair::new();
+            let recipient = SolanaKeypair::new();
+            let txs = (1..=3u64)
+                .map(|n| {
+                    unsigned_transfer_tx(
+                        &payer.pubkey(),
+                        &recipient.pubkey(),
+                        n,
+                    )
+                })
+                .collect::<Vec<_>>();
+
+            let signed = solana_sign_all_transactions(
+                payer.insecure_clone(),
+                txs.clone(),
+            )
+            .expect("sign all");
+
+            assert_eq!(signed.len(), 3);
+            for (i, s) in signed.iter().enumerate() {
+                assert!(s.signature.verify(
+                    payer.pubkey().as_ref(),
+                    &s.transaction.message.serialize(),
+                ));
+                assert_eq!(s.transaction.signatures[0], s.signature);
+                // ordering: lamports field of the transfer ix encodes i+1
+                let expected = &txs[i].message.serialize();
+                assert_eq!(&s.transaction.message.serialize(), expected);
+            }
+        }
+
+        #[test]
+        fn sign_message_matches_sign_prehash() {
+            let kp = SolanaKeypair::new();
+            let msg: Bytes = Bytes::from_static(b"hello solana");
+            let a = solana_sign_message(kp.insecure_clone(), msg.clone());
+            let b = solana_sign_prehash(kp.insecure_clone(), msg);
+            assert_eq!(a, b);
+        }
+
+        #[test]
+        fn pads_signatures_when_short() {
+            let payer = SolanaKeypair::new();
+            let recipient = SolanaKeypair::new();
+            let mut tx =
+                unsigned_transfer_tx(&payer.pubkey(), &recipient.pubkey(), 42);
+            tx.signatures.clear();
+
+            let signed = solana_sign_transaction(payer.insecure_clone(), tx)
+                .expect("sign");
+            assert_eq!(signed.transaction.signatures.len(), 1);
+            assert_eq!(signed.transaction.signatures[0], signed.signature);
+        }
     }
 }
