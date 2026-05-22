@@ -46,7 +46,8 @@ use relay_rpc::domain::ProjectId;
 #[cfg(feature = "solana")]
 use {
     crate::chain_abstraction::solana::{
-        self, SolanaKeypair, SolanaPubkey, SolanaSignature,
+        self, SolanaKeypair, SolanaPubkey, SolanaSignTransactionError,
+        SolanaSignature, SolanaSignedTransaction, sign_versioned_transaction,
     },
     solana_derivation_path::DerivationPath,
     solana_sdk::bs58,
@@ -547,51 +548,6 @@ fn solana_sign_prehash(
     message: Bytes,
 ) -> SolanaSignature {
     keypair.sign_message(&message)
-}
-
-#[cfg(feature = "solana")]
-#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
-pub struct SolanaSignedTransaction {
-    pub signature: SolanaSignature,
-    pub transaction: VersionedTransaction,
-}
-
-#[cfg(feature = "solana")]
-#[derive(Debug, Clone, PartialEq, Eq, uniffi::Error, thiserror::Error)]
-pub enum SolanaSignTransactionError {
-    #[error(
-        "signer pubkey {pubkey} is not a required signer of this transaction"
-    )]
-    SignerNotRequired { pubkey: String },
-}
-
-#[cfg(feature = "solana")]
-fn sign_versioned_transaction(
-    keypair: &SolanaKeypair,
-    mut transaction: VersionedTransaction,
-) -> Result<SolanaSignedTransaction, SolanaSignTransactionError> {
-    let pubkey = keypair.pubkey();
-    let num_required =
-        transaction.message.header().num_required_signatures as usize;
-    // Only the static account keys can be signers; ALT-loaded keys cannot.
-    let index = transaction
-        .message
-        .static_account_keys()
-        .iter()
-        .take(num_required)
-        .position(|k| k == &pubkey)
-        .ok_or_else(|| SolanaSignTransactionError::SignerNotRequired {
-            pubkey: pubkey.to_string(),
-        })?;
-
-    let signature = keypair.sign_message(&transaction.message.serialize());
-
-    if transaction.signatures.len() < num_required {
-        transaction.signatures.resize(num_required, SolanaSignature::default());
-    }
-    transaction.signatures[index] = signature;
-
-    Ok(SolanaSignedTransaction { signature, transaction })
 }
 
 #[cfg(feature = "solana")]
