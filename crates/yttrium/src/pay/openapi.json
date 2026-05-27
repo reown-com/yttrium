@@ -10,7 +10,7 @@
     "license": {
       "name": ""
     },
-    "version": "2026-02-18"
+    "version": "2026-02-19.preview"
   },
   "servers": [
     {
@@ -1774,6 +1774,27 @@
           "accountProviderName": "Wallet"
         }
       },
+      "CheckoutConfig": {
+        "type": "object",
+        "required": [
+          "successUrl",
+          "errorUrl"
+        ],
+        "properties": {
+          "errorUrl": {
+            "type": "string",
+            "description": "HTTPS URL to redirect to on payment error"
+          },
+          "successUrl": {
+            "type": "string",
+            "description": "HTTPS URL to redirect to on successful payment"
+          }
+        },
+        "example": {
+          "errorUrl": "https://example.com/error",
+          "successUrl": "https://example.com/success"
+        }
+      },
       "CollectData": {
         "type": "object",
         "required": [
@@ -2127,17 +2148,30 @@
         ],
         "properties": {
           "amount": {
-            "$ref": "#/components/schemas/AmountParameter"
+            "$ref": "#/components/schemas/AmountParameter",
+            "description": "Amount to be paid"
+          },
+          "checkout": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/CheckoutConfig"
+              }
+            ]
           },
           "expiresAt": {
             "type": [
               "integer",
               "null"
             ],
-            "format": "int64"
+            "format": "int64",
+            "description": "Optional custom expiration timestamp (Unix seconds since epoch).\nMust be in the future if provided. If not provided, defaults to 5 minutes from now."
           },
           "referenceId": {
-            "type": "string"
+            "type": "string",
+            "description": "Merchant/PSP order ID"
           }
         },
         "example": {
@@ -2145,6 +2179,7 @@
             "unit": "iso4217/USD",
             "value": "100"
           },
+          "checkout": null,
           "expiresAt": null,
           "referenceId": "ORDER-123"
         }
@@ -2195,7 +2230,7 @@
           "expiresAt": 1718236800,
           "gatewayUrl": "https://api.pay.walletconnect.com/pay_123",
           "isFinal": false,
-          "paymentId": "pay_35a2ecc101KSNGQY5N011345A1M9CPEGVZ",
+          "paymentId": "pay_baa2ecc101KSNGQ14EPWHE2WT5YM9K9H6Z",
           "pollInMs": 1000,
           "status": "requires_action"
         }
@@ -2332,7 +2367,7 @@
         "example": {
           "cancelledAt": "2025-01-14T10:30:00Z",
           "cancelledReason": "cancelled_by_user",
-          "paymentId": "pay_e1a2ecc101KSNGQY5PQPC8G6WTS0PWG544",
+          "paymentId": "pay_6fa2ecc101KSNGQ14FSVZ7FKEBBV8N5PHM",
           "status": "cancelled"
         }
       },
@@ -3058,7 +3093,7 @@
         "example": {
           "cancelledAt": "2025-01-14T10:30:00Z",
           "cancelledReason": "cancelled_by_merchant",
-          "paymentId": "pay_6fa2ecc101KSNGQY5NRRAZ6754GW4QZ165",
+          "paymentId": "pay_52a2ecc101KSNGQ14EAKZ6Z8T4J7T7XKEV",
           "status": "cancelled"
         }
       },
