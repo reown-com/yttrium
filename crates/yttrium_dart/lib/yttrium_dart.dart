@@ -3,6 +3,13 @@ import 'dart:io';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:yttrium_dart/generated/frb_generated.dart' as frb;
 import 'package:yttrium_dart/generated/lib.dart';
+export 'package:yttrium_dart/generated/lib.dart'
+    show
+        SolanaSignError,
+        SolanaSignedTransactionDart,
+        solanaSignAllTransactions,
+        solanaSignMessage,
+        solanaSignTransaction;
 
 class YttriumDart implements ChainAbstractionClient {
   // Singleton instance
