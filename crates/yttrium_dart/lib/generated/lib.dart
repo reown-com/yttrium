@@ -8,8 +8,40 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'lib.freezed.dart';
 
+// These functions are ignored because they are not marked as `pub`: `encode_signed_transaction`, `parse_solana_keypair`, `parse_solana_transaction`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `PreparedSignature`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`
+
+/// Signs a Solana `VersionedTransaction` using the WalletConnect
+/// `solana_signTransaction` wire format (base64-bincode transaction,
+/// base58 keypair). Returns the signed transaction re-encoded as base64
+/// plus the base58 signature placed at the keypair's signer slot.
+Future<SolanaSignedTransactionDart> solanaSignTransaction({
+  required String keypairBase58,
+  required String transactionBase64,
+}) => YttriumDart.instance.api.crateSolanaSignTransaction(
+  keypairBase58: keypairBase58,
+  transactionBase64: transactionBase64,
+);
+
+/// Batched variant matching WalletConnect's `solana_signAllTransactions`.
+Future<List<SolanaSignedTransactionDart>> solanaSignAllTransactions({
+  required String keypairBase58,
+  required List<String> transactionsBase64,
+}) => YttriumDart.instance.api.crateSolanaSignAllTransactions(
+  keypairBase58: keypairBase58,
+  transactionsBase64: transactionsBase64,
+);
+
+/// Signs arbitrary bytes (WalletConnect's `solana_signMessage`). Returns
+/// the base58-encoded Ed25519 signature.
+Future<String> solanaSignMessage({
+  required String keypairBase58,
+  required List<int> message,
+}) => YttriumDart.instance.api.crateSolanaSignMessage(
+  keypairBase58: keypairBase58,
+  message: message,
+);
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<Address>>
 abstract class Address implements RustOpaqueInterface {}
@@ -23,36 +55,43 @@ abstract class ChainAbstractionClient implements RustOpaqueInterface {
 
   set projectId(String projectId);
 
-  Future<String> erc20TokenBalance(
-      {required String chainId,
-      required Address token,
-      required Address owner});
+  Future<String> erc20TokenBalance({
+    required String chainId,
+    required Address token,
+    required Address owner,
+  });
 
   Future<Eip1559Estimation> estimateFees({required String chainId});
 
-  Future<UiFields> getUiFields(
-      {required PrepareResponseAvailable routeResponse,
-      required Currency currency});
+  Future<UiFields> getUiFields({
+    required PrepareResponseAvailable routeResponse,
+    required Currency currency,
+  });
 
   // HINT: Make it `#[frb(sync)]` to let it become the default constructor of Dart class.
-  static Future<ChainAbstractionClient> newInstance(
-          {required String projectId, required PulseMetadata pulseMetadata}) =>
-      YttriumDart.instance.api.crateChainAbstractionClientNew(
-          projectId: projectId, pulseMetadata: pulseMetadata);
+  static Future<ChainAbstractionClient> newInstance({
+    required String projectId,
+    required PulseMetadata pulseMetadata,
+  }) => YttriumDart.instance.api.crateChainAbstractionClientNew(
+    projectId: projectId,
+    pulseMetadata: pulseMetadata,
+  );
 
-  Future<PrepareResponse> prepare(
-      {required String chainId,
-      required Address from,
-      required Call call,
-      required List<String> accounts,
-      required bool useLifi});
+  Future<PrepareResponse> prepare({
+    required String chainId,
+    required Address from,
+    required Call call,
+    required List<String> accounts,
+    required bool useLifi,
+  });
 
   Future<StatusResponse> status({required String orchestrationId});
 
-  Future<StatusResponseCompleted> waitForSuccessWithTimeout(
-      {required String orchestrationId,
-      required BigInt checkIn,
-      required BigInt timeout});
+  Future<StatusResponseCompleted> waitForSuccessWithTimeout({
+    required String orchestrationId,
+    required BigInt checkIn,
+    required BigInt timeout,
+  });
 }
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<Currency>>
@@ -104,7 +143,41 @@ class Eip1559Estimation {
 sealed class Error with _$Error implements FrbException {
   const Error._();
 
-  const factory Error.general(
-    String field0,
-  ) = Error_General;
+  const factory Error.general(String field0) = Error_General;
+}
+
+@freezed
+sealed class SolanaSignError with _$SolanaSignError implements FrbException {
+  const SolanaSignError._();
+
+  const factory SolanaSignError.invalidKeypair(String field0) =
+      SolanaSignError_InvalidKeypair;
+  const factory SolanaSignError.invalidTransaction(String field0) =
+      SolanaSignError_InvalidTransaction;
+  const factory SolanaSignError.signerNotRequired({required String pubkey}) =
+      SolanaSignError_SignerNotRequired;
+}
+
+class SolanaSignedTransactionDart {
+  /// Base58-encoded Ed25519 signature added to the transaction.
+  final String signature;
+
+  /// Base64-encoded bincode-serialized signed VersionedTransaction.
+  final String transaction;
+
+  const SolanaSignedTransactionDart({
+    required this.signature,
+    required this.transaction,
+  });
+
+  @override
+  int get hashCode => signature.hashCode ^ transaction.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SolanaSignedTransactionDart &&
+          runtimeType == other.runtimeType &&
+          signature == other.signature &&
+          transaction == other.transaction;
 }

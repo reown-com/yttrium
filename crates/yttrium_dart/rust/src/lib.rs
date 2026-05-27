@@ -5,6 +5,7 @@ use {
         providers::{Provider, ProviderBuilder},
     },
     relay_rpc::domain::ProjectId,
+    solana_signer::Signer,
     std::time::Duration,
     yttrium::{
         call::Call,
@@ -15,9 +16,13 @@ use {
             },
             client::Client,
             currency::Currency,
-            pulse::PulseMetadata,
+            solana::{
+                self, SolanaKeypair, SolanaSignTransactionError,
+                SolanaVersionedTransaction, sign_versioned_transaction,
+            },
             ui_fields::UiFields,
         },
+        pulse::PulseMetadata,
     },
 };
 
@@ -191,7 +196,7 @@ impl ChainAbstractionClient {
         .expect("Invalid RPC URL");
         let provider = ProviderBuilder::new().connect_http(url);
         provider
-            .estimate_eip1559_fees(None)
+            .estimate_eip1559_fees()
             .await
             .map(Into::into)
             .map_err(|e| Error::General(e.to_string()))
@@ -210,6 +215,107 @@ impl ChainAbstractionClient {
             .map(|balance| balance.to_string())
             .map_err(|e| Error::General(e.to_string()))
     }
+}
+
+#[derive(Clone, Debug)]
+pub struct SolanaSignedTransactionDart {
+    /// Base58-encoded Ed25519 signature added to the transaction.
+    pub signature: String,
+    /// Base64-encoded bincode-serialized signed VersionedTransaction.
+    pub transaction: String,
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum SolanaSignError {
+    #[error("invalid keypair: {0}")]
+    InvalidKeypair(String),
+    #[error("invalid transaction: {0}")]
+    InvalidTransaction(String),
+    #[error(
+        "signer pubkey {pubkey} is not a required signer of this transaction"
+    )]
+    SignerNotRequired { pubkey: String },
+}
+
+impl From<SolanaSignTransactionError> for SolanaSignError {
+    fn from(e: SolanaSignTransactionError) -> Self {
+        match e {
+            SolanaSignTransactionError::SignerNotRequired { pubkey } => {
+                Self::SignerNotRequired { pubkey }
+            }
+        }
+    }
+}
+
+fn parse_solana_keypair(
+    base58: &str,
+) -> Result<SolanaKeypair, SolanaSignError> {
+    let mut buf = [0u8; relay_rpc::auth::ed25519_dalek::KEYPAIR_LENGTH];
+    bs58::decode(base58)
+        .onto(&mut buf)
+        .map_err(|e| SolanaSignError::InvalidKeypair(e.to_string()))?;
+    SolanaKeypair::try_from(buf.as_ref())
+        .map_err(|e| SolanaSignError::InvalidKeypair(e.to_string()))
+}
+
+fn parse_solana_transaction(
+    base64: &str,
+) -> Result<SolanaVersionedTransaction, SolanaSignError> {
+    let bytes = data_encoding::BASE64
+        .decode(base64.as_bytes())
+        .map_err(|e| SolanaSignError::InvalidTransaction(e.to_string()))?;
+    solana::bincode::deserialize::<SolanaVersionedTransaction>(&bytes)
+        .map_err(|e| SolanaSignError::InvalidTransaction(e.to_string()))
+}
+
+fn encode_signed_transaction(
+    signed: solana::SolanaSignedTransaction,
+) -> SolanaSignedTransactionDart {
+    SolanaSignedTransactionDart {
+        signature: signed.signature.to_string(),
+        transaction: data_encoding::BASE64
+            .encode(&solana::bincode::serialize(&signed.transaction).unwrap()),
+    }
+}
+
+/// Signs a Solana `VersionedTransaction` using the WalletConnect
+/// `solana_signTransaction` wire format (base64-bincode transaction,
+/// base58 keypair). Returns the signed transaction re-encoded as base64
+/// plus the base58 signature placed at the keypair's signer slot.
+pub fn solana_sign_transaction(
+    keypair_base58: String,
+    transaction_base64: String,
+) -> Result<SolanaSignedTransactionDart, SolanaSignError> {
+    let keypair = parse_solana_keypair(&keypair_base58)?;
+    let transaction = parse_solana_transaction(&transaction_base64)?;
+    let signed = sign_versioned_transaction(&keypair, transaction)?;
+    Ok(encode_signed_transaction(signed))
+}
+
+/// Batched variant matching WalletConnect's `solana_signAllTransactions`.
+pub fn solana_sign_all_transactions(
+    keypair_base58: String,
+    transactions_base64: Vec<String>,
+) -> Result<Vec<SolanaSignedTransactionDart>, SolanaSignError> {
+    let keypair = parse_solana_keypair(&keypair_base58)?;
+    transactions_base64
+        .iter()
+        .map(|s| {
+            let tx = parse_solana_transaction(s)?;
+            let signed = sign_versioned_transaction(&keypair, tx)?;
+            Ok(encode_signed_transaction(signed))
+        })
+        .collect()
+}
+
+/// Signs arbitrary bytes (WalletConnect's `solana_signMessage`). Returns
+/// the base58-encoded Ed25519 signature.
+pub fn solana_sign_message(
+    keypair_base58: String,
+    message: Vec<u8>,
+) -> Result<String, SolanaSignError> {
+    let keypair = parse_solana_keypair(&keypair_base58)?;
+    Ok(keypair.sign_message(&message).to_string())
 }
 
 #[cfg(test)]
@@ -232,10 +338,11 @@ mod tests {
             "https://rpc.walletconnect.com/v1?chainId={chain_id}&projectId={project_id}")
         .parse()
         .expect("Invalid RPC URL");
-        let provider =
-            ProviderBuilder::new().disable_recommended_fillers().connect_http(url);
+        let provider = ProviderBuilder::new()
+            .disable_recommended_fillers()
+            .connect_http(url);
 
-        let estimate = provider.estimate_eip1559_fees(None).await.unwrap();
+        let estimate = provider.estimate_eip1559_fees().await.unwrap();
 
         println!("estimate: {estimate:?}");
         // Simulate sending the data to Dart (convert U128 values to strings)
@@ -243,7 +350,9 @@ mod tests {
         let max_priority_fee_per_gas =
             estimate.max_priority_fee_per_gas.to_string();
 
-        println!("Max fee per gas: {max_fee_per_gas}, Max priority fee per gas: {max_priority_fee_per_gas}");
+        println!(
+            "Max fee per gas: {max_fee_per_gas}, Max priority fee per gas: {max_priority_fee_per_gas}"
+        );
     }
 
     #[test]
