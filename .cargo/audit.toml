@@ -16,4 +16,7 @@ ignore = [
     "RUSTSEC-2026-0098",
     "RUSTSEC-2026-0099",
     "RUSTSEC-2026-0104",
+    # mysten-metrics: malicious crates.io name-squat (removed). False positive --
+    # ours is the official Sui git pin (mystenlabs/sui@f9c8d50), not crates.io.
+    "RUSTSEC-2026-0107",
 ]
