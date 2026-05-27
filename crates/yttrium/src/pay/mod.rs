@@ -612,8 +612,8 @@ impl From<types::CollectData> for CollectDataAction {
     fn from(c: types::CollectData) -> Self {
         Self {
             fields: c.fields.into_iter().map(Into::into).collect(),
-            url: c.url,
-            schema: c.schema.and_then(|s| serde_json::to_string(&s).ok()),
+            url: Some(c.url),
+            schema: serde_json::to_string(&c.schema).ok(),
         }
     }
 }
@@ -675,7 +675,11 @@ pub struct PayAmount {
 
 impl From<types::Amount> for PayAmount {
     fn from(a: types::Amount) -> Self {
-        Self { unit: a.unit, value: a.value, display: a.display.into() }
+        let unit = match a.unit {
+            types::String::Iso4217(v) => format!("iso4217/{v}"),
+            types::String::Caip19(v) => format!("caip19/{v}"),
+        };
+        Self { unit, value: a.value, display: a.display.into() }
     }
 }
 
@@ -963,7 +967,7 @@ impl WalletConnectPay {
                 &self.config,
                 &self.client_id
             )
-            .id(&payment_id)
+            .id(payment_id.clone())
             .include_payment_info(include_payment_info)
             .body(body.clone())
             .send()
@@ -982,14 +986,14 @@ impl WalletConnectPay {
         })?;
 
         let api_response = response.into_inner();
+        let options = api_response.options.unwrap_or_default();
         pay_debug!(
             "get_payment_options: success, {} options",
-            api_response.options.len()
+            options.len()
         );
 
         // Cache the options with their raw actions
-        let cached: Vec<CachedPaymentOption> = api_response
-            .options
+        let cached: Vec<CachedPaymentOption> = options
             .iter()
             .map(|o| CachedPaymentOption {
                 option_id: o.id.clone(),
@@ -1006,7 +1010,7 @@ impl WalletConnectPay {
         Ok(PaymentOptionsResponse {
             payment_id,
             info: api_response.info.map(Into::into),
-            options: api_response.options.into_iter().map(Into::into).collect(),
+            options: options.into_iter().map(Into::into).collect(),
             collect_data: api_response.collect_data.map(Into::into),
         })
     }
@@ -1145,7 +1149,7 @@ impl WalletConnectPay {
             &self.config,
             &self.client_id
         )
-        .id(&payment_id)
+        .id(payment_id.clone())
         .body(body.clone());
         if let Some(ms) = max_poll_ms {
             req = req.max_poll_ms(ms);
@@ -1352,7 +1356,7 @@ impl WalletConnectPay {
                 &self.config,
                 &self.client_id
             )
-            .id(payment_id)
+            .id(payment_id.to_string())
             .body(body.clone())
             .send()
             .await
@@ -1371,7 +1375,7 @@ impl WalletConnectPay {
             &self.config,
             &self.client_id
         )
-        .id(&payment_id);
+        .id(payment_id.clone());
         if let Some(ms) = max_poll_ms {
             req = req.max_poll_ms(ms);
         }
