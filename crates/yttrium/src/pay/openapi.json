@@ -75,7 +75,8 @@
             "description": "Display information for the amount"
           },
           "unit": {
-            "$ref": "#/components/schemas/String",
+            "type": "string",
+            "example": "iso4217/USD",
             "description": "Currency unit, prefixed with either \"iso4217/\" or \"caip19/\""
           },
           "value": {
@@ -150,7 +151,8 @@
         },
         "properties": {
           "unit": {
-            "$ref": "#/components/schemas/String",
+            "type": "string",
+            "example": "iso4217/USD",
             "description": "Currency unit, prefixed with either \"iso4217/\" or \"caip19/\""
           },
           "value": {
@@ -1566,7 +1568,8 @@
         "description": "Amount information for a successful settlement transfer.",
         "properties": {
           "unit": {
-            "$ref": "#/components/schemas/String",
+            "type": "string",
+            "example": "iso4217/USD",
             "description": "Settlement unit — the asset or currency used in the settlement\ntransfer. Uses the same unit format as payment amounts\n(e.g. \"caip19/eip155:1/erc20:0xA0b86...\" for crypto,\n\"iso4217/USD\" for fiat)."
           }
         },
@@ -1623,38 +1626,6 @@
           "amount"
         ],
         "type": "object"
-      },
-      "String": {
-        "description": "Represents a currency/token unit for payment amounts.\n\nCan be either:\n- A fiat currency (ISO 4217): `\"iso4217/USD\"`, `\"iso4217/EUR\"`\n- A blockchain token (CAIP-19): `\"caip19/eip155:1/erc20:0x...\"`",
-        "example": "iso4217/USD",
-        "oneOf": [
-          {
-            "description": "Fiat currency (ISO 4217 format)",
-            "properties": {
-              "Iso4217": {
-                "description": "Fiat currency (ISO 4217 format)",
-                "type": "string"
-              }
-            },
-            "required": [
-              "Iso4217"
-            ],
-            "type": "object"
-          },
-          {
-            "description": "Blockchain token (CAIP-19 format)",
-            "properties": {
-              "Caip19": {
-                "description": "Blockchain token (CAIP-19 format)",
-                "type": "string"
-              }
-            },
-            "required": [
-              "Caip19"
-            ],
-            "type": "object"
-          }
-        ]
       },
       "WalletRpcAction": {
         "example": {

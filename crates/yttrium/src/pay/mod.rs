@@ -3,12 +3,6 @@ progenitor::generate_api!(
     interface = Builder,
     tags = Separate,
     derives = [PartialEq],
-    replace = {
-        // The schema's `String` type is defined as a tagged oneOf, but the
-        // wire form is a plain prefixed string ("iso4217/USD" / "caip19/...").
-        // Skip generation and use std::string::String directly.
-        String = std::string::String,
-    },
 );
 
 mod error_reporting;
