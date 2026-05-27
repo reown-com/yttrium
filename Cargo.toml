@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/kotlin-ffi", "crates/pay-api", "crates/rust-sample-wallet", "crates/yttrium"]
+members = ["crates/kotlin-ffi", "crates/pay-api", "crates/rust-sample-wallet", "crates/yttrium", "crates/yttrium_dart/rust"]
 resolver = "2"
 
 [workspace.package]
