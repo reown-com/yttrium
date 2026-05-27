@@ -571,13 +571,15 @@ fn solana_sign_all_transactions(
         .collect()
 }
 
+// Alias of solana_sign_prehash matching the WalletConnect solana_signMessage
+// method name. Delegates to keep behavior in lockstep if signing ever changes.
 #[cfg(feature = "solana")]
 #[uniffi::export]
 fn solana_sign_message(
     keypair: SolanaKeypair,
     message: Bytes,
 ) -> SolanaSignature {
-    keypair.sign_message(&message)
+    solana_sign_prehash(keypair, message)
 }
 
 #[cfg(feature = "solana")]
@@ -775,121 +777,112 @@ mod tests {
         let n = s.parse::<U256>().unwrap();
         assert_eq!(n, Uint::from(1));
     }
+}
 
-    #[cfg(feature = "solana")]
-    mod solana_sign {
-        use {
-            super::super::*,
-            solana_sdk::{
-                hash::Hash,
-                message::{Message, VersionedMessage},
-                pubkey::Pubkey,
-            },
-            solana_system_interface::instruction as system_instruction,
-        };
+#[cfg(all(test, feature = "solana"))]
+mod solana_sign_tests {
+    use {
+        super::*,
+        solana_sdk::{
+            hash::Hash,
+            message::{Message, VersionedMessage},
+            pubkey::Pubkey,
+        },
+        solana_system_interface::instruction as system_instruction,
+    };
 
-        fn unsigned_transfer_tx(
-            payer: &Pubkey,
-            recipient: &Pubkey,
-            lamports: u64,
-        ) -> VersionedTransaction {
-            let ix = system_instruction::transfer(payer, recipient, lamports);
-            let mut msg = Message::new(&[ix], Some(payer));
-            msg.recent_blockhash = Hash::new_from_array([7u8; 32]);
-            VersionedTransaction {
-                signatures: vec![SolanaSignature::default()],
-                message: VersionedMessage::Legacy(msg),
-            }
+    fn unsigned_transfer_tx(
+        payer: &Pubkey,
+        recipient: &Pubkey,
+        lamports: u64,
+    ) -> VersionedTransaction {
+        let ix = system_instruction::transfer(payer, recipient, lamports);
+        let mut msg = Message::new(&[ix], Some(payer));
+        msg.recent_blockhash = Hash::new_from_array([7u8; 32]);
+        VersionedTransaction {
+            signatures: vec![SolanaSignature::default()],
+            message: VersionedMessage::Legacy(msg),
         }
+    }
 
-        #[test]
-        fn signs_and_verifies() {
-            let payer = SolanaKeypair::new();
-            let recipient = SolanaKeypair::new();
-            let tx =
-                unsigned_transfer_tx(&payer.pubkey(), &recipient.pubkey(), 1);
+    #[test]
+    fn signs_and_verifies() {
+        let payer = SolanaKeypair::new();
+        let recipient = SolanaKeypair::new();
+        let tx = unsigned_transfer_tx(&payer.pubkey(), &recipient.pubkey(), 1);
 
-            let signed = solana_sign_transaction(payer.insecure_clone(), tx)
-                .expect("sign");
+        let signed =
+            solana_sign_transaction(payer.insecure_clone(), tx).expect("sign");
 
-            assert_eq!(signed.transaction.signatures.len(), 1);
-            assert_eq!(signed.transaction.signatures[0], signed.signature);
-            assert!(signed.signature.verify(
+        assert_eq!(signed.transaction.signatures.len(), 1);
+        assert_eq!(signed.transaction.signatures[0], signed.signature);
+        assert!(signed.signature.verify(
+            payer.pubkey().as_ref(),
+            &signed.transaction.message.serialize(),
+        ));
+    }
+
+    #[test]
+    fn rejects_non_signer_keypair() {
+        let payer = SolanaKeypair::new();
+        let recipient = SolanaKeypair::new();
+        let stranger = SolanaKeypair::new();
+        let tx = unsigned_transfer_tx(&payer.pubkey(), &recipient.pubkey(), 1);
+
+        let err = solana_sign_transaction(stranger.insecure_clone(), tx)
+            .expect_err("should reject");
+        assert!(matches!(
+            err,
+            SolanaSignTransactionError::SignerNotRequired { .. }
+        ));
+    }
+
+    #[test]
+    fn sign_all_preserves_order_and_signs_each() {
+        let payer = SolanaKeypair::new();
+        let recipient = SolanaKeypair::new();
+        let txs = (1..=3u64)
+            .map(|n| {
+                unsigned_transfer_tx(&payer.pubkey(), &recipient.pubkey(), n)
+            })
+            .collect::<Vec<_>>();
+
+        let signed =
+            solana_sign_all_transactions(payer.insecure_clone(), txs.clone())
+                .expect("sign all");
+
+        assert_eq!(signed.len(), 3);
+        for (i, s) in signed.iter().enumerate() {
+            assert!(s.signature.verify(
                 payer.pubkey().as_ref(),
-                &signed.transaction.message.serialize(),
+                &s.transaction.message.serialize(),
             ));
+            assert_eq!(s.transaction.signatures[0], s.signature);
+            let expected = &txs[i].message.serialize();
+            assert_eq!(&s.transaction.message.serialize(), expected);
         }
+    }
 
-        #[test]
-        fn rejects_non_signer_keypair() {
-            let payer = SolanaKeypair::new();
-            let recipient = SolanaKeypair::new();
-            let stranger = SolanaKeypair::new();
-            let tx =
-                unsigned_transfer_tx(&payer.pubkey(), &recipient.pubkey(), 1);
+    #[test]
+    fn sign_message_matches_sign_prehash() {
+        let kp = SolanaKeypair::new();
+        let msg: Bytes = Bytes::from_static(b"hello solana");
+        let a = solana_sign_message(kp.insecure_clone(), msg.clone());
+        let b = solana_sign_prehash(kp.insecure_clone(), msg);
+        assert_eq!(a, b);
+    }
 
-            let err = solana_sign_transaction(stranger.insecure_clone(), tx)
-                .expect_err("should reject");
-            assert!(matches!(
-                err,
-                SolanaSignTransactionError::SignerNotRequired { .. }
-            ));
-        }
+    #[test]
+    fn pads_signatures_when_short() {
+        let payer = SolanaKeypair::new();
+        let recipient = SolanaKeypair::new();
+        let mut tx =
+            unsigned_transfer_tx(&payer.pubkey(), &recipient.pubkey(), 42);
+        tx.signatures.clear();
 
-        #[test]
-        fn sign_all_preserves_order_and_signs_each() {
-            let payer = SolanaKeypair::new();
-            let recipient = SolanaKeypair::new();
-            let txs = (1..=3u64)
-                .map(|n| {
-                    unsigned_transfer_tx(
-                        &payer.pubkey(),
-                        &recipient.pubkey(),
-                        n,
-                    )
-                })
-                .collect::<Vec<_>>();
-
-            let signed = solana_sign_all_transactions(
-                payer.insecure_clone(),
-                txs.clone(),
-            )
-            .expect("sign all");
-
-            assert_eq!(signed.len(), 3);
-            for (i, s) in signed.iter().enumerate() {
-                assert!(s.signature.verify(
-                    payer.pubkey().as_ref(),
-                    &s.transaction.message.serialize(),
-                ));
-                assert_eq!(s.transaction.signatures[0], s.signature);
-                // ordering: lamports field of the transfer ix encodes i+1
-                let expected = &txs[i].message.serialize();
-                assert_eq!(&s.transaction.message.serialize(), expected);
-            }
-        }
-
-        #[test]
-        fn sign_message_matches_sign_prehash() {
-            let kp = SolanaKeypair::new();
-            let msg: Bytes = Bytes::from_static(b"hello solana");
-            let a = solana_sign_message(kp.insecure_clone(), msg.clone());
-            let b = solana_sign_prehash(kp.insecure_clone(), msg);
-            assert_eq!(a, b);
-        }
-
-        #[test]
-        fn pads_signatures_when_short() {
-            let payer = SolanaKeypair::new();
-            let recipient = SolanaKeypair::new();
-            let mut tx =
-                unsigned_transfer_tx(&payer.pubkey(), &recipient.pubkey(), 42);
-            tx.signatures.clear();
-
-            let signed = solana_sign_transaction(payer.insecure_clone(), tx)
-                .expect("sign");
-            assert_eq!(signed.transaction.signatures.len(), 1);
-            assert_eq!(signed.transaction.signatures[0], signed.signature);
-        }
+        let signed =
+            solana_sign_transaction(payer.insecure_clone(), tx).expect("sign");
+        assert_eq!(signed.transaction.signatures.len(), 1);
+        assert_eq!(signed.transaction.signatures[0], signed.signature);
     }
 }
