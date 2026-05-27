@@ -782,7 +782,7 @@ dependencies = [
  "async-trait",
  "coins-ledger",
  "futures-util",
- "semver 1.0.27",
+ "semver 1.0.28",
  "thiserror 2.0.18",
  "tracing",
 ]
@@ -4072,7 +4072,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7ab67060fc6b8ef687992d439ca0fa36e7ed17e9a0b16b25b601e8757df720de"
 dependencies = [
  "data-encoding",
- "syn 2.0.117",
+ "syn 1.0.109",
 ]
 
 [[package]]
@@ -8367,7 +8367,7 @@ dependencies = [
  "log",
  "once_cell",
  "regex",
- "semver 1.0.27",
+ "semver 1.0.28",
  "serde",
  "serde_json",
  "url",
@@ -9311,8 +9311,8 @@ dependencies = [
 
 [[package]]
 name = "progenitor"
-version = "0.13.0"
-source = "git+https://github.com/WalletConnect/progenitor.git?rev=664b34bb321d47559752059b7fe0e07fd96419ee#664b34bb321d47559752059b7fe0e07fd96419ee"
+version = "0.14.0"
+source = "git+https://github.com/WalletConnect/progenitor.git?rev=604aacb0df72ee1d288942ebb85cdfa6f37a79fe#604aacb0df72ee1d288942ebb85cdfa6f37a79fe"
 dependencies = [
  "progenitor-client",
  "progenitor-impl",
@@ -9321,8 +9321,8 @@ dependencies = [
 
 [[package]]
 name = "progenitor-client"
-version = "0.13.0"
-source = "git+https://github.com/WalletConnect/progenitor.git?rev=664b34bb321d47559752059b7fe0e07fd96419ee#664b34bb321d47559752059b7fe0e07fd96419ee"
+version = "0.14.0"
+source = "git+https://github.com/WalletConnect/progenitor.git?rev=604aacb0df72ee1d288942ebb85cdfa6f37a79fe#604aacb0df72ee1d288942ebb85cdfa6f37a79fe"
 dependencies = [
  "bytes",
  "futures-core",
@@ -9335,8 +9335,8 @@ dependencies = [
 
 [[package]]
 name = "progenitor-impl"
-version = "0.13.0"
-source = "git+https://github.com/WalletConnect/progenitor.git?rev=664b34bb321d47559752059b7fe0e07fd96419ee#664b34bb321d47559752059b7fe0e07fd96419ee"
+version = "0.14.0"
+source = "git+https://github.com/WalletConnect/progenitor.git?rev=604aacb0df72ee1d288942ebb85cdfa6f37a79fe#604aacb0df72ee1d288942ebb85cdfa6f37a79fe"
 dependencies = [
  "heck 0.5.0",
  "http 1.4.0",
@@ -9356,8 +9356,8 @@ dependencies = [
 
 [[package]]
 name = "progenitor-macro"
-version = "0.13.0"
-source = "git+https://github.com/WalletConnect/progenitor.git?rev=664b34bb321d47559752059b7fe0e07fd96419ee#664b34bb321d47559752059b7fe0e07fd96419ee"
+version = "0.14.0"
+source = "git+https://github.com/WalletConnect/progenitor.git?rev=604aacb0df72ee1d288942ebb85cdfa6f37a79fe#604aacb0df72ee1d288942ebb85cdfa6f37a79fe"
 dependencies = [
  "oas3",
  "proc-macro2",
@@ -10013,9 +10013,9 @@ checksum = "dc897dd8d9e8bd1ed8cdad82b5966c3e0ecae09fb1907d58efaa013543185d0a"
 
 [[package]]
 name = "regress"
-version = "0.10.5"
+version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2057b2325e68a893284d1538021ab90279adac1139957ca2a74426c6f118fb48"
+checksum = "158a764437582235e3501f683b93a0a6f8d825d04a789dbe5ed30b8799b8908a"
 dependencies = [
  "hashbrown 0.16.1",
  "memchr",
@@ -10393,7 +10393,7 @@ version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cfcb3a22ef46e85b45de6ee7e79d063319ebb6594faafcf1c225ea92ab6e9b92"
 dependencies = [
- "semver 1.0.27",
+ "semver 1.0.28",
 ]
 
 [[package]]
@@ -10403,7 +10403,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2dd18cd2bae1820af0b6ad5e54f4a51d0f3fcc53b05f845675074efcc7af071d"
 dependencies = [
  "rustc_version 0.4.1",
- "semver 1.0.27",
+ "semver 1.0.28",
 ]
 
 [[package]]
@@ -10933,9 +10933,9 @@ dependencies = [
 
 [[package]]
 name = "semver"
-version = "1.0.27"
+version = "1.0.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d767eb0aabc880b29956c35734170f26ed551a859dbd361d140cdbeca61ab1e2"
+checksum = "8a7852d02fc848982e0c167ef163aaff9cd91dc640ba85e263cb1ce46fae51cd"
 dependencies = [
  "serde",
  "serde_core",
@@ -12504,7 +12504,7 @@ dependencies = [
  "futures-util",
  "http 0.2.12",
  "log",
- "semver 1.0.27",
+ "semver 1.0.28",
  "serde",
  "serde_json",
  "solana-account-decoder-client-types",
@@ -12607,7 +12607,7 @@ dependencies = [
  "log",
  "reqwest 0.12.28",
  "reqwest-middleware",
- "semver 1.0.27",
+ "semver 1.0.28",
  "serde",
  "serde_json",
  "solana-account",
@@ -12678,7 +12678,7 @@ checksum = "aceb2a48783c4297f564b8f8f962181d921ac004e84efbd7313cf44e3ad54a83"
 dependencies = [
  "base64 0.22.1",
  "bs58 0.5.1",
- "semver 1.0.27",
+ "semver 1.0.28",
  "serde",
  "serde_json",
  "solana-account",
@@ -13232,7 +13232,7 @@ checksum = "d84bcb8923fe9a7f8acb2cea7bf7aa4e1603d77b207d318b3315e5b1eec65dc2"
 dependencies = [
  "agave-feature-set",
  "rand 0.8.5",
- "semver 1.0.27",
+ "semver 1.0.28",
  "serde",
  "solana-sanitize",
  "solana-serde-varint",
@@ -15512,9 +15512,9 @@ dependencies = [
 
 [[package]]
 name = "typify"
-version = "0.6.1"
+version = "0.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b715573a376585888b742ead9be5f4826105e622169180662e2c81bed4a149c3"
+checksum = "bc0b89f47309feaeb23c4509c15c9a04234f7deccef6f96c3bfe95319819a304"
 dependencies = [
  "typify-impl",
  "typify-macro",
@@ -15522,9 +15522,9 @@ dependencies = [
 
 [[package]]
 name = "typify-impl"
-version = "0.6.1"
+version = "0.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a2fd0d27608a466d063d23b97cf2d26c25d838f01b4f7d5ff406a7446f16b6e3"
+checksum = "fa7b026f540b148b81043c720889dbb942b08659aa8a43f624ac4f04dbfc1861"
 dependencies = [
  "heck 0.5.0",
  "log",
@@ -15532,7 +15532,7 @@ dependencies = [
  "quote",
  "regress",
  "schemars 0.8.22",
- "semver 1.0.27",
+ "semver 1.0.28",
  "serde",
  "serde_json",
  "syn 2.0.117",
@@ -15542,14 +15542,14 @@ dependencies = [
 
 [[package]]
 name = "typify-macro"
-version = "0.6.1"
+version = "0.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fd04bb1207cd4e250941cc1641f4c4815f7eaa2145f45c09dd49cb0a3691710a"
+checksum = "39ed96c57f06ae0839416b986921a98f18b220da63bbb243a8570a00c8492183"
 dependencies = [
  "proc-macro2",
  "quote",
  "schemars 0.8.22",
- "semver 1.0.27",
+ "semver 1.0.28",
  "serde",
  "serde_json",
  "serde_tokenstream",
@@ -16154,7 +16154,7 @@ dependencies = [
  "bitflags 2.11.0",
  "hashbrown 0.15.5",
  "indexmap 2.14.0",
- "semver 1.0.27",
+ "semver 1.0.28",
 ]
 
 [[package]]
@@ -16629,7 +16629,7 @@ dependencies = [
  "id-arena",
  "indexmap 2.14.0",
  "log",
- "semver 1.0.27",
+ "semver 1.0.28",
  "serde",
  "serde_derive",
  "serde_json",
