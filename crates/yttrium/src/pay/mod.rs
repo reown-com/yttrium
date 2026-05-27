@@ -3,6 +3,12 @@ progenitor::generate_api!(
     interface = Builder,
     tags = Separate,
     derives = [PartialEq],
+    replace = {
+        // The schema's `String` type is defined as a tagged oneOf, but the
+        // wire form is a plain prefixed string ("iso4217/USD" / "caip19/...").
+        // Skip generation and use std::string::String directly.
+        String = std::string::String,
+    },
 );
 
 mod error_reporting;
@@ -675,11 +681,7 @@ pub struct PayAmount {
 
 impl From<types::Amount> for PayAmount {
     fn from(a: types::Amount) -> Self {
-        let unit = match a.unit {
-            types::String::Iso4217(v) => format!("iso4217/{v}"),
-            types::String::Caip19(v) => format!("caip19/{v}"),
-        };
-        Self { unit, value: a.value, display: a.display.into() }
+        Self { unit: a.unit, value: a.value, display: a.display.into() }
     }
 }
 
@@ -987,10 +989,7 @@ impl WalletConnectPay {
 
         let api_response = response.into_inner();
         let options = api_response.options.unwrap_or_default();
-        pay_debug!(
-            "get_payment_options: success, {} options",
-            options.len()
-        );
+        pay_debug!("get_payment_options: success, {} options", options.len());
 
         // Cache the options with their raw actions
         let cached: Vec<CachedPaymentOption> = options
