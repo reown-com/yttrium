@@ -1,6 +1,6 @@
 name: sign-canary
 on:
-  push:
+  workflow_dispatch:
 
 concurrency: ${{ github.workflow }}
 
