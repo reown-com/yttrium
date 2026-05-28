@@ -4272,6 +4272,172 @@ public func FfiConverterTypeSignTransactionResult_lower(_ value: SignTransaction
 }
 
 
+public struct SolanaSignedTransaction: Equatable, Hashable {
+    public var signature: SolanaSignature
+    public var transaction: VersionedTransaction
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(signature: SolanaSignature, transaction: VersionedTransaction) {
+        self.signature = signature
+        self.transaction = transaction
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension SolanaSignedTransaction: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSolanaSignedTransaction: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SolanaSignedTransaction {
+        return
+            try SolanaSignedTransaction(
+                signature: FfiConverterTypeSolanaSignature.read(from: &buf), 
+                transaction: FfiConverterTypeVersionedTransaction.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: SolanaSignedTransaction, into buf: inout [UInt8]) {
+        FfiConverterTypeSolanaSignature.write(value.signature, into: &buf)
+        FfiConverterTypeVersionedTransaction.write(value.transaction, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSolanaSignedTransaction_lift(_ buf: RustBuffer) throws -> SolanaSignedTransaction {
+    return try FfiConverterTypeSolanaSignedTransaction.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSolanaSignedTransaction_lower(_ value: SolanaSignedTransaction) -> RustBuffer {
+    return FfiConverterTypeSolanaSignedTransaction.lower(value)
+}
+
+
+public struct SolanaTransaction: Equatable, Hashable {
+    public var chainId: String
+    public var from: SolanaPubkey
+    public var transaction: VersionedTransaction
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(chainId: String, from: SolanaPubkey, transaction: VersionedTransaction) {
+        self.chainId = chainId
+        self.from = from
+        self.transaction = transaction
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension SolanaTransaction: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSolanaTransaction: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SolanaTransaction {
+        return
+            try SolanaTransaction(
+                chainId: FfiConverterString.read(from: &buf), 
+                from: FfiConverterTypeSolanaPubkey.read(from: &buf), 
+                transaction: FfiConverterTypeVersionedTransaction.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: SolanaTransaction, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.chainId, into: &buf)
+        FfiConverterTypeSolanaPubkey.write(value.from, into: &buf)
+        FfiConverterTypeVersionedTransaction.write(value.transaction, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSolanaTransaction_lift(_ buf: RustBuffer) throws -> SolanaTransaction {
+    return try FfiConverterTypeSolanaTransaction.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSolanaTransaction_lower(_ value: SolanaTransaction) -> RustBuffer {
+    return FfiConverterTypeSolanaTransaction.lower(value)
+}
+
+
+public struct SolanaTxnDetails: Equatable, Hashable {
+    public var transaction: SolanaTransaction
+    public var transactionHashToSign: Bytes
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(transaction: SolanaTransaction, transactionHashToSign: Bytes) {
+        self.transaction = transaction
+        self.transactionHashToSign = transactionHashToSign
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension SolanaTxnDetails: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSolanaTxnDetails: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SolanaTxnDetails {
+        return
+            try SolanaTxnDetails(
+                transaction: FfiConverterTypeSolanaTransaction.read(from: &buf), 
+                transactionHashToSign: FfiConverterTypeBytes.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: SolanaTxnDetails, into buf: inout [UInt8]) {
+        FfiConverterTypeSolanaTransaction.write(value.transaction, into: &buf)
+        FfiConverterTypeBytes.write(value.transactionHashToSign, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSolanaTxnDetails_lift(_ buf: RustBuffer) throws -> SolanaTxnDetails {
+    return try FfiConverterTypeSolanaTxnDetails.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSolanaTxnDetails_lower(_ value: SolanaTxnDetails) -> RustBuffer {
+    return FfiConverterTypeSolanaTxnDetails.lower(value)
+}
+
+
 public struct StacksAccount: Equatable, Hashable {
     public var balance: String
     public var locked: String
@@ -6667,6 +6833,8 @@ public enum Route: Equatable, Hashable {
     
     case eip155([TxnDetails]
     )
+    case solana([SolanaTxnDetails]
+    )
 
 
 
@@ -6691,6 +6859,9 @@ public struct FfiConverterTypeRoute: FfiConverterRustBuffer {
         case 1: return .eip155(try FfiConverterSequenceTypeTxnDetails.read(from: &buf)
         )
         
+        case 2: return .solana(try FfiConverterSequenceTypeSolanaTxnDetails.read(from: &buf)
+        )
+        
         default: throw UniffiInternalError.unexpectedEnumCase
         }
     }
@@ -6702,6 +6873,11 @@ public struct FfiConverterTypeRoute: FfiConverterRustBuffer {
         case let .eip155(v1):
             writeInt(&buf, Int32(1))
             FfiConverterSequenceTypeTxnDetails.write(v1, into: &buf)
+            
+        
+        case let .solana(v1):
+            writeInt(&buf, Int32(2))
+            FfiConverterSequenceTypeSolanaTxnDetails.write(v1, into: &buf)
             
         }
     }
@@ -6730,6 +6906,8 @@ public enum RouteSig: Equatable, Hashable {
     
     case eip155([PrimitiveSignature]
     )
+    case solana([SolanaSignature]
+    )
 
 
 
@@ -6754,6 +6932,9 @@ public struct FfiConverterTypeRouteSig: FfiConverterRustBuffer {
         case 1: return .eip155(try FfiConverterSequenceTypePrimitiveSignature.read(from: &buf)
         )
         
+        case 2: return .solana(try FfiConverterSequenceTypeSolanaSignature.read(from: &buf)
+        )
+        
         default: throw UniffiInternalError.unexpectedEnumCase
         }
     }
@@ -6765,6 +6946,11 @@ public struct FfiConverterTypeRouteSig: FfiConverterRustBuffer {
         case let .eip155(v1):
             writeInt(&buf, Int32(1))
             FfiConverterSequenceTypePrimitiveSignature.write(v1, into: &buf)
+            
+        
+        case let .solana(v1):
+            writeInt(&buf, Int32(2))
+            FfiConverterSequenceTypeSolanaSignature.write(v1, into: &buf)
             
         }
     }
@@ -7035,6 +7221,80 @@ public func FfiConverterTypeSolanaDeriveKeypairFromMnemonicError_lift(_ buf: Rus
 #endif
 public func FfiConverterTypeSolanaDeriveKeypairFromMnemonicError_lower(_ value: SolanaDeriveKeypairFromMnemonicError) -> RustBuffer {
     return FfiConverterTypeSolanaDeriveKeypairFromMnemonicError.lower(value)
+}
+
+
+public enum SolanaSignTransactionError: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
+
+    
+    
+    case SignerNotRequired(pubkey: String
+    )
+
+    
+
+    
+
+    
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+    
+}
+
+#if compiler(>=6)
+extension SolanaSignTransactionError: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSolanaSignTransactionError: FfiConverterRustBuffer {
+    typealias SwiftType = SolanaSignTransactionError
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SolanaSignTransactionError {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+
+        
+
+        
+        case 1: return .SignerNotRequired(
+            pubkey: try FfiConverterString.read(from: &buf)
+            )
+
+         default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: SolanaSignTransactionError, into buf: inout [UInt8]) {
+        switch value {
+
+        
+
+        
+        
+        case let .SignerNotRequired(pubkey):
+            writeInt(&buf, Int32(1))
+            FfiConverterString.write(pubkey, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSolanaSignTransactionError_lift(_ buf: RustBuffer) throws -> SolanaSignTransactionError {
+    return try FfiConverterTypeSolanaSignTransactionError.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSolanaSignTransactionError_lower(_ value: SolanaSignTransactionError) -> RustBuffer {
+    return FfiConverterTypeSolanaSignTransactionError.lower(value)
 }
 
 
@@ -8184,6 +8444,8 @@ public enum Transactions: Equatable, Hashable {
     
     case eip155([Transaction]
     )
+    case solana([SolanaTransaction]
+    )
 
 
 
@@ -8208,6 +8470,9 @@ public struct FfiConverterTypeTransactions: FfiConverterRustBuffer {
         case 1: return .eip155(try FfiConverterSequenceTypeTransaction.read(from: &buf)
         )
         
+        case 2: return .solana(try FfiConverterSequenceTypeSolanaTransaction.read(from: &buf)
+        )
+        
         default: throw UniffiInternalError.unexpectedEnumCase
         }
     }
@@ -8219,6 +8484,11 @@ public struct FfiConverterTypeTransactions: FfiConverterRustBuffer {
         case let .eip155(v1):
             writeInt(&buf, Int32(1))
             FfiConverterSequenceTypeTransaction.write(v1, into: &buf)
+            
+        
+        case let .solana(v1):
+            writeInt(&buf, Int32(2))
+            FfiConverterSequenceTypeSolanaTransaction.write(v1, into: &buf)
             
         }
     }
@@ -9072,6 +9342,81 @@ fileprivate struct FfiConverterSequenceTypeSendTxMessage: FfiConverterRustBuffer
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeSolanaSignedTransaction: FfiConverterRustBuffer {
+    typealias SwiftType = [SolanaSignedTransaction]
+
+    public static func write(_ value: [SolanaSignedTransaction], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeSolanaSignedTransaction.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [SolanaSignedTransaction] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [SolanaSignedTransaction]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeSolanaSignedTransaction.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeSolanaTransaction: FfiConverterRustBuffer {
+    typealias SwiftType = [SolanaTransaction]
+
+    public static func write(_ value: [SolanaTransaction], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeSolanaTransaction.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [SolanaTransaction] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [SolanaTransaction]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeSolanaTransaction.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeSolanaTxnDetails: FfiConverterRustBuffer {
+    typealias SwiftType = [SolanaTxnDetails]
+
+    public static func write(_ value: [SolanaTxnDetails], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeSolanaTxnDetails.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [SolanaTxnDetails] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [SolanaTxnDetails]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeSolanaTxnDetails.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeTransaction: FfiConverterRustBuffer {
     typealias SwiftType = [Transaction]
 
@@ -9297,6 +9642,31 @@ fileprivate struct FfiConverterSequenceTypePrimitiveSignature: FfiConverterRustB
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeSolanaSignature: FfiConverterRustBuffer {
+    typealias SwiftType = [SolanaSignature]
+
+    public static func write(_ value: [SolanaSignature], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeSolanaSignature.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [SolanaSignature] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [SolanaSignature]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeSolanaSignature.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeU64: FfiConverterRustBuffer {
     typealias SwiftType = [U64]
 
@@ -9314,6 +9684,31 @@ fileprivate struct FfiConverterSequenceTypeU64: FfiConverterRustBuffer {
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeU64.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeVersionedTransaction: FfiConverterRustBuffer {
+    typealias SwiftType = [VersionedTransaction]
+
+    public static func write(_ value: [VersionedTransaction], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeVersionedTransaction.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [VersionedTransaction] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [VersionedTransaction]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeVersionedTransaction.read(from: &buf))
         }
         return seq
     }
@@ -10318,6 +10713,138 @@ public func FfiConverterTypeSignature_lower(_ value: Signature) -> RustBuffer {
  * Typealias from the type name used in the UDL file to the builtin type.  This
  * is needed because the UDL type name is used in function/method signatures.
  */
+public typealias SolanaKeypair = String
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSolanaKeypair: FfiConverter {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SolanaKeypair {
+        return try FfiConverterString.read(from: &buf)
+    }
+
+    public static func write(_ value: SolanaKeypair, into buf: inout [UInt8]) {
+        return FfiConverterString.write(value, into: &buf)
+    }
+
+    public static func lift(_ value: RustBuffer) throws -> SolanaKeypair {
+        return try FfiConverterString.lift(value)
+    }
+
+    public static func lower(_ value: SolanaKeypair) -> RustBuffer {
+        return FfiConverterString.lower(value)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSolanaKeypair_lift(_ value: RustBuffer) throws -> SolanaKeypair {
+    return try FfiConverterTypeSolanaKeypair.lift(value)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSolanaKeypair_lower(_ value: SolanaKeypair) -> RustBuffer {
+    return FfiConverterTypeSolanaKeypair.lower(value)
+}
+
+
+
+/**
+ * Typealias from the type name used in the UDL file to the builtin type.  This
+ * is needed because the UDL type name is used in function/method signatures.
+ */
+public typealias SolanaPubkey = String
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSolanaPubkey: FfiConverter {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SolanaPubkey {
+        return try FfiConverterString.read(from: &buf)
+    }
+
+    public static func write(_ value: SolanaPubkey, into buf: inout [UInt8]) {
+        return FfiConverterString.write(value, into: &buf)
+    }
+
+    public static func lift(_ value: RustBuffer) throws -> SolanaPubkey {
+        return try FfiConverterString.lift(value)
+    }
+
+    public static func lower(_ value: SolanaPubkey) -> RustBuffer {
+        return FfiConverterString.lower(value)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSolanaPubkey_lift(_ value: RustBuffer) throws -> SolanaPubkey {
+    return try FfiConverterTypeSolanaPubkey.lift(value)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSolanaPubkey_lower(_ value: SolanaPubkey) -> RustBuffer {
+    return FfiConverterTypeSolanaPubkey.lower(value)
+}
+
+
+
+/**
+ * Typealias from the type name used in the UDL file to the builtin type.  This
+ * is needed because the UDL type name is used in function/method signatures.
+ */
+public typealias SolanaSignature = String
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSolanaSignature: FfiConverter {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SolanaSignature {
+        return try FfiConverterString.read(from: &buf)
+    }
+
+    public static func write(_ value: SolanaSignature, into buf: inout [UInt8]) {
+        return FfiConverterString.write(value, into: &buf)
+    }
+
+    public static func lift(_ value: RustBuffer) throws -> SolanaSignature {
+        return try FfiConverterString.lift(value)
+    }
+
+    public static func lower(_ value: SolanaSignature) -> RustBuffer {
+        return FfiConverterString.lower(value)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSolanaSignature_lift(_ value: RustBuffer) throws -> SolanaSignature {
+    return try FfiConverterTypeSolanaSignature.lift(value)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSolanaSignature_lower(_ value: SolanaSignature) -> RustBuffer {
+    return FfiConverterTypeSolanaSignature.lower(value)
+}
+
+
+
+/**
+ * Typealias from the type name used in the UDL file to the builtin type.  This
+ * is needed because the UDL type name is used in function/method signatures.
+ */
 public typealias StacksSignature = String
 
 #if swift(>=5.8)
@@ -11060,6 +11587,50 @@ public func FfiConverterTypeUserOperationReceipt_lower(_ value: UserOperationRec
     return FfiConverterTypeUserOperationReceipt.lower(value)
 }
 
+
+
+/**
+ * Typealias from the type name used in the UDL file to the builtin type.  This
+ * is needed because the UDL type name is used in function/method signatures.
+ */
+public typealias VersionedTransaction = String
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeVersionedTransaction: FfiConverter {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> VersionedTransaction {
+        return try FfiConverterString.read(from: &buf)
+    }
+
+    public static func write(_ value: VersionedTransaction, into buf: inout [UInt8]) {
+        return FfiConverterString.write(value, into: &buf)
+    }
+
+    public static func lift(_ value: RustBuffer) throws -> VersionedTransaction {
+        return try FfiConverterString.lift(value)
+    }
+
+    public static func lower(_ value: VersionedTransaction) -> RustBuffer {
+        return FfiConverterString.lower(value)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVersionedTransaction_lift(_ value: RustBuffer) throws -> VersionedTransaction {
+    return try FfiConverterTypeVersionedTransaction.lift(value)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVersionedTransaction_lower(_ value: VersionedTransaction) -> RustBuffer {
+    return FfiConverterTypeVersionedTransaction.lower(value)
+}
+
 private let UNIFFI_RUST_FUTURE_POLL_READY: Int8 = 0
 private let UNIFFI_RUST_FUTURE_POLL_WAKE: Int8 = 1
 
@@ -11119,6 +11690,66 @@ public func fundingMetadataToBridgingFeeAmount(value: FundingMetadata) -> Amount
     return try!  FfiConverterTypeAmount_lift(try! rustCall() {
     uniffi_yttrium_fn_func_funding_metadata_to_bridging_fee_amount(
         FfiConverterTypeFundingMetadata_lower(value),$0
+    )
+})
+}
+public func solanaDeriveKeypairFromMnemonic(mnemonic: String, derivationPath: String?)throws  -> SolanaKeypair  {
+    return try  FfiConverterTypeSolanaKeypair_lift(try rustCallWithError(FfiConverterTypeSolanaDeriveKeypairFromMnemonicError_lift) {
+    uniffi_yttrium_fn_func_solana_derive_keypair_from_mnemonic(
+        FfiConverterString.lower(mnemonic),
+        FfiConverterOptionString.lower(derivationPath),$0
+    )
+})
+}
+public func solanaGenerateKeypair() -> SolanaKeypair  {
+    return try!  FfiConverterTypeSolanaKeypair_lift(try! rustCall() {
+    uniffi_yttrium_fn_func_solana_generate_keypair($0
+    )
+})
+}
+public func solanaPhantomDerivationPathWithAccount(account: UInt32) -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+    uniffi_yttrium_fn_func_solana_phantom_derivation_path_with_account(
+        FfiConverterUInt32.lower(account),$0
+    )
+})
+}
+public func solanaPubkeyForKeypair(keypair: SolanaKeypair) -> SolanaPubkey  {
+    return try!  FfiConverterTypeSolanaPubkey_lift(try! rustCall() {
+    uniffi_yttrium_fn_func_solana_pubkey_for_keypair(
+        FfiConverterTypeSolanaKeypair_lower(keypair),$0
+    )
+})
+}
+public func solanaSignAllTransactions(keypair: SolanaKeypair, transactions: [VersionedTransaction])throws  -> [SolanaSignedTransaction]  {
+    return try  FfiConverterSequenceTypeSolanaSignedTransaction.lift(try rustCallWithError(FfiConverterTypeSolanaSignTransactionError_lift) {
+    uniffi_yttrium_fn_func_solana_sign_all_transactions(
+        FfiConverterTypeSolanaKeypair_lower(keypair),
+        FfiConverterSequenceTypeVersionedTransaction.lower(transactions),$0
+    )
+})
+}
+public func solanaSignMessage(keypair: SolanaKeypair, message: Bytes) -> SolanaSignature  {
+    return try!  FfiConverterTypeSolanaSignature_lift(try! rustCall() {
+    uniffi_yttrium_fn_func_solana_sign_message(
+        FfiConverterTypeSolanaKeypair_lower(keypair),
+        FfiConverterTypeBytes_lower(message),$0
+    )
+})
+}
+public func solanaSignPrehash(keypair: SolanaKeypair, message: Bytes) -> SolanaSignature  {
+    return try!  FfiConverterTypeSolanaSignature_lift(try! rustCall() {
+    uniffi_yttrium_fn_func_solana_sign_prehash(
+        FfiConverterTypeSolanaKeypair_lower(keypair),
+        FfiConverterTypeBytes_lower(message),$0
+    )
+})
+}
+public func solanaSignTransaction(keypair: SolanaKeypair, transaction: VersionedTransaction)throws  -> SolanaSignedTransaction  {
+    return try  FfiConverterTypeSolanaSignedTransaction_lift(try rustCallWithError(FfiConverterTypeSolanaSignTransactionError_lift) {
+    uniffi_yttrium_fn_func_solana_sign_transaction(
+        FfiConverterTypeSolanaKeypair_lower(keypair),
+        FfiConverterTypeVersionedTransaction_lower(transaction),$0
     )
 })
 }
@@ -11309,6 +11940,30 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_yttrium_checksum_func_funding_metadata_to_bridging_fee_amount() != 42676) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_func_solana_derive_keypair_from_mnemonic() != 742) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_func_solana_generate_keypair() != 33431) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_func_solana_phantom_derivation_path_with_account() != 59454) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_func_solana_pubkey_for_keypair() != 7693) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_func_solana_sign_all_transactions() != 52137) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_func_solana_sign_message() != 53520) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_func_solana_sign_prehash() != 43520) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yttrium_checksum_func_solana_sign_transaction() != 9420) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_yttrium_checksum_func_clear_signing_format() != 43780) {
