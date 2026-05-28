@@ -1,5 +1,5 @@
 {
-  "openapi": "3.0.3",
+  "openapi": "3.1.0",
   "info": {
     "title": "WalletConnect Pay API",
     "description": "API for the WalletConnect Pay service",
@@ -32,7 +32,10 @@
             "in": "header",
             "required": false,
             "schema": {
-              "type": "string"
+              "type": [
+                "string",
+                "null"
+              ]
             }
           },
           {
@@ -40,7 +43,10 @@
             "in": "header",
             "required": false,
             "schema": {
-              "type": "string"
+              "type": [
+                "string",
+                "null"
+              ]
             }
           },
           {
@@ -48,7 +54,10 @@
             "in": "header",
             "required": false,
             "schema": {
-              "type": "string"
+              "type": [
+                "string",
+                "null"
+              ]
             }
           },
           {
@@ -56,7 +65,10 @@
             "in": "header",
             "required": false,
             "schema": {
-              "type": "string"
+              "type": [
+                "string",
+                "null"
+              ]
             }
           },
           {
@@ -64,7 +76,10 @@
             "in": "header",
             "required": false,
             "schema": {
-              "type": "string"
+              "type": [
+                "string",
+                "null"
+              ]
             }
           },
           {
@@ -72,7 +87,10 @@
             "in": "header",
             "required": false,
             "schema": {
-              "type": "string"
+              "type": [
+                "string",
+                "null"
+              ]
             }
           },
           {
@@ -80,7 +98,10 @@
             "in": "header",
             "required": false,
             "schema": {
-              "type": "string"
+              "type": [
+                "string",
+                "null"
+              ]
             }
           },
           {
@@ -89,7 +110,7 @@
             "description": "Payment ID",
             "required": true,
             "schema": {
-              "type": "string"
+              "$ref": "#/components/schemas/PaymentId"
             }
           }
         ],
@@ -147,6 +168,153 @@
         }
       }
     },
+    "/v1/gateway/payment/{id}/cancel": {
+      "post": {
+        "tags": [
+          "Gateway"
+        ],
+        "operationId": "gatewayCancelPayment",
+        "parameters": [
+          {
+            "name": "Api-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "App-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "Client-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "WCP-Version",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "Sdk-Name",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "Sdk-Version",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "Sdk-Platform",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/PaymentId"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment cancelled successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayCancelPaymentResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Payment cannot be cancelled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Payment not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/gateway/payment/{id}/confirm": {
       "post": {
         "tags": [
@@ -161,7 +329,10 @@
             "in": "header",
             "required": false,
             "schema": {
-              "type": "string"
+              "type": [
+                "string",
+                "null"
+              ]
             }
           },
           {
@@ -169,7 +340,10 @@
             "in": "header",
             "required": false,
             "schema": {
-              "type": "string"
+              "type": [
+                "string",
+                "null"
+              ]
             }
           },
           {
@@ -177,7 +351,10 @@
             "in": "header",
             "required": false,
             "schema": {
-              "type": "string"
+              "type": [
+                "string",
+                "null"
+              ]
             }
           },
           {
@@ -185,7 +362,10 @@
             "in": "header",
             "required": false,
             "schema": {
-              "type": "string"
+              "type": [
+                "string",
+                "null"
+              ]
             }
           },
           {
@@ -193,7 +373,10 @@
             "in": "header",
             "required": false,
             "schema": {
-              "type": "string"
+              "type": [
+                "string",
+                "null"
+              ]
             }
           },
           {
@@ -201,7 +384,10 @@
             "in": "header",
             "required": false,
             "schema": {
-              "type": "string"
+              "type": [
+                "string",
+                "null"
+              ]
             }
           },
           {
@@ -209,7 +395,10 @@
             "in": "header",
             "required": false,
             "schema": {
-              "type": "string"
+              "type": [
+                "string",
+                "null"
+              ]
             }
           },
           {
@@ -218,7 +407,7 @@
             "description": "Payment ID",
             "required": true,
             "schema": {
-              "type": "string"
+              "$ref": "#/components/schemas/PaymentId"
             }
           },
           {
@@ -227,10 +416,12 @@
             "description": "Maximum time to long-poll for payment status, in milliseconds.",
             "required": false,
             "schema": {
-              "type": "integer",
+              "type": [
+                "integer",
+                "null"
+              ],
               "format": "int64",
-              "minimum": 0,
-              "nullable": true
+              "minimum": 0
             }
           }
         ],
@@ -312,7 +503,10 @@
             "in": "header",
             "required": false,
             "schema": {
-              "type": "string"
+              "type": [
+                "string",
+                "null"
+              ]
             }
           },
           {
@@ -320,7 +514,10 @@
             "in": "header",
             "required": false,
             "schema": {
-              "type": "string"
+              "type": [
+                "string",
+                "null"
+              ]
             }
           },
           {
@@ -328,7 +525,10 @@
             "in": "header",
             "required": false,
             "schema": {
-              "type": "string"
+              "type": [
+                "string",
+                "null"
+              ]
             }
           },
           {
@@ -336,7 +536,10 @@
             "in": "header",
             "required": false,
             "schema": {
-              "type": "string"
+              "type": [
+                "string",
+                "null"
+              ]
             }
           },
           {
@@ -344,7 +547,10 @@
             "in": "header",
             "required": false,
             "schema": {
-              "type": "string"
+              "type": [
+                "string",
+                "null"
+              ]
             }
           },
           {
@@ -352,7 +558,10 @@
             "in": "header",
             "required": false,
             "schema": {
-              "type": "string"
+              "type": [
+                "string",
+                "null"
+              ]
             }
           },
           {
@@ -360,7 +569,10 @@
             "in": "header",
             "required": false,
             "schema": {
-              "type": "string"
+              "type": [
+                "string",
+                "null"
+              ]
             }
           },
           {
@@ -369,7 +581,7 @@
             "description": "Payment ID",
             "required": true,
             "schema": {
-              "type": "string"
+              "$ref": "#/components/schemas/PaymentId"
             }
           }
         ],
@@ -451,7 +663,10 @@
             "in": "header",
             "required": false,
             "schema": {
-              "type": "string"
+              "type": [
+                "string",
+                "null"
+              ]
             }
           },
           {
@@ -459,7 +674,10 @@
             "in": "header",
             "required": false,
             "schema": {
-              "type": "string"
+              "type": [
+                "string",
+                "null"
+              ]
             }
           },
           {
@@ -467,7 +685,10 @@
             "in": "header",
             "required": false,
             "schema": {
-              "type": "string"
+              "type": [
+                "string",
+                "null"
+              ]
             }
           },
           {
@@ -475,7 +696,10 @@
             "in": "header",
             "required": false,
             "schema": {
-              "type": "string"
+              "type": [
+                "string",
+                "null"
+              ]
             }
           },
           {
@@ -483,7 +707,10 @@
             "in": "header",
             "required": false,
             "schema": {
-              "type": "string"
+              "type": [
+                "string",
+                "null"
+              ]
             }
           },
           {
@@ -491,7 +718,10 @@
             "in": "header",
             "required": false,
             "schema": {
-              "type": "string"
+              "type": [
+                "string",
+                "null"
+              ]
             }
           },
           {
@@ -499,7 +729,10 @@
             "in": "header",
             "required": false,
             "schema": {
-              "type": "string"
+              "type": [
+                "string",
+                "null"
+              ]
             }
           },
           {
@@ -508,7 +741,7 @@
             "description": "Payment ID",
             "required": true,
             "schema": {
-              "type": "string"
+              "$ref": "#/components/schemas/PaymentId"
             }
           },
           {
@@ -517,8 +750,10 @@
             "description": "Whether to include payment information in the response",
             "required": false,
             "schema": {
-              "type": "boolean",
-              "nullable": true
+              "type": [
+                "boolean",
+                "null"
+              ]
             }
           }
         ],
@@ -600,7 +835,10 @@
             "in": "header",
             "required": false,
             "schema": {
-              "type": "string"
+              "type": [
+                "string",
+                "null"
+              ]
             }
           },
           {
@@ -608,7 +846,10 @@
             "in": "header",
             "required": false,
             "schema": {
-              "type": "string"
+              "type": [
+                "string",
+                "null"
+              ]
             }
           },
           {
@@ -616,7 +857,10 @@
             "in": "header",
             "required": false,
             "schema": {
-              "type": "string"
+              "type": [
+                "string",
+                "null"
+              ]
             }
           },
           {
@@ -624,7 +868,10 @@
             "in": "header",
             "required": false,
             "schema": {
-              "type": "string"
+              "type": [
+                "string",
+                "null"
+              ]
             }
           },
           {
@@ -632,7 +879,10 @@
             "in": "header",
             "required": false,
             "schema": {
-              "type": "string"
+              "type": [
+                "string",
+                "null"
+              ]
             }
           },
           {
@@ -640,7 +890,10 @@
             "in": "header",
             "required": false,
             "schema": {
-              "type": "string"
+              "type": [
+                "string",
+                "null"
+              ]
             }
           },
           {
@@ -648,7 +901,10 @@
             "in": "header",
             "required": false,
             "schema": {
-              "type": "string"
+              "type": [
+                "string",
+                "null"
+              ]
             }
           },
           {
@@ -657,7 +913,7 @@
             "description": "Payment ID",
             "required": true,
             "schema": {
-              "type": "string"
+              "$ref": "#/components/schemas/PaymentId"
             }
           },
           {
@@ -666,10 +922,12 @@
             "description": "Maximum time to long-poll for payment status, in milliseconds.",
             "required": false,
             "schema": {
-              "type": "integer",
+              "type": [
+                "integer",
+                "null"
+              ],
               "format": "int64",
-              "minimum": 0,
-              "nullable": true
+              "minimum": 0
             }
           }
         ],
@@ -757,7 +1015,10 @@
             "in": "header",
             "required": false,
             "schema": {
-              "type": "string"
+              "type": [
+                "string",
+                "null"
+              ]
             }
           },
           {
@@ -765,7 +1026,10 @@
             "in": "header",
             "required": false,
             "schema": {
-              "type": "string"
+              "type": [
+                "string",
+                "null"
+              ]
             }
           },
           {
@@ -773,7 +1037,10 @@
             "in": "header",
             "required": false,
             "schema": {
-              "type": "string"
+              "type": [
+                "string",
+                "null"
+              ]
             }
           },
           {
@@ -781,7 +1048,10 @@
             "in": "header",
             "required": false,
             "schema": {
-              "type": "string"
+              "type": [
+                "string",
+                "null"
+              ]
             }
           },
           {
@@ -789,7 +1059,10 @@
             "in": "header",
             "required": false,
             "schema": {
-              "type": "string"
+              "type": [
+                "string",
+                "null"
+              ]
             }
           }
         ],
@@ -847,6 +1120,291 @@
         }
       }
     },
+    "/v1/payments/{id}": {
+      "get": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Get payment details",
+        "description": "Retrieves the full details of a payment by its ID, including settlement\ninformation when available.",
+        "operationId": "paymentsGetPayment",
+        "parameters": [
+          {
+            "name": "Api-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Merchant-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "WCP-Version",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "Sdk-Name",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "Sdk-Version",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "Sdk-Platform",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Payment ID",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/PaymentId"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment details retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentsGetPaymentResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Payment not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/payments/{id}/cancel": {
+      "post": {
+        "tags": [
+          "Payments"
+        ],
+        "operationId": "paymentsCancelPayment",
+        "parameters": [
+          {
+            "name": "Api-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Merchant-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "WCP-Version",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "Sdk-Name",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "Sdk-Version",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "Sdk-Platform",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/PaymentId"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment cancelled successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentsCancelPaymentResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Payment cannot be cancelled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Payment not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/payments/{id}/status": {
       "get": {
         "tags": [
@@ -877,7 +1435,10 @@
             "in": "header",
             "required": false,
             "schema": {
-              "type": "string"
+              "type": [
+                "string",
+                "null"
+              ]
             }
           },
           {
@@ -885,7 +1446,10 @@
             "in": "header",
             "required": false,
             "schema": {
-              "type": "string"
+              "type": [
+                "string",
+                "null"
+              ]
             }
           },
           {
@@ -893,7 +1457,10 @@
             "in": "header",
             "required": false,
             "schema": {
-              "type": "string"
+              "type": [
+                "string",
+                "null"
+              ]
             }
           },
           {
@@ -901,7 +1468,10 @@
             "in": "header",
             "required": false,
             "schema": {
-              "type": "string"
+              "type": [
+                "string",
+                "null"
+              ]
             }
           },
           {
@@ -909,7 +1479,10 @@
             "in": "header",
             "required": false,
             "schema": {
-              "type": "string"
+              "type": [
+                "string",
+                "null"
+              ]
             }
           },
           {
@@ -918,7 +1491,7 @@
             "description": "Payment ID",
             "required": true,
             "schema": {
-              "type": "string"
+              "$ref": "#/components/schemas/PaymentId"
             }
           },
           {
@@ -927,10 +1500,12 @@
             "description": "Maximum time to long-poll for payment status, in milliseconds.",
             "required": false,
             "schema": {
-              "type": "integer",
+              "type": [
+                "integer",
+                "null"
+              ],
               "format": "int64",
-              "minimum": 0,
-              "nullable": true
+              "minimum": 0
             }
           }
         ],
@@ -1060,7 +1635,8 @@
           },
           "unit": {
             "type": "string",
-            "description": "Currency unit, prefixed with either \"iso4217/\" or \"caip19/\""
+            "description": "Currency unit, prefixed with either \"iso4217/\" or \"caip19/\"",
+            "example": "iso4217/USD"
           },
           "value": {
             "type": "string",
@@ -1103,19 +1679,25 @@
             "minimum": 0
           },
           "iconUrl": {
-            "type": "string",
-            "description": "URL of the icon of the asset (if token)",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "URL of the icon of the asset (if token)"
           },
           "networkIconUrl": {
-            "type": "string",
-            "description": "URL of the icon of the network (if token)",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "URL of the icon of the network (if token)"
           },
           "networkName": {
-            "type": "string",
-            "description": "Name of the network of the asset (if token)",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Name of the network of the asset (if token)"
           }
         },
         "example": {
@@ -1136,7 +1718,8 @@
         "properties": {
           "unit": {
             "type": "string",
-            "description": "Currency unit, prefixed with either \"iso4217/\" or \"caip19/\""
+            "description": "Currency unit, prefixed with either \"iso4217/\" or \"caip19/\"",
+            "example": "iso4217/USD"
           },
           "value": {
             "type": "string",
@@ -1174,9 +1757,11 @@
             "description": "Account CAIP-10"
           },
           "accountProviderIcon": {
-            "type": "string",
-            "description": "Account provider icon URL",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Account provider icon URL"
           },
           "accountProviderName": {
             "type": "string",
@@ -1189,10 +1774,33 @@
           "accountProviderName": "Wallet"
         }
       },
+      "CheckoutConfig": {
+        "type": "object",
+        "required": [
+          "successUrl",
+          "errorUrl"
+        ],
+        "properties": {
+          "errorUrl": {
+            "type": "string",
+            "description": "HTTPS URL to redirect to on payment error"
+          },
+          "successUrl": {
+            "type": "string",
+            "description": "HTTPS URL to redirect to on successful payment"
+          }
+        },
+        "example": {
+          "errorUrl": "https://example.com/error",
+          "successUrl": "https://example.com/success"
+        }
+      },
       "CollectData": {
         "type": "object",
         "required": [
-          "fields"
+          "fields",
+          "schema",
+          "url"
         ],
         "properties": {
           "fields": {
@@ -1204,12 +1812,10 @@
             "deprecated": true
           },
           "schema": {
-            "description": "JSON Schema for validating IC form data (for webview mode)",
-            "nullable": true
+            "description": "JSON Schema for validating IC form data (for webview mode)"
           },
           "url": {
             "type": "string",
-            "nullable": true,
             "description": "URL for webview-based data collection"
           }
         },
@@ -1405,8 +2011,14 @@
         ],
         "properties": {
           "collectedData": {
-            "$ref": "#/components/schemas/CollectDataResult",
-            "nullable": true
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/CollectDataResult"
+              }
+            ]
           },
           "optionId": {
             "type": "string",
@@ -1464,20 +2076,28 @@
         ],
         "properties": {
           "info": {
-            "$ref": "#/components/schemas/GatewayPaymentInformation",
-            "nullable": true,
-            "description": "Payment information (transaction hash). Present when status is\nSucceeded, null otherwise."
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/GatewayPaymentInformation",
+                "description": "Payment information (transaction hash). Present when status is\nSucceeded, null otherwise."
+              }
+            ]
           },
           "isFinal": {
             "type": "boolean",
             "description": "True if the payment is in a final state and no longer requires polling"
           },
           "pollInMs": {
-            "type": "integer",
+            "type": [
+              "integer",
+              "null"
+            ],
             "format": "int64",
             "description": "Time to poll for payment status, in milliseconds. Not present if the\npayment is in a final state.",
-            "minimum": 0,
-            "nullable": true
+            "minimum": 0
           },
           "status": {
             "$ref": "#/components/schemas/PaymentStatus",
@@ -1528,15 +2148,30 @@
         ],
         "properties": {
           "amount": {
-            "$ref": "#/components/schemas/AmountParameter"
+            "$ref": "#/components/schemas/AmountParameter",
+            "description": "Amount to be paid"
+          },
+          "checkout": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/CheckoutConfig"
+              }
+            ]
           },
           "expiresAt": {
-            "type": "integer",
+            "type": [
+              "integer",
+              "null"
+            ],
             "format": "int64",
-            "nullable": true
+            "description": "Optional custom expiration timestamp (Unix seconds since epoch).\nMust be in the future if provided. If not provided, defaults to 5 minutes from now."
           },
           "referenceId": {
-            "type": "string"
+            "type": "string",
+            "description": "Merchant/PSP order ID"
           }
         },
         "example": {
@@ -1544,6 +2179,7 @@
             "unit": "iso4217/USD",
             "value": "100"
           },
+          "checkout": null,
           "expiresAt": null,
           "referenceId": "ORDER-123"
         }
@@ -1577,11 +2213,13 @@
             "description": "Payment ID"
           },
           "pollInMs": {
-            "type": "integer",
+            "type": [
+              "integer",
+              "null"
+            ],
             "format": "int64",
             "description": "Time to poll for payment status, in milliseconds. Not present if the\npayment is in a final state.",
-            "minimum": 0,
-            "nullable": true
+            "minimum": 0
           },
           "status": {
             "$ref": "#/components/schemas/PaymentStatus",
@@ -1592,7 +2230,7 @@
           "expiresAt": 1718236800,
           "gatewayUrl": "https://api.pay.walletconnect.com/pay_123",
           "isFinal": false,
-          "paymentId": "pay_19a2ecc101KJZRBV11SR1Y3BKYRJKM62DR",
+          "paymentId": "pay_baa2ecc101KSNGQ14EPWHE2WT5YM9K9H6Z",
           "pollInMs": 1000,
           "status": "requires_action"
         }
@@ -1622,7 +2260,9 @@
           "merchant_exists",
           "api_key_not_found",
           "partner_not_found",
+          "customer_not_found",
           "wallet_not_found",
+          "executor_not_found",
           "missing_app_id",
           "missing_client_id",
           "invalid_app_id",
@@ -1631,7 +2271,9 @@
           "invalid_api_version",
           "unknown_api_version",
           "api_version_downgrade",
-          "sanctioned_user"
+          "sanctioned_user",
+          "payment_not_succeeded",
+          "already_refunded"
         ]
       },
       "ErrorResponse": {
@@ -1659,7 +2301,7 @@
         "properties": {
           "data": {
             "type": "string",
-            "description": "Extra data to be passed"
+            "description": "Extra build payload"
           },
           "optionId": {
             "type": "string",
@@ -1700,6 +2342,35 @@
           ]
         }
       },
+      "GatewayCancelPaymentResponse": {
+        "type": "object",
+        "required": [
+          "paymentId",
+          "status",
+          "cancelledReason",
+          "cancelledAt"
+        ],
+        "properties": {
+          "cancelledAt": {
+            "type": "string"
+          },
+          "cancelledReason": {
+            "type": "string"
+          },
+          "paymentId": {
+            "$ref": "#/components/schemas/PaymentId"
+          },
+          "status": {
+            "$ref": "#/components/schemas/PaymentStatus"
+          }
+        },
+        "example": {
+          "cancelledAt": "2025-01-14T10:30:00Z",
+          "cancelledReason": "cancelled_by_user",
+          "paymentId": "pay_6fa2ecc101KSNGQ14FSVZ7FKEBBV8N5PHM",
+          "status": "cancelled"
+        }
+      },
       "GatewayPaymentInformation": {
         "type": "object",
         "description": "Payment information returned when a gateway payment succeeds.",
@@ -1731,11 +2402,13 @@
             }
           },
           "refresh": {
-            "type": "array",
+            "type": [
+              "array",
+              "null"
+            ],
             "items": {
               "type": "string"
-            },
-            "nullable": true
+            }
           }
         },
         "example": {
@@ -1749,15 +2422,30 @@
         "type": "object",
         "properties": {
           "collectData": {
-            "$ref": "#/components/schemas/CollectData",
-            "nullable": true
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/CollectData"
+              }
+            ]
           },
           "info": {
-            "$ref": "#/components/schemas/GetPaymentResponse",
-            "nullable": true
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/GetPaymentResponse"
+              }
+            ]
           },
           "options": {
-            "type": "array",
+            "type": [
+              "array",
+              "null"
+            ],
             "items": {
               "$ref": "#/components/schemas/PaymentOption"
             }
@@ -1992,10 +2680,7 @@
               "id": "opt_123"
             }
           ]
-        },
-        "required": [
-          "options"
-        ]
+        }
       },
       "GetPaymentResponse": {
         "type": "object",
@@ -2010,8 +2695,14 @@
             "$ref": "#/components/schemas/Amount"
           },
           "buyer": {
-            "$ref": "#/components/schemas/BuyerInfo",
-            "nullable": true
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/BuyerInfo"
+              }
+            ]
           },
           "expiresAt": {
             "type": "integer",
@@ -2058,21 +2749,40 @@
           "isFinal"
         ],
         "properties": {
+          "failureCode": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PaymentFailureCode",
+                "description": "Machine-readable reason identifying why the payment failed. Present\nonly when `status == \"failed\"`."
+              }
+            ]
+          },
           "info": {
-            "$ref": "#/components/schemas/PaymentInformation",
-            "nullable": true,
-            "description": "Payment information (transaction hash, amount). Present when status is\nSucceeded, null otherwise."
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PaymentInformation",
+                "description": "Payment information (transaction hash, amount). Present when status is\nSucceeded, null otherwise."
+              }
+            ]
           },
           "isFinal": {
             "type": "boolean",
             "description": "True if the payment is in a final state and no longer requires polling"
           },
           "pollInMs": {
-            "type": "integer",
+            "type": [
+              "integer",
+              "null"
+            ],
             "format": "int64",
             "description": "Time to poll for payment status, in milliseconds. Not present if the\npayment is in a final state.",
-            "minimum": 0,
-            "nullable": true
+            "minimum": 0
           },
           "status": {
             "$ref": "#/components/schemas/PaymentStatus",
@@ -2080,10 +2790,24 @@
           }
         },
         "example": {
-          "info": null,
-          "isFinal": false,
-          "pollInMs": 1000,
-          "status": "requires_action"
+          "info": {
+            "optionAmount": {
+              "display": {
+                "assetName": "USD Coin",
+                "assetSymbol": "USDC",
+                "decimals": 6,
+                "iconUrl": "https://assets.walletconnect.com/usdc.png",
+                "networkIconUrl": "https://assets.walletconnect.com/base.png",
+                "networkName": "Base"
+              },
+              "unit": "caip19/eip155:8453/erc20:0x0000000000000000000000000000000000000000",
+              "value": "1000000"
+            },
+            "txId": "0xabc123..."
+          },
+          "isFinal": true,
+          "pollInMs": null,
+          "status": "succeeded"
         }
       },
       "MerchantInfo": {
@@ -2093,9 +2817,11 @@
         ],
         "properties": {
           "iconUrl": {
-            "type": "string",
-            "description": "Merchant icon URL",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Merchant icon URL"
           },
           "name": {
             "type": "string",
@@ -2107,10 +2833,22 @@
           "name": "Merchant"
         }
       },
+      "PaymentFailureCode": {
+        "type": "string",
+        "description": "Machine-readable code identifying why a payment reached `Failed`.\n\nTwo distinct string forms exist per variant:\n- **Strum** (`Display`/`AsRefStr`/`EnumString`): the DynamoDB storage form\n  written to the `failure_reason` column. Preserves the existing on-disk\n  value for rows written before this type existed.\n- **Serde** (`Serialize`/`Deserialize`): the public API form. Deliberately\n  decoupled from the internal term so that compliance-specific wording\n  isn't surfaced to external consumers.",
+        "enum": [
+          "declined_user",
+          "internal_error",
+          "authorization_expired",
+          "broadcast_failed"
+        ]
+      },
       "PaymentId": {
         "type": "string",
         "description": "Payment ID",
-        "example": "pay_7fa2ecc101ARZ3NDEKTSV4RRFFQ69G5FAV"
+        "examples": [
+          "pay_7fa2ecc101ARZ3NDEKTSV4RRFFQ69G5FAV"
+        ]
       },
       "PaymentInformation": {
         "type": "object",
@@ -2171,9 +2909,15 @@
             "description": "The option's token and amount"
           },
           "collectData": {
-            "$ref": "#/components/schemas/CollectData",
-            "nullable": true,
-            "description": "Per-option IC data collection info. Present when this option's account requires data collection, null otherwise."
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/CollectData",
+                "description": "Per-option IC data collection info. Present when this option's account requires data collection, null otherwise."
+              }
+            ]
           },
           "etaS": {
             "type": "integer",
@@ -2182,11 +2926,13 @@
             "minimum": 0
           },
           "expiresAt": {
-            "type": "integer",
+            "type": [
+              "integer",
+              "null"
+            ],
             "format": "int64",
             "description": "Unix timestamp (seconds) after which this quote is stale and confirm_payment\nwill reject it with `quote_expired`. The wallet should re-fetch options before\nthis deadline. `None` for direct-currency options that don't involve a rate.",
-            "minimum": 0,
-            "nullable": true
+            "minimum": 0
           },
           "id": {
             "type": "string",
@@ -2321,6 +3067,168 @@
           "expired",
           "cancelled"
         ]
+      },
+      "PaymentsCancelPaymentResponse": {
+        "type": "object",
+        "required": [
+          "paymentId",
+          "status",
+          "cancelledReason",
+          "cancelledAt"
+        ],
+        "properties": {
+          "cancelledAt": {
+            "type": "string"
+          },
+          "cancelledReason": {
+            "type": "string"
+          },
+          "paymentId": {
+            "$ref": "#/components/schemas/PaymentId"
+          },
+          "status": {
+            "$ref": "#/components/schemas/PaymentStatus"
+          }
+        },
+        "example": {
+          "cancelledAt": "2025-01-14T10:30:00Z",
+          "cancelledReason": "cancelled_by_merchant",
+          "paymentId": "pay_52a2ecc101KSNGQ14EAKZ6Z8T4J7T7XKEV",
+          "status": "cancelled"
+        }
+      },
+      "PaymentsGetPaymentResponse": {
+        "type": "object",
+        "required": [
+          "status",
+          "referenceId"
+        ],
+        "properties": {
+          "failureCode": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PaymentFailureCode",
+                "description": "Machine-readable reason identifying why the payment failed. Present\nonly when `status == \"failed\"`."
+              }
+            ]
+          },
+          "info": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PaymentInformation",
+                "description": "Payment information (transaction hash, amount). Present when status is\nSucceeded, null otherwise."
+              }
+            ]
+          },
+          "referenceId": {
+            "type": "string",
+            "description": "Merchant-provided reference ID for this payment, as supplied during\npayment creation"
+          },
+          "settlement": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PaymentsSettlementInformation",
+                "description": "Settlement metadata for the MTA → destination transfer. Null when\nsettlement has not completed yet (pending, non-MTA flows, or\npre-confirmation)."
+              }
+            ]
+          },
+          "status": {
+            "$ref": "#/components/schemas/PaymentStatus",
+            "description": "Payment status"
+          }
+        },
+        "example": {
+          "info": {
+            "optionAmount": {
+              "display": {
+                "assetName": "USD Coin",
+                "assetSymbol": "USDC",
+                "decimals": 6,
+                "iconUrl": "https://assets.walletconnect.com/usdc.png",
+                "networkIconUrl": "https://assets.walletconnect.com/base.png",
+                "networkName": "Base"
+              },
+              "unit": "caip19/eip155:8453/erc20:0x0000000000000000000000000000000000000000",
+              "value": "1000000"
+            },
+            "txId": "0xabc123..."
+          },
+          "referenceId": "ORDER-123",
+          "settlement": null,
+          "status": "succeeded"
+        }
+      },
+      "PaymentsSettlementAmount": {
+        "type": "object",
+        "description": "Amount information for a successful settlement transfer.",
+        "required": [
+          "unit"
+        ],
+        "properties": {
+          "unit": {
+            "type": "string",
+            "description": "Settlement unit — the asset or currency used in the settlement\ntransfer. Uses the same unit format as payment amounts\n(e.g. \"caip19/eip155:1/erc20:0xA0b86...\" for crypto,\n\"iso4217/USD\" for fiat).",
+            "example": "iso4217/USD"
+          }
+        }
+      },
+      "PaymentsSettlementInformation": {
+        "type": "object",
+        "description": "Settlement metadata returned for MTA-based payments.\n\nOnly present once the settlement transfer has completed on-chain.",
+        "properties": {
+          "successful": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PaymentsSettlementSuccessful",
+                "description": "Settlement success details. Null while settlement is pending,\npopulated once the on-chain transfer completes successfully."
+              }
+            ]
+          }
+        },
+        "example": {
+          "successful": {
+            "amount": {
+              "unit": "caip19/eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"
+            },
+            "txId": "0xabc123def456789abc123def456789abc123def456789abc123def456789abc1"
+          }
+        }
+      },
+      "PaymentsSettlementSuccessful": {
+        "type": "object",
+        "description": "Details of a successful settlement transfer.",
+        "required": [
+          "txId",
+          "amount"
+        ],
+        "properties": {
+          "amount": {
+            "$ref": "#/components/schemas/PaymentsSettlementAmount",
+            "description": "Settlement amount — the asset/currency and value transferred."
+          },
+          "txId": {
+            "type": "string",
+            "description": "Transaction hash of the MTA → settlement destination transfer."
+          }
+        },
+        "example": {
+          "amount": {
+            "unit": "caip19/eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"
+          },
+          "txId": "0xabc123def456789abc123def456789abc123def456789abc123def456789abc1"
+        }
       },
       "WalletRpcAction": {
         "type": "object",
