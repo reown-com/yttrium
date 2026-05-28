@@ -127,7 +127,7 @@ jobs:
           fi
 
           echo "::warning::pod trunk push exited ${PUSH_EXIT} — checking whether ${POD_NAME} ${POD_VERSION} landed on trunk anyway"
-          TRUNK_JSON=$(curl -sf --retry 3 --retry-delay 2 \
+          TRUNK_JSON=$(curl -sf --max-time 30 --retry 3 --retry-delay 2 \
             "https://trunk.cocoapods.org/api/v1/pods/${POD_NAME}") || {
               echo "::error::pod trunk push failed (exit ${PUSH_EXIT}) and trunk API unreachable"
               exit $PUSH_EXIT
