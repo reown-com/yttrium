@@ -50,7 +50,7 @@ jobs:
           cargo ndk -t ${{ matrix.target }} build \
             --profile=uniffi-release-kotlin-wcpay \
             --no-default-features \
-            --features=android,pay,uniffi/cli \
+            --features=android,yttrium/android-full,pay,uniffi/cli \
             -p kotlin-ffi
       - name: Generate Kotlin wcpay bindings (once, on aarch64 only)
         if: ${{ matrix.target == 'aarch64-linux-android' }}
@@ -58,7 +58,7 @@ jobs:
           rm -rf yttrium/kotlin-wcpay-bindings
           cargo run \
             --no-default-features \
-            --features=android,pay,uniffi/cli \
+            --features=android,yttrium/android-full,pay,uniffi/cli \
             -p kotlin-ffi \
             --bin uniffi-bindgen generate \
             --library target/${{ matrix.target }}/uniffi-release-kotlin-wcpay/libuniffi_yttrium.so \
