@@ -783,7 +783,7 @@ pub struct PaymentOptionsResponse {
 
 // ==================== Client ====================
 
-use {parking_lot::RwLock, std::sync::OnceLock, url::Url};
+use {std::sync::OnceLock, url::Url};
 
 /// Applies common SDK config headers to any progenitor-generated request builder.
 /// Auth header logic:
@@ -807,18 +807,11 @@ macro_rules! with_sdk_config {
     }};
 }
 
-#[derive(Debug, Clone)]
-struct CachedPaymentOption {
-    option_id: String,
-    actions: Vec<types::Action>,
-}
-
 #[cfg_attr(feature = "uniffi", derive(uniffi::Object))]
 pub struct WalletConnectPay {
     /// Lazily initialized API client (requires Tokio runtime)
     client: OnceLock<Client>,
     config: SdkConfig,
-    cached_options: RwLock<Vec<CachedPaymentOption>>,
     /// Lazily initialized HTTP client for error reporting (requires Tokio runtime)
     error_http_client: OnceLock<reqwest::Client>,
     /// Tracks if SdkInitialized event was sent (done on first API call, not constructor)
@@ -921,7 +914,6 @@ impl WalletConnectPay {
         Ok(Self {
             client: OnceLock::new(),
             config,
-            cached_options: RwLock::new(Vec::new()),
             error_http_client: OnceLock::new(),
             initialized_event_sent: OnceLock::new(),
             client_id,
@@ -929,7 +921,6 @@ impl WalletConnectPay {
     }
 
     /// Get payment options for given accounts
-    /// Also caches the options for use by get_actions
     pub async fn get_payment_options(
         &self,
         payment_link: String,
@@ -985,17 +976,6 @@ impl WalletConnectPay {
         let options = api_response.options.unwrap_or_default();
         pay_debug!("get_payment_options: success, {} options", options.len());
 
-        // Cache the options with their raw actions
-        let cached: Vec<CachedPaymentOption> = options
-            .iter()
-            .map(|o| CachedPaymentOption {
-                option_id: o.id.clone(),
-                actions: o.actions.clone(),
-            })
-            .collect();
-        let mut cache = self.cached_options.write();
-        *cache = cached;
-
         self.send_trace(
             observability::TraceEvent::PaymentOptionsReceived,
             &payment_id,
@@ -1009,8 +989,8 @@ impl WalletConnectPay {
     }
 
     /// Get required payment actions for a selected option
-    /// Returns cached actions if available, otherwise calls fetch to get them
-    /// Build action types are automatically resolved by calling the fetch endpoint
+    /// Always calls the fetch endpoint to claim the option server-side and
+    /// resolve any Build placeholders into concrete WalletRpc actions.
     pub async fn get_required_payment_actions(
         &self,
         payment_id: String,
@@ -1027,52 +1007,19 @@ impl WalletConnectPay {
             &payment_id,
         );
 
-        let raw_actions = {
-            let cache = self.cached_options.read();
-            cache
-                .iter()
-                .find(|o| o.option_id == option_id)
-                .map(|o| o.actions.clone())
-        };
-        let raw_actions = match raw_actions {
-            Some(actions) if !actions.is_empty() => {
-                pay_debug!(
-                    "get_required_payment_actions: using cached actions"
+        let raw_actions = self
+            .fetch(&payment_id, &option_id, String::new())
+            .await
+            .map_err(|e| {
+                pay_error!("get_required_payment_actions fetch: {:?}", e);
+                let err = map_pay_error_to_request_error(e);
+                self.report_error(&err, &payment_id);
+                self.send_trace(
+                    observability::TraceEvent::RequiredActionsFailed,
+                    &payment_id,
                 );
-                actions
-            }
-            _ => {
-                pay_debug!("get_required_payment_actions: fetching actions");
-                let fetched = self
-                    .fetch(&payment_id, &option_id, String::new())
-                    .await
-                    .map_err(|e| {
-                        pay_error!(
-                            "get_required_payment_actions fetch: {:?}",
-                            e
-                        );
-                        let err = map_pay_error_to_request_error(e);
-                        self.report_error(&err, &payment_id);
-                        self.send_trace(
-                            observability::TraceEvent::RequiredActionsFailed,
-                            &payment_id,
-                        );
-                        err
-                    })?;
-                let mut cache = self.cached_options.write();
-                if let Some(cached) =
-                    cache.iter_mut().find(|o| o.option_id == option_id)
-                {
-                    cached.actions = fetched.clone();
-                } else {
-                    cache.push(CachedPaymentOption {
-                        option_id: option_id.clone(),
-                        actions: fetched.clone(),
-                    });
-                }
-                fetched
-            }
-        };
+                err
+            })?;
         let result =
             self.resolve_actions(&payment_id, &option_id, raw_actions).await;
         match &result {
@@ -2126,10 +2073,29 @@ mod tests {
             ]
         });
 
+        let fetch_response = serde_json::json!({
+            "actions": [{
+                "type": "walletRpc",
+                "data": {
+                    "chain_id": "eip155:8453",
+                    "method": "eth_signTypedData_v4",
+                    "params": ["0xabc", "{\"typed\":\"data\"}"]
+                }
+            }]
+        });
+
         Mock::given(method("POST"))
             .and(path("/v1/gateway/payment/pay_123/options"))
             .respond_with(
                 ResponseTemplate::new(200).set_body_json(&mock_response),
+            )
+            .mount(&mock_server)
+            .await;
+
+        Mock::given(method("POST"))
+            .and(path("/v1/gateway/payment/pay_123/fetch"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(&fetch_response),
             )
             .mount(&mock_server)
             .await;

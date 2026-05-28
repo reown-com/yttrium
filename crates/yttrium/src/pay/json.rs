@@ -516,10 +516,29 @@ mod tests {
             }]
         });
 
+        let fetch_response = serde_json::json!({
+            "actions": [{
+                "type": "walletRpc",
+                "data": {
+                    "chain_id": "eip155:1",
+                    "method": "eth_signTypedData_v4",
+                    "params": ["0xwallet", {"types": {}}]
+                }
+            }]
+        });
+
         Mock::given(method("POST"))
             .and(path("/v1/gateway/payment/pay_json_456/options"))
             .respond_with(
                 ResponseTemplate::new(200).set_body_json(&mock_response),
+            )
+            .mount(&mock_server)
+            .await;
+
+        Mock::given(method("POST"))
+            .and(path("/v1/gateway/payment/pay_json_456/fetch"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(&fetch_response),
             )
             .mount(&mock_server)
             .await;
