@@ -122,6 +122,37 @@ jobs:
       - name: Publish Utils CocoaPods
         env:
           COCOAPODS_TRUNK_TOKEN: ${{ secrets.COCOAPODS_TRUNK_TOKEN }}
+          POD_NAME: YttriumUtilsWrapper
+          POD_VERSION: ${{ steps.version.outputs.version }}
         run: |
-          pod trunk push YttriumUtilsWrapper.podspec --allow-warnings
+          # pod trunk push is "publish, then verify the LICENSE URL via GitHub
+          # API". When that post-publish verification times out the spec has
+          # already been accepted but the command exits non-zero, and any
+          # retry fails with "duplicate entry". Detect that case and treat it
+          # as success.
+          set +e
+          pod trunk push "${POD_NAME}.podspec" --allow-warnings
+          PUSH_EXIT=$?
+          set -e
+
+          if [ $PUSH_EXIT -eq 0 ]; then
+            exit 0
+          fi
+
+          echo "::warning::pod trunk push exited ${PUSH_EXIT} — checking whether ${POD_NAME} ${POD_VERSION} landed on trunk anyway"
+          TRUNK_JSON=$(curl -sf --max-time 30 --retry 3 --retry-delay 2 \
+            "https://trunk.cocoapods.org/api/v1/pods/${POD_NAME}") || {
+              echo "::error::pod trunk push failed (exit ${PUSH_EXIT}) and trunk API unreachable"
+              exit $PUSH_EXIT
+            }
+
+          if echo "$TRUNK_JSON" | jq -e --arg v "$POD_VERSION" \
+               '.versions | map(.name) | index($v)' >/dev/null; then
+            echo "::notice::${POD_NAME} ${POD_VERSION} is on trunk; treating post-publish verification failure as success"
+            echo "✅ ${POD_NAME} ${POD_VERSION} published (recovered from post-publish verification timeout)" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          echo "::error::pod trunk push failed (exit ${PUSH_EXIT}) and ${POD_VERSION} is not on trunk"
+          exit $PUSH_EXIT
 
