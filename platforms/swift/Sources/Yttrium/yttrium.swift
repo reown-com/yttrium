@@ -2327,6 +2327,8 @@ public enum ConfirmPaymentError: Swift.Error, Equatable, Hashable, Foundation.Lo
     )
     case InvalidSignature(String
     )
+    case ComplianceFailed(String
+    )
     case RouteExpired(String
     )
     case QuoteExpired(String
@@ -2388,34 +2390,37 @@ public struct FfiConverterTypeConfirmPaymentError: FfiConverterRustBuffer {
         case 4: return .InvalidSignature(
             try FfiConverterString.read(from: &buf)
             )
-        case 5: return .RouteExpired(
+        case 5: return .ComplianceFailed(
             try FfiConverterString.read(from: &buf)
             )
-        case 6: return .QuoteExpired(
+        case 6: return .RouteExpired(
             try FfiConverterString.read(from: &buf)
             )
-        case 7: return .NoConnection(
+        case 7: return .QuoteExpired(
             try FfiConverterString.read(from: &buf)
             )
-        case 8: return .RequestTimeout(
+        case 8: return .NoConnection(
             try FfiConverterString.read(from: &buf)
             )
-        case 9: return .ConnectionFailed(
+        case 9: return .RequestTimeout(
             try FfiConverterString.read(from: &buf)
             )
-        case 10: return .RateLimited(
+        case 10: return .ConnectionFailed(
             try FfiConverterString.read(from: &buf)
             )
-        case 11: return .Http(
+        case 11: return .RateLimited(
             try FfiConverterString.read(from: &buf)
             )
-        case 12: return .InternalError(
+        case 12: return .Http(
             try FfiConverterString.read(from: &buf)
             )
-        case 13: return .UnsupportedMethod(
+        case 13: return .InternalError(
             try FfiConverterString.read(from: &buf)
             )
-        case 14: return .PollingTimeout(
+        case 14: return .UnsupportedMethod(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 15: return .PollingTimeout(
             try FfiConverterString.read(from: &buf)
             )
 
@@ -2450,53 +2455,58 @@ public struct FfiConverterTypeConfirmPaymentError: FfiConverterRustBuffer {
             FfiConverterString.write(v1, into: &buf)
             
         
-        case let .RouteExpired(v1):
+        case let .ComplianceFailed(v1):
             writeInt(&buf, Int32(5))
             FfiConverterString.write(v1, into: &buf)
             
         
-        case let .QuoteExpired(v1):
+        case let .RouteExpired(v1):
             writeInt(&buf, Int32(6))
             FfiConverterString.write(v1, into: &buf)
             
         
-        case let .NoConnection(v1):
+        case let .QuoteExpired(v1):
             writeInt(&buf, Int32(7))
             FfiConverterString.write(v1, into: &buf)
             
         
-        case let .RequestTimeout(v1):
+        case let .NoConnection(v1):
             writeInt(&buf, Int32(8))
             FfiConverterString.write(v1, into: &buf)
             
         
-        case let .ConnectionFailed(v1):
+        case let .RequestTimeout(v1):
             writeInt(&buf, Int32(9))
             FfiConverterString.write(v1, into: &buf)
             
         
-        case let .RateLimited(v1):
+        case let .ConnectionFailed(v1):
             writeInt(&buf, Int32(10))
             FfiConverterString.write(v1, into: &buf)
             
         
-        case let .Http(v1):
+        case let .RateLimited(v1):
             writeInt(&buf, Int32(11))
             FfiConverterString.write(v1, into: &buf)
             
         
-        case let .InternalError(v1):
+        case let .Http(v1):
             writeInt(&buf, Int32(12))
             FfiConverterString.write(v1, into: &buf)
             
         
-        case let .UnsupportedMethod(v1):
+        case let .InternalError(v1):
             writeInt(&buf, Int32(13))
             FfiConverterString.write(v1, into: &buf)
             
         
-        case let .PollingTimeout(v1):
+        case let .UnsupportedMethod(v1):
             writeInt(&buf, Int32(14))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .PollingTimeout(v1):
+            writeInt(&buf, Int32(15))
             FfiConverterString.write(v1, into: &buf)
             
         }

@@ -247,6 +247,8 @@ pub enum ConfirmPaymentError {
     InvalidOption(String),
     #[error("Invalid signature: {0}")]
     InvalidSignature(String),
+    #[error("Compliance failed: {0}")]
+    ComplianceFailed(String),
     #[error("Route expired: {0}")]
     RouteExpired(String),
     #[error("Quote expired: {0}")]
@@ -276,6 +278,7 @@ impl error_reporting::HasErrorType for ConfirmPaymentError {
             Self::PaymentExpired(_) => "PaymentExpired",
             Self::InvalidOption(_) => "InvalidOption",
             Self::InvalidSignature(_) => "InvalidSignature",
+            Self::ComplianceFailed(_) => "ComplianceFailed",
             Self::RouteExpired(_) => "RouteExpired",
             Self::QuoteExpired(_) => "QuoteExpired",
             Self::NoConnection(_) => "NoConnection",
@@ -1512,14 +1515,17 @@ fn map_payment_options_error(
     match e {
         progenitor_client::Error::ErrorResponse(resp) => {
             let status = resp.status().as_u16();
-            let msg = format!("{}: {}", status, resp.into_inner().message);
+            let inner = resp.into_inner();
+            let msg = format!("{}: {}", status, inner.message);
+            if inner.code == types::ErrorCode::SanctionedUser {
+                return GetPaymentOptionsError::ComplianceFailed(msg);
+            }
             match status {
                 404 => GetPaymentOptionsError::PaymentNotFound(msg),
                 400 => GetPaymentOptionsError::InvalidRequest(msg),
                 410 => GetPaymentOptionsError::PaymentExpired(msg),
                 422 => GetPaymentOptionsError::InvalidAccount(msg),
                 429 => GetPaymentOptionsError::RateLimited(msg),
-                451 => GetPaymentOptionsError::ComplianceFailed(msg),
                 _ => GetPaymentOptionsError::Http(msg),
             }
         }
@@ -1532,7 +1538,6 @@ fn map_payment_options_error(
                 410 => GetPaymentOptionsError::PaymentExpired(msg),
                 422 => GetPaymentOptionsError::InvalidAccount(msg),
                 429 => GetPaymentOptionsError::RateLimited(msg),
-                451 => GetPaymentOptionsError::ComplianceFailed(msg),
                 _ => GetPaymentOptionsError::Http(msg),
             }
         }
@@ -1568,6 +1573,9 @@ fn map_confirm_payment_error(
             let status = resp.status().as_u16();
             let inner = resp.into_inner();
             let msg = format!("{}: {}", status, inner.message);
+            if inner.code == types::ErrorCode::SanctionedUser {
+                return ConfirmPaymentError::ComplianceFailed(msg);
+            }
             if inner.code == types::ErrorCode::QuoteExpired {
                 return ConfirmPaymentError::QuoteExpired(msg);
             }
@@ -3003,6 +3011,40 @@ mod tests {
         assert!(
             matches!(result, Err(ConfirmPaymentError::PollingTimeout(_))),
             "Expected PollingTimeout, got {:?}",
+            result
+        );
+    }
+
+    #[tokio::test]
+    async fn test_confirm_payment_sanctioned_user_returns_compliance_failed() {
+        let mock_server = MockServer::start().await;
+        let error_response = serde_json::json!({
+            "code": "sanctioned_user",
+            "message": "Wallet is sanctioned"
+        });
+        Mock::given(method("POST"))
+            .and(path("/v1/gateway/payment/pay_sanctioned/confirm"))
+            .respond_with(
+                ResponseTemplate::new(400).set_body_json(&error_response),
+            )
+            .mount(&mock_server)
+            .await;
+
+        let client =
+            WalletConnectPay::new(test_config(mock_server.uri())).unwrap();
+        let result = client
+            .confirm_payment(
+                "pay_sanctioned".to_string(),
+                "opt_1".to_string(),
+                vec!["0x123".to_string()],
+                None,
+                Some(100),
+            )
+            .await;
+
+        assert!(
+            matches!(result, Err(ConfirmPaymentError::ComplianceFailed(_))),
+            "Expected ComplianceFailed, got {:?}",
             result
         );
     }
