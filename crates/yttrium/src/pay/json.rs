@@ -43,8 +43,6 @@ pub enum PayJsonError {
     InvalidRequest(String),
     #[error("Payment not ready: {0}")]
     PaymentNotReady(String),
-    #[error("Compliance failed: {0}")]
-    ComplianceFailed(String),
     // GetPaymentRequest specific errors
     #[error("Fetch error: {0}")]
     FetchError(String),
@@ -106,9 +104,6 @@ impl From<GetPaymentOptionsError> for PayJsonError {
                 Self::PaymentNotReady(msg)
             }
             GetPaymentOptionsError::RateLimited(msg) => Self::RateLimited(msg),
-            GetPaymentOptionsError::ComplianceFailed(msg) => {
-                Self::ComplianceFailed(msg)
-            }
         }
     }
 }
