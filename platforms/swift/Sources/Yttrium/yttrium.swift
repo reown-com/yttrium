@@ -2535,8 +2535,6 @@ public enum GetPaymentOptionsError: Swift.Error, Equatable, Hashable, Foundation
     )
     case InvalidAccount(String
     )
-    case ComplianceFailed(String
-    )
     case NoConnection(String
     )
     case RequestTimeout(String
@@ -2596,25 +2594,22 @@ public struct FfiConverterTypeGetPaymentOptionsError: FfiConverterRustBuffer {
         case 6: return .InvalidAccount(
             try FfiConverterString.read(from: &buf)
             )
-        case 7: return .ComplianceFailed(
+        case 7: return .NoConnection(
             try FfiConverterString.read(from: &buf)
             )
-        case 8: return .NoConnection(
+        case 8: return .RequestTimeout(
             try FfiConverterString.read(from: &buf)
             )
-        case 9: return .RequestTimeout(
+        case 9: return .ConnectionFailed(
             try FfiConverterString.read(from: &buf)
             )
-        case 10: return .ConnectionFailed(
+        case 10: return .RateLimited(
             try FfiConverterString.read(from: &buf)
             )
-        case 11: return .RateLimited(
+        case 11: return .Http(
             try FfiConverterString.read(from: &buf)
             )
-        case 12: return .Http(
-            try FfiConverterString.read(from: &buf)
-            )
-        case 13: return .InternalError(
+        case 12: return .InternalError(
             try FfiConverterString.read(from: &buf)
             )
 
@@ -2659,38 +2654,33 @@ public struct FfiConverterTypeGetPaymentOptionsError: FfiConverterRustBuffer {
             FfiConverterString.write(v1, into: &buf)
             
         
-        case let .ComplianceFailed(v1):
+        case let .NoConnection(v1):
             writeInt(&buf, Int32(7))
             FfiConverterString.write(v1, into: &buf)
             
         
-        case let .NoConnection(v1):
+        case let .RequestTimeout(v1):
             writeInt(&buf, Int32(8))
             FfiConverterString.write(v1, into: &buf)
             
         
-        case let .RequestTimeout(v1):
+        case let .ConnectionFailed(v1):
             writeInt(&buf, Int32(9))
             FfiConverterString.write(v1, into: &buf)
             
         
-        case let .ConnectionFailed(v1):
+        case let .RateLimited(v1):
             writeInt(&buf, Int32(10))
             FfiConverterString.write(v1, into: &buf)
             
         
-        case let .RateLimited(v1):
+        case let .Http(v1):
             writeInt(&buf, Int32(11))
             FfiConverterString.write(v1, into: &buf)
             
         
-        case let .Http(v1):
-            writeInt(&buf, Int32(12))
-            FfiConverterString.write(v1, into: &buf)
-            
-        
         case let .InternalError(v1):
-            writeInt(&buf, Int32(13))
+            writeInt(&buf, Int32(12))
             FfiConverterString.write(v1, into: &buf)
             
         }
@@ -3165,8 +3155,6 @@ public enum PayJsonError: Swift.Error, Equatable, Hashable, Foundation.Localized
     )
     case PaymentNotReady(String
     )
-    case ComplianceFailed(String
-    )
     case FetchError(String
     )
     case InvalidOption(String
@@ -3255,28 +3243,25 @@ public struct FfiConverterTypePayJsonError: FfiConverterRustBuffer {
         case 15: return .PaymentNotReady(
             try FfiConverterString.read(from: &buf)
             )
-        case 16: return .ComplianceFailed(
+        case 16: return .FetchError(
             try FfiConverterString.read(from: &buf)
             )
-        case 17: return .FetchError(
+        case 17: return .InvalidOption(
             try FfiConverterString.read(from: &buf)
             )
-        case 18: return .InvalidOption(
+        case 18: return .InvalidSignature(
             try FfiConverterString.read(from: &buf)
             )
-        case 19: return .InvalidSignature(
+        case 19: return .RouteExpired(
             try FfiConverterString.read(from: &buf)
             )
-        case 20: return .RouteExpired(
+        case 20: return .QuoteExpired(
             try FfiConverterString.read(from: &buf)
             )
-        case 21: return .QuoteExpired(
+        case 21: return .UnsupportedMethod(
             try FfiConverterString.read(from: &buf)
             )
-        case 22: return .UnsupportedMethod(
-            try FfiConverterString.read(from: &buf)
-            )
-        case 23: return .PollingTimeout(
+        case 22: return .PollingTimeout(
             try FfiConverterString.read(from: &buf)
             )
 
@@ -3366,43 +3351,38 @@ public struct FfiConverterTypePayJsonError: FfiConverterRustBuffer {
             FfiConverterString.write(v1, into: &buf)
             
         
-        case let .ComplianceFailed(v1):
+        case let .FetchError(v1):
             writeInt(&buf, Int32(16))
             FfiConverterString.write(v1, into: &buf)
             
         
-        case let .FetchError(v1):
+        case let .InvalidOption(v1):
             writeInt(&buf, Int32(17))
             FfiConverterString.write(v1, into: &buf)
             
         
-        case let .InvalidOption(v1):
+        case let .InvalidSignature(v1):
             writeInt(&buf, Int32(18))
             FfiConverterString.write(v1, into: &buf)
             
         
-        case let .InvalidSignature(v1):
+        case let .RouteExpired(v1):
             writeInt(&buf, Int32(19))
             FfiConverterString.write(v1, into: &buf)
             
         
-        case let .RouteExpired(v1):
+        case let .QuoteExpired(v1):
             writeInt(&buf, Int32(20))
             FfiConverterString.write(v1, into: &buf)
             
         
-        case let .QuoteExpired(v1):
+        case let .UnsupportedMethod(v1):
             writeInt(&buf, Int32(21))
             FfiConverterString.write(v1, into: &buf)
             
         
-        case let .UnsupportedMethod(v1):
-            writeInt(&buf, Int32(22))
-            FfiConverterString.write(v1, into: &buf)
-            
-        
         case let .PollingTimeout(v1):
-            writeInt(&buf, Int32(23))
+            writeInt(&buf, Int32(22))
             FfiConverterString.write(v1, into: &buf)
             
         }

@@ -158,8 +158,6 @@ pub enum GetPaymentOptionsError {
     PaymentNotReady(String),
     #[error("Invalid account: {0}")]
     InvalidAccount(String),
-    #[error("Compliance failed: {0}")]
-    ComplianceFailed(String),
     #[error("No network connection: {0}")]
     NoConnection(String),
     #[error("Request timed out: {0}")]
@@ -183,7 +181,6 @@ impl error_reporting::HasErrorType for GetPaymentOptionsError {
             Self::OptionNotFound(_) => "OptionNotFound",
             Self::PaymentNotReady(_) => "PaymentNotReady",
             Self::InvalidAccount(_) => "InvalidAccount",
-            Self::ComplianceFailed(_) => "ComplianceFailed",
             Self::NoConnection(_) => "NoConnection",
             Self::RequestTimeout(_) => "RequestTimeout",
             Self::ConnectionFailed(_) => "ConnectionFailed",
@@ -1519,7 +1516,6 @@ fn map_payment_options_error(
                 410 => GetPaymentOptionsError::PaymentExpired(msg),
                 422 => GetPaymentOptionsError::InvalidAccount(msg),
                 429 => GetPaymentOptionsError::RateLimited(msg),
-                451 => GetPaymentOptionsError::ComplianceFailed(msg),
                 _ => GetPaymentOptionsError::Http(msg),
             }
         }
@@ -1532,7 +1528,6 @@ fn map_payment_options_error(
                 410 => GetPaymentOptionsError::PaymentExpired(msg),
                 422 => GetPaymentOptionsError::InvalidAccount(msg),
                 429 => GetPaymentOptionsError::RateLimited(msg),
-                451 => GetPaymentOptionsError::ComplianceFailed(msg),
                 _ => GetPaymentOptionsError::Http(msg),
             }
         }
