@@ -121,22 +121,22 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - name: Download aarch64 artifact
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: wcpay-artifacts-aarch64-linux-android
           path: combined/aarch64
       - name: Download armv7 artifact
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: wcpay-artifacts-armv7-linux-androideabi
           path: combined/armv7
       - name: Download i686 artifact
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: wcpay-artifacts-i686-linux-android
           path: combined/i686
       - name: Download x86_64 artifact
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: wcpay-artifacts-x86_64-linux-android
           path: combined/x86_64
@@ -165,7 +165,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
       - name: Download single final artifact
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: wcpay-artifacts
           path: yttrium/

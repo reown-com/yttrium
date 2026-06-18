@@ -291,66 +291,66 @@ jobs:
 
       # Download yttrium artifacts
       - name: Download yttrium aarch64
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: yttrium-aarch64-linux-android
           path: yttrium/aarch64
       - name: Download yttrium armv7
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: yttrium-armv7-linux-androideabi
           path: yttrium/armv7
       - name: Download yttrium i686
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: yttrium-i686-linux-android
           path: yttrium/i686
       - name: Download yttrium x86_64
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: yttrium-x86_64-linux-android
           path: yttrium/x86_64
 
       # Download yttrium-utils artifacts
       - name: Download yttrium-utils aarch64
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: yttrium-utils-aarch64-linux-android
           path: yttrium-utils/aarch64
       - name: Download yttrium-utils armv7
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: yttrium-utils-armv7-linux-androideabi
           path: yttrium-utils/armv7
       - name: Download yttrium-utils i686
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: yttrium-utils-i686-linux-android
           path: yttrium-utils/i686
       - name: Download yttrium-utils x86_64
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: yttrium-utils-x86_64-linux-android
           path: yttrium-utils/x86_64
 
       # Download yttrium-wcpay artifacts
       - name: Download yttrium-wcpay aarch64
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: yttrium-wcpay-aarch64-linux-android
           path: yttrium-wcpay/aarch64
       - name: Download yttrium-wcpay armv7
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: yttrium-wcpay-armv7-linux-androideabi
           path: yttrium-wcpay/armv7
       - name: Download yttrium-wcpay i686
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: yttrium-wcpay-i686-linux-android
           path: yttrium-wcpay/i686
       - name: Download yttrium-wcpay x86_64
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: yttrium-wcpay-x86_64-linux-android
           path: yttrium-wcpay/x86_64
@@ -415,7 +415,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Download all artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: all-kotlin-artifacts
           path: artifacts/
