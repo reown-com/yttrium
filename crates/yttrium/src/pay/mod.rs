@@ -399,6 +399,7 @@ fn compute_backoff(attempt: u32) -> u64 {
     base + jitter
 }
 
+#[allow(clippy::result_large_err)]
 async fn with_retry<T, E, F, Fut>(
     f: F,
 ) -> Result<T, progenitor_client::Error<E>>
