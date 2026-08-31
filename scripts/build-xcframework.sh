@@ -6,6 +6,10 @@ set -u
 PACKAGE_NAME="yttrium"
 FEATURES="ios,pay"
 PROFILE="xcframework-release"
+# Pinned nightly: allocative 0.3.4 (via sui-sdk -> starlark) fails to compile
+# on newer nightlies where `!` and `Infallible` impls conflict (E0119).
+# Remove the pin once starlark/allocative ship a fix.
+NIGHTLY_TOOLCHAIN="nightly-2026-02-03"
 fat_simulator_lib_dir="target/ios-simulator-fat/$PROFILE"
 swift_package_dir="platforms/swift/Sources/Yttrium"
 
@@ -24,7 +28,7 @@ build_rust_libraries() {
   export RUSTFLAGS="-C linker=$CC_aarch64_apple_ios -C link-arg=-miphoneos-version-min=13.0 -Zunstable-options -Cpanic=immediate-abort"
 
   # Build with nightly and -Z build-std to eliminate rust_eh_personality symbols
-  cargo +nightly build \
+  cargo +$NIGHTLY_TOOLCHAIN build \
     --lib --profile=$PROFILE \
     -Z build-std=std,panic_abort \
     -Z unstable-options \
@@ -55,7 +59,7 @@ build_rust_libraries() {
   export RUSTFLAGS="-C linker=$CC_x86_64_apple_ios -C link-arg=-mios-simulator-version-min=13.0 -Zunstable-options -Cpanic=immediate-abort"
 
   # Build with nightly and -Z build-std to eliminate rust_eh_personality symbols
-  cargo +nightly build \
+  cargo +$NIGHTLY_TOOLCHAIN build \
     --lib --profile=$PROFILE \
     -Z build-std=std,panic_abort \
     -Z unstable-options \
@@ -86,7 +90,7 @@ build_rust_libraries() {
   export RUSTFLAGS="-C linker=$CC_aarch64_apple_ios_sim -C link-arg=-mios-simulator-version-min=13.0 -Zunstable-options -Cpanic=immediate-abort"
 
   # Build with nightly and -Z build-std to eliminate rust_eh_personality symbols
-  cargo +nightly build \
+  cargo +$NIGHTLY_TOOLCHAIN build \
     --lib --profile=$PROFILE \
     -Z build-std=std,panic_abort \
     -Z unstable-options \
@@ -106,7 +110,7 @@ build_rust_libraries() {
 
 generate_ffi() {
   echo "Generating framework module mapping and FFI bindings..."
-  cargo +nightly run -p yttrium --no-default-features --features=$FEATURES,uniffi/cli --bin uniffi-bindgen generate \
+  cargo +$NIGHTLY_TOOLCHAIN run -p yttrium --no-default-features --features=$FEATURES,uniffi/cli --bin uniffi-bindgen generate \
     --library target/aarch64-apple-ios/$PROFILE/lib$PACKAGE_NAME.dylib \
     --language swift \
     --out-dir target/uniffi-xcframework-staging
@@ -192,10 +196,10 @@ copy_swift_sources() {
 }
 
 # Add the nightly toolchain with rust-src component (required for -Z build-std)
-rustup toolchain install nightly --component rust-src
-rustup target add aarch64-apple-ios --toolchain nightly
-rustup target add x86_64-apple-ios --toolchain nightly
-rustup target add aarch64-apple-ios-sim --toolchain nightly
+rustup toolchain install $NIGHTLY_TOOLCHAIN --component rust-src
+rustup target add aarch64-apple-ios --toolchain $NIGHTLY_TOOLCHAIN
+rustup target add x86_64-apple-ios --toolchain $NIGHTLY_TOOLCHAIN
+rustup target add aarch64-apple-ios-sim --toolchain $NIGHTLY_TOOLCHAIN
 
 # Execute the build steps
 build_rust_libraries

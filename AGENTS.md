@@ -97,7 +97,7 @@ pub struct WalletConnectPay {
 **Public Methods:**
 - `get_payment_options(payment_link, accounts)` → `PaymentOptionsResponse`
 - `get_required_payment_actions(payment_link, option_id, accounts)` → `Vec<Action>`
-- `confirm_payment(payment_link, option_id, signatures, collected_data)` → `ConfirmPaymentResultResponse`
+- `confirm_payment(payment_id, option_id, data, collected_data, max_poll_ms)` → `ConfirmPaymentResultResponse` (`data` elements are plain strings or JSON-encoded objects/arrays, see `JsonValue`)
 
 **JSON Wrapper (for FFI):**
 ```rust

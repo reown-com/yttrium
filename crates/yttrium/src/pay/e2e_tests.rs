@@ -339,7 +339,7 @@ async fn e2e_payment_happy_path() {
     println!("Got {} required actions", actions.len());
 
     // Step 5: Sign each action
-    let mut signatures = Vec::new();
+    let mut data = Vec::new();
     for action in &actions {
         let rpc = &action.wallet_rpc;
         println!("Action: chain={}, method={}", rpc.chain_id, rpc.method);
@@ -350,7 +350,7 @@ async fn e2e_payment_happy_path() {
                     .sign_typed_data_v4(&rpc.params)
                     .expect("Failed to sign typed data");
                 println!("Signed: {}...", &signature[..20]);
-                signatures.push(signature);
+                data.push(signature.into());
             }
             method => {
                 panic!("Unsupported RPC method: {}", method);
@@ -386,12 +386,12 @@ async fn e2e_payment_happy_path() {
                 .collect()
         });
 
-    // Step 7: Confirm payment with signatures
+    // Step 7: Confirm payment with the signed results
     let result = pay_client
         .confirm_payment(
             options_response.payment_id.clone(),
             selected_option.id.clone(),
-            signatures,
+            data,
             collected_data,
             Some(30000), // 30 second max poll
         )

@@ -273,6 +273,7 @@ impl SuiClient {
         }
     }
 
+    #[allow(clippy::result_large_err)]
     pub async fn get_all_balances(
         &self,
         chain_id: String,
@@ -287,6 +288,7 @@ impl SuiClient {
             .map_err(SuiError::GetAllBalances)
     }
 
+    #[allow(clippy::result_large_err)]
     pub async fn sign_transaction(
         &self,
         chain_id: String,
@@ -310,6 +312,7 @@ impl SuiClient {
         })
     }
 
+    #[allow(clippy::result_large_err)]
     pub async fn sign_and_execute_transaction(
         &self,
         chain_id: String,
