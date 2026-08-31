@@ -636,6 +636,56 @@ impl From<CollectDataFieldResult> for types::CollectDataFieldResult {
     }
 }
 
+/// Arbitrary JSON value crossing the FFI boundary as a string.
+/// Lifting parses the string: a JSON object or array is kept verbatim,
+/// while anything else (signatures, tx hashes, base64 blobs) becomes a
+/// JSON string, so plain-string callers are unaffected.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(transparent)]
+pub struct JsonValue(pub serde_json::Value);
+
+impl From<serde_json::Value> for JsonValue {
+    fn from(value: serde_json::Value) -> Self {
+        match value {
+            serde_json::Value::String(s) => s.into(),
+            value => Self(value),
+        }
+    }
+}
+
+impl From<String> for JsonValue {
+    fn from(value: String) -> Self {
+        match serde_json::from_str::<serde_json::Value>(&value) {
+            Ok(
+                parsed @ (serde_json::Value::Object(_)
+                | serde_json::Value::Array(_)),
+            ) => Self(parsed),
+            _ => Self(serde_json::Value::String(value)),
+        }
+    }
+}
+
+impl From<JsonValue> for serde_json::Value {
+    fn from(value: JsonValue) -> Self {
+        value.0
+    }
+}
+
+impl std::fmt::Display for JsonValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match &self.0 {
+            serde_json::Value::String(s) => f.write_str(s),
+            value => write!(f, "{value}"),
+        }
+    }
+}
+
+#[cfg(feature = "uniffi")]
+uniffi::custom_type!(JsonValue, String, {
+    try_lift: |val| Ok(val.into()),
+    lower: |obj| obj.to_string(),
+});
+
 #[derive(Debug, Clone, PartialEq, serde::Serialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
 #[serde(rename_all = "camelCase")]
@@ -1095,21 +1145,24 @@ impl WalletConnectPay {
         result
     }
 
-    /// Confirm a payment with wallet RPC signatures
+    /// Confirm a payment with wallet RPC results
+    /// Each element of `data` is either a plain string (signature, tx
+    /// hash) or a JSON-encoded object/array sent verbatim as the wallet
+    /// RPC result payload
     /// Polls for final status if the initial response is not final
     pub async fn confirm_payment(
         &self,
         payment_id: String,
         option_id: String,
-        signatures: Vec<String>,
+        data: Vec<JsonValue>,
         collected_data: Option<Vec<CollectDataFieldResult>>,
         max_poll_ms: Option<i64>,
     ) -> Result<ConfirmPaymentResultResponse, ConfirmPaymentError> {
         pay_debug!(
-            "confirm_payment: payment_id={}, option_id={}, signatures_count={}",
+            "confirm_payment: payment_id={}, option_id={}, data_count={}",
             payment_id,
             option_id,
-            signatures.len()
+            data.len()
         );
         self.send_initialized_event_once(&payment_id);
         self.send_trace(
@@ -1117,12 +1170,10 @@ impl WalletConnectPay {
             &payment_id,
         );
 
-        let api_results: Vec<types::ConfirmPaymentResult> = signatures
+        let api_results: Vec<types::ConfirmPaymentResult> = data
             .into_iter()
-            .map(|sig| {
-                types::ConfirmPaymentResult::WalletRpc(vec![
-                    serde_json::Value::String(sig),
-                ])
+            .map(|value| {
+                types::ConfirmPaymentResult::WalletRpc(vec![value.into()])
             })
             .collect();
         let api_collected_data =
@@ -2316,7 +2367,7 @@ mod tests {
             .confirm_payment(
                 "pay_123".to_string(),
                 "opt_1".to_string(),
-                vec!["0x123".to_string()],
+                vec!["0x123".to_string().into()],
                 None,
                 None,
             )
@@ -2325,6 +2376,83 @@ mod tests {
         let resp = response.unwrap();
         assert_eq!(resp.status, PaymentStatus::Succeeded);
         assert!(resp.is_final);
+    }
+
+    #[test]
+    fn test_json_value_from_string() {
+        let sig: JsonValue = "0x123".to_string().into();
+        assert_eq!(sig.0, serde_json::json!("0x123"));
+        // Numbers and other scalars stay strings
+        let num: JsonValue = "1234".to_string().into();
+        assert_eq!(num.0, serde_json::json!("1234"));
+        // JSON objects and arrays are kept verbatim
+        let obj: JsonValue = r#"{"raw_data_hex":"0a02","signature":["0xabc"]}"#
+            .to_string()
+            .into();
+        assert_eq!(
+            obj.0,
+            serde_json::json!({"raw_data_hex": "0a02", "signature": ["0xabc"]})
+        );
+        let arr: JsonValue = "[1,2]".to_string().into();
+        assert_eq!(arr.0, serde_json::json!([1, 2]));
+        // Display round-trips through the FFI lowering
+        assert_eq!(sig.to_string(), "0x123");
+        let relifted: JsonValue = obj.to_string().into();
+        assert_eq!(relifted, obj);
+    }
+
+    #[tokio::test]
+    async fn test_confirm_payment_sends_json_objects_verbatim() {
+        let mock_server = MockServer::start().await;
+
+        let confirm_response = serde_json::json!({
+            "status": "succeeded",
+            "isFinal": true,
+            "pollInMs": null
+        });
+
+        Mock::given(method("POST"))
+            .and(path("/v1/gateway/payment/pay_123/confirm"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(&confirm_response),
+            )
+            .mount(&mock_server)
+            .await;
+
+        let client =
+            WalletConnectPay::new(test_config(mock_server.uri())).unwrap();
+        let response = client
+            .confirm_payment(
+                "pay_123".to_string(),
+                "opt_1".to_string(),
+                vec![
+                    r#"{"raw_data_hex":"0a02","signature":["0xabc"]}"#
+                        .to_string()
+                        .into(),
+                    "0x123".to_string().into(),
+                ],
+                None,
+                None,
+            )
+            .await;
+        assert!(response.is_ok());
+
+        let requests = mock_server.received_requests().await.unwrap();
+        assert_eq!(requests.len(), 1);
+        let body: serde_json::Value =
+            serde_json::from_slice(&requests[0].body).unwrap();
+        assert_eq!(
+            body["results"],
+            serde_json::json!([
+                {
+                    "type": "walletRpc",
+                    "data": [
+                        {"raw_data_hex": "0a02", "signature": ["0xabc"]}
+                    ]
+                },
+                {"type": "walletRpc", "data": ["0x123"]}
+            ])
+        );
     }
 
     #[tokio::test]
@@ -2359,7 +2487,7 @@ mod tests {
             .confirm_payment(
                 "pay_123".to_string(),
                 "opt_1".to_string(),
-                vec!["0x123".to_string()],
+                vec!["0x123".to_string().into()],
                 None,
                 Some(5000),
             )
@@ -2471,7 +2599,7 @@ mod tests {
             .confirm_payment(
                 "pay_custom".to_string(),
                 "opt_1".to_string(),
-                vec!["0x123".to_string()],
+                vec!["0x123".to_string().into()],
                 None,
                 None,
             )
@@ -2521,7 +2649,7 @@ mod tests {
             .confirm_payment(
                 "pay_test".to_string(),
                 "opt_1".to_string(),
-                vec!["0x123".to_string()],
+                vec!["0x123".to_string().into()],
                 None,
                 None,
             )
@@ -2945,7 +3073,7 @@ mod tests {
             .confirm_payment(
                 "pay_recover".to_string(),
                 "opt_1".to_string(),
-                vec!["0x123".to_string()],
+                vec!["0x123".to_string().into()],
                 None,
                 Some(5000),
             )
@@ -2990,7 +3118,7 @@ mod tests {
             .confirm_payment(
                 "pay_timeout".to_string(),
                 "opt_1".to_string(),
-                vec!["0x123".to_string()],
+                vec!["0x123".to_string().into()],
                 None,
                 Some(100),
             )
