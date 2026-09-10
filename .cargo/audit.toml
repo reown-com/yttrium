@@ -22,4 +22,16 @@ ignore = [
     # mysten-metrics: malicious crates.io name-squat (removed). False positive --
     # ours is the official Sui git pin (mystenlabs/sui@f9c8d50), not crates.io.
     "RUSTSEC-2026-0107",
+    # h2 0.3 (unbounded empty DATA frames): transitive via aws-smithy-http-client's
+    # hyper-0.14 client; no patched 0.3.x exists (fix is 0.4.16, which our h2 0.4
+    # line is on). DoS vector needs a malicious HTTP/2 peer; the AWS SDK client
+    # only talks to AWS endpoints. Drop when aws-smithy moves off hyper 0.14
+    # (newer aws-smithy requires Rust 1.94 > our 1.91 MSRV).
+    "RUSTSEC-2026-0258",
+    # quick-xml 0.37 (duplicate-attribute quadratic scan + unbounded namespace
+    # allocation): transitive via sui-sdk (git pin) -> object_store 0.11, which
+    # caps at quick-xml 0.37; fix is 0.41 via object_store >=0.12, i.e. a Sui
+    # rev bump. XML path is object_store's S3/Azure listing, which we never use.
+    "RUSTSEC-2026-0194",
+    "RUSTSEC-2026-0195",
 ]

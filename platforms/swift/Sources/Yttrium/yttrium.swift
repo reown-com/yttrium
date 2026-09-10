@@ -727,10 +727,13 @@ public func FfiConverterTypeLogger_lower(_ value: Logger) -> UInt64 {
 public protocol WalletConnectPayProtocol: AnyObject, Sendable {
     
     /**
-     * Confirm a payment with wallet RPC signatures
+     * Confirm a payment with wallet RPC results
+     * Each element of `data` is either a plain string (signature, tx
+     * hash) or a JSON-encoded object/array sent verbatim as the wallet
+     * RPC result payload
      * Polls for final status if the initial response is not final
      */
-    func confirmPayment(paymentId: String, optionId: String, signatures: [String], collectedData: [CollectDataFieldResult]?, maxPollMs: Int64?) async throws  -> ConfirmPaymentResultResponse
+    func confirmPayment(paymentId: String, optionId: String, data: [JsonValue], collectedData: [CollectDataFieldResult]?, maxPollMs: Int64?) async throws  -> ConfirmPaymentResultResponse
     
     /**
      * Get payment options for given accounts
@@ -814,16 +817,19 @@ public convenience init(config: SdkConfig)throws  {
 
     
     /**
-     * Confirm a payment with wallet RPC signatures
+     * Confirm a payment with wallet RPC results
+     * Each element of `data` is either a plain string (signature, tx
+     * hash) or a JSON-encoded object/array sent verbatim as the wallet
+     * RPC result payload
      * Polls for final status if the initial response is not final
      */
-open func confirmPayment(paymentId: String, optionId: String, signatures: [String], collectedData: [CollectDataFieldResult]?, maxPollMs: Int64?)async throws  -> ConfirmPaymentResultResponse  {
+open func confirmPayment(paymentId: String, optionId: String, data: [JsonValue], collectedData: [CollectDataFieldResult]?, maxPollMs: Int64?)async throws  -> ConfirmPaymentResultResponse  {
     return
         try  await uniffiRustCallAsync(
             rustFutureFunc: {
                 uniffi_yttrium_fn_method_walletconnectpay_confirm_payment(
                     self.uniffiCloneHandle(),
-                    FfiConverterString.lower(paymentId),FfiConverterString.lower(optionId),FfiConverterSequenceString.lower(signatures),FfiConverterOptionSequenceTypeCollectDataFieldResult.lower(collectedData),FfiConverterOptionInt64.lower(maxPollMs)
+                    FfiConverterString.lower(paymentId),FfiConverterString.lower(optionId),FfiConverterSequenceTypeJsonValue.lower(data),FfiConverterOptionSequenceTypeCollectDataFieldResult.lower(collectedData),FfiConverterOptionInt64.lower(maxPollMs)
                 )
             },
             pollFunc: ffi_yttrium_rust_future_poll_rust_buffer,
@@ -956,7 +962,9 @@ public protocol WalletConnectPayJsonProtocol: AnyObject, Sendable {
     
     /**
      * Confirm a payment
-     * Input JSON: { "paymentId": "string", "optionId": "string", "signatures": ["string"], "collectedData": [{"id": "string", "value": "string"}]?, "maxPollMs": number? }
+     * Input JSON: { "paymentId": "string", "optionId": "string", "data": [string | object], "collectedData": [{"id": "string", "value": "string"}]?, "maxPollMs": number? }
+     * "signatures" is accepted as a legacy alias for "data"; string
+     * elements containing a JSON object/array are sent as JSON
      * Returns JSON ConfirmPaymentResponse or error
      */
     func confirmPayment(requestJson: String) async throws  -> String
@@ -1051,7 +1059,9 @@ public convenience init(sdkConfig: String)throws  {
     
     /**
      * Confirm a payment
-     * Input JSON: { "paymentId": "string", "optionId": "string", "signatures": ["string"], "collectedData": [{"id": "string", "value": "string"}]?, "maxPollMs": number? }
+     * Input JSON: { "paymentId": "string", "optionId": "string", "data": [string | object], "collectedData": [{"id": "string", "value": "string"}]?, "maxPollMs": number? }
+     * "signatures" is accepted as a legacy alias for "data"; string
+     * elements containing a JSON object/array are sent as JSON
      * Returns JSON ConfirmPaymentResponse or error
      */
 open func confirmPayment(requestJson: String)async throws  -> String  {
@@ -3876,6 +3886,31 @@ fileprivate struct FfiConverterSequenceTypePaymentOption: FfiConverterRustBuffer
     }
 }
 
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeJsonValue: FfiConverterRustBuffer {
+    typealias SwiftType = [JsonValue]
+
+    public static func write(_ value: [JsonValue], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeJsonValue.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [JsonValue] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [JsonValue]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeJsonValue.read(from: &buf))
+        }
+        return seq
+    }
+}
+
 
 /**
  * Typealias from the type name used in the UDL file to the builtin type.  This
@@ -3961,6 +3996,50 @@ public func FfiConverterTypeEyreError_lift(_ value: RustBuffer) throws -> EyreEr
 #endif
 public func FfiConverterTypeEyreError_lower(_ value: EyreError) -> RustBuffer {
     return FfiConverterTypeEyreError.lower(value)
+}
+
+
+
+/**
+ * Typealias from the type name used in the UDL file to the builtin type.  This
+ * is needed because the UDL type name is used in function/method signatures.
+ */
+public typealias JsonValue = String
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeJsonValue: FfiConverter {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> JsonValue {
+        return try FfiConverterString.read(from: &buf)
+    }
+
+    public static func write(_ value: JsonValue, into buf: inout [UInt8]) {
+        return FfiConverterString.write(value, into: &buf)
+    }
+
+    public static func lift(_ value: RustBuffer) throws -> JsonValue {
+        return try FfiConverterString.lift(value)
+    }
+
+    public static func lower(_ value: JsonValue) -> RustBuffer {
+        return FfiConverterString.lower(value)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeJsonValue_lift(_ value: RustBuffer) throws -> JsonValue {
+    return try FfiConverterTypeJsonValue.lift(value)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeJsonValue_lower(_ value: JsonValue) -> RustBuffer {
+    return FfiConverterTypeJsonValue.lower(value)
 }
 
 
@@ -4212,7 +4291,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_yttrium_checksum_func_register_logger() != 32546) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_yttrium_checksum_method_walletconnectpay_confirm_payment() != 8088) {
+    if (uniffi_yttrium_checksum_method_walletconnectpay_confirm_payment() != 3705) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_yttrium_checksum_method_walletconnectpay_get_payment_options() != 22) {
@@ -4224,7 +4303,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_yttrium_checksum_method_walletconnectpay_get_required_payment_actions() != 51761) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_yttrium_checksum_method_walletconnectpayjson_confirm_payment() != 37878) {
+    if (uniffi_yttrium_checksum_method_walletconnectpayjson_confirm_payment() != 5829) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_yttrium_checksum_method_walletconnectpayjson_get_payment_options() != 1513) {

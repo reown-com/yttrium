@@ -624,6 +624,7 @@ impl Client {
         result
     }
 
+    #[allow(clippy::result_large_err)]
     async fn execute_inner(
         &self,
         ui_fields: UiFields,

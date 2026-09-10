@@ -693,7 +693,7 @@ mod tests {
         let u = ::uniffi::FfiConverter::<crate::UniFfiTag>::lower(ffi_u64);
         let s: String =
             ::uniffi::FfiConverter::<crate::UniFfiTag>::try_lift(u).unwrap();
-        assert_eq!(s, format!("0xABaBaBaBABabABabAbAbABAbABabababaBaBABaB"));
+        assert_eq!(s, "0xABaBaBaBABabABabAbAbABAbABabababaBaBABaB");
     }
 
     #[test]
@@ -732,7 +732,7 @@ mod tests {
         let u = ::uniffi::FfiConverter::<crate::UniFfiTag>::lower(ffi_u64);
         let s: String =
             ::uniffi::FfiConverter::<crate::UniFfiTag>::try_lift(u).unwrap();
-        assert_eq!(s, format!("0xaabbccdd"));
+        assert_eq!(s, "0xaabbccdd");
     }
 
     #[cfg(feature = "solana")]
@@ -744,9 +744,7 @@ mod tests {
             ::uniffi::FfiConverter::<crate::UniFfiTag>::try_lift(u).unwrap();
         assert_eq!(
             s,
-            format!(
-                "4S55ApgNWn8YKQL5J2uuxtfZrYXQZqBs8BUJTqGv3us4cAefggxxMLavbor7u47x4BfUhDRkfFBpW2rJTU6YMxux"
-            )
+            "4S55ApgNWn8YKQL5J2uuxtfZrYXQZqBs8BUJTqGv3us4cAefggxxMLavbor7u47x4BfUhDRkfFBpW2rJTU6YMxux"
         );
     }
 

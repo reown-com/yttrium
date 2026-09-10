@@ -358,6 +358,7 @@ impl Client {
     // TODO error type
     // When bundlers support sending 7702 natively, this name will be accurate (nothing is sent until `send()`)
     // For now, `prepare_deploy()` also will execute a 7702 txn by itself since this function sponsors the UserOp
+    #[allow(clippy::result_large_err)]
     pub async fn prepare_deploy(
         &self,
         auth_sig: SignedAuthorization, // TODO replace this with the alloy type with the same name; and deal with the UniFFI conversion separately

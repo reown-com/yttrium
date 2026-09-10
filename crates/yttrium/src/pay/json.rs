@@ -221,7 +221,8 @@ struct CollectDataFieldResultJson {
 struct ConfirmPaymentJsonRequestJson {
     payment_id: String,
     option_id: String,
-    signatures: Vec<String>,
+    #[serde(alias = "signatures")]
+    data: Vec<serde_json::Value>,
     #[serde(default)]
     collected_data: Option<Vec<CollectDataFieldResultJson>>,
     max_poll_ms: Option<i64>,
@@ -312,7 +313,9 @@ impl WalletConnectPayJson {
     }
 
     /// Confirm a payment
-    /// Input JSON: { "paymentId": "string", "optionId": "string", "signatures": ["string"], "collectedData": [{"id": "string", "value": "string"}]?, "maxPollMs": number? }
+    /// Input JSON: { "paymentId": "string", "optionId": "string", "data": [string | object], "collectedData": [{"id": "string", "value": "string"}]?, "maxPollMs": number? }
+    /// "signatures" is accepted as a legacy alias for "data"; string
+    /// elements containing a JSON object/array are sent as JSON
     /// Returns JSON ConfirmPaymentResponse or error
     pub async fn confirm_payment(
         &self,
@@ -342,7 +345,7 @@ impl WalletConnectPayJson {
             .confirm_payment(
                 req.payment_id,
                 req.option_id,
-                req.signatures,
+                req.data.into_iter().map(Into::into).collect(),
                 collected_data,
                 req.max_poll_ms,
             )
@@ -578,6 +581,66 @@ mod tests {
         assert!(parsed["pollInMs"].is_null());
     }
 
+    #[tokio::test]
+    async fn test_json_confirm_payment_object_data() {
+        let mock_server = MockServer::start().await;
+
+        let confirm_response = serde_json::json!({
+            "status": "succeeded",
+            "isFinal": true,
+            "pollInMs": null
+        });
+
+        Mock::given(method("POST"))
+            .and(path("/v1/gateway/payment/pay_tron/confirm"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(&confirm_response),
+            )
+            .mount(&mock_server)
+            .await;
+
+        let client =
+            WalletConnectPayJson::new(test_config_json(&mock_server.uri()))
+                .unwrap();
+
+        // Objects in "data" are sent verbatim; a string element holding a
+        // JSON object is also sent as JSON (legacy stringified payloads)
+        let confirm_req = r#"{
+            "paymentId": "pay_tron",
+            "optionId": "opt_1",
+            "data": [
+                {"raw_data_hex": "0a02", "signature": ["0xabc"]},
+                "{\"raw_data_hex\":\"0b03\",\"signature\":[\"0xdef\"]}",
+                "0x123"
+            ]
+        }"#;
+        let result = client.confirm_payment(confirm_req.to_string()).await;
+        assert!(result.is_ok(), "Expected Ok but got: {:?}", result);
+
+        let requests = mock_server.received_requests().await.unwrap();
+        assert_eq!(requests.len(), 1);
+        let body: serde_json::Value =
+            serde_json::from_slice(&requests[0].body).unwrap();
+        assert_eq!(
+            body["results"],
+            serde_json::json!([
+                {
+                    "type": "walletRpc",
+                    "data": [
+                        {"raw_data_hex": "0a02", "signature": ["0xabc"]}
+                    ]
+                },
+                {
+                    "type": "walletRpc",
+                    "data": [
+                        {"raw_data_hex": "0b03", "signature": ["0xdef"]}
+                    ]
+                },
+                {"type": "walletRpc", "data": ["0x123"]}
+            ])
+        );
+    }
+
     #[test]
     fn test_json_config_mapping() {
         let base_url = "https://api.example.com";
@@ -628,7 +691,7 @@ mod tests {
         let client =
             WalletConnectPayJson::new(test_config_json(&mock_server.uri()))
                 .unwrap();
-        // Invalid JSON: "results" should be "signatures"
+        // Invalid JSON: "results" should be "data" (or legacy "signatures")
         let request_json = r#"{"paymentId": "pay_123", "optionId": "opt_1", "results": [], "maxPollMs": -1000}"#;
         let result = client.confirm_payment(request_json.to_string()).await;
         assert!(matches!(result, Err(PayJsonError::JsonParse(_))));

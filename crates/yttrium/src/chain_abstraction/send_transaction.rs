@@ -14,6 +14,7 @@ use {
     serde::{Deserialize, Serialize},
 };
 
+#[allow(clippy::result_large_err)]
 pub async fn send_transaction(
     txn: FeeEstimatedTransaction,
     sig: Signature,
