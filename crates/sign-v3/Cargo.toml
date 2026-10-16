@@ -1,0 +1,80 @@
+[package]
+name = "sign-v3"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "WalletConnect Sign Protocol v3 client"
+
+[lib]
+crate-type = ["cdylib", "staticlib", "rlib"]
+
+[features]
+default = ["native"]
+native = ["dep:reqwest", "dep:tokio"]
+native-tls = ["native", "reqwest/native-tls"]
+rustls = ["native", "reqwest/rustls-tls"]
+uniffi = ["native", "dep:uniffi"]
+bindgen = ["uniffi", "uniffi/cli"]
+wasm = [
+    "dep:wasm-bindgen",
+    "dep:wasm-bindgen-futures",
+    "dep:js-sys",
+    "dep:web-sys",
+    "dep:wasm-streams",
+    "getrandom/js",
+]
+
+[[bin]]
+name = "sign-v3-uniffi-bindgen"
+path = "src/bin/uniffi_bindgen.rs"
+required-features = ["bindgen"]
+
+[dependencies]
+# Crypto
+ed25519-dalek = { version = "2.2", default-features = false, features = ["std", "zeroize"] }
+curve25519-dalek = { version = "4.1", default-features = false, features = ["alloc", "zeroize"] }
+sha2 = "0.10"
+hkdf = "0.12"
+chacha20poly1305 = "0.10"
+zeroize = "1.8"
+getrandom = "0.2"
+
+# Encoding
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+base64 = "0.22"
+bs58 = "0.5"
+hex = "0.4"
+
+# Errors and async
+thiserror = "2.0"
+async-trait = "0.1"
+futures = { version = "0.3", default-features = false, features = ["std", "async-await"] }
+log = "0.4"
+
+# Native
+reqwest = { version = "0.12.28", default-features = false, features = ["json", "stream"], optional = true }
+tokio = { version = "1.50", default-features = false, features = ["rt", "rt-multi-thread", "time", "sync", "macros"], optional = true }
+uniffi = { workspace = true, optional = true, features = ["tokio"] }
+
+# WASM
+wasm-bindgen = { version = "0.2", optional = true }
+wasm-bindgen-futures = { version = "0.4", optional = true }
+js-sys = { version = "0.3", optional = true }
+web-sys = { version = "0.3", optional = true, features = [
+    "Window",
+    "WorkerGlobalScope",
+    "Headers",
+    "Request",
+    "RequestInit",
+    "Response",
+    "ReadableStream",
+    "AbortController",
+    "AbortSignal",
+] }
+wasm-streams = { version = "0.4", optional = true }
+
+[dev-dependencies]
+tokio = { version = "1.50", features = ["rt-multi-thread", "macros", "time", "sync"] }
+reqwest = { version = "0.12.28", default-features = false, features = ["json"] }
