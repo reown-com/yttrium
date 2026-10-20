@@ -21,7 +21,7 @@ pub struct SignConfig {
     /// Protocol versions this client speaks; empty means the SDK default.
     #[serde(default)]
     pub versions: Vec<u32>,
-    /// Wallet policy: the dApp direction this wallet accepts (PAIR-09).
+    /// Wallet policy: the dApp direction this wallet accepts.
     #[serde(default)]
     pub require_dapp: Option<PeerRequirement>,
     #[serde(default = "default_prefix")]

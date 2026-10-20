@@ -1,5 +1,4 @@
 //! The client: pairing, sessions, the send and receive pipelines, events and lifecycle.
-//! Guide: `V3_RUST_SCOPE.md` §3-§7 in the monorepo.
 
 pub mod poller;
 pub mod state;
@@ -250,8 +249,8 @@ impl SignClient {
         poller::stop(&self.inner);
     }
 
-    /// Foreground, online or pageshow: run the liveness check at once (RCV-09). On native a
-    /// superseded poller resumes; on web a superseded tab waits for its next call (guide §10.1).
+    /// Foreground, online or pageshow: run the liveness check at once. On native a
+    /// superseded poller resumes; on web a superseded tab waits for its next call.
     pub fn foreground(&self) {
         let i = &self.inner;
         if !i.poll.lock().expect("lock").running {
@@ -410,7 +409,7 @@ impl SignClient {
             )
             .await?;
         let fetched: Value = relay_json(&res)?;
-        // PAIR-09: a failed check makes the request invalid; show nothing, neither bind nor reject.
+        // A failed check makes the request invalid; show nothing, neither bind nor reject.
         let checked = (|| -> Result<_, SignError> {
             let proof_obj: SignedObject =
                 crate::protocol::ijson::from_value::<SignedObject>(
@@ -593,7 +592,7 @@ impl SignClient {
                     }),
                 };
                 let body = json!({ "binding": build_signed(&binding, labels::BIND, &bpub, &payload) });
-                // Checklist: persist everything and the signed binding before sending (PAIR-16).
+                // Persist everything and the signed binding before sending, so a retry is byte-identical.
                 i.store
                     .put(
                         &format!("secret/prop/{topic}"),
@@ -885,7 +884,7 @@ pub(crate) fn session_of(c: &ConnRecord) -> Session {
     }
 }
 
-/// PAIR-13 and EVT-04 close "under the version in the binding as received", even when it fails.
+/// A failed or late binding is closed under the version it names, even when it fails verification.
 fn unverified_version(o: &SignedObject) -> u32 {
     from_b64u(&o.payload)
         .ok()
@@ -905,7 +904,7 @@ impl Inner {
             .unwrap_or(crate::protocol::constants::FIRST_LINE_TIMEOUT_MS)
     }
 
-    /// MSG-11: when the device clock is off by more than the tolerance, use the Relay's time.
+    /// When the device clock is off by more than the tolerance, use the Relay's time.
     pub fn now_s(&self) -> u64 {
         ((rt::now_ms() / 1000) as i64
             + self.clock_offset_s.load(Ordering::SeqCst))
@@ -992,7 +991,7 @@ impl Inner {
     }
 
     /// Web: a superseded tab reactivates on its next call. It reloads state first, because the
-    /// active tab has moved seq counters, the cursor and sessions forward (guide §10.1).
+    /// active tab has moved seq counters, the cursor and sessions forward.
     async fn ensure_active(self: &Arc<Self>) -> Result<(), SignError> {
         if cfg!(target_arch = "wasm32")
             && self.superseded.load(Ordering::SeqCst)
@@ -1225,14 +1224,15 @@ impl Inner {
             _ = local_deadline => {
                 self.pending.lock().expect("lock").remove(&key);
                 let _ = self.store.remove(&out_key).await;
-                // EVT-03: it may still have been seen, or the Relay withheld it.
+                // It may still have been seen, or the Relay withheld it.
                 self.emit(SignEvent::MessageExpired { topic: conn.into(), seq, id: Some(id) });
                 Err(err("message_expired", "no response by the deadline"))
             }
         }
     }
 
-    /// Guide §5.3. Returns the seq used.
+    /// Signs and posts a message, re-signing once if another tab advanced the seq. Returns the seq
+    /// used.
     pub(crate) async fn send(
         &self,
         conn: &str,
@@ -1285,14 +1285,14 @@ impl Inner {
                 .get_mut(conn)
                 .ok_or_else(|| err("not_found", "unknown session"))?;
             let seq = c.rec.next_seq;
-            // MSG-04: never reuse a seq; persist the counter before signing.
+            // Never reuse a seq: persist the counter before signing.
             c.rec.next_seq += 1;
             self.save_conn(c, false).await?;
             let seal = is_sealable(tag) && c.rec.own_mode() == Mode::Sealed;
             let bpub = c.rec.binding();
             let now = self.now_s();
             // The Relay keeps a message for its ttl. An update or extension outlives its
-            // deadline (MSG-13), so it is kept until the session it changes would end.
+            // deadline, so it is kept until the session it changes would end.
             let until = match tag {
                 tags::EXTEND => rpc["params"]["expiry"].as_u64().unwrap_or(0),
                 tags::UPDATE => c.rec.expiry,
@@ -1368,7 +1368,7 @@ impl Inner {
                 let final_error = matches!(&e, crate::transport::relay::RelayError::Http { status, .. } if *status < 500 && *status != 429);
                 let se = SignError::from(e);
                 if final_error {
-                    // The seq stays used and leaves a gap (MSG-06).
+                    // The seq stays used and leaves a gap, which receivers accept.
                     self.store
                         .remove(&format!("out/{}/{}", out.conn, out.seq))
                         .await?;
@@ -1381,7 +1381,7 @@ impl Inner {
         }
     }
 
-    /// Checklist: signed messages not yet answered with 202 are resent with identical bytes.
+    /// Signed messages not yet answered with 202 are resent with identical bytes.
     pub(crate) async fn flush_outbox(&self) {
         let Ok(keys) = self.store.keys("out/").await else { return };
         for k in keys {
@@ -1446,7 +1446,7 @@ impl Inner {
         let binding = derive_binding_key(&req.sym);
         let bpub = binding.verifying_key().to_bytes();
         let key = req.key.clone();
-        // EVT-04: established for a request counted as failed is answered with a signed close.
+        // An established connection for a request counted as failed is answered with a signed close.
         if req.rec.failed {
             drop(st);
             let _ = self
@@ -1547,7 +1547,7 @@ impl Inner {
                 self.emit(SignEvent::SessionConnect { session });
             }
             Err(e) => {
-                // PAIR-13: never use it; close it under the version in the binding as received.
+                // Never use it; close it under the version in the binding as received.
                 self.stats.invalid_dropped.fetch_add(1, Ordering::Relaxed);
                 if let Some(r) = st.reqs.get_mut(id) {
                     r.rec.failed = true;
@@ -1606,7 +1606,7 @@ impl Inner {
         Ok(())
     }
 
-    /// Keeps the request, marked failed, so EVT-04 can close a late binding. False when it was
+    /// Keeps the request, marked failed, so a late binding can still be closed. False when it was
     /// already failed or is unknown.
     async fn mark_failed(&self, id: &str) -> Result<bool, SignError> {
         let mut st = self.state.lock().await;
@@ -1619,7 +1619,7 @@ impl Inner {
         Ok(true)
     }
 
-    /// Guide §5.4.
+    /// Checks, opens and dispatches one received message.
     async fn on_message(
         self: &Arc<Self>,
         id: &str,
@@ -1757,7 +1757,7 @@ impl Inner {
             "wc_sessionPing" => {
                 Some(SignEvent::SessionPing { id: rid, topic: id.into() })
             }
-            // MSG-13: apply whatever the deadline, only above the last applied seq of its kind.
+            // Apply whatever the deadline, only above the last applied seq of its kind.
             "wc_sessionUpdate" if m.plain.seq > c.rec.applied_update => {
                 c.rec.applied_update = m.plain.seq;
                 c.rec.namespaces = params["namespaces"].clone();
@@ -1812,7 +1812,7 @@ impl Inner {
         let verified = {
             let st = self.state.lock().await;
             let Some(c) = st.conns.get(id) else { return Ok(()) };
-            // EVT-02: a close is the peer's act only when its signature verifies.
+            // A close is the peer's act only when its signature verifies.
             reason == "closed"
                 && close.is_some_and(|sig| {
                     verify_bytes(
@@ -1827,7 +1827,8 @@ impl Inner {
         self.drop_conn(id, reason, true, verified).await
     }
 
-    /// RCV-05: close every connection with a signed close, fail pending requests, poll without a cursor.
+    /// Events were lost: close every connection with a signed close, fail pending requests, and poll
+    /// without a cursor.
     pub(crate) async fn on_cursor_expired(&self) -> Result<(), SignError> {
         let conns: Vec<(String, SigningKey, u32, [u8; 32])> = self
             .state
@@ -1857,7 +1858,7 @@ impl Inner {
         Ok(())
     }
 
-    /// EVT-06: decide expiry only after a poll that caught up with the log.
+    /// Decide expiry only after a poll that caught up with the log.
     pub(crate) async fn sweep_expired(&self) -> Result<(), SignError> {
         let now = self.now_s();
         let expired: Vec<String> = self

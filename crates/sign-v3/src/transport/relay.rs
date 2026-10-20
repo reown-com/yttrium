@@ -1,4 +1,4 @@
-//! Calls 1-6 with the spec's retry rules (API-01, ERR-02, ERR-03), the client JWT, the poll request,
+//! Relay calls with their retry rules, the client JWT, the poll request,
 //! and the poll config with local bounds.
 
 use {

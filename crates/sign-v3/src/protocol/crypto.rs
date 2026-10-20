@@ -27,7 +27,7 @@ pub fn new_pairing_key() -> SigningKey {
     SigningKey::from_bytes(&random_bytes())
 }
 
-/// PAIR-02: the bindingKey seed is HKDF-SHA256(ikm = symKey, salt = empty, info = "wc/binding").
+/// The bindingKey seed is HKDF-SHA256(ikm = symKey, salt = empty, info = "wc/binding").
 pub fn derive_binding_key(sym: &[u8; 32]) -> SigningKey {
     let mut seed = Zeroizing::new([0u8; 32]);
     Hkdf::<Sha256>::new(Some(&[]), sym)
@@ -41,7 +41,7 @@ fn canonical_point(bytes: &[u8; 32]) -> Option<curve25519_dalek::EdwardsPoint> {
     (p.compress().as_bytes() == bytes).then_some(p)
 }
 
-/// PAIR-03: canonical, not small order, in the prime-order subgroup.
+/// A pairing public key must be canonical, not small order, and in the prime-order subgroup.
 pub fn is_valid_pairing_pub(bytes: &[u8]) -> bool {
     let Ok(arr) = <[u8; 32]>::try_from(bytes) else { return false };
     canonical_point(&arr)
@@ -90,7 +90,7 @@ pub fn message_signing_input(
     v
 }
 
-/// MSG-09: `ad = label ‖ 0x00 ‖ bindingPub ‖ plain`, without the length.
+/// `ad = label ‖ 0x00 ‖ bindingPub ‖ plain`, without the length.
 pub fn seal_ad(label: &str, binding_pub: &[u8; 32], plain: &[u8]) -> Vec<u8> {
     let mut v = signed_prefix(label, binding_pub);
     v.extend_from_slice(plain);
@@ -102,7 +102,8 @@ pub struct SealingKeys {
     pub w2d: Zeroizing<[u8; 32]>,
 }
 
-/// PAIR-18.
+/// The two directional sealing keys: X25519 over the Ed25519 pairing keys, then HKDF with the
+/// symKey as salt and the bindingPub and both pairing keys in the info.
 pub fn derive_sealing_keys(
     version: u32,
     own: &SigningKey,

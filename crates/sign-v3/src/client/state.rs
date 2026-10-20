@@ -1,4 +1,4 @@
-//! Persisted state (guide §4). Records hold no secrets; private keys and sealing keys live under
+//! Persisted state. Records hold no secrets; private keys and sealing keys live under
 //! `secret/`, which the platform maps to its secure store.
 
 use {

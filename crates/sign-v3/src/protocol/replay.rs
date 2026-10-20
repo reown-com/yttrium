@@ -3,7 +3,7 @@ use {
     serde::{Deserialize, Serialize},
 };
 
-/// Receivers dedupe by `seq` and accept gaps (MSG-06). Sends are independent HTTP requests and can
+/// Receivers dedupe by `seq` and accept gaps. Sends are independent HTTP requests and can
 /// arrive out of order, so this keeps the highest seen plus the seen values within the window.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ReplayWindow {

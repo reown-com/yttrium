@@ -1,4 +1,4 @@
-//! Strict I-JSON (RFC 7493) as MSG-01 requires: valid UTF-8, no duplicate keys, no lone
+//! Strict I-JSON (RFC 7493): valid UTF-8, no duplicate keys, no lone
 //! surrogates, integers exact as doubles. It also records the paths of numbers written with a
 //! fraction or exponent, so integer-only fields can be checked against the raw text.
 
@@ -18,7 +18,7 @@ pub struct Parsed {
 }
 
 impl Parsed {
-    /// MSG-01: the field must be a JSON integer written without fraction or exponent.
+    /// The field must be a JSON integer written without fraction or exponent.
     pub fn int(&self, path: &str) -> Result<i64, IJsonError> {
         let v = pointer(&self.value, path)
             .ok_or_else(|| IJsonError(format!("{path} missing")))?;

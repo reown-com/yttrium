@@ -1,4 +1,4 @@
-//! The receive path (RCV-00..11): one streamed poll at a time, liveness, host failover.
+//! The receive path: one streamed poll at a time, liveness, host failover.
 
 use {
     super::Inner,
@@ -66,7 +66,7 @@ async fn run(
     let mut cut_retried = false;
     let mut jwt_retried = false;
     let mut failures: u32 = 0;
-    // RCV-08: the first poll after a start goes to the primary host.
+    // The first poll after a start goes to the primary host.
     inner.relay.set_host_index(0);
     while current(&inner, generation) {
         let started = rt::now_ms();
@@ -123,7 +123,7 @@ async fn run(
                     inner.relay.jwt(true);
                     continue;
                 }
-                // RCV-10, first match wins.
+                // After a failed poll, first match wins.
                 if let Some(s) = retry_after_s {
                     sleep_or_kick(s * 1000, &mut kick).await;
                 } else if matches!(status, 401 | 403 | 429) {
@@ -159,7 +159,7 @@ async fn handle_last(
 ) -> Result<bool, super::SignError> {
     match last.get("end").and_then(Value::as_str) {
         Some("superseded") => {
-            // RCV-04: stop. Native resumes on foreground; web waits for the next call.
+            // Stop. Native resumes on foreground; web waits for the next call.
             inner.superseded.store(true, Ordering::SeqCst);
             stop(inner);
             return Ok(false);
@@ -180,7 +180,7 @@ async fn handle_last(
     if !events.is_empty() {
         inner.handle_events(events).await?;
     }
-    // RCV-03: persist the cursor only after handling its events. It is opaque, and absent
+    // Persist the cursor only after handling its events. It is opaque, and absent
     // until there is something to acknowledge.
     if let Some(cursor) = last["cursor"].as_str() {
         inner.store.put("poll/cursor", &cursor).await?;
@@ -203,7 +203,8 @@ async fn sleep_or_kick(ms: u64, kick: &mut mpsc::UnboundedReceiver<()>) {
     }
 }
 
-/// RCV-10 rule 5.
+/// Moves to the next untried host, backing off first after a fast failure. Once every host has
+/// failed, backs off and starts over at the primary.
 async fn next_host(
     inner: &Inner,
     tried: &mut HashSet<usize>,
@@ -245,7 +246,7 @@ async fn poll_once(
     inner.last_byte_ms.store(sent, Ordering::SeqCst);
     let (body, host) = {
         let mut st = inner.state.lock().await;
-        // RCV-07: n grows across polls, restarts and tabs.
+        // n grows across polls, restarts and tabs.
         st.n = rt::now_ms().max(st.n + 1);
         if inner.store.put("poll/n", &st.n).await.is_err() {
             return Outcome::Dead;
@@ -336,7 +337,7 @@ async fn poll_once(
                 return Outcome::Last(v);
             }
             heartbeat_seen = true;
-            // A held poll has nothing left to deliver, so a heartbeat means caught up (EVT-06).
+            // A held poll has nothing left to deliver, so a heartbeat means caught up.
             let _ = inner.sweep_expired().await;
         }
     }

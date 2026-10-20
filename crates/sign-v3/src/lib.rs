@@ -2,8 +2,7 @@
 // serves native, where everything is `Send + Sync`.
 #![cfg_attr(target_arch = "wasm32", allow(clippy::arc_with_non_send_sync))]
 
-//! WalletConnect Sign Protocol v3 client. Implementation guide: `V3_RUST_SCOPE.md` in the
-//! monorepo; normative spec: `sign-v3-spec`.
+//! WalletConnect Sign Protocol v3 client.
 
 #[cfg(feature = "uniffi")]
 uniffi::setup_scaffolding!();

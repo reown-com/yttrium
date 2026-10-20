@@ -37,7 +37,7 @@ impl Role {
     }
 }
 
-/// PAIR-04: the dApp's intent.
+/// The dApp's intent.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
 pub struct DappIntent {
@@ -45,7 +45,7 @@ pub struct DappIntent {
     pub peer: PeerRequirement,
 }
 
-/// PAIR-10: the wallet's intent carries only its own direction.
+/// The wallet's intent carries only its own direction.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
 pub struct WalletIntent {
@@ -182,7 +182,7 @@ pub struct RejectionPayload {
     pub reason: Option<String>,
 }
 
-/// Events, as the Relay delivers them. Unknown types are skipped but still acknowledged (RCV-11).
+/// Events, as the Relay delivers them. Unknown types are skipped but still acknowledged.
 #[derive(Debug, Clone, Deserialize)]
 #[serde(tag = "type")]
 pub enum RelayEvent {

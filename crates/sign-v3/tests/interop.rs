@@ -1,5 +1,6 @@
-//! Cross-implementation: the Rust SDK against the TypeScript PoC SDK, through the same Relay.
-//! Needs SIGN_V3_RELAY_HOSTS and SIGN_V3_TS_PEER_DIR (the monorepo's packages/sign-v3-poc).
+//! Cross-implementation: the Rust SDK against a TypeScript Sign v3 peer, through the same Relay.
+//! Needs SIGN_V3_RELAY_HOSTS and SIGN_V3_TS_PEER_DIR, a directory whose `scripts/ts-peer.ts` plays
+//! the dApp or the wallet.
 mod common;
 
 use {

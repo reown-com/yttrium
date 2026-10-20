@@ -1,4 +1,4 @@
-//! sign-v3-spec reference/constants.md. Absolute times are Unix seconds; `t` and `n` are milliseconds.
+//! Protocol constants. Absolute times are Unix seconds; `t` and `n` are milliseconds.
 
 pub const ANSWER_WINDOW_S: u64 = 5 * 60;
 pub const MAX_LIFETIME_S: u64 = 7 * 24 * 60 * 60;

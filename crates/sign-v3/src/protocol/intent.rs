@@ -8,7 +8,7 @@ pub fn satisfies(mode: Mode, req: PeerRequirement) -> bool {
     }
 }
 
-/// PAIR-12: the wallet's own direction must meet the dApp's requirement, and a sealed direction
+/// The wallet's own direction must meet the dApp's requirement, and a sealed direction
 /// counts only with the dApp project's private-channel entitlement.
 pub fn bind_compatibility(
     dapp: &DappIntent,

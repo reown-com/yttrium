@@ -192,7 +192,7 @@ mod spec_vectors {
     #[test]
     fn reproduces_the_fetch_and_close_signatures() {
         let f = fx();
-        // The spec's vector signs a topic; the SDK signs the connectionId the same way.
+        // The vector signs a topic; the SDK signs the connectionId the same way.
         let topic =
             "630dcd2966c4336691125448bbb25b4ff412a49c732db2c8abc1b8581bd710dd";
         assert_eq!(

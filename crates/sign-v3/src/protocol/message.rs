@@ -151,7 +151,7 @@ pub struct ReadMessage {
     pub sig: Vec<u8>,
 }
 
-/// MSG-01, MSG-02, MSG-09: parse `plain` strictly; `deadline` absent only on 1130 and 1131;
+/// Parses `plain` strictly; `deadline` absent only on 1130 and 1131;
 /// `nonce` present exactly when sealed, 24 bytes.
 pub fn read_message(w: &WireMessage) -> Result<ReadMessage, ProtocolError> {
     let plain_bytes = from_b64u(&w.plain)?;
@@ -244,7 +244,7 @@ pub fn read_rpc(bytes: &[u8]) -> Result<Parsed, ProtocolError> {
     Ok(p)
 }
 
-/// MSG-10: verify first (the caller), then decrypt; any failure drops the message.
+/// Verify first (the caller), then decrypt; any failure drops the message.
 pub fn open_message_payload(
     m: &ReadMessage,
     version: u32,

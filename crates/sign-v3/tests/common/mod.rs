@@ -1,6 +1,6 @@
-//! Shared helpers for tests against a running v3 Relay. Start the mock Relay from the monorepo:
-//!   cd packages/sign-v3-poc && FAST=1 npx tsx scripts/serve-relay.ts
-//! then: SIGN_V3_RELAY_HOSTS=http://127.0.0.1:8787,http://127.0.0.1:8788 cargo test -p sign-v3
+//! Shared helpers for tests against a running v3 Relay, for example:
+//!   SIGN_V3_RELAY_HOSTS=https://<v3 relay host> cargo test -p sign-v3 --features rustls
+//! A Relay with debug routes and a second host also runs the tamper, sealing and failover tests.
 #![allow(dead_code)]
 
 use {

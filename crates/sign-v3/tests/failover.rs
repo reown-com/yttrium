@@ -1,4 +1,4 @@
-//! Host failover (RCV-09, RCV-10). Its own test binary, because it blackholes a shared Relay host.
+//! Host failover. Its own test binary, because it blackholes a shared Relay host.
 mod common;
 
 use {
