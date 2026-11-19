@@ -280,17 +280,23 @@ mod spec_vectors {
         let sym = h32(SYM);
         let id = "09178356979748733185";
         let uri = super::uri::build_uri(id, &sym, 1759313100);
+        let topic = super::crypto::sha256_hex(&sym);
         assert_eq!(
             uri,
             format!(
-                "wc:{id}@2?relay-protocol=irn&symKey={SYM}&expiryTimestamp=1759313100"
+                "wc:{topic}@2?relay-protocol=irn&symKey={SYM}&expiryTimestamp=1759313100&v3={id}"
             )
         );
         let p = super::uri::parse_uri(&uri).unwrap();
         assert_eq!((p.connection_id.as_str(), p.legacy), (id, false));
         assert_eq!((*p.sym, p.expiry_timestamp), (sym, 1759313100));
-        let v2 = uri.replace(id, &"Ab".repeat(32));
-        assert!(super::uri::parse_uri(&v2).unwrap().legacy);
+        let v2 = super::uri::parse_uri(&uri.replace(&format!("&v3={id}"), ""))
+            .unwrap();
+        assert_eq!(
+            (v2.connection_id.as_str(), v2.legacy),
+            (topic.as_str(), true)
+        );
+        assert!(super::uri::parse_uri(&uri.replace(&topic, id)).is_err());
         for bad in
             ["39178356979748733185", "0", "0123456789012345678901", "0+1"]
         {

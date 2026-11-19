@@ -110,6 +110,13 @@ pub struct ProposalParams {
     pub optional_namespaces: Option<Namespaces>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub session_properties: Option<HashMap<String, String>>,
+    /// JSON, as in v2: an object of arbitrary values keyed by namespace or chain.
+    #[serde(
+        default,
+        with = "embedded_json::option",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub scoped_properties: Option<String>,
 }
 
 /// An RPC call inside a session request, e.g. `personal_sign`. `params` is the method's own
@@ -392,8 +399,12 @@ mod json_shape_tests {
             serde_json::from_str::<serde_json::Value>(&req.params).unwrap(),
             json!([{ "to": "0x1", "value": "0x0" }])
         );
-        let p: ProposalParams = serde_json::from_value(json!({ "requiredNamespaces": ns, "sessionProperties": { "caip154-mandatory": "true" } })).unwrap();
+        let p: ProposalParams = serde_json::from_value(json!({ "requiredNamespaces": ns, "sessionProperties": { "caip154-mandatory": "true" }, "scopedProperties": { "eip155": { "walletService": [{ "url": "https://w" }] } } })).unwrap();
         assert_eq!(p.required_namespaces, ns);
+        assert_eq!(
+            serde_json::to_value(&p).unwrap()["scopedProperties"],
+            json!({ "eip155": { "walletService": [{ "url": "https://w" }] } })
+        );
         assert!(
             serde_json::to_value(&p)
                 .unwrap()

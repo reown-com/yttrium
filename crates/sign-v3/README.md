@@ -82,7 +82,7 @@ The modules depend in one direction: `protocol` ← `transport` ← `client` ←
    - It makes a fresh symKey. The bindingKey, an Ed25519 key, is derived from it.
    - It signs a bindingProof and the proposal.
    - It creates a pending connection at the Relay, which returns a `connectionId`.
-   - The URI is v2's, with the `connectionId` where the topic was: `wc:<connectionId>@2?relay-protocol=irn&symKey=…&expiryTimestamp=…`.
+   - The URI is a valid v2 pairing URI, with the `connectionId` in the `v3` parameter: `wc:<sha256(symKey)>@2?relay-protocol=irn&symKey=…&expiryTimestamp=…&v3=<connectionId>`. A v2 wallet can pair on the same URI.
 2. **The wallet calls `pair`.**
    - It parses the URI, derives the same bindingKey, and fetches the proposal.
    - It verifies the bindingProof and the proposal's signature. A request that fails any check is never shown.
@@ -345,7 +345,7 @@ In Node 20 and later, pass the module's bytes to `init` instead of letting it fe
 
 The shared shapes:
 - **`Namespace`** is `{ "chains"?, "accounts"?, "methods", "events" }`, as in v2. **`Namespaces`** maps a namespace key such as `eip155` to a `Namespace`.
-- **`ProposalParams`** is `{ "requiredNamespaces": Namespaces, "optionalNamespaces"?: Namespaces, "sessionProperties"?: { [key]: string } }`. That's v2's proposal params without the transport fields. The dApp's metadata is added from the config.
+- **`ProposalParams`** is `{ "requiredNamespaces": Namespaces, "optionalNamespaces"?: Namespaces, "sessionProperties"?: { [key]: string }, "scopedProperties"?: { [key]: any } }`. That's v2's proposal params without the transport fields. The dApp's metadata is added from the config.
 - **`Intent`** is `{ "own": "monitored" | "sealed", "peer": "none" | "monitored" | "sealed" }`, defaulting to `{ "own": "monitored", "peer": "none" }`.
 
 Notes on the params:
