@@ -3,9 +3,9 @@
 
 use {
     crate::{
-        AppSignatureError, AppSignatureRequest, AppSigner, Listener,
-        MemoryStorage, Namespace, Namespaces, ProposalParams, RpcRequest,
-        SignClient, SignConfig, SignEvent, VerifyContext, VerifyState,
+        AppSignatureError, AppSignatureRequest, AppSigner, AppVerification,
+        Listener, MemoryStorage, Namespace, Namespaces, ProposalParams,
+        RpcRequest, SignClient, SignConfig, SignEvent,
         protocol::{
             encoding::{b64u, from_b64u},
             types::{DappIntent, Metadata, Mode, PeerRequirement},
@@ -153,15 +153,29 @@ impl Listener for Events {
 }
 
 impl Events {
-    fn requests(&self) -> Vec<(RpcRequest, VerifyContext)> {
+    fn requests(&self) -> Vec<(RpcRequest, AppVerification)> {
         self.0
             .lock()
             .unwrap()
             .iter()
             .filter_map(|e| match e {
-                SignEvent::SessionRequest {
-                    request, verify_context, ..
-                } => Some((request.clone(), verify_context.clone())),
+                SignEvent::SessionRequest { request, verification, .. } => {
+                    Some((request.clone(), verification.clone()))
+                }
+                _ => None,
+            })
+            .collect()
+    }
+
+    fn mismatches(&self) -> Vec<(Option<i64>, Option<String>)> {
+        self.0
+            .lock()
+            .unwrap()
+            .iter()
+            .filter_map(|e| match e {
+                SignEvent::AppSignatureMismatch { id, method, .. } => {
+                    Some((*id, method.clone()))
+                }
                 _ => None,
             })
             .collect()
@@ -177,7 +191,11 @@ async fn client(relay: &Arc<FakeRelay>, events: Arc<Events>) -> SignClient {
             name: "Self-asserted name".into(),
             description: String::new(),
             url: "https://self-asserted.example".into(),
-            icons: vec![],
+            icons: vec!["https://self-asserted.example/i.png".into()],
+            redirect: Some(crate::Redirect {
+                native: Some("app://".into()),
+                ..Default::default()
+            }),
         },
         versions: vec![],
         require_dapp: None,
@@ -247,37 +265,59 @@ async fn the_proposal_is_signed_and_the_wallet_checks_it() {
     let wallet = client(&relay, Default::default()).await;
     let p = wallet.pair(uri.clone()).await.unwrap();
     assert_eq!(
-        p.verify_context,
-        VerifyContext {
-            state: VerifyState::BusinessName,
-            origin: Some("https://app.example".into()),
+        p.verification,
+        AppVerification {
+            domain: Some("app.example".into()),
             name: Some("App".into()),
             ..Default::default()
         }
     );
-
-    // A signature for another proposal: invalid, and none of the metadata.
-    let other = json!(jwt(&hash_b64u(b"another proposal"), None));
-    *relay.fetch.lock().unwrap() = fetched(&create, other, origin);
-    let wallet = client(&relay, Default::default()).await;
-    let p = wallet.pair(uri.clone()).await.unwrap();
+    // The dApp's own name, url and icons never reach the wallet.
+    let shown = serde_json::to_string(&p).unwrap();
+    assert!(!shown.contains("self-asserted"), "{shown}");
     assert_eq!(
-        p.verify_context,
-        VerifyContext { state: VerifyState::Invalid, ..Default::default() }
+        p.metadata.redirect.and_then(|r| r.native).as_deref(),
+        Some("app://")
     );
 
-    // Unsigned: Default. The app's own metadata never becomes the origin.
-    *relay.fetch.lock().unwrap() =
-        fetched(&create, Value::Null, json!({ "isScam": true }));
+    // A signature for another proposal: dropped, the dApp told with a
+    // rejection, and the wallet with an error and an event.
+    let other = json!(jwt(&hash_b64u(b"another proposal"), None));
+    *relay.fetch.lock().unwrap() = fetched(&create, other, origin);
+    let events = Arc::new(Events::default());
+    let wallet = client(&relay, events.clone()).await;
+    let e = wallet.pair(uri.clone()).await.unwrap_err();
+    assert_eq!(e.code(), "app_signature_mismatch");
+    assert_eq!(events.mismatches().len(), 1);
+    assert!(
+        !events
+            .0
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|e| matches!(e, SignEvent::SessionProposal { .. }))
+    );
+    let rejection = relay
+        .bodies("PUT", &format!("/v3/connections/{CONNECTION_ID}/rejection"))
+        .remove(0);
+    let payload =
+        from_b64u(rejection["rejection"]["payload"].as_str().unwrap()).unwrap();
+    assert_eq!(
+        serde_json::from_slice::<Value>(&payload).unwrap(),
+        json!({ "connectionId": CONNECTION_ID })
+    );
+
+    // Unsigned: only the screening flags, whatever else the Relay sent.
+    *relay.fetch.lock().unwrap() = fetched(
+        &create,
+        Value::Null,
+        json!({ "origin": "https://app.example", "isScam": true }),
+    );
     let wallet = client(&relay, Default::default()).await;
     let p = wallet.pair(uri).await.unwrap();
     assert_eq!(
-        p.verify_context,
-        VerifyContext {
-            state: VerifyState::Default,
-            is_scam: Some(true),
-            ..Default::default()
-        }
+        p.verification,
+        AppVerification { is_scam: true, ..Default::default() }
     );
 }
 
@@ -393,22 +433,45 @@ async fn sealed_requests_carry_sub_and_cth_and_the_wallet_checks_both() {
         .await
         .unwrap();
 
+    // Only the first request reaches the wallet.
     let got = wallet_events.requests();
-    assert_eq!(got.len(), 2);
+    assert_eq!(got.len(), 1);
     assert_eq!(
         got[0].1,
-        VerifyContext {
-            state: VerifyState::Verified,
-            origin: Some("https://app.example".into()),
+        AppVerification {
+            domain: Some("app.example".into()),
             name: Some("App".into()),
             icon: Some("https://app.example/i.png".into()),
+            is_verified: true,
             ..Default::default()
         }
     );
-    // Still surfaced, as invalid, with nothing about the app.
-    assert_eq!(got[1].0.params, r#"["0x6279","0xabc"]"#);
+    // The second is dropped, reported, and answered with an error.
+    let second_rpc: Value =
+        serde_json::from_str(&signer.seen.lock().unwrap()[2].request).unwrap();
+    let second_id = second_rpc["id"].as_i64();
     assert_eq!(
-        got[1].1,
-        VerifyContext { state: VerifyState::Invalid, ..Default::default() }
+        wallet_events.mismatches(),
+        vec![(second_id, Some("wc_sessionRequest".into()))]
     );
+    let reply = relay.wait_for("POST", &path, 3).await;
+    let reply: Value = serde_json::from_slice(
+        &from_b64u(reply["message"]["payload"].as_str().unwrap()).unwrap(),
+    )
+    .unwrap();
+    assert_eq!(reply["id"].as_i64(), second_id);
+    assert_eq!(
+        reply["error"],
+        json!({ "code": -32600, "message": "app_signature_mismatch" })
+    );
+
+    // The wallet's session shows the proposal's verification, and none of
+    // the dApp's own identity.
+    let session = wallet.sessions().await.remove(0);
+    assert_eq!(session.wallet_metadata, None);
+    assert_eq!(session.dapp_metadata.unwrap().description, "");
+    assert_eq!(session.verification, Some(AppVerification::default()));
+    let dapp_session = dapp.sessions().await.remove(0);
+    assert_eq!(dapp_session.dapp_metadata, None);
+    assert!(dapp_session.wallet_metadata.is_some());
 }

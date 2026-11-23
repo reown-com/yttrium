@@ -43,7 +43,9 @@ use {
                 may_role_send, method_tag, tag_info, tags,
             },
             uri::{build_uri, is_connection_id, parse_uri},
-            verify::{hash_b64u, verify_context},
+            verify::{
+                APP_SIGNATURE_MISMATCH_CODE, app_verification, hash_b64u,
+            },
         },
         rt::{self, BoxFut},
         transport::{HttpClient, relay::Relay},
@@ -482,16 +484,34 @@ impl SignClient {
                 return Err(err("invalid_request", "proposal method"));
             }
             // A proposal is never sealed: its payload is the plaintext.
-            let verify_context = verify_context(
+            let verification = app_verification(
                 fetched["appSignature"].as_str(),
                 fetched.get("appMetadata"),
                 &m.payload_bytes,
                 &m.payload_bytes,
             );
-            Ok((versions, intent, dapp_pub_s, rpc, verify_context))
+            Ok((versions, intent, dapp_pub_s, rpc, verification))
         })()?;
-        let (dapp_versions, dapp_intent, dapp_pub, rpc, verify_context) =
-            checked;
+        let (dapp_versions, dapp_intent, dapp_pub, rpc, verification) = checked;
+        let Ok(verification) = verification else {
+            // The App Signature is for another proposal: drop it, and tell the
+            // dApp with a rejection. v3 rejections carry no reason for this.
+            let rejection =
+                RejectionPayload { connection_id: id.clone(), reason: None };
+            let body = json!({ "rejection": build_signed(&binding, labels::REJECT, &bpub, &rejection) });
+            let _ = i
+                .answer(&format!("/v3/connections/{id}/rejection"), &body)
+                .await;
+            i.emit(SignEvent::AppSignatureMismatch {
+                topic: id,
+                id: rpc.value["id"].as_i64(),
+                method: Some("wc_sessionCreate".into()),
+            });
+            return Err(err(
+                "app_signature_mismatch",
+                "the proposal's App Signature is for another proposal",
+            ));
+        };
         let relay_versions: Vec<u32> = fetched["versions"]
             .as_array()
             .map(|a| {
@@ -504,15 +524,20 @@ impl SignClient {
             .filter(|v| i.versions.contains(v) && relay_versions.contains(v))
             .max()
             .unwrap_or(0);
-        let params = rpc.value["params"].clone();
-        let metadata: Metadata =
-            crate::protocol::ijson::from_value::<Metadata>(&params["metadata"])
-                .unwrap_or(Metadata {
-                    name: String::new(),
-                    description: String::new(),
-                    url: String::new(),
-                    icons: vec![],
-                });
+        let mut params = rpc.value["params"].clone();
+        // The dApp's self-asserted identity is never kept or shown.
+        let metadata = params
+            .as_object_mut()
+            .and_then(|o| o.remove("metadata"))
+            .and_then(|m| ijson::from_value::<Metadata>(&m))
+            .map(|m| m.without_identity())
+            .unwrap_or(Metadata {
+                name: String::new(),
+                description: String::new(),
+                url: String::new(),
+                icons: vec![],
+                redirect: None,
+            });
         let rec = WalletProp {
             id: id.clone(),
             dapp_intent,
@@ -525,6 +550,7 @@ impl SignClient {
                 .map_err(|e| err("invalid_request", e.0))?,
             params: params.clone(),
             metadata: metadata.clone(),
+            verification: verification.clone(),
             expires_at: u.expiry_timestamp,
             pending: None,
         };
@@ -559,13 +585,13 @@ impl SignClient {
             id,
             proposal_id: rec.proposal_id,
             params: ijson::from_value(&params).unwrap_or_default(),
-            metadata,
+            metadata: metadata.for_wallet(),
             intent: dapp_intent,
             versions: dapp_versions,
             version,
             sealable: rec.sealable,
             expires_at: rec.expires_at,
-            verify_context,
+            verification,
         };
         i.emit(SignEvent::SessionProposal { proposal: proposal.clone() });
         Ok(proposal)
@@ -690,7 +716,8 @@ impl SignClient {
                 dapp_mode: rec.dapp_intent.own,
                 wallet_mode: own,
                 namespaces,
-                peer_metadata: rec.metadata.clone(),
+                peer_metadata: rec.metadata.without_identity(),
+                verification: Some(rec.verification.clone()),
                 expiry,
                 next_seq: 1,
                 recv: Default::default(),
@@ -911,7 +938,12 @@ pub(crate) fn session_of(c: &ConnRecord) -> Session {
         role: c.role,
         version: c.version,
         namespaces: ijson::from_value(&c.namespaces).unwrap_or_default(),
-        peer_metadata: c.peer_metadata.clone(),
+        wallet_metadata: (c.role == Role::Dapp)
+            .then(|| c.peer_metadata.clone()),
+        dapp_metadata: (c.role == Role::Wallet)
+            .then(|| c.peer_metadata.for_wallet()),
+        verification: (c.role == Role::Wallet)
+            .then(|| c.verification.clone().unwrap_or_default()),
         dapp_mode: c.dapp_mode,
         wallet_mode: c.wallet_mode,
         expiry: c.expiry,
@@ -1598,6 +1630,7 @@ impl Inner {
                     wallet_mode: intent.own,
                     namespaces: result["namespaces"].clone(),
                     peer_metadata: metadata,
+                    verification: None,
                     expiry,
                     next_seq: 1,
                     recv: Default::default(),
@@ -1775,6 +1808,33 @@ impl Inner {
         }
         // Persist the replay window before the app sees the message.
         self.save_conn(c, false).await?;
+        let Ok(verification) = app_verification(
+            app_signature,
+            app_metadata,
+            &plaintext,
+            &m.payload_bytes,
+        ) else {
+            // The App Signature is for another message: drop it, never show
+            // it, and answer a request with an error.
+            drop(st);
+            self.stats.invalid_dropped.fetch_add(1, Ordering::Relaxed);
+            let rid = rpc["id"].as_i64();
+            self.emit(SignEvent::AppSignatureMismatch {
+                topic: id.into(),
+                id: rid,
+                method: rpc["method"].as_str().map(str::to_string),
+            });
+            if let (true, Some(rid)) = (is_request(&rpc), rid) {
+                let me = self.clone();
+                let id = id.to_string();
+                let reply = json!({ "id": rid, "jsonrpc": "2.0", "error": { "code": APP_SIGNATURE_MISMATCH_CODE, "message": "app_signature_mismatch" } });
+                rt::spawn(async move {
+                    let _ =
+                        me.send(&id, tag + 1, reply, DEFAULT_DEADLINE_S).await;
+                });
+            }
+            return Ok(());
+        };
         let rid = rpc["id"].as_i64().unwrap_or(0);
         if !is_request(&rpc) {
             drop(st);
@@ -1824,12 +1884,7 @@ impl Inner {
                         .unwrap_or_default()
                         .into(),
                     request: rpc_request_of(&params["request"]),
-                    verify_context: verify_context(
-                        app_signature,
-                        app_metadata,
-                        &plaintext,
-                        &m.payload_bytes,
-                    ),
+                    verification,
                 })
             }
             "wc_sessionEvent" => Some(SignEvent::SessionEvent {

@@ -62,6 +62,55 @@ pub struct Metadata {
     pub url: String,
     #[serde(default)]
     pub icons: Vec<String>,
+    /// Deep links back to the app, as v2's `redirect`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub redirect: Option<Redirect>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
+#[serde(rename_all = "camelCase")]
+pub struct Redirect {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub native: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub universal: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub link_mode: Option<bool>,
+}
+
+/// The dApp's metadata as a wallet sees it: without the self-asserted
+/// identity (`name`, `url`, `icons`). Who the app is comes from
+/// `AppVerification` only.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
+#[serde(rename_all = "camelCase")]
+pub struct DappMetadata {
+    #[serde(default)]
+    pub description: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub redirect: Option<Redirect>,
+}
+
+impl Metadata {
+    /// What a wallet may see of a dApp's metadata.
+    pub fn for_wallet(&self) -> DappMetadata {
+        DappMetadata {
+            description: self.description.clone(),
+            redirect: self.redirect.clone(),
+        }
+    }
+
+    /// The same, kept in a `Metadata` record: identity fields emptied.
+    pub fn without_identity(&self) -> Metadata {
+        Metadata {
+            name: String::new(),
+            description: self.description.clone(),
+            url: String::new(),
+            icons: vec![],
+            redirect: self.redirect.clone(),
+        }
+    }
 }
 
 pub mod tags {

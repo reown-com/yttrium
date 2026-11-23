@@ -27,5 +27,8 @@ pub use {
         AppSignatureError, AppSignatureRequest, AppSigner, Listener,
         MemoryStorage, Storage, StorageError,
     },
-    protocol::verify::{VerifyContext, VerifyState},
+    protocol::{
+        types::{DappMetadata, Redirect},
+        verify::AppVerification,
+    },
 };

@@ -78,6 +78,7 @@ pub fn meta(name: &str) -> Metadata {
         description: name.into(),
         url: format!("https://{name}.example"),
         icons: vec![],
+        redirect: None,
     }
 }
 

@@ -8,6 +8,7 @@ use {
             encoding::{b64u, from_b64u},
             replay::ReplayWindow,
             types::{DappIntent, Metadata, Mode, Role, WireMessage},
+            verify::AppVerification,
         },
         rt::{BoxFut, boxed},
     },
@@ -117,7 +118,11 @@ pub struct ConnRecord {
     pub dapp_mode: Mode,
     pub wallet_mode: Mode,
     pub namespaces: Value,
+    /// On the wallet side, without the dApp's self-asserted identity.
     pub peer_metadata: Metadata,
+    /// Wallet side: the proposal's App Verification.
+    #[serde(default)]
+    pub verification: Option<AppVerification>,
     pub expiry: u64,
     pub next_seq: u64,
     pub recv: ReplayWindow,
@@ -217,7 +222,10 @@ pub struct WalletProp {
     pub sealable: bool,
     pub proposal_id: i64,
     pub params: Value,
+    /// Without the dApp's self-asserted identity.
     pub metadata: Metadata,
+    #[serde(default)]
+    pub verification: AppVerification,
     pub expires_at: u64,
     pub pending: Option<PendingAnswer>,
 }

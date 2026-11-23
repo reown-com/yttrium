@@ -1,7 +1,9 @@
 use {
     crate::protocol::{
-        types::{DappIntent, Metadata, Mode, PeerRequirement, Role},
-        verify::VerifyContext,
+        types::{
+            DappIntent, DappMetadata, Metadata, Mode, PeerRequirement, Role,
+        },
+        verify::AppVerification,
     },
     serde::{Deserialize, Serialize},
     std::collections::HashMap,
@@ -170,7 +172,15 @@ pub struct Session {
     pub role: Role,
     pub version: u32,
     pub namespaces: Namespaces,
-    pub peer_metadata: Metadata,
+    /// dApp side: the wallet's metadata.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub wallet_metadata: Option<Metadata>,
+    /// Wallet side: the dApp's metadata, without its self-asserted identity.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub dapp_metadata: Option<DappMetadata>,
+    /// Wallet side: the proposal's App Verification.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub verification: Option<AppVerification>,
     pub dapp_mode: Mode,
     pub wallet_mode: Mode,
     pub expiry: u64,
@@ -185,16 +195,17 @@ pub struct SessionProposal {
     /// The proposal's JSON-RPC id, for v2-style numeric proposal ids.
     pub proposal_id: i64,
     pub params: ProposalParams,
-    pub metadata: Metadata,
+    /// The dApp's metadata without its self-asserted identity: who the app
+    /// is comes from `verification` only.
+    pub metadata: DappMetadata,
     pub intent: DappIntent,
     pub versions: Vec<u32>,
     pub version: u32,
     pub sealable: bool,
     pub expires_at: u64,
-    /// What the Relay vouches for about the dApp (Verify v4). Show this, not
-    /// `metadata`, as the dApp's identity.
+    /// Verify v4: what the Relay vouches for about the dApp.
     #[serde(default)]
-    pub verify_context: VerifyContext,
+    pub verification: AppVerification,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -242,7 +253,7 @@ pub enum SignEvent {
         chain_id: String,
         request: RpcRequest,
         /// Verify v4: what the Relay vouches for about the requesting app.
-        verify_context: VerifyContext,
+        verification: AppVerification,
     },
     /// A response with no pending call, e.g. after a restart, with the stored request it answers.
     SessionResponse {
@@ -284,6 +295,14 @@ pub enum SignEvent {
     MessageInvalid {
         topic: String,
         reason: String,
+    },
+    /// Verify v4: a message whose App Signature is for another message (its
+    /// `sub` or `cth` differ). It was dropped; a request was answered with an
+    /// error. `id` and `method` are the message's JSON-RPC id and method.
+    AppSignatureMismatch {
+        topic: String,
+        id: Option<i64>,
+        method: Option<String>,
     },
     CursorExpired,
     ClockSkew {
@@ -363,9 +382,8 @@ mod json_shape_tests {
                 method: "personal_sign".into(),
                 params: r#"["0xdead","0xabc"]"#.into(),
             },
-            verify_context: VerifyContext {
-                state: crate::VerifyState::DomainValidated,
-                origin: Some("https://app.example".into()),
+            verification: AppVerification {
+                domain: Some("app.example".into()),
                 ..Default::default()
             },
         };
@@ -377,7 +395,7 @@ mod json_shape_tests {
                 "topic": "c_1",
                 "chainId": "eip155:1",
                 "request": { "method": "personal_sign", "params": ["0xdead", "0xabc"] },
-                "verifyContext": { "state": "domain_validated", "origin": "https://app.example" }
+                "verification": { "domain": "app.example", "isVerified": false, "isScam": false }
             })
         );
         let r = SignEvent::SessionResponse {

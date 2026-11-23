@@ -53,8 +53,7 @@ pub fn decode_claims(jwt: &str) -> Option<AppSignatureClaims> {
 }
 
 /// What the Relay says about the app, from its registry and screening.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct AppMetadata {
     pub origin: Option<String>,
     pub name: Option<String>,
@@ -83,43 +82,41 @@ impl AppMetadata {
     }
 }
 
-#[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize,
-)]
-#[cfg_attr(feature = "uniffi", derive(uniffi::Enum))]
-#[serde(rename_all = "snake_case")]
-pub enum VerifyState {
-    /// Unsigned: nothing is known about the app.
-    #[default]
-    Default,
-    /// Signed by a key the domain published.
-    DomainValidated,
-    /// As above, and the Relay knows the business's name.
-    BusinessName,
-    /// As above, and the business is verified.
-    Verified,
-    /// Signed, but the signature is not for this message.
-    Invalid,
-}
-
-/// What the wallet shows about the app. Identity comes only from the Relay's
-/// `appMetadata`, never from the app's own metadata.
+/// What the wallet shows about the app: every field comes from the Relay's
+/// `appMetadata`, after the SDK checked that the app's signature is for this
+/// message. Never from the app's own metadata. The wallet shows what's present.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
 #[serde(rename_all = "camelCase")]
-pub struct VerifyContext {
-    pub state: VerifyState,
+pub struct AppVerification {
+    /// The domain the Relay verified the signature for, e.g.
+    /// `app.uniswap.org`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub origin: Option<String>,
+    pub domain: Option<String>,
+    /// Only when WalletConnect reviewed the app.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
+    /// Only when WalletConnect reviewed the app; hosted by WalletConnect.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub icon: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub is_scam: Option<bool>,
+    #[serde(default)]
+    pub is_verified: bool,
+    #[serde(default)]
+    pub is_scam: bool,
+    /// A domain this app looks like.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub is_similar_to: Option<String>,
 }
+
+/// The JSON-RPC error a wallet answers a mismatched request with:
+/// `{ code: -32600, message: "app_signature_mismatch" }`.
+pub const APP_SIGNATURE_MISMATCH_CODE: i64 = -32600;
+
+/// The app's signature is not for this message: `sub` or `cth` differ, or
+/// the JWT doesn't decode. The message is dropped.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[error("app_signature_mismatch")]
+pub struct AppSignatureMismatch;
 
 /// Is the JWT bound to these bytes: `sub` to the plaintext and, when present,
 /// `cth` to the payload as received?
@@ -130,47 +127,41 @@ pub fn is_bound(jwt: &str, plaintext: &[u8], payload: &[u8]) -> bool {
     })
 }
 
-/// The verify context of one received message or proposal. `plaintext` is
-/// the JSON-RPC bytes after decoding or decrypting; `payload` the base64url
+/// `https://app.example.com` → `app.example.com`.
+fn domain_of(origin: &str) -> String {
+    let rest = origin.split_once("://").map_or(origin, |(_, r)| r);
+    rest.split('/').next().unwrap_or_default().to_ascii_lowercase()
+}
+
+/// The verification of one received message or proposal. `plaintext` is the
+/// JSON-RPC bytes after decoding or decrypting; `payload` the base64url
 /// decoded `payload` as received (the same bytes when monitored).
-pub fn verify_context(
+pub fn app_verification(
     app_signature: Option<&str>,
     app_metadata: Option<&Value>,
     plaintext: &[u8],
     payload: &[u8],
-) -> VerifyContext {
+) -> Result<AppVerification, AppSignatureMismatch> {
     let md = app_metadata.and_then(AppMetadata::from_value).unwrap_or_default();
-    let screening = VerifyContext {
-        is_scam: md.is_scam,
+    let screening = AppVerification {
+        is_scam: md.is_scam.unwrap_or(false),
         is_similar_to: md.is_similar_to.clone(),
         ..Default::default()
     };
     let Some(jwt) = app_signature else {
-        // An unsigned request has no identity: an origin here is ignored.
-        return screening;
+        // Unsigned: no identity. An origin, name or icon here is ignored.
+        return Ok(screening);
     };
     if !is_bound(jwt, plaintext, payload) {
-        // The metadata described another message: drop all of it.
-        return VerifyContext {
-            state: VerifyState::Invalid,
-            ..Default::default()
-        };
+        return Err(AppSignatureMismatch);
     }
-    let Some(origin) = md.origin else { return screening };
-    let state = if md.is_verified == Some(true) {
-        VerifyState::Verified
-    } else if md.name.is_some() {
-        VerifyState::BusinessName
-    } else {
-        VerifyState::DomainValidated
-    };
-    VerifyContext {
-        state,
-        origin: Some(origin),
+    Ok(AppVerification {
+        domain: md.origin.as_deref().map(domain_of),
         name: md.name,
         icon: md.icon,
+        is_verified: md.is_verified == Some(true),
         ..screening
-    }
+    })
 }
 
 #[cfg(test)]
@@ -223,71 +214,75 @@ mod tests {
     }
 
     #[test]
-    fn derives_the_state_from_the_metadata_present() {
+    fn takes_every_field_from_the_relay_once_bound() {
         let sig = jwt(json!({ "sub": hash_b64u(RPC) }));
-        let ctx = |md: Value| verify_context(Some(&sig), Some(&md), RPC, RPC);
-        let o = "https://app.example";
+        let ver = |md: Value| {
+            app_verification(Some(&sig), Some(&md), RPC, RPC).unwrap()
+        };
         assert_eq!(
-            ctx(json!({ "origin": o })),
-            VerifyContext {
-                state: VerifyState::DomainValidated,
-                origin: Some(o.into()),
+            ver(json!({ "origin": "https://App.Example.com" })),
+            AppVerification {
+                domain: Some("app.example.com".into()),
                 ..Default::default()
             }
         );
-        let named = ctx(json!({ "origin": o, "name": "App", "icon": "i" }));
-        assert_eq!(named.state, VerifyState::BusinessName);
-        assert_eq!(named.name.as_deref(), Some("App"));
         assert_eq!(
-            ctx(json!({ "origin": o, "name": "App", "isVerified": true }))
-                .state,
-            VerifyState::Verified
+            ver(
+                json!({ "origin": "https://app.example.com", "name": "App", "icon": "https://i", "isVerified": true, "isScam": true, "isSimilarTo": "app.exarnple.com" })
+            ),
+            AppVerification {
+                domain: Some("app.example.com".into()),
+                name: Some("App".into()),
+                icon: Some("https://i".into()),
+                is_verified: true,
+                is_scam: true,
+                is_similar_to: Some("app.exarnple.com".into()),
+            }
         );
-        let scam = ctx(json!({ "origin": o, "isScam": true }));
-        assert_eq!(scam.state, VerifyState::DomainValidated);
-        assert_eq!(scam.is_scam, Some(true));
         // Signed, but the Relay knew nothing about the app.
         assert_eq!(
-            verify_context(Some(&sig), None, RPC, RPC).state,
-            VerifyState::Default
+            app_verification(Some(&sig), None, RPC, RPC).unwrap(),
+            AppVerification::default()
         );
     }
 
     #[test]
     fn unsigned_requests_keep_only_screening() {
-        let md = json!({ "origin": "https://evil.example", "name": "Bank", "isScam": true, "isSimilarTo": "bank.example" });
+        let md = json!({ "origin": "https://evil.example", "name": "Bank", "icon": "i", "isVerified": true, "isScam": true, "isSimilarTo": "bank.example" });
         assert_eq!(
-            verify_context(None, Some(&md), RPC, RPC),
-            VerifyContext {
-                state: VerifyState::Default,
-                is_scam: Some(true),
+            app_verification(None, Some(&md), RPC, RPC).unwrap(),
+            AppVerification {
+                is_scam: true,
                 is_similar_to: Some("bank.example".into()),
                 ..Default::default()
             }
         );
-        assert_eq!(verify_context(None, None, RPC, RPC), Default::default());
+        assert_eq!(
+            app_verification(None, None, RPC, RPC).unwrap(),
+            AppVerification::default()
+        );
     }
 
     #[test]
-    fn a_mismatched_sub_is_invalid_and_drops_the_metadata() {
-        let md = json!({ "origin": "https://app.example", "name": "App", "isVerified": true, "isScam": false });
+    fn a_mismatched_sub_is_an_error() {
+        let md = json!({ "origin": "https://app.example", "name": "App", "isVerified": true });
         let other = jwt(json!({ "sub": hash_b64u(b"another request") }));
         assert_eq!(
-            verify_context(Some(&other), Some(&md), RPC, RPC),
-            VerifyContext { state: VerifyState::Invalid, ..Default::default() }
+            app_verification(Some(&other), Some(&md), RPC, RPC),
+            Err(AppSignatureMismatch)
         );
         // One byte of difference: a re-serialized request doesn't match.
         let respaced =
             String::from_utf8(RPC.to_vec()).unwrap().replacen(":", ": ", 1);
         let sig = jwt(json!({ "sub": hash_b64u(respaced.as_bytes()) }));
         assert_eq!(
-            verify_context(Some(&sig), Some(&md), RPC, RPC).state,
-            VerifyState::Invalid
+            app_verification(Some(&sig), Some(&md), RPC, RPC),
+            Err(AppSignatureMismatch)
         );
         for garbage in ["", "x", "a.b.c", "a.!!!.c"] {
             assert_eq!(
-                verify_context(Some(garbage), Some(&md), RPC, RPC).state,
-                VerifyState::Invalid
+                app_verification(Some(garbage), Some(&md), RPC, RPC),
+                Err(AppSignatureMismatch)
             );
         }
     }
@@ -300,33 +295,38 @@ mod tests {
             jwt(json!({ "sub": hash_b64u(RPC), "cth": hash_b64u(cth) }))
         };
         assert_eq!(
-            verify_context(Some(&sig(ciphertext)), Some(&md), RPC, ciphertext)
-                .state,
-            VerifyState::DomainValidated
+            app_verification(
+                Some(&sig(ciphertext)),
+                Some(&md),
+                RPC,
+                ciphertext
+            )
+            .unwrap()
+            .domain
+            .as_deref(),
+            Some("app.example")
         );
         assert_eq!(
-            verify_context(Some(&sig(b"other")), Some(&md), RPC, ciphertext)
-                .state,
-            VerifyState::Invalid
+            app_verification(Some(&sig(b"other")), Some(&md), RPC, ciphertext),
+            Err(AppSignatureMismatch)
         );
     }
 
     #[test]
     fn serializes_as_the_wallet_ui_shape() {
-        let c = VerifyContext {
-            state: VerifyState::BusinessName,
-            origin: Some("https://app.example".into()),
+        let v = AppVerification {
+            domain: Some("app.example".into()),
             name: Some("App".into()),
-            is_similar_to: None,
+            is_verified: true,
             ..Default::default()
         };
         assert_eq!(
-            serde_json::to_value(&c).unwrap(),
-            json!({ "state": "business_name", "origin": "https://app.example", "name": "App" })
+            serde_json::to_value(&v).unwrap(),
+            json!({ "domain": "app.example", "name": "App", "isVerified": true, "isScam": false })
         );
         assert_eq!(
-            serde_json::to_value(VerifyContext::default()).unwrap(),
-            json!({ "state": "default" })
+            serde_json::to_value(AppVerification::default()).unwrap(),
+            json!({ "isVerified": false, "isScam": false })
         );
     }
 }
