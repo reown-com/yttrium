@@ -191,6 +191,12 @@ pub enum RelayEvent {
         #[serde(rename = "connectionId")]
         connection_id: String,
         message: WireMessage,
+        /// The sender's App Signature, verbatim, when it sent one.
+        #[serde(default, rename = "appSignature")]
+        app_signature: Option<String>,
+        /// The Relay's view of the app; see `verify::AppMetadata`.
+        #[serde(default, rename = "appMetadata")]
+        app_metadata: Option<Value>,
     },
     #[serde(rename = "connection.established")]
     ConnectionEstablished {

@@ -3,8 +3,8 @@
 
 use {
     crate::{
-        ConnectResult, Listener, Session, SessionProposal, SignClient,
-        SignConfig, SignError, Storage,
+        AppSigner, ConnectResult, Listener, Session, SessionProposal,
+        SignClient, SignConfig, SignError, Storage,
         client::types::{
             Namespaces, ProposalParams, RpcError, RpcRequest, SessionEventData,
         },
@@ -33,6 +33,12 @@ impl SignClientFfi {
 
     pub fn start(&self) {
         self.client.start();
+    }
+
+    /// Verify v4, dApp: the App Signature callback, or `None` to stop
+    /// signing. Set it before `connect`.
+    pub fn set_app_signer(&self, signer: Option<Arc<dyn AppSigner>>) {
+        self.client.set_app_signer(signer);
     }
 
     pub fn stop(&self) {

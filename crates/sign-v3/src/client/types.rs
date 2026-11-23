@@ -1,6 +1,7 @@
 use {
-    crate::protocol::types::{
-        DappIntent, Metadata, Mode, PeerRequirement, Role,
+    crate::protocol::{
+        types::{DappIntent, Metadata, Mode, PeerRequirement, Role},
+        verify::VerifyContext,
     },
     serde::{Deserialize, Serialize},
     std::collections::HashMap,
@@ -190,6 +191,10 @@ pub struct SessionProposal {
     pub version: u32,
     pub sealable: bool,
     pub expires_at: u64,
+    /// What the Relay vouches for about the dApp (Verify v4). Show this, not
+    /// `metadata`, as the dApp's identity.
+    #[serde(default)]
+    pub verify_context: VerifyContext,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -201,6 +206,8 @@ pub struct ConnectResult {
 }
 
 /// Events delivered to the host's listener.
+// Boxing the proposal would leave the uniffi bindings without a record type.
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug, Clone, Serialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Enum))]
 #[serde(
@@ -234,6 +241,8 @@ pub enum SignEvent {
         topic: String,
         chain_id: String,
         request: RpcRequest,
+        /// Verify v4: what the Relay vouches for about the requesting app.
+        verify_context: VerifyContext,
     },
     /// A response with no pending call, e.g. after a restart, with the stored request it answers.
     SessionResponse {
@@ -354,6 +363,11 @@ mod json_shape_tests {
                 method: "personal_sign".into(),
                 params: r#"["0xdead","0xabc"]"#.into(),
             },
+            verify_context: VerifyContext {
+                state: crate::VerifyState::DomainValidated,
+                origin: Some("https://app.example".into()),
+                ..Default::default()
+            },
         };
         assert_eq!(
             serde_json::to_value(&e).unwrap(),
@@ -362,7 +376,8 @@ mod json_shape_tests {
                 "id": 7,
                 "topic": "c_1",
                 "chainId": "eip155:1",
-                "request": { "method": "personal_sign", "params": ["0xdead", "0xabc"] }
+                "request": { "method": "personal_sign", "params": ["0xdead", "0xabc"] },
+                "verifyContext": { "state": "domain_validated", "origin": "https://app.example" }
             })
         );
         let r = SignEvent::SessionResponse {

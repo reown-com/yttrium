@@ -3,6 +3,8 @@
 pub mod poller;
 pub mod state;
 pub mod types;
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod verify_tests;
 
 use {
     self::{
@@ -14,7 +16,7 @@ use {
         },
     },
     crate::{
-        host::{Listener, Storage},
+        host::{AppSignatureRequest, AppSigner, Listener, Storage},
         protocol::{
             constants::{
                 ANSWER_WINDOW_S, CLOCK_SKEW_TOLERANCE_S, DEFAULT_DEADLINE_S,
@@ -30,8 +32,9 @@ use {
             intent::{bind_compatibility, satisfies},
             message::{
                 BuildMessage, build_message, build_signed, close_label,
-                is_request, labels, open_message_payload, open_signed,
-                read_message, sign_bytes, verify_bytes, verify_message,
+                is_request, labels, open_message_bytes, open_message_payload,
+                open_signed, read_message, read_rpc, sign_bytes, verify_bytes,
+                verify_message,
             },
             types::{
                 BindingPayload, BindingProofPayload, DappIntent, Metadata,
@@ -40,6 +43,7 @@ use {
                 may_role_send, method_tag, tag_info, tags,
             },
             uri::{build_uri, is_connection_id, parse_uri},
+            verify::{hash_b64u, verify_context},
         },
         rt::{self, BoxFut},
         transport::{HttpClient, relay::Relay},
@@ -87,6 +91,7 @@ pub(crate) struct Inner {
     pub store: Store,
     pub relay: Relay,
     pub listener: Arc<dyn Listener>,
+    app_signer: Mutex<Option<Arc<dyn AppSigner>>>,
     pub state: futures::lock::Mutex<State>,
     pending: Mutex<HashMap<String, Pending>>,
     pub poll: Mutex<PollCtl>,
@@ -193,6 +198,7 @@ impl SignClient {
             store,
             relay,
             listener,
+            app_signer: Mutex::new(None),
             state: futures::lock::Mutex::new(State {
                 conns: HashMap::new(),
                 reqs: HashMap::new(),
@@ -243,6 +249,12 @@ impl SignClient {
 
     pub fn start(&self) {
         poller::start(&self.inner);
+    }
+
+    /// Verify v4, dApp: sign the proposal and every message with this
+    /// callback, or with nothing when `None`.
+    pub fn set_app_signer(&self, signer: Option<Arc<dyn AppSigner>>) {
+        *self.inner.app_signer.lock().expect("lock") = signer;
     }
 
     pub fn stop(&self) {
@@ -311,14 +323,27 @@ impl SignClient {
             pairing_pub: b64u(&pairing.verifying_key().to_bytes()),
         };
         let rpc = json!({ "id": proposal_id, "jsonrpc": "2.0", "method": "wc_sessionCreate", "params": params });
-        let body = json!({
+        let proposal = build_message(BuildMessage {
+            key: &pairing,
+            version: 0,
+            binding_pub: &bpub,
+            tag: tags::PROPOSAL,
+            seq: 0,
+            deadline: None,
+            rpc: &rpc,
+            seal_key: None,
+            nonce: None,
+        });
+        let app_signature =
+            self.inner.app_signature(&rpc, &proposal, false).await?;
+        let mut body = json!({
             "bindingPub": b64u(&bpub),
             "bindingProof": build_signed(&binding, labels::BINDING_PROOF, &bpub, &proof),
-            "proposal": build_message(BuildMessage {
-                key: &pairing, version: 0, binding_pub: &bpub, tag: tags::PROPOSAL, seq: 0,
-                deadline: None, rpc: &rpc, seal_key: None, nonce: None,
-            }),
+            "proposal": proposal,
         });
+        if let Some(jwt) = app_signature {
+            body["appSignature"] = jwt.into();
+        }
         let res = self
             .inner
             .relay
@@ -456,9 +481,17 @@ impl SignClient {
             if rpc.value["method"] != "wc_sessionCreate" {
                 return Err(err("invalid_request", "proposal method"));
             }
-            Ok((versions, intent, dapp_pub_s, rpc))
+            // A proposal is never sealed: its payload is the plaintext.
+            let verify_context = verify_context(
+                fetched["appSignature"].as_str(),
+                fetched.get("appMetadata"),
+                &m.payload_bytes,
+                &m.payload_bytes,
+            );
+            Ok((versions, intent, dapp_pub_s, rpc, verify_context))
         })()?;
-        let (dapp_versions, dapp_intent, dapp_pub, rpc) = checked;
+        let (dapp_versions, dapp_intent, dapp_pub, rpc, verify_context) =
+            checked;
         let relay_versions: Vec<u32> = fetched["versions"]
             .as_array()
             .map(|a| {
@@ -532,6 +565,7 @@ impl SignClient {
             version,
             sealable: rec.sealable,
             expires_at: rec.expires_at,
+            verify_context,
         };
         i.emit(SignEvent::SessionProposal { proposal: proposal.clone() });
         Ok(proposal)
@@ -1278,7 +1312,7 @@ impl Inner {
         rpc: &Value,
         deadline_s: u64,
     ) -> Result<u64, SignError> {
-        let out = {
+        let (seq, message, ttl, now, seal) = {
             let mut st = self.state.lock().await;
             let c = st
                 .conns
@@ -1312,28 +1346,63 @@ impl Inner {
                 seal_key: seal.then(|| c.send_key()),
                 nonce: None,
             });
-            // An outgoing request is stored before it can be delivered, so its response or
-            // expiry always finds it, even after a restart.
-            if is_request(rpc) {
-                let id = rpc["id"].as_i64().unwrap_or_default();
-                let tracked = OutReq {
-                    conn: conn.into(),
-                    id,
-                    method: rpc["method"].as_str().unwrap_or_default().into(),
-                    seq,
-                    deadline: now + deadline_s,
-                    params: rpc["params"].clone(),
-                };
-                self.store
-                    .put(&format!("outreq/{conn}/{id}"), &tracked)
-                    .await?;
-            }
-            let out = Outbox { conn: conn.into(), seq, message, ttl };
-            self.store.put(&format!("out/{conn}/{seq}"), &out).await?;
-            out
+            (seq, message, ttl, now, seal)
         };
+        // Outside the state lock: the callback may call the app's backend. If
+        // it fails, the seq stays used and leaves a gap, which receivers
+        // accept; nothing is sent unsigned.
+        let app_signature = self.app_signature(rpc, &message, seal).await?;
+        // An outgoing request is stored before it can be delivered, so its response or
+        // expiry always finds it, even after a restart.
+        if is_request(rpc) {
+            let id = rpc["id"].as_i64().unwrap_or_default();
+            let tracked = OutReq {
+                conn: conn.into(),
+                id,
+                method: rpc["method"].as_str().unwrap_or_default().into(),
+                seq,
+                deadline: now + deadline_s,
+                params: rpc["params"].clone(),
+            };
+            self.store.put(&format!("outreq/{conn}/{id}"), &tracked).await?;
+        }
+        let out =
+            Outbox { conn: conn.into(), seq, message, ttl, app_signature };
+        self.store.put(&format!("out/{conn}/{seq}"), &out).await?;
         self.post(&out).await?;
         Ok(out.seq)
+    }
+
+    /// Verify v4: the dApp's App Signature for one message, when it has a
+    /// callback. `sub` covers the plaintext JSON-RPC bytes, the same bytes
+    /// `build_message` serializes; `cth` the ciphertext, when sealed.
+    async fn app_signature(
+        &self,
+        rpc: &Value,
+        message: &WireMessage,
+        sealed: bool,
+    ) -> Result<Option<String>, SignError> {
+        let Some(signer) = self.app_signer.lock().expect("lock").clone() else {
+            return Ok(None);
+        };
+        let request = serde_json::to_string(rpc).expect("json");
+        let ciphertext_hash = if sealed {
+            Some(hash_b64u(&from_b64u(&message.payload)?))
+        } else {
+            None
+        };
+        let fail = |m: String| err("app_signature_failed", m);
+        let jwt =
+            rt::boxed(signer.sign_request(AppSignatureRequest {
+                request,
+                ciphertext_hash,
+            }))
+            .await
+            .map_err(|e| fail(e.to_string()))?;
+        if jwt.split('.').count() != 3 {
+            return Err(fail("the callback returned no JWT".into()));
+        }
+        Ok(Some(jwt))
     }
 
     pub(crate) fn post<'a>(
@@ -1344,10 +1413,11 @@ impl Inner {
     }
 
     async fn post_inner(&self, out: &Outbox) -> Result<(), SignError> {
-        let body = serde_json::to_vec(
-            &json!({ "message": out.message, "ttl": out.ttl }),
-        )
-        .expect("json");
+        let mut body = json!({ "message": out.message, "ttl": out.ttl });
+        if let Some(jwt) = &out.app_signature {
+            body["appSignature"] = jwt.as_str().into();
+        }
+        let body = serde_json::to_vec(&body).expect("json");
         match self
             .relay
             .call(
@@ -1415,8 +1485,19 @@ impl Inner {
                     rt::boxed(self.on_rejected(&connection_id, &rejection))
                         .await?
                 }
-                RelayEvent::MessageReceived { connection_id, message } => {
-                    rt::boxed(self.on_message(&connection_id, &message)).await?
+                RelayEvent::MessageReceived {
+                    connection_id,
+                    message,
+                    app_signature,
+                    app_metadata,
+                } => {
+                    rt::boxed(self.on_message(
+                        &connection_id,
+                        &message,
+                        app_signature.as_deref(),
+                        app_metadata.as_ref(),
+                    ))
+                    .await?
                 }
                 RelayEvent::ConnectionClosed {
                     connection_id,
@@ -1624,6 +1705,8 @@ impl Inner {
         self: &Arc<Self>,
         id: &str,
         wire: &WireMessage,
+        app_signature: Option<&str>,
+        app_metadata: Option<&Value>,
     ) -> Result<(), SignError> {
         let mut st = self.state.lock().await;
         let Some(c) = st.conns.get_mut(id) else { return Ok(()) };
@@ -1660,16 +1743,17 @@ impl Inner {
         ) {
             Err("invalid signature".to_string())
         } else {
-            open_message_payload(
+            open_message_bytes(
                 &m,
                 c.rec.version,
                 &c.rec.binding(),
                 m.plain.sealed.then(|| c.recv_key()),
             )
+            .and_then(|b| read_rpc(&b).map(|p| (b, p)))
             .map_err(|e| e.to_string())
         };
-        let rpc = match checks {
-            Ok(p) => p.value,
+        let (plaintext, rpc) = match checks {
+            Ok((b, p)) => (b, p.value),
             Err(reason) => {
                 drop(st);
                 self.emit(invalid(reason));
@@ -1740,6 +1824,12 @@ impl Inner {
                         .unwrap_or_default()
                         .into(),
                     request: rpc_request_of(&params["request"]),
+                    verify_context: verify_context(
+                        app_signature,
+                        app_metadata,
+                        &plaintext,
+                        &m.payload_bytes,
+                    ),
                 })
             }
             "wc_sessionEvent" => Some(SignEvent::SessionEvent {

@@ -241,6 +241,9 @@ pub struct Outbox {
     pub seq: u64,
     pub message: WireMessage,
     pub ttl: u64,
+    /// Verify v4: the dApp's JWT for this message, resent with it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub app_signature: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -23,5 +23,9 @@ pub use {
             SessionProposal, SignConfig, SignError, SignEvent,
         },
     },
-    host::{Listener, MemoryStorage, Storage, StorageError},
+    host::{
+        AppSignatureError, AppSignatureRequest, AppSigner, Listener,
+        MemoryStorage, Storage, StorageError,
+    },
+    protocol::verify::{VerifyContext, VerifyState},
 };

@@ -125,6 +125,26 @@ The `connectionId` is the session's topic from then on.
   - a call ends 30 s after its deadline;
   - a session ends at its expiry.
 
+### Verify v4 App Signatures
+
+Experimental. The dApp's backend signs each message it sends as a JWT, the `appSignature`. The Relay verifies it against the keys the dApp's domain published, and passes it on verbatim with `appMetadata`, its view of the app.
+
+- **The dApp** sets a callback with `set_app_signer` (Rust and uniffi) or `setAppSigner` (WASM). The client calls it before creating the connection, for the proposal, and before every send, including automatic acknowledgements. It sends the JWT as `appSignature` beside `proposal` or `message`. If the callback fails, the call fails with `app_signature_failed` and nothing is sent; that send's `seq` stays used. Without a callback, nothing is signed.
+- **The callback gets** `{ request, ciphertextHash }`. `request` is the plaintext JSON-RPC message as JSON text; `ciphertextHash` is `cth` for a sealed message, else null.
+- **The claims** are `iss` (the dApp's host), `sub`, `cth` for sealed messages, and `exp`. Both hashes are base64url, no padding, of SHA-256:
+  - `sub` covers the plaintext JSON-RPC bytes, which are `request`'s UTF-8 bytes. A monitored message's base64url-decoded `payload` is exactly these bytes, and so is a proposal's. A sealed message's payload decrypts to them.
+  - `cth` covers the base64url-decoded `payload` as sent: the ciphertext.
+- **The wallet** reads `appSignature` and `appMetadata` from `GET /v3/connections/{id}` and from `message.received`. It decodes the JWT's claims, without checking its signature, since the Relay did. Then it compares `sub` with its own hash of the plaintext, and `cth`, when present, with its hash of the payload as received.
+- **`verifyContext`** is on `SessionProposal` and on `session_request`: `{ state, origin?, name?, icon?, isScam?, isSimilarTo? }`. It never comes from the app's own metadata.
+
+| `state` | When |
+|---|---|
+| `default` | Unsigned. Only `isScam` and `isSimilarTo` are kept; an `origin` is ignored |
+| `domain_validated` | Signed and bound; `appMetadata` has an `origin` |
+| `business_name` | Also a `name` |
+| `verified` | Also `isVerified: true` |
+| `invalid` | Signed, but `sub` or `cth` doesn't match, or the JWT can't be decoded. All of `appMetadata` is dropped; the request is still delivered |
+
 ### Storage
 
 The host gives the client an async key-value store. Every key is prefixed with `storagePrefix`, `wc3:` by default.
@@ -367,7 +387,8 @@ Notes on the params:
   "versions": [3],
   "version": 3,
   "sealable": false,
-  "expiresAt": 1759313400
+  "expiresAt": 1759313400,
+  "verifyContext": { "state": "domain_validated", "origin": "https://dapp.example" }
 }
 ```
 
@@ -401,7 +422,7 @@ The listener receives one object per event, tagged by `type`, with camelCase fie
 | `proposal_rejected` | `topic`, `reason` | dApp: `user_rejected`, `unsupported_version` or `incompatible_intent` |
 | `proposal_expire` | `topic`, `reason` | dApp: `expired` with no answer in time, `replaced` by a newer `connect`, or `cursor_expired` |
 | `proposal_failed` | `topic`, `reason` | dApp, when the wallet's binding failed verification; the client closed the connection |
-| `session_request` | `id`, `topic`, `chainId`, `request` | The receiver; answer with `respond` |
+| `session_request` | `id`, `topic`, `chainId`, `request`, `verifyContext` | The receiver; answer with `respond` |
 | `session_response` | `topic`, `response`, `request` | A response with no pending call, such as after a restart; `request` is the stored request it answers |
 | `session_event` | `id`, `topic`, `chainId`, `event` | The receiver; the client acknowledges it |
 | `session_update` | `id`, `topic`, `namespaces` | dApp, after the wallet's `update` |
