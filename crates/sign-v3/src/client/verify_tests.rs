@@ -107,15 +107,16 @@ impl HttpClient for FakeRelay {
 }
 
 /// Stands in for the app's backend: signs `sub` over the request string as
-/// given, and `cth` as given.
+/// given.
 #[derive(Default)]
 struct TestSigner {
     seen: Mutex<Vec<AppSignatureRequest>>,
     fail: bool,
 }
 
-fn jwt(sub: &str, cth: Option<&str>) -> String {
-    let claims = json!({ "iss": "app.example", "sub": sub, "cth": cth, "exp": 4102444800u64 });
+fn jwt(sub: &str) -> String {
+    let claims =
+        json!({ "iss": "app.example", "sub": sub, "exp": 4102444800u64 });
     format!(
         "{}.{}.{}",
         b64u(br#"{"alg":"ES256","typ":"JWT"}"#),
@@ -136,10 +137,7 @@ impl AppSigner for TestSigner {
                 message: "denylisted".into(),
             });
         }
-        Ok(jwt(
-            &hash_b64u(request.request.as_bytes()),
-            request.ciphertext_hash.as_deref(),
-        ))
+        Ok(jwt(&hash_b64u(request.request.as_bytes())))
     }
 }
 
@@ -263,11 +261,9 @@ async fn the_proposal_is_signed_and_the_wallet_checks_it() {
     // The callback got exactly the proposal's payload bytes, unsealed.
     assert_eq!(seen.len(), 1);
     assert_eq!(seen[0].request.as_bytes(), payload.as_slice());
-    assert_eq!(seen[0].ciphertext_hash, None);
     let app_signature = create["appSignature"].clone();
     let claims = decode_claims(app_signature.as_str().unwrap()).unwrap();
     assert_eq!(claims.sub, hash_b64u(&payload));
-    assert_eq!(claims.cth, None);
 
     let origin = json!({ "origin": "https://app.example", "name": "App" });
     *relay.fetch.lock().unwrap() =
@@ -292,7 +288,7 @@ async fn the_proposal_is_signed_and_the_wallet_checks_it() {
 
     // A signature for another proposal: dropped, the dApp told with a
     // rejection, and the wallet with an error and an event.
-    let other = json!(jwt(&hash_b64u(b"another proposal"), None));
+    let other = json!(jwt(&hash_b64u(b"another proposal")));
     *relay.fetch.lock().unwrap() = fetched(&create, other, origin);
     let events = Arc::new(Events::default());
     let wallet = client(&relay, events.clone()).await;
@@ -354,7 +350,7 @@ async fn a_failing_callback_fails_the_call_and_sends_nothing() {
 }
 
 #[tokio::test]
-async fn sealed_requests_carry_sub_and_cth_and_the_wallet_checks_both() {
+async fn sealed_requests_carry_sub_and_the_wallet_checks_it() {
     let relay = Arc::new(FakeRelay::default());
     let dapp_events = Arc::new(Events::default());
     let dapp = client(&relay, dapp_events.clone()).await;
@@ -412,13 +408,11 @@ async fn sealed_requests_carry_sub_and_cth_and_the_wallet_checks_both() {
         from_b64u(first["message"]["payload"].as_str().unwrap()).unwrap();
     let seen = signer.seen.lock().unwrap()[1].clone();
     // Sealed: the callback got the plaintext, which is not what was sent,
-    // and the hash of what was sent.
+    // and nothing about the ciphertext.
     assert_ne!(seen.request.as_bytes(), payload.as_slice());
-    assert_eq!(seen.ciphertext_hash, Some(hash_b64u(&payload)));
     let claims =
         decode_claims(first["appSignature"].as_str().unwrap()).unwrap();
     assert_eq!(claims.sub, hash_b64u(seen.request.as_bytes()));
-    assert_eq!(claims.cth, Some(hash_b64u(&payload)));
 
     let deliver = |body: &Value, app_signature: &Value| {
         json!({
@@ -502,7 +496,6 @@ async fn a_retry_after_the_jwt_expired_asks_the_callback_again() {
         request:
             r#"{"id":1,"jsonrpc":"2.0","method":"wc_sessionPing","params":{}}"#
                 .into(),
-        ciphertext_hash: Some("cth".into()),
     };
     let now = crate::rt::now_ms() / 1000;
     let signed = |exp: u64| {

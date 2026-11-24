@@ -44,8 +44,7 @@ use {
             },
             uri::{build_uri, is_connection_id, parse_uri},
             verify::{
-                APP_SIGNATURE_MISMATCH_CODE, app_verification, hash_b64u,
-                is_expired,
+                APP_SIGNATURE_MISMATCH_CODE, app_verification, is_expired,
             },
         },
         rt::{self, BoxFut},
@@ -337,11 +336,8 @@ impl SignClient {
             seal_key: None,
             nonce: None,
         });
-        let app_signature = self
-            .inner
-            .app_signature(&rpc, &proposal, false)
-            .await?
-            .map(|(jwt, _)| jwt);
+        let app_signature =
+            self.inner.app_signature(&rpc).await?.map(|(jwt, _)| jwt);
         let mut body = json!({
             "bindingPub": b64u(&bpub),
             "bindingProof": build_signed(&binding, labels::BINDING_PROOF, &bpub, &proof),
@@ -488,11 +484,8 @@ impl SignClient {
                 return Err(err("invalid_request", "proposal method"));
             }
             // A proposal is never sealed: its payload is the plaintext.
-            let verification = app_verification(
-                fetched.get("appMetadata"),
-                &m.payload_bytes,
-                &m.payload_bytes,
-            );
+            let verification =
+                app_verification(fetched.get("appMetadata"), &m.payload_bytes);
             Ok((versions, intent, dapp_pub_s, rpc, verification))
         })()?;
         let (dapp_versions, dapp_intent, dapp_pub, rpc, verification) = checked;
@@ -1347,7 +1340,7 @@ impl Inner {
         rpc: &Value,
         deadline_s: u64,
     ) -> Result<u64, SignError> {
-        let (seq, message, ttl, now, seal) = {
+        let (seq, message, ttl, now) = {
             let mut st = self.state.lock().await;
             let c = st
                 .conns
@@ -1381,12 +1374,12 @@ impl Inner {
                 seal_key: seal.then(|| c.send_key()),
                 nonce: None,
             });
-            (seq, message, ttl, now, seal)
+            (seq, message, ttl, now)
         };
         // Outside the state lock: the callback may call the app's backend. If
         // it fails, the seq stays used and leaves a gap, which receivers
         // accept; nothing is sent unsigned.
-        let app_signature = self.app_signature(rpc, &message, seal).await?;
+        let app_signature = self.app_signature(rpc).await?;
         // An outgoing request is stored before it can be delivered, so its response or
         // expiry always finds it, even after a restart.
         if is_request(rpc) {
@@ -1417,23 +1410,16 @@ impl Inner {
 
     /// Verify v4: the dApp's App Signature for one message, when it has a
     /// callback. `sub` covers the plaintext JSON-RPC bytes, the same bytes
-    /// `build_message` serializes; `cth` the ciphertext, when sealed.
+    /// `build_message` serializes, sealed or not.
     async fn app_signature(
         &self,
         rpc: &Value,
-        message: &WireMessage,
-        sealed: bool,
     ) -> Result<Option<(String, AppSignatureRequest)>, SignError> {
         if self.app_signer.lock().expect("lock").is_none() {
             return Ok(None);
         }
         let request = AppSignatureRequest {
             request: serde_json::to_string(rpc).expect("json"),
-            ciphertext_hash: if sealed {
-                Some(hash_b64u(&from_b64u(&message.payload)?))
-            } else {
-                None
-            },
         };
         Ok(Some((self.sign_request(&request).await?, request)))
     }
@@ -1852,8 +1838,7 @@ impl Inner {
         }
         // Persist the replay window before the app sees the message.
         self.save_conn(c, false).await?;
-        let Ok(verification) =
-            app_verification(app_metadata, &plaintext, &m.payload_bytes)
+        let Ok(verification) = app_verification(app_metadata, &plaintext)
         else {
             // The App Signature is for another message: drop it, never show
             // it, and answer a request with an error.

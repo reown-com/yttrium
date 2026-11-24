@@ -55,8 +55,6 @@ pub struct AppSignatureRequest {
     /// The plaintext JSON-RPC message as JSON text. Its UTF-8 bytes are
     /// exactly what `sub` covers: hash this string, don't re-serialize it.
     pub request: String,
-    /// `cth` for a sealed message, else `None`.
-    pub ciphertext_hash: Option<String>,
 }
 
 #[derive(Debug, Clone, thiserror::Error)]

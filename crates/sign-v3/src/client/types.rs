@@ -297,7 +297,7 @@ pub enum SignEvent {
         reason: String,
     },
     /// Verify v4: a message whose App Signature is for another message (its
-    /// `sub` or `cth` differ). It was dropped; a request was answered with an
+    /// `sub` differs). It was dropped; a request was answered with an
     /// error. `id` and `method` are the message's JSON-RPC id and method.
     AppSignatureMismatch {
         topic: String,

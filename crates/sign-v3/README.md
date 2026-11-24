@@ -130,20 +130,18 @@ The `connectionId` is the session's topic from then on.
 Experimental. The dApp's backend signs each message it sends as a JWT, the `appSignature`. The Relay verifies it against the keys the dApp's domain published, and passes on `appMetadata`, its view of the app, with the JWT verbatim as `appMetadata.appSignature`.
 
 - **The dApp** sets a callback with `set_app_signer` (Rust and uniffi) or `setAppSigner` (WASM). The client calls it before creating the connection, for the proposal, and before every send, including automatic acknowledgements. It sends the JWT as `appSignature` beside `proposal` or `message`. A send retried from the outbox after its JWT's `exp` (less 10 s) asks the callback again, with the same request, and never resends the expired JWT; if it can't sign, the send is dropped. If the callback fails, the call fails with `app_signature_failed` and nothing is sent; that send's `seq` stays used. Without a callback, nothing is signed.
-- **The callback gets** `{ request, ciphertextHash }`. `request` is the plaintext JSON-RPC message as JSON text; `ciphertextHash` is `cth` for a sealed message, else null.
-- **The claims** are `iss` (the dApp's host), `sub`, `cth` for sealed messages, and `exp`. Both hashes are base64url, no padding, of SHA-256:
-  - `sub` covers the plaintext JSON-RPC bytes, which are `request`'s UTF-8 bytes. A monitored message's base64url-decoded `payload` is exactly these bytes, and so is a proposal's. A sealed message's payload decrypts to them.
-  - `cth` covers the base64url-decoded `payload` as sent: the ciphertext.
-- **The wallet** reads `appMetadata`, and the JWT in its `appSignature`, from `GET /v3/connections/{id}` and from `message.received`. The JWT isn't exposed in `AppVerification`: the wallet only needs what it proves. It decodes the JWT's claims without checking its signature, since the Relay did, and never checks `exp`: a request's expiry is its own `deadline`. Then it compares `sub` with its own hash of the plaintext, and `cth`, when present, with its hash of the payload as received.
+- **The callback gets** `{ request }`: the plaintext JSON-RPC message as JSON text, sealed or not.
+- **The claims** are `iss` (the dApp's host), `sub` and `exp`. `sub` is base64url, no padding, of SHA-256 over the plaintext JSON-RPC bytes, which are `request`'s UTF-8 bytes. A monitored message's base64url-decoded `payload` is exactly these bytes, and so is a proposal's. A sealed message's payload decrypts to them. No claim covers the ciphertext: the backend couldn't check one, and `sub` binds the signature to the content. A `cth` older POC backends still sign is ignored.
+- **The wallet** reads `appMetadata`, and the JWT in its `appSignature`, from `GET /v3/connections/{id}` and from `message.received`. The JWT isn't exposed in `AppVerification`: the wallet only needs what it proves. It decodes the JWT's claims without checking its signature, since the Relay did, and never checks `exp`: a request's expiry is its own `deadline`. Then it compares `sub` with its own hash of the plaintext.
 - **`verification`** is an `AppVerification`, on `SessionProposal`, on `session_request`, and on the wallet's `Session`:
 
   ```json
   { "domain"?: "app.uniswap.org", "name"?: "…", "icon"?: "<url>", "isVerified": false, "isScam": false, "isSimilarTo"?: "…" }
   ```
 
-  - Every field comes from the Relay's `appMetadata`, and only once the `sub` check (and `cth`, when present) passes. There is no state: the wallet shows whatever is present.
+  - Every field comes from the Relay's `appMetadata`, and only once the `sub` check passes. There is no state: the wallet shows whatever is present.
   - An unsigned message gives `{ isVerified: false, isScam }`, keeping only `isScam` and `isSimilarTo`.
-- **A mismatch drops the message.** `sub` or `cth` doesn't match, or the JWT doesn't decode:
+- **A mismatch drops the message.** `sub` doesn't match, or the JWT doesn't decode:
   - **a message:** the wallet never sees it. It gets an `app_signature_mismatch` event, `{ topic, id?, method? }`, and a request is answered with the JSON-RPC error `{ code: -32600, message: "app_signature_mismatch" }`;
   - **a proposal:** `pair` fails with `app_signature_mismatch`, the same event fires, and the connection is rejected. A v3 rejection has no reason for this, so it carries none.
 - **The dApp's own identity is hidden from wallets.** `SessionProposal.metadata` and the wallet's `Session.dappMetadata` are a `DappMetadata`, `{ description, redirect? }`, without `name`, `url` or `icons`. The dApp still sends them; the wallet SDK neither keeps nor shows them. A dApp's `Session.walletMetadata` is the wallet's full metadata.
