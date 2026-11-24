@@ -136,7 +136,7 @@ impl WasmSignClient {
         self.client.start();
     }
 
-    /// Verify v4, dApp: `signer(requestJson) => Promise<jwt>`, or `null`.
+    /// Verify v4, app: `signer(requestJson) => Promise<jwt>`, or `null`.
     #[wasm_bindgen(js_name = setAppSigner)]
     pub fn set_app_signer(&self, signer: Option<Function>) {
         self.client.set_app_signer(

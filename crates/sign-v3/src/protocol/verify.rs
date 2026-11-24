@@ -1,8 +1,8 @@
 //! Verify v4 App Signatures.
 //!
-//! The dApp's backend signs each outgoing message as a JWT, the
-//! `appSignature`, which the dApp sends next to the message. The Relay
-//! verifies it against the dApp's domain and hands the wallet `appMetadata`,
+//! The app's backend signs each outgoing message as a JWT, the
+//! `appSignature`, which the app sends next to the message. The Relay
+//! verifies it against the app's domain and hands the wallet `appMetadata`,
 //! with the JWT verbatim as `appMetadata.appSignature`. The wallet doesn't verify the JWT's
 //! signature: it only checks that the JWT is bound to the message it got.
 //!
@@ -52,11 +52,11 @@ pub fn decode_claims(jwt: &str) -> Option<AppSignatureClaims> {
     })
 }
 
-/// How long before its `exp` the dApp treats its own JWT as expired, so it
+/// How long before its `exp` the app treats its own JWT as expired, so it
 /// isn't sent just as it lapses.
 pub const EXPIRY_MARGIN_S: u64 = 10;
 
-/// dApp side, before a retry: is this JWT expired, or about to be? Only the
+/// App side, before a retry: is this JWT expired, or about to be? Only the
 /// sender looks at `exp`. The wallet never does: a request's expiry is its
 /// own `deadline`.
 pub fn is_expired(jwt: &str, now_s: u64) -> bool {

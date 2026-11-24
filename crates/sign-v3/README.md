@@ -127,11 +127,11 @@ The `connectionId` is the session's topic from then on.
 
 ### Verify v4 App Signatures
 
-Experimental. The dApp's backend signs each message it sends as a JWT, the `appSignature`. The Relay verifies it against the keys the dApp's domain published, and passes on `appMetadata`, its view of the app, with the JWT verbatim as `appMetadata.appSignature`.
+Experimental. The app's backend signs each message it sends as a JWT, the `appSignature`. The Relay verifies it against the keys the app's domain published, and passes on `appMetadata`, its view of the app, with the JWT verbatim as `appMetadata.appSignature`.
 
-- **The dApp** sets a callback with `set_app_signer` (Rust and uniffi) or `setAppSigner` (WASM). The client calls it before creating the connection, for the proposal, and before every send, including automatic acknowledgements. It sends the JWT as `appSignature` beside `proposal` or `message`. A send retried from the outbox after its JWT's `exp` (less 10 s) asks the callback again, with the same request, and never resends the expired JWT; if it can't sign, the send is dropped. If the callback fails, the call fails with `app_signature_failed` and nothing is sent; that send's `seq` stays used. Without a callback, nothing is signed.
+- **The app** sets a callback with `set_app_signer` (Rust and uniffi) or `setAppSigner` (WASM). The client calls it before creating the connection, for the proposal, and before every send, including automatic acknowledgements. It sends the JWT as `appSignature` beside `proposal` or `message`. A send retried from the outbox after its JWT's `exp` (less 10 s) asks the callback again, with the same request, and never resends the expired JWT; if it can't sign, the send is dropped. If the callback fails, the call fails with `app_signature_failed` and nothing is sent; that send's `seq` stays used. Without a callback, nothing is signed.
 - **The callback gets** `{ request }`: the plaintext JSON-RPC message as JSON text, sealed or not.
-- **The claims** are `iss` (the dApp's host), `sub` and `exp`. `sub` is base64url, no padding, of SHA-256 over the plaintext JSON-RPC bytes, which are `request`'s UTF-8 bytes. A monitored message's base64url-decoded `payload` is exactly these bytes, and so is a proposal's. A sealed message's payload decrypts to them. No claim covers the ciphertext: the backend couldn't check one, and `sub` binds the signature to the content. A `cth` older POC backends still sign is ignored.
+- **The claims** are `iss` (the app's host), `sub` and `exp`. `sub` is base64url, no padding, of SHA-256 over the plaintext JSON-RPC bytes, which are `request`'s UTF-8 bytes. A monitored message's base64url-decoded `payload` is exactly these bytes, and so is a proposal's. A sealed message's payload decrypts to them. No claim covers the ciphertext: the backend couldn't check one, and `sub` binds the signature to the content. A `cth` older POC backends still sign is ignored.
 - **The wallet** reads `appMetadata`, and the JWT in its `appSignature`, from `GET /v3/connections/{id}` and from `message.received`. The JWT isn't exposed in `AppVerification`: the wallet only needs what it proves. It decodes the JWT's claims without checking its signature, since the Relay did, and never checks `exp`: a request's expiry is its own `deadline`. Then it compares `sub` with its own hash of the plaintext.
 - **`verification`** is an `AppVerification`, on `SessionProposal`, on `session_request`, and on the wallet's `Session`:
 
@@ -144,7 +144,7 @@ Experimental. The dApp's backend signs each message it sends as a JWT, the `appS
 - **A mismatch drops the message.** `sub` doesn't match, or the JWT doesn't decode:
   - **a message:** the wallet never sees it. It gets an `app_signature_mismatch` event, `{ topic, id?, method? }`, and a request is answered with the JSON-RPC error `{ code: -32600, message: "app_signature_mismatch" }`;
   - **a proposal:** `pair` fails with `app_signature_mismatch`, the same event fires, and the connection is rejected. A v3 rejection has no reason for this, so it carries none.
-- **The dApp's own identity is hidden from wallets.** `SessionProposal.metadata` and the wallet's `Session.dappMetadata` are a `DappMetadata`, `{ description, redirect? }`, without `name`, `url` or `icons`. The dApp still sends them; the wallet SDK neither keeps nor shows them. A dApp's `Session.walletMetadata` is the wallet's full metadata.
+- **The app's own identity is hidden from wallets.** `SessionProposal.metadata` and the wallet's `Session.dappMetadata` are a `DappMetadata`, `{ description, redirect? }`, without `name`, `url` or `icons`. The app still sends them; the wallet SDK neither keeps nor shows them. An app's `Session.walletMetadata` is the wallet's full metadata.
 
 ### Storage
 
@@ -383,22 +383,22 @@ Notes on the params:
   "id": "09178356979748733185",
   "proposalId": 1759313100123000,
   "params": { "requiredNamespaces": { "eip155": { "chains": ["eip155:1"], "methods": ["personal_sign"], "events": ["chainChanged"] } } },
-  "metadata": { "description": "…", "redirect": { "native": "mydapp://" } },
+  "metadata": { "description": "…", "redirect": { "native": "myapp://" } },
   "intent": { "own": "monitored", "peer": "none" },
   "versions": [3],
   "version": 3,
   "sealable": false,
   "expiresAt": 1759313400,
-  "verification": { "domain": "dapp.example", "isVerified": false, "isScam": false }
+  "verification": { "domain": "app.example", "isVerified": false, "isScam": false }
 }
 ```
 
 - **`id`** is the `connectionId`. Pass it to `approve` or `reject`.
 - **`proposalId`** is the JSON-RPC id, for apps that keep v2's numeric proposal ids.
 - **`version`** is the version that will be used. `0` means no version is shared, and `pair` has already rejected the request.
-- **`metadata`** is the dApp's description and redirect only. Who the dApp is comes from `verification`.
+- **`metadata`** is the app's description and redirect only. Who the app is comes from `verification`.
 
-`Session`, returned by `approve` and `getSessions`, and carried by `session_connect`. A dApp's has `walletMetadata`; a wallet's has `dappMetadata` and `verification` instead:
+`Session`, returned by `approve` and `getSessions`, and carried by `session_connect`. An app's has `walletMetadata`; a wallet's has `dappMetadata` and `verification` instead:
 
 ```json
 {

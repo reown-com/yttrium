@@ -1,5 +1,5 @@
 //! Verify v4 App Signatures through the client, against an in-memory Relay:
-//! the dApp signs exactly the bytes it sends, and the wallet checks them.
+//! the app signs exactly the bytes it sends, and the wallet checks them.
 
 use {
     crate::{
@@ -249,10 +249,10 @@ fn fetched(create: &Value, app_signature: Value, app_metadata: Value) -> Value {
 #[tokio::test]
 async fn the_proposal_is_signed_and_the_wallet_checks_it() {
     let relay = Arc::new(FakeRelay::default());
-    let dapp = client(&relay, Default::default()).await;
+    let app = client(&relay, Default::default()).await;
     let signer = Arc::new(TestSigner::default());
-    dapp.set_app_signer(Some(signer.clone()));
-    let uri = dapp.connect(params(), None).await.unwrap().uri;
+    app.set_app_signer(Some(signer.clone()));
+    let uri = app.connect(params(), None).await.unwrap().uri;
 
     let create = relay.bodies("POST", "/v3/connections").remove(0);
     let payload =
@@ -278,7 +278,7 @@ async fn the_proposal_is_signed_and_the_wallet_checks_it() {
             ..Default::default()
         }
     );
-    // The dApp's own name, url and icons never reach the wallet.
+    // The app's own name, url and icons never reach the wallet.
     let shown = serde_json::to_string(&p).unwrap();
     assert!(!shown.contains("self-asserted"), "{shown}");
     assert_eq!(
@@ -286,7 +286,7 @@ async fn the_proposal_is_signed_and_the_wallet_checks_it() {
         Some("app://")
     );
 
-    // A signature for another proposal: dropped, the dApp told with a
+    // A signature for another proposal: dropped, the app told with a
     // rejection, and the wallet with an error and an event.
     let other = json!(jwt(&hash_b64u(b"another proposal")));
     *relay.fetch.lock().unwrap() = fetched(&create, other, origin);
@@ -330,18 +330,18 @@ async fn the_proposal_is_signed_and_the_wallet_checks_it() {
 #[tokio::test]
 async fn a_failing_callback_fails_the_call_and_sends_nothing() {
     let relay = Arc::new(FakeRelay::default());
-    let dapp = client(&relay, Default::default()).await;
-    dapp.set_app_signer(Some(Arc::new(TestSigner {
+    let app = client(&relay, Default::default()).await;
+    app.set_app_signer(Some(Arc::new(TestSigner {
         fail: true,
         ..Default::default()
     })));
-    let e = dapp.connect(params(), None).await.unwrap_err();
+    let e = app.connect(params(), None).await.unwrap_err();
     assert_eq!(e.code(), "app_signature_failed");
     assert!(relay.bodies("POST", "/v3/connections").is_empty());
 
     // Without a callback, nothing is signed.
-    dapp.set_app_signer(None);
-    dapp.connect(params(), None).await.unwrap();
+    app.set_app_signer(None);
+    app.connect(params(), None).await.unwrap();
     assert!(
         relay.bodies("POST", "/v3/connections")[0]
             .get("appSignature")
@@ -352,12 +352,12 @@ async fn a_failing_callback_fails_the_call_and_sends_nothing() {
 #[tokio::test]
 async fn sealed_requests_carry_sub_and_the_wallet_checks_it() {
     let relay = Arc::new(FakeRelay::default());
-    let dapp_events = Arc::new(Events::default());
-    let dapp = client(&relay, dapp_events.clone()).await;
+    let app_events = Arc::new(Events::default());
+    let app = client(&relay, app_events.clone()).await;
     let signer = Arc::new(TestSigner::default());
-    dapp.set_app_signer(Some(signer.clone()));
+    app.set_app_signer(Some(signer.clone()));
     let sealed = DappIntent { own: Mode::Sealed, peer: PeerRequirement::None };
-    let uri = dapp.connect(params(), Some(sealed)).await.unwrap().uri;
+    let uri = app.connect(params(), Some(sealed)).await.unwrap().uri;
     let create = relay.bodies("POST", "/v3/connections").remove(0);
     *relay.fetch.lock().unwrap() =
         fetched(&create, create["appSignature"].clone(), Value::Null);
@@ -372,7 +372,7 @@ async fn sealed_requests_carry_sub_and_the_wallet_checks_it() {
     let accept = relay
         .bodies("PUT", &format!("/v3/connections/{CONNECTION_ID}/acceptance"))
         .remove(0);
-    dapp.inner
+    app.inner
         .handle_events(vec![json!({
             "type": "connection.established",
             "connectionId": CONNECTION_ID,
@@ -381,7 +381,7 @@ async fn sealed_requests_carry_sub_and_the_wallet_checks_it() {
         .await
         .unwrap();
     assert!(
-        dapp_events
+        app_events
             .0
             .lock()
             .unwrap()
@@ -391,13 +391,13 @@ async fn sealed_requests_carry_sub_and_the_wallet_checks_it() {
 
     let path = format!("/v3/connections/{CONNECTION_ID}/messages");
     let send = |params: &str| {
-        let dapp = dapp.clone();
+        let app = app.clone();
         let request = RpcRequest {
             method: "personal_sign".into(),
             params: params.into(),
         };
         tokio::spawn(async move {
-            let _ = dapp
+            let _ = app
                 .request(CONNECTION_ID.into(), "eip155:1".into(), request, None)
                 .await;
         });
@@ -472,14 +472,14 @@ async fn sealed_requests_carry_sub_and_the_wallet_checks_it() {
     );
 
     // The wallet's session shows the proposal's verification, and none of
-    // the dApp's own identity.
+    // the app's own identity.
     let session = wallet.sessions().await.remove(0);
     assert_eq!(session.wallet_metadata, None);
     assert_eq!(session.dapp_metadata.unwrap().description, "");
     assert_eq!(session.verification, Some(AppVerification::default()));
-    let dapp_session = dapp.sessions().await.remove(0);
-    assert_eq!(dapp_session.dapp_metadata, None);
-    assert!(dapp_session.wallet_metadata.is_some());
+    let app_session = app.sessions().await.remove(0);
+    assert_eq!(app_session.dapp_metadata, None);
+    assert!(app_session.wallet_metadata.is_some());
 }
 
 #[tokio::test]
@@ -489,9 +489,9 @@ async fn a_retry_after_the_jwt_expired_asks_the_callback_again() {
         protocol::{types::WireMessage, verify::is_expired},
     };
     let relay = Arc::new(FakeRelay::default());
-    let dapp = client(&relay, Default::default()).await;
+    let app = client(&relay, Default::default()).await;
     let signer = Arc::new(TestSigner::default());
-    dapp.set_app_signer(Some(signer.clone()));
+    app.set_app_signer(Some(signer.clone()));
     let request = AppSignatureRequest {
         request:
             r#"{"id":1,"jsonrpc":"2.0","method":"wc_sessionPing","params":{}}"#
@@ -524,17 +524,17 @@ async fn a_retry_after_the_jwt_expired_asks_the_callback_again() {
     assert!(is_expired(&expired, now));
     assert!(!is_expired(&fresh, now));
     // A crash left two unacknowledged sends: one whose JWT has expired since.
-    dapp.inner
+    app.inner
         .store
         .put(&format!("out/{CONNECTION_ID}/1"), &out(1, expired.clone()))
         .await
         .unwrap();
-    dapp.inner
+    app.inner
         .store
         .put(&format!("out/{CONNECTION_ID}/2"), &out(2, fresh.clone()))
         .await
         .unwrap();
-    dapp.inner.flush_outbox().await;
+    app.inner.flush_outbox().await;
 
     let sent: Vec<String> = relay
         .bodies("POST", &path)
@@ -547,16 +547,16 @@ async fn a_retry_after_the_jwt_expired_asks_the_callback_again() {
     assert_eq!(sent.len(), 2);
     assert!(sent.contains(&fresh));
     assert!(!is_expired(&sent[0], now));
-    assert!(dapp.inner.store.keys("out/").await.unwrap().is_empty());
+    assert!(app.inner.store.keys("out/").await.unwrap().is_empty());
 
     // Without a callback to sign again, the expired send is dropped, unsent.
-    dapp.set_app_signer(None);
-    dapp.inner
+    app.set_app_signer(None);
+    app.inner
         .store
         .put(&format!("out/{CONNECTION_ID}/3"), &out(3, expired.clone()))
         .await
         .unwrap();
-    dapp.inner.flush_outbox().await;
+    app.inner.flush_outbox().await;
     assert_eq!(relay.bodies("POST", &path).len(), 2);
-    assert!(dapp.inner.store.keys("out/").await.unwrap().is_empty());
+    assert!(app.inner.store.keys("out/").await.unwrap().is_empty());
 }

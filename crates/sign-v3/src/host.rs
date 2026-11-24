@@ -47,7 +47,7 @@ pub trait Listener {
     fn on_event(&self, event: SignEvent);
 }
 
-/// What the dApp's App Signature callback signs: one outgoing message.
+/// What the app's App Signature callback signs: one outgoing message.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
 #[serde(rename_all = "camelCase")]
@@ -64,7 +64,7 @@ pub enum AppSignatureError {
     Failed { message: String },
 }
 
-/// The dApp's App Signature callback (Verify v4): returns the `appSignature`
+/// The app's App Signature callback (Verify v4): returns the `appSignature`
 /// JWT for one message, usually from the app's backend. Called before the
 /// connection is created and before every send. An error fails the call: the
 /// message is never sent unsigned.

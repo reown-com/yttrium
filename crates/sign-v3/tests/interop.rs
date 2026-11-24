@@ -111,7 +111,7 @@ async fn ts_dapp_pairs_with_rust_wallet() {
     auto_respond(&w, json!("0xrust"));
     let uri = next_with(&dp, "uri")["uri"].as_str().unwrap().to_string();
     let p = w.client.pair(uri).await.unwrap();
-    // An unsigned dApp: nothing about who it is, and never its own name.
+    // An unsigned app: nothing about who it is, and never its own name.
     assert_eq!(p.verification, Default::default());
     let s = w.client.approve(p.id, common::approved(), None).await.unwrap();
     let connected = next_with(&dp, "connected");

@@ -253,7 +253,7 @@ impl SignClient {
         poller::start(&self.inner);
     }
 
-    /// Verify v4, dApp: sign the proposal and every message with this
+    /// Verify v4, app: sign the proposal and every message with this
     /// callback, or with nothing when `None`.
     pub fn set_app_signer(&self, signer: Option<Arc<dyn AppSigner>>) {
         *self.inner.app_signer.lock().expect("lock") = signer;
@@ -491,7 +491,7 @@ impl SignClient {
         let (dapp_versions, dapp_intent, dapp_pub, rpc, verification) = checked;
         let Ok(verification) = verification else {
             // The App Signature is for another proposal: drop it, and tell the
-            // dApp with a rejection. v3 rejections carry no reason for this.
+            // app with a rejection. v3 rejections carry no reason for this.
             let rejection =
                 RejectionPayload { connection_id: id.clone(), reason: None };
             let body = json!({ "rejection": build_signed(&binding, labels::REJECT, &bpub, &rejection) });
@@ -521,7 +521,7 @@ impl SignClient {
             .max()
             .unwrap_or(0);
         let mut params = rpc.value["params"].clone();
-        // The dApp's self-asserted identity is never kept or shown.
+        // The app's self-asserted identity is never kept or shown.
         let metadata = params
             .as_object_mut()
             .and_then(|o| o.remove("metadata"))
@@ -1408,7 +1408,7 @@ impl Inner {
         Ok(out.seq)
     }
 
-    /// Verify v4: the dApp's App Signature for one message, when it has a
+    /// Verify v4: the app's App Signature for one message, when it has a
     /// callback. `sub` covers the plaintext JSON-RPC bytes, the same bytes
     /// `build_message` serializes, sealed or not.
     async fn app_signature(

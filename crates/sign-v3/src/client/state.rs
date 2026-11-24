@@ -118,7 +118,7 @@ pub struct ConnRecord {
     pub dapp_mode: Mode,
     pub wallet_mode: Mode,
     pub namespaces: Value,
-    /// On the wallet side, without the dApp's self-asserted identity.
+    /// On the wallet side, without the app's self-asserted identity.
     pub peer_metadata: Metadata,
     /// Wallet side: the proposal's App Verification.
     #[serde(default)]
@@ -222,7 +222,7 @@ pub struct WalletProp {
     pub sealable: bool,
     pub proposal_id: i64,
     pub params: Value,
-    /// Without the dApp's self-asserted identity.
+    /// Without the app's self-asserted identity.
     pub metadata: Metadata,
     #[serde(default)]
     pub verification: AppVerification,
@@ -249,7 +249,7 @@ pub struct Outbox {
     pub seq: u64,
     pub message: WireMessage,
     pub ttl: u64,
-    /// Verify v4: the dApp's JWT for this message, resent with it while it
+    /// Verify v4: the app's JWT for this message, resent with it while it
     /// is fresh.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub app_signature: Option<String>,

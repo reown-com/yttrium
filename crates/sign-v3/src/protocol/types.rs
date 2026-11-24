@@ -79,7 +79,7 @@ pub struct Redirect {
     pub link_mode: Option<bool>,
 }
 
-/// The dApp's metadata as a wallet sees it: without the self-asserted
+/// The app's metadata as a wallet sees it: without the self-asserted
 /// identity (`name`, `url`, `icons`). Who the app is comes from
 /// `AppVerification` only.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -93,7 +93,7 @@ pub struct DappMetadata {
 }
 
 impl Metadata {
-    /// What a wallet may see of a dApp's metadata.
+    /// What a wallet may see of an app's metadata.
     pub fn for_wallet(&self) -> DappMetadata {
         DappMetadata {
             description: self.description.clone(),

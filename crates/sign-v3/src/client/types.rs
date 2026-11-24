@@ -172,10 +172,10 @@ pub struct Session {
     pub role: Role,
     pub version: u32,
     pub namespaces: Namespaces,
-    /// dApp side: the wallet's metadata.
+    /// App side: the wallet's metadata.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub wallet_metadata: Option<Metadata>,
-    /// Wallet side: the dApp's metadata, without its self-asserted identity.
+    /// Wallet side: the app's metadata, without its self-asserted identity.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub dapp_metadata: Option<DappMetadata>,
     /// Wallet side: the proposal's App Verification.
@@ -195,7 +195,7 @@ pub struct SessionProposal {
     /// The proposal's JSON-RPC id, for v2-style numeric proposal ids.
     pub proposal_id: i64,
     pub params: ProposalParams,
-    /// The dApp's metadata without its self-asserted identity: who the app
+    /// The app's metadata without its self-asserted identity: who the app
     /// is comes from `verification` only.
     pub metadata: DappMetadata,
     pub intent: DappIntent,
@@ -203,7 +203,7 @@ pub struct SessionProposal {
     pub version: u32,
     pub sealable: bool,
     pub expires_at: u64,
-    /// Verify v4: what the Relay vouches for about the dApp.
+    /// Verify v4: what the Relay vouches for about the app.
     #[serde(default)]
     pub verification: AppVerification,
 }

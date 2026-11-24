@@ -35,7 +35,7 @@ impl SignClientFfi {
         self.client.start();
     }
 
-    /// Verify v4, dApp: the App Signature callback, or `None` to stop
+    /// Verify v4, app: the App Signature callback, or `None` to stop
     /// signing. Set it before `connect`.
     pub fn set_app_signer(&self, signer: Option<Arc<dyn AppSigner>>) {
         self.client.set_app_signer(signer);
