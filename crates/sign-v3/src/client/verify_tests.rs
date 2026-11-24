@@ -227,14 +227,24 @@ fn params() -> ProposalParams {
     }
 }
 
+/// `appMetadata` as the Relay delivers it: the JWT, verbatim, inside.
+fn with_signature(app_signature: &Value, mut app_metadata: Value) -> Value {
+    if !app_signature.is_null() {
+        if app_metadata.is_null() {
+            app_metadata = json!({});
+        }
+        app_metadata["appSignature"] = app_signature.clone();
+    }
+    app_metadata
+}
+
 fn fetched(create: &Value, app_signature: Value, app_metadata: Value) -> Value {
     json!({
         "bindingProof": create["bindingProof"],
         "proposal": create["proposal"],
         "versions": [3],
         "sealable": true,
-        "appSignature": app_signature,
-        "appMetadata": app_metadata,
+        "appMetadata": with_signature(&app_signature, app_metadata),
     })
 }
 
@@ -415,8 +425,10 @@ async fn sealed_requests_carry_sub_and_cth_and_the_wallet_checks_both() {
             "type": "message.received",
             "connectionId": CONNECTION_ID,
             "message": body["message"],
-            "appSignature": app_signature,
-            "appMetadata": { "origin": "https://app.example", "name": "App", "icon": "https://app.example/i.png", "isVerified": true },
+            "appMetadata": with_signature(
+                app_signature,
+                json!({ "origin": "https://app.example", "name": "App", "icon": "https://app.example/i.png", "isVerified": true }),
+            ),
         })
     };
     wallet

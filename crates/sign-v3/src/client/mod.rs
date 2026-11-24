@@ -485,7 +485,6 @@ impl SignClient {
             }
             // A proposal is never sealed: its payload is the plaintext.
             let verification = app_verification(
-                fetched["appSignature"].as_str(),
                 fetched.get("appMetadata"),
                 &m.payload_bytes,
                 &m.payload_bytes,
@@ -1520,13 +1519,11 @@ impl Inner {
                 RelayEvent::MessageReceived {
                     connection_id,
                     message,
-                    app_signature,
                     app_metadata,
                 } => {
                     rt::boxed(self.on_message(
                         &connection_id,
                         &message,
-                        app_signature.as_deref(),
                         app_metadata.as_ref(),
                     ))
                     .await?
@@ -1738,7 +1735,6 @@ impl Inner {
         self: &Arc<Self>,
         id: &str,
         wire: &WireMessage,
-        app_signature: Option<&str>,
         app_metadata: Option<&Value>,
     ) -> Result<(), SignError> {
         let mut st = self.state.lock().await;
@@ -1808,12 +1804,9 @@ impl Inner {
         }
         // Persist the replay window before the app sees the message.
         self.save_conn(c, false).await?;
-        let Ok(verification) = app_verification(
-            app_signature,
-            app_metadata,
-            &plaintext,
-            &m.payload_bytes,
-        ) else {
+        let Ok(verification) =
+            app_verification(app_metadata, &plaintext, &m.payload_bytes)
+        else {
             // The App Signature is for another message: drop it, never show
             // it, and answer a request with an error.
             drop(st);

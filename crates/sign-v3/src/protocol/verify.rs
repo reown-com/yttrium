@@ -2,8 +2,8 @@
 //!
 //! The dApp's backend signs each outgoing message as a JWT, the
 //! `appSignature`, which the dApp sends next to the message. The Relay
-//! verifies it against the dApp's domain and hands the wallet the JWT
-//! verbatim plus `appMetadata`. The wallet doesn't verify the JWT's
+//! verifies it against the dApp's domain and hands the wallet `appMetadata`,
+//! with the JWT verbatim as `appMetadata.appSignature`. The wallet doesn't verify the JWT's
 //! signature: it only checks that the JWT is bound to the message it got.
 //!
 //! What the claims cover:
@@ -55,6 +55,9 @@ pub fn decode_claims(jwt: &str) -> Option<AppSignatureClaims> {
 /// What the Relay says about the app, from its registry and screening.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct AppMetadata {
+    /// The app's JWT, verbatim. Kept out of `AppVerification`: the wallet
+    /// only needs what it proves.
+    pub app_signature: Option<String>,
     pub origin: Option<String>,
     pub name: Option<String>,
     pub icon: Option<String>,
@@ -72,6 +75,7 @@ impl AppMetadata {
         let s = |k: &str| v.get(k).and_then(Value::as_str).map(str::to_string);
         let b = |k: &str| v.get(k).and_then(Value::as_bool);
         Some(Self {
+            app_signature: s("appSignature"),
             origin: s("origin"),
             name: s("name"),
             icon: s("icon"),
@@ -137,7 +141,6 @@ fn domain_of(origin: &str) -> String {
 /// JSON-RPC bytes after decoding or decrypting; `payload` the base64url
 /// decoded `payload` as received (the same bytes when monitored).
 pub fn app_verification(
-    app_signature: Option<&str>,
     app_metadata: Option<&Value>,
     plaintext: &[u8],
     payload: &[u8],
@@ -148,7 +151,7 @@ pub fn app_verification(
         is_similar_to: md.is_similar_to.clone(),
         ..Default::default()
     };
-    let Some(jwt) = app_signature else {
+    let Some(jwt) = md.app_signature.as_deref() else {
         // Unsigned: no identity. An origin, name or icon here is ignored.
         return Ok(screening);
     };
@@ -213,11 +216,17 @@ mod tests {
         assert!(decode_claims(&jwt(json!({ "sub": "s", "cth": 1 }))).is_none());
     }
 
+    /// `appMetadata` as the Relay delivers it, with the JWT inside.
+    fn signed(sig: &str, mut md: Value) -> Value {
+        md["appSignature"] = sig.into();
+        md
+    }
+
     #[test]
     fn takes_every_field_from_the_relay_once_bound() {
         let sig = jwt(json!({ "sub": hash_b64u(RPC) }));
         let ver = |md: Value| {
-            app_verification(Some(&sig), Some(&md), RPC, RPC).unwrap()
+            app_verification(Some(&signed(&sig, md)), RPC, RPC).unwrap()
         };
         assert_eq!(
             ver(json!({ "origin": "https://App.Example.com" })),
@@ -241,7 +250,7 @@ mod tests {
         );
         // Signed, but the Relay knew nothing about the app.
         assert_eq!(
-            app_verification(Some(&sig), None, RPC, RPC).unwrap(),
+            app_verification(Some(&signed(&sig, json!({}))), RPC, RPC).unwrap(),
             AppVerification::default()
         );
     }
@@ -250,7 +259,7 @@ mod tests {
     fn unsigned_requests_keep_only_screening() {
         let md = json!({ "origin": "https://evil.example", "name": "Bank", "icon": "i", "isVerified": true, "isScam": true, "isSimilarTo": "bank.example" });
         assert_eq!(
-            app_verification(None, Some(&md), RPC, RPC).unwrap(),
+            app_verification(Some(&md), RPC, RPC).unwrap(),
             AppVerification {
                 is_scam: true,
                 is_similar_to: Some("bank.example".into()),
@@ -258,7 +267,7 @@ mod tests {
             }
         );
         assert_eq!(
-            app_verification(None, None, RPC, RPC).unwrap(),
+            app_verification(None, RPC, RPC).unwrap(),
             AppVerification::default()
         );
     }
@@ -268,7 +277,7 @@ mod tests {
         let md = json!({ "origin": "https://app.example", "name": "App", "isVerified": true });
         let other = jwt(json!({ "sub": hash_b64u(b"another request") }));
         assert_eq!(
-            app_verification(Some(&other), Some(&md), RPC, RPC),
+            app_verification(Some(&signed(&other, md.clone())), RPC, RPC),
             Err(AppSignatureMismatch)
         );
         // One byte of difference: a re-serialized request doesn't match.
@@ -276,12 +285,12 @@ mod tests {
             String::from_utf8(RPC.to_vec()).unwrap().replacen(":", ": ", 1);
         let sig = jwt(json!({ "sub": hash_b64u(respaced.as_bytes()) }));
         assert_eq!(
-            app_verification(Some(&sig), Some(&md), RPC, RPC),
+            app_verification(Some(&signed(&sig, md.clone())), RPC, RPC),
             Err(AppSignatureMismatch)
         );
         for garbage in ["", "x", "a.b.c", "a.!!!.c"] {
             assert_eq!(
-                app_verification(Some(garbage), Some(&md), RPC, RPC),
+                app_verification(Some(&signed(garbage, md.clone())), RPC, RPC),
                 Err(AppSignatureMismatch)
             );
         }
@@ -296,8 +305,7 @@ mod tests {
         };
         assert_eq!(
             app_verification(
-                Some(&sig(ciphertext)),
-                Some(&md),
+                Some(&signed(&sig(ciphertext), md.clone())),
                 RPC,
                 ciphertext
             )
@@ -307,7 +315,11 @@ mod tests {
             Some("app.example")
         );
         assert_eq!(
-            app_verification(Some(&sig(b"other")), Some(&md), RPC, ciphertext),
+            app_verification(
+                Some(&signed(&sig(b"other"), md.clone())),
+                RPC,
+                ciphertext
+            ),
             Err(AppSignatureMismatch)
         );
     }
