@@ -3,7 +3,7 @@
 
 use {
     crate::{
-        host::{Storage, StorageError},
+        host::{AppSignatureRequest, Storage, StorageError},
         protocol::{
             encoding::{b64u, from_b64u},
             replay::ReplayWindow,
@@ -249,9 +249,13 @@ pub struct Outbox {
     pub seq: u64,
     pub message: WireMessage,
     pub ttl: u64,
-    /// Verify v4: the dApp's JWT for this message, resent with it.
+    /// Verify v4: the dApp's JWT for this message, resent with it while it
+    /// is fresh.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub app_signature: Option<String>,
+    /// What the JWT signs, to ask the callback again once it expires.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub app_signature_request: Option<AppSignatureRequest>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

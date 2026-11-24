@@ -45,6 +45,7 @@ use {
             uri::{build_uri, is_connection_id, parse_uri},
             verify::{
                 APP_SIGNATURE_MISMATCH_CODE, app_verification, hash_b64u,
+                is_expired,
             },
         },
         rt::{self, BoxFut},
@@ -336,8 +337,11 @@ impl SignClient {
             seal_key: None,
             nonce: None,
         });
-        let app_signature =
-            self.inner.app_signature(&rpc, &proposal, false).await?;
+        let app_signature = self
+            .inner
+            .app_signature(&rpc, &proposal, false)
+            .await?
+            .map(|(jwt, _)| jwt);
         let mut body = json!({
             "bindingPub": b64u(&bpub),
             "bindingProof": build_signed(&binding, labels::BINDING_PROOF, &bpub, &proof),
@@ -1397,8 +1401,15 @@ impl Inner {
             };
             self.store.put(&format!("outreq/{conn}/{id}"), &tracked).await?;
         }
-        let out =
-            Outbox { conn: conn.into(), seq, message, ttl, app_signature };
+        let (app_signature, app_signature_request) = app_signature.unzip();
+        let out = Outbox {
+            conn: conn.into(),
+            seq,
+            message,
+            ttl,
+            app_signature,
+            app_signature_request,
+        };
         self.store.put(&format!("out/{conn}/{seq}"), &out).await?;
         self.post(&out).await?;
         Ok(out.seq)
@@ -1412,28 +1423,41 @@ impl Inner {
         rpc: &Value,
         message: &WireMessage,
         sealed: bool,
-    ) -> Result<Option<String>, SignError> {
-        let Some(signer) = self.app_signer.lock().expect("lock").clone() else {
+    ) -> Result<Option<(String, AppSignatureRequest)>, SignError> {
+        if self.app_signer.lock().expect("lock").is_none() {
             return Ok(None);
+        }
+        let request = AppSignatureRequest {
+            request: serde_json::to_string(rpc).expect("json"),
+            ciphertext_hash: if sealed {
+                Some(hash_b64u(&from_b64u(&message.payload)?))
+            } else {
+                None
+            },
         };
-        let request = serde_json::to_string(rpc).expect("json");
-        let ciphertext_hash = if sealed {
-            Some(hash_b64u(&from_b64u(&message.payload)?))
-        } else {
-            None
-        };
+        Ok(Some((self.sign_request(&request).await?, request)))
+    }
+
+    /// Calls the App Signature callback. Without one, or when it fails, the
+    /// message can't be sent: `app_signature_failed`.
+    async fn sign_request(
+        &self,
+        request: &AppSignatureRequest,
+    ) -> Result<String, SignError> {
         let fail = |m: String| err("app_signature_failed", m);
-        let jwt =
-            rt::boxed(signer.sign_request(AppSignatureRequest {
-                request,
-                ciphertext_hash,
-            }))
+        let signer = self
+            .app_signer
+            .lock()
+            .expect("lock")
+            .clone()
+            .ok_or_else(|| fail("no App Signature callback".into()))?;
+        let jwt = rt::boxed(signer.sign_request(request.clone()))
             .await
             .map_err(|e| fail(e.to_string()))?;
         if jwt.split('.').count() != 3 {
             return Err(fail("the callback returned no JWT".into()));
         }
-        Ok(Some(jwt))
+        Ok(jwt)
     }
 
     pub(crate) fn post<'a>(
@@ -1444,8 +1468,32 @@ impl Inner {
     }
 
     async fn post_inner(&self, out: &Outbox) -> Result<(), SignError> {
+        let key = format!("out/{}/{}", out.conn, out.seq);
+        let mut app_signature = out.app_signature.clone();
+        // A retry after the JWT expired asks the callback again: an expired
+        // JWT is never resent. If it can't sign, the message is dropped, as
+        // after any final error; its seq leaves a gap.
+        if let (Some(jwt), Some(request)) =
+            (&out.app_signature, &out.app_signature_request)
+            && is_expired(jwt, self.now_s())
+        {
+            match self.sign_request(request).await {
+                Ok(fresh) => {
+                    let renewed = Outbox {
+                        app_signature: Some(fresh.clone()),
+                        ..out.clone()
+                    };
+                    self.store.put(&key, &renewed).await?;
+                    app_signature = Some(fresh);
+                }
+                Err(e) => {
+                    self.store.remove(&key).await?;
+                    return Err(e);
+                }
+            }
+        }
         let mut body = json!({ "message": out.message, "ttl": out.ttl });
-        if let Some(jwt) = &out.app_signature {
+        if let Some(jwt) = &app_signature {
             body["appSignature"] = jwt.as_str().into();
         }
         let body = serde_json::to_vec(&body).expect("json");

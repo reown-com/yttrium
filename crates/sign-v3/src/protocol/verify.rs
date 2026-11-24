@@ -33,6 +33,7 @@ pub fn hash_b64u(bytes: &[u8]) -> String {
 pub struct AppSignatureClaims {
     pub sub: String,
     pub cth: Option<String>,
+    pub exp: Option<u64>,
 }
 
 /// Decodes the JWT's claims without checking its signature: the Relay did.
@@ -49,7 +50,24 @@ pub fn decode_claims(jwt: &str) -> Option<AppSignatureClaims> {
         Some(Value::String(s)) => Some(s.clone()),
         Some(_) => return None,
     };
-    Some(AppSignatureClaims { sub: v.get("sub")?.as_str()?.into(), cth })
+    Some(AppSignatureClaims {
+        sub: v.get("sub")?.as_str()?.into(),
+        cth,
+        exp: v.get("exp").and_then(Value::as_u64),
+    })
+}
+
+/// How long before its `exp` the dApp treats its own JWT as expired, so it
+/// isn't sent just as it lapses.
+pub const EXPIRY_MARGIN_S: u64 = 10;
+
+/// dApp side, before a retry: is this JWT expired, or about to be? Only the
+/// sender looks at `exp`. The wallet never does: a request's expiry is its
+/// own `deadline`.
+pub fn is_expired(jwt: &str, now_s: u64) -> bool {
+    decode_claims(jwt)
+        .and_then(|c| c.exp)
+        .is_some_and(|exp| exp <= now_s + EXPIRY_MARGIN_S)
 }
 
 /// What the Relay says about the app, from its registry and screening.
@@ -253,6 +271,22 @@ mod tests {
             app_verification(Some(&signed(&sig, json!({}))), RPC, RPC).unwrap(),
             AppVerification::default()
         );
+    }
+
+    #[test]
+    fn the_wallet_never_checks_exp() {
+        // Long expired: the wallet only checks what the JWT is bound to.
+        let sig = jwt(json!({ "sub": hash_b64u(RPC), "exp": 1 }));
+        let md = signed(&sig, json!({ "origin": "https://app.example" }));
+        assert_eq!(
+            app_verification(Some(&md), RPC, RPC).unwrap().domain.as_deref(),
+            Some("app.example")
+        );
+        assert!(is_expired(&sig, 1_000));
+        let fresh = jwt(json!({ "sub": "s", "exp": 2_000 }));
+        assert!(!is_expired(&fresh, 1_000));
+        assert!(is_expired(&fresh, 1_995));
+        assert!(!is_expired(&jwt(json!({ "sub": "s" })), 1_000));
     }
 
     #[test]

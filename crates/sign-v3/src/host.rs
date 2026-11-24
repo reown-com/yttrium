@@ -2,7 +2,7 @@
 
 use {
     crate::client::types::SignEvent,
-    serde::Serialize,
+    serde::{Deserialize, Serialize},
     std::{collections::BTreeMap, sync::Mutex},
 };
 
@@ -48,7 +48,7 @@ pub trait Listener {
 }
 
 /// What the dApp's App Signature callback signs: one outgoing message.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
 #[serde(rename_all = "camelCase")]
 pub struct AppSignatureRequest {

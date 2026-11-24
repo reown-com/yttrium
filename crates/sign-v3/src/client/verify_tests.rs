@@ -487,3 +487,83 @@ async fn sealed_requests_carry_sub_and_cth_and_the_wallet_checks_both() {
     assert_eq!(dapp_session.dapp_metadata, None);
     assert!(dapp_session.wallet_metadata.is_some());
 }
+
+#[tokio::test]
+async fn a_retry_after_the_jwt_expired_asks_the_callback_again() {
+    use crate::{
+        client::state::Outbox,
+        protocol::{types::WireMessage, verify::is_expired},
+    };
+    let relay = Arc::new(FakeRelay::default());
+    let dapp = client(&relay, Default::default()).await;
+    let signer = Arc::new(TestSigner::default());
+    dapp.set_app_signer(Some(signer.clone()));
+    let request = AppSignatureRequest {
+        request:
+            r#"{"id":1,"jsonrpc":"2.0","method":"wc_sessionPing","params":{}}"#
+                .into(),
+        ciphertext_hash: Some("cth".into()),
+    };
+    let now = crate::rt::now_ms() / 1000;
+    let signed = |exp: u64| {
+        format!(
+            "{}.{}.{}",
+            b64u(b"{}"),
+            b64u(json!({ "sub": hash_b64u(request.request.as_bytes()), "exp": exp }).to_string().as_bytes()),
+            b64u(b"sig")
+        )
+    };
+    let out = |seq: u64, jwt: String| Outbox {
+        conn: CONNECTION_ID.into(),
+        seq,
+        message: WireMessage {
+            plain: "p".into(),
+            payload: "x".into(),
+            sig: "s".into(),
+        },
+        ttl: 300,
+        app_signature: Some(jwt),
+        app_signature_request: Some(request.clone()),
+    };
+    let path = format!("/v3/connections/{CONNECTION_ID}/messages");
+    let expired = signed(now - 1);
+    let fresh = signed(now + 120);
+    assert!(is_expired(&expired, now));
+    assert!(!is_expired(&fresh, now));
+    // A crash left two unacknowledged sends: one whose JWT has expired since.
+    dapp.inner
+        .store
+        .put(&format!("out/{CONNECTION_ID}/1"), &out(1, expired.clone()))
+        .await
+        .unwrap();
+    dapp.inner
+        .store
+        .put(&format!("out/{CONNECTION_ID}/2"), &out(2, fresh.clone()))
+        .await
+        .unwrap();
+    dapp.inner.flush_outbox().await;
+
+    let sent: Vec<String> = relay
+        .bodies("POST", &path)
+        .iter()
+        .map(|b| b["appSignature"].as_str().unwrap().to_string())
+        .collect();
+    // The expired one was signed again, for the same request, and never sent.
+    assert_eq!(signer.seen.lock().unwrap().clone(), vec![request.clone()]);
+    assert!(!sent.contains(&expired));
+    assert_eq!(sent.len(), 2);
+    assert!(sent.contains(&fresh));
+    assert!(!is_expired(&sent[0], now));
+    assert!(dapp.inner.store.keys("out/").await.unwrap().is_empty());
+
+    // Without a callback to sign again, the expired send is dropped, unsent.
+    dapp.set_app_signer(None);
+    dapp.inner
+        .store
+        .put(&format!("out/{CONNECTION_ID}/3"), &out(3, expired.clone()))
+        .await
+        .unwrap();
+    dapp.inner.flush_outbox().await;
+    assert_eq!(relay.bodies("POST", &path).len(), 2);
+    assert!(dapp.inner.store.keys("out/").await.unwrap().is_empty());
+}
