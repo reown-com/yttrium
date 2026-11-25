@@ -3,11 +3,12 @@
 
 use {
     crate::{
-        host::{Storage, StorageError},
+        host::{AppSignatureRequest, Storage, StorageError},
         protocol::{
             encoding::{b64u, from_b64u},
             replay::ReplayWindow,
             types::{DappIntent, Metadata, Mode, Role, WireMessage},
+            verify::AppVerification,
         },
         rt::{BoxFut, boxed},
     },
@@ -117,7 +118,17 @@ pub struct ConnRecord {
     pub dapp_mode: Mode,
     pub wallet_mode: Mode,
     pub namespaces: Value,
+    /// On the wallet side, without the app's self-asserted identity.
     pub peer_metadata: Metadata,
+    /// Wallet side: the proposal's App Verification.
+    #[serde(default)]
+    pub verification: Option<AppVerification>,
+    /// Wallet side: the domain the session is pinned to, the first that
+    /// signed on it (the proposal's `iss`, else the first accepted signed
+    /// request's). Once set, requests must be signed by it
+    /// ([`crate::protocol::verify::check_pinned_domain`]).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub app_domain: Option<String>,
     pub expiry: u64,
     pub next_seq: u64,
     pub recv: ReplayWindow,
@@ -217,7 +228,14 @@ pub struct WalletProp {
     pub sealable: bool,
     pub proposal_id: i64,
     pub params: Value,
+    /// Without the app's self-asserted identity.
     pub metadata: Metadata,
+    #[serde(default)]
+    pub verification: AppVerification,
+    /// The proposal's App Signature `iss`, when it was signed: the session
+    /// is pinned to it from the start.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub app_domain: Option<String>,
     pub expires_at: u64,
     pub pending: Option<PendingAnswer>,
 }
@@ -241,6 +259,13 @@ pub struct Outbox {
     pub seq: u64,
     pub message: WireMessage,
     pub ttl: u64,
+    /// Verify v4: the app's JWT for this message, resent with it while it
+    /// is fresh.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub app_signature: Option<String>,
+    /// What the JWT signs, to ask the callback again once it expires.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub app_signature_request: Option<AppSignatureRequest>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

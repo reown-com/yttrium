@@ -1,6 +1,9 @@
 use {
-    crate::protocol::types::{
-        DappIntent, Metadata, Mode, PeerRequirement, Role,
+    crate::protocol::{
+        types::{
+            DappIntent, DappMetadata, Metadata, Mode, PeerRequirement, Role,
+        },
+        verify::AppVerification,
     },
     serde::{Deserialize, Serialize},
     std::collections::HashMap,
@@ -169,7 +172,15 @@ pub struct Session {
     pub role: Role,
     pub version: u32,
     pub namespaces: Namespaces,
-    pub peer_metadata: Metadata,
+    /// App side: the wallet's metadata.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub wallet_metadata: Option<Metadata>,
+    /// Wallet side: the app's metadata, without its self-asserted identity.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub dapp_metadata: Option<DappMetadata>,
+    /// Wallet side: the proposal's App Verification.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub verification: Option<AppVerification>,
     pub dapp_mode: Mode,
     pub wallet_mode: Mode,
     pub expiry: u64,
@@ -184,12 +195,17 @@ pub struct SessionProposal {
     /// The proposal's JSON-RPC id, for v2-style numeric proposal ids.
     pub proposal_id: i64,
     pub params: ProposalParams,
-    pub metadata: Metadata,
+    /// The app's metadata without its self-asserted identity: who the app
+    /// is comes from `verification` only.
+    pub metadata: DappMetadata,
     pub intent: DappIntent,
     pub versions: Vec<u32>,
     pub version: u32,
     pub sealable: bool,
     pub expires_at: u64,
+    /// Verify v4: what the Relay vouches for about the app.
+    #[serde(default)]
+    pub verification: AppVerification,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -201,6 +217,8 @@ pub struct ConnectResult {
 }
 
 /// Events delivered to the host's listener.
+// Boxing the proposal would leave the uniffi bindings without a record type.
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug, Clone, Serialize)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Enum))]
 #[serde(
@@ -234,6 +252,8 @@ pub enum SignEvent {
         topic: String,
         chain_id: String,
         request: RpcRequest,
+        /// Verify v4: what the Relay vouches for about the requesting app.
+        verification: AppVerification,
     },
     /// A response with no pending call, e.g. after a restart, with the stored request it answers.
     SessionResponse {
@@ -275,6 +295,33 @@ pub enum SignEvent {
     MessageInvalid {
         topic: String,
         reason: String,
+    },
+    /// Verify v4: a message whose App Signature is for another message (its
+    /// `sub` differs). It was dropped; a request was answered with an
+    /// error. `id` and `method` are the message's JSON-RPC id and method.
+    AppSignatureMismatch {
+        topic: String,
+        id: Option<i64>,
+        method: Option<String>,
+    },
+    /// Verify v4, wallet: an unsigned request on a session pinned to
+    /// `domain`, the first domain that signed on it. It was dropped and
+    /// answered with an `app_signature_required` error.
+    AppSignatureRequired {
+        topic: String,
+        id: Option<i64>,
+        method: Option<String>,
+        domain: String,
+    },
+    /// Verify v4, wallet: a request signed by `signed_by` on a session pinned
+    /// to another `domain`. It was dropped and answered with an
+    /// `app_signature_domain_changed` error.
+    AppSignatureDomainChanged {
+        topic: String,
+        id: Option<i64>,
+        method: Option<String>,
+        domain: String,
+        signed_by: String,
     },
     CursorExpired,
     ClockSkew {
@@ -354,6 +401,10 @@ mod json_shape_tests {
                 method: "personal_sign".into(),
                 params: r#"["0xdead","0xabc"]"#.into(),
             },
+            verification: AppVerification {
+                domain: Some("app.example".into()),
+                ..Default::default()
+            },
         };
         assert_eq!(
             serde_json::to_value(&e).unwrap(),
@@ -362,7 +413,8 @@ mod json_shape_tests {
                 "id": 7,
                 "topic": "c_1",
                 "chainId": "eip155:1",
-                "request": { "method": "personal_sign", "params": ["0xdead", "0xabc"] }
+                "request": { "method": "personal_sign", "params": ["0xdead", "0xabc"] },
+                "verification": { "domain": "app.example", "isVerified": false, "isScam": false }
             })
         );
         let r = SignEvent::SessionResponse {

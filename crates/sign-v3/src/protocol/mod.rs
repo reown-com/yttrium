@@ -11,6 +11,7 @@ pub mod message;
 pub mod replay;
 pub mod types;
 pub mod uri;
+pub mod verify;
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum ProtocolError {

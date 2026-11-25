@@ -2,7 +2,8 @@
 
 use {
     crate::{
-        Listener, SignClient, SignConfig, SignEvent, Storage, StorageError,
+        AppSignatureError, AppSignatureRequest, AppSigner, Listener,
+        SignClient, SignConfig, SignEvent, Storage, StorageError,
     },
     js_sys::{Function, Promise, Reflect},
     std::sync::Arc,
@@ -71,6 +72,35 @@ impl Listener for JsListener {
     }
 }
 
+/// `(requestJson) => Promise<string>`: the input is `AppSignatureRequest` as
+/// JSON, the result the JWT.
+struct JsAppSigner(Function);
+
+#[async_trait::async_trait(?Send)]
+impl AppSigner for JsAppSigner {
+    async fn sign_request(
+        &self,
+        request: AppSignatureRequest,
+    ) -> Result<String, AppSignatureError> {
+        let fail = |e: JsValue| AppSignatureError::Failed {
+            message: e
+                .dyn_ref::<js_sys::Error>()
+                .map(|e| String::from(e.message()))
+                .or_else(|| e.as_string())
+                .unwrap_or_else(|| format!("{e:?}")),
+        };
+        let input = serde_json::to_string(&request).expect("json");
+        let ret = self.0.call1(&JsValue::NULL, &input.into()).map_err(fail)?;
+        let ret = match ret.dyn_into::<Promise>() {
+            Ok(p) => JsFuture::from(p).await.map_err(fail)?,
+            Err(v) => v,
+        };
+        ret.as_string().ok_or_else(|| AppSignatureError::Failed {
+            message: "the callback did not return a string".into(),
+        })
+    }
+}
+
 fn js_err(e: crate::SignError) -> JsValue {
     JsValue::from_str(&super::json::error_json(&e))
 }
@@ -104,6 +134,14 @@ impl WasmSignClient {
 
     pub fn start(&self) {
         self.client.start();
+    }
+
+    /// Verify v4, app: `signer(requestJson) => Promise<jwt>`, or `null`.
+    #[wasm_bindgen(js_name = setAppSigner)]
+    pub fn set_app_signer(&self, signer: Option<Function>) {
+        self.client.set_app_signer(
+            signer.map(|f| Arc::new(JsAppSigner(f)) as Arc<dyn AppSigner>),
+        );
     }
 
     pub fn stop(&self) {

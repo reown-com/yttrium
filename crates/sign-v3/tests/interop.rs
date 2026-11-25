@@ -78,7 +78,7 @@ async fn rust_dapp_pairs_with_ts_wallet() {
     else {
         unreachable!()
     };
-    assert_eq!(session.peer_metadata.name, "ts-wallet");
+    assert_eq!(session.wallet_metadata.unwrap().name, "ts-wallet");
     assert_eq!(next_with(&w, "approved")["approved"], session.topic);
     let r = d
         .client
@@ -111,7 +111,8 @@ async fn ts_dapp_pairs_with_rust_wallet() {
     auto_respond(&w, json!("0xrust"));
     let uri = next_with(&dp, "uri")["uri"].as_str().unwrap().to_string();
     let p = w.client.pair(uri).await.unwrap();
-    assert_eq!(p.metadata.name, "ts-dapp");
+    // An unsigned app: nothing about who it is, and never its own name.
+    assert_eq!(p.verification, Default::default());
     let s = w.client.approve(p.id, common::approved(), None).await.unwrap();
     let connected = next_with(&dp, "connected");
     assert_eq!(connected["connected"], s.topic);

@@ -125,6 +125,38 @@ The `connectionId` is the session's topic from then on.
   - a call ends 30 s after its deadline;
   - a session ends at its expiry.
 
+### Verify v4 App Signatures
+
+Experimental. The app's backend signs each message it sends as a JWT, the `appSignature`. The Relay verifies it against the keys the app's domain published, and passes on `appMetadata`, its view of the app, with the JWT verbatim as `appMetadata.appSignature`.
+
+- **The app** sets a callback with `set_app_signer` (Rust and uniffi) or `setAppSigner` (WASM). The client calls it before creating the connection, for the proposal, and before every send, including automatic acknowledgements. It sends the JWT as `appSignature` beside `proposal` or `message`. A send retried from the outbox after its JWT's `exp` (less 10 s) asks the callback again, with the same request, and never resends the expired JWT; if it can't sign, the send is dropped. If the callback fails, the call fails with `app_signature_failed` and nothing is sent; that send's `seq` stays used. Without a callback, nothing is signed.
+- **The callback gets** `{ request, cnx }`: `request` is the plaintext JSON-RPC message as JSON text, sealed or not; `cnx` is the connection it's for, to copy verbatim into the JWT's `cnx` claim.
+  - **A message on a connection:** its connectionId, the decimal string the Relay minted (the URI's `v3` parameter).
+  - **The proposal**, signed before any connectionId exists: the request's `bindingPub`, base64url without padding, a key derived from the URI's `symKey`.
+  - The Relay refuses a signature whose `cnx` is missing or names another connection (`invalid_app_signature`, reason `connection_mismatch`), so a signature can't be replayed on another connection.
+- **The claims** are `iss` (the app's host), `sub`, `cnx` and `exp`. `sub` is base64url, no padding, of SHA-256 over the plaintext JSON-RPC bytes, which are `request`'s UTF-8 bytes. A monitored message's base64url-decoded `payload` is exactly these bytes, and so is a proposal's. A sealed message's payload decrypts to them. No claim covers the ciphertext: the backend couldn't check one, and `sub` binds the signature to the content. A `cth` older POC backends still sign is ignored.
+- **The wallet** reads `appMetadata`, and the JWT in its `appSignature`, from `GET /v3/connections/{id}` and from `message.received`. The JWT isn't exposed in `AppVerification`: the wallet only needs what it proves. It decodes the JWT's claims without checking its signature, since the Relay did, and never checks `exp`: a request's expiry is its own `deadline`. Then it compares `sub` with its own hash of the plaintext.
+- **`verification`** is an `AppVerification`, on `SessionProposal`, on `session_request`, and on the wallet's `Session`:
+
+  ```json
+  { "domain"?: "app.uniswap.org", "registrableDomain"?: "uniswap.org", "name"?: "…", "icon"?: "<url>", "organizationName"?: "…", "isVerified": false, "isScam": false, "isSimilarTo"?: "…" }
+  ```
+
+  - `domain` is always the ASCII form: an internationalised name comes as punycode (`app.xn--uniswp-7nf.org`), never Unicode. `registrableDomain` is its eTLD+1 per the Public Suffix List (private suffixes included), absent for an IP address or a bare suffix.
+  - **Display rule:** wallets show the ASCII `domain`, never a Unicode rendering; never truncate `registrableDomain`, and emphasise it within `domain`. Truncate only the labels to its left, if anything.
+  - `organizationName` is the business WalletConnect reviewed behind the app, present only with `isVerified` (Business verified): show "`name` · by `organizationName` ✓".
+
+  - Every field comes from the Relay's `appMetadata`, and only once the `sub` check passes. There is no state: the wallet shows whatever is present.
+  - An unsigned message gives `{ isVerified: false, isScam }`, keeping only `isScam` and `isSimilarTo`.
+- **A mismatch drops the message.** `sub` doesn't match, or the JWT doesn't decode:
+  - **a message:** the wallet never sees it. It gets an `app_signature_mismatch` event, `{ topic, id?, method? }`, and a request is answered with the JSON-RPC error `{ code: -32600, message: "app_signature_mismatch" }`;
+  - **a proposal:** `pair` fails with `app_signature_mismatch`, the same event fires, and the connection is rejected. A v3 rejection has no reason for this, so it carries none.
+- **A session stays signed.** Signing the proposal is optional. The wallet pins a session to the first domain that signs on it: the proposal's `iss` if it was signed, else the `iss` of the first accepted signed request. The pin is stored with the session, so it survives restarts.
+  - Before it's pinned, an unsigned request is shown, unverified.
+  - Once pinned, a request (any JSON-RPC request from the app; responses are left alone) that is unsigned is dropped, never shown: `app_signature_required` fires with `{ topic, id?, method?, domain }`, and it's answered with `{ code: -32600, message: "app_signature_required" }`.
+  - One signed for another domain is dropped the same way: `app_signature_domain_changed`, `{ topic, id?, method?, domain, signedBy }`, answered with `{ code: -32600, message: "app_signature_domain_changed" }`.
+- **The app's own identity is hidden from wallets.** `SessionProposal.metadata` and the wallet's `Session.dappMetadata` are a `DappMetadata`, `{ description, redirect? }`, without `name`, `url` or `icons`. The app still sends them; the wallet SDK neither keeps nor shows them. An app's `Session.walletMetadata` is the wallet's full metadata.
+
 ### Storage
 
 The host gives the client an async key-value store. Every key is prefixed with `storagePrefix`, `wc3:` by default.
@@ -362,20 +394,22 @@ Notes on the params:
   "id": "09178356979748733185",
   "proposalId": 1759313100123000,
   "params": { "requiredNamespaces": { "eip155": { "chains": ["eip155:1"], "methods": ["personal_sign"], "events": ["chainChanged"] } } },
-  "metadata": { "name": "My dApp", "description": "…", "url": "https://dapp.example", "icons": [] },
+  "metadata": { "description": "…", "redirect": { "native": "myapp://" } },
   "intent": { "own": "monitored", "peer": "none" },
   "versions": [3],
   "version": 3,
   "sealable": false,
-  "expiresAt": 1759313400
+  "expiresAt": 1759313400,
+  "verification": { "domain": "app.example", "isVerified": false, "isScam": false }
 }
 ```
 
 - **`id`** is the `connectionId`. Pass it to `approve` or `reject`.
 - **`proposalId`** is the JSON-RPC id, for apps that keep v2's numeric proposal ids.
 - **`version`** is the version that will be used. `0` means no version is shared, and `pair` has already rejected the request.
+- **`metadata`** is the app's description and redirect only. Who the app is comes from `verification`.
 
-`Session`, returned by `approve` and `getSessions`, and carried by `session_connect`:
+`Session`, returned by `approve` and `getSessions`, and carried by `session_connect`. An app's has `walletMetadata`; a wallet's has `dappMetadata` and `verification` instead:
 
 ```json
 {
@@ -383,7 +417,7 @@ Notes on the params:
   "role": "dapp",
   "version": 3,
   "namespaces": { "eip155": { "chains": ["eip155:1"], "accounts": ["eip155:1:0xAbc…"], "methods": ["personal_sign"], "events": ["chainChanged"] } },
-  "peerMetadata": { "name": "My Wallet", "description": "…", "url": "https://wallet.example", "icons": [] },
+  "walletMetadata": { "name": "My Wallet", "description": "…", "url": "https://wallet.example", "icons": [] },
   "dappMode": "monitored",
   "walletMode": "monitored",
   "expiry": 1759917600
@@ -401,7 +435,7 @@ The listener receives one object per event, tagged by `type`, with camelCase fie
 | `proposal_rejected` | `topic`, `reason` | dApp: `user_rejected`, `unsupported_version` or `incompatible_intent` |
 | `proposal_expire` | `topic`, `reason` | dApp: `expired` with no answer in time, `replaced` by a newer `connect`, or `cursor_expired` |
 | `proposal_failed` | `topic`, `reason` | dApp, when the wallet's binding failed verification; the client closed the connection |
-| `session_request` | `id`, `topic`, `chainId`, `request` | The receiver; answer with `respond` |
+| `session_request` | `id`, `topic`, `chainId`, `request`, `verification` | The receiver; answer with `respond` |
 | `session_response` | `topic`, `response`, `request` | A response with no pending call, such as after a restart; `request` is the stored request it answers |
 | `session_event` | `id`, `topic`, `chainId`, `event` | The receiver; the client acknowledges it |
 | `session_update` | `id`, `topic`, `namespaces` | dApp, after the wallet's `update` |
@@ -410,6 +444,9 @@ The listener receives one object per event, tagged by `type`, with camelCase fie
 | `session_delete` | `topic`, `reason`, `verified` | The other side closed (`verified` when its close signature checks out), the session expired, or `cursor_expired` |
 | `message_expired` | `topic`, `seq`, `id` | Sender: no response by the deadline |
 | `message_invalid` | `topic`, `reason` | A received message failed a check and was dropped |
+| `app_signature_mismatch` | `topic`, `id`, `method` | A received message or proposal whose App Signature is for another one was dropped |
+| `app_signature_required` | `topic`, `id`, `method`, `domain` | Wallet: an unsigned request on a session pinned to `domain` was dropped |
+| `app_signature_domain_changed` | `topic`, `id`, `method`, `domain`, `signedBy` | Wallet: a request signed by `signedBy` on a session pinned to `domain` was dropped |
 | `cursor_expired` | none | Events were lost; every session was closed |
 | `clock_skew` | `skewS` | The device clock is off by more than 5 minutes; the Relay's time is used |
 

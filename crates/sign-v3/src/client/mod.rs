@@ -3,6 +3,8 @@
 pub mod poller;
 pub mod state;
 pub mod types;
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod verify_tests;
 
 use {
     self::{
@@ -14,7 +16,7 @@ use {
         },
     },
     crate::{
-        host::{Listener, Storage},
+        host::{AppSignatureRequest, AppSigner, Listener, Storage},
         protocol::{
             constants::{
                 ANSWER_WINDOW_S, CLOCK_SKEW_TOLERANCE_S, DEFAULT_DEADLINE_S,
@@ -30,8 +32,9 @@ use {
             intent::{bind_compatibility, satisfies},
             message::{
                 BuildMessage, build_message, build_signed, close_label,
-                is_request, labels, open_message_payload, open_signed,
-                read_message, sign_bytes, verify_bytes, verify_message,
+                is_request, labels, open_message_bytes, open_message_payload,
+                open_signed, read_message, read_rpc, sign_bytes, verify_bytes,
+                verify_message,
             },
             types::{
                 BindingPayload, BindingProofPayload, DappIntent, Metadata,
@@ -40,6 +43,11 @@ use {
                 may_role_send, method_tag, tag_info, tags,
             },
             uri::{build_uri, is_connection_id, parse_uri},
+            verify::{
+                APP_SIGNATURE_MISMATCH_CODE, PinnedDomainError,
+                app_verification, check_pinned_domain, is_expired,
+                signed_domain,
+            },
         },
         rt::{self, BoxFut},
         transport::{HttpClient, relay::Relay},
@@ -87,6 +95,7 @@ pub(crate) struct Inner {
     pub store: Store,
     pub relay: Relay,
     pub listener: Arc<dyn Listener>,
+    app_signer: Mutex<Option<Arc<dyn AppSigner>>>,
     pub state: futures::lock::Mutex<State>,
     pending: Mutex<HashMap<String, Pending>>,
     pub poll: Mutex<PollCtl>,
@@ -193,6 +202,7 @@ impl SignClient {
             store,
             relay,
             listener,
+            app_signer: Mutex::new(None),
             state: futures::lock::Mutex::new(State {
                 conns: HashMap::new(),
                 reqs: HashMap::new(),
@@ -243,6 +253,12 @@ impl SignClient {
 
     pub fn start(&self) {
         poller::start(&self.inner);
+    }
+
+    /// Verify v4, app: sign the proposal and every message with this
+    /// callback, or with nothing when `None`.
+    pub fn set_app_signer(&self, signer: Option<Arc<dyn AppSigner>>) {
+        *self.inner.app_signer.lock().expect("lock") = signer;
     }
 
     pub fn stop(&self) {
@@ -311,14 +327,31 @@ impl SignClient {
             pairing_pub: b64u(&pairing.verifying_key().to_bytes()),
         };
         let rpc = json!({ "id": proposal_id, "jsonrpc": "2.0", "method": "wc_sessionCreate", "params": params });
-        let body = json!({
+        let proposal = build_message(BuildMessage {
+            key: &pairing,
+            version: 0,
+            binding_pub: &bpub,
+            tag: tags::PROPOSAL,
+            seq: 0,
+            deadline: None,
+            rpc: &rpc,
+            seal_key: None,
+            nonce: None,
+        });
+        // No connectionId yet: `cnx` is the bindingPub.
+        let app_signature = self
+            .inner
+            .app_signature(&rpc, &b64u(&bpub))
+            .await?
+            .map(|(jwt, _)| jwt);
+        let mut body = json!({
             "bindingPub": b64u(&bpub),
             "bindingProof": build_signed(&binding, labels::BINDING_PROOF, &bpub, &proof),
-            "proposal": build_message(BuildMessage {
-                key: &pairing, version: 0, binding_pub: &bpub, tag: tags::PROPOSAL, seq: 0,
-                deadline: None, rpc: &rpc, seal_key: None, nonce: None,
-            }),
+            "proposal": proposal,
         });
+        if let Some(jwt) = app_signature {
+            body["appSignature"] = jwt.into();
+        }
         let res = self
             .inner
             .relay
@@ -456,9 +489,32 @@ impl SignClient {
             if rpc.value["method"] != "wc_sessionCreate" {
                 return Err(err("invalid_request", "proposal method"));
             }
-            Ok((versions, intent, dapp_pub_s, rpc))
+            // A proposal is never sealed: its payload is the plaintext.
+            let verification =
+                app_verification(fetched.get("appMetadata"), &m.payload_bytes);
+            Ok((versions, intent, dapp_pub_s, rpc, verification))
         })()?;
-        let (dapp_versions, dapp_intent, dapp_pub, rpc) = checked;
+        let (dapp_versions, dapp_intent, dapp_pub, rpc, verification) = checked;
+        let app_domain = signed_domain(fetched.get("appMetadata"));
+        let Ok(verification) = verification else {
+            // The App Signature is for another proposal: drop it, and tell the
+            // app with a rejection. v3 rejections carry no reason for this.
+            let rejection =
+                RejectionPayload { connection_id: id.clone(), reason: None };
+            let body = json!({ "rejection": build_signed(&binding, labels::REJECT, &bpub, &rejection) });
+            let _ = i
+                .answer(&format!("/v3/connections/{id}/rejection"), &body)
+                .await;
+            i.emit(SignEvent::AppSignatureMismatch {
+                topic: id,
+                id: rpc.value["id"].as_i64(),
+                method: Some("wc_sessionCreate".into()),
+            });
+            return Err(err(
+                "app_signature_mismatch",
+                "the proposal's App Signature is for another proposal",
+            ));
+        };
         let relay_versions: Vec<u32> = fetched["versions"]
             .as_array()
             .map(|a| {
@@ -471,15 +527,20 @@ impl SignClient {
             .filter(|v| i.versions.contains(v) && relay_versions.contains(v))
             .max()
             .unwrap_or(0);
-        let params = rpc.value["params"].clone();
-        let metadata: Metadata =
-            crate::protocol::ijson::from_value::<Metadata>(&params["metadata"])
-                .unwrap_or(Metadata {
-                    name: String::new(),
-                    description: String::new(),
-                    url: String::new(),
-                    icons: vec![],
-                });
+        let mut params = rpc.value["params"].clone();
+        // The app's self-asserted identity is never kept or shown.
+        let metadata = params
+            .as_object_mut()
+            .and_then(|o| o.remove("metadata"))
+            .and_then(|m| ijson::from_value::<Metadata>(&m))
+            .map(|m| m.without_identity())
+            .unwrap_or(Metadata {
+                name: String::new(),
+                description: String::new(),
+                url: String::new(),
+                icons: vec![],
+                redirect: None,
+            });
         let rec = WalletProp {
             id: id.clone(),
             dapp_intent,
@@ -492,6 +553,8 @@ impl SignClient {
                 .map_err(|e| err("invalid_request", e.0))?,
             params: params.clone(),
             metadata: metadata.clone(),
+            verification: verification.clone(),
+            app_domain,
             expires_at: u.expiry_timestamp,
             pending: None,
         };
@@ -526,12 +589,13 @@ impl SignClient {
             id,
             proposal_id: rec.proposal_id,
             params: ijson::from_value(&params).unwrap_or_default(),
-            metadata,
+            metadata: metadata.for_wallet(),
             intent: dapp_intent,
             versions: dapp_versions,
             version,
             sealable: rec.sealable,
             expires_at: rec.expires_at,
+            verification,
         };
         i.emit(SignEvent::SessionProposal { proposal: proposal.clone() });
         Ok(proposal)
@@ -656,7 +720,9 @@ impl SignClient {
                 dapp_mode: rec.dapp_intent.own,
                 wallet_mode: own,
                 namespaces,
-                peer_metadata: rec.metadata.clone(),
+                peer_metadata: rec.metadata.without_identity(),
+                verification: Some(rec.verification.clone()),
+                app_domain: rec.app_domain.clone(),
                 expiry,
                 next_seq: 1,
                 recv: Default::default(),
@@ -877,7 +943,12 @@ pub(crate) fn session_of(c: &ConnRecord) -> Session {
         role: c.role,
         version: c.version,
         namespaces: ijson::from_value(&c.namespaces).unwrap_or_default(),
-        peer_metadata: c.peer_metadata.clone(),
+        wallet_metadata: (c.role == Role::Dapp)
+            .then(|| c.peer_metadata.clone()),
+        dapp_metadata: (c.role == Role::Wallet)
+            .then(|| c.peer_metadata.for_wallet()),
+        verification: (c.role == Role::Wallet)
+            .then(|| c.verification.clone().unwrap_or_default()),
         dapp_mode: c.dapp_mode,
         wallet_mode: c.wallet_mode,
         expiry: c.expiry,
@@ -1278,7 +1349,7 @@ impl Inner {
         rpc: &Value,
         deadline_s: u64,
     ) -> Result<u64, SignError> {
-        let out = {
+        let (seq, message, ttl, now) = {
             let mut st = self.state.lock().await;
             let c = st
                 .conns
@@ -1312,28 +1383,79 @@ impl Inner {
                 seal_key: seal.then(|| c.send_key()),
                 nonce: None,
             });
-            // An outgoing request is stored before it can be delivered, so its response or
-            // expiry always finds it, even after a restart.
-            if is_request(rpc) {
-                let id = rpc["id"].as_i64().unwrap_or_default();
-                let tracked = OutReq {
-                    conn: conn.into(),
-                    id,
-                    method: rpc["method"].as_str().unwrap_or_default().into(),
-                    seq,
-                    deadline: now + deadline_s,
-                    params: rpc["params"].clone(),
-                };
-                self.store
-                    .put(&format!("outreq/{conn}/{id}"), &tracked)
-                    .await?;
-            }
-            let out = Outbox { conn: conn.into(), seq, message, ttl };
-            self.store.put(&format!("out/{conn}/{seq}"), &out).await?;
-            out
+            (seq, message, ttl, now)
         };
+        // Outside the state lock: the callback may call the app's backend. If
+        // it fails, the seq stays used and leaves a gap, which receivers
+        // accept; nothing is sent unsigned.
+        let app_signature = self.app_signature(rpc, conn).await?;
+        // An outgoing request is stored before it can be delivered, so its response or
+        // expiry always finds it, even after a restart.
+        if is_request(rpc) {
+            let id = rpc["id"].as_i64().unwrap_or_default();
+            let tracked = OutReq {
+                conn: conn.into(),
+                id,
+                method: rpc["method"].as_str().unwrap_or_default().into(),
+                seq,
+                deadline: now + deadline_s,
+                params: rpc["params"].clone(),
+            };
+            self.store.put(&format!("outreq/{conn}/{id}"), &tracked).await?;
+        }
+        let (app_signature, app_signature_request) = app_signature.unzip();
+        let out = Outbox {
+            conn: conn.into(),
+            seq,
+            message,
+            ttl,
+            app_signature,
+            app_signature_request,
+        };
+        self.store.put(&format!("out/{conn}/{seq}"), &out).await?;
         self.post(&out).await?;
         Ok(out.seq)
+    }
+
+    /// Verify v4: the app's App Signature for one message, when it has a
+    /// callback. `sub` covers the plaintext JSON-RPC bytes, the same bytes
+    /// `build_message` serializes, sealed or not. `cnx`: see
+    /// [`AppSignatureRequest::cnx`].
+    async fn app_signature(
+        &self,
+        rpc: &Value,
+        cnx: &str,
+    ) -> Result<Option<(String, AppSignatureRequest)>, SignError> {
+        if self.app_signer.lock().expect("lock").is_none() {
+            return Ok(None);
+        }
+        let request = AppSignatureRequest {
+            request: serde_json::to_string(rpc).expect("json"),
+            cnx: cnx.to_string(),
+        };
+        Ok(Some((self.sign_request(&request).await?, request)))
+    }
+
+    /// Calls the App Signature callback. Without one, or when it fails, the
+    /// message can't be sent: `app_signature_failed`.
+    async fn sign_request(
+        &self,
+        request: &AppSignatureRequest,
+    ) -> Result<String, SignError> {
+        let fail = |m: String| err("app_signature_failed", m);
+        let signer = self
+            .app_signer
+            .lock()
+            .expect("lock")
+            .clone()
+            .ok_or_else(|| fail("no App Signature callback".into()))?;
+        let jwt = rt::boxed(signer.sign_request(request.clone()))
+            .await
+            .map_err(|e| fail(e.to_string()))?;
+        if jwt.split('.').count() != 3 {
+            return Err(fail("the callback returned no JWT".into()));
+        }
+        Ok(jwt)
     }
 
     pub(crate) fn post<'a>(
@@ -1344,10 +1466,41 @@ impl Inner {
     }
 
     async fn post_inner(&self, out: &Outbox) -> Result<(), SignError> {
-        let body = serde_json::to_vec(
-            &json!({ "message": out.message, "ttl": out.ttl }),
-        )
-        .expect("json");
+        let key = format!("out/{}/{}", out.conn, out.seq);
+        let mut app_signature = out.app_signature.clone();
+        // A retry after the JWT expired asks the callback again: an expired
+        // JWT is never resent. If it can't sign, the message is dropped, as
+        // after any final error; its seq leaves a gap.
+        if let (Some(jwt), Some(request)) =
+            (&out.app_signature, &out.app_signature_request)
+            && is_expired(jwt, self.now_s())
+        {
+            // Stored before `cnx` existed: it's this message's connection.
+            let mut request = request.clone();
+            if request.cnx.is_empty() {
+                request.cnx = out.conn.clone();
+            }
+            match self.sign_request(&request).await {
+                Ok(fresh) => {
+                    let renewed = Outbox {
+                        app_signature: Some(fresh.clone()),
+                        app_signature_request: Some(request),
+                        ..out.clone()
+                    };
+                    self.store.put(&key, &renewed).await?;
+                    app_signature = Some(fresh);
+                }
+                Err(e) => {
+                    self.store.remove(&key).await?;
+                    return Err(e);
+                }
+            }
+        }
+        let mut body = json!({ "message": out.message, "ttl": out.ttl });
+        if let Some(jwt) = &app_signature {
+            body["appSignature"] = jwt.as_str().into();
+        }
+        let body = serde_json::to_vec(&body).expect("json");
         match self
             .relay
             .call(
@@ -1415,8 +1568,17 @@ impl Inner {
                     rt::boxed(self.on_rejected(&connection_id, &rejection))
                         .await?
                 }
-                RelayEvent::MessageReceived { connection_id, message } => {
-                    rt::boxed(self.on_message(&connection_id, &message)).await?
+                RelayEvent::MessageReceived {
+                    connection_id,
+                    message,
+                    app_metadata,
+                } => {
+                    rt::boxed(self.on_message(
+                        &connection_id,
+                        &message,
+                        app_metadata.as_ref(),
+                    ))
+                    .await?
                 }
                 RelayEvent::ConnectionClosed {
                     connection_id,
@@ -1517,6 +1679,8 @@ impl Inner {
                     wallet_mode: intent.own,
                     namespaces: result["namespaces"].clone(),
                     peer_metadata: metadata,
+                    verification: None,
+                    app_domain: None,
                     expiry,
                     next_seq: 1,
                     recv: Default::default(),
@@ -1619,11 +1783,29 @@ impl Inner {
         Ok(true)
     }
 
+    /// Answers a dropped request (`tag`, JSON-RPC id `rid`) with the
+    /// `{ code: -32600, message: <code> }` error, in the background.
+    fn answer_with_error(
+        self: &Arc<Self>,
+        conn: &str,
+        tag: u32,
+        rid: i64,
+        code: &str,
+    ) {
+        let me = self.clone();
+        let conn = conn.to_string();
+        let reply = json!({ "id": rid, "jsonrpc": "2.0", "error": { "code": APP_SIGNATURE_MISMATCH_CODE, "message": code } });
+        rt::spawn(async move {
+            let _ = me.send(&conn, tag + 1, reply, DEFAULT_DEADLINE_S).await;
+        });
+    }
+
     /// Checks, opens and dispatches one received message.
     async fn on_message(
         self: &Arc<Self>,
         id: &str,
         wire: &WireMessage,
+        app_metadata: Option<&Value>,
     ) -> Result<(), SignError> {
         let mut st = self.state.lock().await;
         let Some(c) = st.conns.get_mut(id) else { return Ok(()) };
@@ -1660,16 +1842,17 @@ impl Inner {
         ) {
             Err("invalid signature".to_string())
         } else {
-            open_message_payload(
+            open_message_bytes(
                 &m,
                 c.rec.version,
                 &c.rec.binding(),
                 m.plain.sealed.then(|| c.recv_key()),
             )
+            .and_then(|b| read_rpc(&b).map(|p| (b, p)))
             .map_err(|e| e.to_string())
         };
-        let rpc = match checks {
-            Ok(p) => p.value,
+        let (plaintext, rpc) = match checks {
+            Ok((b, p)) => (b, p.value),
             Err(reason) => {
                 drop(st);
                 self.emit(invalid(reason));
@@ -1691,6 +1874,69 @@ impl Inner {
         }
         // Persist the replay window before the app sees the message.
         self.save_conn(c, false).await?;
+        let Ok(verification) = app_verification(app_metadata, &plaintext)
+        else {
+            // The App Signature is for another message: drop it, never show
+            // it, and answer a request with an error.
+            drop(st);
+            self.stats.invalid_dropped.fetch_add(1, Ordering::Relaxed);
+            let rid = rpc["id"].as_i64();
+            self.emit(SignEvent::AppSignatureMismatch {
+                topic: id.into(),
+                id: rid,
+                method: rpc["method"].as_str().map(str::to_string),
+            });
+            if let (true, Some(rid)) = (is_request(&rpc), rid) {
+                self.answer_with_error(id, tag, rid, "app_signature_mismatch");
+            }
+            return Ok(());
+        };
+        // A session stays signed: once pinned to a domain, the wallet drops
+        // a request that is unsigned or signed by another. Every message an
+        // app with an App Signature callback sends is signed; responses are
+        // left alone, as dropping one would only leave a request hanging.
+        if c.rec.role == Role::Wallet && is_request(&rpc) {
+            let signed_by = signed_domain(app_metadata);
+            match check_pinned_domain(
+                &mut c.rec.app_domain,
+                signed_by.as_deref(),
+            ) {
+                Ok(true) => self.save_conn(c, false).await?,
+                Ok(false) => {}
+                Err(e) => {
+                    drop(st);
+                    self.stats.invalid_dropped.fetch_add(1, Ordering::Relaxed);
+                    let rid = rpc["id"].as_i64();
+                    let method = rpc["method"].as_str().map(str::to_string);
+                    let topic = id.to_string();
+                    let code = e.code();
+                    self.emit(match e {
+                        PinnedDomainError::Required { pinned } => {
+                            SignEvent::AppSignatureRequired {
+                                topic,
+                                id: rid,
+                                method,
+                                domain: pinned,
+                            }
+                        }
+                        PinnedDomainError::DomainChanged {
+                            pinned,
+                            signed_by,
+                        } => SignEvent::AppSignatureDomainChanged {
+                            topic,
+                            id: rid,
+                            method,
+                            domain: pinned,
+                            signed_by,
+                        },
+                    });
+                    if let Some(rid) = rid {
+                        self.answer_with_error(id, tag, rid, code);
+                    }
+                    return Ok(());
+                }
+            }
+        }
         let rid = rpc["id"].as_i64().unwrap_or(0);
         if !is_request(&rpc) {
             drop(st);
@@ -1740,6 +1986,7 @@ impl Inner {
                         .unwrap_or_default()
                         .into(),
                     request: rpc_request_of(&params["request"]),
+                    verification,
                 })
             }
             "wc_sessionEvent" => Some(SignEvent::SessionEvent {

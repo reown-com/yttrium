@@ -251,8 +251,19 @@ pub fn open_message_payload(
     binding_pub: &[u8],
     key: Option<&[u8; 32]>,
 ) -> Result<Parsed, ProtocolError> {
+    read_rpc(&open_message_bytes(m, version, binding_pub, key)?)
+}
+
+/// The plaintext JSON-RPC bytes: the payload itself when monitored, else
+/// what it decrypts to. An App Signature's `sub` covers these bytes.
+pub fn open_message_bytes(
+    m: &ReadMessage,
+    version: u32,
+    binding_pub: &[u8],
+    key: Option<&[u8; 32]>,
+) -> Result<Vec<u8>, ProtocolError> {
     if !m.plain.sealed {
-        return read_rpc(&m.payload_bytes);
+        return Ok(m.payload_bytes.clone());
     }
     let key = key.ok_or(ProtocolError::CannotDecrypt)?;
     let nonce: [u8; 24] =
@@ -264,7 +275,7 @@ pub fn open_message_payload(
         &binding_arr(binding_pub),
         &m.plain_bytes,
     );
-    read_rpc(&open(key, &nonce, &m.payload_bytes, &ad)?)
+    open(key, &nonce, &m.payload_bytes, &ad)
 }
 
 pub fn is_request(rpc: &Value) -> bool {

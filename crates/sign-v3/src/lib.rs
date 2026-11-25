@@ -23,5 +23,12 @@ pub use {
             SessionProposal, SignConfig, SignError, SignEvent,
         },
     },
-    host::{Listener, MemoryStorage, Storage, StorageError},
+    host::{
+        AppSignatureError, AppSignatureRequest, AppSigner, Listener,
+        MemoryStorage, Storage, StorageError,
+    },
+    protocol::{
+        types::{DappMetadata, Redirect},
+        verify::AppVerification,
+    },
 };
