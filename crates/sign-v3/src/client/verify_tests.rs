@@ -279,6 +279,7 @@ async fn the_proposal_is_signed_and_the_wallet_checks_it() {
         p.verification,
         AppVerification {
             domain: Some("app.example".into()),
+            registrable_domain: Some("app.example".into()),
             name: Some("App".into()),
             ..Default::default()
         }
@@ -468,6 +469,7 @@ async fn requests_carry_sub_and_the_wallet_checks_it(mode: Mode) {
         got[0].1,
         AppVerification {
             domain: Some("app.example".into()),
+            registrable_domain: Some("app.example".into()),
             name: Some("App".into()),
             icon: Some("https://app.example/i.png".into()),
             is_verified: true,

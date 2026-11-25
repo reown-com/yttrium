@@ -139,8 +139,11 @@ Experimental. The app's backend signs each message it sends as a JWT, the `appSi
 - **`verification`** is an `AppVerification`, on `SessionProposal`, on `session_request`, and on the wallet's `Session`:
 
   ```json
-  { "domain"?: "app.uniswap.org", "name"?: "…", "icon"?: "<url>", "isVerified": false, "isScam": false, "isSimilarTo"?: "…" }
+  { "domain"?: "app.uniswap.org", "registrableDomain"?: "uniswap.org", "name"?: "…", "icon"?: "<url>", "isVerified": false, "isScam": false, "isSimilarTo"?: "…" }
   ```
+
+  - `domain` is always the ASCII form: an internationalised name comes as punycode (`app.xn--uniswp-7nf.org`), never Unicode. `registrableDomain` is its eTLD+1 per the Public Suffix List (private suffixes included), absent for an IP address or a bare suffix.
+  - **Display rule:** wallets show the ASCII `domain`, never a Unicode rendering; never truncate `registrableDomain`, and emphasise it within `domain`. Truncate only the labels to its left, if anything.
 
   - Every field comes from the Relay's `appMetadata`, and only once the `sub` check passes. There is no state: the wallet shows whatever is present.
   - An unsigned message gives `{ isVerified: false, isScam }`, keeping only `isScam` and `isSimilarTo`.

@@ -116,9 +116,22 @@ impl AppMetadata {
 #[serde(rename_all = "camelCase")]
 pub struct AppVerification {
     /// The domain the Relay verified the signature for, e.g.
-    /// `app.uniswap.org`.
+    /// `app.uniswap.org`. Always the ASCII form (punycode for an
+    /// internationalised name, e.g. `app.xn--uniswp-7nf.org`), never Unicode,
+    /// so look-alike characters can't pass for another domain.
+    ///
+    /// Display rule: show this ASCII form, never a Unicode rendering of it.
+    /// Never truncate `registrable_domain`, and emphasise it (e.g. bold)
+    /// within `domain`: it's the part that says who controls the domain.
+    /// Truncate only the labels to its left, if anything.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub domain: Option<String>,
+    /// `domain`'s registrable domain (eTLD+1) per the Public Suffix List,
+    /// private suffixes included, e.g. `uniswap.org` for `app.uniswap.org`,
+    /// or `alice.github.io`. ASCII, like `domain`. Absent when `domain` is or
+    /// has no registrable domain (an IP address, a bare public suffix).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub registrable_domain: Option<String>,
     /// Only when WalletConnect reviewed the app.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
@@ -209,10 +222,28 @@ pub fn check_pinned_domain(
     }
 }
 
-/// `https://app.example.com` → `app.example.com`.
-fn domain_of(origin: &str) -> String {
+/// The hostname of an origin (or bare host), lowercase, in its ASCII form:
+/// `https://App.Example.com:443` → `app.example.com`, and an internationalised
+/// name as punycode (UTS #46), never Unicode. `None` without a valid hostname.
+pub fn ascii_domain(origin: &str) -> Option<String> {
     let rest = origin.split_once("://").map_or(origin, |(_, r)| r);
-    rest.split('/').next().unwrap_or_default().to_ascii_lowercase()
+    let authority = rest.split(['/', '?', '#']).next().unwrap_or_default();
+    let host = match authority.strip_prefix('[') {
+        // IPv6: `[::1]:443` → `::1`.
+        Some(v6) => return v6.split(']').next().map(str::to_ascii_lowercase),
+        None => authority.split(':').next().unwrap_or_default(),
+    };
+    idna::domain_to_ascii(host).ok().filter(|h| !h.is_empty())
+}
+
+/// The registrable domain (eTLD+1) of an ASCII hostname, per the Public
+/// Suffix List with its private section (so `alice.github.io`, not
+/// `github.io`). `None` for an IP address or a bare public suffix.
+pub fn registrable_domain(domain: &str) -> Option<String> {
+    if domain.parse::<std::net::IpAddr>().is_ok() {
+        return None;
+    }
+    psl::domain_str(domain).map(str::to_string)
 }
 
 /// The verification of one received message or proposal. `plaintext` is the
@@ -234,8 +265,10 @@ pub fn app_verification(
     if !is_bound(jwt, plaintext) {
         return Err(AppSignatureMismatch);
     }
+    let domain = md.origin.as_deref().and_then(ascii_domain);
     Ok(AppVerification {
-        domain: md.origin.as_deref().map(domain_of),
+        registrable_domain: domain.as_deref().and_then(registrable_domain),
+        domain,
         name: md.name,
         icon: md.icon,
         is_verified: md.is_verified == Some(true),
@@ -307,6 +340,7 @@ mod tests {
             ver(json!({ "origin": "https://App.Example.com" })),
             AppVerification {
                 domain: Some("app.example.com".into()),
+                registrable_domain: Some("example.com".into()),
                 ..Default::default()
             }
         );
@@ -316,6 +350,7 @@ mod tests {
             ),
             AppVerification {
                 domain: Some("app.example.com".into()),
+                registrable_domain: Some("example.com".into()),
                 name: Some("App".into()),
                 icon: Some("https://i".into()),
                 is_verified: true,
@@ -328,6 +363,51 @@ mod tests {
             app_verification(Some(&signed(&sig, json!({}))), RPC).unwrap(),
             AppVerification::default()
         );
+    }
+
+    #[test]
+    fn the_domain_is_ascii_with_its_registrable_domain() {
+        let sig = jwt(json!({ "sub": hash_b64u(RPC) }));
+        let of = |origin: &str| {
+            let v = app_verification(
+                Some(&signed(&sig, json!({ "origin": origin }))),
+                RPC,
+            )
+            .unwrap();
+            (v.domain, v.registrable_domain)
+        };
+        let some = |d: &str, r: &str| (Some(d.into()), Some(r.into()));
+        // A Cyrillic look-alike of uniswap.org comes out as punycode.
+        assert_eq!(
+            of("https://app.unisw\u{430}p.org"),
+            some("app.xn--uniswp-7nf.org", "xn--uniswp-7nf.org")
+        );
+        assert_eq!(
+            of("https://app.xn--uniswp-7nf.org"),
+            of("https://app.unisw\u{430}p.org")
+        );
+        assert_eq!(
+            of("https://Swap.App.Uniswap.ORG:8443/x"),
+            some("swap.app.uniswap.org", "uniswap.org")
+        );
+        // Public suffixes, private ones included.
+        assert_eq!(
+            of("https://shop.example.co.uk").1.as_deref(),
+            Some("example.co.uk")
+        );
+        assert_eq!(
+            of("https://alice.github.io").1.as_deref(),
+            Some("alice.github.io")
+        );
+        // None for an IP address or a bare suffix.
+        assert_eq!(
+            of("https://192.168.0.1"),
+            (Some("192.168.0.1".into()), None)
+        );
+        assert_eq!(of("https://[::1]:443"), (Some("::1".into()), None));
+        assert_eq!(of("https://co.uk"), (Some("co.uk".into()), None));
+        // A bare host.
+        assert_eq!(of("app.example.com").0.as_deref(), Some("app.example.com"));
     }
 
     #[test]
@@ -461,14 +541,15 @@ mod tests {
     #[test]
     fn serializes_as_the_wallet_ui_shape() {
         let v = AppVerification {
-            domain: Some("app.example".into()),
+            domain: Some("app.example.com".into()),
+            registrable_domain: Some("example.com".into()),
             name: Some("App".into()),
             is_verified: true,
             ..Default::default()
         };
         assert_eq!(
             serde_json::to_value(&v).unwrap(),
-            json!({ "domain": "app.example", "name": "App", "isVerified": true, "isScam": false })
+            json!({ "domain": "app.example.com", "registrableDomain": "example.com", "name": "App", "isVerified": true, "isScam": false })
         );
         assert_eq!(
             serde_json::to_value(AppVerification::default()).unwrap(),
