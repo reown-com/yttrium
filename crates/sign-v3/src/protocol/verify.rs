@@ -83,6 +83,7 @@ pub struct AppMetadata {
     pub origin: Option<String>,
     pub name: Option<String>,
     pub icon: Option<String>,
+    pub organization_name: Option<String>,
     pub is_verified: Option<bool>,
     pub is_scam: Option<bool>,
     pub is_similar_to: Option<String>,
@@ -101,6 +102,7 @@ impl AppMetadata {
             origin: s("origin"),
             name: s("name"),
             icon: s("icon"),
+            organization_name: s("organizationName"),
             is_verified: b("isVerified"),
             is_scam: b("isScam"),
             is_similar_to: s("isSimilarTo"),
@@ -138,6 +140,11 @@ pub struct AppVerification {
     /// Only when WalletConnect reviewed the app; hosted by WalletConnect.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub icon: Option<String>,
+    /// The business WalletConnect reviewed behind the app, only with
+    /// `is_verified` (Business verified). Show "`name` · by
+    /// `organization_name` ✓".
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub organization_name: Option<String>,
     #[serde(default)]
     pub is_verified: bool,
     #[serde(default)]
@@ -266,12 +273,15 @@ pub fn app_verification(
         return Err(AppSignatureMismatch);
     }
     let domain = md.origin.as_deref().and_then(ascii_domain);
+    let is_verified = md.is_verified == Some(true);
     Ok(AppVerification {
         registrable_domain: domain.as_deref().and_then(registrable_domain),
         domain,
         name: md.name,
         icon: md.icon,
-        is_verified: md.is_verified == Some(true),
+        // A business name stands for Business verified: never without it.
+        organization_name: md.organization_name.filter(|_| is_verified),
+        is_verified,
         ..screening
     })
 }
@@ -346,17 +356,26 @@ mod tests {
         );
         assert_eq!(
             ver(
-                json!({ "origin": "https://app.example.com", "name": "App", "icon": "https://i", "isVerified": true, "isScam": true, "isSimilarTo": "app.exarnple.com" })
+                json!({ "origin": "https://app.example.com", "name": "App", "icon": "https://i", "organizationName": "Example Inc.", "isVerified": true, "isScam": true, "isSimilarTo": "app.exarnple.com" })
             ),
             AppVerification {
                 domain: Some("app.example.com".into()),
                 registrable_domain: Some("example.com".into()),
                 name: Some("App".into()),
                 icon: Some("https://i".into()),
+                organization_name: Some("Example Inc.".into()),
                 is_verified: true,
                 is_scam: true,
                 is_similar_to: Some("app.exarnple.com".into()),
             }
+        );
+        // A business name without Business verified isn't shown.
+        assert_eq!(
+            ver(
+                json!({ "origin": "https://app.example.com", "name": "App", "organizationName": "Example Inc." })
+            )
+            .organization_name,
+            None
         );
         // Signed, but the Relay knew nothing about the app.
         assert_eq!(
@@ -544,12 +563,13 @@ mod tests {
             domain: Some("app.example.com".into()),
             registrable_domain: Some("example.com".into()),
             name: Some("App".into()),
+            organization_name: Some("Example Inc.".into()),
             is_verified: true,
             ..Default::default()
         };
         assert_eq!(
             serde_json::to_value(&v).unwrap(),
-            json!({ "domain": "app.example.com", "registrableDomain": "example.com", "name": "App", "isVerified": true, "isScam": false })
+            json!({ "domain": "app.example.com", "registrableDomain": "example.com", "name": "App", "organizationName": "Example Inc.", "isVerified": true, "isScam": false })
         );
         assert_eq!(
             serde_json::to_value(AppVerification::default()).unwrap(),
