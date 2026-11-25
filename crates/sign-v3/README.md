@@ -130,8 +130,11 @@ The `connectionId` is the session's topic from then on.
 Experimental. The app's backend signs each message it sends as a JWT, the `appSignature`. The Relay verifies it against the keys the app's domain published, and passes on `appMetadata`, its view of the app, with the JWT verbatim as `appMetadata.appSignature`.
 
 - **The app** sets a callback with `set_app_signer` (Rust and uniffi) or `setAppSigner` (WASM). The client calls it before creating the connection, for the proposal, and before every send, including automatic acknowledgements. It sends the JWT as `appSignature` beside `proposal` or `message`. A send retried from the outbox after its JWT's `exp` (less 10 s) asks the callback again, with the same request, and never resends the expired JWT; if it can't sign, the send is dropped. If the callback fails, the call fails with `app_signature_failed` and nothing is sent; that send's `seq` stays used. Without a callback, nothing is signed.
-- **The callback gets** `{ request }`: the plaintext JSON-RPC message as JSON text, sealed or not.
-- **The claims** are `iss` (the app's host), `sub` and `exp`. `sub` is base64url, no padding, of SHA-256 over the plaintext JSON-RPC bytes, which are `request`'s UTF-8 bytes. A monitored message's base64url-decoded `payload` is exactly these bytes, and so is a proposal's. A sealed message's payload decrypts to them. No claim covers the ciphertext: the backend couldn't check one, and `sub` binds the signature to the content. A `cth` older POC backends still sign is ignored.
+- **The callback gets** `{ request, cnx }`: `request` is the plaintext JSON-RPC message as JSON text, sealed or not; `cnx` is the connection it's for, to copy verbatim into the JWT's `cnx` claim.
+  - **A message on a connection:** its connectionId, the decimal string the Relay minted (the URI's `v3` parameter).
+  - **The proposal**, signed before any connectionId exists: the request's `bindingPub`, base64url without padding, a key derived from the URI's `symKey`.
+  - The Relay refuses a signature whose `cnx` is missing or names another connection (`invalid_app_signature`, reason `connection_mismatch`), so a signature can't be replayed on another connection.
+- **The claims** are `iss` (the app's host), `sub`, `cnx` and `exp`. `sub` is base64url, no padding, of SHA-256 over the plaintext JSON-RPC bytes, which are `request`'s UTF-8 bytes. A monitored message's base64url-decoded `payload` is exactly these bytes, and so is a proposal's. A sealed message's payload decrypts to them. No claim covers the ciphertext: the backend couldn't check one, and `sub` binds the signature to the content. A `cth` older POC backends still sign is ignored.
 - **The wallet** reads `appMetadata`, and the JWT in its `appSignature`, from `GET /v3/connections/{id}` and from `message.received`. The JWT isn't exposed in `AppVerification`: the wallet only needs what it proves. It decodes the JWT's claims without checking its signature, since the Relay did, and never checks `exp`: a request's expiry is its own `deadline`. Then it compares `sub` with its own hash of the plaintext.
 - **`verification`** is an `AppVerification`, on `SessionProposal`, on `session_request`, and on the wallet's `Session`:
 
@@ -144,6 +147,10 @@ Experimental. The app's backend signs each message it sends as a JWT, the `appSi
 - **A mismatch drops the message.** `sub` doesn't match, or the JWT doesn't decode:
   - **a message:** the wallet never sees it. It gets an `app_signature_mismatch` event, `{ topic, id?, method? }`, and a request is answered with the JSON-RPC error `{ code: -32600, message: "app_signature_mismatch" }`;
   - **a proposal:** `pair` fails with `app_signature_mismatch`, the same event fires, and the connection is rejected. A v3 rejection has no reason for this, so it carries none.
+- **A session stays signed.** Signing the proposal is optional. The wallet pins a session to the first domain that signs on it: the proposal's `iss` if it was signed, else the `iss` of the first accepted signed request. The pin is stored with the session, so it survives restarts.
+  - Before it's pinned, an unsigned request is shown, unverified.
+  - Once pinned, a request (any JSON-RPC request from the app; responses are left alone) that is unsigned is dropped, never shown: `app_signature_required` fires with `{ topic, id?, method?, domain }`, and it's answered with `{ code: -32600, message: "app_signature_required" }`.
+  - One signed for another domain is dropped the same way: `app_signature_domain_changed`, `{ topic, id?, method?, domain, signedBy }`, answered with `{ code: -32600, message: "app_signature_domain_changed" }`.
 - **The app's own identity is hidden from wallets.** `SessionProposal.metadata` and the wallet's `Session.dappMetadata` are a `DappMetadata`, `{ description, redirect? }`, without `name`, `url` or `icons`. The app still sends them; the wallet SDK neither keeps nor shows them. An app's `Session.walletMetadata` is the wallet's full metadata.
 
 ### Storage
@@ -434,6 +441,8 @@ The listener receives one object per event, tagged by `type`, with camelCase fie
 | `message_expired` | `topic`, `seq`, `id` | Sender: no response by the deadline |
 | `message_invalid` | `topic`, `reason` | A received message failed a check and was dropped |
 | `app_signature_mismatch` | `topic`, `id`, `method` | A received message or proposal whose App Signature is for another one was dropped |
+| `app_signature_required` | `topic`, `id`, `method`, `domain` | Wallet: an unsigned request on a session pinned to `domain` was dropped |
+| `app_signature_domain_changed` | `topic`, `id`, `method`, `domain`, `signedBy` | Wallet: a request signed by `signedBy` on a session pinned to `domain` was dropped |
 | `cursor_expired` | none | Events were lost; every session was closed |
 | `clock_skew` | `skewS` | The device clock is off by more than 5 minutes; the Relay's time is used |
 

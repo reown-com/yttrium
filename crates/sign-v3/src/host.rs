@@ -55,6 +55,19 @@ pub struct AppSignatureRequest {
     /// The plaintext JSON-RPC message as JSON text. Its UTF-8 bytes are
     /// exactly what `sub` covers: hash this string, don't re-serialize it.
     pub request: String,
+    /// The connection the message is for: the JWT's `cnx` claim, copied
+    /// verbatim. The Relay refuses a signature whose `cnx` isn't this
+    /// connection's, so one can't be replayed on another connection.
+    /// - A message on a connection (`POST /v3/connections/{id}/messages`):
+    ///   its connectionId, the decimal string the Relay minted (as in the URI's
+    ///   `v3` parameter).
+    /// - The proposal (`POST /v3/connections`), signed before any
+    ///   connectionId exists: the request's `bindingPub`, base64url without
+    ///   padding. It's the one per-connection identifier in that request: a
+    ///   public key derived from the URI's `symKey`, so the wallet re-derives
+    ///   it from the QR code, and the Relay reads it from the body as is.
+    #[serde(default)]
+    pub cnx: String,
 }
 
 #[derive(Debug, Clone, thiserror::Error)]

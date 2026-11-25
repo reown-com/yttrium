@@ -304,6 +304,25 @@ pub enum SignEvent {
         id: Option<i64>,
         method: Option<String>,
     },
+    /// Verify v4, wallet: an unsigned request on a session pinned to
+    /// `domain`, the first domain that signed on it. It was dropped and
+    /// answered with an `app_signature_required` error.
+    AppSignatureRequired {
+        topic: String,
+        id: Option<i64>,
+        method: Option<String>,
+        domain: String,
+    },
+    /// Verify v4, wallet: a request signed by `signed_by` on a session pinned
+    /// to another `domain`. It was dropped and answered with an
+    /// `app_signature_domain_changed` error.
+    AppSignatureDomainChanged {
+        topic: String,
+        id: Option<i64>,
+        method: Option<String>,
+        domain: String,
+        signed_by: String,
+    },
     CursorExpired,
     ClockSkew {
         skew_s: i64,

@@ -115,8 +115,11 @@ struct TestSigner {
 }
 
 fn jwt(sub: &str) -> String {
-    let claims =
-        json!({ "iss": "app.example", "sub": sub, "exp": 4102444800u64 });
+    jwt_by("app.example", sub)
+}
+
+fn jwt_by(iss: &str, sub: &str) -> String {
+    let claims = json!({ "iss": iss, "sub": sub, "exp": 4102444800u64 });
     format!(
         "{}.{}.{}",
         b64u(br#"{"alg":"ES256","typ":"JWT"}"#),
@@ -261,6 +264,8 @@ async fn the_proposal_is_signed_and_the_wallet_checks_it() {
     // The callback got exactly the proposal's payload bytes, unsealed.
     assert_eq!(seen.len(), 1);
     assert_eq!(seen[0].request.as_bytes(), payload.as_slice());
+    // No connectionId yet: `cnx` is the bindingPub the request carries.
+    assert_eq!(seen[0].cnx, create["bindingPub"].as_str().unwrap());
     let app_signature = create["appSignature"].clone();
     let claims = decode_claims(app_signature.as_str().unwrap()).unwrap();
     assert_eq!(claims.sub, hash_b64u(&payload));
@@ -418,6 +423,7 @@ async fn requests_carry_sub_and_the_wallet_checks_it(mode: Mode) {
     let payload =
         from_b64u(first["message"]["payload"].as_str().unwrap()).unwrap();
     let seen = signer.seen.lock().unwrap()[1].clone();
+    assert_eq!(seen.cnx, CONNECTION_ID);
     if mode == Mode::Sealed {
         // Sealed: the callback got the plaintext, which is not what was
         // sent, and nothing about the ciphertext.
@@ -508,11 +514,15 @@ async fn a_retry_after_the_jwt_expired_asks_the_callback_again() {
     let app = client(&relay, Default::default()).await;
     let signer = Arc::new(TestSigner::default());
     app.set_app_signer(Some(signer.clone()));
+    // Stored before `cnx` existed: signed again for its connection.
     let request = AppSignatureRequest {
         request:
             r#"{"id":1,"jsonrpc":"2.0","method":"wc_sessionPing","params":{}}"#
                 .into(),
+        cnx: String::new(),
     };
+    let resigned =
+        AppSignatureRequest { cnx: CONNECTION_ID.into(), ..request.clone() };
     let now = crate::rt::now_ms() / 1000;
     let signed = |exp: u64| {
         format!(
@@ -558,7 +568,7 @@ async fn a_retry_after_the_jwt_expired_asks_the_callback_again() {
         .map(|b| b["appSignature"].as_str().unwrap().to_string())
         .collect();
     // The expired one was signed again, for the same request, and never sent.
-    assert_eq!(signer.seen.lock().unwrap().clone(), vec![request.clone()]);
+    assert_eq!(signer.seen.lock().unwrap().clone(), vec![resigned]);
     assert!(!sent.contains(&expired));
     assert_eq!(sent.len(), 2);
     assert!(sent.contains(&fresh));
@@ -575,4 +585,208 @@ async fn a_retry_after_the_jwt_expired_asks_the_callback_again() {
     app.inner.flush_outbox().await;
     assert_eq!(relay.bodies("POST", &path).len(), 2);
     assert!(app.inner.store.keys("out/").await.unwrap().is_empty());
+}
+
+/// A connected app and wallet: the app signs the proposal when
+/// `signed_proposal`, and every message after.
+struct Connected {
+    relay: Arc<FakeRelay>,
+    app: SignClient,
+    signer: Arc<TestSigner>,
+    wallet: SignClient,
+    events: Arc<Events>,
+}
+
+impl Connected {
+    async fn new(signed_proposal: bool) -> Self {
+        let relay = Arc::new(FakeRelay::default());
+        let app = client(&relay, Default::default()).await;
+        let signer = Arc::new(TestSigner::default());
+        if signed_proposal {
+            app.set_app_signer(Some(signer.clone()));
+        }
+        let uri = app.connect(params(), None).await.unwrap().uri;
+        app.set_app_signer(Some(signer.clone()));
+        let create = relay.bodies("POST", "/v3/connections").remove(0);
+        *relay.fetch.lock().unwrap() = fetched(
+            &create,
+            create.get("appSignature").cloned().unwrap_or(Value::Null),
+            json!({ "origin": "https://app.example" }),
+        );
+        let events = Arc::new(Events::default());
+        let wallet = client(&relay, events.clone()).await;
+        let p = wallet.pair(uri).await.unwrap();
+        let mut accounts = params().required_namespaces;
+        accounts.get_mut("eip155").unwrap().accounts =
+            Some(vec!["eip155:1:0xabc".into()]);
+        wallet.approve(p.id, accounts, None).await.unwrap();
+        let accept = relay
+            .bodies(
+                "PUT",
+                &format!("/v3/connections/{CONNECTION_ID}/acceptance"),
+            )
+            .remove(0);
+        app.inner
+            .handle_events(vec![json!({
+                "type": "connection.established",
+                "connectionId": CONNECTION_ID,
+                "binding": accept["binding"],
+            })])
+            .await
+            .unwrap();
+        Self { relay, app, signer, wallet, events }
+    }
+
+    fn path() -> String {
+        format!("/v3/connections/{CONNECTION_ID}/messages")
+    }
+
+    /// The app sends request #`n` (counting this connection's messages);
+    /// the wallet gets it signed by `iss`, or unsigned. Returns its id.
+    async fn request(&self, n: usize, iss: Option<&str>) -> i64 {
+        let app = self.app.clone();
+        tokio::spawn(async move {
+            let request = RpcRequest {
+                method: "personal_sign".into(),
+                params: format!(r#"["0x{n:02x}","0xabc"]"#),
+            };
+            let _ = app
+                .request(CONNECTION_ID.into(), "eip155:1".into(), request, None)
+                .await;
+        });
+        let sent = self.relay.wait_for("POST", &Self::path(), n).await;
+        let signed = self.signer.seen.lock().unwrap().last().unwrap().clone();
+        let rpc: Value = serde_json::from_str(&signed.request).unwrap();
+        let app_signature = iss.map_or(Value::Null, |iss| {
+            json!(jwt_by(iss, &hash_b64u(signed.request.as_bytes())))
+        });
+        self.wallet
+            .inner
+            .handle_events(vec![json!({
+                "type": "message.received",
+                "connectionId": CONNECTION_ID,
+                "message": sent["message"],
+                "appMetadata": with_signature(&app_signature, json!({ "origin": iss.map(|i| format!("https://{i}")) })),
+            })])
+            .await
+            .unwrap();
+        rpc["id"].as_i64().unwrap()
+    }
+
+    /// The ids of the requests the wallet was shown.
+    fn shown(&self) -> Vec<i64> {
+        self.events
+            .0
+            .lock()
+            .unwrap()
+            .iter()
+            .filter_map(|e| match e {
+                SignEvent::SessionRequest { id, .. } => Some(*id),
+                _ => None,
+            })
+            .collect()
+    }
+
+    fn pin(&self) -> Option<String> {
+        let st = self.wallet.inner.state.try_lock().unwrap();
+        st.conns[CONNECTION_ID].rec.app_domain.clone()
+    }
+
+    /// The pin as stored, so it survives a restart.
+    async fn stored_pin(&self) -> Option<String> {
+        let rec: Option<crate::client::state::ConnRecord> = self
+            .wallet
+            .inner
+            .store
+            .get(&format!("conn/{CONNECTION_ID}"))
+            .await
+            .unwrap();
+        rec.unwrap().app_domain
+    }
+
+    /// The wallet's error reply to the request it got as message #`n`.
+    async fn reply(&self, n: usize) -> Value {
+        let reply = self.relay.wait_for("POST", &Self::path(), n).await;
+        serde_json::from_slice(
+            &from_b64u(reply["message"]["payload"].as_str().unwrap()).unwrap(),
+        )
+        .unwrap()
+    }
+}
+
+#[tokio::test]
+async fn a_signed_proposal_pins_the_session_to_its_domain() {
+    let c = Connected::new(true).await;
+    assert_eq!(c.pin().as_deref(), Some("app.example"));
+    assert_eq!(c.stored_pin().await.as_deref(), Some("app.example"));
+
+    let ok = c.request(1, Some("app.example")).await;
+    assert_eq!(c.shown(), vec![ok]);
+
+    // Unsigned: dropped, reported, answered with an error.
+    let unsigned = c.request(2, None).await;
+    assert_eq!(c.shown(), vec![ok]);
+    let reply = c.reply(3).await;
+    assert_eq!(reply["id"].as_i64(), Some(unsigned));
+    assert_eq!(
+        reply["error"],
+        json!({ "code": -32600, "message": "app_signature_required" })
+    );
+    assert!(c.events.0.lock().unwrap().iter().any(|e| matches!(
+        e,
+        SignEvent::AppSignatureRequired { topic, id, method, domain }
+            if topic == CONNECTION_ID
+                && *id == Some(unsigned)
+                && method.as_deref() == Some("wc_sessionRequest")
+                && domain == "app.example"
+    )));
+
+    // Signed by another domain: dropped too.
+    let other = c.request(4, Some("evil.example")).await;
+    assert_eq!(c.shown(), vec![ok]);
+    let reply = c.reply(5).await;
+    assert_eq!(reply["id"].as_i64(), Some(other));
+    assert_eq!(
+        reply["error"],
+        json!({ "code": -32600, "message": "app_signature_domain_changed" })
+    );
+    assert!(c.events.0.lock().unwrap().iter().any(|e| matches!(
+        e,
+        SignEvent::AppSignatureDomainChanged { topic, id, method, domain, signed_by }
+            if topic == CONNECTION_ID
+                && *id == Some(other)
+                && method.as_deref() == Some("wc_sessionRequest")
+                && domain == "app.example"
+                && signed_by == "evil.example"
+    )));
+    assert_eq!(c.pin().as_deref(), Some("app.example"));
+}
+
+#[tokio::test]
+async fn an_unsigned_session_is_pinned_by_its_first_signed_request() {
+    let c = Connected::new(false).await;
+    assert_eq!(c.pin(), None);
+    let session = c.wallet.sessions().await.remove(0);
+    assert_eq!(session.verification, Some(AppVerification::default()));
+
+    // Before any signature: unsigned requests are shown, unverified.
+    let first = c.request(1, None).await;
+    assert_eq!(c.shown(), vec![first]);
+    assert_eq!(c.pin(), None);
+
+    // The first signed request pins the session, persisted.
+    let signed = c.request(2, Some("app.example")).await;
+    assert_eq!(c.shown(), vec![first, signed]);
+    assert_eq!(c.pin().as_deref(), Some("app.example"));
+    assert_eq!(c.stored_pin().await.as_deref(), Some("app.example"));
+
+    // From then on, unsigned or another domain is dropped.
+    c.request(3, None).await;
+    let reply = c.reply(4).await;
+    assert_eq!(reply["error"]["message"], "app_signature_required");
+    c.request(5, Some("evil.example")).await;
+    let reply = c.reply(6).await;
+    assert_eq!(reply["error"]["message"], "app_signature_domain_changed");
+    let again = c.request(7, Some("app.example")).await;
+    assert_eq!(c.shown(), vec![first, signed, again]);
 }

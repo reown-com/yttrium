@@ -11,6 +11,12 @@
 //!   bytes. They are the bytes the SDK serializes the JSON-RPC object to,
 //!   before any sealing: for a monitored message, exactly the base64url
 //!   decoded `payload`; for a sealed one, the bytes the payload decrypts to.
+//! - `cnx`: the connection the signature is for, see
+//!   [`crate::host::AppSignatureRequest::cnx`]. The Relay checks it; the wallet
+//!   doesn't need to, as it only ever gets a signature the Relay accepted for
+//!   this connection.
+//! - `iss`: the app's domain. The wallet pins a session to the first domain
+//!   that signs on it ([`check_pinned_domain`]).
 //!
 //! No claim covers the ciphertext: the app's backend couldn't check one, and
 //! `sub` already binds the signature to the content. Other claims, such as a
@@ -35,6 +41,8 @@ pub fn hash_b64u(bytes: &[u8]) -> String {
 pub struct AppSignatureClaims {
     pub sub: String,
     pub exp: Option<u64>,
+    /// The app's domain, as the Relay verified it.
+    pub iss: Option<String>,
 }
 
 /// Decodes the JWT's claims without checking its signature: the Relay did.
@@ -49,6 +57,7 @@ pub fn decode_claims(jwt: &str) -> Option<AppSignatureClaims> {
     Some(AppSignatureClaims {
         sub: v.get("sub")?.as_str()?.into(),
         exp: v.get("exp").and_then(Value::as_u64),
+        iss: v.get("iss").and_then(Value::as_str).map(str::to_string),
     })
 }
 
@@ -125,8 +134,10 @@ pub struct AppVerification {
     pub is_similar_to: Option<String>,
 }
 
-/// The JSON-RPC error a wallet answers a mismatched request with:
-/// `{ code: -32600, message: "app_signature_mismatch" }`.
+/// The JSON-RPC error code a wallet answers a request it dropped for its App
+/// Signature with: `{ code: -32600, message }`, `message` being
+/// `app_signature_mismatch`, `app_signature_required` or
+/// `app_signature_domain_changed`.
 pub const APP_SIGNATURE_MISMATCH_CODE: i64 = -32600;
 
 /// The app's signature is not for this message: `sub` differs, or the JWT
@@ -138,6 +149,64 @@ pub struct AppSignatureMismatch;
 /// Is the JWT bound to this plaintext: is `sub` its hash?
 pub fn is_bound(jwt: &str, plaintext: &[u8]) -> bool {
     decode_claims(jwt).is_some_and(|c| c.sub == hash_b64u(plaintext))
+}
+
+/// The domain a received message's App Signature is for: its `iss`. `None`
+/// when unsigned. The Relay only delivers a signature it accepted, so `iss`
+/// is a domain it verified; call it after [`app_verification`] checked `sub`.
+pub fn signed_domain(app_metadata: Option<&Value>) -> Option<String> {
+    let md = app_metadata.and_then(AppMetadata::from_value)?;
+    decode_claims(md.app_signature.as_deref()?)?.iss
+}
+
+/// Why the wallet dropped a request on a session pinned to a domain.
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+pub enum PinnedDomainError {
+    /// Unsigned, on a session pinned to `pinned`:
+    /// `app_signature_required`.
+    #[error("app_signature_required")]
+    Required { pinned: String },
+    /// Signed by `signed_by`, on a session pinned to `pinned`:
+    /// `app_signature_domain_changed`.
+    #[error("app_signature_domain_changed")]
+    DomainChanged { pinned: String, signed_by: String },
+}
+
+impl PinnedDomainError {
+    /// The error code: the JSON-RPC error's `message`, and the event's type.
+    pub fn code(&self) -> &'static str {
+        match self {
+            Self::Required { .. } => "app_signature_required",
+            Self::DomainChanged { .. } => "app_signature_domain_changed",
+        }
+    }
+}
+
+/// Wallet side: a session stays signed. It is pinned to the first domain that
+/// signs on it: the proposal's `iss` if it was signed, else the `iss` of the
+/// first accepted signed request. Once pinned, a request that is unsigned, or
+/// signed for another domain, is refused. Before, an unsigned request passes
+/// (shown as unverified). `signed_by` is the request's [`signed_domain`].
+/// `Ok(true)` when this request pinned the session: persist `pinned`.
+pub fn check_pinned_domain(
+    pinned: &mut Option<String>,
+    signed_by: Option<&str>,
+) -> Result<bool, PinnedDomainError> {
+    match (pinned.as_deref(), signed_by) {
+        (None, None) => Ok(false),
+        (None, Some(domain)) => {
+            *pinned = Some(domain.to_string());
+            Ok(true)
+        }
+        (Some(pin), None) => {
+            Err(PinnedDomainError::Required { pinned: pin.to_string() })
+        }
+        (Some(pin), Some(domain)) if pin == domain => Ok(false),
+        (Some(pin), Some(domain)) => Err(PinnedDomainError::DomainChanged {
+            pinned: pin.to_string(),
+            signed_by: domain.to_string(),
+        }),
+    }
 }
 
 /// `https://app.example.com` → `app.example.com`.
@@ -333,6 +402,60 @@ mod tests {
                 Some("app.example")
             );
         }
+    }
+
+    #[test]
+    fn signed_domain_is_the_iss() {
+        let sig = jwt(json!({ "iss": "app.example", "sub": hash_b64u(RPC) }));
+        assert_eq!(
+            signed_domain(Some(&signed(&sig, json!({})))).as_deref(),
+            Some("app.example")
+        );
+        assert_eq!(
+            signed_domain(Some(&json!({ "origin": "https://a" }))),
+            None
+        );
+        assert_eq!(signed_domain(None), None);
+        let no_iss = jwt(json!({ "sub": hash_b64u(RPC) }));
+        assert_eq!(signed_domain(Some(&signed(&no_iss, json!({})))), None);
+    }
+
+    #[test]
+    fn a_session_is_pinned_to_the_first_signing_domain() {
+        // Unpinned: unsigned passes and pins nothing.
+        let mut pin = None;
+        assert_eq!(check_pinned_domain(&mut pin, None), Ok(false));
+        assert_eq!(pin, None);
+        // The first signed request pins.
+        assert_eq!(
+            check_pinned_domain(&mut pin, Some("app.example")),
+            Ok(true)
+        );
+        assert_eq!(pin.as_deref(), Some("app.example"));
+        // Same domain: passes, nothing new to persist.
+        assert_eq!(
+            check_pinned_domain(&mut pin, Some("app.example")),
+            Ok(false)
+        );
+        // Unsigned once pinned: required.
+        let e = check_pinned_domain(&mut pin, None).unwrap_err();
+        assert_eq!(
+            e,
+            PinnedDomainError::Required { pinned: "app.example".into() }
+        );
+        assert_eq!(e.code(), "app_signature_required");
+        // Another domain: refused, and the pin stays.
+        let e =
+            check_pinned_domain(&mut pin, Some("evil.example")).unwrap_err();
+        assert_eq!(
+            e,
+            PinnedDomainError::DomainChanged {
+                pinned: "app.example".into(),
+                signed_by: "evil.example".into()
+            }
+        );
+        assert_eq!(e.code(), "app_signature_domain_changed");
+        assert_eq!(pin.as_deref(), Some("app.example"));
     }
 
     #[test]
