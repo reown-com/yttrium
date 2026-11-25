@@ -351,13 +351,24 @@ async fn a_failing_callback_fails_the_call_and_sends_nothing() {
 
 #[tokio::test]
 async fn sealed_requests_carry_sub_and_the_wallet_checks_it() {
+    requests_carry_sub_and_the_wallet_checks_it(Mode::Sealed).await;
+}
+
+/// Monitored: the Relay checks `sub` before delivery, and the wallet checks
+/// it again rather than trusting the Relay.
+#[tokio::test]
+async fn monitored_requests_carry_sub_and_the_wallet_checks_it() {
+    requests_carry_sub_and_the_wallet_checks_it(Mode::Monitored).await;
+}
+
+async fn requests_carry_sub_and_the_wallet_checks_it(mode: Mode) {
     let relay = Arc::new(FakeRelay::default());
     let app_events = Arc::new(Events::default());
     let app = client(&relay, app_events.clone()).await;
     let signer = Arc::new(TestSigner::default());
     app.set_app_signer(Some(signer.clone()));
-    let sealed = DappIntent { own: Mode::Sealed, peer: PeerRequirement::None };
-    let uri = app.connect(params(), Some(sealed)).await.unwrap().uri;
+    let intent = DappIntent { own: mode, peer: PeerRequirement::None };
+    let uri = app.connect(params(), Some(intent)).await.unwrap().uri;
     let create = relay.bodies("POST", "/v3/connections").remove(0);
     *relay.fetch.lock().unwrap() =
         fetched(&create, create["appSignature"].clone(), Value::Null);
@@ -407,9 +418,14 @@ async fn sealed_requests_carry_sub_and_the_wallet_checks_it() {
     let payload =
         from_b64u(first["message"]["payload"].as_str().unwrap()).unwrap();
     let seen = signer.seen.lock().unwrap()[1].clone();
-    // Sealed: the callback got the plaintext, which is not what was sent,
-    // and nothing about the ciphertext.
-    assert_ne!(seen.request.as_bytes(), payload.as_slice());
+    if mode == Mode::Sealed {
+        // Sealed: the callback got the plaintext, which is not what was
+        // sent, and nothing about the ciphertext.
+        assert_ne!(seen.request.as_bytes(), payload.as_slice());
+    } else {
+        // Monitored: the callback got exactly the payload bytes sent.
+        assert_eq!(seen.request.as_bytes(), payload.as_slice());
+    }
     let claims =
         decode_claims(first["appSignature"].as_str().unwrap()).unwrap();
     assert_eq!(claims.sub, hash_b64u(seen.request.as_bytes()));
